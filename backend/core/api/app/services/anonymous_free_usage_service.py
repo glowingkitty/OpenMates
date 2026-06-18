@@ -3,7 +3,7 @@
 Coordinates official-cloud anonymous free chat budget configuration, public-safe
 availability metadata, HMAC-based daily identity caps, and request reservation
 accounting. Anonymous callers never receive a credit balance; actual provider
-usage is subtracted from shared daily and weekly budgets.
+usage is subtracted from shared daily, weekly, and monthly budgets.
 """
 
 from __future__ import annotations
@@ -35,6 +35,7 @@ class AnonymousBudgetStatus:
     per_identity_daily_cap_credits: int
     daily_used_credits: int
     weekly_used_credits: int
+    monthly_used_credits: int
     monthly_remaining_credits: int
     daily_remaining_credits: int
     weekly_remaining_credits: int
@@ -128,6 +129,7 @@ class AnonymousFreeUsageService:
             "per_identity_daily_cap_credits": int(per_identity_daily_cap_credits),
             "daily_used_credits": _safe_int((existing or {}).get("daily_used_credits")),
             "weekly_used_credits": _safe_int((existing or {}).get("weekly_used_credits")),
+            "monthly_used_credits": _safe_int((existing or {}).get("monthly_used_credits")),
             "updated_at": now,
             "updated_by_admin_user_id": admin_user_id,
         }
@@ -178,10 +180,14 @@ class AnonymousFreeUsageService:
             status = await self.get_budget_status()
             if not status.enabled or not status.active:
                 reason = status.reason or "inactive"
-                if reason in {"daily_exhausted", "weekly_exhausted"}:
+                if reason in {"daily_exhausted", "weekly_exhausted", "monthly_exhausted"}:
                     reason = "budget_exhausted"
                 return AnonymousReservationResult(accepted=False, request_id=request_id, reason=reason)
-            if estimated_credits > status.daily_remaining_credits or estimated_credits > status.weekly_remaining_credits:
+            if (
+                estimated_credits > status.daily_remaining_credits
+                or estimated_credits > status.weekly_remaining_credits
+                or estimated_credits > status.monthly_remaining_credits
+            ):
                 return AnonymousReservationResult(accepted=False, request_id=request_id, reason="budget_exhausted")
 
             local_hash = self._hmac_identity("local", anonymous_id)
@@ -302,6 +308,7 @@ class AnonymousFreeUsageService:
             {
                 "daily_used_credits": max(0, _safe_int(row.get("daily_used_credits")) + int(delta)),
                 "weekly_used_credits": max(0, _safe_int(row.get("weekly_used_credits")) + int(delta)),
+                "monthly_used_credits": max(0, _safe_int(row.get("monthly_used_credits")) + int(delta)),
                 "updated_at": _now_iso(),
             },
             admin_required=True,
@@ -354,8 +361,9 @@ class AnonymousFreeUsageService:
         weekly_cap = monthly * weekly_percent // 100
         daily_used = _safe_int(row.get("daily_used_credits"))
         weekly_used = _safe_int(row.get("weekly_used_credits"))
+        monthly_used = _safe_int(row.get("monthly_used_credits"))
         per_identity_cap = _safe_int(row.get("per_identity_daily_cap_credits"))
-        monthly_remaining = max(0, monthly - weekly_used)
+        monthly_remaining = max(0, monthly - monthly_used)
         daily_remaining = max(0, daily_cap - daily_used)
         weekly_remaining = max(0, weekly_cap - weekly_used)
         enabled = bool(row.get("enabled", False))
@@ -368,6 +376,8 @@ class AnonymousFreeUsageService:
             reason = "daily_exhausted"
         elif weekly_remaining < 1:
             reason = "weekly_exhausted"
+        elif monthly_remaining < 1:
+            reason = "monthly_exhausted"
         return AnonymousBudgetStatus(
             enabled=enabled,
             monthly_budget_credits=monthly,
@@ -378,6 +388,7 @@ class AnonymousFreeUsageService:
             per_identity_daily_cap_credits=per_identity_cap,
             daily_used_credits=daily_used,
             weekly_used_credits=weekly_used,
+            monthly_used_credits=monthly_used,
             monthly_remaining_credits=monthly_remaining,
             daily_remaining_credits=daily_remaining,
             weekly_remaining_credits=weekly_remaining,

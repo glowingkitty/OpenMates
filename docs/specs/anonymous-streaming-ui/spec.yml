@@ -1,6 +1,6 @@
 id: anonymous-streaming-ui
 title: Anonymous Streaming UI Parity
-status: draft
+status: approved
 
 goal: >
   Make unauthenticated anonymous chat use the same frontend messaging pipeline,
@@ -96,6 +96,14 @@ clarification:
       answer: The backend endpoint may be different and billing must charge virtual anonymous budgets instead of a regular user balance. Anonymous file uploads and connected-account features remain signup-gated.
     - question: Should anonymous billing charge global daily, weekly, and monthly anonymous credit amounts?
       answer: Yes. Actual usage should count against per-identity virtual balance, HMAC IP daily cap, global daily cap, global weekly cap, and global monthly anonymous budget/usage. It must not debit a regular user balance.
+    - question: What is the approved simple accounting model for authenticated versus anonymous requests?
+      answer: >
+        Authenticated requests charge only the authenticated user's credit bucket.
+        Anonymous requests charge all required virtual buckets atomically: anonymous
+        identity daily, anonymous IP daily, global daily, global weekly, and global
+        monthly. If any bucket lacks enough credits, reject before inference. Daily
+        identity/IP/global buckets reset daily, weekly resets weekly, and monthly
+        resets monthly.
   vision_summary: >
     A logged-out eligible user should experience anonymous chat as real OpenMates chat, not as a delayed one-shot demo. The UI should be driven by the same streaming event reducer and component state as authenticated chat, while anonymous-specific code is limited to transport, local encrypted storage, eligibility, signup gating, and virtual budget accounting.
   approved_by_user: true
@@ -187,7 +195,7 @@ scenarios:
       - The per-IP daily used counter increases by 125 when different from the local identity hash.
       - The global daily used counter increases by 125.
       - The global weekly used counter increases by 125.
-      - The global monthly used counter or equivalent monthly remaining ledger increases/decreases by 125 according to the final accounting design.
+      - The global monthly used counter increases by 125.
       - No authenticated user credit balance is debited or credited.
 
   - id: S-8
@@ -296,7 +304,9 @@ contracts:
     - Anonymous metadata and messages are encrypted with normal per-chat keys wrapped by the anonymous session key until signup.
     - Anonymous local embed records or inline fallback records must be scoped to the anonymous chat and purged with anonymous data.
     - Anonymous budget reservations must include request_id, local_id_hash, ip_hash, reserved_credits, finalized_credits, status, created_at, expires_at, and updated_at.
-    - Anonymous global budget must track enough fields to enforce and reconcile daily, weekly, and monthly budgets. If monthly usage is currently derived from weekly usage, implementation planning must either add an explicit monthly used counter or document and test the equivalent monthly remaining ledger.
+    - Anonymous accounting uses virtual credit buckets. A request is accepted only when every required bucket can reserve the estimate atomically. Finalization applies the same actual-credit delta to every reserved bucket exactly once.
+    - Required anonymous buckets are anonymous identity daily, anonymous IP daily, anonymous global daily, anonymous global weekly, and anonymous global monthly.
+    - Daily buckets reset by date, weekly buckets reset by ISO week, and monthly buckets reset by year-month window. Reservation history remains available for audit/reconciliation.
   ui_states:
     - New chat creation header animation.
     - Sending/pre-processing overlay.
@@ -673,5 +683,4 @@ risks:
   - E2E mocks can hide real streaming regressions unless at least one test observes multiple chunks before final completion.
 
 open_questions:
-  - Should the implementation add an explicit `monthly_used_credits` field, or define monthly remaining as the sum of finalized reservations in the current monthly window plus open reservations?
-  - Should the first implementation slice use true backend streaming immediately, or use a stream-event adapter over a final JSON response as a temporary bridge while preserving the frontend event/reducer contract?
+  - none

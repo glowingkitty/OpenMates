@@ -238,7 +238,7 @@ async def test_admin_budget_update_failure_does_not_return_synthetic_success() -
 
 
 @pytest.mark.asyncio
-async def test_finalize_charges_decrement_daily_weekly_without_credit_balance() -> None:
+async def test_finalize_charges_decrement_daily_weekly_monthly_without_credit_balance() -> None:
     service, directus = make_service()
     await service.save_budget(
         enabled=True,
@@ -261,8 +261,38 @@ async def test_finalize_charges_decrement_daily_weekly_without_credit_balance() 
     assert reservation.accepted is True
     assert status.daily_used_credits == 125
     assert status.weekly_used_credits == 125
+    assert status.monthly_used_credits == 125
+    assert status.monthly_remaining_credits == 59_875
     assert directus.budget is not None
     assert "credits_sold" not in directus.budget
+
+
+@pytest.mark.asyncio
+async def test_reservation_rejects_when_monthly_bucket_is_exhausted() -> None:
+    service, directus = make_service()
+    await service.save_budget(
+        enabled=True,
+        monthly_budget_credits=100,
+        daily_hard_cap_percent=100,
+        weekly_cap_percent=100,
+        per_identity_daily_cap_credits=400,
+        admin_user_id="admin-1",
+    )
+    assert directus.budget is not None
+    directus.budget["monthly_used_credits"] = 95
+
+    rejected = await service.reserve_budget(
+        request_id="request-monthly",
+        anonymous_id="anon-1",
+        ip_address="203.0.113.7",
+        estimated_credits=10,
+    )
+
+    assert rejected.accepted is False
+    assert rejected.reason == "budget_exhausted"
+    assert directus.budget["daily_used_credits"] == 0
+    assert directus.budget["weekly_used_credits"] == 0
+    assert directus.budget["monthly_used_credits"] == 95
 
 
 @pytest.mark.asyncio

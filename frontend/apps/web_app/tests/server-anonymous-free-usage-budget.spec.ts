@@ -31,6 +31,7 @@ type BudgetResponse = {
 	per_identity_daily_cap_credits: number;
 	daily_used_credits: number;
 	weekly_used_credits: number;
+	monthly_used_credits: number;
 	monthly_remaining_credits: number;
 	daily_remaining_credits: number;
 	weekly_remaining_credits: number;
@@ -108,6 +109,7 @@ async function mockBudgetEndpoint(page: any) {
 		per_identity_daily_cap_credits: 400,
 		daily_used_credits: 0,
 		weekly_used_credits: 0,
+		monthly_used_credits: 0,
 		monthly_remaining_credits: 0,
 		daily_remaining_credits: 0,
 		weekly_remaining_credits: 0,
@@ -136,6 +138,7 @@ async function mockBudgetEndpoint(page: any) {
 				per_identity_daily_cap_credits: Number(lastPutBody?.per_identity_daily_cap_credits ?? 0),
 				daily_used_credits: 0,
 				weekly_used_credits: 0,
+				monthly_used_credits: 0,
 				monthly_remaining_credits: monthly,
 				daily_remaining_credits: dailyCap,
 				weekly_remaining_credits: weeklyCap,

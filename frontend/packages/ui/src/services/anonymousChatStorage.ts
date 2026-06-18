@@ -11,10 +11,12 @@ import { get } from "svelte/store";
 
 import { getApiEndpoint } from "../config/api";
 import { text } from "../i18n/translations";
-import type { Chat, Message } from "../types/chat";
+import type { AIMessageUpdatePayload, AITaskInitiatedPayload, AITypingStartedPayload, Chat, Message } from "../types/chat";
+import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { decryptWithChatKey, encryptWithChatKey } from "./cryptoService";
+import { chatSyncService } from "./chatSyncService";
 import {
   clearAnonymousSessionKey,
   ensureAnonymousSessionKey,
@@ -29,6 +31,7 @@ const ANONYMOUS_CHAT_PREFIX = "anonymous-";
 const ANONYMOUS_FEATURE_NOTICE_KEY = "chat.anonymous_free_usage.feature_notice";
 const DEFAULT_ANONYMOUS_CATEGORY = "general_knowledge";
 const DEFAULT_ANONYMOUS_ICON = "sparkles";
+const ANONYMOUS_STREAM_ADAPTER_MAX_CHUNKS = 18;
 const MESSAGE_ROLE_ORDER: Record<string, number> = {
   system: 0,
   user: 1,
@@ -43,6 +46,22 @@ interface AnonymousChatResponse {
   category?: string | null;
   modelName?: string | null;
   detail?: { code?: string; message?: string } | string;
+}
+
+function buildAnonymousTaskId(userMessageId: string): string {
+  return `anonymous-task-${userMessageId}`;
+}
+
+function splitAnonymousResponseForAdapter(content: string): string[] {
+  if (!content) return [""];
+  const chunkCount = Math.min(ANONYMOUS_STREAM_ADAPTER_MAX_CHUNKS, Math.max(1, Math.ceil(content.length / 48)));
+  const chunkSize = Math.ceil(content.length / chunkCount);
+  const chunks: string[] = [];
+  for (let end = chunkSize; end < content.length; end += chunkSize) {
+    chunks.push(content.slice(0, end));
+  }
+  chunks.push(content);
+  return chunks;
 }
 
 export interface AnonymousSendResult {
@@ -269,6 +288,8 @@ class AnonymousChatStorage {
       isNewChat,
     });
 
+    this.dispatchAnonymousTaskInitiated(chatId, userMessage.message_id);
+
     let response: AnonymousChatResponse;
     try {
       response = await this.postAnonymousChat(chatId, userMessage.message_id, params.markdown, previousMessages);
@@ -302,12 +323,25 @@ class AnonymousChatStorage {
     });
 
     await chatDB.saveMessage(syncedUserMessage);
-    await chatDB.saveMessage(assistantMessage);
     await chatDB.addChat(stripPlainChatFields(updatedChat));
     window.dispatchEvent(new CustomEvent("anonymousChatsUpdated"));
 
+    const hydratedUpdatedChat = await this.hydrateAnonymousChat(updatedChat);
+    chatSyncService.dispatchEvent(new CustomEvent("chatUpdated", {
+      detail: { chat_id: chatId, chat: hydratedUpdatedChat, type: "metadata_updated" },
+    }));
+    await this.dispatchAnonymousAssistantLifecycle({
+      chat: hydratedUpdatedChat,
+      userMessage: syncedUserMessage,
+      assistantMessage,
+      category: response.category ?? chat.category ?? DEFAULT_ANONYMOUS_CATEGORY,
+      modelName: response.modelName ?? null,
+    });
+
+    await chatDB.saveMessage(assistantMessage);
+
     return {
-      chat: await this.hydrateAnonymousChat(updatedChat),
+      chat: hydratedUpdatedChat,
       userMessage: syncedUserMessage,
       assistantMessage,
       isNewChat,
@@ -443,6 +477,81 @@ class AnonymousChatStorage {
       throw new Error(message);
     }
     return data;
+  }
+
+  private dispatchAnonymousTaskInitiated(chatId: string, userMessageId: string): void {
+    const payload: AITaskInitiatedPayload = {
+      chat_id: chatId,
+      user_message_id: userMessageId,
+      ai_task_id: buildAnonymousTaskId(userMessageId),
+      status: "processing_started",
+    };
+    chatSyncService.activeAITasks.set(chatId, {
+      taskId: payload.ai_task_id,
+      userMessageId,
+    });
+    chatSyncService.dispatchEvent(new CustomEvent("aiTaskInitiated", { detail: payload }));
+  }
+
+  private async dispatchAnonymousAssistantLifecycle(params: {
+    chat: Chat;
+    userMessage: Message;
+    assistantMessage: Message;
+    category: string;
+    modelName: string | null;
+  }): Promise<void> {
+    const taskId = buildAnonymousTaskId(params.userMessage.message_id);
+    const iconNames = params.chat.icon
+      ? params.chat.icon.split(",").map((icon) => icon.trim()).filter(Boolean)
+      : [DEFAULT_ANONYMOUS_ICON];
+    const typingPayload: AITypingStartedPayload = {
+      chat_id: params.chat.chat_id,
+      message_id: params.assistantMessage.message_id,
+      user_message_id: params.userMessage.message_id,
+      category: params.category,
+      model_name: params.modelName,
+      provider_name: null,
+      server_region: null,
+      title: typeof params.chat.title === "string" ? params.chat.title : null,
+      icon_names: iconNames.length > 0 ? iconNames : [DEFAULT_ANONYMOUS_ICON],
+      task_id: taskId,
+    };
+
+    aiTypingStore.setTyping(
+      typingPayload.chat_id,
+      typingPayload.user_message_id,
+      typingPayload.message_id,
+      typingPayload.category,
+      typingPayload.model_name,
+      typingPayload.provider_name,
+      typingPayload.server_region,
+      typingPayload.icon_names,
+    );
+    chatSyncService.dispatchEvent(new CustomEvent("aiTypingStarted", { detail: typingPayload }));
+
+    const chunks = splitAnonymousResponseForAdapter(params.assistantMessage.content ?? "");
+    for (let index = 0; index < chunks.length; index += 1) {
+      const isFinal = index === chunks.length - 1;
+      const payload: AIMessageUpdatePayload = {
+        type: "ai_message_chunk",
+        task_id: taskId,
+        chat_id: params.chat.chat_id,
+        message_id: params.assistantMessage.message_id,
+        user_message_id: params.userMessage.message_id,
+        full_content_so_far: chunks[index],
+        sequence: index + 1,
+        is_final_chunk: isFinal,
+        model_name: params.modelName,
+      };
+      chatSyncService.dispatchEvent(new CustomEvent("aiMessageChunk", { detail: payload }));
+      await Promise.resolve();
+    }
+
+    aiTypingStore.clearTyping(params.chat.chat_id, params.assistantMessage.message_id);
+    chatSyncService.activeAITasks.delete(params.chat.chat_id);
+    chatSyncService.dispatchEvent(new CustomEvent("aiTaskEnded", {
+      detail: { chatId: params.chat.chat_id, taskId, status: "completed" },
+    }));
   }
 
   getAnonymousId(): string {

@@ -21,6 +21,16 @@ vi.mock("../../i18n/translations", () => ({
   },
 }));
 
+const mockChatSyncService = vi.hoisted(() => ({
+  activeAITasks: new Map<string, { taskId: string; userMessageId: string }>(),
+  dispatchEvent: vi.fn((_event: Event) => true),
+}));
+
+const mockAiTypingStore = vi.hoisted(() => ({
+  setTyping: vi.fn(),
+  clearTyping: vi.fn(),
+}));
+
 const mockDbState = vi.hoisted(() => ({
   chats: new Map<string, Chat>(),
   messages: new Map<string, Message[]>(),
@@ -74,6 +84,8 @@ const mockChatKeyManager = vi.hoisted(() => ({
 }));
 
 vi.mock("../db", () => ({ chatDB: mockChatDB }));
+vi.mock("../chatSyncService", () => ({ chatSyncService: mockChatSyncService }));
+vi.mock("../../stores/aiTypingStore", () => ({ aiTypingStore: mockAiTypingStore }));
 vi.mock("../encryption/ChatKeyManager", () => ({ chatKeyManager: mockChatKeyManager }));
 vi.mock("../cryptoService", () => ({
   encryptWithChatKey: vi.fn(async (value: string) => `encrypted:${value}`),
@@ -147,6 +159,10 @@ describe("anonymousChatStorage", () => {
     mockDbState.messages.clear();
     mockKeyState.keys.clear();
     mockKeyState.hasAnonymousSession = false;
+    mockChatSyncService.activeAITasks.clear();
+    mockChatSyncService.dispatchEvent.mockClear();
+    mockAiTypingStore.setTyping.mockClear();
+    mockAiTypingStore.clearTyping.mockClear();
     let uuidCounter = 0;
     vi.spyOn(crypto, "randomUUID").mockImplementation(() => {
       uuidCounter += 1;
@@ -231,6 +247,54 @@ describe("anonymousChatStorage", () => {
     expect(messages.find((message) => message.role === "assistant")?.message_id).not.toBe(
       messages.find((message) => message.role === "user")?.message_id,
     );
+  });
+
+  it("emits the regular chat sync streaming lifecycle for anonymous responses", async () => {
+    mockAnonymousFetch({
+      messageId: "assistant-message",
+      assistant: "Streaming anonymous answer",
+      category: "general_knowledge",
+      modelName: "test-model",
+    });
+    const storage = await loadStorage();
+
+    await storage.sendTextMessage({ markdown: "Use the normal pipeline" });
+
+    const events = mockChatSyncService.dispatchEvent.mock.calls.map(([event]) => event as CustomEvent);
+    expect(events.map((event) => event.type)).toEqual(
+      expect.arrayContaining(["aiTaskInitiated", "chatUpdated", "aiTypingStarted", "aiMessageChunk"]),
+    );
+
+    const taskEvent = events.find((event) => event.type === "aiTaskInitiated");
+    expect(taskEvent?.detail).toEqual(expect.objectContaining({ status: "processing_started" }));
+
+    const typingEvent = events.find((event) => event.type === "aiTypingStarted");
+    expect(typingEvent?.detail).toEqual(expect.objectContaining({
+      message_id: "assistant-message",
+      category: "general_knowledge",
+      model_name: "test-model",
+    }));
+    expect(mockAiTypingStore.setTyping).toHaveBeenCalledWith(
+      expect.stringMatching(/^anonymous-/),
+      expect.any(String),
+      "assistant-message",
+      "general_knowledge",
+      "test-model",
+      null,
+      null,
+      ["sparkles"],
+    );
+
+    const chunkEvents = events.filter((event) => event.type === "aiMessageChunk");
+    expect(chunkEvents.length).toBeGreaterThanOrEqual(1);
+    expect(chunkEvents.at(-1)?.detail).toEqual(expect.objectContaining({
+      type: "ai_message_chunk",
+      message_id: "assistant-message",
+      full_content_so_far: "Streaming anonymous answer",
+      is_final_chunk: true,
+      model_name: "test-model",
+    }));
+    expect(mockAiTypingStore.clearTyping).toHaveBeenCalledWith(expect.stringMatching(/^anonymous-/), "assistant-message");
   });
 
   it("orders same-second anonymous request history by conversation turn", async () => {

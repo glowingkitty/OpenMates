@@ -353,11 +353,13 @@ test.describe('Anonymous free chat', () => {
 		await expect(
 			page.getByTestId('message-user').filter({ hasText: 'Slow anonymous stream should still show my message' })
 		).toBeVisible({ timeout: 2000 });
+		await expect(page.getByTestId('typing-indicator')).toBeVisible({ timeout: 3000 });
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Delayed anonymous answer 1' })).toHaveCount(0);
 
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Delayed anonymous answer 1' })).toBeVisible({
 			timeout: 10000
 		});
+		await expect(page.getByTestId('typing-indicator')).toHaveCount(0, { timeout: 5000 });
 
 		const anonymousState = await getAnonymousIndexedDbState(page);
 		const activeAnonymousMessages = anonymousState.anonymousMessages.filter(

@@ -1196,7 +1196,7 @@ export async function handleSend(
 
   try {
     if (!get(authStore).isAuthenticated) {
-      const anonymousResult = await anonymousChatStorage.sendTextMessage({
+      await anonymousChatStorage.sendTextMessage({
         markdown,
         currentChatId,
         sourceDemoId: currentChatId && isPublicChat(currentChatId) ? currentChatId : null,
@@ -1210,7 +1210,6 @@ export async function handleSend(
           });
         },
       });
-      dispatch("anonymousAssistantMessage", { result: anonymousResult });
       void refreshAnonymousFreeUsageStatus();
       return;
     }

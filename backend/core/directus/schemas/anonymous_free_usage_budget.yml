@@ -46,6 +46,11 @@ anonymous_free_usage_budget:
       default: 0
       note: "Reserved/finalized anonymous credits consumed in the current UTC week."
 
+    monthly_used_credits:
+      type: integer
+      default: 0
+      note: "Reserved/finalized anonymous credits consumed in the current UTC month."
+
     updated_by_admin_user_id:
       type: string
       length: 128

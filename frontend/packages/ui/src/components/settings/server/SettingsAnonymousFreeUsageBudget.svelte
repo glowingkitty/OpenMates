@@ -31,6 +31,7 @@
         per_identity_daily_cap_credits: number;
         daily_used_credits: number;
         weekly_used_credits: number;
+        monthly_used_credits: number;
         monthly_remaining_credits: number;
         daily_remaining_credits: number;
         weekly_remaining_credits: number;

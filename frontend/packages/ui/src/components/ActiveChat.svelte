@@ -94,7 +94,7 @@
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
-    import { anonymousChatStorage, type AnonymousSendResult } from '../services/anonymousChatStorage';
+    import { anonymousChatStorage } from '../services/anonymousChatStorage';
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
     import { setEmbedPIIState, resetEmbedPIIState } from '../stores/embedPIIStore'; // Update embed PII state for preview/fullscreen components
@@ -5291,7 +5291,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         `content_length: ${messageToSave.content.length} chars`
                     );
                     console.debug(`[ActiveChat] About to save message with model_name: "${messageToSave.model_name}" for message ${messageToSave.message_id}`);
-                    await chatDB.saveMessage(messageToSave); // saveMessage handles both add and update
+                    await saveMessageToCurrentStorage(messageToSave); // saveMessage handles both add and update
                     const saveDuration = performance.now() - saveStartTime;
                     console.log(
                         `[ActiveChat] ✅ DB SAVE COMPLETE | ` +
@@ -5436,7 +5436,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     await incognitoChatService.storeMessages(updatedUserMessage.chat_id, existingMessages);
                                 }
                             } else {
-                                await chatDB.saveMessage(updatedUserMessage);
+                                await saveMessageToCurrentStorage(updatedUserMessage);
                             }
                             console.debug('[ActiveChat] Updated user message status to synced:', updatedUserMessage.message_id);
                             
@@ -5513,7 +5513,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             existingMessage.thinking_token_count !== updatedFinalMessage.thinking_token_count ||
                             existingMessage.has_thinking !== updatedFinalMessage.has_thinking;
                         if (shouldSaveFinalMessage) {
-                            await chatDB.saveMessage(updatedFinalMessage);
+                            await saveMessageToCurrentStorage(updatedFinalMessage);
                         } else {
                             console.debug('[ActiveChat] Final AI message already persisted, skipping save');
                         }
@@ -6018,50 +6018,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // For now, we assume sendHandlers.ts and chatSyncService.sendNewMessage handle their DB ops.
     }
 
-    function normalizeAnonymousMessage(message: ChatMessageModel): ChatMessageModel {
-        return {
-            ...message,
-            id: (message as ChatMessageModel & { id?: string }).id ?? message.message_id,
-            original_message: message.original_message ?? message,
-        } as ChatMessageModel;
+    function shouldUseAnonymousStorage(message: ChatMessageModel): boolean {
+        return !!currentChat?.is_anonymous || message.chat_id.startsWith('anonymous-');
     }
 
-    async function handleAnonymousAssistantMessage(event: CustomEvent<{ result: AnonymousSendResult }>) {
-        const { chat, userMessage, assistantMessage } = event.detail.result;
-        currentChat = chat;
-        activeChatStore.setActiveChat(chat.chat_id);
-        activeChatDecryptedTitle = typeof chat.title === 'string' ? chat.title : activeChatDecryptedTitle;
-        activeChatDecryptedCategory = chat.category ?? assistantMessage.category ?? activeChatDecryptedCategory;
-        activeChatDecryptedIcon = chat.icon ? chat.icon.split(',')[0]?.trim() || null : activeChatDecryptedIcon;
-        activeChatDecryptedSummary = null;
-        isNewChatGeneratingTitle = false;
-        isNewChatProcessing = false;
-        processingPhase = null;
-
-        const storedMessages = await anonymousChatStorage.getMessagesForChat(chat.chat_id).catch(error => {
-            console.warn('[ActiveChat] Failed to reload anonymous messages after send:', error);
-            return [];
-        });
-        if (storedMessages.length > 0) {
-            const mergedMessages = [...storedMessages];
-            if (!mergedMessages.some(m => m.message_id === userMessage.message_id)) {
-                mergedMessages.push(userMessage);
-            }
-            if (!mergedMessages.some(m => m.message_id === assistantMessage.message_id)) {
-                mergedMessages.push(assistantMessage);
-            }
-            currentMessages = mergedMessages.map(normalizeAnonymousMessage);
-        } else {
-            const existingWithoutUser = currentMessages.filter(m => m.message_id !== userMessage.message_id);
-            const existingWithoutAssistant = existingWithoutUser.filter(m => m.message_id !== assistantMessage.message_id);
-            currentMessages = [...existingWithoutAssistant, userMessage, assistantMessage].map(normalizeAnonymousMessage);
+    async function saveMessageToCurrentStorage(message: ChatMessageModel): Promise<void> {
+        const plainMessage = $state.snapshot(message) as ChatMessageModel;
+        if (shouldUseAnonymousStorage(plainMessage)) {
+            await anonymousChatStorage.storeMessages(plainMessage.chat_id, [plainMessage]);
+            return;
         }
-        chatListCache.upsertChat(chat);
-        chatListCache.setLastMessage(chat.chat_id, assistantMessage);
-        updateNavFromCache(chat.chat_id);
-        window.dispatchEvent(new CustomEvent('localChatListChanged', { detail: { chat_id: chat.chat_id } }));
-        messageInputFieldRef?.setDraftContent(chat.chat_id, null, chat.draft_v ?? 0, false);
-        chatHistoryRef?.updateMessages(currentMessages);
+        await chatDB.saveMessage(plainMessage);
     }
 
     async function handleNewChatCreationCancelled(event: CustomEvent) {
@@ -9755,7 +9722,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // in sessionStorage via incognitoChatService, not in IndexedDB).
                     if (!currentChat?.is_incognito) {
                         try {
-                            await chatDB.saveMessage(updatedMessage);
+                            await saveMessageToCurrentStorage(updatedMessage);
                         } catch (error) {
                             console.error('[ActiveChat] Error updating user message status to processing in DB:', error);
                         }
@@ -9803,7 +9770,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         const finalized = { ...msg, status: 'synced' as const };
                         currentMessages[i] = finalized;
                         needsUpdate = true;
-                        chatDB.saveMessage(finalized).catch(err => {
+                        saveMessageToCurrentStorage(finalized).catch(err => {
                             console.error(`[ActiveChat] aiTaskEndedHandler: Failed to save finalized message ${msg.message_id}:`, err);
                         });
                         console.info(`[ActiveChat] aiTaskEndedHandler: Finalized streaming message ${msg.message_id} → synced (task status: ${event.detail.status ?? 'unknown'})`);
@@ -9820,7 +9787,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 }
 
                 // Persist partial responses to server for cross-device sync (non-incognito only)
-                if (messagesToPersist.length > 0 && !currentChat?.is_incognito) {
+                if (messagesToPersist.length > 0 && !currentChat?.is_incognito && !currentChat?.is_anonymous) {
                     for (const msg of messagesToPersist) {
                         try {
                             console.info(`[ActiveChat] aiTaskEndedHandler: Persisting partial AI response to server (cancel) — message_id: ${msg.message_id}, contentLength: ${msg.content?.length ?? 0}`);
@@ -9908,7 +9875,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         try {
                             // $state.snapshot() converts the Svelte proxy to a plain object —
                             // IndexedDB structured clone cannot serialize $state proxies (DataCloneError).
-                            await chatDB.saveMessage($state.snapshot(updatedMessage) as ChatMessageModel);
+                            await saveMessageToCurrentStorage(updatedMessage);
                         } catch (error) {
                             console.error('[ActiveChat] Error updating user message status to synced in DB:', error);
                         }
@@ -10256,7 +10223,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         currentMessages[msgIndex] = finalized;
                     }
                     try {
-                        await chatDB.saveMessage(finalized);
+                        await saveMessageToCurrentStorage(finalized);
                         console.info(`[ActiveChat] Finalized interrupted ${msg.status} message ${msg.message_id} (${msg.content?.length || 0} chars saved)`);
                     } catch (error) {
                         console.error(`[ActiveChat] Error finalizing interrupted message ${msg.message_id}:`, error);
@@ -11585,7 +11552,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     on:pdffullscreen={handlePdfFullscreen}
                                     on:recordingfullscreen={handleRecordingFullscreen}
                                     on:sendMessage={handleSendMessage}
-                                    on:anonymousAssistantMessage={handleAnonymousAssistantMessage}
                                     on:newChatCreationCancelled={handleNewChatCreationCancelled}
                                     on:startNewChat={handleNewChatClick}
                                     on:heightchange={handleInputHeightChange}
