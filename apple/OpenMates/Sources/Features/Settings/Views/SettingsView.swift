@@ -535,7 +535,7 @@ struct SettingsView: View {
         case .apps:
             SettingsAppsFullView(onOpenExampleChat: onOpenExampleChat ?? { _ in })
         default:
-            destination.view
+            destination.view(reportIssuePrefill: activeReportIssuePrefill)
         }
     }
 
@@ -757,7 +757,7 @@ struct SettingsView: View {
         }
 
         @ViewBuilder
-        var view: some View {
+        func view(reportIssuePrefill: ReportIssuePrefill? = nil) -> some View {
             switch self {
             case .pricing: SettingsPricingView()
             case .ai: SettingsAIFullView()
@@ -774,8 +774,8 @@ struct SettingsView: View {
             case .newsletter: NewsletterSettingsView()
             case .support: SettingsSupportView()
             case .reportIssue:
-                ReportIssueView(prefill: activeReportIssuePrefill)
-                    .id(activeReportIssuePrefill?.id)
+                ReportIssueView(prefill: reportIssuePrefill)
+                    .id(reportIssuePrefill?.id)
             case .serverConnection: SettingsServerConnectionView()
             case .server: SettingsServerView()
             case .logs: SettingsLogsView()
