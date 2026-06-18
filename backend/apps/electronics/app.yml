@@ -48,6 +48,7 @@ embed_types:
     i18n_namespace: embeds.electronics.pcb_schematic
     content_catalog:
       enabled: true
+      diff_editable: true
       content_type_id: schematic
       name: PCB schematic
       description: Source-first Atopile PCB schematics with E2B compile artifacts for board preparation.

@@ -23,6 +23,7 @@ embed_types:
     i18n_namespace: embeds.sheets.sheet
     content_catalog:
       enabled: true
+      diff_editable: true
       content_type_id: sheet
       name: Spreadsheet
       description: Tables and spreadsheet-style artifacts created from markdown table content.

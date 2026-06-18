@@ -14,7 +14,10 @@ import os
 import copy
 import hashlib
 import time
+from functools import lru_cache
+from pathlib import Path
 from toon_format import encode
+import yaml
 
 # Import Pydantic models for type hinting
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
@@ -84,7 +87,25 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits, M
 
 logger = logging.getLogger(__name__)
 
-_DIFFABLE_EMBED_TYPE_RE = re.compile(r"\btype\s*:\s*(code|document|sheet|mail)\b", re.IGNORECASE)
+_FALLBACK_DIFF_EDITABLE_EMBED_TYPES = frozenset({
+    "code",
+    "code-code",
+    "document",
+    "docs-doc",
+    "email",
+    "mail",
+    "mail-email",
+    "mermaid",
+    "diagrams-mermaid",
+    "pcb_schematic",
+    "schematic",
+    "electronics-pcb-schematic",
+    "sheet",
+})
+_TYPE_MARKER_RE = re.compile(
+    r'(?:(?:"type"|"embed_type")\s*:\s*"([^"\n]+)"|\b(?:type|embed_type)\s*:\s*([A-Za-z0-9_-]+))',
+    re.IGNORECASE,
+)
 
 
 def _message_content(message: Any) -> Optional[str]:
@@ -94,17 +115,110 @@ def _message_content(message: Any) -> Optional[str]:
     return content if isinstance(content, str) else None
 
 
-def _embed_data_has_diffable_type(embed_data: Any) -> bool:
+def _metadata_value(item: Any, field_name: str) -> Any:
+    if isinstance(item, dict):
+        return item.get(field_name)
+    return getattr(item, field_name, None)
+
+
+def _add_embed_type_identifier(diffable_types: set[str], value: Any) -> None:
+    if isinstance(value, str) and value.strip():
+        diffable_types.add(value.strip().lower())
+
+
+def _diffable_embed_types_from_apps_metadata(apps_metadata: Any) -> set[str]:
+    diffable_types: set[str] = set()
+    if not isinstance(apps_metadata, dict):
+        return diffable_types
+
+    for app_metadata in apps_metadata.values():
+        for embed_type_def in _metadata_value(app_metadata, "embed_types") or []:
+            content_catalog = _metadata_value(embed_type_def, "content_catalog") or {}
+            if not isinstance(content_catalog, dict):
+                continue
+            if not content_catalog.get("enabled") or not content_catalog.get("diff_editable"):
+                continue
+            _add_embed_type_identifier(diffable_types, _metadata_value(embed_type_def, "id"))
+            _add_embed_type_identifier(diffable_types, _metadata_value(embed_type_def, "backend_type"))
+            _add_embed_type_identifier(diffable_types, _metadata_value(embed_type_def, "frontend_type"))
+            _add_embed_type_identifier(diffable_types, content_catalog.get("content_type_id"))
+    return diffable_types
+
+
+@lru_cache(maxsize=1)
+def _diffable_embed_types_from_shared_config() -> set[str]:
+    diffable_types: set[str] = set()
+    shared_config_path = Path(__file__).resolve().parents[4] / "shared/config/embed_types.yml"
+    try:
+        shared_config = yaml.safe_load(shared_config_path.read_text(encoding="utf-8")) or {}
+    except Exception as exc:
+        logger.warning(f"[DIFF_PROMPT] Could not read shared embed type metadata: {exc}", exc_info=True)
+        return diffable_types
+
+    for embed_type_def in shared_config.get("embed_types", []):
+        content_catalog = embed_type_def.get("content_catalog") or {}
+        if not content_catalog.get("enabled") or not content_catalog.get("diff_editable"):
+            continue
+        _add_embed_type_identifier(diffable_types, embed_type_def.get("id"))
+        _add_embed_type_identifier(diffable_types, embed_type_def.get("backend_type"))
+        _add_embed_type_identifier(diffable_types, embed_type_def.get("frontend_type"))
+        _add_embed_type_identifier(diffable_types, content_catalog.get("content_type_id"))
+    return diffable_types
+
+
+async def _get_diffable_embed_types(
+    cache_service: Optional[CacheService],
+    log_prefix: str,
+) -> set[str]:
+    diffable_types = set(_FALLBACK_DIFF_EDITABLE_EMBED_TYPES)
+    diffable_types.update(_diffable_embed_types_from_shared_config())
+    get_discovered_apps_metadata = getattr(cache_service, "get_discovered_apps_metadata", None)
+    if not callable(get_discovered_apps_metadata):
+        return diffable_types
+
+    try:
+        apps_metadata = await get_discovered_apps_metadata()
+    except Exception as exc:
+        logger.warning(
+            f"{log_prefix} [DIFF_PROMPT] Could not read app metadata for "
+            f"diff-editable embed types: {exc}",
+            exc_info=True,
+        )
+        return diffable_types
+
+    diffable_types.update(_diffable_embed_types_from_apps_metadata(apps_metadata))
+    return diffable_types
+
+
+def _message_has_diffable_type_marker(content: str, diffable_embed_types: set[str]) -> bool:
+    for match in _TYPE_MARKER_RE.finditer(content):
+        marker_value = match.group(1) or match.group(2)
+        if isinstance(marker_value, str) and marker_value.lower() in diffable_embed_types:
+            return True
+    return False
+
+
+def _embed_data_has_diffable_type(embed_data: Any, diffable_embed_types: set[str]) -> bool:
     if not isinstance(embed_data, dict):
         return False
 
-    embed_type = embed_data.get("type") or embed_data.get("embed_type")
-    return isinstance(embed_type, str) and embed_type.lower() in {"code", "document", "sheet", "mail"}
+    for field_name in (
+        "type",
+        "embed_type",
+        "backend_type",
+        "frontend_type",
+        "content_type_id",
+    ):
+        embed_type = embed_data.get(field_name)
+        if isinstance(embed_type, str) and embed_type.lower() in diffable_embed_types:
+            return True
+    return False
 
 
 async def _has_diffable_embeds_in_cache(
     request_data: AskSkillRequest,
     cache_service: Optional[CacheService],
+    diffable_embed_types: set[str],
     log_prefix: str,
 ) -> bool:
     if not cache_service or not getattr(request_data, "chat_id", None):
@@ -127,7 +241,7 @@ async def _has_diffable_embeds_in_cache(
         except Exception as exc:
             logger.warning(f"{log_prefix} [DIFF_PROMPT] Could not read cached embed {embed_id}: {exc}", exc_info=True)
             continue
-        if _embed_data_has_diffable_type(embed_data):
+        if _embed_data_has_diffable_type(embed_data, diffable_embed_types):
             return True
 
     return False
@@ -136,6 +250,7 @@ async def _has_diffable_embeds_in_cache(
 async def _has_diffable_embeds_in_directus(
     request_data: AskSkillRequest,
     directus_service: Optional[DirectusService],
+    diffable_embed_types: set[str],
     log_prefix: str,
 ) -> bool:
     if not directus_service or not getattr(request_data, "chat_id", None):
@@ -157,7 +272,7 @@ async def _has_diffable_embeds_in_directus(
         # Persisted embed types are encrypted, but editable file-backed artifacts
         # retain file_path metadata. Use this only as a DB fallback when prompt
         # history and Redis did not expose a direct type signal.
-        if _embed_data_has_diffable_type(embed_data) or embed_data.get("file_path"):
+        if _embed_data_has_diffable_type(embed_data, diffable_embed_types) or embed_data.get("file_path"):
             return True
 
     return False
@@ -170,9 +285,10 @@ async def _has_diffable_embeds_for_prompt(
     log_prefix: str = "",
 ) -> bool:
     """Return True when the LLM can target an existing artifact with a diff fence."""
+    diffable_embed_types = await _get_diffable_embed_types(cache_service, log_prefix)
     for message in request_data.message_history:
         content = _message_content(message)
-        if content and _DIFFABLE_EMBED_TYPE_RE.search(content):
+        if content and _message_has_diffable_type_marker(content, diffable_embed_types):
             return True
 
     # Resolved history can expose only the server-side ref index to this stage.
@@ -180,10 +296,10 @@ async def _has_diffable_embeds_for_prompt(
     if getattr(request_data, "embed_file_path_index", None):
         return True
 
-    if await _has_diffable_embeds_in_cache(request_data, cache_service, log_prefix):
+    if await _has_diffable_embeds_in_cache(request_data, cache_service, diffable_embed_types, log_prefix):
         return True
 
-    return await _has_diffable_embeds_in_directus(request_data, directus_service, log_prefix)
+    return await _has_diffable_embeds_in_directus(request_data, directus_service, diffable_embed_types, log_prefix)
 
 INTERACTIVE_QUESTIONS_INSTRUCTION = """
 # INTERACTIVE QUESTIONS PROTOCOL
@@ -2091,7 +2207,6 @@ async def handle_main_processing(
     # converts to Diagrams-owned direct embeds.
     if discovered_apps_metadata and "diagrams" in discovered_apps_metadata:
         prompt_parts.append(base_instructions.get("base_mermaid_code_block_instruction", ""))
-
     # Inject diff editing instruction when diffable embeds (code/document/sheet) exist in history.
     # This teaches the LLM to output unified diffs instead of regenerating full content.
     _has_diffable_embeds = await _has_diffable_embeds_for_prompt(

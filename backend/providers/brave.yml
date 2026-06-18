@@ -40,10 +40,18 @@ api_base_url: "https://api.search.brave.com/res/v1"
 #                      Infobox, FAQ, Discussions, Locations, Summarizer, Rich search results,
 #                      Rights to store data
 
-# Default plan is "pro" (set via BRAVE_SEARCH_PLAN environment variable)
+# Default plan is "free" on dev when using the default key, with optional paid
+# fallback keys used only after Brave reports monthly quota exhaustion.
 #
-# Environment Variables Required:
-# - SECRET__BRAVE_SEARCH__API_KEY: Your Brave Search API key (stored in Vault)
+# Environment Variables / Vault Keys:
+# - SECRET__BRAVE__API_KEY or kv/data/providers/brave:api_key:
+#   Default/free Brave Search API key.
+# - SECRET__BRAVE__FREE_API_KEY or kv/data/providers/brave:free_api_key:
+#   Explicit free Brave Search API key. Takes precedence over api_key.
+# - SECRET__BRAVE__PRO_API_KEY / SECRET__BRAVE__PAID_API_KEY or
+#   kv/data/providers/brave:pro_api_key / paid_api_key:
+#   Paid fallback Brave Search API key. Used only when the free/default key
+#   returns Brave's monthly QUOTA_LIMITED response.
 #   Get your API key from: https://api-dashboard.search.brave.com/app/keys
 # - BRAVE_SEARCH_PLAN: Plan selection - "free", "base", or "pro" (default: "pro")
 #   Add to your .env file: BRAVE_SEARCH_PLAN=pro

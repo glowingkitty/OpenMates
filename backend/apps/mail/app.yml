@@ -62,6 +62,7 @@ embed_types:
     i18n_namespace: embeds.mail.email
     content_catalog:
       enabled: true
+      diff_editable: true
       content_type_id: email
       name: Email draft
       description: Drafted email messages with recipients, subject, body, and optional signature/footer.

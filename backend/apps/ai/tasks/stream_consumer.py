@@ -1022,6 +1022,28 @@ async def _apply_diff_block_to_existing_embed(
             version_history_rows=version_history_rows,
             log_prefix=log_prefix,
         )
+    elif embed_type == "pcb_schematic":
+        pcb_metadata = _extract_pcb_schematic_metadata(
+            "atopile",
+            resolved_ref,
+            patch_result.new_content,
+        )
+        await embed_service.update_pcb_schematic_embed_content(
+            embed_id=target_embed_id,
+            code_content=patch_result.new_content,
+            chat_id=request_data.chat_id,
+            user_id=request_data.user_id,
+            user_id_hash=request_data.user_id_hash,
+            user_vault_key_id=user_vault_key_id,
+            status="finished",
+            title=pcb_metadata["title"],
+            module_name=pcb_metadata["module_name"],
+            filename=pcb_metadata["filename"],
+            version_number=new_version,
+            content_hash=new_content_hash,
+            version_history_rows=version_history_rows,
+            log_prefix=log_prefix,
+        )
 
     cached_embed["version_number"] = new_version
     await cache_service.set_embed_in_cache(

@@ -350,6 +350,7 @@ embed_types:
     i18n_namespace: embeds.code.code
     content_catalog:
       enabled: true
+      diff_editable: true
       content_type_id: code
       name: Code block
       description: Standalone code snippets and files created or edited directly in chat.

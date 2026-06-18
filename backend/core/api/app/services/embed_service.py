@@ -857,6 +857,9 @@ class EmbedService:
                     title=metadata["title"],
                     module_name=metadata["module_name"],
                     filename=metadata["filename"],
+                    version_number=version_number,
+                    content_hash=content_hash,
+                    version_history_rows=version_history_rows,
                     log_prefix=log_prefix,
                 )
 
@@ -1075,6 +1078,9 @@ class EmbedService:
         compile_status: Optional[str] = None,
         compile_logs: Optional[str] = None,
         artifact_manifest: Optional[Dict[str, Any]] = None,
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
         log_prefix: str = "",
     ) -> bool:
         """Update source or compile metadata for a PCB schematic embed."""
@@ -1103,6 +1109,12 @@ class EmbedService:
             next_title = title if title is not None else existing_content.get("title")
             next_module_name = module_name if module_name is not None else existing_content.get("module_name")
             next_filename = filename if filename is not None else existing_content.get("filename")
+            next_version_number = version_number or int(
+                cached_embed.get("version_number") or existing_content.get("version_number") or 1
+            )
+            next_content_hash = content_hash
+            if next_content_hash is None and status == "finished":
+                next_content_hash = hashlib.sha256(code_content.encode("utf-8")).hexdigest()
             updated_content = {
                 **existing_content,
                 "type": "pcb_schematic",
@@ -1126,6 +1138,7 @@ class EmbedService:
                 "artifact_manifest": artifact_manifest if artifact_manifest is not None else existing_content.get("artifact_manifest"),
                 "atopile_version": ATOPILE_PACKAGE_VERSION,
                 "atopile_docs_version": ATOPILE_DOCS_VERSION,
+                "version_number": next_version_number,
             }
             updated_toon = encode(updated_content)
             encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
@@ -1134,12 +1147,21 @@ class EmbedService:
             )
             updated_embed_data = {
                 **cached_embed,
+                "type": "pcb_schematic",
                 "encrypted_content": encrypted_content,
                 "status": status,
+                "version_number": next_version_number,
                 "updated_at": int(datetime.now().timestamp()),
             }
+            if next_content_hash is not None:
+                updated_embed_data["content_hash"] = next_content_hash
             current_status = cached_embed.get("status", "processing")
-            should_send_event = not (status == "finished" and current_status == "finished" and compile_status is None)
+            should_send_event = not (
+                status == "finished"
+                and current_status == "finished"
+                and compile_status is None
+                and version_number is None
+            )
             await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
             if should_send_event:
                 await self.send_embed_data_to_client(
@@ -1154,6 +1176,9 @@ class EmbedService:
                     task_id=cached_embed.get("hashed_task_id"),
                     is_private=cached_embed.get("is_private", False),
                     is_shared=cached_embed.get("is_shared", False),
+                    version_number=next_version_number,
+                    content_hash=next_content_hash,
+                    version_history_rows=version_history_rows,
                     created_at=cached_embed.get("created_at"),
                     updated_at=updated_embed_data["updated_at"],
                     log_prefix=log_prefix,

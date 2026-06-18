@@ -235,6 +235,20 @@ def test_diff_prompt_accepts_compact_toon_type_marker() -> None:
     assert asyncio.run(_has_diffable_embeds_for_prompt(request)) is True
 
 
+def test_diff_prompt_accepts_pcb_schematic_type_marker() -> None:
+    request = SimpleNamespace(
+        message_history=[
+            SimpleNamespace(
+                role="assistant",
+                content="```toon\ntype:pcb_schematic\nembed_ref: regulator.ato-AbC\n```",
+            )
+        ],
+        embed_file_path_index=None,
+    )
+
+    assert asyncio.run(_has_diffable_embeds_for_prompt(request)) is True
+
+
 def test_diff_prompt_uses_cached_chat_embed_metadata() -> None:
     class CacheServiceStub:
         async def get_chat_embed_ids(self, chat_id: str) -> list[str]:
@@ -244,6 +258,43 @@ def test_diff_prompt_uses_cached_chat_embed_metadata() -> None:
         async def get_embed_from_cache(self, embed_id: str) -> dict[str, str]:
             assert embed_id == "embed-1"
             return {"type": "code"}
+
+    request = SimpleNamespace(
+        chat_id="chat-1",
+        message_history=[SimpleNamespace(role="user", content="Please edit the previous artifact.")],
+        embed_file_path_index=None,
+    )
+
+    assert asyncio.run(_has_diffable_embeds_for_prompt(request, cache_service=CacheServiceStub())) is True
+
+
+def test_diff_prompt_uses_content_catalog_diff_editable_metadata() -> None:
+    class CacheServiceStub:
+        async def get_chat_embed_ids(self, chat_id: str) -> list[str]:
+            assert chat_id == "chat-1"
+            return ["embed-1"]
+
+        async def get_embed_from_cache(self, embed_id: str) -> dict[str, str]:
+            assert embed_id == "embed-1"
+            return {"type": "future_source_embed"}
+
+        async def get_discovered_apps_metadata(self) -> dict[str, SimpleNamespace]:
+            return {
+                "future_app": SimpleNamespace(
+                    embed_types=[
+                        SimpleNamespace(
+                            id="source",
+                            backend_type="future_source_embed",
+                            frontend_type="future-source-embed",
+                            content_catalog={
+                                "enabled": True,
+                                "content_type_id": "future_source",
+                                "diff_editable": True,
+                            },
+                        )
+                    ]
+                )
+            }
 
     request = SimpleNamespace(
         chat_id="chat-1",

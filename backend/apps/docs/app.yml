@@ -31,6 +31,7 @@ embed_types:
     i18n_namespace: embeds.docs.doc
     content_catalog:
       enabled: true
+      diff_editable: true
       content_type_id: document
       name: Document
       description: Formatted documents, reports, proposals, and articles created from structured document blocks.
