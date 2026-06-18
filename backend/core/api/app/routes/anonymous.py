@@ -196,7 +196,7 @@ async def anonymous_chat_stream(
     return AnonymousChatResponse(
         status="completed",
         chatId=payload.client_chat_id,
-        messageId=payload.client_message_id,
+        messageId=f"{payload.client_chat_id[-10:]}-{uuid.uuid4()}",
         assistant=assistant,
         category=result.get("category") if isinstance(result, dict) else None,
         modelName=result.get("model") if isinstance(result, dict) else None,

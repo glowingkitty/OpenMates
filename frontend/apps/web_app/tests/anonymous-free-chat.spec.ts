@@ -116,7 +116,47 @@ async function mockAnonymousChatStream(page: any, anonymousRequests: Array<Recor
 			}
 			return originalFetch(input, init);
 		};
- });
+  });
+}
+
+async function mockDelayedAnonymousChatStream(
+	page: any,
+	anonymousRequests: Array<Record<string, unknown>>,
+	responseDelayMs = 6000
+) {
+	await page.exposeFunction('recordDelayedAnonymousChatStreamRequest', (body: Record<string, unknown>) => {
+		anonymousRequests.push(body);
+		return anonymousRequests.length;
+	});
+	await page.addInitScript((delayMs: number) => {
+		const originalFetch = window.fetch.bind(window);
+		window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+			const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+			if (url.includes('/v1/anonymous/chat/stream')) {
+				const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+				const responseNumber = await (
+					window as typeof window & {
+						recordDelayedAnonymousChatStreamRequest: (body: Record<string, unknown>) => Promise<number>;
+					}
+				).recordDelayedAnonymousChatStreamRequest(body);
+				await new Promise((resolve) => setTimeout(resolve, delayMs));
+				return new Response(
+					JSON.stringify({
+						status: 'completed',
+						messageId: body.client_message_id,
+						assistant: `Delayed anonymous answer ${responseNumber}`,
+						category: 'ai',
+						modelName: 'test-model'
+					}),
+					{
+						status: 200,
+						headers: { 'content-type': 'application/json' }
+					}
+				);
+			}
+			return originalFetch(input, init);
+		};
+	}, responseDelayMs);
 }
 
 async function typeMessageText(page: any, text: string) {
@@ -283,6 +323,56 @@ test.describe('Anonymous free chat', () => {
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect.poll(async () => (await getAnonymousIndexedDbState(page)).anonymousChats.length).toBe(0);
 		expect(await page.evaluate(() => localStorage.getItem('openmates_anonymous_chats_v1'))).toBeNull();
+		await assertNoMissingTranslations(page);
+	});
+
+	test('anonymous text send creates local chat UI before delayed response completes', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 390, height: 844 });
+		await mockAnonymousActiveServerStatus(page);
+
+		const anonymousRequests: Array<Record<string, unknown>> = [];
+		await mockDelayedAnonymousChatStream(page, anonymousRequests);
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+			timeout: 15000
+		});
+		await page.getByTestId('new-chat-cta-fullwidth').click();
+		await expect(page.getByTestId('new-chat-cta-fullwidth')).toHaveCount(0, { timeout: 10000 });
+
+		await typeMessageText(page, 'Slow anonymous stream should still show my message');
+		await page.locator('[data-action="send-message"]').click();
+
+		await expect.poll(() => anonymousRequests.length, { timeout: 5000 }).toBe(1);
+		await expect(
+			page.getByTestId('message-user').filter({ hasText: 'Slow anonymous stream should still show my message' })
+		).toBeVisible({ timeout: 2000 });
+		await expect(page.getByTestId('message-system').filter({ hasText: 'You are using free anonymous credits.' })).toBeVisible({
+			timeout: 2000
+		});
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Delayed anonymous answer 1' })).toHaveCount(0);
+
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Delayed anonymous answer 1' })).toBeVisible({
+			timeout: 10000
+		});
+
+		const anonymousState = await getAnonymousIndexedDbState(page);
+		const activeAnonymousMessages = anonymousState.anonymousMessages.filter(
+			(message) => message.chat_id === anonymousRequests[0].client_chat_id
+		);
+		expect(activeAnonymousMessages).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ role: 'user' }),
+				expect.objectContaining({ role: 'assistant' })
+			])
+		);
+		expect(new Set(activeAnonymousMessages.map((message) => message.message_id)).size).toBe(activeAnonymousMessages.length);
 		await assertNoMissingTranslations(page);
 	});
 

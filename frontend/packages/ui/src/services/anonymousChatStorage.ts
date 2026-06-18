@@ -52,8 +52,24 @@ export interface AnonymousSendResult {
   isNewChat: boolean;
 }
 
+export interface AnonymousPendingSendResult {
+  chat: Chat;
+  userMessage: Message;
+  isNewChat: boolean;
+}
+
 function createMessageId(chatId: string): string {
   return `${chatId.slice(-10)}-${crypto.randomUUID()}`;
+}
+
+function assistantMessageIdFromResponse(
+  response: AnonymousChatResponse,
+  chatId: string,
+  userMessageId: string,
+): string {
+  return response.messageId && response.messageId !== userMessageId
+    ? response.messageId
+    : createMessageId(chatId);
 }
 
 function titleFromMarkdown(markdown: string): string {
@@ -203,6 +219,7 @@ class AnonymousChatStorage {
     markdown: string;
     currentChatId?: string;
     sourceDemoId?: string | null;
+    onPending?: (pending: AnonymousPendingSendResult) => void | Promise<void>;
   }): Promise<AnonymousSendResult> {
     await this.init();
     await this.ensureAnonymousSession();
@@ -246,6 +263,11 @@ class AnonymousChatStorage {
       await chatDB.saveMessage(message);
     }
     window.dispatchEvent(new CustomEvent("anonymousChatsUpdated"));
+    await params.onPending?.({
+      chat: await this.hydrateAnonymousChat(chat),
+      userMessage,
+      isNewChat,
+    });
 
     let response: AnonymousChatResponse;
     try {
@@ -258,7 +280,7 @@ class AnonymousChatStorage {
     }
 
     const assistantMessage: Message = {
-      message_id: response.messageId ?? createMessageId(chatId),
+      message_id: assistantMessageIdFromResponse(response, chatId, userMessage.message_id),
       chat_id: chatId,
       role: "assistant",
       content: response.assistant ?? "",

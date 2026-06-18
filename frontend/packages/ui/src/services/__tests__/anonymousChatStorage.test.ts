@@ -205,6 +205,34 @@ describe("anonymousChatStorage", () => {
     expect(JSON.stringify(secondRequest.message_history)).not.toContain(FEATURE_NOTICE);
   });
 
+  it("keeps the user message when the API echoes the client message ID", async () => {
+    const storage = await loadStorage();
+    const firstResponse = vi.fn(async (_url: string, init: RequestInit) => {
+      const request = JSON.parse(init.body as string) as Record<string, unknown>;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          messageId: request.client_message_id,
+          assistant: "Echoed ID answer",
+          category: "ai",
+          modelName: "test-model",
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", firstResponse);
+
+    const result = await storage.sendTextMessage({ markdown: "Question with echoed id" });
+    const messages = await storage.getMessagesForChat(result.chat.chat_id);
+
+    expect(messages.map((message) => message.role)).toEqual(["system", "user", "assistant"]);
+    expect(messages.find((message) => message.role === "user")?.content).toBe("Question with echoed id");
+    expect(messages.find((message) => message.role === "assistant")?.content).toBe("Echoed ID answer");
+    expect(messages.find((message) => message.role === "assistant")?.message_id).not.toBe(
+      messages.find((message) => message.role === "user")?.message_id,
+    );
+  });
+
   it("orders same-second anonymous request history by conversation turn", async () => {
     const fetchMock = mockAnonymousFetch({ messageId: "assistant-message", assistant: "First answer" });
     const storage = await loadStorage();

@@ -1200,13 +1200,15 @@ export async function handleSend(
         markdown,
         currentChatId,
         sourceDemoId: currentChatId && isPublicChat(currentChatId) ? currentChatId : null,
-      });
-      setHasContent(false);
-      resetEditorContent(editor, false);
-      await clearCurrentDraft();
-      dispatch("sendMessage", {
-        message: anonymousResult.userMessage,
-        newChat: anonymousResult.isNewChat ? anonymousResult.chat : undefined,
+        onPending: async (pending) => {
+          setHasContent(false);
+          resetEditorContent(editor, false);
+          await clearCurrentDraft();
+          dispatch("sendMessage", {
+            message: pending.userMessage,
+            newChat: pending.isNewChat ? pending.chat : undefined,
+          });
+        },
       });
       dispatch("anonymousAssistantMessage", { result: anonymousResult });
       void refreshAnonymousFreeUsageStatus();

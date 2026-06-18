@@ -144,9 +144,11 @@ async def test_anonymous_chat_dispatches_ai_and_finalizes_actual_credits(monkeyp
         plaintext_message="Reply with exactly: anonymous inference ok",
     )
 
-    response = await anonymous_chat_stream(request, payload, directus)
+    response = await anonymous_chat_stream(request=request, payload=payload, directus_service=directus)
 
     assert response.status == "completed"
+    assert response.messageId != payload.client_message_id
+    assert response.messageId.startswith("chat-1-")
     assert response.assistant == "anonymous inference ok"
     assert response.creditsCharged == 7
     status = await service.get_budget_status()
