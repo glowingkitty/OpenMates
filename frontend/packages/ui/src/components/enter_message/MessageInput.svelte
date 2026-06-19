@@ -376,8 +376,13 @@
         return found;
     }
 
+    function editorHasSendableText(editor: Editor | null | undefined): boolean {
+        if (!editor || editor.isDestroyed || editor.isEmpty) return false;
+        return editor.getText().trim().length > 0 && !isContentEmptyExceptMention(editor);
+    }
+
     // Draft preview mode: text-only field has content but is not focused — show truncated text, hide buttons.
-    // File/PDF/image embeds must keep actions visible so users can send after upload completion.
+    // File/PDF/image embeds keep non-send actions visible, but Send still requires text.
     let isDraftPreview = $derived(hasContent && !hasEmbedContent && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible && !anonymousTextSendEnabled);
 
     // Computed state for showing action buttons
@@ -3310,7 +3315,7 @@
             }
         }
         tick().then(() => {
-            hasContent = !isContentEmptyExceptMention(editor);
+            hasContent = editorHasSendableText(editor);
             hasEmbedContent = editorHasEmbedContent(editor);
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
@@ -3730,7 +3735,7 @@
         }
         await handleFileDrop(event, editorElement, editor, $authStore.isAuthenticated);
         tick().then(() => {
-            hasContent = !isContentEmptyExceptMention(editor);
+            hasContent = editorHasSendableText(editor);
             hasEmbedContent = editorHasEmbedContent(editor);
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
@@ -3753,7 +3758,7 @@
         }
         await handleFileSelectedEvent(event, editor, $authStore.isAuthenticated);
         tick().then(() => {
-            hasContent = !isContentEmptyExceptMention(editor);
+            hasContent = editorHasSendableText(editor);
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
         });
@@ -3788,7 +3793,7 @@
         await tick();
         // isRecording=false: camera photos are not recordings; isAuthenticated controls upload path
         await insertImage(editor, file, false, undefined, undefined, $authStore.isAuthenticated);
-        hasContent = true;
+        hasContent = editorHasSendableText(editor);
         hasEmbedContent = true;
         tick().then(() => {
             updateEmbedGroupLayouts();
@@ -3858,7 +3863,7 @@
         // insertRecording() uploads to server + triggers Mistral Voxtral transcription in parallel.
         // It does NOT need a pre-created blob URL — it creates its own internally.
         await insertRecording(editor, blob, mimeType, formattedDuration, $authStore.isAuthenticated, chatIdForRecording);
-        hasContent = true;
+        hasContent = editorHasSendableText(editor);
         lastEditorUpdateText = editor.getText();
         triggerSaveDraft(chatIdForRecording || currentChatId);
         handleStopRecordingCleanup(); // Called here after recording is inserted
@@ -3894,7 +3899,7 @@
         showSketch = false;
         await tick();
         await insertImage(editor, file, false, undefined, undefined, $authStore.isAuthenticated);
-        hasContent = true;
+        hasContent = editorHasSendableText(editor);
         tick().then(() => {
             updateEmbedGroupLayouts();
             observeEmbedGroupContainers();
@@ -3913,7 +3918,7 @@
         // The embed node is serialized on send as {"type":"location","embed_id":"..."}
         // which the backend uses to inject location context into the LLM prompt.
         await insertMap(editor, previewData);
-        hasContent = true;
+        hasContent = editorHasSendableText(editor);
     }
     /**
      * Determines whether the currently selected embed supports "Paste as text".
@@ -4196,7 +4201,7 @@
     function handleSendMessage() {
         // Guard: if there's no content, do nothing (handles edge cases where button
         // is visible but editor is actually empty).
-        const editorHasContent = !!editor && !editor.isDestroyed && !editor.isEmpty;
+        const editorHasContent = editorHasSendableText(editor);
         if (!hasContent && !editorHasContent) return;
 
         if ($demoMode && !$authStore.isAuthenticated && !anonymousTextSendEnabled) {
@@ -4594,7 +4599,7 @@
             .insertContent(' ')
             .run();
 
-        hasContent = true;
+        hasContent = editorHasSendableText(editor);
         lastEditorUpdateText = editor.getText();
         updateOriginalMarkdown(editor);
         editor.commands.focus('end');

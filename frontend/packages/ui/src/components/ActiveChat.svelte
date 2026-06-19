@@ -7286,7 +7286,26 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
         }
 
-        if (isNewChatGeneratingTitle && !currentChat?.is_incognito && incomingChatMetadata && (detail.type === 'title_updated' || detail.type === 'metadata_updated')) {
+        if (isNewChatGeneratingTitle && currentChat?.is_anonymous && incomingChatMetadata && detail.type === 'metadata_updated') {
+            const anonymousCategory = incomingChatMetadata.category || null;
+            const anonymousTitle = (typeof incomingChatMetadata.title === 'string' ? incomingChatMetadata.title : '') || '';
+            const rawAnonymousIcon = incomingChatMetadata.icon || null;
+            const anonymousIcon = rawAnonymousIcon ? (rawAnonymousIcon.split(',')[0]?.trim() || null) : null;
+            if (anonymousTitle && anonymousCategory) {
+                activeChatDecryptedTitle = anonymousTitle;
+                activeChatDecryptedCategory = anonymousCategory;
+                activeChatDecryptedIcon = anonymousIcon;
+                isNewChatGeneratingTitle = false;
+                console.info('[ActiveChat] handleChatUpdated: Anonymous chat header ready (plaintext):', anonymousTitle, anonymousCategory, anonymousIcon);
+                if (chatHistoryRef) {
+                    setTimeout(() => {
+                        chatHistoryRef?.triggerNewChatUserMessageScroll();
+                    }, 3000);
+                }
+            }
+        }
+
+        if (isNewChatGeneratingTitle && !currentChat?.is_incognito && !currentChat?.is_anonymous && incomingChatMetadata && (detail.type === 'title_updated' || detail.type === 'metadata_updated')) {
             const chatToDecrypt = incomingChatMetadata;
             console.debug(`[ActiveChat] handleChatUpdated: Decrypting chat header metadata (type=${detail.type})`, chatToDecrypt);
             try {

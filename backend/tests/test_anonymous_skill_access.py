@@ -9,6 +9,7 @@ connected-account skills must be rejected before inference or provider work.
 from __future__ import annotations
 
 import sys
+import json
 from types import ModuleType
 
 import pytest
@@ -145,11 +146,25 @@ async def test_anonymous_chat_dispatches_ai_and_finalizes_actual_credits(monkeyp
     )
 
     response = await anonymous_chat_stream(request=request, payload=payload, directus_service=directus)
+    body = ""
+    async for chunk in response.body_iterator:
+        body += chunk.decode() if isinstance(chunk, bytes) else str(chunk)
 
-    assert response.status == "completed"
-    assert response.messageId != payload.client_message_id
-    assert response.messageId.startswith("chat-1-")
-    assert response.assistant == "anonymous inference ok"
-    assert response.creditsCharged == 7
+    events = [
+        json.loads(line.removeprefix("data: "))
+        for line in body.splitlines()
+        if line.startswith("data: ")
+    ]
+    assert [event["type"] for event in events] == [
+        "ai_task_initiated",
+        "ai_typing_started",
+        "ai_message_chunk",
+        "ai_task_ended",
+    ]
+    final_chunk = events[2]
+    assert final_chunk["message_id"] != payload.client_message_id
+    assert final_chunk["message_id"].startswith("chat-1-")
+    assert final_chunk["full_content_so_far"] == "anonymous inference ok"
+    assert final_chunk["is_final_chunk"] is True
     status = await service.get_budget_status()
     assert status.daily_used_credits == 7
