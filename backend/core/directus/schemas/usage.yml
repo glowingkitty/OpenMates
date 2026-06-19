@@ -30,7 +30,7 @@ usage:
     source:
       type: string
       length: 50
-      note: "[Indexed] Source of usage: 'chat' (chat-based skill execution), 'api_key' (API key-based), 'direct' (direct API call)"
+      note: "[Indexed] Source of usage: 'chat' (chat-based skill execution), 'api_key' (API key-based), 'direct' (direct API call), 'benchmark' (CLI benchmark run)"
 
     # Cleartext chat and message identifiers (for easy client-side matching with IndexedDB)
     chat_id:

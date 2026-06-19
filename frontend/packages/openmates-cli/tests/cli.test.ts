@@ -117,6 +117,46 @@ function readRepoText(path: string): string {
   return readFileSync(join(REPO_ROOT, path), "utf-8");
 }
 
+describe("benchmark command", () => {
+  it("is listed in global help", () => {
+    const output = runCli(["help"]);
+    assert.match(output, /openmates benchmark \[--help\]/);
+  });
+
+  it("prints model benchmark help", () => {
+    const output = runCli(["benchmark", "--help"]);
+    assert.match(output, /openmates benchmark model <provider\/model>/);
+    assert.match(output, /google\/gemini-3-flash-preview/);
+  });
+
+  it("supports dry-run without login and uses Gemini 3 Flash as default judge", () => {
+    const output = runCliWithoutSession([
+      "benchmark",
+      "model",
+      "google/gemini-3.5-flash",
+      "--dry-run",
+      "--suite",
+      "all",
+      "--json",
+    ]);
+    const data = JSON.parse(output) as Record<string, unknown>;
+    assert.equal(data.status, "planned");
+    assert.equal(data.targetModel, "google/gemini-3.5-flash");
+    assert.equal(data.judgeModel, "google/gemini-3-flash-preview");
+    assert.equal(data.spendsCredits, false);
+  });
+
+  it("requires explicit spend confirmation for live runs before login checks", () => {
+    const result = runCliWithoutSessionResult([
+      "benchmark",
+      "model",
+      "google/gemini-3.5-flash",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /--confirm-spend-credits/);
+  });
+});
+
 function docAssert(claimId: string, assertion: () => void): void {
   try {
     assertion();

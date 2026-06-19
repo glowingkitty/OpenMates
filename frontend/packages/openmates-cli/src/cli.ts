@@ -61,6 +61,7 @@ import {
   type WaitingForUserResult,
 } from "./interactiveQuestions.js";
 import { buildAssistantFeedbackDecision } from "./feedback.js";
+import { handleBenchmark, printBenchmarkHelp } from "./benchmark.js";
 
 type SignupRequiredResult = {
   status: "signup_required";
@@ -152,6 +153,10 @@ async function main(): Promise<void> {
       printDocsHelp();
       return;
     }
+    if (command === "benchmark") {
+      printBenchmarkHelp();
+      return;
+    }
     printHelp();
     return;
   }
@@ -236,6 +241,11 @@ async function main(): Promise<void> {
 
   if (command === "feedback") {
     handleFeedback(subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "benchmark") {
+    await handleBenchmark(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -5620,6 +5630,7 @@ Commands:
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
   openmates feedback [--help]                Assistant response feedback helpers
+  openmates benchmark [--help]               Run real model benchmarks with usage tagged as benchmark spend
   openmates server [--help]                   Server management (install, start, stop, ...)
   openmates docs [--help]                     Browse, search, and download documentation
   openmates e2e provision-auth-accounts       Provision local E2E auth-account artifacts

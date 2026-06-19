@@ -447,8 +447,10 @@ async def record_usage_route(
         # 1. Create usage entry (user-specific, private) - blocking
         # The directus_service.usage.create_usage_entry stores cleartext app_id/skill_id/chat_id/message_id
         # and encrypts sensitive fields (credits, tokens, model) using the user vault key
-        # Determine source: "api_key" if api_key_hash is provided, otherwise "chat" if chat_id is provided, else "direct"
-        if payload.api_key_hash:
+        # Determine source: explicit benchmark metadata wins, then API key/chat/direct.
+        if payload.cost_details and payload.cost_details.get("source") == "benchmark":
+            source = "benchmark"
+        elif payload.api_key_hash:
             source = "api_key"
         elif payload.chat_id:
             source = "chat"

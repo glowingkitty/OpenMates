@@ -782,6 +782,15 @@ export interface ChatListPage {
   hasMore: boolean;
 }
 
+export interface BenchmarkMetadata {
+  source: "benchmark";
+  benchmark_run_id: string;
+  benchmark_suite: string;
+  benchmark_case: string;
+  benchmark_target_model: string;
+  benchmark_judge_model?: string;
+}
+
 /** Decrypted message for display */
 export interface DecryptedMessage {
   id: string;
@@ -2460,6 +2469,10 @@ export class OpenMatesClient {
     connectedAccountDirectory?: ConnectedAccountDirectoryEntry[];
     /** Refresh-token envelopes to convert into short-lived token refs before send. */
     connectedAccountTokenRefInputs?: ConnectedAccountTurnTokenRefInput[];
+    /** Non-sensitive CLI benchmark labels for usage-source grouping. */
+    benchmarkMetadata?: BenchmarkMetadata;
+    /** Start collecting before send for latency-sensitive benchmark turns. */
+    precollectResponse?: boolean;
   }): Promise<{
     status: "completed" | "waiting_for_user";
     chatId: string;
@@ -2567,6 +2580,19 @@ export class OpenMatesClient {
     if (connectedAccountTokenRefs.length > 0) {
       messagePayload.connected_account_token_refs = connectedAccountTokenRefs;
     }
+    if (params.benchmarkMetadata) {
+      messagePayload.benchmark_metadata = params.benchmarkMetadata;
+    }
+    if (params.incognito) {
+      messagePayload.message_history = [{
+        message_id: messageId,
+        chat_id: chatId,
+        role: "user",
+        sender_name: "User",
+        content: params.message,
+        created_at: createdAt,
+      }];
+    }
 
     // For non-incognito chats, resolve or generate the chat key and include
     // the encrypted_chat_key in Phase 1 so the server can store it for sync.
@@ -2651,6 +2677,10 @@ export class OpenMatesClient {
     if (encryptedEmbeds.length > 0) {
       messagePayload.encrypted_embeds = encryptedEmbeds;
     }
+
+    const precollectedResponse = params.precollectResponse
+      ? ws.collectAiResponse(messageId, chatId, { onStream: params.onStream })
+      : null;
 
     const confirmed = ws.waitForMessage(
       "chat_message_confirmed",
@@ -2928,7 +2958,7 @@ export class OpenMatesClient {
 
     if (params.incognito) {
       try {
-        const resp = await ws.collectAiResponse(messageId, chatId, streamOpts);
+        const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, streamOpts));
         assistantMessageId = resp.messageId;
         assistant = resp.content;
         category = resp.category;

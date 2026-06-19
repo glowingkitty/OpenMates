@@ -50,6 +50,26 @@ CONNECTED_ACCOUNT_FORBIDDEN_FIELDS = {
     "scopes",
 }
 
+BENCHMARK_METADATA_STRING_FIELDS = {
+    "benchmark_run_id",
+    "benchmark_suite",
+    "benchmark_case",
+    "benchmark_target_model",
+    "benchmark_judge_model",
+}
+
+
+def _sanitize_benchmark_metadata(value: Any) -> dict[str, str] | None:
+    if not isinstance(value, dict) or value.get("source") != "benchmark":
+        return None
+
+    sanitized: dict[str, str] = {"source": "benchmark"}
+    for field in BENCHMARK_METADATA_STRING_FIELDS:
+        raw_value = value.get(field)
+        if isinstance(raw_value, str) and raw_value.strip():
+            sanitized[field] = raw_value.strip()[:128]
+    return sanitized
+
 
 def _sanitize_connected_account_directory(value: Any) -> list[dict[str, Any]] | None:
     if value is None:
@@ -1463,6 +1483,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             else:
                 logger.warning(f"app_settings_memories_metadata is not a list: {type(app_settings_memories_metadata_from_client)}, ignoring")
                 app_settings_memories_metadata_from_client = None
+
+        benchmark_metadata = _sanitize_benchmark_metadata(payload.get("benchmark_metadata"))
         
         # 3. Construct AskSkillRequest payload
         # mate_id is set to None here; the AI app's preprocessor will select the appropriate mate.
@@ -1570,6 +1592,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             connected_account_directory=connected_account_directory,
             connected_account_token_refs=connected_account_token_refs,
             mentioned_settings_memories_cleartext=mentioned_settings_memories_cleartext,  # Cleartext for @memory mentions so backend does not re-request
+            benchmark_metadata=benchmark_metadata,
             embed_file_path_index=_embed_file_path_index if _embed_file_path_index else None,  # Maps embed_ref (filename) → embed_id UUID for skill resolution
             parent_id=db_parent_id,
             is_sub_chat=db_is_sub_chat,

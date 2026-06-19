@@ -36,8 +36,15 @@ class FakeDirectusSDK:
         self.calls.append({"collection": collection, "params": params, "no_cache": no_cache})
         return self.rows
 
+    async def create_item(self, collection: str, payload: dict[str, Any]):
+        self.calls.append({"collection": collection, "payload": payload})
+        return True, {"id": "usage-created"}
+
 
 class FakeEncryption:
+    async def encrypt_with_user_key(self, key_id: str, plaintext: str):
+        return f"enc:{key_id}:{plaintext}", None
+
     async def decrypt_with_user_key(self, ciphertext: str, _key_id: str):
         return ciphertext
 
@@ -71,3 +78,32 @@ async def test_user_usage_entries_query_requests_newest_first_page() -> None:
     assert params["sort"] == ["-created_at"]
     assert params["limit"] == 10
     assert params["offset"] == 0
+
+
+@pytest.mark.anyio
+async def test_create_usage_entry_allows_benchmark_source() -> None:
+    sdk = FakeDirectusSDK([])
+    usage = UsageMethods(sdk=sdk, encryption_service=FakeEncryption())
+
+    async def noop_summary(**_kwargs: Any) -> None:
+        return None
+
+    usage._update_monthly_summaries = noop_summary
+    usage._update_daily_summaries = noop_summary
+
+    entry_id = await usage.create_usage_entry(
+        user_id_hash="user-hash",
+        app_id="ai",
+        skill_id="ask",
+        usage_type="skill_execution",
+        timestamp=1780000000,
+        credits_charged=1,
+        user_vault_key_id="vault-key",
+        source="benchmark",
+        chat_id="chat-1",
+    )
+
+    assert entry_id == "usage-created"
+    created = sdk.calls[0]["payload"]
+    assert created["source"] == "benchmark"
+    assert created["chat_id"] == "chat-1"

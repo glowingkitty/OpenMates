@@ -15,11 +15,15 @@ class AskSkillRequest(BaseModel):
     current_user_content: Optional[str] = Field(default=None, description="Plaintext content of the current user turn for stream-time intent checks.")
     chat_has_title: bool = Field(default=False, description="Whether the chat already has a title. Used to determine if metadata (title, category, icon) should be generated.")
     current_chat_title: Optional[str] = Field(default=None, description="The current decrypted chat title (if available). Used by post-processing to decide if the title needs updating when the conversation drifts.")
+    is_incognito: bool = Field(default=False, description="Whether this is an incognito chat. Incognito chats skip persistence and post-processing.")
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User-specific preferences.")
     app_settings_memories_metadata: Optional[List[str]] = Field(default=None, description="List of available app settings/memories keys from client in 'app_id-item_type' format (e.g., ['code-preferred_technologies', 'travel-trips']). Client is source of truth since only client can decrypt.")
+    connected_account_directory: Optional[List[Dict[str, Any]]] = Field(default=None, description="Redacted connected-account directory from the client.")
+    connected_account_token_refs: Optional[List[Dict[str, Any]]] = Field(default=None, description="Short-lived turn-token refs created by the client token broker before send.")
     mentioned_settings_memories_cleartext: Optional[Dict[str, Any]] = Field(default=None, description="Cleartext for @memory/@memory-entry mentions (key: app_id:item_key, value: list of entry contents). Backend uses this and does not request those categories again.")
+    benchmark_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Sanitized CLI benchmark metadata for usage source tagging.")
     # Filepath → embed_id index built during embed resolution.
     # Maps the human-readable embed_ref shown to the LLM (e.g. "my_photo.jpg" or
     # "src/components/Button.tsx") back to the internal UUID embed_id used for

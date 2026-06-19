@@ -69,6 +69,7 @@ class AskSkillRequest(BaseModel):
     connected_account_token_refs: Optional[List[Dict[str, Any]]] = Field(default=None, description="Short-lived turn-token refs created by the client token broker before send. Opaque refs only; no refresh tokens.")
     connected_account_permission_state: Optional[Dict[str, Any]] = Field(default=None, description="Permission continuation state for connected-account approvals.")
     mentioned_settings_memories_cleartext: Optional[Dict[str, Any]] = Field(default=None, description="Cleartext for @memory/@memory-entry mentions (key: app_id:item_key, value: list of entry contents). Backend uses this and does not request those categories again.")
+    benchmark_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Sanitized CLI benchmark metadata for usage source tagging.")
     is_app_settings_memories_continuation: bool = Field(default=False, description="True if this task is a continuation after app settings/memories confirmation/rejection. Prevents infinite loops by skipping pending context storage if data is still missing.")
     is_connected_account_permission_continuation: bool = Field(default=False, description="True if this task is a continuation after connected-account permission confirmation/rejection.")
     is_focus_mode_continuation: bool = Field(default=False, description="True if this task is a continuation after focus mode auto-confirm or rejection. The user message was already persisted before the deferred activation pause.")

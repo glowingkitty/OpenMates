@@ -1795,6 +1795,25 @@ async def _publish_to_redis(
     except Exception as e:
         logger.error(f"{log_prefix} Failed to {action_description.lower()}: {e}", exc_info=True)
 
+
+def _apply_benchmark_usage_details(request_data: AskSkillRequest, usage_details: Dict[str, Any]) -> None:
+    benchmark_metadata = getattr(request_data, "benchmark_metadata", None)
+    if not isinstance(benchmark_metadata, dict) or benchmark_metadata.get("source") != "benchmark":
+        return
+
+    usage_details["source"] = "benchmark"
+    for key in (
+        "benchmark_run_id",
+        "benchmark_suite",
+        "benchmark_case",
+        "benchmark_target_model",
+        "benchmark_judge_model",
+    ):
+        value = benchmark_metadata.get(key)
+        if isinstance(value, str) and value:
+            usage_details[key] = value
+
+
 async def _charge_credits(
     task_id: str,
     request_data: AskSkillRequest,
@@ -1806,6 +1825,8 @@ async def _charge_credits(
     Handle credit charging with error handling.
     Returns basic billing info.
     """
+    _apply_benchmark_usage_details(request_data, usage_details)
+
     if credits <= 0:
         return {}
         
