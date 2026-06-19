@@ -138,6 +138,14 @@ for a new provider-backed app skill, run `specify` or `add-api` research before
 scaffolding with `add-app-skill`; for a bug, reproduce with a failing test
 before implementation.
 
+### Reported Issue Workflow
+
+- The reported issue database is the source of truth for user-submitted issue IDs; GitHub and Linear are secondary links, not the starting point.
+- Use `python3 scripts/issues.py show <issue-id> --env prod` and `python3 scripts/issues.py findings <issue-id> --env prod` before product-code changes. Use `--env dev` only when the report is known to be from dev.
+- Store durable investigation notes under `docs/findings/issues/<env>/<YYYY>/` and update them with first anomaly, root-cause hypothesis, related reports, attempts, tests, and status.
+- Prefer `scripts/issues.py list`, `cluster`, `recent`, and `timeline` over raw `debug.py issue` commands. Keep `debug.py` for low-level forensic/admin actions that the workflow wrapper does not expose.
+- Redact private user data and share URL `#key=` fragments in findings notes.
+
 ---
 
 ## Lazy-Load Rules
