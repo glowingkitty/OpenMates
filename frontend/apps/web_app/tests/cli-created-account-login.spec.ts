@@ -29,6 +29,17 @@ test.describe.configure({ mode: 'serial' });
 test('logs into the web app with a CLI-provisioned password account', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(120000);
+	const loginPayloads: Array<Record<string, unknown>> = [];
+	page.on('request', (request: any) => {
+		if (!request.url().includes('/v1/auth/login') || request.method() !== 'POST') {
+			return;
+		}
+		try {
+			loginPayloads.push(JSON.parse(request.postData() || '{}'));
+		} catch {
+			loginPayloads.push({});
+		}
+	});
 
 	skipWithoutCredentials(
 		test,
@@ -53,6 +64,11 @@ test('logs into the web app with a CLI-provisioned password account', async ({ p
 
 	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 15000 });
 	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
+	expect(loginPayloads.length, 'Expected at least one /auth/login request.').toBeGreaterThan(0);
+	expect(
+		loginPayloads.every((payload) => payload.stay_logged_in === true),
+		'Every login request must preserve the selected Stay logged in preference.'
+	).toBe(true);
 
 	await page.getByTestId('profile-container').click();
 	await expect(page.getByRole('menuitem', { name: /account/i })).toBeVisible({ timeout: 10000 });

@@ -60,6 +60,17 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 }) => {
 	attachConsoleListeners(page);
 	attachNetworkListeners(page);
+	const loginPayloadsBeforeLogout: Array<Record<string, unknown>> = [];
+	page.on('request', (request: any) => {
+		if (!request.url().includes('/v1/auth/login') || request.method() !== 'POST') {
+			return;
+		}
+		try {
+			loginPayloadsBeforeLogout.push(JSON.parse(request.postData() || '{}'));
+		} catch {
+			loginPayloadsBeforeLogout.push({});
+		}
+	});
 
 	test.slow();
 	test.setTimeout(360000); // Extra time for TOTP window waits (2 logins + 2FA setup) + full flow
@@ -149,6 +160,15 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	} else {
 		logCheckpoint('SecurityAuth closed without 2FA (password was sufficient).');
 	}
+
+	expect(
+		loginPayloadsBeforeLogout.length,
+		'Expected normal login plus settings SecurityAuth to call /auth/login before logout.'
+	).toBeGreaterThan(1);
+	expect(
+		loginPayloadsBeforeLogout.every((payload) => payload.stay_logged_in === true),
+		'Normal login and settings SecurityAuth must preserve Stay logged in in /auth/login payloads.'
+	).toBe(true);
 
 	// TFA setup step: get new secret and enter OTP
 	const otpSetupInput = page.getByTestId('otp-input');

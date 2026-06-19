@@ -604,7 +604,7 @@
 
             // Save email encrypted with master key for payment processing
             try {
-                const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(emailForStorage, false);
+                const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(emailForStorage, stayLoggedIn);
                 if (!emailStoredSuccessfully) {
                     console.error('[PasswordAndTfaOtp] Failed to encrypt and store email with master key during login');
                 }
