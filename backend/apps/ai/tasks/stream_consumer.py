@@ -2688,7 +2688,19 @@ def _is_valid_interactive_question_payload(payload: Any) -> bool:
         if not isinstance(payload.get("question"), str) or not payload["question"].strip():
             return False
         options = payload.get("options")
-        return isinstance(options, list) and len(options) > 0
+        if not isinstance(options, list) or len(options) == 0:
+            return False
+        custom_option_id = payload.get("custom_option_id")
+        if custom_option_id is not None:
+            if not isinstance(custom_option_id, str) or not custom_option_id.strip():
+                return False
+            option_ids = {option.get("id") for option in options if isinstance(option, dict)}
+            if custom_option_id not in option_ids:
+                return False
+        custom_placeholder = payload.get("custom_placeholder")
+        if custom_placeholder is not None and not isinstance(custom_placeholder, str):
+            return False
+        return True
     if question_type == "input":
         fields = payload.get("fields")
         return isinstance(fields, list) and len(fields) > 0

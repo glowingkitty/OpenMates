@@ -149,7 +149,7 @@
         bind:value={currentSelection}
         bind:isValid
         disabled={isAnswered}
-        answeredValue={answeredState?.selection}
+        answeredValue={answeredState}
       />
     {:else if payload.type === 'input'}
       <InputQuestion
@@ -188,8 +188,8 @@
 
   {#if !isAnswered}
     <div class="card-footer" transition:fly={{ y: 8, duration: 150 }}>
-      <button class="btn btn-clear" onclick={handleClear}>Clear</button>
-      <button class="btn btn-send" class:disabled={!isValid} onclick={handleSend} disabled={!isValid}>Send</button>
+      <button class="btn btn-clear" data-testid="interactive-question-clear" onclick={handleClear}>Clear</button>
+      <button class="btn btn-send" data-testid="interactive-question-send" class:disabled={!isValid} onclick={handleSend} disabled={!isValid}>Send</button>
     </div>
   {/if}
 </div>

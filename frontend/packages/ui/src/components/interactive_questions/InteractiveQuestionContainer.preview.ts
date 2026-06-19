@@ -39,6 +39,23 @@ export const variants = {
     } as InteractiveQuestionPayload,
     chatId: "demo-for-everyone"
   },
+  choice_custom: {
+    payload: {
+      id: "project_direction",
+      type: "choice",
+      multiple: false,
+      question: "What should we work on next?",
+      custom_option_id: "own_answer",
+      custom_placeholder: "Type your own answer",
+      options: [
+        { id: "ship_fix", text: "Ship the bug fix" },
+        { id: "write_docs", text: "Write documentation" },
+        { id: "improve_tests", text: "Improve test coverage" },
+        { id: "own_answer", text: "I give you my own answer" }
+      ]
+    } as InteractiveQuestionPayload,
+    chatId: "demo-for-everyone"
+  },
   input_form: {
     payload: {
       id: "onboarding_form",

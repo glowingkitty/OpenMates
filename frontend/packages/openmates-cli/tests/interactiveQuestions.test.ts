@@ -72,6 +72,28 @@ describe("CLI interactive question helpers", () => {
     assert.match(result.messageContent, /"id": "python_slicing"/);
   });
 
+  it("formats custom choice answers as typed answer text plus hidden protocol", () => {
+    const result = formatInteractiveQuestionAnswer(
+      {
+        type: "choice",
+        id: "project_direction",
+        multiple: false,
+        question: "What should we work on next?",
+        custom_option_id: "own_answer",
+        custom_placeholder: "Type your own answer",
+        options: [
+          { id: "ship_fix", text: "Ship the bug fix" },
+          { id: "own_answer", text: "I give you my own answer" },
+        ],
+      },
+      { selection: ["own_answer"], custom_answer: "Let users type a custom response" },
+    );
+
+    assert.equal(result.displayText, "Let users type a custom response");
+    assert.ok(result.messageContent.startsWith("Let users type a custom response"));
+    assert.match(result.messageContent, /"custom_answer": "Let users type a custom response"/);
+  });
+
   it("builds structured waiting_for_user JSON for automation", () => {
     const question = {
       type: "input" as const,

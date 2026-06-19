@@ -316,8 +316,11 @@ To collect structured answers, output a single ```interactive_question fenced bl
   "id": "<unique_string_id>",
   "multiple": <boolean>,
   "question": "<string_question_text>",
+  "custom_option_id": "<optional_option_id_that_requires_text_input>",
+  "custom_placeholder": "<optional_placeholder_for_custom_answer>",
   "options": [ { "id": "<string_option_id>", "text": "<string_option_text>" } ]
 }
+Use custom_option_id when one of the options means "other", "my own answer", or a custom answer. The custom_option_id must match one option id. Do not offer an option such as "I give you my own answer" without custom_option_id, because clients will show a text input only for custom options.
 
 2. TYPE: "input" (sequential forms)
 {
@@ -358,7 +361,8 @@ Example response:
 ```interactive_response
 {
   "id": "quiz_1",
-  "selection": ["option_a_id"]
+  "selection": ["option_a_id"],
+  "custom_answer": "Optional typed answer when the selected option is custom"
 }
 ```
 

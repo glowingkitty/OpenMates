@@ -130,4 +130,35 @@ final class InteractiveQuestionsParityTests: XCTestCase {
         XCTAssertTrue(content.contains("\"id\" : \"python_slicing\""))
         XCTAssertTrue(content.contains("\"selection\" : ["))
     }
+
+    @MainActor
+    func testCustomChoiceResponseFormatsTypedAnswerTextAndHiddenProtocol() throws {
+        let json = """
+        {
+          "type": "choice",
+          "id": "project_direction",
+          "multiple": false,
+          "question": "What should we work on next?",
+          "custom_option_id": "own_answer",
+          "custom_placeholder": "Type your own answer",
+          "options": [
+            { "id": "ship_fix", "text": "Ship the bug fix" },
+            { "id": "own_answer", "text": "I give you my own answer" }
+          ]
+        }
+        """
+        let payload = try JSONDecoder().decode(
+            AppleInteractiveQuestionPayload.self,
+            from: XCTUnwrap(json.data(using: .utf8))
+        )
+
+        let content = payload.responseContent(response: [
+            "id": "project_direction",
+            "selection": ["own_answer"],
+            "custom_answer": "Let users type a custom response"
+        ])
+
+        XCTAssertTrue(content.hasPrefix("Let users type a custom response\n\n```interactive_response"))
+        XCTAssertTrue(content.contains("\"custom_answer\" : \"Let users type a custom response\""))
+    }
 }

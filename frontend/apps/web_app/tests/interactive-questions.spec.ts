@@ -87,6 +87,26 @@ test.describe('InteractiveQuestions Component Previews (All 5 Types)', () => {
 		await expect(options.nth(0)).not.toHaveClass(/selected/);
 	});
 
+	test('shows and requires a text input for custom choice answers', async ({ page }) => {
+		await page.getByRole('button', { name: 'choice_custom' }).click();
+		await page.waitForTimeout(500);
+
+		const sendBtn = page.getByTestId('interactive-question-send');
+		await expect(sendBtn).toBeDisabled();
+
+		await page.getByTestId('interactive-question-option-own_answer').click();
+		const customInput = page.getByTestId('interactive-question-custom-answer');
+		await expect(customInput).toBeVisible();
+		await expect(sendBtn).toBeDisabled();
+
+		await customInput.fill('Let users type a custom response');
+		await expect(sendBtn).toBeEnabled();
+
+		await page.getByTestId('interactive-question-clear').click();
+		await expect(customInput).not.toBeVisible();
+		await expect(sendBtn).toBeDisabled();
+	});
+
 	// --- 3. Input Sequential Form ---
 	test('renders input forms, validates and locks required fields', async ({ page }) => {
 		await page.locator('.variant-btn:has-text("input_form")').click();

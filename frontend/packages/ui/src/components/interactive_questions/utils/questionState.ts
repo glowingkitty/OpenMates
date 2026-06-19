@@ -89,13 +89,15 @@ function findLatestQuestionIndex(chatHistory: Message[], questionId: string): nu
 
 function messageContainsQuestionId(content: string, questionId: string): boolean {
   INTERACTIVE_QUESTION_RE.lastIndex = 0;
-  for (const match of content.matchAll(INTERACTIVE_QUESTION_RE)) {
+  let match = INTERACTIVE_QUESTION_RE.exec(content);
+  while (match) {
     try {
       const parsed = JSON.parse(match[1]) as { id?: unknown };
       if (parsed.id === questionId) return true;
     } catch {
       // Ignore malformed historic question blocks.
     }
+    match = INTERACTIVE_QUESTION_RE.exec(content);
   }
   return false;
 }
@@ -105,10 +107,15 @@ function formatInteractiveQuestionDisplayText(
   response: InteractiveQuestionResponse
 ): string {
   if (payload.type === "choice") {
-    const selectedIds = (response as ChoiceResponse).selection;
+    const choiceResponse = response as ChoiceResponse;
+    const selectedIds = choiceResponse.selection;
+    const customAnswer = choiceResponse.custom_answer?.trim();
     const texts = payload.options
       .filter((option) => selectedIds.includes(option.id))
-      .map((option) => option.text);
+      .map((option) => {
+        if (customAnswer && isCustomChoiceOption(payload, option)) return customAnswer;
+        return option.text;
+      });
     return payload.multiple ? texts.join("\n") : texts[0] || "";
   }
 
@@ -143,6 +150,22 @@ function formatInteractiveQuestionDisplayText(
   }
 
   return "";
+}
+
+function isCustomChoiceOption(
+  payload: Extract<InteractiveQuestionPayload, { type: "choice" }>,
+  option: { id: string; text: string }
+): boolean {
+  if (payload.custom_option_id) return option.id === payload.custom_option_id;
+  const normalizedText = option.text.trim().toLowerCase();
+  return [
+    "i give you my own answer",
+    "my own answer",
+    "own answer",
+    "custom answer",
+    "something else",
+    "other",
+  ].some((pattern) => normalizedText === pattern || normalizedText.includes(pattern));
 }
 
 /**

@@ -19,6 +19,8 @@ export interface ChoiceQuestionData extends BaseQuestion {
   type: 'choice';
   multiple: boolean;
   question: string;
+  custom_option_id?: string;
+  custom_placeholder?: string;
   options: Array<{
     id: string;
     text: string;
@@ -77,6 +79,7 @@ export type InteractiveQuestionPayload =
 export interface ChoiceResponse {
   id: string;
   selection: string[];
+  custom_answer?: string;
 }
 
 export interface InputResponse {
