@@ -76,6 +76,6 @@ export const habitGardenViteAppChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 2,
-    content_embed_examples: ["code.application"],
+    content_embed_examples: [],
   },
 };

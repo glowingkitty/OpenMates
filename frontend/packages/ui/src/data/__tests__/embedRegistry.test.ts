@@ -436,7 +436,6 @@ describe("Embed Registry — content catalog", () => {
   it("contains the expected durable v1 content types", () => {
     const EXPECTED_CONTENT_IDS = [
       "audio.recording",
-      "code.application",
       "code.code",
       "code.repo",
       "docs.document",

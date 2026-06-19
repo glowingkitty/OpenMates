@@ -192,7 +192,5 @@ def test_example_chat_audit_uses_parent_content_registry_keys() -> None:
 
     catalog = module.load_content_catalog()
 
-    assert catalog["code.application"]["registryKey"] == "code-application"
-    assert catalog["code.application"]["frontendType"] == "code-application"
-    assert catalog["code.application"]["backendType"] == "application"
+    assert "code.application" not in catalog
     assert catalog["docs.document"]["registryKey"] == "docs-doc"

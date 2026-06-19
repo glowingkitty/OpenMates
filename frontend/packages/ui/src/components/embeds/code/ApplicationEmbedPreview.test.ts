@@ -1,5 +1,5 @@
 // frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.test.ts
-// Unit coverage for generated application embed registration and text output.
+// Unit coverage for temporarily disabled application embed registration and text output.
 // The package does not currently use a Svelte component mounting harness for
 // embed previews, so this test verifies the compile-time registry and the
 // copied/exported text representation that shares the same application schema.
@@ -14,14 +14,10 @@ import {
 import { renderEmbedAsText } from '../../../data/embedTextRenderers';
 
 describe('application embed registry', () => {
-  it('registers preview, fullscreen, and message renderer entries', () => {
-    expect(EMBED_PREVIEW_COMPONENTS['code-application']).toBe(
-      'code/ApplicationEmbedPreview.svelte',
-    );
-    expect(EMBED_FULLSCREEN_COMPONENTS['code-application']).toBe(
-      'code/ApplicationEmbedFullscreen.svelte',
-    );
-    expect(EMBED_RENDERER_MAP['code-application']).toBe('GroupRenderer');
+  it('does not register application preview, fullscreen, or message renderer entries while disabled', () => {
+    expect(EMBED_PREVIEW_COMPONENTS['code-application']).toBeUndefined();
+    expect(EMBED_FULLSCREEN_COMPONENTS['code-application']).toBeUndefined();
+    expect(EMBED_RENDERER_MAP['code-application']).toBeUndefined();
   });
 });
 

@@ -372,6 +372,7 @@ embed_types:
   # Generated application project — parent embed that references child code-code files.
   - id: application
     category: direct
+    disabled: true # Temporarily unavailable while application previews are unstable.
     frontend_type: code-application
     backend_type: application
     has_children: true
@@ -384,7 +385,7 @@ embed_types:
     gradient_var: "--color-app-code"
     i18n_namespace: embeds.code.application
     content_catalog:
-      enabled: true
+      enabled: false
       content_type_id: application
       name: Application
       description: Generated runnable applications with source files, entrypoints, and preview metadata.

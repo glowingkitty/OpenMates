@@ -203,6 +203,7 @@ class EmbedTypeDefinition(BaseModel):
     skill_id: Optional[str] = Field(default=None, description="Backend skill ID (required for app-skill-use category)")
     frontend_type: str = Field(..., description="Type string used on the frontend (e.g., 'app-skill-use', 'image', 'code-code')")
     backend_type: str = Field(..., description="Type string used on the backend (e.g., 'app_skill_use', 'image', 'code')")
+    disabled: bool = Field(default=False, description="Temporarily exclude this embed type from generated registries and availability")
     has_children: bool = Field(default=False, description="True for composite embeds that contain child embeds (e.g., search results)")
     child_type: Optional[str] = Field(default=None, description="Child embed type ID (for composite embeds)")
     child_frontend_type: Optional[str] = Field(default=None, description="Frontend type string for child embeds (e.g., 'web-website')")
