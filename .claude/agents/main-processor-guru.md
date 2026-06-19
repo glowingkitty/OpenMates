@@ -114,7 +114,7 @@ A single JSON code block, then a 2-3 sentence narrative.
   "battle_scar_match": "<rule number 1-11 or null>",
   "related_recent_commits": ["<sha> <subject>", ...],
   "fixture_to_record_or_replay": "backend/tests/fixtures/ai/skill_execution/<name>.json",
-  "verification_cmd": "python3 scripts/run_tests.py --suite ai-testing",
+  "verification_cmd": "python3 scripts/tests.py run --suite ai-testing",
   "handoff_to": "skill-integration-doctor | chat-sync-detective | null",
   "confidence": "high|medium|low"
 }

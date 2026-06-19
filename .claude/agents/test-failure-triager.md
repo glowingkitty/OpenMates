@@ -21,7 +21,7 @@ If `last-failed-tests.json` is missing, fall back to the newest `test-results/da
 
 If `test-results/reports/failed/` is empty, regenerate with:
 ```bash
-python3 scripts/run_tests.py --only-failed --dry-run
+python3 scripts/tests.py run --only-failed --dry-run
 ```
 
 ## Investigation Protocol
@@ -50,7 +50,7 @@ python3 scripts/run_tests.py --only-failed --dry-run
 ## Rules
 
 - **Verify before claiming.** Read the actual failure report before asserting a root cause — never guess from the test name alone.
-- **Never run tests.** You do not invoke `run_tests.py` or any test binary. Triage only.
+- **Never run tests.** You do not invoke `scripts/tests.py run`, `run_tests.py`, or any test binary. Triage only.
 - **Never edit files.** Return findings; main Claude will apply fixes.
 - **CLI-first parity:** For shared chat/app behavior, include a CLI contract gap or status in the group so the parent agent can test backend parity before Playwright/web UI behavior.
 - **Apple-third parity:** For native-backed surfaces, include whether Apple verification is required so the parent agent runs or attempts `scripts/apple_remote.py` after CLI and Playwright evidence are green.

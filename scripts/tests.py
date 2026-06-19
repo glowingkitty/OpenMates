@@ -756,7 +756,7 @@ def infer_run_suite_and_tests(args: list[str]) -> tuple[str, list[str]]:
 def command_run(runner_args: list[str]) -> int:
     command = [sys.executable, str(RUN_TESTS_SCRIPT), *runner_args]
     suite, tests = infer_run_suite_and_tests(runner_args)
-    mark_running(suite=suite, tests=tests, command=["python3", "scripts/run_tests.py", *runner_args])
+    mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
     result = subprocess.run(command, cwd=PROJECT_ROOT)
     last_run = RESULTS_DIR / "last-run.json"
     if last_run.is_file():
@@ -794,7 +794,7 @@ def main(argv: list[str] | None = None) -> int:
     release_parser.add_argument("--lease", required=True)
     release_parser.add_argument("--reason", default="")
 
-    run_parser = sub.add_parser("run", help="Run tests through scripts/run_tests.py and record state")
+    run_parser = sub.add_parser("run", help="Run tests through the unified control plane and record state")
     run_parser.add_argument("runner_args", nargs=argparse.REMAINDER)
 
     args = parser.parse_args(argv)

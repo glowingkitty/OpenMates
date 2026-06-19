@@ -73,13 +73,13 @@ Build a table: `| Issue | Category | Suspect file:line | Blast radius | Effort |
 
 For each fix, follow `.claude/rules/testing.md`:
 1. Run `sessions.py check-tests --session <id>` to find existing specs.
-2. If a spec exists: run it first (`run_tests.py --spec <name>`) to confirm it reproduces the bug.
+2. If a spec exists: run it first (`tests.py run --spec <name>`) to confirm it reproduces the bug.
 3. If none exists: propose a minimal repro test (pytest unit, vitest unit, or Playwright spec). **Wait for user confirmation.**
 4. Write the test, run it red.
 5. Apply the fix.
 6. Run the test green.
 
-**Never run vitest or Playwright locally.** Always dispatch via `run_tests.py`.
+**Never run vitest or Playwright locally.** Always dispatch via `scripts/tests.py run`.
 
 ### Step 8: Track files explicitly
 
@@ -124,7 +124,7 @@ Re-dispatch the test suites **after** Vercel is READY so CI checks out your comm
 
 ```bash
 docker exec api python -m pytest <new-test-paths> -v
-python3 scripts/run_tests.py --suite vitest
+python3 scripts/tests.py run --suite vitest
 ```
 
 **Confirm the new tests actually ran.** Compare `jq '.summary.total' test-results/last-run.json` against the pre-run count — if it didn't grow by the expected number, the test file was silently dropped (import failure in the CI node environment). Fix the test file (add `vi.mock` stubs for problematic imports) and re-dispatch.
@@ -158,7 +158,7 @@ python3 scripts/sessions.py end --session <id>
 - **Track every file as you edit it.** The session auto-hook is unreliable.
 - **Pickup comment is mandatory.** Never skip `save_comment` on the In-Progress transition.
 - **Verify CI ran your tests.** Compare `.summary.total` before/after. Silent test-file drops are a known failure mode.
-- **Never vitest/playwright locally.** Always `run_tests.py`.
+- **Never vitest/playwright locally.** Always `scripts/tests.py run`.
 - **`--no-verify` only with `git blame` evidence** of pre-existing lint failures.
 - **Wait for push BEFORE dispatching CI.** `git ls-remote` first.
 - **One batched commit** per triage run with multi-issue title: `fix(multi): OPE-XXX ..., OPE-YYY ...`.

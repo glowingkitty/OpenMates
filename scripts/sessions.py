@@ -3277,7 +3277,7 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
         if all_specs:
             print("  Related specs:")
             for spec in sorted(all_specs):
-                print(f"    python3 scripts/run_tests.py --spec {spec}")
+                print(f"    python3 scripts/tests.py run --spec {spec}")
         if untested:
             print("  Run: sessions.py check-tests --session <id>")
         print()
@@ -4183,7 +4183,7 @@ def _run_test_enforcement_gate(
     if unrun_specs:
         print(f"  ⚠️  {len(unrun_specs)} related spec(s) not run this session:")
         for spec in sorted(unrun_specs)[:5]:
-            print(f"      python3 scripts/run_tests.py --spec {spec}")
+            print(f"      python3 scripts/tests.py run --spec {spec}")
         if len(unrun_specs) > 5:
             print(f"      ... and {len(unrun_specs) - 5} more")
 
@@ -4437,7 +4437,7 @@ def cmd_check_tests(args: argparse.Namespace) -> None:
         print()
         print("  Related E2E specs to run:")
         for spec in sorted(all_e2e_specs):
-            print(f"    python3 scripts/run_tests.py --spec {spec}")
+            print(f"    python3 scripts/tests.py run --spec {spec}")
 
     if verdicts["none"] > 0:
         print()
@@ -5028,22 +5028,22 @@ def cmd_task_track(args: argparse.Namespace) -> None:
 
 
 def cmd_trigger_tests(args: argparse.Namespace) -> None:
-    """Trigger tests via the unified run_tests.py orchestrator."""
+    """Trigger tests via the unified tests.py control plane."""
     suite = getattr(args, "suite", "all") or "all"
     env = getattr(args, "env", "development") or "development"
 
-    run_tests_script = PROJECT_ROOT / "scripts" / "run_tests.py"
-    if not run_tests_script.is_file():
-        print("ERROR: scripts/run_tests.py not found.", file=sys.stderr)
+    tests_script = PROJECT_ROOT / "scripts" / "tests.py"
+    if not tests_script.is_file():
+        print("ERROR: scripts/tests.py not found.", file=sys.stderr)
         sys.exit(1)
 
-    cmd = [sys.executable, str(run_tests_script)]
+    cmd = [sys.executable, str(tests_script), "run"]
     if suite != "all":
         cmd += ["--suite", suite]
     if env != "development":
         cmd += ["--environment", env]
 
-    print(f"Running tests via run_tests.py (suite={suite}, environment={env})...")
+    print(f"Running tests via tests.py (suite={suite}, environment={env})...")
     rc = subprocess.call(cmd, cwd=str(PROJECT_ROOT))
     sys.exit(rc)
 

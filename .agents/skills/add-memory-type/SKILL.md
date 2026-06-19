@@ -210,8 +210,8 @@ Usually relevant:
 
 For user-facing memory behavior, propose the relevant E2E test path and use the
 repo test runner after deploy when running Playwright:
-- `python3 scripts/run_tests.py --spec mention-dropdown-settings-memory.spec.ts`
-- `python3 scripts/run_tests.py --spec cli-memories.spec.ts`
+- `python3 scripts/tests.py run --spec mention-dropdown-settings-memory.spec.ts`
+- `python3 scripts/tests.py run --spec cli-memories.spec.ts`
 - a new or updated app-specific memory spec if needed
 
 Do not run Playwright locally.

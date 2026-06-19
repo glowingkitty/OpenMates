@@ -2,7 +2,11 @@
 """
 scripts/run_tests.py
 
-Unified test orchestrator for OpenMates.
+Execution engine for OpenMates tests.
+
+Prefer `python3 scripts/tests.py run ...` for manual and agent-triggered test
+runs. That control-plane wrapper records current state, history, and failure
+leases before delegating here.
 
 Replaces: run-tests.sh, run-tests-daily.sh, run-tests-worker.sh,
           ci/trigger_parallel_specs.sh
@@ -12,20 +16,20 @@ to GitHub Actions via playwright-spec.yml in batches of N (default 20),
 polls for completion, aggregates results, and sends notifications.
 
 Usage:
-    python3 scripts/run_tests.py                           # full suite
-    python3 scripts/run_tests.py --spec chat-flow.spec.ts  # single spec
-    python3 scripts/run_tests.py --only-failed             # rerun failures
-    python3 scripts/run_tests.py --suite pytest             # just pytest
-    python3 scripts/run_tests.py --suite vitest             # just vitest
-    python3 scripts/run_tests.py --suite playwright         # just browser E2E
-    python3 scripts/run_tests.py --suite cli                # just CLI integration
-    python3 scripts/run_tests.py --daily                   # cron mode (3 AM nightly)
-    python3 scripts/run_tests.py --daily --force            # skip commit check
-    python3 scripts/run_tests.py --hourly-dev              # hourly dev smoke (4 specs)
-    python3 scripts/run_tests.py --hourly-prod             # hourly prod smoke
-    python3 scripts/run_tests.py --hourly-dev --dry-run-notify  # test Discord wiring
-    python3 scripts/run_tests.py --max-concurrent 10       # override batch size
-    python3 scripts/run_tests.py --no-fail-fast            # run all batches
+    python3 scripts/tests.py run                           # full suite
+    python3 scripts/tests.py run --spec chat-flow.spec.ts  # single spec
+    python3 scripts/tests.py run --only-failed             # rerun failures
+    python3 scripts/tests.py run --suite pytest            # just pytest
+    python3 scripts/tests.py run --suite vitest            # just vitest
+    python3 scripts/tests.py run --suite playwright        # just browser E2E
+    python3 scripts/tests.py run --suite cli               # just CLI integration
+    python3 scripts/tests.py run --daily                   # cron mode (3 AM nightly)
+    python3 scripts/tests.py run --daily --force           # skip commit check
+    python3 scripts/tests.py run --hourly-dev              # hourly dev smoke (4 specs)
+    python3 scripts/tests.py run --hourly-prod             # hourly prod smoke
+    python3 scripts/tests.py run --hourly-dev --dry-run-notify  # test Discord wiring
+    python3 scripts/tests.py run --max-concurrent 10       # override batch size
+    python3 scripts/tests.py run --no-fail-fast            # run all batches
 
 Architecture: docs/architecture/test-orchestration.md
 """

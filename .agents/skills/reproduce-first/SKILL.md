@@ -42,7 +42,7 @@ If the bug needs a durable product behavior spec because expected behavior is di
 ### Step 3 — Run the spec and confirm RED
 
 ```bash
-python3 scripts/run_tests.py --spec <name>.spec.ts
+python3 scripts/tests.py run --spec <name>.spec.ts
 ```
 
 The spec MUST fail. This is the proof the bug is real and the test catches it.
@@ -60,7 +60,7 @@ Only now write fix code. Keep the change minimal — just enough to turn the spe
 ### Step 5 — Rerun the spec and confirm GREEN
 
 ```bash
-python3 scripts/run_tests.py --spec <name>.spec.ts
+python3 scripts/tests.py run --spec <name>.spec.ts
 ```
 
 The same spec MUST pass. This is the proof the fix works.
@@ -78,7 +78,7 @@ The same spec MUST pass. This is the proof the fix works.
 
 - **No fix code before a red spec.** This is non-negotiable. If you catch yourself editing source files before Step 3, stop and restart at Step 2.
 - **Never suppress a failing test** to make it pass. Fix the underlying bug.
-- **Never run playwright/vitest locally** — always dispatch via `run_tests.py` (per `.claude/rules/testing.md`).
+- **Never run playwright/vitest locally** — always dispatch via `scripts/tests.py run` (per `.claude/rules/testing.md`).
 - **Use `data-testid` selectors only** when writing or extending specs — never CSS classes.
 - **One spec per bug** when reasonable. If the same fix closes multiple user-reported bugs, one spec covering the shared root cause is fine.
 - **Ask before creating new specs.** Extending is cheaper than creating; the user may know an existing spec you missed.

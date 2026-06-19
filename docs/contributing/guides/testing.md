@@ -22,7 +22,7 @@ For new functionality, verification must happen in this order by default:
    is involved.
 2. **Web app E2E second:** after CLI evidence is green, add or run the
    Playwright `*.spec.ts` that verifies the browser-specific flow through
-   `python3 scripts/run_tests.py --spec <name>.spec.ts`. Web specs prove Svelte,
+   `python3 scripts/tests.py run --spec <name>.spec.ts`. Web specs prove Svelte,
    TipTap, IndexedDB/localStorage, rendering, screenshots, and user interaction
    behavior.
 3. **Apple app third:** after CLI and web evidence are green, run or attempt the
@@ -125,7 +125,7 @@ status, screenshot path, and whether manual parity checks passed.
 
 ### Playwright E2E (GitHub Actions — NOT local)
 
-> **Claude: NEVER run these docker compose commands directly.** Use `python3 scripts/run_tests.py --spec <name>.spec.ts` instead — it dispatches to GitHub Actions with proper test accounts. The commands below document what the CI runner executes internally.
+> **Claude: NEVER run these docker compose commands directly.** Use `python3 scripts/tests.py run --spec <name>.spec.ts` instead — it dispatches to GitHub Actions with proper test accounts and records status/history. The commands below document what the CI runner executes internally.
 
 ```bash
 # Wait for deployment
@@ -155,23 +155,27 @@ docker compose --env-file .env -f docker-compose.playwright.yml run --rm \
 
 ---
 
-## Test Runner (`scripts/run_tests.py`)
+## Test Control Plane (`scripts/tests.py`)
 
 ```bash
-python3 scripts/run_tests.py --suite vitest           # Unit tests only (local)
-python3 scripts/run_tests.py --suite pytest            # Pytest only (local)
-python3 scripts/run_tests.py                           # Full suite (local + GitHub Actions)
-python3 scripts/run_tests.py --only-failed             # Rerun failures
-python3 scripts/run_tests.py --spec chat-flow.spec.ts  # Single Playwright spec
-python3 scripts/run_tests.py --suite playwright        # All E2E specs via GitHub Actions
-python3 scripts/run_tests.py --daily                   # Cron mode (commit gate, emails)
-python3 scripts/run_tests.py --daily --force           # Skip commit check
-python3 scripts/run_tests.py --hourly-dev              # Hourly dev smoke (4 specs)
-python3 scripts/run_tests.py --hourly-prod             # Hourly prod smoke
-python3 scripts/run_tests.py --hourly-dev --dry-run-notify  # Test Discord wiring only
-python3 scripts/run_tests.py --max-concurrent 10       # Override batch size (default: 20)
-python3 scripts/run_tests.py --no-fail-fast            # Run all batches even on failure
-python3 scripts/run_tests.py --dry-run                 # Show what would run
+python3 scripts/tests.py run --suite vitest           # Unit tests via GitHub Actions
+python3 scripts/tests.py run --suite pytest            # Pytest via GitHub Actions
+python3 scripts/tests.py run                           # Full suite (local orchestration + GitHub Actions)
+python3 scripts/tests.py run --only-failed             # Rerun failures
+python3 scripts/tests.py run --spec chat-flow.spec.ts  # Single Playwright spec
+python3 scripts/tests.py run --suite playwright        # All E2E specs via GitHub Actions
+python3 scripts/tests.py run --daily                   # Cron mode (commit gate, emails)
+python3 scripts/tests.py run --daily --force           # Skip commit check
+python3 scripts/tests.py run --hourly-dev              # Hourly dev smoke (4 specs)
+python3 scripts/tests.py run --hourly-prod             # Hourly prod smoke
+python3 scripts/tests.py run --hourly-dev --dry-run-notify  # Test Discord wiring only
+python3 scripts/tests.py run --max-concurrent 10       # Override batch size (default: 20)
+python3 scripts/tests.py run --no-fail-fast            # Run all batches even on failure
+python3 scripts/tests.py run --dry-run                 # Show what would run
+
+`scripts/run_tests.py` remains the underlying execution engine. Agents and humans
+should use `scripts/tests.py run` so current state, history, and failure leases
+stay consistent.
 ```
 
 ### Hourly smoke modes (OPE-349)
@@ -199,9 +203,9 @@ Discord channel so noise from one cron never drowns out alerts from another.
 To verify a webhook without dispatching specs:
 
 ```bash
-python3 scripts/run_tests.py --hourly-dev --dry-run-notify
-python3 scripts/run_tests.py --hourly-prod --dry-run-notify
-python3 scripts/run_tests.py --daily --dry-run-notify
+python3 scripts/tests.py run --hourly-dev --dry-run-notify
+python3 scripts/tests.py run --hourly-prod --dry-run-notify
+python3 scripts/tests.py run --daily --dry-run-notify
 ```
 
 Hourly archives: `test-results/hourly-dev/run-*.json` and `test-results/hourly-prod/run-*.json` (rotated to last 7 days).

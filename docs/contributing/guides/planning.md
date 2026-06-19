@@ -165,7 +165,7 @@ Format each criterion as a checkbox:
 **Verification for reproducible bugs:**
 
 If the bug can be reproduced in a browser, prefer a Playwright spec dispatched
-through `python3 scripts/run_tests.py --spec <name>.spec.ts`. If automation is
+through `python3 scripts/tests.py run --spec <name>.spec.ts`. If automation is
 not practical, document the manual verification path and why it cannot be
 automated yet.
 
@@ -185,7 +185,7 @@ Acceptance Criteria:
 - [ ] Sending a message with an embedded location causes the AI to respond using the location data (not a generic answer)
 - [ ] No "embed_id" strings appear raw in the AI request payload (verified via debug.py requests)
 - [ ] If the embed key is expired, the user sees a clear error rather than a silent fallback
-- [ ] Verified fixed via `python3 scripts/run_tests.py --spec embeds-location.spec.ts`: insert a location embed, send a message, confirm AI uses the location
+- [ ] Verified fixed via `python3 scripts/tests.py run --spec embeds-location.spec.ts`: insert a location embed, send a message, confirm AI uses the location
 ```
 
 **Example (feature — copy message link):**

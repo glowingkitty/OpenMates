@@ -180,7 +180,7 @@ cd frontend/packages/openmates-cli && npm run build && node --test tests/cli.tes
 ### Live CLI integration tests (GitHub Actions)
 
 ```bash
-python3 scripts/run_tests.py --suite cli
+python3 scripts/tests.py run --suite cli
 ```
 
 The CLI integration suite is separate from browser Playwright specs and fails

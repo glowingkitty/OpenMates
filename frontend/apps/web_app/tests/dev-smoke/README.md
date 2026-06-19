@@ -6,7 +6,7 @@ regressions in signup/payments/chat within an hour instead of waiting for the
 
 Sibling to `tests/prod-smoke/` (which runs the same idea against the live
 production server). Both suites are dispatched from the dev server's local
-crontab via `scripts/run_tests.py --hourly-dev` / `--hourly-prod` — **never**
+crontab via `scripts/tests.py run --hourly-dev` / `--hourly-prod` — **never**
 from the GitHub Actions `schedule:` cron, which we found to silently skip runs
 under load (see OPE-349).
 
@@ -35,7 +35,7 @@ the dev server. The hourly cron sources `.env` before running.
 
 ## On failure
 
-`scripts/run_tests.py --hourly-dev` posts a red embed to the Discord webhook
+`scripts/tests.py run --hourly-dev` posts a red embed to the Discord webhook
 specified by `DISCORD_WEBHOOK_DEV_SMOKE`. Successful runs post **nothing** —
 intentional, because hourly green pings would flood the channel. A single
 "all good" heartbeat is posted once per UTC day (first successful run of the
@@ -45,10 +45,10 @@ day) so we can tell the pipeline itself isn't dead.
 
 ```bash
 # Force a one-off run (ignores any commit gate, posts to Discord regardless)
-python3 scripts/run_tests.py --hourly-dev --force
+python3 scripts/tests.py run --hourly-dev --force
 
 # Just verify Discord wiring without dispatching specs
-python3 scripts/run_tests.py --hourly-dev --dry-run-notify
+python3 scripts/tests.py run --hourly-dev --dry-run-notify
 ```
 
 Results are archived to `test-results/hourly-dev/run-<UTC-timestamp>.json`

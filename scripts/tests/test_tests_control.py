@@ -174,7 +174,7 @@ def test_mark_running_adds_started_history_event(tmp_path, monkeypatch):
     tests_control.mark_running(
         suite="playwright",
         tests=["chat-flow.spec.ts"],
-        command=["python3", "scripts/run_tests.py", "--spec", "chat-flow.spec.ts"],
+        command=["python3", "scripts/tests.py", "run", "--spec", "chat-flow.spec.ts"],
     )
 
     state = json.loads(tests_control.STATE_FILE.read_text(encoding="utf-8"))

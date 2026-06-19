@@ -24,7 +24,7 @@ def test_process_group_verifies_when_opencode_omits_summary_after_success(monkey
         id="g01-test",
         suite="playwright",
         tests=[{"suite": "playwright", "file": "a11y-pages.spec.ts", "status": "failed"}],
-        verify_command=["python3", "scripts/run_tests.py", "--spec", "a11y-pages.spec.ts"],
+        verify_command=["python3", "scripts/tests.py", "run", "--spec", "a11y-pages.spec.ts"],
     )
     args = Namespace(
         dry_run=False,

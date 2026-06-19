@@ -113,7 +113,7 @@ implementation starts:
 1. **OpenMates CLI first:** a CLI command or CLI contract test that exercises the
    shared backend/API/WebSocket behavior without browser or native UI state.
 2. **Web app second:** a Playwright `*.spec.ts` run through
-   `python3 scripts/run_tests.py --spec <name>.spec.ts` after the CLI proof is
+   `python3 scripts/tests.py run --spec <name>.spec.ts` after the CLI proof is
    green.
 3. **Apple app third:** `python3 scripts/apple_remote.py test-ios` when a
    targeted native test exists, otherwise `python3 scripts/apple_remote.py
@@ -248,7 +248,7 @@ tests:
   - id: T-E2E-001
     type: playwright
     file: frontend/apps/web_app/tests/teams-settings.spec.ts
-    command: python3 scripts/run_tests.py --spec teams-settings.spec.ts
+    command: python3 scripts/tests.py run --spec teams-settings.spec.ts
     target: app.dev.openmates.org
     covers:
       - AC-1
