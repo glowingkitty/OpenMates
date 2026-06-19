@@ -30,6 +30,7 @@ export interface InteractiveQuestionPayload {
   fields?: InteractiveQuestionField[];
   min?: number;
   max?: number;
+  max_stars?: number;
   scale?: number;
   cards?: InteractiveQuestionOption[];
 }
@@ -85,7 +86,7 @@ export function isInteractiveQuestionPayload(value: unknown): value is Interacti
   if (payload.type === "swipe") return Array.isArray(payload.cards) && payload.cards.length > 0;
   if (payload.type === "rating") {
     return typeof payload.question === "string" && payload.question.trim().length > 0
-      && (typeof payload.max === "number" || typeof payload.scale === "number");
+      && (typeof payload.max_stars === "number" || typeof payload.max === "number" || typeof payload.scale === "number");
   }
   return false;
 }
@@ -146,9 +147,11 @@ function buildDisplayText(
       .join(", ");
   }
   if (question.type === "input") {
-    const values = answer.values && typeof answer.values === "object"
-      ? answer.values as Record<string, unknown>
-      : answer;
+    const values = answer.inputs && typeof answer.inputs === "object"
+      ? answer.inputs as Record<string, unknown>
+      : answer.values && typeof answer.values === "object"
+        ? answer.values as Record<string, unknown>
+        : answer;
     return Object.entries(values)
       .filter(([key]) => key !== "id")
       .map(([, value]) => String(value))

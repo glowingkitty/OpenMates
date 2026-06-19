@@ -104,7 +104,7 @@
           chat_id: activeChatId,
           role: 'user',
           created_at: Math.floor(Date.now() / 1000),
-          status: 'synced',
+          status: 'sending',
           content: responseText
         }
       ];
@@ -114,7 +114,7 @@
   }
 </script>
 
-<div class="interactive-question-card" class:locked={isAnswered}>
+<div class="interactive-question-card" data-testid="interactive-question-card" class:locked={isAnswered}>
   <div class="question-header">
     {#if payload.type === 'choice'}
       <span class="type-badge choice-badge">Choice</span>
@@ -139,7 +139,7 @@
   </div>
 
   {#if payload.question}
-    <h4 class="question-title">{payload.question}</h4>
+    <h4 class="question-title" data-testid="interactive-question-title">{payload.question}</h4>
   {/if}
 
   <div class="question-body">

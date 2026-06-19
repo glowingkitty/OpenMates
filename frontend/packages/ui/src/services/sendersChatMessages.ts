@@ -52,6 +52,22 @@ async function abortUnsafeKeyMismatch(
 	);
 }
 
+export function shouldSkipClientCodeBlockExtraction(language: string, content: string): boolean {
+	const normalizedLanguage = language.trim().toLowerCase();
+	if (normalizedLanguage === "interactive_question" || normalizedLanguage === "interactive_response") {
+		return true;
+	}
+	if (normalizedLanguage === "json" || normalizedLanguage === "json_embed") {
+		try {
+			const jsonData = JSON.parse(content.trim());
+			return "embed_id" in jsonData || "embed_ids" in jsonData;
+		} catch {
+			return false;
+		}
+	}
+	return false;
+}
+
 export async function sendNewMessageImpl(
 	serviceInstance: ChatSynchronizationService,
 	message: Message,
@@ -244,19 +260,11 @@ export async function sendNewMessageImpl(
 				}
 			}
 
-			// Skip JSON blocks that are already embed references
-			if (language.toLowerCase() === "json" || language.toLowerCase() === "json_embed") {
-				try {
-					const jsonData = JSON.parse(codeContent.trim());
-					if ("embed_id" in jsonData || "embed_ids" in jsonData) {
-						console.debug(
-							"[ChatSyncService:Senders] Skipping existing embed reference JSON block"
-						);
-						continue; // Keep as-is
-					}
-				} catch {
-					// Not valid JSON, treat as code block
-				}
+			if (shouldSkipClientCodeBlockExtraction(language, codeContent)) {
+				console.debug(
+					`[ChatSyncService:Senders] Skipping protocol/existing embed code block: ${language}`
+				);
+				continue; // Keep as-is
 			}
 
 			// Generate embed ID
@@ -721,6 +729,10 @@ export async function sendNewMessageImpl(
 		connected_account_token_refs?: PreparedConnectedAccountSendContext["tokenRefs"];
 		mentioned_settings_memories_cleartext?: Record<string, unknown[]>; // Cleartext for @memory/@memory-entry mentions so backend does not re-request
 		active_focus_id?: string | null; // Plaintext focus mode ID for AI processing (decrypted from E2E encrypted field)
+		learning_mode?: {
+			enabled: boolean;
+			age_group: string | null;
+		};
 	}
 	const payload: SendMessagePayload = {
 		chat_id: message.chat_id,
@@ -740,6 +752,13 @@ export async function sendNewMessageImpl(
 		},
 		encrypted_chat_key: encryptedChatKey, // Include the key for device sync broadcast
 		is_incognito: isIncognitoChat // Flag for backend to skip persistence
+	};
+
+	const { learningMode } = await import("../stores/learningModeStore");
+	const learningModeStatus = await learningMode.load();
+	payload.learning_mode = {
+		enabled: learningModeStatus.enabled,
+		age_group: learningModeStatus.age_group
 	};
 
 	// Include app settings/memories metadata (keys only, no content)

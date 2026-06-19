@@ -179,7 +179,7 @@ export async function submitResponse(chatId: string, content: string): Promise<v
     chat_id: chatId,
     role: "user",
     created_at: Math.floor(Date.now() / 1000),
-    status: "synced", // Set to synced so it is displayed as completed locally
+    status: "sending",
     content: content,
   };
 

@@ -50,6 +50,21 @@ describe("CLI interactive question helpers", () => {
     assert.equal(parsed?.type, "input");
   });
 
+  it("parses rating questions that use the web max_stars schema", () => {
+    const parsed = parseInteractiveQuestionBlock(`\`\`\`interactive_question
+{
+  "type": "rating",
+  "id": "rate_experience",
+  "question": "How useful was this?",
+  "max_stars": 5
+}
+\`\`\`
+`);
+
+    assert.equal(parsed?.id, "rate_experience");
+    assert.equal(parsed?.type, "rating");
+  });
+
   it("formats choice answers as answer-only display text plus hidden protocol", () => {
     const result = formatInteractiveQuestionAnswer(
       {
@@ -70,6 +85,22 @@ describe("CLI interactive question helpers", () => {
     assert.ok(result.messageContent.startsWith("items[::2]"));
     assert.match(result.messageContent, /```interactive_response/);
     assert.match(result.messageContent, /"id": "python_slicing"/);
+  });
+
+  it("formats input answers from the web-compatible inputs object", () => {
+    const result = formatInteractiveQuestionAnswer(
+      {
+        type: "input",
+        id: "experience",
+        question: "What do you want to practice?",
+        fields: [{ id: "topic", label: "Topic", required: true }],
+      },
+      { inputs: { topic: "Backend tests" } },
+    );
+
+    assert.equal(result.displayText, "Backend tests");
+    assert.match(result.messageContent, /"inputs"/);
+    assert.match(result.messageContent, /```interactive_response/);
   });
 
   it("formats custom choice answers as typed answer text plus hidden protocol", () => {

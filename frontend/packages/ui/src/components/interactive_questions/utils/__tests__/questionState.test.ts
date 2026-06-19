@@ -13,6 +13,7 @@ import {
   submitResponse,
 } from "../questionState";
 import { chatSyncService } from "../../../../services/chatSyncService";
+import { chatDB } from "../../../../services/db";
 import type { Message } from "../../../../types/chat";
 
 vi.mock("../../../../services/chatSyncService", () => {
@@ -175,7 +176,7 @@ describe("InteractiveQuestions state management", () => {
   });
 
   describe("submitResponse", () => {
-    it("packages and dispatches a valid Message object through chatSyncService", async () => {
+    it("packages an interactive answer as a normal sending message", async () => {
       const mockSend = chatSyncService.sendNewMessage as any;
       mockSend.mockResolvedValue(undefined);
 
@@ -189,9 +190,13 @@ describe("InteractiveQuestions state management", () => {
 
       expect(passedMessage.chat_id).toBe(chatId);
       expect(passedMessage.role).toBe("user");
-      expect(passedMessage.status).toBe("synced");
+      expect(passedMessage.status).toBe("sending");
       expect(passedMessage.content).toBe(content);
       expect(passedMessage.message_id).toContain(chatId.slice(-10));
+      expect(chatDB.saveMessage).toHaveBeenCalledWith(expect.objectContaining({
+        message_id: passedMessage.message_id,
+        status: "sending",
+      }));
     });
   });
 });

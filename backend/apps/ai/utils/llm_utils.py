@@ -28,20 +28,16 @@ from backend.apps.ai.utils.timeout_utils import (
     get_first_chunk_timeout_seconds,
     get_inter_chunk_timeout_seconds,
 )
+from backend.apps.ai.utils.preprocessing_history import (
+    STANDARDIZED_USER_ERROR_MESSAGE,
+    normalize_preprocessing_message_history,
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.core.api.app.services.cache import CacheService
 from toon_format import decode, encode
 
 logger = logging.getLogger(__name__)
-
-# Standard error message shown to users when all providers fail.
-# Defined once to ensure consistency across all error paths.
-STANDARDIZED_USER_ERROR_MESSAGE = (
-    "The AI service encountered an error while processing your request. "
-    "Please try again in a moment."
-)
-
 
 class AllServersFailedError(Exception):
     """Raised when all configured servers for a model fail during an LLM call.
@@ -875,7 +871,13 @@ async def call_preprocessing_llm(
     else:
         logger.warning(f"[{task_id}] LLM Utils: Preprocessing tool definition issue. Cannot inject dynamic context. Def: {current_tool_definition}")
 
-    transformed_messages_for_llm = _transform_message_history_for_llm(message_history)
+    normalized_message_history = normalize_preprocessing_message_history(message_history)
+    if len(normalized_message_history) != len(message_history):
+        logger.warning(
+            f"[{task_id}] LLM Utils: Dropped {len(message_history) - len(normalized_message_history)} "
+            "trailing standardized error message(s) before preprocessing."
+        )
+    transformed_messages_for_llm = _transform_message_history_for_llm(normalized_message_history)
 
     # CRITICAL: Strip tool_calls from assistant messages and remove tool-role messages entirely.
     # The preprocessing LLM must only see plain user/assistant text conversation.
@@ -1151,6 +1153,10 @@ async def call_preprocessing_llm(
         # was not in request.tools". This is a provider-side model behaviour — a different
         # provider (OpenRouter) will handle it correctly, so treat it as retryable.
         if "attempted to call tool 'json' which was not in request.tools" in error_lower:
+            return True
+        # Mistral rejects malformed histories whose final message is not a user turn.
+        # Preprocessing can recover by trying normalized history/fallback providers.
+        if "expected last role user" in error_lower:
             return True
         # Non-retryable errors: 400 (bad request) — the request itself is malformed,
         # sending the same request to another provider won't help.

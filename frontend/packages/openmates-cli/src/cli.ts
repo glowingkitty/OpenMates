@@ -19,6 +19,8 @@ import {
   type DailyInspiration,
   type DecryptedNewChatSuggestion,
   type DocsTree,
+  type LearningModeAgeGroup,
+  type LearningModeStatus,
   type SubChatApprovalRequest,
   type BankTransferOrderDetails,
   type BankTransferStatus,
@@ -56,8 +58,11 @@ import {
   type ExampleChatConversation,
 } from "./exampleChats.js";
 import {
+  formatInteractiveQuestionAnswer,
   parseInteractiveQuestionBlock,
   toWaitingForUserResult,
+  type InteractiveQuestionAnswer,
+  type InteractiveQuestionPayload,
   type WaitingForUserResult,
 } from "./interactiveQuestions.js";
 import { buildAssistantFeedbackDecision } from "./feedback.js";
@@ -115,6 +120,10 @@ async function main(): Promise<void> {
     }
     if (command === "settings") {
       printSettingsHelp(client);
+      return;
+    }
+    if (command === "learning-mode") {
+      printLearningModeHelp();
       return;
     }
     if (command === "signup") {
@@ -229,6 +238,11 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "learning-mode") {
+    await handleLearningMode(client, subcommand, parsed.flags);
+    return;
+  }
+
   if (command === "inspirations") {
     await handleInspirations(client, parsed.flags);
     return;
@@ -258,8 +272,17 @@ function shouldInitializeRedactor(
 ): boolean {
   return (
     command === "chats" &&
-    ["new", "send", "incognito"].includes(subcommand ?? "")
+    ["new", "send", "answer-interactive", "incognito"].includes(subcommand ?? "")
   );
+}
+
+function parseJsonFlag<T>(value: string, flagName: string): T {
+  try {
+    return JSON.parse(value) as T;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Invalid JSON for ${flagName}: ${message}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -421,6 +444,37 @@ async function handleChats(
         message,
         chatId,
         incognito: flags.incognito === true,
+        json: flags.json === true,
+        autoApproveSubChats: flags["auto-approve"] === true,
+        autoApproveMemories: flags["auto-approve-memories"] === true,
+        piiDetection: flags["no-pii-detection"] !== true,
+      },
+      redactor,
+    );
+    if (flags.json === true) printJson(result);
+    return;
+  }
+
+  if (subcommand === "answer-interactive") {
+    const chatId = typeof flags.chat === "string" ? flags.chat : undefined;
+    const questionJson = typeof flags["question-json"] === "string" ? flags["question-json"] : undefined;
+    const answerJson = typeof flags["answer-json"] === "string" ? flags["answer-json"] : undefined;
+
+    if (!chatId || !questionJson || !answerJson) {
+      throw new Error(
+        "Missing interactive answer data. Usage: openmates chats answer-interactive --chat <id> --question-json '<json>' --answer-json '<json>'",
+      );
+    }
+
+    const question = parseJsonFlag<InteractiveQuestionPayload>(questionJson, "--question-json");
+    const answer = parseJsonFlag<InteractiveQuestionAnswer>(answerJson, "--answer-json");
+    const formatted = formatInteractiveQuestionAnswer(question, answer);
+    const result = await sendMessageStreaming(
+      client,
+      {
+        message: formatted.messageContent,
+        chatId,
+        incognito: false,
         json: flags.json === true,
         autoApproveSubChats: flags["auto-approve"] === true,
         autoApproveMemories: flags["auto-approve-memories"] === true,
@@ -2530,6 +2584,74 @@ function printSettingsInfoCommand(
   }
 }
 
+const LEARNING_MODE_AGE_GROUPS: LearningModeAgeGroup[] = ["under_10", "10_12", "13_15", "16_18", "adult"];
+
+async function handleLearningMode(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printLearningModeHelp();
+    return;
+  }
+
+  if (subcommand === "status") {
+    printLearningModeStatus(await client.getLearningModeStatus(), flags.json === true);
+    return;
+  }
+
+  if (subcommand === "enable") {
+    const ageGroup = parseLearningModeAgeGroup(flags["age-group"]);
+    const passcode = await readLearningModePasscode(flags, "Set Learning Mode passcode: ");
+    printLearningModeStatus(
+      await client.activateLearningMode({ ageGroup, passcode }),
+      flags.json === true,
+    );
+    return;
+  }
+
+  if (subcommand === "disable") {
+    const passcode = await readLearningModePasscode(flags, "Enter Learning Mode passcode: ");
+    printLearningModeStatus(await client.deactivateLearningMode(passcode), flags.json === true);
+    return;
+  }
+
+  throw new Error(`Unknown learning-mode command '${subcommand}'. Run 'openmates learning-mode --help'.`);
+}
+
+function parseLearningModeAgeGroup(value: string | boolean | undefined): LearningModeAgeGroup {
+  if (typeof value !== "string") {
+    throw new Error("Missing --age-group. Use one of: under_10, 10_12, 13_15, 16_18, adult.");
+  }
+  if (!LEARNING_MODE_AGE_GROUPS.includes(value as LearningModeAgeGroup)) {
+    throw new Error(`Invalid --age-group '${value}'. Use one of: ${LEARNING_MODE_AGE_GROUPS.join(", ")}.`);
+  }
+  return value as LearningModeAgeGroup;
+}
+
+async function readLearningModePasscode(
+  flags: Record<string, string | boolean>,
+  prompt: string,
+): Promise<string> {
+  if (typeof flags.passcode === "string" && flags.passcode.length > 0) return flags.passcode;
+  const passcode = await promptSecret(prompt);
+  if (!passcode) throw new Error("Learning Mode passcode is required.");
+  return passcode;
+}
+
+function printLearningModeStatus(status: LearningModeStatus, json: boolean): void {
+  if (json) {
+    printJson(status);
+    return;
+  }
+  header("Learning Mode");
+  kv("enabled", status.enabled ? "yes" : "no");
+  kv("age group", status.age_group ?? "-");
+  kv("failed attempts", String(status.failed_attempts ?? 0));
+  kv("blocked until", status.deactivation_blocked_until ? new Date(status.deactivation_blocked_until * 1000).toISOString() : "-");
+}
+
 async function handleSettings(
   client: OpenMatesClient,
   subcommand: string | undefined,
@@ -3864,6 +3986,7 @@ async function sendMessageStreaming(
   const urlResult = prepareUrlEmbeds(finalMessage);
   finalMessage = urlResult.message;
   preparedEmbeds.push(...urlResult.embeds);
+  const learningModeStatus = await client.getLearningModeStatus();
 
   const result = await client.sendMessage({
     message: finalMessage,
@@ -3875,6 +3998,10 @@ async function sendMessageStreaming(
     autoApproveSubChats: params.autoApproveSubChats,
     autoApproveMemories: params.autoApproveMemories,
     preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
+    learningMode: {
+      enabled: learningModeStatus.enabled,
+      ageGroup: learningModeStatus.age_group,
+    },
     piiMappings: piiResult.mappings.map((mapping) => ({
       placeholder: mapping.placeholder,
       original: mapping.original,
@@ -5627,6 +5754,7 @@ Commands:
   openmates mentions [--help]                List available @mentions
   openmates embeds [--help]                  Embed commands (show)
   openmates settings [--help]                Predefined settings commands
+  openmates learning-mode [--help]           Account-wide Learning Mode controls
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
   openmates feedback [--help]                Assistant response feedback helpers
@@ -5640,6 +5768,24 @@ Flags:
   --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
   --api-key <key> Optional API key override (or set OPENMATES_API_KEY)
   --help          Show contextual help for any command`);
+}
+
+function printLearningModeHelp(): void {
+  console.log(`Learning Mode commands:
+  openmates learning-mode status [--json]
+  openmates learning-mode enable --age-group <group> [--passcode <code>] [--json]
+  openmates learning-mode disable [--passcode <code>] [--json]
+
+Age groups:
+  under_10, 10_12, 13_15, 16_18, adult
+
+Learning Mode is account-wide. When active, backend chat processing uses
+teaching-first prompts and caps generated artifacts across all platforms.
+
+Options:
+  --age-group <group>  Required for enable
+  --passcode <code>    Optional; prompted securely when omitted
+  --json               Output raw JSON instead of formatted output`);
 }
 
 function printFeedbackHelp(): void {
@@ -5700,6 +5846,7 @@ function printChatsHelp(): void {
   openmates chats new <message> [--json] [--auto-approve] [--auto-approve-memories] [--no-pii-detection]
   openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories] [--no-pii-detection]
   openmates chats send --chat <id> --followup <n> [--json] [--auto-approve] [--auto-approve-memories]
+  openmates chats answer-interactive --chat <id> --question-json '<json>' --answer-json '<json>' [--json]
   openmates chats download <chat-id> [--output <path>] [--zip] [--json]
   openmates chats delete <id1> [id2] [id3] ... [--yes]
   openmates chats share [<chat-id>] [--expires <seconds>] [--password <pwd>] [--json]
@@ -5727,6 +5874,11 @@ Options for 'send':
   --followup <n>   Send the nth follow-up suggestion for this chat instead of
                    typing the full message (requires --chat)
   --incognito      Send without saving to chat history
+
+Options for 'answer-interactive':
+  --chat <id>           Chat containing the interactive question
+  --question-json       The question payload returned by 'chats send --json'
+  --answer-json         Structured answer JSON, for example '{"selection":["opt_a"]}'
 
 Options for 'new', 'send', and 'incognito':
   --auto-approve           Automatically approve server-requested sub-chat batches.
