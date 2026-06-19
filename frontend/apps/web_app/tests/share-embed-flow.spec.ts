@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -34,7 +33,6 @@ const {
 	createStepScreenshotter,
 	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
@@ -84,7 +82,6 @@ test('shares a web search embed via fullscreen share button', async ({
 	// ── Step 4: Wait for AI response ──────────────────────────────────────
 	logCheckpoint('Waiting for assistant response with web search results...');
 	await waitForAssistantMessage(page, { which: 'first', logCheckpoint });
-	const assistantMessage = page.getByTestId('message-assistant');
 	logCheckpoint('Assistant response visible.');
 
 	// ── Step 5: Wait for web search embed to finish ───────────────────────
@@ -137,6 +134,13 @@ test('shares a web search embed via fullscreen share button', async ({
 	await expect(copyLinkButton).toBeVisible({ timeout: 30000 });
 	logCheckpoint('Copy link button visible — embed share link generated.');
 	await takeStepScreenshot(page, 'embed-link-generated');
+
+	const shortLinkCopy = page.getByTestId('share-short-link-copy');
+	await expect(shortLinkCopy).toBeVisible({ timeout: 30000 });
+	const shortLinkTextColor = await shortLinkCopy.getByTestId('share-short-link-url').evaluate((element: HTMLElement) => {
+		return window.getComputedStyle(element).color;
+	});
+	expect(shortLinkTextColor).toBe('rgb(72, 103, 205)');
 
 	// Verify QR code
 	const qrCode = page.locator('[data-testid="share-qr-code"]');
