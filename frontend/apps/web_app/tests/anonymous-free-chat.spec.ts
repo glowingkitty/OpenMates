@@ -159,6 +159,97 @@ async function mockDelayedAnonymousChatStream(
 	}, responseDelayMs);
 }
 
+async function mockProgressiveAnonymousChatStream(page: any, anonymousRequests: Array<Record<string, unknown>>) {
+	await page.exposeFunction('recordProgressiveAnonymousChatStreamRequest', (body: Record<string, unknown>) => {
+		anonymousRequests.push(body);
+		return anonymousRequests.length;
+	});
+	await page.addInitScript(() => {
+		const originalFetch = window.fetch.bind(window);
+		window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+			const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+			if (url.includes('/v1/anonymous/chat/stream')) {
+				const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+				const responseNumber = await (
+					window as typeof window & {
+						recordProgressiveAnonymousChatStreamRequest: (body: Record<string, unknown>) => Promise<number>;
+					}
+				).recordProgressiveAnonymousChatStreamRequest(body);
+				const encoder = new TextEncoder();
+				const assistantMessageId = `anonymous-progressive-assistant-${responseNumber}`;
+				const taskId = `anonymous-task-${body.client_message_id}`;
+				const writeEvent = (controller: ReadableStreamDefaultController<Uint8Array>, payload: Record<string, unknown>) => {
+					controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+				};
+
+				return new Response(
+					new ReadableStream<Uint8Array>({
+						async start(controller) {
+							writeEvent(controller, {
+								type: 'ai_task_initiated',
+								chat_id: body.client_chat_id,
+								user_message_id: body.client_message_id,
+								ai_task_id: taskId,
+								status: 'processing_started'
+							});
+							await new Promise((resolve) => setTimeout(resolve, 350));
+							writeEvent(controller, {
+								type: 'ai_typing_started',
+								chat_id: body.client_chat_id,
+								message_id: assistantMessageId,
+								user_message_id: body.client_message_id,
+								category: 'general_knowledge',
+								model_name: 'test-model',
+								provider_name: 'Test Provider',
+								server_region: 'EU',
+								title: 'Anonymous stream title',
+								icon_names: ['ai'],
+								task_id: taskId
+							});
+							await new Promise((resolve) => setTimeout(resolve, 350));
+							writeEvent(controller, {
+								type: 'ai_message_chunk',
+								task_id: taskId,
+								chat_id: body.client_chat_id,
+								message_id: assistantMessageId,
+								user_message_id: body.client_message_id,
+								full_content_so_far: 'Partial anonymous stream',
+								sequence: 1,
+								is_final_chunk: false,
+								model_name: 'test-model'
+							});
+							await new Promise((resolve) => setTimeout(resolve, 2500));
+							writeEvent(controller, {
+								type: 'ai_message_chunk',
+								task_id: taskId,
+								chat_id: body.client_chat_id,
+								message_id: assistantMessageId,
+								user_message_id: body.client_message_id,
+								full_content_so_far: 'Partial anonymous stream complete',
+								sequence: 2,
+								is_final_chunk: true,
+								model_name: 'test-model'
+							});
+							writeEvent(controller, {
+								type: 'ai_task_ended',
+								chatId: body.client_chat_id,
+								taskId: taskId,
+								status: 'completed'
+							});
+							controller.close();
+						}
+					}),
+					{
+						status: 200,
+						headers: { 'content-type': 'text/event-stream' }
+					}
+				);
+			}
+			return originalFetch(input, init);
+		};
+	});
+}
+
 async function typeMessageText(page: any, text: string) {
 	const editor = page.getByTestId('message-editor');
 	const editable = editor.locator('[contenteditable="true"]').first();
@@ -375,6 +466,47 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
+	test('anonymous text send streams chunks and updates chat header before completion', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 390, height: 844 });
+		await mockAnonymousActiveServerStatus(page);
+
+		const anonymousRequests: Array<Record<string, unknown>> = [];
+		await mockProgressiveAnonymousChatStream(page, anonymousRequests);
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+			timeout: 15000
+		});
+		await page.getByTestId('new-chat-cta-fullwidth').click();
+		await expect(page.getByTestId('new-chat-cta-fullwidth')).toHaveCount(0, { timeout: 10000 });
+
+		await typeMessageText(page, 'Stream anonymously like regular chat');
+		await page.locator('[data-action="send-message"]').click();
+
+		await expect.poll(() => anonymousRequests.length, { timeout: 5000 }).toBe(1);
+		await expect(page.getByTestId('chat-header-banner')).toContainText('Creating new chat', { timeout: 2000 });
+		await expect(page.getByTestId('chat-header-title')).toContainText('Anonymous stream title', { timeout: 5000 });
+		await expect(page.getByTestId('typing-indicator')).toContainText('General Knowledge is typing', { timeout: 5000 });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Partial anonymous stream' })).toBeVisible({
+			timeout: 5000
+		});
+		await expect(
+			page.getByTestId('message-assistant').filter({ hasText: 'Partial anonymous stream complete' })
+		).toHaveCount(0);
+
+		await expect(
+			page.getByTestId('message-assistant').filter({ hasText: 'Partial anonymous stream complete' })
+		).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('typing-indicator')).toHaveCount(0, { timeout: 5000 });
+		await assertNoMissingTranslations(page);
+	});
+
 	test('anonymous text send becomes signup CTA when device budget is exhausted', async ({
 		page
 	}: {
@@ -469,6 +601,19 @@ test.describe('Anonymous free chat', () => {
 			timeout: 15000
 		});
 		await page.getByTestId('new-chat-cta-fullwidth').click();
+
+		await page.getByTestId('message-file-input').setInputFiles({
+			name: 'anonymous-empty-upload.png',
+			mimeType: 'image/png',
+			buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47])
+		});
+		await expect(page.getByTestId('anonymous-upload-signup-banner')).toBeVisible({ timeout: 5000 });
+		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
+		await expect(page.locator('[data-action="sign-up-to-send"]')).toBeVisible({ timeout: 5000 });
+		await expect.poll(() => uploadRequests).toEqual([]);
+		await page.getByTestId('anonymous-upload-signup-remove').click();
+		await expect(page.getByTestId('anonymous-upload-signup-banner')).toHaveCount(0);
+		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
 
 		const editor = await typeMessageText(page, 'Please summarize this image after I sign up.');
 
