@@ -216,7 +216,7 @@ async def anonymous_chat_stream(
                     "is_incognito": True,
                     "is_anonymous": True,
                     "anonymous_reservation_id": reservation.request_id,
-                    "apps_enabled": True,
+                    "apps_enabled": False,
                 },
             )
             usage = result.get("usage") if isinstance(result, dict) else None
@@ -285,7 +285,7 @@ async def anonymous_chat_stream(
                     "is_incognito": True,
                     "is_anonymous": True,
                     "anonymous_reservation_id": reservation.request_id,
-                    "apps_enabled": True,
+                    "apps_enabled": False,
                 },
             )
             if isinstance(result, dict):
