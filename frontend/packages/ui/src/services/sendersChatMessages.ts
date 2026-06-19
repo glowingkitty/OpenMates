@@ -729,10 +729,6 @@ export async function sendNewMessageImpl(
 		connected_account_token_refs?: PreparedConnectedAccountSendContext["tokenRefs"];
 		mentioned_settings_memories_cleartext?: Record<string, unknown[]>; // Cleartext for @memory/@memory-entry mentions so backend does not re-request
 		active_focus_id?: string | null; // Plaintext focus mode ID for AI processing (decrypted from E2E encrypted field)
-		learning_mode?: {
-			enabled: boolean;
-			age_group: string | null;
-		};
 	}
 	const payload: SendMessagePayload = {
 		chat_id: message.chat_id,
@@ -752,13 +748,6 @@ export async function sendNewMessageImpl(
 		},
 		encrypted_chat_key: encryptedChatKey, // Include the key for device sync broadcast
 		is_incognito: isIncognitoChat // Flag for backend to skip persistence
-	};
-
-	const { learningMode } = await import("../stores/learningModeStore");
-	const learningModeStatus = await learningMode.load();
-	payload.learning_mode = {
-		enabled: learningModeStatus.enabled,
-		age_group: learningModeStatus.age_group
 	};
 
 	// Include app settings/memories metadata (keys only, no content)
