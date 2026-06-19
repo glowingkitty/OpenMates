@@ -179,19 +179,8 @@ async def anonymous_chat_stream(
     """Run a text-only anonymous chat turn against the shared free-usage budget."""
     _require_official_cloud(request)
     reject_anonymous_file_payloads(payload)
-    service = AnonymousFreeUsageService(directus_service=directus_service)
     request_id = str(uuid.uuid4())
-    reservation = await service.reserve_budget(
-        request_id=request_id,
-        anonymous_id=payload.anonymous_id,
-        ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
-        estimated_credits=10,
-    )
-    if not reservation.accepted:
-        raise HTTPException(
-            status_code=429,
-            detail={"code": reservation.reason or "budget_exhausted", "message": "Create an account to keep using OpenMates."},
-        )
+    service = AnonymousFreeUsageService(directus_service=directus_service)
 
     messages = [
         {
@@ -204,6 +193,17 @@ async def anonymous_chat_stream(
     messages.append({"role": "user", "content": payload.plaintext_message, "name": "User"})
 
     if not _wants_event_stream(request):
+        reservation = await service.reserve_budget(
+            request_id=request_id,
+            anonymous_id=payload.anonymous_id,
+            ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
+            estimated_credits=10,
+        )
+        if not reservation.accepted:
+            raise HTTPException(
+                status_code=429,
+                detail={"code": reservation.reason or "budget_exhausted", "message": "Create an account to keep using OpenMates."},
+            )
         try:
             from backend.core.api.app.services.skill_registry import get_global_registry
 
@@ -252,7 +252,8 @@ async def anonymous_chat_stream(
         full_content = ""
         sequence = 0
         finalized = False
-        actual_credits = reservation.reserved_credits
+        reservation = None
+        actual_credits = 10
 
         yield _anonymous_sse_event({
             "type": "ai_task_initiated",
@@ -276,6 +277,34 @@ async def anonymous_chat_stream(
         })
 
         try:
+            reservation = await service.reserve_budget(
+                request_id=request_id,
+                anonymous_id=payload.anonymous_id,
+                ip_address=_extract_client_ip(request.headers, request.client.host if request.client else None),
+                estimated_credits=10,
+            )
+            if not reservation.accepted:
+                yield _anonymous_sse_event({
+                    "type": "ai_message_chunk",
+                    "task_id": task_id,
+                    "chat_id": payload.client_chat_id,
+                    "message_id": assistant_message_id,
+                    "user_message_id": payload.client_message_id,
+                    "full_content_so_far": "Create an account to keep using OpenMates.",
+                    "sequence": sequence + 1,
+                    "is_final_chunk": True,
+                    "model_name": model_name,
+                    "rejection_reason": reservation.reason or "budget_exhausted",
+                })
+                yield _anonymous_sse_event({
+                    "type": "ai_task_ended",
+                    "chatId": payload.client_chat_id,
+                    "taskId": task_id,
+                    "status": "failed",
+                })
+                return
+
+            actual_credits = reservation.reserved_credits
             result = await get_global_registry().dispatch_skill(
                 "ai",
                 "ask",
@@ -358,7 +387,7 @@ async def anonymous_chat_stream(
                 assistant=full_content,
             ))
         except Exception as exc:
-            if not finalized:
+            if reservation is not None and not finalized:
                 await service.release_reservation(reservation.request_id, reason="ai_error")
             yield _anonymous_sse_event({
                 "type": "ai_message_chunk",

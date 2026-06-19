@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sys
 import json
+import asyncio
 from types import ModuleType
 
 import pytest
@@ -23,7 +24,7 @@ from backend.core.api.app.routes.anonymous import (
     reject_anonymous_file_payloads,
     validate_anonymous_skill_allowed,
 )
-from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
+from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService, AnonymousReservationResult
 from backend.tests.test_anonymous_free_usage_budget import FakeDirectus
 
 
@@ -175,6 +176,78 @@ async def test_anonymous_chat_dispatches_ai_and_finalizes_actual_credits(monkeyp
     assert len(post_processing["follow_up_request_suggestions"]) == 6
     status = await service.get_budget_status()
     assert status.daily_used_credits == 7
+
+
+@pytest.mark.asyncio
+async def test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation(monkeypatch: pytest.MonkeyPatch) -> None:
+    reserve_started = asyncio.Event()
+    release_reservation = asyncio.Event()
+
+    async def delayed_reserve_budget(
+        self: AnonymousFreeUsageService,
+        *,
+        request_id: str,
+        anonymous_id: str,
+        ip_address: str,
+        estimated_credits: int,
+    ) -> AnonymousReservationResult:
+        reserve_started.set()
+        await release_reservation.wait()
+        return AnonymousReservationResult(accepted=True, request_id=request_id, reserved_credits=estimated_credits)
+
+    async def noop_finalize(self: AnonymousFreeUsageService, request_id: str, *, actual_credits: int) -> None:
+        return None
+
+    class FakeRegistry:
+        async def dispatch_skill(self, app_id: str, skill_id: str, request_body: dict) -> dict:
+            assert request_body["anonymous_reservation_id"]
+            return {
+                "model": "test-model",
+                "choices": [{"message": {"content": "after reservation"}}],
+                "usage": {"total_credits": 3},
+            }
+
+    fake_skill_registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    fake_skill_registry_module.get_global_registry = lambda: FakeRegistry()
+    monkeypatch.setattr(anonymous_routes, "validate_request_domain", lambda _request: ("api.dev.openmates.org", False, "development"))
+    monkeypatch.setattr(AnonymousFreeUsageService, "reserve_budget", delayed_reserve_budget)
+    monkeypatch.setattr(AnonymousFreeUsageService, "finalize_reservation", noop_finalize)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.skill_registry", fake_skill_registry_module)
+
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/v1/anonymous/chat/stream",
+            "headers": [(b"host", b"api.dev.openmates.org"), (b"accept", b"text/event-stream")],
+            "client": ("198.51.100.7", 443),
+        }
+    )
+    payload = AnonymousChatStreamRequest(
+        anonymous_id="anon-1",
+        client_chat_id="chat-1",
+        client_message_id="message-1",
+        plaintext_message="Reply after delayed reservation",
+    )
+
+    response = await anonymous_chat_stream(request=request, payload=payload, directus_service=FakeDirectus())
+    iterator = response.body_iterator
+    first = await asyncio.wait_for(iterator.__anext__(), timeout=0.5)
+    second = await asyncio.wait_for(iterator.__anext__(), timeout=0.5)
+
+    assert json.loads(str(first).removeprefix("data: "))["type"] == "ai_task_initiated"
+    typing_event = json.loads(str(second).removeprefix("data: "))
+    assert typing_event["type"] == "ai_typing_started"
+    assert typing_event["title"] == "Reply after delayed reservation"
+
+    third_chunk_task = asyncio.create_task(iterator.__anext__())
+    await asyncio.wait_for(reserve_started.wait(), timeout=0.5)
+    await asyncio.sleep(0)
+    assert third_chunk_task.done() is False
+
+    release_reservation.set()
+    third = await asyncio.wait_for(third_chunk_task, timeout=0.5)
+    assert json.loads(str(third).removeprefix("data: "))["type"] == "ai_message_chunk"
 
 
 @pytest.mark.asyncio
