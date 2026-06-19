@@ -117,7 +117,7 @@ async def test_anonymous_chat_dispatches_ai_and_finalizes_actual_credits(monkeyp
             assert skill_id == "ask"
             assert request_body["stream"] is True
             assert request_body["is_anonymous"] is True
-            assert request_body["apps_enabled"] is False
+            assert request_body["apps_enabled"] is True
             assert request_body["messages"][-1]["content"] == "Reply with exactly: anonymous inference ok"
             return {
                 "model": "test-model",
@@ -191,7 +191,7 @@ async def test_anonymous_chat_keeps_json_response_for_native_clients(monkeypatch
             assert skill_id == "ask"
             assert request_body["stream"] is False
             assert request_body["is_anonymous"] is True
-            assert request_body["apps_enabled"] is False
+            assert request_body["apps_enabled"] is True
             return {
                 "model": "test-model",
                 "category": "general_knowledge",
