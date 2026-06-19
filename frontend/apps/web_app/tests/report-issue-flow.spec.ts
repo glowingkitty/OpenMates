@@ -343,7 +343,9 @@ test.describe('Report Issue Flow', () => {
 		logCheckpoint('Confirmation page visible.');
 
 		// Verify the issue ID is displayed on the confirmation page
-		const issueIdElement = confirmation.locator('code');
+		const issueIdBlock = confirmation.getByTestId('report-issue-id-block');
+		const issueIdElement = confirmation.getByTestId('report-issue-id-value');
+		await expect(issueIdBlock).toHaveAttribute('data-appearance', 'plain');
 		await expect(issueIdElement).toBeVisible({ timeout: 5000 });
 		const displayedIssueId = await issueIdElement.textContent();
 		expect(displayedIssueId).toBe(responseBody?.issue_id);
@@ -351,7 +353,7 @@ test.describe('Report Issue Flow', () => {
 		await takeStepScreenshot(page, '06-confirmation');
 
 		// ── Step 8: Submit another report — verify form resets ──────────
-		const submitAnotherButton = confirmation.locator('button:has-text("report"), button:has-text("Report"), button:has-text("melden"), button:has-text("another")');
+		const submitAnotherButton = confirmation.getByTestId('report-issue-submit-another');
 		await expect(submitAnotherButton).toBeVisible({ timeout: 5000 });
 		await submitAnotherButton.click();
 		logCheckpoint('Clicked "Submit another report" button.');

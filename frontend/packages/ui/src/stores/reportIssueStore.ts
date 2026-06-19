@@ -15,7 +15,7 @@ export const reportIssueStore = writable<ReportIssueTemplate | null>(null);
  * Holds the issue ID of the most recently submitted issue report.
  * Set by SettingsReportIssue on successful submission; read by
  * SettingsReportIssueConfirmation to display the ID to the user.
- * Cleared when the confirmation page unmounts.
+ * Retained until the next submission so settings view re-mounts keep the ID visible.
  */
 export const submittedIssueIdStore = writable<string>("");
 
