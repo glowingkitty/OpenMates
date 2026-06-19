@@ -327,12 +327,19 @@ def _write_vite_allowed_hosts_config(sandbox: Any, files: list[ApplicationPrevie
     if not allowed_hosts or not _has_vite_dependency(files) or _has_existing_vite_config(files):
         return None
     hosts = ", ".join(repr(host) for host in allowed_hosts)
+    uses_svelte = _has_svelte_vite_plugin_dependency(files)
+    imports = "import { defineConfig } from 'vite';\n"
+    plugins = ""
+    if uses_svelte:
+        imports += "import { svelte } from '@sveltejs/vite-plugin-svelte';\n"
+        plugins = "  plugins: [svelte()],\n"
     sandbox.files.write_files([
         {
             "path": VITE_OPENMATES_CONFIG_PATH,
             "data": (
-                "import { defineConfig } from 'vite';\n\n"
+                f"{imports}\n"
                 "export default defineConfig({\n"
+                f"{plugins}"
                 "  server: {\n"
                 f"    allowedHosts: [{hosts}],\n"
                 "  },\n"
@@ -346,6 +353,13 @@ def _write_vite_allowed_hosts_config(sandbox: Any, files: list[ApplicationPrevie
 def _has_vite_dependency(files: list[ApplicationPreviewFile]) -> bool:
     for file in files:
         if file.path.rsplit("/", 1)[-1] == "package.json" and "vite" in file.content:
+            return True
+    return False
+
+
+def _has_svelte_vite_plugin_dependency(files: list[ApplicationPreviewFile]) -> bool:
+    for file in files:
+        if file.path.rsplit("/", 1)[-1] == "package.json" and "@sveltejs/vite-plugin-svelte" in file.content:
             return True
     return False
 
