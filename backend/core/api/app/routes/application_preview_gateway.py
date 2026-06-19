@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 from dataclasses import dataclass
@@ -27,6 +28,7 @@ from backend.core.api.app.routes.application_preview import (
 
 
 router = APIRouter(tags=["Application Preview Gateway"])
+logger = logging.getLogger(__name__)
 
 TERMINAL_PREVIEW_STATUSES = {"stopped", "failed", "timeout", "cancelled"}
 LEGACY_PREVIEW_GATEWAY_TOKEN_PATTERN = re.compile(r"(/p/[^/]+)/([^/]+)(?=/|$)")
@@ -163,12 +165,21 @@ async def build_preview_gateway_response(
         )
 
     fetch = upstream_fetch or fetch_preview_upstream
+    upstream_url = _upstream_url(upstream_base_url, path, query_string=query_string)
     upstream = await fetch(
-        _upstream_url(upstream_base_url, path, query_string=query_string),
+        upstream_url,
         method,
         body=body,
         headers=_filtered_request_headers(request_headers or {}),
     )
+    if upstream.status_code >= 500:
+        logger.warning(
+            "Application preview upstream returned %s for session %s path %s upstream %s",
+            upstream.status_code,
+            session_id,
+            path or "/",
+            upstream_url,
+        )
     response_headers = _filtered_upstream_headers(upstream.headers)
     return Response(
         content=_rewrite_root_relative_preview_references(

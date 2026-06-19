@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+import base64
+import logging
 import re
 import shlex
 import time
@@ -39,6 +41,8 @@ SECRET_PATTERNS = [
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.DOTALL),
     re.compile(r"(?i)(api[_-]?key|token|secret|password)\s*=\s*[^\s]+"),
 ]
+
+logger = logging.getLogger(__name__)
 
 
 class ApplicationPreviewPlanningError(ValueError):
@@ -75,6 +79,8 @@ class ApplicationPreviewRuntime:
     ports: dict[str, int]
     upstream_base_urls: dict[str, str] | None = None
     latest_screenshot_url: str | None = None
+    latest_screenshot_bytes: bytes | None = None
+    latest_screenshot_mime_type: str | None = None
 
 
 def plan_application_preview_startup(
@@ -211,6 +217,8 @@ def start_application_preview_in_e2b(
         upstream_base_urls=upstream_base_urls,
         ports=ports,
         latest_screenshot_url=_sandbox_screenshot_url(sandbox),
+        latest_screenshot_bytes=_sandbox_screenshot_bytes(sandbox),
+        latest_screenshot_mime_type="image/png",
     )
 
 
@@ -349,3 +357,42 @@ def _has_existing_vite_config(files: list[ApplicationPreviewFile]) -> bool:
 def _sandbox_screenshot_url(sandbox: Any) -> str | None:
     value = getattr(sandbox, "latest_screenshot_url", None) or getattr(sandbox, "screenshot_url", None)
     return str(value) if value else None
+
+
+def _sandbox_screenshot_bytes(sandbox: Any) -> bytes | None:
+    screenshot = getattr(sandbox, "take_screenshot", None)
+    if not callable(screenshot):
+        return None
+
+    try:
+        value = screenshot(format="bytes")
+    except TypeError:
+        try:
+            value = screenshot()
+        except Exception as exc:  # pragma: no cover - depends on E2B runtime capabilities.
+            logger.warning("E2B screenshot capture failed: %s", exc, exc_info=True)
+            return None
+    except Exception as exc:  # pragma: no cover - depends on E2B runtime capabilities.
+        logger.warning("E2B screenshot capture failed: %s", exc, exc_info=True)
+        return None
+
+    return _coerce_screenshot_bytes(value)
+
+
+def _coerce_screenshot_bytes(value: Any) -> bytes | None:
+    if isinstance(value, bytes):
+        return value
+    if isinstance(value, bytearray):
+        return bytes(value)
+    for attr in ("bytes", "data", "content"):
+        nested = getattr(value, attr, None)
+        if isinstance(nested, bytes):
+            return nested
+        if isinstance(nested, bytearray):
+            return bytes(nested)
+    if isinstance(value, str):
+        try:
+            return base64.b64decode(value, validate=True)
+        except ValueError:
+            return None
+    return None

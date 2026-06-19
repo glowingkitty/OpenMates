@@ -1617,6 +1617,88 @@ export interface CodeFileData {
   filename?: string;
 }
 
+export interface ApplicationProjectFileRef {
+  path?: string;
+  embed_id?: string;
+}
+
+export interface ApplicationProjectZipOptions {
+  appName: string;
+  fileRefs: ApplicationProjectFileRef[];
+}
+
+/**
+ * Downloads all source files referenced by an application embed as a project ZIP.
+ * The application manifest path is authoritative so generated projects preserve
+ * their directory structure instead of flattening child code embed filenames.
+ */
+export async function downloadApplicationProjectZip({
+  appName,
+  fileRefs,
+}: ApplicationProjectZipOptions): Promise<void> {
+  try {
+    const refs = fileRefs.filter((ref) => ref.embed_id && ref.path);
+    if (refs.length === 0) {
+      throw new Error("Application project has no downloadable files");
+    }
+
+    const embeds = await loadEmbeds(refs.map((ref) => String(ref.embed_id)));
+    const embedsById = new Map(embeds.map((embed) => [embed.embed_id, embed]));
+    const zip = new JSZip();
+
+    for (const ref of refs) {
+      const embedId = String(ref.embed_id);
+      const embed = embedsById.get(embedId);
+      if (!embed?.content) {
+        throw new Error(`Application file is not available: ${ref.path}`);
+      }
+      const decoded = await decodeToonContent(embed.content);
+      if (!isRecord(decoded)) {
+        throw new Error(`Application file could not be decoded: ${ref.path}`);
+      }
+      const rawCode = stringValue(decoded.code) || stringValue(decoded.content) || "";
+      if (!rawCode) {
+        throw new Error(`Application file is empty: ${ref.path}`);
+      }
+      const parsed = parseCodeEmbedContent(rawCode, {
+        language: stringValue(decoded.language) || stringValue(decoded.lang) || "text",
+        filename: stringValue(decoded.filename),
+      });
+      zip.file(safeApplicationZipPath(String(ref.path)), parsed.code);
+    }
+
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(zipBlob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${safeDownloadName(appName || "application")}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("[ZipExportService] Error downloading application project zip:", error);
+    throw new Error("Failed to download application project zip");
+  }
+}
+
+function safeApplicationZipPath(path: string): string {
+  const parts = path
+    .replace(/\\/g, "/")
+    .split("/")
+    .map((part) => part.trim())
+    .filter((part) => part && part !== "." && part !== "..");
+  return parts.join("/") || "application-file.txt";
+}
+
+function safeDownloadName(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "application";
+}
+
 /**
  * Downloads multiple code files as a zip archive
  * Used for downloading all code files from a code embed group

@@ -407,8 +407,10 @@ embed_types:
       - name: entrypoints
         type: array
         required: true
-      - name: latest_screenshot_ref
+      - name: latest_screenshot_url
         type: string
+      - name: latest_screenshot
+        type: object
 skills:
   - id: search_repos
     name_translation_key: code.search_repos

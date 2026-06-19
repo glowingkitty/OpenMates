@@ -12,6 +12,7 @@ from backend.shared.providers.e2b_application_preview import (
     ApplicationPreviewEntrypoint,
     ApplicationPreviewFile,
     ApplicationPreviewPlanningError,
+    _sandbox_screenshot_bytes,
     _vite_allowed_hosts,
     _wait_for_preview_ready,
     _with_vite_preview_settings,
@@ -166,6 +167,19 @@ def test_preview_keeps_existing_vite_config_for_framework_plugins() -> None:
 
     assert path is None
     assert sandbox.files.payloads == []
+
+
+def test_preview_reads_real_screenshot_bytes_from_sandbox_hook() -> None:
+    class FakeSandbox:
+        def take_screenshot(self, *, format: str):
+            assert format == "bytes"
+            return b"real-screenshot-bytes"
+
+    assert _sandbox_screenshot_bytes(FakeSandbox()) == b"real-screenshot-bytes"
+
+
+def test_preview_screenshot_bytes_returns_none_without_sandbox_hook() -> None:
+    assert _sandbox_screenshot_bytes(object()) is None
 
 
 def test_preview_readiness_waits_through_transient_e2b_502() -> None:
