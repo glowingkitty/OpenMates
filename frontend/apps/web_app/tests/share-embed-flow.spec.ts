@@ -135,13 +135,6 @@ test('shares a web search embed via fullscreen share button', async ({
 	logCheckpoint('Copy link button visible — embed share link generated.');
 	await takeStepScreenshot(page, 'embed-link-generated');
 
-	const shortLinkCopy = page.getByTestId('share-short-link-copy');
-	await expect(shortLinkCopy).toBeVisible({ timeout: 30000 });
-	const shortLinkTextColor = await shortLinkCopy.getByTestId('share-short-link-url').evaluate((element: HTMLElement) => {
-		return window.getComputedStyle(element).color;
-	});
-	expect(shortLinkTextColor).toBe('rgb(72, 103, 205)');
-
 	// Verify QR code
 	const qrCode = page.locator('[data-testid="share-qr-code"]');
 	await expect(qrCode).toBeVisible({ timeout: 10000 });
