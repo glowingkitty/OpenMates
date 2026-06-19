@@ -391,7 +391,7 @@ class AnonymousChatStorage {
       encrypted_title: encryptedTitle,
       anonymous_encrypted_chat_key: await wrapAnonymousChatKey(chatKey),
       messages_v: 2,
-      title_v: 1,
+      title_v: 0,
       draft_v: 0,
       encrypted_draft_md: null,
       encrypted_draft_preview: null,
