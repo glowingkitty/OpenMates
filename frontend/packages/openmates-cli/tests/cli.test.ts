@@ -125,25 +125,90 @@ describe("benchmark command", () => {
 
   it("prints model benchmark help", () => {
     const output = runCli(["benchmark", "--help"]);
-    assert.match(output, /openmates benchmark model <provider\/model>/);
+    assert.match(output, /openmates benchmark model <provider\/model> \[provider\/model\.\.\.\]/);
     assert.match(output, /google\/gemini-3-flash-preview/);
+    assert.match(output, /--compare/);
+    assert.match(output, /--extensive-size/);
+    assert.match(output, /--parallel/);
+    assert.match(output, /--image/);
   });
 
-  it("supports dry-run without login and uses Gemini 3 Flash as default judge", () => {
+  it("supports priced dry-run without login and uses Gemini 3 Flash as default judge", () => {
     const output = runCliWithoutSession([
       "benchmark",
       "model",
       "google/gemini-3.5-flash",
       "--dry-run",
       "--suite",
-      "all",
+      "quick",
       "--json",
     ]);
     const data = JSON.parse(output) as Record<string, unknown>;
     assert.equal(data.status, "planned");
     assert.equal(data.targetModel, "google/gemini-3.5-flash");
+    assert.deepEqual(data.targetModels, ["google/gemini-3.5-flash"]);
     assert.equal(data.judgeModel, "google/gemini-3-flash-preview");
     assert.equal(data.spendsCredits, false);
+    const summary = data.summary as Record<string, unknown>;
+    assert.equal(summary.total, 5);
+    const estimate = data.estimatedCredits as Record<string, unknown>;
+    assert.equal(typeof estimate.totalCredits, "number");
+    assert.ok((estimate.totalCredits as number) > 0);
+  });
+
+  it("supports comparison dry-run with multiple models", () => {
+    const output = runCliWithoutSession([
+      "benchmark",
+      "model",
+      "google/gemini-3.5-flash",
+      "google/gemini-3-flash-preview",
+      "--compare",
+      "--dry-run",
+      "--json",
+    ]);
+    const data = JSON.parse(output) as Record<string, unknown>;
+    assert.equal(data.compare, true);
+    assert.deepEqual(data.targetModels, ["google/gemini-3.5-flash", "google/gemini-3-flash-preview"]);
+    const summary = data.summary as Record<string, unknown>;
+    assert.equal(summary.total, 10);
+  });
+
+  it("rejects ambiguous multiple models without compare", () => {
+    const result = runCliWithoutSessionResult([
+      "benchmark",
+      "model",
+      "google/gemini-3.5-flash",
+      "google/gemini-3-flash-preview",
+      "--dry-run",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Multiple target models require --compare/);
+  });
+
+  it("rejects invalid extensive sizes", () => {
+    const result = runCliWithoutSessionResult([
+      "benchmark",
+      "model",
+      "google/gemini-3.5-flash",
+      "--dry-run",
+      "--suite",
+      "extensive",
+      "--extensive-size",
+      "7",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /--extensive-size must be 5, 10, or 20/);
+  });
+
+  it("refuses benchmarks when pricing metadata is unavailable", () => {
+    const result = runCliWithoutSessionResult([
+      "benchmark",
+      "model",
+      "missing/model",
+      "--dry-run",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /pricing metadata is unavailable/);
   });
 
   it("requires explicit spend confirmation for live runs before login checks", () => {

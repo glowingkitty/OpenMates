@@ -141,6 +141,7 @@ _append_tool_call_turn_to_history = main_processor._append_tool_call_turn_to_his
 _get_skill_execution_args = main_processor._get_skill_execution_args
 _has_diffable_embeds_for_prompt = main_processor._has_diffable_embeds_for_prompt
 _build_pending_app_settings_memories_context = main_processor._build_pending_app_settings_memories_context
+_apply_benchmark_usage_details = main_processor._apply_benchmark_usage_details
 
 
 def test_pending_app_settings_memories_context_preserves_model_preferences() -> None:
@@ -169,6 +170,31 @@ def test_pending_app_settings_memories_context_preserves_model_preferences() -> 
     assert context["current_chat_title"] == "Coding help"
     assert context["embed_file_path_index"] == {"snippet.py": "embed-1"}
     assert "message_history" not in context
+
+
+def test_benchmark_metadata_tags_tool_skill_usage_details() -> None:
+    request_data = SimpleNamespace(
+        benchmark_metadata={
+            "source": "benchmark",
+            "benchmark_run_id": "run-1",
+            "benchmark_suite": "quick",
+            "benchmark_case": "image-brandenburg-gate",
+            "benchmark_target_model": "google/gemini-3.5-flash",
+            "benchmark_judge_model": "google/gemini-3-flash-preview",
+            "ignored_non_string": 123,
+        }
+    )
+    usage_details = {"chat_id": "chat-1", "units_processed": 1}
+
+    _apply_benchmark_usage_details(request_data, usage_details)
+
+    assert usage_details["source"] == "benchmark"
+    assert usage_details["benchmark_run_id"] == "run-1"
+    assert usage_details["benchmark_suite"] == "quick"
+    assert usage_details["benchmark_case"] == "image-brandenburg-gate"
+    assert usage_details["benchmark_target_model"] == "google/gemini-3.5-flash"
+    assert usage_details["benchmark_judge_model"] == "google/gemini-3-flash-preview"
+    assert "ignored_non_string" not in usage_details
 
 
 def test_invalid_tool_calls_are_hidden_protocol_bookkeeping() -> None:

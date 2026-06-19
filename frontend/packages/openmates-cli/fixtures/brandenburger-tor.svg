@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <rect width="1200" height="800" fill="#d8ecff"/>
+  <rect y="560" width="1200" height="240" fill="#d7c39a"/>
+  <text x="600" y="88" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" font-weight="700" fill="#23344d">Brandenburger Tor, Berlin</text>
+  <g transform="translate(160 170)" fill="#c9aa6a" stroke="#5d4522" stroke-width="8">
+    <rect x="80" y="160" width="800" height="58"/>
+    <rect x="120" y="218" width="720" height="48"/>
+    <rect x="150" y="266" width="660" height="42"/>
+    <g fill="#d9bd7d">
+      <rect x="170" y="308" width="54" height="250"/>
+      <rect x="285" y="308" width="54" height="250"/>
+      <rect x="400" y="308" width="54" height="250"/>
+      <rect x="515" y="308" width="54" height="250"/>
+      <rect x="630" y="308" width="54" height="250"/>
+      <rect x="745" y="308" width="54" height="250"/>
+    </g>
+    <rect x="130" y="558" width="700" height="50"/>
+    <path d="M480 30 C530 72 620 88 682 48 L720 84 C652 142 530 124 456 78 Z" fill="#3e6f5f"/>
+    <circle cx="510" cy="92" r="22" fill="#3e6f5f"/>
+    <circle cx="625" cy="92" r="22" fill="#3e6f5f"/>
+    <path d="M565 38 l26 78 h-52 z" fill="#3e6f5f"/>
+  </g>
+  <text x="600" y="740" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" fill="#23344d">Neoclassical gate with Quadriga on top</text>
+</svg>

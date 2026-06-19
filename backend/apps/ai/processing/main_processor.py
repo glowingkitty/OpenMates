@@ -1218,6 +1218,24 @@ async def _resolve_skill_preview_metadata(
         return {}
 
 
+def _apply_benchmark_usage_details(request_data: AskSkillRequest, usage_details: Dict[str, Any]) -> None:
+    benchmark_metadata = getattr(request_data, "benchmark_metadata", None)
+    if not isinstance(benchmark_metadata, dict) or benchmark_metadata.get("source") != "benchmark":
+        return
+
+    usage_details["source"] = "benchmark"
+    for key in (
+        "benchmark_run_id",
+        "benchmark_suite",
+        "benchmark_case",
+        "benchmark_target_model",
+        "benchmark_judge_model",
+    ):
+        value = benchmark_metadata.get(key)
+        if isinstance(value, str) and value:
+            usage_details[key] = value
+
+
 async def _charge_skill_credits(
     task_id: str,
     request_data: AskSkillRequest,
@@ -1450,6 +1468,7 @@ async def _charge_skill_credits(
             "server_provider": resolved_provider_name,  # Provider display name (e.g., "Brave Search", "BFL")
             "server_region": resolved_region,  # Server region (e.g., "US", "EU")
         }
+        _apply_benchmark_usage_details(request_data, usage_details)
         
         # Charge credits via internal API — one call per successful request.
         # This creates one usage entry per request instead of one combined entry,

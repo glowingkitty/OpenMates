@@ -791,6 +791,16 @@ export interface BenchmarkMetadata {
   benchmark_judge_model?: string;
 }
 
+export interface BenchmarkHistoryMessage {
+  message_id: string;
+  role: "user" | "assistant" | "system";
+  sender_name: string;
+  content: string;
+  created_at: number;
+  chat_id?: string;
+  category?: string | null;
+}
+
 /** Decrypted message for display */
 export interface DecryptedMessage {
   id: string;
@@ -2471,6 +2481,8 @@ export class OpenMatesClient {
     connectedAccountTokenRefInputs?: ConnectedAccountTurnTokenRefInput[];
     /** Non-sensitive CLI benchmark labels for usage-source grouping. */
     benchmarkMetadata?: BenchmarkMetadata;
+    /** Full plaintext history for incognito benchmark turns. */
+    messageHistory?: BenchmarkHistoryMessage[];
     /** Start collecting before send for latency-sensitive benchmark turns. */
     precollectResponse?: boolean;
   }): Promise<{
@@ -2584,7 +2596,11 @@ export class OpenMatesClient {
       messagePayload.benchmark_metadata = params.benchmarkMetadata;
     }
     if (params.incognito) {
-      messagePayload.message_history = [{
+      const providedHistory = (params.messageHistory ?? []).map((historyMessage) => ({
+        ...historyMessage,
+        chat_id: historyMessage.chat_id ?? chatId,
+      }));
+      messagePayload.message_history = [...providedHistory, {
         message_id: messageId,
         chat_id: chatId,
         role: "user",
