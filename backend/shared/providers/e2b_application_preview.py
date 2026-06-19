@@ -27,6 +27,7 @@ VITE_OPENMATES_CONFIG_PATH = "vite.config.openmates.mjs"
 PREVIEW_READINESS_TIMEOUT_SECONDS = 90.0
 PREVIEW_READINESS_INTERVAL_SECONDS = 1.5
 PREVIEW_READINESS_REQUEST_TIMEOUT_SECONDS = 5.0
+PREVIEW_READINESS_REQUIRED_SUCCESSES = 2
 VITE_CONFIG_FILENAMES = {
     "vite.config.js",
     "vite.config.mjs",
@@ -260,6 +261,7 @@ def _wait_for_preview_ready(
     *,
     timeout_seconds: float = PREVIEW_READINESS_TIMEOUT_SECONDS,
     interval_seconds: float = PREVIEW_READINESS_INTERVAL_SECONDS,
+    required_successes: int = PREVIEW_READINESS_REQUIRED_SUCCESSES,
     fetch_status: Callable[[str], int] | None = None,
     sleep: Callable[[float], None] = time.sleep,
 ) -> None:
@@ -267,15 +269,22 @@ def _wait_for_preview_ready(
     last_status: int | None = None
     last_error: Exception | None = None
     status_fetcher = fetch_status or _fetch_preview_status
+    consecutive_successes = 0
+    successes_needed = max(1, required_successes)
 
     while True:
         try:
             status = status_fetcher(url)
             if 200 <= status < 400:
-                return
-            last_status = status
-            last_error = None
+                consecutive_successes += 1
+                if consecutive_successes >= successes_needed:
+                    return
+            else:
+                consecutive_successes = 0
+                last_status = status
+                last_error = None
         except (TimeoutError, OSError, URLError) as exc:
+            consecutive_successes = 0
             last_error = exc
 
         remaining = deadline - time.monotonic()

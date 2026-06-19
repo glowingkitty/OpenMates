@@ -216,7 +216,7 @@ def test_preview_screenshot_bytes_returns_none_without_sandbox_hook() -> None:
 
 
 def test_preview_readiness_waits_through_transient_e2b_502() -> None:
-    statuses = iter([502, 502, 200])
+    statuses = iter([502, 502, 200, 200])
     sleeps: list[float] = []
 
     _wait_for_preview_ready(
@@ -227,11 +227,26 @@ def test_preview_readiness_waits_through_transient_e2b_502() -> None:
         sleep=sleeps.append,
     )
 
-    assert sleeps == [0.01, 0.01]
+    assert sleeps == [0.01, 0.01, 0.01]
+
+
+def test_preview_readiness_requires_consecutive_successes() -> None:
+    statuses = iter([200, 502, 200, 200])
+    sleeps: list[float] = []
+
+    _wait_for_preview_ready(
+        "https://5173-example.e2b.app/",
+        timeout_seconds=5,
+        interval_seconds=0.01,
+        fetch_status=lambda _: next(statuses),
+        sleep=sleeps.append,
+    )
+
+    assert sleeps == [0.01, 0.01, 0.01]
 
 
 def test_preview_readiness_waits_through_e2b_root_404() -> None:
-    statuses = iter([404, 404, 200])
+    statuses = iter([404, 404, 200, 200])
     sleeps: list[float] = []
 
     _wait_for_preview_ready(
@@ -242,7 +257,7 @@ def test_preview_readiness_waits_through_e2b_root_404() -> None:
         sleep=sleeps.append,
     )
 
-    assert sleeps == [0.01, 0.01]
+    assert sleeps == [0.01, 0.01, 0.01]
 
 
 def test_preview_readiness_times_out_with_last_status() -> None:
