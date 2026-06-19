@@ -36,6 +36,7 @@ import argparse
 import fcntl
 import asyncio
 import hashlib
+import importlib.util
 import json
 import mimetypes
 import os
@@ -261,6 +262,19 @@ def _print_flaky_report() -> None:
     for key, flaky, total, rate, last_date in ranked[:15]:
         print(f"{rate:5.0%}   {flaky:>4}/{total:<6}  {last_date:<12}  {key}")
     print()
+
+
+def _record_unified_test_state(data: dict) -> None:
+    """Update scripts/tests.py state files without making this runner depend on it."""
+    tests_script = PROJECT_ROOT / "scripts" / "tests.py"
+    if not tests_script.is_file():
+        return
+    spec = importlib.util.spec_from_file_location("openmates_tests_control", tests_script)
+    if spec is None or spec.loader is None:
+        return
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.record_run_result(data)
 
 
 def _log(msg: str, level: str = "INFO") -> None:
@@ -867,6 +881,28 @@ class GitHubActionsClient:
     def get_failed_job_error(self, run_id: int) -> Optional[str]:
         """Extract error details from a failed run's job logs via `gh run view --log-failed`.
         Returns a trimmed error snippet or None."""
+        context_lines: list[str] = []
+        jobs = subprocess.run(
+            ["gh", "run", "view", str(run_id), "--repo", GH_REPO, "--json", "jobs"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if jobs.returncode == 0 and jobs.stdout.strip():
+            try:
+                payload = json.loads(jobs.stdout)
+            except json.JSONDecodeError:
+                payload = {}
+            for job in payload.get("jobs") or []:
+                if job.get("conclusion") not in {"failure", "timed_out", "cancelled"}:
+                    continue
+                if job.get("name"):
+                    context_lines.append(f"Failed job: {job['name']} ({job.get('conclusion')})")
+                for step in job.get("steps") or []:
+                    if step.get("conclusion") in {"failure", "timed_out", "cancelled"} and step.get("name"):
+                        context_lines.append(f"Failed step: {step['name']} ({step.get('conclusion')})")
+                break
+
         rc = subprocess.run(
             ["gh", "run", "view", str(run_id),
              "--repo", GH_REPO,
@@ -875,7 +911,7 @@ class GitHubActionsClient:
             timeout=30,
         )
         if rc.returncode != 0 or not rc.stdout.strip():
-            return None
+            return "\n".join(context_lines)[:MAX_ERROR_SNIPPET] if context_lines else None
 
         lines = rc.stdout.strip().splitlines()
 
@@ -890,7 +926,8 @@ class GitHubActionsClient:
             if any(kw in text for kw in [
                 "Error:", "FAILED", "expect(", "Timeout", "AssertionError",
                 "Error: locator", "waiting for", "error TS",
-                "Cannot find module", "ERR_MODULE_NOT_FOUND",
+                "Cannot find module", "ERR_MODULE_NOT_FOUND", "##[error]",
+                "Process completed with exit code", "Test timeout",
             ]):
                 capture = True
             if capture:
@@ -899,13 +936,13 @@ class GitHubActionsClient:
                     break
 
         if error_lines:
-            return "\n".join(error_lines)[:MAX_ERROR_SNIPPET]
+            return "\n".join([*context_lines, *error_lines])[:MAX_ERROR_SNIPPET]
 
         # Fallback: return last N non-empty lines (usually contains the failure reason)
         tail = [ln.split("\t")[-1].strip() if "\t" in ln else ln.strip()
                 for ln in lines[-20:] if ln.strip()]
         if tail:
-            return "\n".join(tail[-10:])[:MAX_ERROR_SNIPPET]
+            return "\n".join([*context_lines, *tail[-10:]])[:MAX_ERROR_SNIPPET]
 
         return None
 
@@ -1670,6 +1707,10 @@ class ResultAggregator:
 
         # Write last-run.json (always overwritten)
         _safe_write_json(RESULTS_DIR / "last-run.json", data)
+        try:
+            _record_unified_test_state(data)
+        except Exception as exc:
+            _log(f"Could not update unified test state: {exc}", "WARN")
 
         _log(f"Results saved to {run_file.name} and last-run.json")
 
