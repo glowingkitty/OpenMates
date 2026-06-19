@@ -28,4 +28,41 @@ describe("parseEmbedNodes", () => {
       referenceOnly: true,
     });
   });
+
+  it("keeps complete JSON embed references finished when no status is present", () => {
+    const markdown = `\`\`\`json
+{
+  "type": "code",
+  "embed_id": "finished-code-1"
+}
+\`\`\``;
+
+    const [embed] = parseEmbedNodes(markdown, "write");
+
+    expect(embed).toMatchObject({
+      id: "finished-code-1",
+      type: "code-code",
+      contentRef: "embed:finished-code-1",
+      status: "finished",
+    });
+  });
+
+  it("preserves explicit processing status from JSON embed references", () => {
+    const markdown = `\`\`\`json
+{
+  "type": "code",
+  "embed_id": "processing-code-1",
+  "status": "processing"
+}
+\`\`\``;
+
+    const [embed] = parseEmbedNodes(markdown, "write");
+
+    expect(embed).toMatchObject({
+      id: "processing-code-1",
+      type: "code-code",
+      contentRef: "embed:processing-code-1",
+      status: "processing",
+    });
+  });
 });
