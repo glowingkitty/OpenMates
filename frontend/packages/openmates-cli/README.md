@@ -26,10 +26,11 @@ openmates apps code run --language python --code 'print("Hello")'
 openmates settings account export data --json
 openmates settings memories list --json
 openmates docs list
+openmates benchmark model google/gemini-3.5-flash --dry-run --json
 openmates server install
 ```
 
-Run `openmates --help` or `openmates <command> --help` for the full command surface.
+Run `openmates --help` or `openmates <command> --help` for the full command surface. Benchmark commands also support `openmates benchmark --help` for suite, comparison, judge, and spend-confirmation options.
 
 ## Environments
 

@@ -4,7 +4,7 @@ doc_type: reference
 audience:
   - end-users
   - technical-users
-last_verified: 2026-06-11
+last_verified: 2026-06-19
 claims:
   - id: cli-readme-lists-command-categories
     type: unit
@@ -62,6 +62,7 @@ openmates apps list
 | `chats` | List, search, show, send, share, download, delete, incognito | [chats.md](./chats.md) |
 | `apps` | List apps, run skills, view skill info | [apps-and-skills.md](./apps-and-skills.md) |
 | `settings` | Predefined settings commands, invoices, notifications, mates, newsletter, memories | [settings.md](./settings.md) |
+| `benchmark` | Run real product-path model benchmarks, comparisons, and judged case suites | [benchmarks.md](./benchmarks.md) |
 | `embeds`, `mentions` | View embeds, create share links, search mentions | [embeds-and-sharing.md](./embeds-and-sharing.md) |
 | `inspirations`, `newchatsuggestions` | Daily inspirations and personalized suggestions | [chats.md](./chats.md) |
 | `docs` | Browse, search, show, and download documentation | [docs.md](./docs.md) |
@@ -100,6 +101,7 @@ All files are created with strict permissions (`0o600` owner read/write only, di
 - [Chat Commands](./chats.md) -- full chat operation reference
 - [Apps & Skills](./apps-and-skills.md) -- app listing and skill execution
 - [Settings](./settings.md) -- account, billing, notifications, mates, newsletter, and memories management
+- [Benchmark Commands](./benchmarks.md) -- model benchmark suites, comparison mode, and judge scoring
 - [Embeds & Sharing](./embeds-and-sharing.md) -- embed viewing and share links
 - [Docs Commands](./docs.md) -- browsing and downloading documentation from the terminal
 - [Server Management](./server-management.md) -- self-hosted server administration

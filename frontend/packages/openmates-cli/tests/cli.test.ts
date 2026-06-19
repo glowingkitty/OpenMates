@@ -1925,6 +1925,7 @@ describe("documented CLI command reference", () => {
         "chats",
         "apps",
         "settings",
+        "benchmark",
         "embeds",
         "mentions",
         "inspirations",
@@ -1947,7 +1948,7 @@ describe("documented CLI command reference", () => {
     const readme = readRepoText("frontend/packages/openmates-cli/README.md");
     const help = runCli(["--help"]);
     docAssert("cli-npm-readme-onboarding-matches-command-surface", () => {
-      for (const command of ["login", "signup", "chats", "apps", "settings", "server", "docs"]) {
+      for (const command of ["login", "signup", "chats", "apps", "settings", "benchmark", "server", "docs"]) {
         assert.ok(help.includes(command), `expected help to mention ${command}`);
         assert.ok(readme.includes(`openmates ${command}`), `expected README to include openmates ${command}`);
       }
@@ -1957,6 +1958,32 @@ describe("documented CLI command reference", () => {
       assert.ok(!readme.includes("settings get /v1/settings"));
       assert.ok(!readme.includes("BLOCKED_SETTINGS_POST_PATHS"));
       assert.ok(readme.includes("BLOCKED_SETTINGS_MUTATE_PATHS"));
+    });
+  });
+
+  it("benchmark docs cover benchmark help options", () => {
+    const doc = readRepoText("docs/user-guide/cli/benchmarks.md");
+    const help = runCli(["benchmark", "--help"]);
+    docAssert("cli-benchmark-docs-cover-help", () => {
+      for (const fragment of [
+        "benchmark model <provider/model>",
+        "--confirm-spend-credits",
+        "--dry-run",
+        "--compare",
+        "--suite",
+        "--case",
+        "--extensive-size",
+        "--parallel",
+        "--judge-model",
+        "--image",
+        "--output",
+        "--json",
+      ]) {
+        assert.ok(help.includes(fragment), `expected benchmark help to mention ${fragment}`);
+        assert.ok(doc.includes(fragment), `expected benchmark docs to mention ${fragment}`);
+      }
+      assert.ok(doc.includes("1` to `5"));
+      assert.ok(doc.includes("scores `4` and `5` pass"));
     });
   });
 
