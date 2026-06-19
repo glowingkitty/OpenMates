@@ -67,6 +67,7 @@
     }
     
     const dispatch = createEventDispatcher();
+    const CONDITIONAL_UI_CANCEL_SETTLE_TIMEOUT_MS = 750;
 
     function normalizePostSignupLoginUser(user: Record<string, unknown> | null | undefined): void {
         const lastOpened = user?.last_opened;
@@ -99,6 +100,7 @@
     
     // Conditional UI (passkey autofill) state
     let conditionalUIAbortController: AbortController | null = null; // For cancelling conditional UI passkey request
+    let conditionalUIPasskeyPromise: Promise<void> | null = null;
     // Synchronous guard for startConditionalUIPasskey(). The existing check on
     // conditionalUIAbortController is insufficient because it's set AFTER the first
     // await inside the function. When Svelte's $effect fires twice in rapid succession
@@ -525,12 +527,19 @@
     async function startPasskeyLogin() {
         if (isPasskeyLoading || isLoading) return;
 
+        const pendingConditionalUIPasskey = conditionalUIPasskeyPromise;
+
         // Cancel any pending conditional UI passkey request to avoid WebAuthn conflicts
         cancelConditionalUIPasskey();
 
-        // Wait a bit longer to ensure the conditional UI request is fully cancelled
-        // This prevents "A request is already pending" errors
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Safari may keep an aborted conditional WebAuthn request active briefly.
+        // Wait for that promise to settle before starting the manual request.
+        if (pendingConditionalUIPasskey) {
+            await Promise.race([
+                pendingConditionalUIPasskey,
+                new Promise<void>(resolve => setTimeout(resolve, CONDITIONAL_UI_CANCEL_SETTLE_TIMEOUT_MS))
+            ]);
+        }
 
         // Show loading screen
         isPasskeyLoading = true;
@@ -1743,6 +1752,18 @@
             console.log('[Login] Conditional UI passkey request cancelled');
         }
     }
+
+    function startTrackedConditionalUIPasskey() {
+        if (conditionalUIPasskeyPromise) return;
+
+        let trackedPromise: Promise<void>;
+        trackedPromise = startConditionalUIPasskey().finally(() => {
+            if (conditionalUIPasskeyPromise === trackedPromise) {
+                conditionalUIPasskeyPromise = null;
+            }
+        });
+        conditionalUIPasskeyPromise = trackedPromise;
+    }
     
     /**
      * Restart conditional UI passkey flow if conditions are met
@@ -1759,7 +1780,7 @@
             !conditionalUIAbortController
         ) {
             console.log('[Login] Restarting conditional UI passkey flow');
-            startConditionalUIPasskey();
+            startTrackedConditionalUIPasskey();
         }
     }
 
@@ -2160,7 +2181,7 @@
             // This enables the OS/browser to show passkey suggestions automatically
             // The request will wait silently until user interacts with the email field
             console.log('[Login] Starting conditional UI passkey flow for automatic passkey suggestions');
-            startConditionalUIPasskey();
+            startTrackedConditionalUIPasskey();
         } else {
             // Cancel conditional UI if we're not in the right state
             if (conditionalUIAbortController && (currentView !== 'login' || $isInSignupProcess || currentLoginStep !== 'email')) {
