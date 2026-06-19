@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 
 import type { BenchmarkMetadata, OpenMatesClient, BenchmarkHistoryMessage } from "./client.js";
 import { processFiles, type ProcessedFileEmbed } from "./fileEmbed.js";
-import { createEmbedReferenceBlock, toonEncodeContent, type PreparedEmbed } from "./embedCreator.js";
+import { toonEncodeContent, type PreparedEmbed } from "./embedCreator.js";
 import { uploadFile } from "./uploadService.js";
 
 type BenchmarkFlags = Record<string, string | boolean>;
@@ -450,6 +450,7 @@ export async function handleBenchmark(
   const runs = parseRuns(flags.runs);
   const extensiveSize = parseExtensiveSize(flags["extensive-size"]);
   const parallel = parseParallel(flags.parallel);
+  const caseIds = parseCaseIds(flags.case);
   const dryRun = flags["dry-run"] === true;
   const output = typeof flags.output === "string" ? flags.output : undefined;
   const runId = typeof flags["run-id"] === "string" ? flags["run-id"] : randomUUID();
@@ -462,7 +463,7 @@ export async function handleBenchmark(
     );
   }
 
-  const cases = expandCases(suites, runs, extensiveSize);
+  const cases = filterCases(expandCases(suites, runs, extensiveSize), caseIds);
   const pricing = loadPricingForModels([...targetModels, judgeModel]);
   const estimate = estimateCredits(cases, targetModels, judgeModel, pricing);
   const result = makeBaseResult({
@@ -521,6 +522,7 @@ Options:
   --dry-run                     Preview the benchmark plan without inference or spend
   --compare                     Compare two or more target models
   --suite <list>                Comma-separated suites: quick, extensive, all (default: quick)
+  --case <id[,id...]>           Run only specific case id(s) from the selected suites
   --extensive-size <n>          Extensive cases to run: 5, 10, or 20 (default: ${DEFAULT_EXTENSIVE_SIZE})
   --runs <n>                    Repeat each selected case (default: 1)
   --parallel <n>                Concurrent target case requests (default: ${DEFAULT_PARALLEL})
@@ -572,6 +574,30 @@ function parseParallel(value: string | boolean | undefined): number {
     throw new Error("--parallel must be an integer from 1 to 20");
   }
   return parsed;
+}
+
+function parseCaseIds(value: string | boolean | undefined): string[] {
+  if (value === undefined || value === false) return [];
+  if (value === true) throw new Error("--case requires a case id");
+  const caseIds = value.split(",").map((caseId) => caseId.trim()).filter(Boolean);
+  if (caseIds.length === 0) throw new Error("--case requires at least one case id");
+  return [...new Set(caseIds)];
+}
+
+function filterCases(
+  cases: Array<BenchmarkCase & { run: number }>,
+  caseIds: string[],
+): Array<BenchmarkCase & { run: number }> {
+  if (caseIds.length === 0) return cases;
+  const availableIds = new Set(cases.map((benchmarkCase) => benchmarkCase.id));
+  const missing = caseIds.filter((caseId) => !availableIds.has(caseId));
+  if (missing.length > 0) {
+    throw new Error(
+      `Unknown benchmark case id(s): ${missing.join(", ")}. ` +
+      `Available in selected suite(s): ${[...availableIds].sort().join(", ")}`,
+    );
+  }
+  return cases.filter((benchmarkCase) => caseIds.includes(benchmarkCase.id));
 }
 
 function expandCases(suites: SuiteName[], runs: number, extensiveSize: number): Array<BenchmarkCase & { run: number }> {
@@ -809,7 +835,11 @@ async function uploadBenchmarkImage(client: OpenMatesClient, fileEmbed: Processe
   fileEmbed.embed.status = "finished";
   fileEmbed.embed.contentHash = uploadResult.content_hash;
   fileEmbed.embed.embedId = uploadResult.embed_id;
-  fileEmbed.referenceBlock = createEmbedReferenceBlock(embedRef);
+  fileEmbed.referenceBlock = createBenchmarkEmbedReferenceBlock(fileEmbed.embed.embedId, fileEmbed.embed.type);
+}
+
+export function createBenchmarkEmbedReferenceBlock(embedId: string, embedType: string): string {
+  return `\n\n\`\`\`json\n${JSON.stringify({ type: embedType, embed_id: embedId })}\n\`\`\``;
 }
 
 async function judgeCase(params: {

@@ -128,6 +128,7 @@ describe("benchmark command", () => {
     assert.match(output, /openmates benchmark model <provider\/model> \[provider\/model\.\.\.\]/);
     assert.match(output, /google\/gemini-3-flash-preview/);
     assert.match(output, /--compare/);
+    assert.match(output, /--case/);
     assert.match(output, /--extensive-size/);
     assert.match(output, /--parallel/);
     assert.match(output, /--image/);
@@ -171,6 +172,24 @@ describe("benchmark command", () => {
     assert.deepEqual(data.targetModels, ["google/gemini-3.5-flash", "google/gemini-3-flash-preview"]);
     const summary = data.summary as Record<string, unknown>;
     assert.equal(summary.total, 10);
+  });
+
+  it("supports selecting one benchmark case by id", () => {
+    const output = runCliWithoutSession([
+      "benchmark",
+      "model",
+      "anthropic/claude-haiku-4-5-20251001",
+      "--dry-run",
+      "--suite",
+      "quick",
+      "--case",
+      "quick-image-brandenburger-tor",
+      "--json",
+    ]);
+    const data = JSON.parse(output) as Record<string, unknown>;
+    const summary = data.summary as Record<string, unknown>;
+    assert.equal(summary.total, 1);
+    assert.equal(summary.skipped, 1);
   });
 
   it("rejects ambiguous multiple models without compare", () => {
