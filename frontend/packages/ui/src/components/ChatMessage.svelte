@@ -2249,7 +2249,7 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
           await copyDone;
           if (code) {
             const { notificationStore } = await import('../stores/notificationStore');
-            notificationStore.success('Code copied to clipboard');
+            notificationStore.success($text('embeds.copied_to_clipboard'));
           }
         } else if (action === 'download') {
           // Download does not need the gesture-token trick — just resolve normally.
@@ -2270,13 +2270,13 @@ import { pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadS
             const { downloadCodeFile } = await import('../services/zipExportService');
             await downloadCodeFile(code, language, filename);
             const { notificationStore } = await import('../stores/notificationStore');
-            notificationStore.success('Code file downloaded successfully');
+            notificationStore.success($text('embeds.code_file_downloaded'));
           }
         }
       } catch (error) {
         console.error('[ChatMessage] Error handling code action:', error);
         const { notificationStore } = await import('../stores/notificationStore');
-        notificationStore.error('Failed to perform action');
+        notificationStore.error($text('embeds.action_failed'));
       } finally {
         showMenu = false;
         selectedNode = null;
