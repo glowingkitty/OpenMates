@@ -492,7 +492,7 @@ test.describe('Anonymous free chat', () => {
 		await expect.poll(() => anonymousRequests.length, { timeout: 5000 }).toBe(1);
 		await expect(page.getByTestId('chat-header-banner')).toContainText('Creating new chat', { timeout: 2000 });
 		await expect(page.getByTestId('chat-header-title')).toContainText('Anonymous stream title', { timeout: 5000 });
-		await expect(page.getByTestId('typing-indicator')).toContainText('General Knowledge is typing', { timeout: 5000 });
+		await expect(page.getByTestId('typing-indicator')).toContainText('George is typing', { timeout: 5000 });
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Partial anonymous stream' })).toBeVisible({
 			timeout: 5000
 		});
