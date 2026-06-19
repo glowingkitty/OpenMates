@@ -236,6 +236,22 @@ async function mockProgressiveAnonymousChatStream(page: any, anonymousRequests: 
 								taskId: taskId,
 								status: 'completed'
 							});
+							writeEvent(controller, {
+								type: 'post_processing_completed',
+								chat_id: body.client_chat_id,
+								task_id: taskId,
+								follow_up_request_suggestions: [
+									'Explain anonymous streaming in simpler terms',
+									'Give practical examples of anonymous streaming',
+									'What should I test next for anonymous chat',
+									'Compare anonymous and signed-in streaming flows'
+								],
+								new_chat_request_suggestions: [],
+								chat_summary: 'Anonymous streaming lifecycle completed',
+								chat_tags: [],
+								harmful_response: 0,
+								quick_tip_slugs: []
+							});
 							controller.close();
 						}
 					}),
@@ -504,6 +520,57 @@ test.describe('Anonymous free chat', () => {
 			page.getByTestId('message-assistant').filter({ hasText: 'Partial anonymous stream complete' })
 		).toBeVisible({ timeout: 10000 });
 		await expect(page.getByTestId('typing-indicator')).toHaveCount(0, { timeout: 5000 });
+		await expect(page.getByTestId('chat-header-summary')).toContainText('Anonymous streaming lifecycle completed', {
+			timeout: 5000
+		});
+		await expect(page.getByTestId('follow-up-suggestion-item').first()).toContainText(
+			'Explain anonymous streaming in simpler terms',
+			{ timeout: 5000 }
+		);
+		const anonymousState = await getAnonymousIndexedDbState(page);
+		const rawAnonymousJson = JSON.stringify(anonymousState);
+		expect(rawAnonymousJson).not.toContain('Anonymous streaming lifecycle completed');
+		expect(rawAnonymousJson).not.toContain('Explain anonymous streaming in simpler terms');
+		expect(rawAnonymousJson).toContain('encrypted_chat_summary');
+		expect(rawAnonymousJson).toContain('encrypted_follow_up_request_suggestions');
+		await assertNoMissingTranslations(page);
+	});
+
+	test('live anonymous text stream updates header and typing before final answer', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(120000);
+		await page.setViewportSize({ width: 390, height: 844 });
+		await mockAnonymousActiveServerStatus(page);
+		const anonymousId = `e2e-live-anon-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+		await page.addInitScript((id: string) => {
+			localStorage.removeItem('openmates:last-auth-method');
+			localStorage.setItem('openmates_anonymous_id', id);
+		}, anonymousId);
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+			timeout: 15000
+		});
+		await page.getByTestId('new-chat-cta-fullwidth').click();
+		await expect(page.getByTestId('new-chat-cta-fullwidth')).toHaveCount(0, { timeout: 10000 });
+
+		const prompt = `Capital of Spain? Anonymous lifecycle live check ${Date.now()}`;
+		await typeMessageText(page, prompt);
+		await page.locator('[data-action="send-message"]').click();
+
+		await expect(page.getByTestId('chat-header-banner')).toContainText('Creating new chat', { timeout: 5000 });
+		await expect(page.getByTestId('chat-header-title')).toContainText('Capital of Spain', { timeout: 12000 });
+		await expect(page.getByTestId('typing-indicator')).toBeVisible({ timeout: 12000 });
+		await expect(page.getByTestId('typing-indicator')).toContainText('typing', { timeout: 12000 });
+		await expect(page.getByTestId('message-assistant').filter({ hasText: /Madrid|Spain/i })).toBeVisible({
+			timeout: 90000
+		});
+		await expect(page.getByTestId('chat-header-summary')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('follow-up-suggestion-item').first()).toBeVisible({ timeout: 30000 });
 		await assertNoMissingTranslations(page);
 	});
 

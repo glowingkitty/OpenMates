@@ -162,12 +162,17 @@ async def test_anonymous_chat_dispatches_ai_and_finalizes_actual_credits(monkeyp
         "ai_typing_started",
         "ai_message_chunk",
         "ai_task_ended",
+        "post_processing_completed",
     ]
     final_chunk = events[2]
     assert final_chunk["message_id"] != payload.client_message_id
     assert final_chunk["message_id"].startswith("chat-1-")
     assert final_chunk["full_content_so_far"] == "anonymous inference ok"
     assert final_chunk["is_final_chunk"] is True
+    post_processing = events[4]
+    assert post_processing["chat_id"] == payload.client_chat_id
+    assert post_processing["chat_summary"] == "anonymous inference ok"
+    assert len(post_processing["follow_up_request_suggestions"]) == 6
     status = await service.get_budget_status()
     assert status.daily_used_credits == 7
 

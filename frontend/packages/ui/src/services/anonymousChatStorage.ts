@@ -15,7 +15,7 @@ import type { AIMessageUpdatePayload, AITaskInitiatedPayload, AITypingStartedPay
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
-import { decryptWithChatKey, encryptWithChatKey } from "./cryptoService";
+import { decryptWithChatKey, encryptArrayWithChatKey, encryptWithChatKey } from "./cryptoService";
 import { chatSyncService } from "./chatSyncService";
 import {
   clearAnonymousSessionKey,
@@ -568,6 +568,11 @@ class AnonymousChatStorage {
             },
           }));
           break;
+        case "post_processing_completed":
+        case "postProcessingCompleted":
+          activeChat = await this.applyAnonymousPostProcessing(activeChat, payload, userMessageId);
+          onChatUpdated(activeChat);
+          break;
         case "completed":
           if (typeof payload.assistant === "string") assistant = payload.assistant;
           if (typeof payload.messageId === "string") messageId = payload.messageId;
@@ -648,6 +653,55 @@ class AnonymousChatStorage {
     const hydratedChat = await this.hydrateAnonymousChat(updatedChat);
     chatSyncService.dispatchEvent(new CustomEvent("chatUpdated", {
       detail: { chat_id: hydratedChat.chat_id, chat: hydratedChat, type: "metadata_updated" },
+    }));
+    window.dispatchEvent(new CustomEvent("anonymousChatsUpdated"));
+    return hydratedChat;
+  }
+
+  private async applyAnonymousPostProcessing(
+    chat: Chat,
+    payload: AnonymousStreamPayload,
+    userMessageId: string,
+  ): Promise<Chat> {
+    const followUpSuggestions = Array.isArray(payload.follow_up_request_suggestions)
+      ? payload.follow_up_request_suggestions.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      : [];
+    const quickTipSlugs = Array.isArray(payload.quick_tip_slugs)
+      ? payload.quick_tip_slugs.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      : [];
+    const chatSummary = typeof payload.chat_summary === "string" && payload.chat_summary.trim()
+      ? payload.chat_summary.trim()
+      : null;
+    const updatedTitle = typeof payload.updated_chat_title === "string" && payload.updated_chat_title.trim()
+      ? payload.updated_chat_title.trim()
+      : null;
+
+    const chatKey = await this.ensureAnonymousChatKey(chat);
+    const encryptedSummary = chatSummary ? await encryptWithChatKey(chatSummary, chatKey) : null;
+    const encryptedFollowUps = followUpSuggestions.length > 0
+      ? await encryptArrayWithChatKey(followUpSuggestions.slice(0, 18), chatKey)
+      : null;
+    const encryptedUpdatedTitle = updatedTitle ? await encryptWithChatKey(updatedTitle, chatKey) : null;
+
+    const updatedChat = await this.updateAnonymousChat(chat, {
+      ...(encryptedUpdatedTitle ? { encrypted_title: encryptedUpdatedTitle, title: updatedTitle ?? undefined, title_v: (chat.title_v ?? 0) + 1 } : {}),
+      ...(encryptedSummary ? { encrypted_chat_summary: encryptedSummary } : {}),
+      ...(encryptedFollowUps ? { encrypted_follow_up_request_suggestions: encryptedFollowUps } : {}),
+      updated_at: Math.floor(Date.now() / 1000),
+    });
+    await chatDB.addChat(stripPlainChatFields(updatedChat));
+    const hydratedChat = await this.hydrateAnonymousChat(updatedChat);
+    chatSyncService.dispatchEvent(new CustomEvent("chatUpdated", {
+      detail: { chat_id: hydratedChat.chat_id, chat: hydratedChat, type: "post_processing_metadata" },
+    }));
+    chatSyncService.dispatchEvent(new CustomEvent("postProcessingCompleted", {
+      detail: {
+        chatId: hydratedChat.chat_id,
+        taskId: typeof payload.task_id === "string" ? payload.task_id : buildAnonymousTaskId(userMessageId),
+        followUpSuggestions,
+        quickTipSlugs,
+        harmfulResponse: typeof payload.harmful_response === "number" ? payload.harmful_response : 0,
+      },
     }));
     window.dispatchEvent(new CustomEvent("anonymousChatsUpdated"));
     return hydratedChat;

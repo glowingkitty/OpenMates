@@ -351,6 +351,12 @@ async def anonymous_chat_stream(
                 "taskId": task_id,
                 "status": "completed",
             })
+            yield _anonymous_sse_event(_anonymous_post_processing_event(
+                chat_id=payload.client_chat_id,
+                task_id=task_id,
+                user_message=payload.plaintext_message,
+                assistant=full_content,
+            ))
         except Exception as exc:
             if not finalized:
                 await service.release_reservation(reservation.request_id, reason="ai_error")
@@ -378,6 +384,53 @@ async def anonymous_chat_stream(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )
+
+
+def _anonymous_post_processing_event(
+    *,
+    chat_id: str,
+    task_id: str,
+    user_message: str,
+    assistant: str,
+) -> dict[str, Any]:
+    """Return local-only anonymous post-processing metadata for the web client."""
+    summary = _anonymous_summary_from_turn(user_message=user_message, assistant=assistant)
+    return {
+        "type": "post_processing_completed",
+        "event_for_client": "post_processing_completed",
+        "chat_id": chat_id,
+        "task_id": task_id,
+        "follow_up_request_suggestions": _anonymous_follow_up_suggestions(user_message),
+        "new_chat_request_suggestions": [],
+        "chat_summary": summary,
+        "chat_tags": [],
+        "harmful_response": 0,
+        "quick_tip_slugs": [],
+    }
+
+
+def _anonymous_summary_from_turn(*, user_message: str, assistant: str) -> str:
+    compact_user = " ".join(user_message.split())
+    compact_assistant = " ".join(assistant.split())
+    if compact_assistant:
+        first_sentence = compact_assistant.split(". ", 1)[0].strip().rstrip(".")
+        summary = first_sentence or compact_user
+    else:
+        summary = compact_user or "Anonymous chat"
+    return summary[:180]
+
+
+def _anonymous_follow_up_suggestions(user_message: str) -> list[str]:
+    topic = " ".join(user_message.split()).strip().rstrip("?.!") or "this topic"
+    short_topic = topic[:80]
+    return [
+        f"Explain {short_topic} in simpler terms",
+        f"Give me practical examples about {short_topic}",
+        f"What should I know next about {short_topic}",
+        f"Compare different perspectives on {short_topic}",
+        f"Summarize the key facts about {short_topic}",
+        f"Ask a follow-up question about {short_topic}",
+    ]
 
 
 def _contains_embed_reference(content: str) -> bool:
