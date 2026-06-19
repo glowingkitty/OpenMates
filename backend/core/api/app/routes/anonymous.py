@@ -165,13 +165,17 @@ async def _iter_openai_sse_payloads(streaming_response: Any):
             yield json.loads(payload_text)
 
 
-@router.post("/chat/stream", include_in_schema=False)
+def _wants_event_stream(request: Request) -> bool:
+    return "text/event-stream" in request.headers.get("accept", "").lower()
+
+
+@router.post("/chat/stream", response_model=None, include_in_schema=False)
 @limiter.limit("20/minute")
 async def anonymous_chat_stream(
     request: Request,
     payload: AnonymousChatStreamRequest,
     directus_service: Any = Depends(_get_directus_service),
-) -> StreamingResponse:
+) -> StreamingResponse | AnonymousChatResponse:
     """Run a text-only anonymous chat turn against the shared free-usage budget."""
     _require_official_cloud(request)
     reject_anonymous_file_payloads(payload)
@@ -198,6 +202,45 @@ async def anonymous_chat_stream(
         for message in payload.message_history
     ]
     messages.append({"role": "user", "content": payload.plaintext_message, "name": "User"})
+
+    if not _wants_event_stream(request):
+        try:
+            from backend.core.api.app.services.skill_registry import get_global_registry
+
+            result = await get_global_registry().dispatch_skill(
+                "ai",
+                "ask",
+                {
+                    "messages": messages,
+                    "stream": False,
+                    "is_incognito": True,
+                    "is_anonymous": True,
+                    "anonymous_reservation_id": reservation.request_id,
+                    "apps_enabled": True,
+                },
+            )
+            usage = result.get("usage") if isinstance(result, dict) else None
+            actual_credits = _safe_positive_int((usage or {}).get("total_credits"), fallback=reservation.reserved_credits)
+            await service.finalize_reservation(reservation.request_id, actual_credits=actual_credits)
+        except HTTPException:
+            await service.release_reservation(reservation.request_id, reason="ai_http_error")
+            raise
+        except Exception as exc:
+            await service.release_reservation(reservation.request_id, reason="ai_error")
+            raise HTTPException(status_code=500, detail={"code": "anonymous_inference_failed", "message": str(exc)}) from exc
+
+        choice = (result.get("choices") or [{}])[0] if isinstance(result, dict) else {}
+        message = choice.get("message") or {}
+        assistant = str(message.get("content") or "")
+        return AnonymousChatResponse(
+            status="completed",
+            chatId=payload.client_chat_id,
+            messageId=f"{payload.client_chat_id[-10:]}-{uuid.uuid4()}",
+            assistant=assistant,
+            category=result.get("category") if isinstance(result, dict) else None,
+            modelName=result.get("model") if isinstance(result, dict) else None,
+            creditsCharged=actual_credits,
+        )
 
     async def stream_anonymous_events():
         from backend.core.api.app.services.skill_registry import get_global_registry

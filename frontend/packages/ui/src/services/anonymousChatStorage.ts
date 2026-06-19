@@ -477,7 +477,7 @@ class AnonymousChatStorage {
     let activeChat = chat;
     const response = await fetch(getApiEndpoint("/v1/anonymous/chat/stream"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Accept": "text/event-stream", "Content-Type": "application/json" },
       body: JSON.stringify({
         anonymous_id: this.getAnonymousId(),
         client_chat_id: chat.chat_id,
