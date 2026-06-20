@@ -116,6 +116,7 @@ function mockAnonymousFetch(response: Record<string, unknown>, ok = true, status
   const fetchMock = vi.fn(async () => ({
     ok,
     status,
+    headers: new Headers({ "content-type": "application/json" }),
     json: async () => response,
   }));
   vi.stubGlobal("fetch", fetchMock);
@@ -230,6 +231,7 @@ describe("anonymousChatStorage", () => {
       return {
         ok: true,
         status: 200,
+        headers: new Headers({ "content-type": "application/json" }),
         json: async () => ({
           messageId: request.client_message_id,
           assistant: "Echoed ID answer",
@@ -289,7 +291,7 @@ describe("anonymousChatStorage", () => {
 
     const chunkEvents = events.filter((event) => event.type === "aiMessageChunk");
     expect(chunkEvents.length).toBeGreaterThanOrEqual(1);
-    expect(chunkEvents.at(-1)?.detail).toEqual(expect.objectContaining({
+    expect(chunkEvents[chunkEvents.length - 1]?.detail).toEqual(expect.objectContaining({
       type: "ai_message_chunk",
       message_id: "assistant-message",
       full_content_so_far: "Streaming anonymous answer",
@@ -362,6 +364,7 @@ describe("anonymousChatStorage", () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
       json: async () => ({ messageId: "assistant-after-failure", assistant: "Recovered" }),
     });
     await storage.sendTextMessage({ markdown: "Try again", currentChatId: chat.chat_id });
