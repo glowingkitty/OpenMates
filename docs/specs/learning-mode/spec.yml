@@ -50,6 +50,7 @@ context_discovery:
     - frontend/packages/openmates-cli/src/cli.ts
     - frontend/packages/ui/src/stores/incognitoModeStore.ts
     - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/settings/learning-mode/SettingsLearningModeSetup.svelte
     - frontend/packages/ui/src/components/Settings.svelte
     - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
     - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
@@ -101,12 +102,14 @@ scenarios:
       - Learning Mode is inactive for Alice's account.
     when:
       - Alice opens Settings and clicks the Learning Mode quick setting.
-      - Alice enters and confirms a custom passcode.
-      - Alice selects learner age group 13-15.
-      - Alice confirms activation.
+      - Settings opens a dedicated Learning Mode subpage.
+      - Alice selects learner age group 13-15 from a settings dropdown.
+      - Alice enters a custom passcode in the settings form.
+      - Alice confirms activation from the subpage.
     then:
       - The backend stores an active account-wide Learning Mode policy with age group 13-15 and a hashed passcode.
       - The plaintext passcode is not stored or logged.
+      - Activation never uses native browser prompt, alert, or confirm overlays.
       - Settings shows Learning Mode as active on reload and on other clients for Alice's account.
       - Every chat request for Alice's account is processed with Learning Mode active, including existing chats.
 
@@ -392,7 +395,9 @@ tests:
       - AC-7
     assertions:
       - settings shows Learning Mode quick setting for authenticated users
-      - activation asks for passcode and age group
+      - activation opens a Learning Mode sub-settings page
+      - activation uses a canonical settings dropdown for age group
+      - activation and deactivation use canonical settings input and button elements
       - wrong deactivation attempts lead to lockout state
       - shortened generated embed notice is visible when backend marks content shortened
     red_phase:

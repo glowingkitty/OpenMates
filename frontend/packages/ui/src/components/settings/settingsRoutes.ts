@@ -127,6 +127,9 @@ import SettingsMates from "./SettingsMates.svelte";
 // Incognito
 import SettingsIncognitoInfo from "./incognito/SettingsIncognitoInfo.svelte";
 
+// Learning Mode
+import SettingsLearningModeSetup from "./learning-mode/SettingsLearningModeSetup.svelte";
+
 // ---------------------------------------------------------------------------
 // Base settings views map — static routes known at build time
 // ---------------------------------------------------------------------------
@@ -235,6 +238,8 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "report_issue/confirmation": SettingsReportIssueConfirmation,
   // Incognito
   "incognito/info": SettingsIncognitoInfo,
+  // Learning Mode
+  "learning-mode/setup": SettingsLearningModeSetup,
   // Server (admin only)
   server: SettingsServer,
   "server/software-update": SettingsSoftwareUpdate,

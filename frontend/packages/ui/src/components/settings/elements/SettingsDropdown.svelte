@@ -22,6 +22,7 @@
         disabled = false,
         name = '',
         ariaLabel = '',
+        dataTestid = '',
         onChange = undefined,
     }: {
         value?: string;
@@ -30,6 +31,7 @@
         disabled?: boolean;
         name?: string;
         ariaLabel?: string;
+        dataTestid?: string;
         onChange?: ((value: string) => void) | undefined;
     } = $props();
 
@@ -44,7 +46,7 @@
     <div class="settings-dropdown-container">
         <select
             class="settings-dropdown"
-            data-testid="settings-dropdown"
+            data-testid={dataTestid || 'settings-dropdown'}
             {name}
             {disabled}
             aria-label={ariaLabel || placeholder}

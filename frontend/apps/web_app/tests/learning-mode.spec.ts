@@ -37,19 +37,6 @@ function learningModeRow(page: any) {
 	return page.getByTestId('learning-mode-toggle-wrapper');
 }
 
-async function answerPromptSequence(page: any, replies: string[]): Promise<void> {
-	const remainingReplies = [...replies];
-	const handler = async (dialog: any) => {
-		const reply = remainingReplies.shift();
-		expect(dialog.type()).toBe('prompt');
-		await dialog.accept(reply ?? '');
-		if (remainingReplies.length === 0) {
-			page.off('dialog', handler);
-		}
-	};
-	page.on('dialog', handler);
-}
-
 test.describe('Learning Mode settings', () => {
 	test.describe.configure({ timeout: 120000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -70,21 +57,36 @@ test.describe('Learning Mode settings', () => {
 		await expect(row).toContainText(/Learning Mode/i);
 
 		const toggle = row.getByRole('checkbox');
-		await expect(row.getByTestId('toggle-container')).toBeVisible({ timeout: 5000 });
+		await expect(toggle).toBeVisible({ timeout: 5000 });
 		await expect(toggle).toBeEnabled({ timeout: 15000 });
 
 		if (await toggle.isChecked()) {
-			test.skip(true, 'Learning Mode is already active on the shared test account; skipping to avoid unknown-passcode lockout.');
+			await row.click();
+			const cleanupPage = page.getByTestId('learning-mode-settings-page');
+			await expect(cleanupPage).toBeVisible({ timeout: 10000 });
+			await page.getByTestId('learning-mode-passcode-input').fill(LEARNING_MODE_TEST_PASSCODE);
+			await page.getByTestId('learning-mode-disable-button').click();
+			try {
+				await expect(toggle).not.toBeChecked({ timeout: 10000 });
+			} catch {
+				test.skip(true, 'Learning Mode is already active with an unknown passcode; skipping to avoid lockout.');
+			}
 		}
 
-		await answerPromptSequence(page, ['13_15', LEARNING_MODE_TEST_PASSCODE]);
-		await row.getByTestId('toggle-container').click();
+		await row.click();
+		const setupPage = page.getByTestId('learning-mode-settings-page');
+		await expect(setupPage).toBeVisible({ timeout: 10000 });
+		await page.getByTestId('learning-mode-age-group-dropdown').selectOption('13_15');
+		await page.getByTestId('learning-mode-passcode-input').fill(LEARNING_MODE_TEST_PASSCODE);
+		await page.getByTestId('learning-mode-enable-button').click();
 		await expect(toggle).toBeChecked({ timeout: 15000 });
 		await expect(row).toContainText(/active/i);
 		await takeStepScreenshot(page, '02-learning-mode-active');
 
-		await answerPromptSequence(page, [LEARNING_MODE_TEST_PASSCODE]);
-		await row.getByTestId('toggle-container').click();
+		await row.click();
+		await expect(setupPage).toBeVisible({ timeout: 10000 });
+		await page.getByTestId('learning-mode-passcode-input').fill(LEARNING_MODE_TEST_PASSCODE);
+		await page.getByTestId('learning-mode-disable-button').click();
 		await expect(toggle).not.toBeChecked({ timeout: 15000 });
 		await expect(row).toContainText(/inactive/i);
 		await takeStepScreenshot(page, '03-learning-mode-disabled');

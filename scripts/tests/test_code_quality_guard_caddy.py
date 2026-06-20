@@ -58,3 +58,39 @@ def test_caddyfile_preflight_blocks_and_skips_later_checks_after_runtime_failure
     assert len(issues) == 1
     assert "module not registered" in issues[0]
     assert calls == [["bash", "deployment/apply-caddy-config.sh", "--check", "deployment/dev_server/Caddyfile"]]
+
+
+def test_settings_native_dialog_guard_blocks_added_prompt():
+    guard = load_guard_module()
+
+    issues = guard._audit_settings_native_dialogs([
+        (
+            "frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte",
+            42,
+            "const value = window.prompt('Bad overlay');",
+        )
+    ])
+
+    assert len(issues) == 1
+    assert "native browser prompt() dialogs are not allowed" in issues[0]
+
+
+def test_settings_native_dialog_guard_ignores_non_settings_files():
+    guard = load_guard_module()
+
+    issues = guard._audit_settings_native_dialogs([
+        ("frontend/packages/ui/src/components/Other.svelte", 10, "window.prompt('legacy');")
+    ])
+
+    assert issues == []
+
+
+def test_settings_native_dialog_guard_covers_settings_shell():
+    guard = load_guard_module()
+
+    issues = guard._audit_settings_native_dialogs([
+        ("frontend/packages/ui/src/components/Settings.svelte", 20, "confirm('Bad overlay');")
+    ])
+
+    assert len(issues) == 1
+    assert "native browser confirm() dialogs are not allowed" in issues[0]
