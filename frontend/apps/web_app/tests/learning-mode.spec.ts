@@ -57,7 +57,6 @@ test.describe('Learning Mode settings', () => {
 		await expect(row).toContainText(/Learning Mode/i);
 
 		const toggle = row.getByRole('checkbox');
-		await expect(toggle).toBeVisible({ timeout: 5000 });
 		await expect(toggle).toBeEnabled({ timeout: 15000 });
 
 		if (await toggle.isChecked()) {
@@ -80,7 +79,6 @@ test.describe('Learning Mode settings', () => {
 		await page.getByTestId('learning-mode-passcode-input').fill(LEARNING_MODE_TEST_PASSCODE);
 		await page.getByTestId('learning-mode-enable-button').click();
 		await expect(toggle).toBeChecked({ timeout: 15000 });
-		await expect(row).toContainText(/active/i);
 		await takeStepScreenshot(page, '02-learning-mode-active');
 
 		await row.click();
@@ -88,7 +86,6 @@ test.describe('Learning Mode settings', () => {
 		await page.getByTestId('learning-mode-passcode-input').fill(LEARNING_MODE_TEST_PASSCODE);
 		await page.getByTestId('learning-mode-disable-button').click();
 		await expect(toggle).not.toBeChecked({ timeout: 15000 });
-		await expect(row).toContainText(/inactive/i);
 		await takeStepScreenshot(page, '03-learning-mode-disabled');
 	});
 });

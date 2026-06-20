@@ -264,7 +264,7 @@ incognito:
   verified_by_human: []
 learning_mode:
   context: Account-wide Learning Mode settings toggle
-  en: Learning Mode
+  en: Learning
   verified_by_human: []
 learning_mode_active:
   context: Subtitle for Learning Mode settings toggle when active

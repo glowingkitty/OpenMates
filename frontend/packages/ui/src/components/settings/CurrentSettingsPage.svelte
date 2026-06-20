@@ -395,9 +395,8 @@
                 <div data-testid="learning-mode-toggle-wrapper">
                     <SettingsItem
                         type="quickaction"
-                        icon="ai"
+                        icon="study"
                         title={$text('settings.learning_mode')}
-                        subtitleTop={$learningMode.enabled ? $text('settings.learning_mode_active') : $text('settings.learning_mode_inactive')}
                         hasToggle={true}
                         checked={$learningMode.enabled}
                         disabled={$learningMode.loading}
