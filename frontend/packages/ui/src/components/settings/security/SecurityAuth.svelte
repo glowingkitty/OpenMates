@@ -11,6 +11,7 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
     import { text } from '@repo/ui';
     import { getApiEndpoint, apiEndpoints } from '../../../config/api';
     import * as cryptoService from '../../../services/cryptoService';
+    import { wasStayLoggedIn } from '../../../services/cryptoKeyStorage';
     import SettingsInput from '../elements/SettingsInput.svelte';
     import { getSessionId } from '../../../utils/sessionId';
     import { focusTrap } from '../../../actions/focusTrap';
@@ -337,7 +338,8 @@ Svelte 5: Uses callback props instead of event dispatcher for parent communicati
                     hashed_email: hashedEmail,
                     lookup_hash: lookupHash,
                     session_id: getSessionId(),
-                    login_method: 'password'
+                    login_method: 'password',
+                    stay_logged_in: wasStayLoggedIn()
                 })
             });
 

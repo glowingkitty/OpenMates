@@ -29,7 +29,7 @@ from slowapi.errors import RateLimitExceeded  # noqa: E402
 from prometheus_client import make_asgi_app  # noqa: E402
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E402
 import httpx  # noqa: E402 # Used for CMS readiness check during lifespan startup
-from typing import Dict, List, Optional  # noqa: E402 # For type hinting
+from typing import Dict, Optional  # noqa: E402 # For type hinting
 
 # Make sure the path is correct based on your project structure
 from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, referrals, websockets  # noqa: E402
@@ -55,6 +55,7 @@ from backend.core.api.app.routes import email_block  # noqa: E402 # Import email
 from backend.core.api.app.routes import geocode  # noqa: E402 # Import geocode proxy router (avoids browser CORS/425 on Nominatim)
 from backend.core.api.app.routes import generated_assets_api  # noqa: E402 # Generated media asset download links
 from backend.core.api.app.routes import video_remotion  # noqa: E402 # Remotion videos.create render endpoints
+from backend.core.api.app.routes import features  # noqa: E402 # Feature availability endpoint
 from backend.core.api.app.routes import default_inspirations  # noqa: E402 # Import default inspirations public endpoint
 from backend.core.api.app.routes import projects  # noqa: E402 # Import projects workspace router
 from backend.core.api.app.routes import daily_inspirations_api  # noqa: E402 # Import user daily inspirations persistence endpoints
@@ -69,6 +70,7 @@ from backend.core.api.app.routes import connected_account_actions  # noqa: E402 
 from backend.core.api.app.routes import connected_account_oauth  # noqa: E402 # One-time connected-account OAuth handoffs
 from backend.core.api.app.routes import provider_oauth_google_calendar  # noqa: E402 # Google Calendar connected-account OAuth adapter
 from backend.core.api.app.routes import settings_software_update  # noqa: E402 # Import software update settings router (admin-only)
+from backend.core.api.app.routes import learning_mode  # noqa: E402 # Account-wide Learning Mode policy endpoints
 from backend.core.api.app.routes import notifications as notifications_api  # noqa: E402 # Safe notification list + SSE stream
 from backend.core.api.app.routes import telemetry  # noqa: E402 # Import OTLP proxy for frontend browser traces
 from backend.core.api.app.routes import test_recordings  # noqa: E402 # Dev-only Playwright recording browser API
@@ -136,9 +138,9 @@ app = None
 
 # Define lifespan context manager for startup/shutdown events
 
-# scan_filesystem_for_apps() and filter_app_components_by_stage() were moved
-# to backend/core/api/app/services/skill_registry.py in OPE-342, so the api,
-# Celery workers, and health check tasks can all use the same implementation.
+# scan_filesystem_for_apps() and feature-aware registry loading live in
+# backend/core/api/app/services/skill_registry.py so the api, Celery workers,
+# and health check tasks can all use the same implementation.
 
 
 async def discover_apps(app_state: any) -> Dict[str, AppYAML]:
@@ -157,15 +159,11 @@ async def discover_apps(app_state: any) -> Dict[str, AppYAML]:
         logger.error("Service Discovery: config_manager not found in app.state.")
         return {}
 
-    disabled_app_ids: List[str] = app_state.config_manager.get_disabled_apps()
     server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
-    logger.info(
-        f"Service Discovery: env='{server_environment}', "
-        f"disabled={disabled_app_ids if disabled_app_ids else '[]'}"
-    )
+    feature_overrides = app_state.config_manager.get_feature_overrides()
+    logger.info(f"Service Discovery: env='{server_environment}', feature_overrides={feature_overrides}")
 
     registry, discovered_metadata = build_skill_registry(
-        disabled_app_ids=disabled_app_ids,
         server_environment=server_environment,
     )
     app_state.skill_registry = registry
@@ -498,9 +496,8 @@ async def lifespan(app: FastAPI):
 
     # Store ConfigManager in app.state
     app.state.config_manager = config_manager
-    # Log disabled_apps config for reference
-    disabled_apps = app.state.config_manager.get_disabled_apps()
-    logger.info(f"ConfigManager initialized. Disabled apps: {disabled_apps if disabled_apps else 'none (all apps enabled by default)'}")
+    feature_overrides = app.state.config_manager.get_feature_overrides()
+    logger.info(f"ConfigManager initialized. Feature overrides: {feature_overrides}")
 
     # Initialize TranslationService for resolving app metadata translations
     logger.info("Initializing TranslationService...")
@@ -1359,6 +1356,7 @@ def create_app() -> FastAPI:
     app.include_router(embeds_api.router, include_in_schema=True)  # Embeds API router - uses API key authentication for downloading embed files (images, etc.)
     app.include_router(generated_assets_api.router, include_in_schema=True)  # Short-lived decrypted download URLs for generated media assets
     app.include_router(video_remotion.router, include_in_schema=True)  # Remotion videos.create render, stop, and version endpoints
+    app.include_router(features.router, include_in_schema=True)  # Effective feature availability for clients
     app.include_router(profile_api.router, include_in_schema=True)  # Profile image API - authenticated proxy for AES-encrypted user profile images
     app.include_router(geocode.router, include_in_schema=False)  # Geocode proxy router - proxies Nominatim requests server-side to avoid browser CORS/TLS 0-RTT issues
     app.include_router(default_inspirations.router, include_in_schema=False)  # Default inspirations public endpoint - returns published inspirations for DailyInspirationBanner
@@ -1367,6 +1365,7 @@ def create_app() -> FastAPI:
     app.include_router(analytics_beacon.router, include_in_schema=False)  # Analytics beacon - privacy-preserving first-party aggregate analytics (no PII)
     app.include_router(debug_sync.router, include_in_schema=False)  # Debug sync status - JWT auth, no admin required, window.debug integration
     app.include_router(sync_api.router, include_in_schema=False)  # Native/desktop optional offline prefetch - JWT auth, encrypted payloads only
+    app.include_router(learning_mode.router, include_in_schema=False)  # Account-wide Learning Mode policy - web/CLI/Apple authenticated only
     app.include_router(token_broker.router, include_in_schema=False)  # Connected-account token refs - web/CLI/Apple authenticated only
     app.include_router(connected_accounts.router, include_in_schema=False)  # Encrypted connected-account rows - client source of truth
     app.include_router(connected_account_actions.router, include_in_schema=False)  # Connected-account operation actions

@@ -20,7 +20,7 @@ runtime invariants:
   - cryptographic-erasure promise: the phased deletion task destroys the
     encryption-key cache before deleting user content
 
-Run: python3 scripts/run_tests.py --spec backend/tests/test_privacy_promises.py
+Run: python3 scripts/tests.py run --spec backend/tests/test_privacy_promises.py
 Or:  docker exec api pytest backend/tests/test_privacy_promises.py -v
 
 See: /home/superdev/.claude/plans/fuzzy-sauteeing-pancake.md (Phase 1)
@@ -96,7 +96,7 @@ def _probe_env_or_skip() -> None:
             "resolvable in this environment: "
             + ", ".join(missing)
             + ". Run on host (python3 -m pytest backend/tests/test_privacy_promises.py) "
-            "or via scripts/run_tests.py (CI)."
+            "or via scripts/tests.py run (CI)."
         )
 
 

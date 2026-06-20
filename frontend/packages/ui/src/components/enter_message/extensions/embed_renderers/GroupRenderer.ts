@@ -71,6 +71,8 @@ import HomeListingEmbedPreview from "../../../embeds/home/HomeListingEmbedPrevie
 import HomeSearchEmbedPreview from "../../../embeds/home/HomeSearchEmbedPreview.svelte";
 import { proxyFavicon, proxyImage } from "../../../../utils/imageProxy";
 import { resolveImageSourceDomain } from "../../../../utils/embedSourceDomain";
+import { get } from "svelte/store";
+import { text } from "@repo/ui";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -136,6 +138,10 @@ function extractLegacyDocxHtml(rawContent?: string, title?: string): string {
     `<h1>${escapeHtml(displayTitle)}</h1>`,
     ...uniqueBodyLines.map((line) => `<p>${escapeHtml(line)}</p>`),
   ].join("\n");
+}
+
+function hasLearningModeShortenedNotice(decodedContent: DecodedEmbedContent | null): boolean {
+  return decodedContent?.learning_mode_shortened === true;
 }
 
 /** Match result from PDF search skill (mirrors PdfSearchEmbedFullscreen.SearchMatch) */
@@ -440,6 +446,21 @@ export class GroupRenderer implements EmbedRenderer {
     }
   }
 
+  private appendLearningModeShortenedNotice(
+    target: HTMLElement,
+    decodedContent: DecodedEmbedContent | null,
+  ): void {
+    target.querySelectorAll('[data-learning-mode-shortened-notice="true"]').forEach((node) => node.remove());
+    if (!hasLearningModeShortenedNotice(decodedContent)) return;
+
+    const notice = document.createElement("div");
+    notice.className = "learning-mode-shortened-notice";
+    notice.dataset.learningModeShortenedNotice = "true";
+    notice.style.cssText = "margin-top: var(--spacing-2); color: var(--color-grey-60); font-size: var(--font-size-xs); line-height: 1.4;";
+    notice.textContent = get(text)("embeds.learning_mode_shortened_notice");
+    target.appendChild(notice);
+  }
+
   async render(context: EmbedRenderContext): Promise<void> {
     const { attrs, content } = context;
 
@@ -490,6 +511,7 @@ export class GroupRenderer implements EmbedRenderer {
 
       if (mounter) {
         await mounter(attrs, embedData, decodedContent, content);
+        this.appendLearningModeShortenedNotice(content, decodedContent);
         return;
       }
 
@@ -501,6 +523,7 @@ export class GroupRenderer implements EmbedRenderer {
         decodedContent,
       );
       content.innerHTML = itemHtml;
+      this.appendLearningModeShortenedNotice(content, decodedContent);
       return;
     }
 
@@ -2599,6 +2622,7 @@ export class GroupRenderer implements EmbedRenderer {
         },
       });
       mountedComponents.set(target, component);
+      this.appendLearningModeShortenedNotice(target, decodedContent);
 
       console.debug(
         "[GroupRenderer] Mounted DocsEmbedPreview component in group:",
@@ -2621,6 +2645,7 @@ export class GroupRenderer implements EmbedRenderer {
         decodedContent,
       );
       target.innerHTML = fallbackHtml;
+      this.appendLearningModeShortenedNotice(target, decodedContent);
     }
   }
 
@@ -2720,6 +2745,7 @@ export class GroupRenderer implements EmbedRenderer {
         },
       });
       mountedComponents.set(target, component);
+      this.appendLearningModeShortenedNotice(target, decodedContent);
 
       console.debug(
         "[GroupRenderer] Mounted CodeEmbedPreview component in group:",
@@ -2743,6 +2769,7 @@ export class GroupRenderer implements EmbedRenderer {
         decodedContent,
       );
       target.innerHTML = fallbackHtml;
+      this.appendLearningModeShortenedNotice(target, decodedContent);
     }
   }
 
@@ -3331,6 +3358,7 @@ export class GroupRenderer implements EmbedRenderer {
             ? decodedContent.entrypoints
             : [],
           latest_screenshot_url: decodedContent?.latest_screenshot_url,
+          latest_screenshot: decodedContent?.latest_screenshot,
           status: status as "processing" | "finished" | "error",
           taskId: decodedContent?.task_id,
           isMobile: false,
@@ -3696,6 +3724,7 @@ export class GroupRenderer implements EmbedRenderer {
         },
       });
       mountedComponents.set(target, component);
+      this.appendLearningModeShortenedNotice(target, decodedContent);
 
       console.debug(
         "[GroupRenderer] Mounted SheetEmbedPreview component in group:",
@@ -3719,6 +3748,7 @@ export class GroupRenderer implements EmbedRenderer {
         decodedContent,
       );
       target.innerHTML = fallbackHtml;
+      this.appendLearningModeShortenedNotice(target, decodedContent);
     }
   }
 

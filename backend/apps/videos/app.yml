@@ -78,7 +78,6 @@ settings_and_memories:
     description_translation_key: videos.to_watch_list.description
     icon_image: task.svg
     type: list
-    stage: production
     example_translation_keys:
       - "videos.to_watch_list.example_1"
       - "videos.to_watch_list.example_2"
@@ -110,7 +109,6 @@ settings_and_memories:
     name_translation_key: videos.subscribed_channels
     description_translation_key: videos.subscribed_channels.description
     type: list
-    stage: planning
     example_translation_keys:
       - "videos.subscribed_channels.example_1"
       - "videos.subscribed_channels.example_2"
@@ -139,7 +137,6 @@ focuses:
     process_translation_key: focus_modes.videos_analyze_video.process
     systemprompt_translation_key: focus_modes.videos_analyze_video.systemprompt
     icon_image: videos.svg
-    stage: production
     preprocessor_hint: >
       Select when the user shares a YouTube video URL and asks to analyze,
       summarize, fact-check, assess credibility, detect bias, or verify claims made
@@ -164,7 +161,6 @@ skills:
       ```remotion:Name.tsx fence instead.
       Do not use this for fake real-world footage, fake endorsements, public-figure
       likeness/persona/voice imitation, scams, spam, or watermark/detection evasion.
-    stage: production
     class_path: backend.apps.videos.skills.generate_skill.GenerateSkill
     providers:
       - Google
@@ -222,7 +218,6 @@ skills:
       or branded videos where exact text and layout matter. The assistant must
       write an explicit ```remotion:Name.tsx fence; do not use this for
       photorealistic footage or generic TSX components.
-    stage: production
     class_path: backend.apps.videos.skills.create_skill.CreateSkill
     providers:
       - E2B
@@ -254,7 +249,6 @@ skills:
     icon_image: transcript.svg
     preprocessor_hint: >
       Get the transcript/content of a specific YouTube video URL.
-    stage: production
     class_path: |
       backend.apps.videos.skills.transcript_skill.TranscriptSkill
     providers:
@@ -299,7 +293,6 @@ skills:
     icon_image: search.svg
     preprocessor_hint: >
       Search for videos, documentaries, tutorials, clips on the web.
-    stage: production
     class_path: |
       backend.apps.videos.skills.search_skill.SearchSkill
     providers:

@@ -1,7 +1,6 @@
 ---
 id: learn_by_building
 app: code
-stage: development
 
 name: Learn by building
 description: Learn a programming topic through a small real project with guided checkpoints.

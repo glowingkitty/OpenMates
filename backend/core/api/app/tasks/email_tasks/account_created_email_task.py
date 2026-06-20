@@ -3,6 +3,7 @@ import asyncio
 
 # Import the Celery app
 from backend.core.api.app.tasks.celery_config import app
+from backend.shared.python_utils.frontend_url import get_frontend_base_url
 
 # Import necessary services and utilities
 from backend.core.api.app.services.email_template import EmailTemplateService
@@ -40,29 +41,22 @@ async def _async_send_account_created_email(email: str, account_id: str, languag
         await secrets_manager.initialize()
         email_template_service = EmailTemplateService(secrets_manager=secrets_manager)
         
-        # Determine webapp URL for the delete link
-        from backend.core.api.app.utils.server_mode import get_hosting_domain
-        import os
-        
-        is_dev = os.getenv("ENVIRONMENT", "production").lower() in ("development", "dev", "test")
-        hosting_domain = get_hosting_domain()
-        
-        if hosting_domain:
-            protocol = "https" if not is_dev else "http"
-            base_webapp_url = f"{protocol}://{hosting_domain}"
-        else:
-            base_webapp_url = os.getenv("WEBAPP_URL", "https://openmates.org" if not is_dev else "http://localhost:5173")
-            
-        if base_webapp_url.endswith('/'):
-            base_webapp_url = base_webapp_url[:-1]
-            
+        base_webapp_url = get_frontend_base_url()
         delete_account_link = f"{base_webapp_url}/#settings/account/delete/{account_id}"
+        recovery_key_settings_url = f"{base_webapp_url}/#settings/account/security/recovery-key"
+        passkeys_settings_url = f"{base_webapp_url}/#settings/account/security/passkeys"
+        twofa_settings_url = f"{base_webapp_url}/#settings/account/security/2fa"
+        export_account_settings_url = f"{base_webapp_url}/#settings/account/export"
         
         # Prepare context for the template
         context = {
             'email': email,
             'account_id': account_id,
             'delete_account_link': delete_account_link,
+            'recovery_key_settings_url': recovery_key_settings_url,
+            'passkeys_settings_url': passkeys_settings_url,
+            'twofa_settings_url': twofa_settings_url,
+            'export_account_settings_url': export_account_settings_url,
             'darkmode': darkmode
         }
         

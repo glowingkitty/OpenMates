@@ -64,11 +64,13 @@ class AskSkillRequest(BaseModel):
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User-specific preferences.")
+    learning_mode: Optional[Dict[str, Any]] = Field(default=None, description="Effective account-wide Learning Mode context resolved by the backend.")
     app_settings_memories_metadata: Optional[List[str]] = Field(default=None, description="List of available app settings/memories keys from client in 'app_id-item_type' format (e.g., ['code-preferred_technologies', 'travel-trips']). Client is source of truth since only client can decrypt.")
     connected_account_directory: Optional[List[Dict[str, Any]]] = Field(default=None, description="Redacted connected-account directory from the client. Must not include provider tokens or plaintext account identity.")
     connected_account_token_refs: Optional[List[Dict[str, Any]]] = Field(default=None, description="Short-lived turn-token refs created by the client token broker before send. Opaque refs only; no refresh tokens.")
     connected_account_permission_state: Optional[Dict[str, Any]] = Field(default=None, description="Permission continuation state for connected-account approvals.")
     mentioned_settings_memories_cleartext: Optional[Dict[str, Any]] = Field(default=None, description="Cleartext for @memory/@memory-entry mentions (key: app_id:item_key, value: list of entry contents). Backend uses this and does not request those categories again.")
+    benchmark_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Sanitized CLI benchmark metadata for usage source tagging.")
     is_app_settings_memories_continuation: bool = Field(default=False, description="True if this task is a continuation after app settings/memories confirmation/rejection. Prevents infinite loops by skipping pending context storage if data is still missing.")
     is_connected_account_permission_continuation: bool = Field(default=False, description="True if this task is a continuation after connected-account permission confirmation/rejection.")
     is_focus_mode_continuation: bool = Field(default=False, description="True if this task is a continuation after focus mode auto-confirm or rejection. The user message was already persisted before the deferred activation pause.")
@@ -128,6 +130,7 @@ class OpenAICompletionRequest(BaseModel):
     provider: Optional[str] = Field(default=None, description="Preferred provider (e.g., 'openai', 'cerebras', 'anthropic').")
     focus_mode: Optional[str] = Field(default=None, description="Focus mode ID to use.")
     is_incognito: Optional[bool] = Field(default=False, description="Whether this is an incognito request (no storage/billing).")
+    learning_mode: Optional[Dict[str, Any]] = Field(default=None, description="Effective account-wide Learning Mode context for API requests.")
     is_anonymous: Optional[bool] = Field(default=False, description="Whether this is an anonymous free-usage request billed against the shared anonymous budget.")
     anonymous_reservation_id: Optional[str] = Field(default=None, description="Anonymous budget reservation ID for server-side reconciliation.")
     
@@ -238,7 +241,6 @@ class AskSkill(BaseSkill):
                  skill_id: str,
                  skill_name: str,  # Changed from 'name' to match BaseSkill
                  skill_description: str,  # Changed from 'description' to match BaseSkill
-                 stage: str = "development",
                  full_model_reference: Optional[str] = None, # From skill's app.yml definition
                  pricing_config: Optional[Dict[str, Any]] = None,    # From skill's app.yml definition
                  celery_producer: Optional[Celery] = None,  # Added to match BaseSkill
@@ -252,7 +254,6 @@ class AskSkill(BaseSkill):
             skill_id=skill_id,
             skill_name=skill_name,
             skill_description=skill_description,
-            stage=stage,
             full_model_reference=full_model_reference,
             pricing_config=pricing_config,
             celery_producer=celery_producer

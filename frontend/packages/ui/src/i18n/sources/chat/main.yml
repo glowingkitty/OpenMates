@@ -214,6 +214,10 @@ anonymous_free_usage.feature_notice:
   sv: Du använder gratis anonyma krediter. Filuppladdningar, minnen, chattsynkronisering och vissa andra funktioner kräver att du skapar ett konto.
   he: אתם משתמשים בקרדיטים אנונימיים בחינם. העלאות קבצים, זיכרונות, סנכרון צ'אטים וחלק מהתכונות האחרות דורשים יצירת חשבון.
   verified_by_human: []
+anonymous_free_usage.daily_credits_exhausted:
+  context: Notification shown when an anonymous user tries to send after the free daily credits are used up
+  en: You used up your free daily credits. Sign up & buy credits to make full use of OpenMates.
+  verified_by_human: []
 interactive_question_failed:
   context: Fallback shown when an interactive question payload cannot be parsed or displayed
   en: Failed to display question.

@@ -9,37 +9,42 @@ argument-hint: "[--rerun] [spec-name]"
 
 You are fixing test failures from the latest daily test run. Follow this exact sequence:
 
-### Step 1: Delegate triage to the `test-failure-triager` subagent
+### Step 1: Use the deterministic failure queue
 
-Launch the `test-failure-triager` agent with this prompt:
+Call the unified test control plane to classify current failures:
 
-> Triage the latest test failures. Read `test-results/last-failed-tests.json`, the per-test MD reports in `test-results/reports/failed/`, and cross-reference `logs/nightly-reports/pattern-consistency.json`. Return the structured JSON report of root-cause groups and your one-sentence recommendation.
+```bash
+python3 scripts/tests.py triage
+```
 
-The agent will return a compact JSON with `groups[]` (root cause, tier, suspect_files, suggested_fix_location, confidence) and a `skipped[]` list for external-service failures.
+Then lease one group at a time before reading source or debugging:
 
-**Do NOT read the failure files yourself** — that floods the main context. The agent's isolated report is all you need.
+```bash
+python3 scripts/tests.py next --lease --session <session-id> --json
+```
 
-If the agent reports zero groups (all skipped or empty), stop and report to the user.
+If the command returns no unleased failed test groups, stop and report to the user.
 
 **IMPORTANT RULE:** If any group's root cause is a `console.error`, you MUST fix the console error in application code — do NOT suppress it in the test.
 
-### Step 2: Fix each group (highest tier first)
+### Step 2: Fix each leased group
 
-For each root cause group (start with the agent's recommended group, then the next-highest tier):
-1. Read the `suspect_files` entries from the agent's JSON
-2. Apply the fix at `suggested_fix_location`
-3. Note which `affected_specs` are covered by this fix
+For each leased root-cause group:
+1. Read the lease JSON's `entry.linked_files`
+2. Confirm the diagnosis against the failure details before editing
+3. Apply the smallest app or test fix that addresses that root cause
+4. Note which related tests are covered by the fix
 
 ### Step 3: Run Fixed Tests
 
 After fixing, rerun only the failed specs:
 ```bash
-python3 scripts/run_tests.py --only-failed
+python3 scripts/tests.py run --only-failed
 ```
 
 Or run specific specs:
 ```bash
-python3 scripts/run_tests.py --spec <name>.spec.ts
+python3 scripts/tests.py run --spec <name>.spec.ts
 ```
 
 ### Step 4: Verify All Green
@@ -48,8 +53,8 @@ Check that all previously-failed tests now pass. If any still fail, go back to S
 
 ### Rules
 
-- **Always delegate triage** — use the `test-failure-triager` agent for Step 1. Never inline-read failure files in the main context.
+- **Always lease first** — use `scripts/tests.py next --lease` before debugging so parallel workers do not collide.
 - **Fix console errors in app code** — never suppress them in tests
-- **NEVER run vitest/playwright locally** — always dispatch via `run_tests.py`
+- **NEVER run vitest/playwright locally** — always dispatch via `scripts/tests.py run`
 - **Group fixes by root cause** — one commit per root cause group, not per test
-- **Trust the agent's git-blame** — it already cross-references recent commits and `pattern-consistency.json`
+- **Complete or release leases** — call `scripts/tests.py complete --lease <id> --commit <sha>` after deploy or `scripts/tests.py release --lease <id> --reason "<reason>"` when blocked

@@ -1,7 +1,6 @@
 ---
 id: project_planner
 app: code
-stage: development
 
 name: Project planner
 description: Turn coding ideas into scoped plans, tasks, acceptance criteria, and verification steps.

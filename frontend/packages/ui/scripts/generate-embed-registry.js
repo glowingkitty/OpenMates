@@ -69,6 +69,7 @@ function collectAppEmbedTypes() {
       if (!appData || !Array.isArray(appData.embed_types)) continue;
 
       for (const embedDef of appData.embed_types) {
+        if (embedDef?.default_enabled === false) continue;
         embedTypes.push({
           ...embedDef,
           app_id: appId,
@@ -76,8 +77,9 @@ function collectAppEmbedTypes() {
       }
 
       if (appData.embed_types.length > 0) {
+        const activeCount = embedTypes.filter((def) => def.app_id === appId).length;
         console.log(
-          `[generate-embed-registry]   ${appId}: ${appData.embed_types.length} embed type(s)`,
+          `[generate-embed-registry]   ${appId}: ${activeCount} active embed type(s)`,
         );
       }
     } catch (err) {
@@ -115,7 +117,7 @@ function collectVirtualEmbedTypes() {
     console.log(
       `[generate-embed-registry]   [virtual]: ${data.embed_types.length} embed type(s)`,
     );
-    return data.embed_types;
+    return data.embed_types.filter((embedDef) => embedDef?.default_enabled !== false);
   } catch (err) {
     console.warn(
       `[generate-embed-registry] Could not parse embed_types.yml: ${err.message}`,

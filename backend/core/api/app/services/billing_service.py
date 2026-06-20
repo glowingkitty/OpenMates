@@ -327,9 +327,10 @@ class BillingService:
                 if message_id_val and isinstance(message_id_val, str) and message_id_val.strip():
                     message_id = message_id_val.strip()
             
-            # Determine source: "api_key" if api_key_hash is provided (external API), 
-            # otherwise "chat" if chat_id is provided (web app), else "direct"
-            if api_key_hash:
+            # Determine source: explicit benchmark metadata wins, then API key/chat/direct.
+            if usage_details and usage_details.get("source") == "benchmark":
+                source = "benchmark"
+            elif api_key_hash:
                 source = "api_key"
             elif chat_id:
                 source = "chat"

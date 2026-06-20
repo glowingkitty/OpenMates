@@ -32,11 +32,17 @@ from pydantic import BaseModel, Field
 from toon_format import decode as toon_decode
 
 from backend.apps.base_skill import BaseSkill
+from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_CONTEXT_CHARS = 200  # characters of surrounding context per match
 MAX_MATCHES = 50              # cap on number of matches returned
+
+
+def sanitize_pdf_search_text(text: str, log_prefix: str = "[pdf.search] ") -> str:
+    """Remove ASCII-smuggling characters from PDF search text/snippets."""
+    return sanitize_text_simple(text, log_prefix=log_prefix)
 
 
 class SearchRequest(BaseModel):
@@ -275,8 +281,8 @@ class SearchSkill(BaseSkill):
             matches.append(
                 SearchMatch(
                     page_num=page_num,
-                    match_text=text[idx: idx + query_len],
-                    context=ctx,
+                    match_text=sanitize_pdf_search_text(text[idx: idx + query_len]),
+                    context=sanitize_pdf_search_text(ctx),
                     char_offset=idx,
                 )
             )
@@ -386,7 +392,10 @@ class SearchSkill(BaseSkill):
             # --- Step 5: Search pages in order ---
             for page_key in sorted(all_pages_data.keys(), key=lambda k: int(k)):
                 page_num = int(page_key)
-                markdown = all_pages_data[page_key].get("markdown", "")
+                markdown = sanitize_pdf_search_text(
+                    all_pages_data[page_key].get("markdown", ""),
+                    log_prefix=f"{log_prefix} [page:{page_num}] ",
+                )
                 page_matches = self._search_page(page_num, markdown, query_lower, ctx_chars)
                 all_matches.extend(page_matches)
 

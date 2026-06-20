@@ -47,6 +47,7 @@ const GIFT_CARD_SETTINGS_PATHS = [
 	'billing/gift-cards/buy/payment',
 	'billing/gift-cards/buy/confirmation'
 ];
+const LEARNING_MODE_SETTINGS_PATH = 'learning-mode/setup';
 const REQUIRED_NON_EMPTY_TRANSLATION_KEYS = [
 	'app_settings_memories.mail.writing_styles.example_2.footer'
 ];
@@ -278,6 +279,15 @@ test.describe('Settings translation coverage', () => {
 			logCheckpoint(`Opened direct gift-card settings path ${settingsPath}.`);
 			await expectNoMissingTranslationMarkers(page, settingsPath);
 		}
+
+		await openSettingsPath(page, settingsMenu, LEARNING_MODE_SETTINGS_PATH);
+		logCheckpoint(`Opened direct Learning Mode settings path ${LEARNING_MODE_SETTINGS_PATH}.`);
+		await expectNoMissingTranslationMarkers(page, LEARNING_MODE_SETTINGS_PATH);
+		const learningModePage = settingsMenu.getByTestId('learning-mode-settings-page');
+		await expect(learningModePage).toBeVisible({ timeout: 5000 });
+		await expect(learningModePage.getByRole('heading', { name: /^Learning$/i })).toHaveCount(0);
+		await settingsMenu.getByTestId('banner-back-button').first().click({ timeout: 5000 });
+		await expect(settingsMenu).toHaveAttribute('data-active-view', 'main', { timeout: 5000 });
 
 		expect(visited.size, `Visited settings views: ${[...visited].join(', ')}`).toBeGreaterThan(8);
 	});

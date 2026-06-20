@@ -82,7 +82,7 @@ graph LR
 
 ### Tool Definitions
 
-Tools are generated from app `app.yml` files by `tool_generator.py`. Only skills with `stage: "production"` are exposed.
+Tools are generated from discovered, feature-enabled app `app.yml` metadata by `tool_generator.py`. Implemented skills are enabled by default unless their feature is disabled by metadata or admin override.
 
 **Naming format:** `{app_id}-{skill_id}` (e.g., `web-search`, `videos-get_transcript`). Hyphens required for compatibility with providers like Cerebras.
 

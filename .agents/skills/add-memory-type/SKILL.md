@@ -163,7 +163,7 @@ explicitly says to proceed without draft approval.
 ### Step 8: Finalize the Draft
 
 Incorporate feedback and show the final version briefly. Confirm any remaining
-tradeoffs, such as `stage`, field count, required fields, or sensitive data
+tradeoffs, such as default-enabled behavior, field count, required fields, or sensitive data
 boundaries.
 
 ### Step 9: Implement the Memory Type
@@ -210,8 +210,8 @@ Usually relevant:
 
 For user-facing memory behavior, propose the relevant E2E test path and use the
 repo test runner after deploy when running Playwright:
-- `python3 scripts/run_tests.py --spec mention-dropdown-settings-memory.spec.ts`
-- `python3 scripts/run_tests.py --spec cli-memories.spec.ts`
+- `python3 scripts/tests.py run --spec mention-dropdown-settings-memory.spec.ts`
+- `python3 scripts/tests.py run --spec cli-memories.spec.ts`
 - a new or updated app-specific memory spec if needed
 
 Do not run Playwright locally.

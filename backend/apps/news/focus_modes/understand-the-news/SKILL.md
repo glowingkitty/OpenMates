@@ -1,7 +1,6 @@
 ---
 id: understand_the_news
 app: news
-stage: planning
 
 name: understand-the-news
 description: Focus mode for Understand The News

@@ -11,7 +11,7 @@
 //
 // Architecture: docs/architecture/share_chat.md
 
-import { describe, it, expect, beforeAll, vi } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { webcrypto } from "node:crypto";
 
 // Install real WebCrypto before importing the module under test.
@@ -42,6 +42,69 @@ import {
   generateShareKeyBlob,
   decryptShareKeyBlob,
 } from "../../shareEncryption";
+import { decryptEmbedShareKeyBlob } from "../../embedShareEncryption";
+
+function base64UrlEncode(data: Uint8Array): string {
+  return Buffer.from(data)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+
+async function deriveTestAesKey(
+  input: string,
+  salt: string,
+): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  const material = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(input),
+    "PBKDF2",
+    false,
+    ["deriveKey"],
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: encoder.encode(salt), iterations: 100000, hash: "SHA-256" },
+    material,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"],
+  );
+}
+
+async function encryptTestAesGcmUrlSafe(
+  plaintext: string,
+  key: CryptoKey,
+): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    new TextEncoder().encode(plaintext),
+  );
+  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(ciphertext), iv.length);
+  return base64UrlEncode(combined);
+}
+
+async function generatePasswordProtectedEmbedBlob(
+  embedId: string,
+  embedKeyBase64: string,
+  password: string,
+): Promise<string> {
+  const passwordKey = await deriveTestAesKey(password, `openmates-pwd-${embedId}`);
+  const encryptedEmbedKey = await encryptTestAesGcmUrlSafe(embedKeyBase64, passwordKey);
+  const params = new URLSearchParams();
+  params.set("embed_encryption_key", encryptedEmbedKey);
+  params.set("generated_at", String(Math.floor(Date.now() / 1000)));
+  params.set("duration_seconds", "0");
+  params.set("pwd", "1");
+
+  const embedIdKey = await deriveTestAesKey(embedId, "openmates-share-v1");
+  return encryptTestAesGcmUrlSafe(params.toString(), embedIdKey);
+}
 
 describe("shareEncryption", () => {
   const TEST_CHAT_ID = "test-chat-abc123";
@@ -224,5 +287,43 @@ describe("shareEncryption", () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe("decryption_failed");
     });
+  });
+});
+
+describe("embedShareEncryption", () => {
+  it("returns invalid_password for wrong protected embed passwords", async () => {
+    const embedId = "test-embed-password-error";
+    const embedKey = Buffer.from(webcrypto.getRandomValues(new Uint8Array(32))).toString("base64");
+    const blob = await generatePasswordProtectedEmbedBlob(
+      embedId,
+      embedKey,
+      "correct-pw",
+    );
+
+    const noPassword = await decryptEmbedShareKeyBlob(
+      embedId,
+      blob,
+      Math.floor(Date.now() / 1000),
+    );
+    expect(noPassword.success).toBe(false);
+    expect(noPassword.error).toBe("password_required");
+
+    const wrongPassword = await decryptEmbedShareKeyBlob(
+      embedId,
+      blob,
+      Math.floor(Date.now() / 1000),
+      "wrong-pw",
+    );
+    expect(wrongPassword.success).toBe(false);
+    expect(wrongPassword.error).toBe("invalid_password");
+
+    const correctPassword = await decryptEmbedShareKeyBlob(
+      embedId,
+      blob,
+      Math.floor(Date.now() / 1000),
+      "correct-pw",
+    );
+    expect(correctPassword.success).toBe(true);
+    expect(correctPassword.embedKey).toEqual(Uint8Array.from(Buffer.from(embedKey, "base64")));
   });
 });

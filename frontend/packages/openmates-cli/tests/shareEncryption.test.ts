@@ -79,6 +79,32 @@ async function decryptChatBlob(
   };
 }
 
+async function decryptPasswordProtectedKey(
+  id: string,
+  encryptedKey: string,
+  password: string,
+): Promise<string> {
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+  const material = await crypto.subtle.importKey(
+    "raw", enc.encode(password), "PBKDF2", false, ["deriveKey"],
+  );
+  const key = await crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: enc.encode(`openmates-pwd-${id}`), iterations: 100000, hash: "SHA-256" },
+    material, { name: "AES-GCM", length: 256 }, false, ["decrypt"],
+  );
+
+  let b64 = encryptedKey.replace(/-/g, "+").replace(/_/g, "/");
+  while (b64.length % 4) b64 += "=";
+  const combined = new Uint8Array(Buffer.from(b64, "base64"));
+  const plaintext = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: combined.slice(0, 12) },
+    key,
+    combined.slice(12),
+  );
+  return dec.decode(plaintext);
+}
+
 async function decryptEmbedBlob(
   embedId: string,
   blob: string,
@@ -156,6 +182,23 @@ describe("generateChatShareBlob", () => {
     assert.notEqual(decoded.chat_encryption_key, Buffer.from(chatKey).toString("base64"));
   });
 
+  it("password-protected chat blobs decrypt only with the correct password", async () => {
+    const chatId = "pwd-round-trip";
+    const chatKey = randomKey();
+    const chatKeyB64 = Buffer.from(chatKey).toString("base64");
+    const blob = await generateChatShareBlob(chatId, chatKey, 0, "secret");
+    const decoded = await decryptChatBlob(chatId, blob);
+
+    await assert.rejects(
+      decryptPasswordProtectedKey(chatId, decoded.chat_encryption_key, "wrong"),
+      { name: "OperationError" },
+    );
+    assert.equal(
+      await decryptPasswordProtectedKey(chatId, decoded.chat_encryption_key, "secret"),
+      chatKeyB64,
+    );
+  });
+
   it("produces different blobs each call (random IV)", async () => {
     const chatId = "random-iv-test";
     const chatKey = randomKey();
@@ -194,6 +237,23 @@ describe("generateEmbedShareBlob", () => {
     const decoded = await decryptEmbedBlob(embedId, blob);
     assert.equal(decoded.pwd, 1);
     assert.notEqual(decoded.embed_encryption_key, Buffer.from(embedKey).toString("base64"));
+  });
+
+  it("password-protected embed blobs decrypt only with the correct password", async () => {
+    const embedId = "embed-pwd-round-trip";
+    const embedKey = randomKey();
+    const embedKeyB64 = Buffer.from(embedKey).toString("base64");
+    const blob = await generateEmbedShareBlob(embedId, embedKey, 0, "mypass");
+    const decoded = await decryptEmbedBlob(embedId, blob);
+
+    await assert.rejects(
+      decryptPasswordProtectedKey(embedId, decoded.embed_encryption_key, "wrong"),
+      { name: "OperationError" },
+    );
+    assert.equal(
+      await decryptPasswordProtectedKey(embedId, decoded.embed_encryption_key, "mypass"),
+      embedKeyB64,
+    );
   });
 });
 

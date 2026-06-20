@@ -117,6 +117,130 @@ function readRepoText(path: string): string {
   return readFileSync(join(REPO_ROOT, path), "utf-8");
 }
 
+describe("benchmark command", () => {
+  it("is listed in global help", () => {
+    const output = runCli(["help"]);
+    assert.match(output, /openmates benchmark \[--help\]/);
+  });
+
+  it("prints model benchmark help", () => {
+    const output = runCli(["benchmark", "--help"]);
+    assert.match(output, /openmates benchmark model <provider\/model> \[provider\/model\.\.\.\]/);
+    assert.match(output, /google\/gemini-3-flash-preview/);
+    assert.match(output, /--compare/);
+    assert.match(output, /--case/);
+    assert.match(output, /--extensive-size/);
+    assert.match(output, /--parallel/);
+    assert.match(output, /--image/);
+  });
+
+  it("supports priced dry-run without login and uses Gemini 3 Flash as default judge", () => {
+    const output = runCliWithoutSession([
+      "benchmark",
+      "model",
+      "google/gemini-3.5-flash",
+      "--dry-run",
+      "--suite",
+      "quick",
+      "--json",
+    ]);
+    const data = JSON.parse(output) as Record<string, unknown>;
+    assert.equal(data.status, "planned");
+    assert.equal(data.targetModel, "google/gemini-3.5-flash");
+    assert.deepEqual(data.targetModels, ["google/gemini-3.5-flash"]);
+    assert.equal(data.judgeModel, "google/gemini-3-flash-preview");
+    assert.equal(data.spendsCredits, false);
+    const summary = data.summary as Record<string, unknown>;
+    assert.equal(summary.total, 5);
+    const estimate = data.estimatedCredits as Record<string, unknown>;
+    assert.equal(typeof estimate.totalCredits, "number");
+    assert.ok((estimate.totalCredits as number) > 0);
+  });
+
+  it("supports comparison dry-run with multiple models", () => {
+    const output = runCliWithoutSession([
+      "benchmark",
+      "model",
+      "google/gemini-3.5-flash",
+      "google/gemini-3-flash-preview",
+      "--compare",
+      "--dry-run",
+      "--json",
+    ]);
+    const data = JSON.parse(output) as Record<string, unknown>;
+    assert.equal(data.compare, true);
+    assert.deepEqual(data.targetModels, ["google/gemini-3.5-flash", "google/gemini-3-flash-preview"]);
+    const summary = data.summary as Record<string, unknown>;
+    assert.equal(summary.total, 10);
+  });
+
+  it("supports selecting one benchmark case by id", () => {
+    const output = runCliWithoutSession([
+      "benchmark",
+      "model",
+      "anthropic/claude-haiku-4-5-20251001",
+      "--dry-run",
+      "--suite",
+      "quick",
+      "--case",
+      "quick-image-brandenburger-tor",
+      "--json",
+    ]);
+    const data = JSON.parse(output) as Record<string, unknown>;
+    const summary = data.summary as Record<string, unknown>;
+    assert.equal(summary.total, 1);
+    assert.equal(summary.skipped, 1);
+  });
+
+  it("rejects ambiguous multiple models without compare", () => {
+    const result = runCliWithoutSessionResult([
+      "benchmark",
+      "model",
+      "google/gemini-3.5-flash",
+      "google/gemini-3-flash-preview",
+      "--dry-run",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Multiple target models require --compare/);
+  });
+
+  it("rejects invalid extensive sizes", () => {
+    const result = runCliWithoutSessionResult([
+      "benchmark",
+      "model",
+      "google/gemini-3.5-flash",
+      "--dry-run",
+      "--suite",
+      "extensive",
+      "--extensive-size",
+      "7",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /--extensive-size must be 5, 10, or 20/);
+  });
+
+  it("refuses benchmarks when pricing metadata is unavailable", () => {
+    const result = runCliWithoutSessionResult([
+      "benchmark",
+      "model",
+      "missing/model",
+      "--dry-run",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /pricing metadata is unavailable/);
+  });
+
+  it("requires explicit spend confirmation for live runs before login checks", () => {
+    const result = runCliWithoutSessionResult([
+      "benchmark",
+      "model",
+      "google/gemini-3.5-flash",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /--confirm-spend-credits/);
+  });
+});
+
 function docAssert(claimId: string, assertion: () => void): void {
   try {
     assertion();
@@ -253,6 +377,170 @@ async function withAnonymousMockApi<T>(
   assert.ok(address && typeof address === "object");
   try {
     return await run({ apiUrl: `http://127.0.0.1:${address.port}`, requests, tempHome });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+async function withLearningModeMockApi<T>(
+  run: (params: { apiUrl: string; requests: Array<{ method: string; url: string; body?: Record<string, unknown> }>; tempHome: string }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Array<{ method: string; url: string; body?: Record<string, unknown> }> = [];
+  const tempHome = join(tmpdir(), `openmates-cli-learning-mode-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const stateDir = join(tempHome, ".openmates");
+  mkdirSync(stateDir, { recursive: true });
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl: "http://127.0.0.1:0",
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.url?.startsWith("/v1/learning-mode")) {
+        assert.match(String(request.headers.cookie ?? ""), /auth_refresh_token=refresh-token/);
+      }
+
+      if (request.method === "GET" && request.url === "/v1/learning-mode") {
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, {
+          enabled: true,
+          age_group: "13_15",
+          failed_attempts: 1,
+          deactivation_blocked_until: null,
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/learning-mode/activate") {
+        const body = await readJsonBody(request);
+        requests.push({ method: request.method, url: request.url, body });
+        writeJson(response, {
+          enabled: true,
+          age_group: body.age_group,
+          failed_attempts: 0,
+          deactivation_blocked_until: null,
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/learning-mode/deactivate") {
+        const body = await readJsonBody(request);
+        requests.push({ method: request.method, url: request.url, body });
+        writeJson(response, {
+          enabled: false,
+          age_group: null,
+          failed_attempts: 0,
+          deactivation_blocked_until: null,
+        });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, requests, tempHome });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+async function withReportIssueMockApi<T>(
+  run: (params: { apiUrl: string; requests: Array<{ method: string; url: string; body?: Record<string, unknown> }>; tempHome: string }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Array<{ method: string; url: string; body?: Record<string, unknown> }> = [];
+  const tempHome = join(tmpdir(), `openmates-cli-report-issue-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const stateDir = join(tempHome, ".openmates");
+  mkdirSync(stateDir, { recursive: true });
+
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.url?.startsWith("/v1/settings/issues")) {
+        assert.match(String(request.headers.cookie ?? ""), /auth_refresh_token=refresh-token/);
+      }
+
+      if (request.method === "POST" && request.url === "/v1/settings/issues") {
+        const body = await readJsonBody(request);
+        requests.push({ method: request.method, url: request.url, body });
+        writeJson(response, {
+          success: true,
+          message: "Issue report submitted successfully.",
+          issue_id: "a3d966e2-3d50-4f3a-b208-31ee218afe12",
+          short_issue_id: "K7M2Q",
+          screenshot_uploaded: false,
+        });
+        return;
+      }
+
+      if (request.method === "GET" && request.url === "/v1/settings/issues/K7M2Q/status") {
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, {
+          id: "a3d966e2-3d50-4f3a-b208-31ee218afe12",
+          short_issue_id: "K7M2Q",
+          has_screenshot: false,
+          has_yaml_report: true,
+          processed: true,
+        });
+        return;
+      }
+
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, requests, tempHome });
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -1675,6 +1963,96 @@ describe("settings command surface", () => {
     assert.ok(parsed.some((mate) => mate.id === "software_development"));
     assert.ok(parsed.some((mate) => mate.mention === "@mate:general_knowledge"));
   });
+
+  it("prints the server-provided short issue ID for report creation", async () => {
+    await withReportIssueMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const output = await runCliAsync(
+        ["settings", "report-issue", "create", "--title", "Bug", "--body", "What happened", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+
+      assert.match(output, /Issue reference:\s+K7M2Q/);
+      assert.match(output, /Internal issue ID:\s+a3d966e2-3d50-4f3a-b208-31ee218afe12/);
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "POST /v1/settings/issues",
+      ]);
+    });
+  });
+
+  it("preserves both report issue IDs in JSON create and status output", async () => {
+    await withReportIssueMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const createOutput = await runCliAsync(
+        ["settings", "report-issue", "create", "--title", "Bug", "--body", "What happened", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const create = JSON.parse(createOutput) as { issue_id?: string; short_issue_id?: string };
+      assert.equal(create.issue_id, "a3d966e2-3d50-4f3a-b208-31ee218afe12");
+      assert.equal(create.short_issue_id, "K7M2Q");
+
+      const statusOutput = await runCliAsync(
+        ["settings", "report-issue", "status", "K7M2Q", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const status = JSON.parse(statusOutput) as { id?: string; short_issue_id?: string };
+      assert.equal(status.id, "a3d966e2-3d50-4f3a-b208-31ee218afe12");
+      assert.equal(status.short_issue_id, "K7M2Q");
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "POST /v1/settings/issues",
+        "GET /v1/settings/issues/K7M2Q/status",
+      ]);
+    });
+  });
+});
+
+describe("learning-mode command surface", () => {
+  it("is listed in global help and has contextual help", () => {
+    assert.match(runCli(["help"]), /openmates learning-mode \[--help\]/);
+    const output = runCli(["learning-mode", "--help"]);
+    assert.match(output, /openmates learning-mode status/);
+    assert.match(output, /openmates learning-mode enable --age-group <group>/);
+    assert.match(output, /openmates learning-mode disable/);
+  });
+
+  it("prints authenticated status as JSON", async () => {
+    await withLearningModeMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const output = await runCliAsync(
+        ["learning-mode", "status", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const parsed = JSON.parse(output) as Record<string, unknown>;
+      assert.equal(parsed.enabled, true);
+      assert.equal(parsed.age_group, "13_15");
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "GET /v1/learning-mode",
+      ]);
+    });
+  });
+
+  it("activates and deactivates through the dedicated API", async () => {
+    await withLearningModeMockApi(async ({ apiUrl, tempHome, requests }) => {
+      await runCliAsync(
+        ["learning-mode", "enable", "--age-group", "16_18", "--passcode", "teach-1234", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      await runCliAsync(
+        ["learning-mode", "disable", "--passcode", "teach-1234", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+
+      assert.deepEqual(requests, [
+        {
+          method: "POST",
+          url: "/v1/learning-mode/activate",
+          body: { age_group: "16_18", passcode: "teach-1234" },
+        },
+        {
+          method: "POST",
+          url: "/v1/learning-mode/deactivate",
+          body: { passcode: "teach-1234" },
+        },
+      ]);
+    });
+  });
 });
 
 describe("incognito command surface", () => {
@@ -1801,6 +2179,7 @@ describe("documented CLI command reference", () => {
         "chats",
         "apps",
         "settings",
+        "benchmark",
         "embeds",
         "mentions",
         "inspirations",
@@ -1823,7 +2202,7 @@ describe("documented CLI command reference", () => {
     const readme = readRepoText("frontend/packages/openmates-cli/README.md");
     const help = runCli(["--help"]);
     docAssert("cli-npm-readme-onboarding-matches-command-surface", () => {
-      for (const command of ["login", "signup", "chats", "apps", "settings", "server", "docs"]) {
+      for (const command of ["login", "signup", "chats", "apps", "settings", "benchmark", "server", "docs"]) {
         assert.ok(help.includes(command), `expected help to mention ${command}`);
         assert.ok(readme.includes(`openmates ${command}`), `expected README to include openmates ${command}`);
       }
@@ -1833,6 +2212,32 @@ describe("documented CLI command reference", () => {
       assert.ok(!readme.includes("settings get /v1/settings"));
       assert.ok(!readme.includes("BLOCKED_SETTINGS_POST_PATHS"));
       assert.ok(readme.includes("BLOCKED_SETTINGS_MUTATE_PATHS"));
+    });
+  });
+
+  it("benchmark docs cover benchmark help options", () => {
+    const doc = readRepoText("docs/user-guide/cli/benchmarks.md");
+    const help = runCli(["benchmark", "--help"]);
+    docAssert("cli-benchmark-docs-cover-help", () => {
+      for (const fragment of [
+        "benchmark model <provider/model>",
+        "--confirm-spend-credits",
+        "--dry-run",
+        "--compare",
+        "--suite",
+        "--case",
+        "--extensive-size",
+        "--parallel",
+        "--judge-model",
+        "--image",
+        "--output",
+        "--json",
+      ]) {
+        assert.ok(help.includes(fragment), `expected benchmark help to mention ${fragment}`);
+        assert.ok(doc.includes(fragment), `expected benchmark docs to mention ${fragment}`);
+      }
+      assert.ok(doc.includes("1` to `5"));
+      assert.ok(doc.includes("scores `4` and `5` pass"));
     });
   });
 

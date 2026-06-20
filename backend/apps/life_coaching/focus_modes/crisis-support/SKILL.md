@@ -1,7 +1,6 @@
 ---
 id: crisis_support
 app: life_coaching
-stage: planning
 
 name: crisis-support
 description: Get support in difficult times and plan ahead.

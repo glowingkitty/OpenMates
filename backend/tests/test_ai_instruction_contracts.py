@@ -15,14 +15,13 @@ MERMAID_INSTRUCTION_PATH = Path(__file__).resolve().parents[1] / "apps/ai/instru
 SOFTWARE_DEVELOPMENT_MATE_PATH = Path(__file__).resolve().parents[1] / "apps/ai/mates/software_development.md"
 
 
-def test_code_instruction_requires_application_preview_for_runnable_web_apps() -> None:
+def test_code_instruction_disables_application_preview_for_runnable_web_apps() -> None:
     instruction = CODE_BLOCK_INSTRUCTION_PATH.read_text(encoding="utf-8")
 
     assert "Runnable web apps" in instruction
-    assert "application_preview" in instruction
-    assert "package.json" in instruction
-    assert "src/main.ts" in instruction
-    assert "Do not provide `localhost` links" in instruction
+    assert "Application preview embeds are currently disabled" in instruction
+    assert "Do not emit `application_preview` fences" in instruction
+    assert "temporarily unavailable" in instruction
 
 
 def test_stream_consumer_suppresses_deferred_application_preview_chunks() -> None:

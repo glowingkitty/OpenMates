@@ -1,7 +1,6 @@
 ---
 id: learn_topic
 app: study
-stage: planning
 
 name: learn-topic
 description: Learn with adaptive lessons and reminders.

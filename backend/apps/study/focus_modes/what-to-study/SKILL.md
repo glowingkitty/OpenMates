@@ -1,7 +1,6 @@
 ---
 id: what_to_study
 app: study
-stage: planning
 
 name: what-to-study
 description: Find the right degree and field of study.

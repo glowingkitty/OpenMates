@@ -59,7 +59,6 @@ skills:
       Use when the user has explicitly agreed to anonymously share a summary of their
       intended use cases with the OpenMates team to help improve the product.
       NEVER call this without clear user consent.
-    stage: production
     providers:
       - name: OpenMates
         no_api_key: true
@@ -91,7 +90,6 @@ skills:
       Use when the user shares an openmates.org/docs URL, or asks to read a specific
       OpenMates documentation page. Automatically triggered when an openmates docs URL
       is detected in the conversation.
-    stage: production
     providers:
       - name: OpenMates
         no_api_key: true
@@ -114,7 +112,6 @@ skills:
     preprocessor_hint: >
       Use when the user asks about OpenMates features, setup, architecture, or documentation.
       Searches across all OpenMates documentation to find relevant pages.
-    stage: production
     providers:
       - name: OpenMates
         no_api_key: true
@@ -134,7 +131,6 @@ focuses:
     description_translation_key: app_focus_modes.openmates.welcome.description
     process_translation_key: focus_modes.openmates_welcome.process
     icon_image: openmates.svg
-    stage: planning
     preprocessor_hint: >
       Select when the user is in an onboarding conversation after signup, or when a user
       explicitly asks for help understanding OpenMates features, how to get started, or

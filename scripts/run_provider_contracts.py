@@ -4,7 +4,7 @@ scripts/run_provider_contracts.py
 
 Daily contract probe runner for every reverse-engineered / scraped provider.
 
-Why this is separate from `scripts/run_tests.py --daily`:
+Why this is separate from `scripts/tests.py run --daily`:
   * These probes need Vault secrets (Webshare proxy credentials) and a non-
     datacenter IP to avoid anti-bot 403s — both are only available inside
     `app-ai-worker`, not in the GHA pytest runner.

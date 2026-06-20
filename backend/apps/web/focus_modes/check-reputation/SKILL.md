@@ -1,7 +1,6 @@
 ---
 id: check_reputation
 app: web
-stage: development
 icon: shield.svg
 
 name: Check reputation

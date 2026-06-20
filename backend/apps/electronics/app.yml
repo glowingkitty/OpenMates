@@ -103,7 +103,6 @@ skills:
       output voltage, output current, efficiency, BOM cost, footprint, or
       topology requirements. Currently supports category power_converters via
       Texas Instruments WEBENCH Power Designer.
-    stage: production
     providers:
       - name: Texas Instruments
         no_api_key: true

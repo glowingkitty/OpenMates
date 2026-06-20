@@ -44,7 +44,6 @@ skills:
       Search products on REWE, Amazon, or Stoffe.de with real-time prices.
       Use category to route groceries, marketplace products, fabrics, sewing supplies,
       and patterns to compatible providers. Invalid provider/category combinations are rejected.
-    stage: production
     class_path: backend.apps.shopping.skills.search_products.SearchProductsSkill
     pricing:
       per_unit:

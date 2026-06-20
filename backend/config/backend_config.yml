@@ -1,35 +1,30 @@
 # backend/config/backend_config.yml
 # Main configuration for the OpenMates backend API.
 
-# Apps are automatically discovered by scanning the backend/apps directory.
-# No manual configuration needed - new apps are available by default with server updates.
-# 
-# Apps are filtered by component stages based on SERVER_ENVIRONMENT:
-# - Development server: Apps with 'development' or 'production' stage components are included
-# - Production server: Apps with 'production' stage components only are included
-# - Apps with no valid components are treated as 'planning' and excluded
-
-# Explicitly disable apps (opt-out list).
+# Apps, skills, embeds, focus modes, memories, and platform sections are enabled
+# by default unless their metadata declares default_enabled: false or an admin
+# override below changes the effective state. Changes require a server restart.
 #
-# Use this for:
-#   1. Stub folders with no implemented skills (planning-stage only or empty placeholders).
-#   2. Temporarily disabling a problematic app without deleting its folder.
+# Feature ID formats:
+#   app:<app_id>
+#   skill:<app_id>:<skill_id>
+#   embed:<app_id>:<embed_id>
+#   focus:<app_id>:<focus_id>
+#   memory:<app_id>:<memory_id>
+#   platform:<feature_id>
 #
-# Apps listed here are skipped by `build_skill_registry()` (in
-# backend/core/api/app/services/skill_registry.py) at api startup AND at
-# Celery worker_process_init time. They are not loaded into the in-process
-# SkillRegistry, so REST returns 404 and the AI preprocessor doesn't see them.
-#
-# Adding a new app: drop the folder under backend/apps/ and restart api.
-# No docker-compose entry needed (see OPE-342).
-disabled_apps:
-  # Empty / no skills declared
-  - "3d"
-  - "politics"
-  # Planning-stage skills only — no implementation, no container needed yet
-  - "fitness"
-  - "life_coaching"
-  - "plants"
+# Admin overrides. `enabled` is only needed to opt into features that ship with
+# default_enabled: false. `disabled` can disable default-on features.
+feature_overrides:
+  enabled: []
+  disabled:
+    # Empty / no implemented skills declared
+    - "app:3d"
+    - "app:politics"
+    # Placeholder app folders without implemented runtime behavior yet
+    - "app:fitness"
+    - "app:life_coaching"
+    - "app:plants"
 
 # Other backend-wide configurations can be added below.
 # For example:

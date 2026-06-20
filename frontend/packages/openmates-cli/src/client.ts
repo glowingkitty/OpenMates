@@ -147,6 +147,21 @@ export interface ConnectedAccountTurnTokenRef {
   expires_at: number;
 }
 
+export type LearningModeAgeGroup = "under_10" | "10_12" | "13_15" | "16_18" | "adult";
+
+export interface LearningModeStatus {
+  enabled: boolean;
+  age_group: LearningModeAgeGroup | null;
+  failed_attempts: number;
+  deactivation_blocked_until: number | null;
+}
+
+export interface LearningModeContext {
+  enabled: boolean;
+  ageGroup?: LearningModeAgeGroup | null;
+  source?: "anonymous_session";
+}
+
 export interface AppSettingsMemorySystemMessage {
   message_id: string;
   role: "system";
@@ -782,6 +797,25 @@ export interface ChatListPage {
   hasMore: boolean;
 }
 
+export interface BenchmarkMetadata {
+  source: "benchmark";
+  benchmark_run_id: string;
+  benchmark_suite: string;
+  benchmark_case: string;
+  benchmark_target_model: string;
+  benchmark_judge_model?: string;
+}
+
+export interface BenchmarkHistoryMessage {
+  message_id: string;
+  role: "user" | "assistant" | "system";
+  sender_name: string;
+  content: string;
+  created_at: number;
+  chat_id?: string;
+  category?: string | null;
+}
+
 /** Decrypted message for display */
 export interface DecryptedMessage {
   id: string;
@@ -1307,7 +1341,7 @@ export class OpenMatesClient {
     };
   }
 
-  async sendAnonymousMessage(params: { message: string }): Promise<{
+  async sendAnonymousMessage(params: { message: string; learningMode?: LearningModeContext }): Promise<{
     status: "completed";
     chatId: string;
     messageId: string;
@@ -1336,6 +1370,21 @@ export class OpenMatesClient {
     }
     const chatId = `anonymous-${randomUUID()}`;
     const messageId = `anonymous-message-${randomUUID()}`;
+    const requestBody: Record<string, unknown> = {
+      anonymous_id: anonymousId,
+      client_chat_id: chatId,
+      client_message_id: messageId,
+      plaintext_message: params.message,
+      message_history: [],
+    };
+    if (params.learningMode?.enabled === true) {
+      requestBody.learning_mode = {
+        enabled: true,
+        age_group: params.learningMode.ageGroup ?? null,
+        source: params.learningMode.source ?? "anonymous_session",
+      };
+    }
+
     const response = await this.http.post<{
       status?: string;
       chatId?: string;
@@ -1345,13 +1394,7 @@ export class OpenMatesClient {
       modelName?: string | null;
       followUpSuggestions?: string[];
       detail?: { code?: string; message?: string } | string;
-    }>("/v1/anonymous/chat/stream", {
-      anonymous_id: anonymousId,
-      client_chat_id: chatId,
-      client_message_id: messageId,
-      plaintext_message: params.message,
-      message_history: [],
-    });
+    }>("/v1/anonymous/chat/stream", requestBody);
     if (!response.ok) {
       const detail = response.data.detail;
       const message = typeof detail === "object" && detail?.message
@@ -1575,6 +1618,47 @@ export class OpenMatesClient {
     session.cookies = this.http.getCookieMap();
     saveSession(session);
     return response.data.user ?? {};
+  }
+
+  async getLearningModeStatus(): Promise<LearningModeStatus> {
+    this.requireSession();
+    const response = await this.http.get<LearningModeStatus>(
+      "/v1/learning-mode",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Learning Mode status failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async activateLearningMode(params: {
+    ageGroup: LearningModeAgeGroup;
+    passcode: string;
+  }): Promise<LearningModeStatus> {
+    this.requireSession();
+    const response = await this.http.post<LearningModeStatus>(
+      "/v1/learning-mode/activate",
+      { age_group: params.ageGroup, passcode: params.passcode },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Learning Mode activation failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async deactivateLearningMode(passcode: string): Promise<LearningModeStatus> {
+    this.requireSession();
+    const response = await this.http.post<LearningModeStatus>(
+      "/v1/learning-mode/deactivate",
+      { passcode },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Learning Mode deactivation failed with HTTP ${response.status}`);
+    }
+    return response.data;
   }
 
   async logout(): Promise<void> {
@@ -2460,6 +2544,14 @@ export class OpenMatesClient {
     connectedAccountDirectory?: ConnectedAccountDirectoryEntry[];
     /** Refresh-token envelopes to convert into short-lived token refs before send. */
     connectedAccountTokenRefInputs?: ConnectedAccountTurnTokenRefInput[];
+    /** Non-sensitive CLI benchmark labels for usage-source grouping. */
+    benchmarkMetadata?: BenchmarkMetadata;
+    /** Full plaintext history for incognito benchmark turns. */
+    messageHistory?: BenchmarkHistoryMessage[];
+    /** Account-wide Learning Mode context when already known by the caller. */
+    learningMode?: LearningModeContext;
+    /** Start collecting before send for latency-sensitive benchmark turns. */
+    precollectResponse?: boolean;
   }): Promise<{
     status: "completed" | "waiting_for_user";
     chatId: string;
@@ -2567,6 +2659,29 @@ export class OpenMatesClient {
     if (connectedAccountTokenRefs.length > 0) {
       messagePayload.connected_account_token_refs = connectedAccountTokenRefs;
     }
+    if (params.benchmarkMetadata) {
+      messagePayload.benchmark_metadata = params.benchmarkMetadata;
+    }
+    if (params.learningMode) {
+      messagePayload.learning_mode = {
+        enabled: params.learningMode.enabled,
+        age_group: params.learningMode.ageGroup ?? null,
+      };
+    }
+    if (params.incognito) {
+      const providedHistory = (params.messageHistory ?? []).map((historyMessage) => ({
+        ...historyMessage,
+        chat_id: historyMessage.chat_id ?? chatId,
+      }));
+      messagePayload.message_history = [...providedHistory, {
+        message_id: messageId,
+        chat_id: chatId,
+        role: "user",
+        sender_name: "User",
+        content: params.message,
+        created_at: createdAt,
+      }];
+    }
 
     // For non-incognito chats, resolve or generate the chat key and include
     // the encrypted_chat_key in Phase 1 so the server can store it for sync.
@@ -2651,6 +2766,10 @@ export class OpenMatesClient {
     if (encryptedEmbeds.length > 0) {
       messagePayload.encrypted_embeds = encryptedEmbeds;
     }
+
+    const precollectedResponse = params.precollectResponse
+      ? ws.collectAiResponse(messageId, chatId, { onStream: params.onStream })
+      : null;
 
     const confirmed = ws.waitForMessage(
       "chat_message_confirmed",
@@ -2928,7 +3047,7 @@ export class OpenMatesClient {
 
     if (params.incognito) {
       try {
-        const resp = await ws.collectAiResponse(messageId, chatId, streamOpts);
+        const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, streamOpts));
         assistantMessageId = resp.messageId;
         assistant = resp.content;
         category = resp.category;

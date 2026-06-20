@@ -31,6 +31,7 @@ type SubmitIssueReportOptions = {
 type SubmitIssueReportResult = {
   success: boolean;
   issueId?: string;
+  shortIssueId?: string;
   message?: string;
 };
 
@@ -152,6 +153,7 @@ export async function submitIssueReport(options: SubmitIssueReportOptions): Prom
   }
 
   const issueId = data.issue_id || "";
+  const shortIssueId = data.short_issue_id || "";
   if (issueId && get(authStore).isAuthenticated) {
     void fetch(getApiEndpoint(apiEndpoints.settings.issueLogs), {
       method: "POST",
@@ -165,5 +167,5 @@ export async function submitIssueReport(options: SubmitIssueReportOptions): Prom
     }).catch(() => { /* non-critical */ });
   }
 
-  return { success: true, issueId };
+  return { success: true, issueId, shortIssueId: shortIssueId || issueId };
 }

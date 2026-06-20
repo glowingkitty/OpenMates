@@ -886,7 +886,7 @@
     }
 
     .menu-item.select {
-        color: var(--color-primary);
+        color: var(--color-primary-start);
     }
 
     .menu-item.select .clickable-icon {
@@ -902,7 +902,7 @@
     }
 
     .menu-item.share {
-        color: var(--color-primary);
+        color: var(--color-primary-start);
     }
 
     .menu-item.share .clickable-icon {
@@ -912,7 +912,7 @@
     /* Hide and unhide buttons use default text and icon colors for better visibility */
 
     .menu-item.pin {
-        color: var(--color-primary);
+        color: var(--color-primary-start);
     }
 
     .menu-item.pin .clickable-icon {

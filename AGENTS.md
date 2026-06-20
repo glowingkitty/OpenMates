@@ -73,6 +73,7 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 - Add backend shared logic under `backend/shared/python_utils/`, `backend/shared/python_schemas/`, or `backend/shared/providers/`.
 - Do not import from another backend skill. Move shared behavior to `BaseSkill` or `backend/shared/`.
 - Use the repo scripts rather than ad hoc commands when available.
+- App metadata must not use `stage`. Apps, skills, embeds, focus modes, memory fields, and platform features are enabled by default; add sparse `default_enabled: false` only when a feature intentionally ships off by default.
 - Treat deterministic scripts as a first-class outcome of bug fixes and code-quality work. Prefer updating an existing script over adding a new one; wire checks into hooks only when they are path-scoped, fast, and low-noise, otherwise expose them as on-demand scripts from the relevant skill.
 - For Playwright and Vitest, follow `.claude/rules/testing.md`; do not run local test commands that the repo forbids.
 - For `*.spec.ts` Playwright verification, deploy the change to `dev` first, wait for the deployment to be live, then run the spec. Do not run E2E specs against undeployed local code.
@@ -137,6 +138,14 @@ If multiple skills apply, choose the earliest workflow gate first. For example,
 for a new provider-backed app skill, run `specify` or `add-api` research before
 scaffolding with `add-app-skill`; for a bug, reproduce with a failing test
 before implementation.
+
+### Reported Issue Workflow
+
+- The reported issue database is the source of truth for user-submitted issue IDs; GitHub and Linear are secondary links, not the starting point.
+- Use `python3 scripts/issues.py show <issue-id> --env prod` and `python3 scripts/issues.py findings <issue-id> --env prod` before product-code changes. Use `--env dev` only when the report is known to be from dev.
+- Store local-only investigation notes under `docs/findings/issues/<env>/<YYYY>/` and update them with first anomaly, root-cause hypothesis, related reports, attempts, tests, and status. This folder is gitignored; do not store reported-issue findings elsewhere or commit them.
+- Prefer `scripts/issues.py list`, `cluster`, `recent`, and `timeline` over raw `debug.py issue` commands. Keep `debug.py` for low-level forensic/admin actions that the workflow wrapper does not expose.
+- Redact private user data and share URL `#key=` fragments in findings notes.
 
 ---
 

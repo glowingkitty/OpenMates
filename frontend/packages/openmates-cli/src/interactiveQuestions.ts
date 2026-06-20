@@ -24,10 +24,13 @@ export interface InteractiveQuestionPayload {
   id: string;
   question: string;
   multiple?: boolean;
+  custom_option_id?: string;
+  custom_placeholder?: string;
   options?: InteractiveQuestionOption[];
   fields?: InteractiveQuestionField[];
   min?: number;
   max?: number;
+  max_stars?: number;
   scale?: number;
   cards?: InteractiveQuestionOption[];
 }
@@ -67,8 +70,13 @@ export function isInteractiveQuestionPayload(value: unknown): value is Interacti
   if (!isQuestionType(payload.type)) return false;
   if (typeof payload.id !== "string" || payload.id.trim().length === 0) return false;
   if (payload.type === "choice") {
-    return typeof payload.question === "string" && payload.question.trim().length > 0
-      && Array.isArray(payload.options) && payload.options.length > 0;
+    if (typeof payload.question !== "string" || payload.question.trim().length === 0) return false;
+    if (!Array.isArray(payload.options) || payload.options.length === 0) return false;
+    if (payload.custom_option_id !== undefined) {
+      return typeof payload.custom_option_id === "string"
+        && payload.options.some((option) => option.id === payload.custom_option_id);
+    }
+    return true;
   }
   if (payload.type === "input") return Array.isArray(payload.fields) && payload.fields.length > 0;
   if (payload.type === "slider") {
@@ -78,7 +86,7 @@ export function isInteractiveQuestionPayload(value: unknown): value is Interacti
   if (payload.type === "swipe") return Array.isArray(payload.cards) && payload.cards.length > 0;
   if (payload.type === "rating") {
     return typeof payload.question === "string" && payload.question.trim().length > 0
-      && (typeof payload.max === "number" || typeof payload.scale === "number");
+      && (typeof payload.max_stars === "number" || typeof payload.max === "number" || typeof payload.scale === "number");
   }
   return false;
 }
@@ -133,12 +141,17 @@ function buildDisplayText(
   if (question.type === "choice") {
     const selection = Array.isArray(answer.selection) ? answer.selection.map(String) : [];
     const optionsById = new Map((question.options ?? []).map((option) => [option.id, option.text]));
-    return selection.map((id) => optionsById.get(id) ?? id).join(", ");
+    const customAnswer = answer.custom_answer == null ? "" : String(answer.custom_answer).trim();
+    return selection
+      .map((id) => customAnswer && isCustomChoiceOption(question, id) ? customAnswer : optionsById.get(id) ?? id)
+      .join(", ");
   }
   if (question.type === "input") {
-    const values = answer.values && typeof answer.values === "object"
-      ? answer.values as Record<string, unknown>
-      : answer;
+    const values = answer.inputs && typeof answer.inputs === "object"
+      ? answer.inputs as Record<string, unknown>
+      : answer.values && typeof answer.values === "object"
+        ? answer.values as Record<string, unknown>
+        : answer;
     return Object.entries(values)
       .filter(([key]) => key !== "id")
       .map(([, value]) => String(value))
@@ -159,4 +172,17 @@ function buildDisplayText(
     return [rating, comment].filter(Boolean).join("\n");
   }
   return "";
+}
+
+function isCustomChoiceOption(question: InteractiveQuestionPayload, optionId: string): boolean {
+  if (question.custom_option_id) return optionId === question.custom_option_id;
+  const optionText = (question.options ?? []).find((option) => option.id === optionId)?.text.trim().toLowerCase() ?? "";
+  return [
+    "i give you my own answer",
+    "my own answer",
+    "own answer",
+    "custom answer",
+    "something else",
+    "other",
+  ].some((pattern) => optionText === pattern || optionText.includes(pattern));
 }

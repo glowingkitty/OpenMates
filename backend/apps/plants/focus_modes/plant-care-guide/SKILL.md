@@ -1,7 +1,6 @@
 ---
 id: plant_care_guide
 app: plants
-stage: planning
 
 name: plant-care-guide
 description: Get personalized care tips for your plant.

@@ -22,6 +22,10 @@ from backend.apps.ai.processing.quick_tips import (
     sanitize_quick_tip_slug,
     select_hardcoded_quick_tip_slug,
 )
+from backend.shared.python_utils.learning_mode import (
+    filter_learning_mode_suggestions,
+    is_learning_mode_enabled,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +43,7 @@ def extract_available_skills(
     discovered_apps: Dict[str, AppYAML],
 ) -> List[Dict[str, str]]:
     """
-    Extract a compact list of all production-stage skills from discovered apps.
+    Extract a compact list of all available user-facing skills from discovered apps.
 
     These are injected into the postprocessor system prompt so the LLM can
     generate natural-language suggestions that should auto-route to app skills.
@@ -57,8 +61,6 @@ def extract_available_skills(
             continue
 
         for skill in app_metadata.skills:
-            if getattr(skill, "stage", "development") != "production":
-                continue
             # Skip internal skills (auto-invoked, not user-facing)
             if getattr(skill, "internal", False):
                 continue
@@ -71,7 +73,7 @@ def extract_available_skills(
 
             skills.append({"id": skill_id, "hint": hint})
 
-    logger.debug(f"[PostProcessor] Extracted {len(skills)} production-stage skills")
+    logger.debug(f"[PostProcessor] Extracted {len(skills)} available user-facing skills")
     return skills
 
 
@@ -206,6 +208,7 @@ async def handle_postprocessing(
     current_chat_title: Optional[str] = None,
     follow_up_suggestions_enabled: bool = True,
     quick_tips_enabled: bool = True,
+    learning_mode_context: Optional[Dict[str, Any]] = None,
 ) -> Optional[PostProcessingResult]:
     """
     Generate post-processing suggestions using LLM.
@@ -315,6 +318,16 @@ async def handle_postprocessing(
 
     quick_tip_context = build_quick_tip_context(available_app_ids) if quick_tips_enabled else ""
 
+    learning_mode_suggestion_context = ""
+    if is_learning_mode_enabled(learning_mode_context):
+        learning_mode_suggestion_context = (
+            "\n\nLearning Mode is active. Suggestions must stay teaching-first and must not "
+            "offer generated media, documents, sheets, code, app artifacts, answer keys, "
+            "or complete deliverables as a workaround. Prefer suggestions that explain, "
+            "teach, practice one small step, ask a check-for-understanding question, or "
+            "show a short illustrative example."
+        )
+
     # Memory prefixes are no longer used in suggestions — settings/memories suggestions
     # are now generated inline by the main AI processor as deep links in the response text.
     memory_prefix_context = ""
@@ -368,6 +381,7 @@ async def handle_postprocessing(
         f"{available_apps_context}"
         f"{skills_context}{memory_prefix_context}"
         f"{quick_tip_context}"
+        f"{learning_mode_suggestion_context}"
         f"{title_context}"
         f"{language_instruction}"
     )
@@ -490,6 +504,17 @@ async def handle_postprocessing(
         task_id=task_id,
         label="new-chat",
     )
+
+    if is_learning_mode_enabled(learning_mode_context):
+        before_follow_up_count = len(sanitized_follow_up)
+        before_new_chat_count = len(sanitized_new_chat)
+        sanitized_follow_up = filter_learning_mode_suggestions(sanitized_follow_up)
+        sanitized_new_chat = filter_learning_mode_suggestions(sanitized_new_chat)
+        logger.info(
+            f"[Task ID: {task_id}] [PostProcessor] Learning Mode filtered "
+            f"{before_follow_up_count - len(sanitized_follow_up)} follow-up and "
+            f"{before_new_chat_count - len(sanitized_new_chat)} new-chat suggestion(s)."
+        )
 
 
     # Validate chat_summary from post-processing LLM

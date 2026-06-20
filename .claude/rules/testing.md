@@ -12,7 +12,7 @@ globs:
 
 ## Daily Test Results — Where to Find Them
 
-The daily cron job (`run_tests.py --daily`) runs every night and saves results locally:
+The daily cron job (`tests.py run --daily`) runs every night through the unified test control plane and saves results locally:
 
 | File | Contents |
 |------|----------|
@@ -81,8 +81,8 @@ All Playwright specs use `getE2EDebugUrl()` which injects `#e2e-debug={runId}-{s
   - For elements with data attributes: `page.locator('[data-testid="embed-preview"][data-status="finished"]')`
   - When adding `data-testid` to components, use kebab-case matching the element's purpose
   - Acceptable non-class selectors: `#id`, `[data-action="..."]`, `[data-authenticated="..."]`, `getByRole()`, `getByText()`
-- **NEVER run vitest, pnpm test, or npx vitest locally.** It crashes the server. Always use `python3 scripts/run_tests.py --suite vitest` which dispatches to GitHub Actions.
-- **NEVER run Playwright specs locally or via docker compose.** Always use `python3 scripts/run_tests.py --spec <name>.spec.ts` or `python3 scripts/run_tests.py --suite playwright`. This dispatches specs to GitHub Actions where they run with proper test accounts and infrastructure. The docker compose commands in the testing doc are reference only — they describe what the CI runner executes, not what you should run.
+- **NEVER run vitest, pnpm test, or npx vitest locally.** It crashes the server. Always use `python3 scripts/tests.py run --suite vitest` which dispatches to GitHub Actions and records status/history.
+- **NEVER run Playwright specs locally or via docker compose.** Always use `python3 scripts/tests.py run --spec <name>.spec.ts` or `python3 scripts/tests.py run --suite playwright`. This dispatches specs to GitHub Actions where they run with proper test accounts and infrastructure, and records status/history through the unified control plane. The docker compose commands in the testing doc are reference only — they describe what the CI runner executes, not what you should run.
 - **New features require E2E test proposal:** After implementing any auth flow, payment flow, or user-facing feature, propose an E2E test plan (user flow, assertions, which spec to extend). Wait for user confirmation before writing test code.
 - **Sidebar-closed as default:** Always test chat features with sidebar closed (default <=1440px).
 - **Cold-boot verification:** After fixing chat/nav/sync bugs, verify by clearing IndexedDB + localStorage, then reload.
@@ -96,7 +96,7 @@ Every bug fix and feature MUST follow this test-first workflow. No exceptions un
 ### Bug Fixes
 
 1. **Check for existing spec:** Run `sessions.py check-tests --session <id>` immediately after reading the issue.
-2. **Spec exists → run it first:** Run `python3 scripts/run_tests.py --spec <name>.spec.ts` to confirm the spec reproduces the bug (expect red/failure). If the spec passes, the bug may not be covered — extend the spec or create a targeted one.
+2. **Spec exists → run it first:** Run `python3 scripts/tests.py run --spec <name>.spec.ts` to confirm the spec reproduces the bug (expect red/failure). If the spec passes, the bug may not be covered — extend the spec or create a targeted one.
 3. **No spec exists → propose a test plan:** Before writing any fix code, propose a minimal E2E test that would reproduce the bug (user flow, assertions, which spec to create or extend). Wait for user confirmation.
 4. **Fix the bug.**
 5. **Run the spec again:** Confirm it passes (green). This is the proof the fix works.

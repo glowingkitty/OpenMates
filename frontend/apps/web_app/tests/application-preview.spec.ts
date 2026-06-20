@@ -12,7 +12,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount
+	getTestAccount,
+	withMockMarker
 } = require('./signup-flow-helpers');
 const {
 	loginToTestAccount,
@@ -48,16 +49,17 @@ test('generated application embed starts explicit isolated live preview', async 
 
 	await sendMessage(
 		page,
-		'Create a svelte based recipe manager application.',
+		withMockMarker('Create a svelte based recipe manager application.', 'application_preview'),
 		logCheckpoint,
 		takeStepScreenshot,
 		'application-preview'
 	);
 
 	const applicationEmbed = await waitForEmbedFinished(page, 'code', 'application', 180_000);
-	await expect(page.getByText('application_preview')).toHaveCount(0);
-	await expect(page.getByText('json:package.json')).toHaveCount(0);
-	await expect(page.getByText('svelte:src/App.svelte')).toHaveCount(0);
+	const assistantMessages = page.getByTestId('message-assistant');
+	await expect(assistantMessages.getByText('application_preview')).toHaveCount(0);
+	await expect(assistantMessages.getByText('json:package.json')).toHaveCount(0);
+	await expect(assistantMessages.getByText('svelte:src/App.svelte')).toHaveCount(0);
 	await expect(applicationEmbed.getByTestId('application-preview-screenshot')).toBeVisible({ timeout: 10_000 });
 	await expect(applicationEmbed.getByTestId('application-preview-play-overlay')).toBeVisible({ timeout: 10_000 });
 

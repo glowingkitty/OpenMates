@@ -91,7 +91,6 @@ skills:
       again for remaining pages if needed. Pass the exact embed_ref (original filename)
       from the toon block — the server resolves all cryptographic and storage details
       automatically. Never invent or guess the file_path; use the embed_ref verbatim.
-    stage: production
     class_path: |
       backend.apps.pdf.skills.read_skill.ReadSkill
     api_config:
@@ -123,7 +122,6 @@ skills:
       or when a targeted keyword search is faster than reading entire sections.
       No LLM call required — pure text search over the OCR data. Pass the exact
       embed_ref (original filename) from the toon block as file_path.
-    stage: production
     class_path: |
       backend.apps.pdf.skills.search_skill.SearchSkill
     api_config:
@@ -158,7 +156,6 @@ skills:
       be viewed per call. Pass the exact embed_ref (original filename) from the toon
       block as file_path — the server resolves all cryptographic and storage details
       automatically.
-    stage: production # Hidden from Apps; LLM uses this for visual page analysis
     class_path: |
       backend.apps.pdf.skills.view_skill.ViewSkill
     api_config:

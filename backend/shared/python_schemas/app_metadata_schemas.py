@@ -4,7 +4,7 @@
 # primarily for parsing app.yml configurations and for service discovery.
 # These models are shared across different backend services.
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Literal
 from pydantic import BaseModel, field_validator, model_validator, Field, ConfigDict
 
 class IconColorGradient(BaseModel):
@@ -51,13 +51,25 @@ class ProviderRef(BaseModel):
     no_api_key: bool = Field(default=False, description="If true, this provider does not require an API key (e.g., web scrapers). The skill will be considered available without checking for credentials.")
 
 
+def _reject_removed_stage(values: Any, model_name: str) -> Any:
+    if isinstance(values, dict) and "stage" in values:
+        raise ValueError(f"{model_name}.stage has been removed; use default_enabled: false only for off-by-default implemented features")
+    return values
+
+
+def _reject_default_enabled_true(values: Any, model_name: str) -> Any:
+    if isinstance(values, dict) and values.get("default_enabled") is True:
+        raise ValueError(f"{model_name}.default_enabled may be omitted or false; do not add default_enabled: true")
+    return values
+
+
 class AppSkillDefinition(BaseModel):
     """Defines the structure for a skill within an app's metadata."""
     id: str
     name_translation_key: str  # Required: Translation key for skill name (e.g., "app_translations.web.skills.search.name")
     description_translation_key: str  # Required: Translation key for skill description (e.g., "app_translations.web.skills.search.description")
-    class_path: Optional[str] = None  # e.g., "apps.ai.skills.ask_skill.AskSkill" - optional for planning stage skills
-    stage: Optional[str] = Field(default="development", description="Stage of the skill: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
+    class_path: Optional[str] = None  # e.g., "apps.ai.skills.ask_skill.AskSkill" - omitted for unimplemented placeholders
+    default_enabled: Optional[Literal[False]] = Field(default=None, description="Set to false only when this implemented skill ships off by default.")
     pricing: Optional[AppPricing] = None
     providers: Optional[List[ProviderRef]] = None  # Optional list of provider references — used for provider-level pricing lookup and availability checks
 
@@ -97,6 +109,12 @@ class AppSkillDefinition(BaseModel):
     # voice recordings) — users never discover or invoke these manually.
     internal: Optional[bool] = Field(default=False, description="If true, this skill is hidden from Apps and settings UI. It is invoked automatically by the backend and is not user-facing.")
 
+    @model_validator(mode='before')
+    @classmethod
+    def reject_removed_availability_fields(cls, values):
+        values = _reject_removed_stage(values, "AppSkillDefinition")
+        return _reject_default_enabled_true(values, "AppSkillDefinition")
+
 class AppFocusDefinition(BaseModel):
     """
     Defines the structure for a focus mode within an app's metadata.
@@ -119,9 +137,9 @@ class AppFocusDefinition(BaseModel):
     id: str
     name_translation_key: str  # Required: Translation key for focus mode name (e.g., "app_translations.web.focus_modes.research.name")
     description_translation_key: str  # Required: Translation key for focus mode description (e.g., "app_translations.web.focus_modes.research.description")
-    system_prompt: Optional[str] = Field(default=None, alias="systemprompt")  # Allow 'systemprompt' in YAML - optional for planning stage focuses
+    system_prompt: Optional[str] = Field(default=None, alias="systemprompt")  # Allow 'systemprompt' in YAML
     process: Optional[List[str]] = Field(default=None, description="Optional list of process steps for the focus mode")
-    stage: Optional[str] = Field(default=None, description="Stage of the focus mode: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
+    default_enabled: Optional[Literal[False]] = Field(default=None, description="Set to false only when this implemented focus mode ships off by default.")
     # Brief LLM-facing hint for the preprocessor describing when to select this focus mode.
     # Included alongside the focus mode identifier in the preprocessing prompt so the LLM can
     # make informed focus mode selection decisions (same pattern as skill preprocessor_hint).
@@ -144,6 +162,12 @@ class AppFocusDefinition(BaseModel):
 
     model_config = ConfigDict(validate_by_name=True, populate_by_name=True)
 
+    @model_validator(mode='before')
+    @classmethod
+    def reject_removed_availability_fields(cls, values):
+        values = _reject_removed_stage(values, "AppFocusDefinition")
+        return _reject_default_enabled_true(values, "AppFocusDefinition")
+
 class AppMemoryFieldDefinition(BaseModel):
     """Defines the structure for a memory field within an app's metadata."""
     id: str
@@ -151,7 +175,7 @@ class AppMemoryFieldDefinition(BaseModel):
     description_translation_key: str  # Required: Translation key for memory field description (e.g., "app_translations.web.settings_memories.bookmarks.description")
     type: str # e.g., "string", "number", "boolean", "json_object", "list_of_strings"
     schema_definition: Optional[Dict[str, Any]] = Field(default=None, alias="schema") # Optional JSON schema
-    stage: Optional[str] = Field(default=None, description="Stage of the memory field: 'planning', 'development', or 'production'. Components with stage='planning' are excluded from API responses.")
+    default_enabled: Optional[Literal[False]] = Field(default=None, description="Set to false only when this implemented memory field ships off by default.")
     # Full example entries with all field values populated.
     # Each entry is a dict mapping field names to values. String field values
     # that should be translated are stored as translation keys (looked up via $text() on frontend).
@@ -182,6 +206,12 @@ class AppMemoryFieldDefinition(BaseModel):
                 self.schema_definition["properties"] = properties
         return self
 
+    @model_validator(mode='before')
+    @classmethod
+    def reject_removed_availability_fields(cls, values):
+        values = _reject_removed_stage(values, "AppMemoryFieldDefinition")
+        return _reject_default_enabled_true(values, "AppMemoryFieldDefinition")
+
 
 class EmbedTypeDefinition(BaseModel):
     """
@@ -203,6 +233,7 @@ class EmbedTypeDefinition(BaseModel):
     skill_id: Optional[str] = Field(default=None, description="Backend skill ID (required for app-skill-use category)")
     frontend_type: str = Field(..., description="Type string used on the frontend (e.g., 'app-skill-use', 'image', 'code-code')")
     backend_type: str = Field(..., description="Type string used on the backend (e.g., 'app_skill_use', 'image', 'code')")
+    default_enabled: Optional[Literal[False]] = Field(default=None, description="Set to false only when this implemented embed type ships off by default.")
     has_children: bool = Field(default=False, description="True for composite embeds that contain child embeds (e.g., search results)")
     child_type: Optional[str] = Field(default=None, description="Child embed type ID (for composite embeds)")
     child_frontend_type: Optional[str] = Field(default=None, description="Frontend type string for child embeds (e.g., 'web-website')")
@@ -231,6 +262,14 @@ class EmbedTypeDefinition(BaseModel):
         if self.has_children and not self.child_type:
             raise ValueError(f"Embed type '{self.id}' with has_children=true must have a child_type")
         return self
+
+    @model_validator(mode='before')
+    @classmethod
+    def reject_removed_availability_fields(cls, values):
+        values = _reject_removed_stage(values, "EmbedTypeDefinition")
+        if isinstance(values, dict) and "disabled" in values:
+            raise ValueError("EmbedTypeDefinition.disabled has been removed; use default_enabled: false")
+        return _reject_default_enabled_true(values, "EmbedTypeDefinition")
 
 
 class AppInstructionDefinition(BaseModel):
@@ -261,6 +300,7 @@ class AppYAML(BaseModel):
     id: Optional[str] = None # Made id optional, will be derived if not present
     name_translation_key: str # Translation key for app name (e.g., "app_translations.web") - required
     description_translation_key: str # Translation key for app description (e.g., "apps.web.description") - required (no backwards compatibility)
+    default_enabled: Optional[Literal[False]] = Field(default=None, description="Set to false only when this implemented app ships off by default.")
     expose_in_api: bool = Field(
         default=True,
         description=(
@@ -298,6 +338,12 @@ class AppYAML(BaseModel):
             raise ValueError("'description_translation_key' is required (no backwards compatibility with 'description' field)")
         
         return self
+
+    @model_validator(mode='before')
+    @classmethod
+    def reject_removed_availability_fields(cls, values):
+        values = _reject_removed_stage(values, "AppYAML")
+        return _reject_default_enabled_true(values, "AppYAML")
 
     @field_validator('focuses', mode='before')
     @classmethod

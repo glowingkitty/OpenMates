@@ -23,6 +23,8 @@
     type ApplicationPreviewStatus,
     type ApplicationPreviewStatusValue,
   } from '../../../services/applicationPreviewService';
+  import { downloadApplicationProjectZip } from '../../../services/zipExportService';
+  import { notificationStore } from '../../../stores/notificationStore';
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from '../images/imageEmbedCrypto';
 
   interface FileRef {
@@ -226,6 +228,15 @@
     window.open(previewUrl, '_blank', 'noopener,noreferrer');
   }
 
+  async function handleDownloadProject() {
+    try {
+      await downloadApplicationProjectZip({ appName, fileRefs });
+    } catch (error) {
+      console.error('[ApplicationEmbedFullscreen] Failed to download application project:', error);
+      notificationStore.error('Failed to download application project');
+    }
+  }
+
   async function loadEncryptedScreenshot() {
     const source = latestScreenshotRef || initialScreenshotRef;
     const s3Key = source?.files?.preview?.s3_key;
@@ -278,6 +289,7 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  onDownload={handleDownloadProject}
 >
   {#snippet embedHeaderCta()}
     <div class="preview-actions">

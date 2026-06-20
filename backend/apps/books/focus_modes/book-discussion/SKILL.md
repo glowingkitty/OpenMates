@@ -1,7 +1,6 @@
 ---
 id: book_discussion
 app: books
-stage: planning
 
 name: book-discussion
 description: Discuss a book like in a reading club.

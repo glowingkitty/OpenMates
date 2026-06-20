@@ -9,7 +9,6 @@ settings_and_memories:
     description_translation_key: reminder.saved_item_reminder_defaults.description
     icon_image: reminder.svg
     type: list
-    stage: production
     schema:
       type: object
       properties:
@@ -112,7 +111,6 @@ skills:
     icon_image: reminder.svg
     preprocessor_hint: >
       Schedule, create, or set up reminders for the user. Handles one-time and recurring reminders (e.g., "every morning", "daily at 9am", "weekly", "monthly"). Use when user wants to be reminded, notified, or alerted about something at a specific time or on a recurring schedule. Also use for automating tasks like "get news every day" or "summarize updates weekly".
-    stage: production
     providers:
       - name: OpenMates
         no_api_key: true
@@ -242,7 +240,6 @@ skills:
     icon_image: task.svg
     preprocessor_hint: >
       Show the user's existing scheduled reminders.
-    stage: production
     providers:
       - name: OpenMates
         no_api_key: true
@@ -264,7 +261,6 @@ skills:
     icon_image: delete.svg
     preprocessor_hint: >
       Cancel or delete an existing reminder.
-    stage: production
     providers:
       - name: OpenMates
         no_api_key: true

@@ -9,7 +9,7 @@
 -->
 
 <script lang="ts">
-  import type { ChoiceQuestionData } from '../types';
+  import type { ChoiceQuestionData, ChoiceResponse } from '../types';
 
   let {
     data,
@@ -19,19 +19,58 @@
     answeredValue = null
   } = $props<{
     data: ChoiceQuestionData;
-    value: { id: string; selection: string[] } | null;
+    value: ChoiceResponse | null;
     isValid: boolean;
     disabled?: boolean;
-    answeredValue?: string[] | null;
+    answeredValue?: ChoiceResponse | null;
   }>();
 
   // Internal state tracking selected option IDs
   let selectedIds = $state<string[]>([]);
+  let customAnswer = $state('');
+
+  const LEGACY_CUSTOM_OPTION_PATTERNS = [
+    'i give you my own answer',
+    'my own answer',
+    'own answer',
+    'custom answer',
+    'something else',
+    'other'
+  ];
+
+  function isCustomOption(option: { id: string; text: string }): boolean {
+    if (data.custom_option_id) return option.id === data.custom_option_id;
+    const normalizedText = option.text.trim().toLowerCase();
+    return LEGACY_CUSTOM_OPTION_PATTERNS.some((pattern) => normalizedText === pattern || normalizedText.includes(pattern));
+  }
+
+  function hasCustomSelection(nextSelectedIds = selectedIds): boolean {
+    return data.options.some((option) => nextSelectedIds.includes(option.id) && isCustomOption(option));
+  }
+
+  function updateSelection(nextSelectedIds = selectedIds, nextCustomAnswer = customAnswer) {
+    selectedIds = nextSelectedIds;
+    customAnswer = nextCustomAnswer;
+
+    const needsCustomAnswer = hasCustomSelection(nextSelectedIds);
+    isValid = nextSelectedIds.length > 0 && (!needsCustomAnswer || nextCustomAnswer.trim().length > 0);
+    if (!isValid) {
+      value = null;
+      return;
+    }
+
+    const response: ChoiceResponse = { id: data.id, selection: nextSelectedIds };
+    if (needsCustomAnswer) {
+      response.custom_answer = nextCustomAnswer.trim();
+    }
+    value = response;
+  }
 
   // Initialize selected IDs if already answered (locked)
   $effect(() => {
     if (disabled && answeredValue) {
-      selectedIds = answeredValue;
+      selectedIds = answeredValue.selection;
+      customAnswer = answeredValue.custom_answer || '';
     }
   });
 
@@ -39,6 +78,7 @@
   $effect(() => {
     if (value === null && !disabled) {
       selectedIds = [];
+      customAnswer = '';
     }
   });
 
@@ -46,19 +86,29 @@
   function handleSelect(optionId: string) {
     if (disabled) return;
 
+    let nextSelectedIds: string[];
+    let nextCustomAnswer = customAnswer;
+
     if (data.multiple) {
       if (selectedIds.includes(optionId)) {
-        selectedIds = selectedIds.filter(id => id !== optionId);
+        nextSelectedIds = selectedIds.filter(id => id !== optionId);
       } else {
-        selectedIds = [...selectedIds, optionId];
+        nextSelectedIds = [...selectedIds, optionId];
       }
     } else {
-      selectedIds = [optionId];
+      nextSelectedIds = [optionId];
     }
 
-    // Update bindable state
-    isValid = selectedIds.length > 0;
-    value = isValid ? { id: data.id, selection: selectedIds } : null;
+    if (!hasCustomSelection(nextSelectedIds)) {
+      nextCustomAnswer = '';
+    }
+
+    updateSelection(nextSelectedIds, nextCustomAnswer);
+  }
+
+  function handleCustomInput(val: string) {
+    if (disabled) return;
+    updateSelection(selectedIds, val);
   }
 
   // Handle keyboard interaction for accessibility
@@ -79,6 +129,7 @@
         class="option-item"
         class:selected={isSelected}
         class:interactive={!disabled}
+        data-testid={`interactive-question-option-${option.id}`}
         role="button"
         tabindex="0"
         onclick={() => handleSelect(option.id)}
@@ -103,6 +154,17 @@
         </div>
         <div class="option-text">{option.text}</div>
       </div>
+      {#if isSelected && isCustomOption(option)}
+        <input
+          type="text"
+          class="custom-answer-input"
+          data-testid="interactive-question-custom-answer"
+          value={customAnswer}
+          placeholder={data.custom_placeholder || 'Type your own answer'}
+          {disabled}
+          oninput={(e) => handleCustomInput((e.target as HTMLInputElement).value)}
+        />
+      {/if}
     {/each}
   </div>
 </div>
@@ -197,6 +259,30 @@
     font-size: var(--font-size-p, 15px);
     line-height: 1.4;
     color: var(--color-font-primary, #212529);
+  }
+
+  .custom-answer-input {
+    width: 100%;
+    padding: var(--spacing-10, 10px) var(--spacing-12, 12px);
+    font-size: var(--font-size-p, 15px);
+    background: var(--color-grey-0, #ffffff);
+    border: 1px solid var(--color-grey-30, #ced4da);
+    border-radius: var(--radius-8, 20px);
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+  }
+
+  .custom-answer-input:focus {
+    outline: none;
+    border-color: var(--color-primary, #4dabf7);
+    box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.22);
+  }
+
+  .custom-answer-input:disabled {
+    background: var(--color-grey-10, #f8f9fa);
+    border-color: var(--color-grey-20, #dee2e6);
+    cursor: not-allowed;
+    color: var(--color-font-secondary, #495057);
   }
 
   .disabled {

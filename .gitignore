@@ -343,3 +343,8 @@ temp-ssh-access.sh
 # Legal/compliance auditor output (auto-generated twice weekly)
 docs/architecture/compliance/top-10-recommendations.md
 backend/core/directus/uploads/
+
+# Reported issue findings are local investigation notes and may contain private context.
+docs/findings/issues/**
+!docs/findings/issues/
+!docs/findings/issues/README.md

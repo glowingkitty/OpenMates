@@ -2,7 +2,11 @@
 """
 scripts/run_tests.py
 
-Unified test orchestrator for OpenMates.
+Execution engine for OpenMates tests.
+
+Prefer `python3 scripts/tests.py run ...` for manual and agent-triggered test
+runs. That control-plane wrapper records current state, history, and failure
+leases before delegating here.
 
 Replaces: run-tests.sh, run-tests-daily.sh, run-tests-worker.sh,
           ci/trigger_parallel_specs.sh
@@ -12,20 +16,20 @@ to GitHub Actions via playwright-spec.yml in batches of N (default 20),
 polls for completion, aggregates results, and sends notifications.
 
 Usage:
-    python3 scripts/run_tests.py                           # full suite
-    python3 scripts/run_tests.py --spec chat-flow.spec.ts  # single spec
-    python3 scripts/run_tests.py --only-failed             # rerun failures
-    python3 scripts/run_tests.py --suite pytest             # just pytest
-    python3 scripts/run_tests.py --suite vitest             # just vitest
-    python3 scripts/run_tests.py --suite playwright         # just browser E2E
-    python3 scripts/run_tests.py --suite cli                # just CLI integration
-    python3 scripts/run_tests.py --daily                   # cron mode (3 AM nightly)
-    python3 scripts/run_tests.py --daily --force            # skip commit check
-    python3 scripts/run_tests.py --hourly-dev              # hourly dev smoke (4 specs)
-    python3 scripts/run_tests.py --hourly-prod             # hourly prod smoke
-    python3 scripts/run_tests.py --hourly-dev --dry-run-notify  # test Discord wiring
-    python3 scripts/run_tests.py --max-concurrent 10       # override batch size
-    python3 scripts/run_tests.py --no-fail-fast            # run all batches
+    python3 scripts/tests.py run                           # full suite
+    python3 scripts/tests.py run --spec chat-flow.spec.ts  # single spec
+    python3 scripts/tests.py run --only-failed             # rerun failures
+    python3 scripts/tests.py run --suite pytest            # just pytest
+    python3 scripts/tests.py run --suite vitest            # just vitest
+    python3 scripts/tests.py run --suite playwright        # just browser E2E
+    python3 scripts/tests.py run --suite cli               # just CLI integration
+    python3 scripts/tests.py run --daily                   # cron mode (3 AM nightly)
+    python3 scripts/tests.py run --daily --force           # skip commit check
+    python3 scripts/tests.py run --hourly-dev              # hourly dev smoke (4 specs)
+    python3 scripts/tests.py run --hourly-prod             # hourly prod smoke
+    python3 scripts/tests.py run --hourly-dev --dry-run-notify  # test Discord wiring
+    python3 scripts/tests.py run --max-concurrent 10       # override batch size
+    python3 scripts/tests.py run --no-fail-fast            # run all batches
 
 Architecture: docs/architecture/test-orchestration.md
 """
@@ -36,6 +40,7 @@ import argparse
 import fcntl
 import asyncio
 import hashlib
+import importlib.util
 import json
 import mimetypes
 import os
@@ -261,6 +266,19 @@ def _print_flaky_report() -> None:
     for key, flaky, total, rate, last_date in ranked[:15]:
         print(f"{rate:5.0%}   {flaky:>4}/{total:<6}  {last_date:<12}  {key}")
     print()
+
+
+def _record_unified_test_state(data: dict) -> None:
+    """Update scripts/tests.py state files without making this runner depend on it."""
+    tests_script = PROJECT_ROOT / "scripts" / "tests.py"
+    if not tests_script.is_file():
+        return
+    spec = importlib.util.spec_from_file_location("openmates_tests_control", tests_script)
+    if spec is None or spec.loader is None:
+        return
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    module.record_run_result(data)
 
 
 def _log(msg: str, level: str = "INFO") -> None:
@@ -867,6 +885,28 @@ class GitHubActionsClient:
     def get_failed_job_error(self, run_id: int) -> Optional[str]:
         """Extract error details from a failed run's job logs via `gh run view --log-failed`.
         Returns a trimmed error snippet or None."""
+        context_lines: list[str] = []
+        jobs = subprocess.run(
+            ["gh", "run", "view", str(run_id), "--repo", GH_REPO, "--json", "jobs"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if jobs.returncode == 0 and jobs.stdout.strip():
+            try:
+                payload = json.loads(jobs.stdout)
+            except json.JSONDecodeError:
+                payload = {}
+            for job in payload.get("jobs") or []:
+                if job.get("conclusion") not in {"failure", "timed_out", "cancelled"}:
+                    continue
+                if job.get("name"):
+                    context_lines.append(f"Failed job: {job['name']} ({job.get('conclusion')})")
+                for step in job.get("steps") or []:
+                    if step.get("conclusion") in {"failure", "timed_out", "cancelled"} and step.get("name"):
+                        context_lines.append(f"Failed step: {step['name']} ({step.get('conclusion')})")
+                break
+
         rc = subprocess.run(
             ["gh", "run", "view", str(run_id),
              "--repo", GH_REPO,
@@ -875,7 +915,7 @@ class GitHubActionsClient:
             timeout=30,
         )
         if rc.returncode != 0 or not rc.stdout.strip():
-            return None
+            return "\n".join(context_lines)[:MAX_ERROR_SNIPPET] if context_lines else None
 
         lines = rc.stdout.strip().splitlines()
 
@@ -890,7 +930,8 @@ class GitHubActionsClient:
             if any(kw in text for kw in [
                 "Error:", "FAILED", "expect(", "Timeout", "AssertionError",
                 "Error: locator", "waiting for", "error TS",
-                "Cannot find module", "ERR_MODULE_NOT_FOUND",
+                "Cannot find module", "ERR_MODULE_NOT_FOUND", "##[error]",
+                "Process completed with exit code", "Test timeout",
             ]):
                 capture = True
             if capture:
@@ -899,13 +940,13 @@ class GitHubActionsClient:
                     break
 
         if error_lines:
-            return "\n".join(error_lines)[:MAX_ERROR_SNIPPET]
+            return "\n".join([*context_lines, *error_lines])[:MAX_ERROR_SNIPPET]
 
         # Fallback: return last N non-empty lines (usually contains the failure reason)
         tail = [ln.split("\t")[-1].strip() if "\t" in ln else ln.strip()
                 for ln in lines[-20:] if ln.strip()]
         if tail:
-            return "\n".join(tail[-10:])[:MAX_ERROR_SNIPPET]
+            return "\n".join([*context_lines, *tail[-10:]])[:MAX_ERROR_SNIPPET]
 
         return None
 
@@ -1670,6 +1711,10 @@ class ResultAggregator:
 
         # Write last-run.json (always overwritten)
         _safe_write_json(RESULTS_DIR / "last-run.json", data)
+        try:
+            _record_unified_test_state(data)
+        except Exception as exc:
+            _log(f"Could not update unified test state: {exc}", "WARN")
 
         _log(f"Results saved to {run_file.name} and last-run.json")
 

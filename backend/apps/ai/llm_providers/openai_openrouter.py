@@ -78,7 +78,12 @@ def _get_provider_overrides_for_model(model_id: str) -> Optional[Dict[str, Any]]
 
         provider_config = config_manager.get_provider_config(upstream_provider)
         if not provider_config:
-            logger.warning(f"Provider configuration not found for '{upstream_provider}' when resolving overrides for model '{model_id}'")
+            logger.debug(
+                "Provider configuration not found for OpenRouter upstream namespace "
+                "'%s' when resolving overrides for model '%s'; using model ID as-is.",
+                upstream_provider,
+                model_id,
+            )
             return None
 
         for model in provider_config.get("models", []):

@@ -247,8 +247,8 @@ python3 scripts/sessions.py deploy \
 After deploy, run related Playwright specs against deployed dev:
 
 ```bash
-python3 scripts/run_tests.py --suite playwright --spec example-chats-load.spec.ts --environment development --force
-python3 scripts/run_tests.py --suite playwright --spec example-chat-clone.spec.ts --environment development --force
+python3 scripts/tests.py run --suite playwright --spec example-chats-load.spec.ts --environment development --force
+python3 scripts/tests.py run --suite playwright --spec example-chat-clone.spec.ts --environment development --force
 ```
 
 If the example is for a marketing video, hand off the final slug and deployed example URL to the marketing repo's Remotion workflow. The video should use the permanent example chat rather than a temporary shared chat whenever possible.

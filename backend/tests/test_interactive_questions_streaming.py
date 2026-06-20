@@ -46,6 +46,49 @@ def test_valid_interactive_question_is_preserved() -> None:
     assert finalized == VALID_QUESTION
 
 
+def test_valid_custom_choice_question_is_preserved() -> None:
+    valid_custom_choice = """```interactive_question
+{
+  "type": "choice",
+  "id": "project_direction",
+  "multiple": false,
+  "question": "What should we work on next?",
+  "custom_option_id": "own_answer",
+  "custom_placeholder": "Type your own answer",
+  "options": [
+    { "id": "ship_fix", "text": "Ship the bug fix" },
+    { "id": "own_answer", "text": "I give you my own answer" }
+  ]
+}
+```
+"""
+
+    finalized = _finalize_interactive_question_protocol(valid_custom_choice)
+
+    assert finalized == valid_custom_choice
+
+
+def test_custom_choice_requires_matching_option() -> None:
+    invalid_custom_choice = """```interactive_question
+{
+  "type": "choice",
+  "id": "project_direction",
+  "multiple": false,
+  "question": "What should we work on next?",
+  "custom_option_id": "missing_option",
+  "options": [
+    { "id": "ship_fix", "text": "Ship the bug fix" }
+  ]
+}
+```
+"""
+
+    finalized = _finalize_interactive_question_protocol(invalid_custom_choice)
+
+    assert "```interactive_question" not in finalized
+    assert "Failed to display question." in finalized
+
+
 def test_valid_input_question_without_title_is_preserved() -> None:
     valid_input = """```interactive_question
 {

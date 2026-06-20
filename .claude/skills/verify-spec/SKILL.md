@@ -69,7 +69,7 @@ Status: pass | fail | partial
 | ID | Status | Evidence | Risk |
 | --- | --- | --- | --- |
 | S-1 | pass | `frontend/...spec.ts` | none |
-| AC-1 | pass | `python3 scripts/run_tests.py ...` | none |
+| AC-1 | pass | `python3 scripts/tests.py run ...` | none |
 
 Gaps:
 - <gap or none>

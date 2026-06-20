@@ -16,7 +16,6 @@ import os
 import time
 import uuid
 from datetime import datetime, timezone
-from io import BytesIO
 from typing import Any, Awaitable, Callable
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -40,8 +39,6 @@ from backend.shared.providers.e2b_application_preview import (
 
 logger = logging.getLogger(__name__)
 APPLICATION_PREVIEW_SCREENSHOT_VARIANT = "preview"
-APPLICATION_PREVIEW_SCREENSHOT_WIDTH = 960
-APPLICATION_PREVIEW_SCREENSHOT_HEIGHT = 540
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN", "")
 
@@ -438,6 +435,12 @@ async def store_application_preview_thumbnail(
             return None
         if session.get("uses_client_shared_context") is True:
             return None
+        screenshot_bytes = runtime.latest_screenshot_bytes
+        if not screenshot_bytes:
+            logger.info("Application preview screenshot skipped for %s: provider did not return screenshot bytes", session_id)
+            return None
+        content_type = _application_preview_screenshot_content_type(runtime.latest_screenshot_mime_type)
+        file_extension = _application_preview_screenshot_extension(content_type)
 
         encryption_service = EncryptionService(cache_service=cache_service)
         await encryption_service.initialize()
@@ -450,10 +453,9 @@ async def store_application_preview_thumbnail(
         if not vault_key_id:
             return None
 
-        png_bytes = _build_application_preview_thumbnail_png(payload=payload, runtime=runtime)
         aes_key = os.urandom(32)
         nonce = os.urandom(12)
-        encrypted_payload = AESGCM(aes_key).encrypt(nonce, png_bytes, None)
+        encrypted_payload = AESGCM(aes_key).encrypt(nonce, screenshot_bytes, None)
         aes_key_b64 = base64.b64encode(aes_key).decode("utf-8")
         nonce_b64 = base64.b64encode(nonce).decode("utf-8")
         vault_wrapped_aes_key, _ = await encryption_service.encrypt_with_user_key(aes_key_b64, vault_key_id)
@@ -461,7 +463,7 @@ async def store_application_preview_thumbnail(
             return None
 
         timestamp = datetime.fromtimestamp(now, tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
-        file_key = f"{viewer_user_id}/{timestamp}_{uuid.uuid4().hex[:8]}_application_preview.png"
+        file_key = f"{viewer_user_id}/{timestamp}_{uuid.uuid4().hex[:8]}_application_preview.{file_extension}"
         upload = await s3_service.upload_file(
             bucket_key="chatfiles",
             file_key=file_key,
@@ -477,13 +479,15 @@ async def store_application_preview_thumbnail(
         files_metadata = {
             APPLICATION_PREVIEW_SCREENSHOT_VARIANT: {
                 "s3_key": file_key,
-                "width": APPLICATION_PREVIEW_SCREENSHOT_WIDTH,
-                "height": APPLICATION_PREVIEW_SCREENSHOT_HEIGHT,
-                "size_bytes": len(png_bytes),
-                "format": "png",
-                "mime_type": "image/png",
+                "size_bytes": len(screenshot_bytes),
+                "format": file_extension,
+                "mime_type": content_type,
             }
         }
+        width, height = _png_dimensions(screenshot_bytes)
+        if width and height:
+            files_metadata[APPLICATION_PREVIEW_SCREENSHOT_VARIANT]["width"] = width
+            files_metadata[APPLICATION_PREVIEW_SCREENSHOT_VARIANT]["height"] = height
 
         shim = type("ApplicationPreviewAssetTask", (), {})()
         shim._directus_service = directus_service
@@ -500,9 +504,9 @@ async def store_application_preview_thumbnail(
             nonce_b64=nonce_b64,
             vault_wrapped_aes_key=vault_wrapped_aes_key,
             created_at=int(now),
-            content_hash_source=png_bytes,
-            original_filename=f"openmates_application_preview_{application_embed_id[:8]}.png",
-            content_type="image/png",
+            content_hash_source=screenshot_bytes,
+            original_filename=f"openmates_application_preview_{application_embed_id[:8]}.{file_extension}",
+            content_type=content_type,
             log_prefix=f"[ApplicationPreviewScreenshot] [session:{session_id[:8]}]",
             provenance_metadata={"source": "application_preview_runtime", "application_embed_id": application_embed_id},
         )
@@ -545,37 +549,24 @@ async def store_application_preview_thumbnail(
         return None
 
 
-def _build_application_preview_thumbnail_png(*, payload: dict[str, Any], runtime: ApplicationPreviewRuntime) -> bytes:
-    try:
-        from PIL import Image, ImageDraw, ImageFont
-    except ImportError as exc:  # pragma: no cover - worker image includes Pillow.
-        raise RuntimeError("Pillow is required for application preview thumbnails") from exc
+def _application_preview_screenshot_content_type(value: str | None) -> str:
+    return value if isinstance(value, str) and value.startswith("image/") else "image/png"
 
-    image = Image.new("RGB", (APPLICATION_PREVIEW_SCREENSHOT_WIDTH, APPLICATION_PREVIEW_SCREENSHOT_HEIGHT), "#f6f8fb")
-    draw = ImageDraw.Draw(image)
-    font = ImageFont.load_default()
-    draw.rounded_rectangle((48, 40, 912, 500), radius=24, fill="#ffffff", outline="#d7dee8", width=2)
-    draw.rounded_rectangle((48, 40, 912, 92), radius=24, fill="#edf2f7")
-    for index, color in enumerate(("#ff5f57", "#ffbd2e", "#28c840")):
-        draw.ellipse((76 + index * 28, 58, 92 + index * 28, 74), fill=color)
 
-    files = [str(file.get("path") or "") for file in payload.get("files", []) if isinstance(file, dict)]
-    title = str(payload.get("framework") or "Generated application").title()
-    draw.text((80, 132), title, fill="#111827", font=font)
-    draw.text((80, 164), "Preview is running in an isolated E2B sandbox", fill="#4b5563", font=font)
-    draw.text((80, 206), f"Sandbox: {runtime.sandbox_id[:12] or 'active'}", fill="#6b7280", font=font)
-    y = 254
-    for path in files[:7]:
-        draw.rounded_rectangle((80, y, 560, y + 28), radius=8, fill="#eef6ff")
-        draw.text((96, y + 8), path[:72], fill="#1f4e79", font=font)
-        y += 40
-    draw.rounded_rectangle((620, 250, 840, 390), radius=18, fill="#e8fff3", outline="#b9f6d3")
-    draw.polygon([(705, 292), (705, 348), (756, 320)], fill="#10b981")
-    draw.text((646, 418), "Live preview ready", fill="#047857", font=font)
+def _application_preview_screenshot_extension(content_type: str) -> str:
+    if content_type == "image/jpeg":
+        return "jpg"
+    if content_type == "image/webp":
+        return "webp"
+    return "png"
 
-    output = BytesIO()
-    image.save(output, format="PNG", optimize=True)
-    return output.getvalue()
+
+def _png_dimensions(image_bytes: bytes) -> tuple[int | None, int | None]:
+    if len(image_bytes) < 24 or image_bytes[:8] != b"\x89PNG\r\n\x1a\n":
+        return None, None
+    width = int.from_bytes(image_bytes[16:20], "big")
+    height = int.from_bytes(image_bytes[20:24], "big")
+    return width, height
 
 
 def _public_api_base_url() -> str:

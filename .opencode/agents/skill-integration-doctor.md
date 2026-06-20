@@ -40,7 +40,7 @@ Every skill MUST honor the following, per `.claude/rules/backend.md` + recent co
 9. **Cache-miss fallback pattern** — every cache read must fall back to DB, never treat cache miss as terminal (`.claude/rules/backend.md`).
 10. **`app.yml` declaration matches the Python class name** exactly.
 11. **Error shapes match BaseSkill error envelope** — no bare exceptions escaping.
-12. **Fixture recordings live in `backend/tests/fixtures/ai/skill_execution/`** — re-record via `run_tests.py --suite ai-testing`.
+12. **Fixture recordings live in `backend/tests/fixtures/ai/skill_execution/`** — re-record via `scripts/tests.py run --suite ai-testing`.
 
 ## Input
 
@@ -117,7 +117,7 @@ A single JSON code block, then a 2-sentence narrative.
   "provider_leak": null,
   "fixture_path": "backend/tests/fixtures/ai/skill_execution/<name>.json",
   "fixture_action": "record | re-record | replay",
-  "verification_cmd": "python3 scripts/run_tests.py --suite ai-testing",
+  "verification_cmd": "python3 scripts/tests.py run --suite ai-testing",
   "related_recent_commits": ["<sha> <subject>"],
   "handoff_to": "main-processor-guru | null",
   "confidence": "high|medium|low"

@@ -15,29 +15,30 @@ You are fixing failing Playwright tests one at a time, in priority order. Each i
 - `--skip-session`: Skip `sessions.py start` (already in a session)
 - `--rerun-only`: Just rerun all currently-failed tests and report results, don't fix anything
 
-### Step 1: Delegate triage to the `test-failure-triager` subagent
+### Step 1: Lease the next deterministic failure group
 
-Unless `<spec-name>` was provided as an argument, launch the `test-failure-triager` agent:
+Unless `<spec-name>` was provided as an argument, call the unified deterministic test control plane:
 
-> Triage the latest test failures. Read `test-results/last-failed-tests.json`, per-test MD reports in `test-results/reports/failed/`, and cross-reference `logs/nightly-reports/pattern-consistency.json`. Return the structured JSON of root-cause groups and your one-sentence recommendation.
+```bash
+python3 scripts/tests.py next --lease --session <session-id> --json
+```
 
-The agent returns a compact JSON with `groups[]` already ranked by priority tier (1 = runtime JS errors through 7 = test infrastructure) plus a `skipped[]` list.
-
-**Do NOT read failure files yourself** — the agent's report is all you need.
+This command ranks current failures, atomically records that this session is working on the selected group, and returns the failure reason, linked files, related group, and verification command. **Do not debug any unleased failure.**
 
 ### Step 2: Pick the Next Test
 
 If `<spec-name>` was provided, use that directly and skip to Step 3.
 
-Otherwise, pick the **first group** from the agent's recommendation (highest tier with `confidence >= medium`). The picked group may cover multiple specs — fix them all in one pass since they share a root cause.
+Otherwise, use the JSON returned by `scripts/tests.py next --lease`. The picked group may cover multiple specs — fix them all in one pass since they share a root cause.
 
-Print the picked group using the agent's output:
+Print the picked group using the leased output:
 ```
-NEXT: <first spec in group.affected_specs>
-ROOT CAUSE: <group.root_cause>
-TIER: <group.tier>
-SUSPECT: <group.suggested_fix_location>
-ALSO FIXES: <remaining group.affected_specs>
+LEASE: <lease_id>
+NEXT: <entry.test>
+CATEGORY: <entry.category>
+ROOT CAUSE: <entry.reason>
+FILES: <entry.linked_files>
+VERIFY: <entry.verification_command>
 ```
 
 ### Step 3: Start Session (unless --skip-session)
@@ -48,10 +49,10 @@ python3 scripts/sessions.py start --mode bug --task "Fix failing test: <spec-nam
 
 ### Step 4: Investigate Root Cause
 
-The agent has already done most of this work. You now have `suspect_files[]` with `last_changed` git info and `suggested_fix_location`. Fill in the gaps:
+The deterministic lease has already supplied the most relevant failure details and linked files. Fill in the gaps:
 
 1. **Read the spec** — understand what the test expects
-2. **Read the suspect file(s)** at the suggested location — confirm the agent's hypothesis before writing the fix
+2. **Read the linked file(s)** — confirm the deterministic hypothesis before writing the fix
 3. **If the hypothesis doesn't fit:** read the per-test failure MD report once (`test-results/reports/failed/<spec-name>.md`) for additional context
 4. **State your diagnosis** before writing any fix:
    ```
@@ -73,7 +74,7 @@ Apply the fix. Follow these rules:
 
 Run the fixed spec:
 ```bash
-python3 scripts/run_tests.py --spec <spec-name>.spec.ts
+python3 scripts/tests.py run --spec <spec-name>.spec.ts
 ```
 
 Wait for the result. If it passes, also run any related specs that share the same root cause.
@@ -102,8 +103,9 @@ REMAINING: <count of still-failing tests>
 ### Rules
 
 - **One root cause per invocation** — fix one group, verify, deploy, then invoke again for the next
-- **Never run vitest/playwright locally** — always dispatch via `run_tests.py`
+- **Never run vitest/playwright locally** — always dispatch via `scripts/tests.py run`
 - **2-attempt limit** per test — don't spin wheels
 - **Read before writing** — always read the failure report and source code before changing anything
 - **Console errors are real bugs** — fix them in app code, never suppress
 - **Skip Mailosaur/external service failures** — flag them and move to the next test
+- **Always complete or release the lease** — after deploy call `python3 scripts/tests.py complete --lease <lease-id> --commit <sha>`; if blocked call `python3 scripts/tests.py release --lease <lease-id> --reason "<reason>"`

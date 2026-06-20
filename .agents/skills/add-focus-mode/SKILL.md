@@ -131,7 +131,7 @@ explicitly says to proceed without draft approval.
 ### Step 8: Finalize the Draft
 
 Incorporate feedback and show the final version briefly. Confirm any remaining
-tradeoffs, such as `stage`, activation breadth, or safety wording.
+tradeoffs, such as activation breadth, default-enabled behavior, or safety wording.
 
 ### Step 9: Implement the Focus Mode
 
@@ -182,9 +182,9 @@ blocking reason instead of treating parser/build checks as behavior evidence.
 
 For user-facing focus-mode behavior, propose the relevant E2E test path and use
 the repo test runner after deploy when running Playwright:
-- `python3 scripts/run_tests.py --spec focus-mode-settings.spec.ts`
-- `python3 scripts/run_tests.py --spec focus-mode-mention.spec.ts`
-- `python3 scripts/run_tests.py --spec focus-mode-rejection.spec.ts`
+- `python3 scripts/tests.py run --spec focus-mode-settings.spec.ts`
+- `python3 scripts/tests.py run --spec focus-mode-mention.spec.ts`
+- `python3 scripts/tests.py run --spec focus-mode-rejection.spec.ts`
 - a new or updated focus-mode-specific spec if needed
 
 Do not run Playwright locally.

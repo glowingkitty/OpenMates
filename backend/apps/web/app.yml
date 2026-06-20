@@ -11,7 +11,6 @@ settings_and_memories:
     description_translation_key: web.bookmarks.description
     icon_image: web.svg
     type: list
-    stage: production
     example_translation_keys:
       - "web.bookmarks.example_1"
       - "web.bookmarks.example_2"
@@ -31,7 +30,6 @@ settings_and_memories:
     name_translation_key: web.favorite_websites
     description_translation_key: web.favorite_websites.description
     type: list
-    stage: development
     example_translation_keys:
       - "web.favorite_websites.example_1"
       - "web.favorite_websites.example_2"
@@ -49,7 +47,6 @@ settings_and_memories:
     description_translation_key: web.read_later.description
     icon_image: task.svg
     type: list
-    stage: production
     example_translation_keys:
       - "web.read_later.example_1"
       - "web.read_later.example_2"
@@ -182,7 +179,6 @@ skills:
     preprocessor_hint: >
       General web search for current information, prices, weather, facts, stocks, sports scores, etc.
       Use as a fallback when no specialized skill applies.
-    stage: production
     class_path: |
       backend.apps.web.skills.search_skill.SearchSkill
     providers:
@@ -330,7 +326,6 @@ skills:
     icon_image: web.svg
     preprocessor_hint: >
       Read and extract content from a specific URL or webpage the user provided.
-    stage: production
     class_path: |
       backend.apps.web.skills.read_skill.ReadSkill
     providers:
@@ -395,7 +390,6 @@ focuses:
     description_translation_key: web.check_reputation.description
     process_translation_key: focus_modes.web_check_reputation.process
     systemprompt_translation_key: focus_modes.web_check_reputation.systemprompt
-    stage: development
     preprocessor_hint: >
       Select when the user asks whether a business, seller, marketplace listing,
       website, online shop, or service is legitimate, trustworthy, reliable, or
@@ -405,13 +399,11 @@ focuses:
   - id: analyze_privacy
     name_translation_key: web.analyze_privacy
     description_translation_key: web.analyze_privacy.description
-    stage: planning
   - id: research
     name_translation_key: web.research
     description_translation_key: web.research.description
     process_translation_key: focus_modes.web_research.process
     systemprompt_translation_key: focus_modes.web_research.systemprompt
-    stage: development
     preprocessor_hint: >
       Select when the user asks about complex political, economic, market, geopolitical, policy, or news topics where surface explanations may be incomplete and incentives, competing narratives, or hidden causes matter.
       Do not select for quick facts, simple current-info lookups, or single-page summaries where normal web search or web read is enough.

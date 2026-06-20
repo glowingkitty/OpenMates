@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-06-10
+last_verified: 2026-06-19
 key_files:
 - frontend/packages/openmates-cli/src/cli.ts
 - frontend/packages/openmates-cli/src/client.ts
@@ -51,7 +51,7 @@ claims:
 
 # CLI Package
 
-> npm package (`openmates`, v0.12.0-alpha.0) providing both a CLI and a programmatic SDK for signup, pair-auth login, encrypted chat operations, app skill execution, settings management, bank-transfer billing, and self-hosted server management.
+> npm package (`openmates`, v0.12.0-alpha.0) providing both a CLI and a programmatic SDK for signup, pair-auth login, encrypted chat operations, app skill execution, settings management, model benchmarking, bank-transfer billing, and self-hosted server management.
 
 ## Why This Exists
 
@@ -74,6 +74,8 @@ CLI login derives and stores the email encryption key after pair-auth by decrypt
 **Apps:** `list`, `info`, `skill-info`, `<app-id> <skill-id> "<query>"` (run skill with text or `--input` JSON), `code run`, and `travel booking-link`
 
 **Settings:** predefined account, profile picture, interface, privacy, billing, invoices, notifications, reminders, mates, newsletter, developer, issue-report, gift-card, and memory commands. Raw settings path passthrough is not exposed.
+
+**Benchmarks:** `benchmark model <provider/model>` runs real product-path model benchmarks with dry-run credit estimates, live spend confirmation, quick/extensive suites, case filtering, comparison mode, judge scoring, JSON output, and optional image fixture override.
 
 **Billing:** SEPA bank-transfer credit purchase, bank-transfer status/list, bank-transfer gift-card purchase/status, gift-card redemption, purchased/redeemed card lists, invoices, and refunds. Card checkout remains browser-only.
 

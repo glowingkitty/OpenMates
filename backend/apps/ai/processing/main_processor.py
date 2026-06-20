@@ -27,6 +27,13 @@ from backend.apps.ai.processing.preprocessor import (
     PreprocessingResult,
 )
 from backend.apps.ai.utils.mate_utils import MateConfig
+from backend.shared.python_utils.learning_mode import (
+    AGE_GROUP_13_15,
+    apply_learning_mode_policy_to_skill_result,
+    build_learning_mode_global_prompt,
+    is_learning_mode_blocked_skill,
+    is_learning_mode_enabled,
+)
 from backend.apps.ai.utils.llm_utils import (
     call_main_llm_stream,
     truncate_message_history_to_token_budget,
@@ -45,6 +52,7 @@ from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkill
 from backend.shared.providers.wikipedia.wikipedia_api import normalize_wikipedia_language
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.config_manager import config_manager
+from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
 
 # Import services for type hinting
 from backend.core.api.app.services.directus.directus import DirectusService
@@ -316,8 +324,11 @@ To collect structured answers, output a single ```interactive_question fenced bl
   "id": "<unique_string_id>",
   "multiple": <boolean>,
   "question": "<string_question_text>",
+  "custom_option_id": "<optional_option_id_that_requires_text_input>",
+  "custom_placeholder": "<optional_placeholder_for_custom_answer>",
   "options": [ { "id": "<string_option_id>", "text": "<string_option_text>" } ]
 }
+Use custom_option_id when one of the options means "other", "my own answer", or a custom answer. The custom_option_id must match one option id. Do not offer an option such as "I give you my own answer" without custom_option_id, because clients will show a text input only for custom options.
 
 2. TYPE: "input" (sequential forms)
 {
@@ -358,7 +369,8 @@ Example response:
 ```interactive_response
 {
   "id": "quiz_1",
-  "selection": ["option_a_id"]
+  "selection": ["option_a_id"],
+  "custom_answer": "Optional typed answer when the selected option is custom"
 }
 ```
 
@@ -413,6 +425,31 @@ def _resolve_app_skill_model_override(
         return None
 
     return model_ref
+
+
+def _build_pending_app_settings_memories_context(
+    request_data: AskSkillRequest,
+    request_id: str,
+    missing_keys: List[str],
+    task_id: str,
+) -> Dict[str, Any]:
+    """Build the request context needed to restart after memory permission."""
+    return {
+        "request_id": request_id,
+        "chat_id": request_data.chat_id,
+        "message_id": request_data.message_id,
+        "user_id": request_data.user_id,
+        "user_id_hash": request_data.user_id_hash,
+        "mate_id": request_data.mate_id,
+        "active_focus_id": request_data.active_focus_id,
+        "chat_has_title": request_data.chat_has_title,
+        "current_chat_title": request_data.current_chat_title,
+        "is_incognito": request_data.is_incognito,
+        "user_preferences": request_data.user_preferences or {},
+        "embed_file_path_index": request_data.embed_file_path_index,
+        "requested_keys": missing_keys,
+        "task_id": task_id,
+    }
 
 # Max iterations for tool calling to prevent infinite loops
 MAX_TOOL_CALL_ITERATIONS = 5
@@ -1193,6 +1230,24 @@ async def _resolve_skill_preview_metadata(
         return {}
 
 
+def _apply_benchmark_usage_details(request_data: AskSkillRequest, usage_details: Dict[str, Any]) -> None:
+    benchmark_metadata = getattr(request_data, "benchmark_metadata", None)
+    if not isinstance(benchmark_metadata, dict) or benchmark_metadata.get("source") != "benchmark":
+        return
+
+    usage_details["source"] = "benchmark"
+    for key in (
+        "benchmark_run_id",
+        "benchmark_suite",
+        "benchmark_case",
+        "benchmark_target_model",
+        "benchmark_judge_model",
+    ):
+        value = benchmark_metadata.get(key)
+        if isinstance(value, str) and value:
+            usage_details[key] = value
+
+
 async def _charge_skill_credits(
     task_id: str,
     request_data: AskSkillRequest,
@@ -1425,6 +1480,7 @@ async def _charge_skill_credits(
             "server_provider": resolved_provider_name,  # Provider display name (e.g., "Brave Search", "BFL")
             "server_region": resolved_region,  # Server region (e.g., "US", "EU")
         }
+        _apply_benchmark_usage_details(request_data, usage_details)
         
         # Charge credits via internal API — one call per successful request.
         # This creates one usage entry per request instead of one combined entry,
@@ -1758,19 +1814,12 @@ async def handle_main_processing(
                     try:
                         # Store MINIMAL context needed to re-trigger processing
                         # Do NOT store message_history - it's already in the chat cache
-                        pending_context = {
-                            "request_id": request_id,
-                            "chat_id": request_data.chat_id,
-                            "message_id": request_data.message_id,
-                            "user_id": request_data.user_id,
-                            "user_id_hash": request_data.user_id_hash,
-                            "mate_id": request_data.mate_id,
-                            "active_focus_id": request_data.active_focus_id,
-                            "chat_has_title": request_data.chat_has_title,
-                            "is_incognito": request_data.is_incognito,
-                            "requested_keys": missing_keys,  # Keys that were requested
-                            "task_id": task_id,
-                        }
+                        pending_context = _build_pending_app_settings_memories_context(
+                            request_data=request_data,
+                            request_id=request_id,
+                            missing_keys=missing_keys,
+                            task_id=task_id,
+                        )
                         await cache_service.store_pending_app_settings_memories_request(
                             chat_id=request_data.chat_id,
                             context=pending_context,
@@ -1853,8 +1902,13 @@ async def handle_main_processing(
     prompt_parts.append(base_instructions.get("base_temporal_awareness_instruction", ""))
     prompt_parts.append(base_instructions.get("base_ethics_instruction", ""))
     selected_mate_config = next((mate for mate in all_mates_configs if mate.id == preprocessing_results.selected_mate_id), None)
+    learning_mode_context = getattr(request_data, "learning_mode", None) or {}
+    learning_mode_active = is_learning_mode_enabled(learning_mode_context)
     if selected_mate_config:
-        prompt_parts.append(selected_mate_config.default_system_prompt)
+        if learning_mode_active:
+            prompt_parts.append(selected_mate_config.learning_mode_system_prompt)
+        else:
+            prompt_parts.append(selected_mate_config.default_system_prompt)
         # Furry Mode prompt styling is disabled until any furry art is made by human artists.
     # Insert creator_and_used_model_instruction right after the mate-specific prompt
     # This informs the user who created the assistant and which model (name and id) powers the response.
@@ -2268,6 +2322,14 @@ async def handle_main_processing(
     follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
     if not follow_up_suggestions_enabled:
         prompt_parts.append(FOLLOW_UP_SUGGESTIONS_DISABLED_INSTRUCTION)
+
+    if learning_mode_active:
+        learning_age_group = learning_mode_context.get("age_group") or AGE_GROUP_13_15
+        prompt_parts.append(build_learning_mode_global_prompt(learning_age_group))
+        logger.info(
+            f"{log_prefix} Added Learning Mode global prompt "
+            f"(age_group={learning_age_group})"
+        )
 
     # Enforce response language based on the preprocessor's detected output_language.
     # Appended last so it sits at the end of the system prompt where LLMs give it high
@@ -3173,6 +3235,29 @@ async def handle_main_processing(
                         )
                         continue
 
+                    if learning_mode_active and is_learning_mode_blocked_skill(app_id, skill_id):
+                        logger.info(
+                            f"{log_prefix} [LEARNING_MODE] Suppressing placeholder for "
+                            f"blocked skill '{app_id}.{skill_id}'."
+                        )
+                        if tool_calls_for_this_turn and tool_calls_for_this_turn[-1] is chunk:
+                            tool_calls_for_this_turn.pop()
+                        rejection_tool_message = {
+                            "tool_call_id": tool_call_id,
+                            "role": "tool",
+                            "name": tool_name,
+                            "content": json.dumps({
+                                "status": "rejected",
+                                "reason": (
+                                    "This tool is unavailable while Learning Mode is active. "
+                                    "Teach the method without calculating the final answer."
+                                ),
+                            }),
+                        }
+                        hallucinated_tool_calls_this_turn.append((chunk, rejection_tool_message))
+                        hallucinated_rejections_this_turn += 1
+                        continue
+
                     if (
                         app_id == "audio"
                         and skill_id == "transcribe"
@@ -3790,6 +3875,25 @@ async def handle_main_processing(
                 # Normalize by stripping whitespace
                 app_id = app_id.strip()
                 skill_id = skill_id.strip()
+
+                if learning_mode_active and is_learning_mode_blocked_skill(app_id, skill_id):
+                    logger.info(
+                        f"{log_prefix} [LEARNING_MODE] Refusing to execute blocked skill "
+                        f"'{app_id}.{skill_id}'."
+                    )
+                    current_message_history.append({
+                        "tool_call_id": tool_call_id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": json.dumps({
+                            "status": "rejected",
+                            "reason": (
+                                "This tool is unavailable while Learning Mode is active. "
+                                "Teach the method without calculating the final answer."
+                            ),
+                        }),
+                    })
+                    continue
 
                 if (
                     app_id == "audio"
@@ -4761,6 +4865,16 @@ async def handle_main_processing(
                             cache_service=cache_service
                             # max_retries uses default (1 retry = 2 total attempts)
                         )
+                        results, ascii_sanitization_stats = sanitize_text_payload_for_ascii_smuggling(
+                            results,
+                            log_prefix=f"{log_prefix}[{app_id}.{skill_id}] ",
+                        )
+                        if ascii_sanitization_stats.get("removed_count", 0) > 0:
+                            logger.warning(
+                                f"{log_prefix} Removed {ascii_sanitization_stats['removed_count']} "
+                                f"ASCII-smuggling characters from {app_id}.{skill_id} skill results "
+                                f"across {ascii_sanitization_stats.get('fields_sanitized', 0)} field(s)"
+                            )
                         if connected_account_token_artifacts:
                             connected_account_journal_entries = await _record_connected_account_operation_journal_entries(
                                 app_id=app_id,
@@ -5270,6 +5384,30 @@ async def handle_main_processing(
                 else:
                     results_with_refs = results
 
+                if learning_mode_active:
+                    results_with_refs = [
+                        apply_learning_mode_policy_to_skill_result(
+                            app_id,
+                            skill_id,
+                            result,
+                            learning_mode_context,
+                        )
+                        for result in results_with_refs
+                    ]
+                    if grouped_results:
+                        for grouped_result in grouped_results:
+                            request_results = grouped_result.get("results")
+                            if isinstance(request_results, list):
+                                grouped_result["results"] = [
+                                    apply_learning_mode_policy_to_skill_result(
+                                        app_id,
+                                        skill_id,
+                                        result,
+                                        learning_mode_context,
+                                    )
+                                    for result in request_results
+                                ]
+
                 # Filter results WITH embed_refs for current LLM inference
                 # Removes non-essential fields (URLs, thumbnails, etc.) to reduce noise
                 # and make embed_ref more prominent. Full results are already stored in
@@ -5662,7 +5800,8 @@ async def handle_main_processing(
                                         user_vault_key_id=user_vault_key_id,
                                         task_id=task_id,
                                         log_prefix=f"{log_prefix}[request_id={request_id}]",
-                                        request_metadata=request_metadata_with_provider
+                                        request_metadata=request_metadata_with_provider,
+                                        learning_mode_context=getattr(request_data, "learning_mode", None),
                                     )
                                     
                                     if updated_embed_data:
@@ -5711,7 +5850,8 @@ async def handle_main_processing(
                                         user_vault_key_id=user_vault_key_id,
                                         task_id=task_id,
                                         log_prefix=f"{log_prefix}[request_id={request_id}]",
-                                        request_metadata=request_metadata_with_provider
+                                        request_metadata=request_metadata_with_provider,
+                                        learning_mode_context=getattr(request_data, "learning_mode", None),
                                     )
                                     
                                     if embed_data:
@@ -5793,7 +5933,8 @@ async def handle_main_processing(
                                             user_vault_key_id=user_vault_key_id,
                                             task_id=task_id,
                                             log_prefix=f"{log_prefix}[placeholder_{idx}]",
-                                            request_metadata=placeholder_metadata
+                                            request_metadata=placeholder_metadata,
+                                            learning_mode_context=getattr(request_data, "learning_mode", None),
                                         )
                                         
                                         if updated_embed_data:
@@ -5882,7 +6023,8 @@ async def handle_main_processing(
                                         user_vault_key_id=user_vault_key_id,
                                         task_id=task_id,
                                         log_prefix=log_prefix,
-                                        request_metadata=single_request_metadata
+                                        request_metadata=single_request_metadata,
+                                        learning_mode_context=getattr(request_data, "learning_mode", None),
                                     )
 
                                 if updated_embed_data:
@@ -5907,7 +6049,8 @@ async def handle_main_processing(
                                     user_id_hash=request_data.user_id_hash,
                                     user_vault_key_id=user_vault_key_id,
                                     task_id=task_id,
-                                    log_prefix=log_prefix
+                                    log_prefix=log_prefix,
+                                    learning_mode_context=getattr(request_data, "learning_mode", None),
                                 )
                                 
                                 if embed_data:
@@ -5987,6 +6130,7 @@ async def handle_main_processing(
                                 task_id=task_id,
                                 log_prefix=log_prefix,
                                 request_metadata=mm_request_metadata,
+                                learning_mode_context=getattr(request_data, "learning_mode", None),
                             )
                     except Exception as e:
                         logger.warning(f"{log_prefix} Failed to finalize multimodal placeholder embed: {e}", exc_info=True)

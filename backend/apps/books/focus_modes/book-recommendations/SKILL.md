@@ -1,7 +1,6 @@
 ---
 id: book_recommendations
 app: books
-stage: planning
 
 name: book-recommendations
 description: Get book recommendations based on your taste.

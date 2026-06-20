@@ -14,6 +14,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
+	getE2EDebugUrl,
 	getTestAccount
 } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -31,6 +32,7 @@ type BudgetResponse = {
 	per_identity_daily_cap_credits: number;
 	daily_used_credits: number;
 	weekly_used_credits: number;
+	monthly_used_credits: number;
 	monthly_remaining_credits: number;
 	daily_remaining_credits: number;
 	weekly_remaining_credits: number;
@@ -108,6 +110,7 @@ async function mockBudgetEndpoint(page: any) {
 		per_identity_daily_cap_credits: 400,
 		daily_used_credits: 0,
 		weekly_used_credits: 0,
+		monthly_used_credits: 0,
 		monthly_remaining_credits: 0,
 		daily_remaining_credits: 0,
 		weekly_remaining_credits: 0,
@@ -136,6 +139,7 @@ async function mockBudgetEndpoint(page: any) {
 				per_identity_daily_cap_credits: Number(lastPutBody?.per_identity_daily_cap_credits ?? 0),
 				daily_used_credits: 0,
 				weekly_used_credits: 0,
+				monthly_used_credits: 0,
 				monthly_remaining_credits: monthly,
 				daily_remaining_credits: dailyCap,
 				weekly_remaining_credits: weeklyCap,
@@ -158,11 +162,11 @@ async function mockBudgetEndpoint(page: any) {
 	};
 }
 
-async function openSettingsMenu(page: any) {
-	const settingsToggle = page.locator('#settings-menu-toggle');
-	await expect(settingsToggle).toBeVisible({ timeout: 10000 });
-	await settingsToggle.click();
-	await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 10000 });
+async function openSettingsPath(page: any, settingsPath: string) {
+	await page.goto(getE2EDebugUrl(`/#settings/${settingsPath}`), { waitUntil: 'domcontentloaded' });
+	const settingsMenu = page.getByTestId('settings-menu');
+	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu).toHaveAttribute('data-active-view', settingsPath.replaceAll('-', '_'), { timeout: 10000 });
 }
 
 test('admin can view and save anonymous free usage budget settings', async ({ page }: { page: any }) => {
@@ -178,11 +182,9 @@ test('admin can view and save anonymous free usage budget settings', async ({ pa
 	await mockServerStatus(page, false);
 	const budgetApi = await mockBudgetEndpoint(page);
 	await loginToTestAccount(page, log, screenshot, { waitForEditor: true });
-	await openSettingsMenu(page);
-
-	await page.getByRole('menuitem', { name: /server/i }).click();
-	await expect(page.getByText('Anonymous free usage', { exact: true })).toBeVisible({ timeout: 10000 });
-	await page.getByText('Anonymous free usage', { exact: true }).click();
+	await openSettingsPath(page, 'server');
+	await page.getByTestId('anonymous-free-usage-settings-item').click();
+	await expect(page.getByRole('heading', { name: 'Anonymous free usage' })).toBeVisible({ timeout: 10000 });
 	await expect(page.getByTestId('anonymous-free-usage-budget-settings')).toBeVisible({ timeout: 10000 });
 	await expect(page.getByText('Anonymous free usage is currently inactive.')).toBeVisible();
 
@@ -228,8 +230,6 @@ test('self-hosted server settings hide anonymous free usage settings', async ({ 
 	await forceSessionAdminFlag(page, true);
 	await mockServerStatus(page, true);
 	await loginToTestAccount(page, log, screenshot, { waitForEditor: true });
-	await openSettingsMenu(page);
-
-	await page.getByRole('menuitem', { name: /server/i }).click();
-	await expect(page.getByText('Anonymous free usage', { exact: true })).toHaveCount(0);
+	await openSettingsPath(page, 'server');
+	await expect(page.getByTestId('anonymous-free-usage-settings-item')).toHaveCount(0);
 });

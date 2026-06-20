@@ -21,7 +21,7 @@ describe('EMBED_TEXT_RENDERERS registry', () => {
 			'app:health:search_appointments', 'health-appointment',
 			'app:mail:search', 'mail-email',
 			'app:math:calculate', 'math-plot',
-			'code-code', 'code-application', 'app:code:get_docs',
+			'code-code', 'app:code:get_docs',
 			'docs-doc', 'sheets-sheet', 'pdf', 'recording',
 			'app:reminder:set-reminder',
 			'app:shopping:search_products',

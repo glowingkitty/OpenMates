@@ -28,22 +28,52 @@
           <mj-text font-size="22px" padding-bottom="30px">
             {{ t.email.welcome_to_openmates.text }}
           </mj-text>
-          <mj-text padding-bottom="20px">
+          <mj-text padding-bottom="24px">
             {{ t.email.complete_signup_info.text }}
-          </mj-text>
-          <mj-text font-size="14px" color="#ff4d4d" padding-bottom="40px">
-            {{ t.email.auto_delete_warning.text }}
           </mj-text>
         </mj-column>
       </mj-section>
-      
+
+      <mj-section padding-top="0" padding-bottom="8px">
+        <mj-column>
+          <mj-text font-size="18px" align="left" padding-bottom="4px">
+            {{ t.email.post_purchase_security_setup.open_recovery_key_settings.text }}
+          </mj-text>
+          <mj-text align="left" font-size="15px" font-weight="normal" padding-bottom="8px">
+            {{ t.email.post_purchase_security_setup.recovery_key_reason.text }}
+          </mj-text>
+          <mj-button href="{{ recovery_key_settings_url }}" background-color="#4f46e5" color="white" font-size="16px" font-weight="bold" border-radius="8px" padding="8px 24px">
+            {{ t.email.post_purchase_security_setup.open_recovery_key_settings.text }}
+          </mj-button>
+
+          <mj-text font-size="18px" align="left" padding-bottom="4px" padding-top="18px">
+            {{ t.email.account_created_second_login_title.text }}
+          </mj-text>
+          <mj-text align="left" font-size="15px" font-weight="normal" padding-bottom="8px">
+            {{ t.email.account_created_second_login_info.text }}
+          </mj-text>
+          <mj-button href="{{ passkeys_settings_url }}" background-color="#4f46e5" color="white" font-size="16px" font-weight="bold" border-radius="8px" padding="8px 24px">
+            {{ t.email.password_security_reminder.open_passkey_settings.text }}
+          </mj-button>
+          <mj-button href="{{ twofa_settings_url }}" background-color="#0f766e" color="white" font-size="16px" font-weight="bold" border-radius="8px" padding="8px 24px">
+            {{ t.email.password_security_reminder.open_2fa_settings.text }}
+          </mj-button>
+
+          <mj-text font-size="18px" align="left" padding-bottom="4px" padding-top="18px">
+            {{ t.email.backup_reminder.header.text }}
+          </mj-text>
+          <mj-text align="left" font-size="15px" font-weight="normal" padding-bottom="8px">
+            {{ t.email.backup_reminder.description.text }}
+          </mj-text>
+          <mj-button href="{{ export_account_settings_url }}" background-color="#0f766e" color="white" font-size="16px" font-weight="bold" border-radius="8px" padding="8px 24px">
+            {{ t.email.backup_reminder.export_button.text }}
+          </mj-button>
+        </mj-column>
+      </mj-section>
+
       <mj-section padding-top="10px">
         <mj-column>
-          {% if darkmode %}
           <mj-text font-size="14px" color="#808080" padding-bottom="20px" padding-top="0px">
-          {% else %}
-          <mj-text font-size="14px" color="#808080" padding-bottom="20px" padding-top="0px">
-          {% endif %}
             {{ on_domain_text }}
           </mj-text>
           

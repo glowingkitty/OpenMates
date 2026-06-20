@@ -2761,7 +2761,7 @@
     .short-link-url {
         font-size: var(--font-size-p);
         font-weight: 600;
-        color: var(--color-primary);
+        color: var(--color-primary-start);
         font-family: monospace;
         letter-spacing: 0.5px;
         word-break: break-all;

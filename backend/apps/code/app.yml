@@ -11,7 +11,6 @@ settings_and_memories:
     description_translation_key: code.preferred_tech.description
     icon_image: coding.svg
     type: list
-    stage: production
     example_translation_keys:
       - "code.preferred_tech.example_1"
       - "code.preferred_tech.example_2"
@@ -40,7 +39,6 @@ settings_and_memories:
     description_translation_key: code.projects.description
     icon_image: project.svg
     type: list
-    stage: production
     example_translation_keys:
       - "code.projects.example_1"
       - "code.projects.example_2"
@@ -79,7 +77,6 @@ settings_and_memories:
     description_translation_key: code.want_to_learn.description
     icon_image: library.svg
     type: list
-    stage: production
     example_translation_keys:
       - "code.want_to_learn.example_1"
       - "code.want_to_learn.example_2"
@@ -101,7 +98,6 @@ settings_and_memories:
     description_translation_key: code.coding_setup.description
     icon_image: library.svg
     type: list
-    stage: production
     example_translation_keys:
       - "code.coding_setup.example_1"
       - "code.coding_setup.example_2"
@@ -372,6 +368,7 @@ embed_types:
   # Generated application project — parent embed that references child code-code files.
   - id: application
     category: direct
+    default_enabled: false # Temporarily unavailable while application previews are unstable.
     frontend_type: code-application
     backend_type: application
     has_children: true
@@ -384,7 +381,7 @@ embed_types:
     gradient_var: "--color-app-code"
     i18n_namespace: embeds.code.application
     content_catalog:
-      enabled: true
+      enabled: false
       content_type_id: application
       name: Application
       description: Generated runnable applications with source files, entrypoints, and preview metadata.
@@ -407,8 +404,10 @@ embed_types:
       - name: entrypoints
         type: array
         required: true
-      - name: latest_screenshot_ref
+      - name: latest_screenshot_url
         type: string
+      - name: latest_screenshot
+        type: object
 skills:
   - id: search_repos
     name_translation_key: code.search_repos
@@ -419,7 +418,6 @@ skills:
       user asks to find GitHub repos, repositories, open-source libraries,
       starred repos, or repo examples by topic, language, framework, or project
       need. Returns licensed repository embeds. Costs 10 credits per search.
-    stage: production
     class_path: backend.apps.code.skills.search_repos_skill.SearchReposSkill
     pricing:
       per_unit:
@@ -466,7 +464,6 @@ skills:
     preprocessor_hint: >
       Get latest documentation for programming libraries, frameworks, APIs, SDKs.
       Use for ANY programming-related query about a specific library or framework.
-    stage: production
     class_path: |
       backend.apps.code.skills.get_docs_skill.GetDocsSkill
     providers:
@@ -495,7 +492,6 @@ skills:
       web app. The sandbox receives code files from the current chat, installs
       supported dependency manifests, and executes the selected file. Pricing is
       5 credits per started minute of sandbox runtime.
-    stage: production
     class_path: backend.apps.code.skills.run_code_skill.RunCodeSkill
     providers:
       - name: E2B
@@ -522,30 +518,24 @@ skills:
   - id: clean_repo
     name_translation_key: code.clean_repo
     description_translation_key: code.clean_repo.description
-    stage: planning
   - id: get_issues
     name_translation_key: code.get_issues
     description_translation_key: code.get_issues.description
-    stage: planning
   - id: add_issue
     name_translation_key: code.add_issue
     description_translation_key: code.add_issue.description
-    stage: planning
   - id: remove_secrets
     name_translation_key: code.remove_secrets
     description_translation_key: code.remove_secrets.description
-    stage: planning
   - id: get_project_overview
     name_translation_key: code.get_project_overview
     description_translation_key: code.get_project_overview.description
-    stage: planning
 focuses:
   - id: project_planner
     name_translation_key: code.project_planner
     description_translation_key: code.project_planner.description
     process_translation_key: focus_modes.code_project_planner.process
     systemprompt_translation_key: focus_modes.code_project_planner.systemprompt
-    stage: development
     preprocessor_hint: >
       Select when the user wants to plan, scope, design, specify, break down,
       or structure a coding project, feature, app, migration, or multi-step
@@ -562,17 +552,14 @@ focuses:
   - id: test_git_repo
     name_translation_key: code.test_git_repo
     description_translation_key: code.test_git_repo.description
-    stage: planning
   - id: analyze_logs
     name_translation_key: code.analyze_logs
     description_translation_key: code.analyze_logs.description
-    stage: planning
   - id: research_solutions
     name_translation_key: code.research_solutions
     description_translation_key: code.research_solutions.description
     process_translation_key: focus_modes.code_research_solutions.process
     systemprompt_translation_key: focus_modes.code_research_solutions.systemprompt
-    stage: development
     preprocessor_hint: >
       Select when the user asks which library, framework, architecture,
       provider, database, API, pattern, or technical approach fits a coding
@@ -589,17 +576,14 @@ focuses:
   - id: code_walkthrough
     name_translation_key: code.code_walkthrough
     description_translation_key: code.code_walkthrough.description
-    stage: planning
   - id: setup_infrastructure
     name_translation_key: code.setup_infrastructure
     description_translation_key: code.setup_infrastructure.description
-    stage: planning
   - id: learn_by_building
     name_translation_key: code.learn_by_building
     description_translation_key: code.learn_by_building.description
     process_translation_key: focus_modes.code_learn_by_building.process
     systemprompt_translation_key: focus_modes.code_learn_by_building.systemprompt
-    stage: development
     preprocessor_hint: >
       Select when the user wants to learn programming, a framework, tool,
       coding concept, or development workflow by building a real project,
@@ -616,13 +600,11 @@ focuses:
   - id: refactor_code
     name_translation_key: code.refactor_code
     description_translation_key: code.refactor_code.description
-    stage: planning
   - id: check_security
     name_translation_key: code.check_security
     description_translation_key: code.check_security.description
     process_translation_key: focus_modes.code_check_security.process
     systemprompt_translation_key: focus_modes.code_check_security.systemprompt
-    stage: development
     preprocessor_hint: >
       Select when the user asks to audit server, proxy, deployment, Docker,
       or infrastructure configuration for security issues, public exposure,

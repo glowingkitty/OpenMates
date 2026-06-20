@@ -1,7 +1,6 @@
 ---
 id: health_insights
 app: health
-stage: planning
 
 name: health-insights
 description: Get health insights and find the right doctor.

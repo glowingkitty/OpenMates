@@ -32,7 +32,7 @@ class UsageMethods:
         model_used: Optional[str] = None,
         chat_id: Optional[str] = None,
         message_id: Optional[str] = None,
-        source: str = "chat",  # "chat", "api_key", or "direct"
+        source: str = "chat",  # "chat", "api_key", "direct", or "benchmark"
         cost_system_prompt_credits: Optional[int] = None,
         cost_history_credits: Optional[int] = None,
         cost_response_credits: Optional[int] = None,
@@ -64,7 +64,7 @@ class UsageMethods:
             model_used: Optional model identifier (encrypted)
             chat_id: Optional chat ID (stored in cleartext for client-side matching, should be provided for chat-based usage)
             message_id: Optional message ID (stored in cleartext for client-side matching, should be provided for chat-based usage)
-            source: Source of usage - "chat" (default), "api_key", or "direct"
+            source: Source of usage - "chat" (default), "api_key", "direct", or "benchmark"
             cost_system_prompt_credits: Optional system prompt credit cost
             cost_history_credits: Optional history credit cost
             cost_response_credits: Optional response credit cost
@@ -100,7 +100,7 @@ class UsageMethods:
             skill_id = skill_id.strip()
             
             # Normalize source (default to "chat" if invalid)
-            if source not in ["chat", "api_key", "direct"]:
+            if source not in ["chat", "api_key", "direct", "benchmark"]:
                 logger.warning(f"{log_prefix} Invalid source '{source}', defaulting to 'chat'")
                 source = "chat"
             
@@ -239,7 +239,7 @@ class UsageMethods:
                 "app_id": app_id,  # Cleartext - not personally identifiable
                 "skill_id": skill_id,  # Cleartext - not personally identifiable
                 "type": usage_type,
-                "source": source,  # "chat", "api_key", or "direct"
+                "source": source,  # "chat", "api_key", "direct", or "benchmark"
                 "created_at": timestamp,
                 "updated_at": timestamp,
                 "encrypted_credits_costs_total": encrypted_credits_costs_total,

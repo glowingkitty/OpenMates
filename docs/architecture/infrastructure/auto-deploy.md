@@ -223,7 +223,7 @@ and the user was charged 1,687 credits for broken responses (balance went to -17
 
 4. **Smoke test runs on production** — verify the actual production deployment, not dev.
 
-5. **Nightly test suite runs after deploy** — the existing `run_tests.py --daily`
+5. **Nightly test suite runs after deploy** — `tests.py run --daily`
    Playwright suite should run after a successful deploy + smoke pass, not on a fixed
    schedule. This catches regressions from the deploy.
 

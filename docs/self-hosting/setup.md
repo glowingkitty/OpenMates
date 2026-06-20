@@ -41,7 +41,7 @@ coverage:
 - A fresh self-hosted install can start without provider API keys. AI chat and model processing stay unavailable until you add at least one real LLM provider key.
 - The no-key startup path is verified by the GitHub Actions self-host install smoke workflow.
 
-The self-hosted edition currently uses API-based AI providers. Offline model support is planned but is not part of this setup path yet.
+The self-hosted edition can use API-based AI providers or local OpenAI-compatible model runtimes such as Ollama and LM Studio.
 
 ## Requirements
 
@@ -170,6 +170,38 @@ openmates server restart --path ~/openmates
 ```
 
 Provider keys for non-model features, such as search or mail providers, enable only those specific integrations. They do not make AI model processing available.
+
+## Adding Local AI Models
+
+Self-hosted installs can add local models served by Ollama, LM Studio, or another OpenAI-compatible API. The CLI stores these models in a local provider overlay file and keeps the normal OpenMates model namespace, so a Qwen model served by Ollama is added under the Alibaba/Qwen provider instead of under a separate Ollama model creator.
+
+```bash
+openmates server ai models add
+openmates server restart
+```
+
+The command asks for the runtime, base URL, installed model ID, model creator, display name, context window, and basic capabilities. It tests the model with a small request before saving it. Local model changes are saved in:
+
+```text
+~/openmates/config/providers/local-ai-models.yml
+```
+
+Common local runtime defaults:
+
+| Runtime | Default base URL |
+| --- | --- |
+| Ollama | `http://host.docker.internal:11434/v1` |
+| LM Studio | `http://host.docker.internal:1234/v1` |
+
+Local self-hosted models charge `0` credits. OpenMates may still record token usage, model ID, provider, and server metadata in usage history so admins can understand local model usage.
+
+Manage local models with:
+
+```bash
+openmates server ai models list
+openmates server ai models test alibaba/qwen3-8b-local
+openmates server ai models remove alibaba/qwen3-8b-local
+```
 
 ## Common Management Commands
 

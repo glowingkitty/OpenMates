@@ -141,8 +141,8 @@ Synthesize all evidence into a root cause. Common E2E failure patterns:
 - **Screenshots are truth.** Error messages in the test report often describe a downstream symptom, not the root cause. Always check what the screenshot actually shows.
 - **CLI before web for shared behavior.** Chat, AI pipeline, settings-backed chat behavior, app skill, embed, and sync investigations must check or propose CLI contract coverage before changing Playwright, unless the failure is clearly browser-only.
 - **Apple after web for native counterparts.** When the investigated flow affects chat, sync, auth, settings, embeds, billing, shared UI, app chrome, or provider result rendering, include `scripts/apple_remote.py test-ios` or `build-ios` as the third verification step after CLI and Playwright evidence are green.
-- **Never run tests locally.** Use `python3 scripts/run_tests.py --spec <name>.spec.ts` to dispatch to GitHub Actions CI.
-- **Never run vitest or Playwright directly.** Always dispatch via `run_tests.py`.
+- **Never run tests locally.** Use `python3 scripts/tests.py run --spec <name>.spec.ts` to dispatch to GitHub Actions CI and record status/history.
+- **Never run vitest or Playwright directly.** Always dispatch via `scripts/tests.py run`.
 - **Query OpenObserve systematically.** Don't guess — check the logs. The E2E debug log pipeline tags client console logs with the test run ID.
 - **Check for batch interactions.** If the spec passes when run alone but fails in daily runs, the issue is likely shared state (email addresses, test accounts, DB records).
 - **2 tries max per investigation angle.** If you can't find the cause after two attempts with the same approach, try a different angle.

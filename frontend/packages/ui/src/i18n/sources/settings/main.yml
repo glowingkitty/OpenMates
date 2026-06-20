@@ -262,6 +262,130 @@ incognito:
   sv: Inkognito
   he: גלישה בסתר
   verified_by_human: []
+learning_mode:
+  context: Account-wide Learning Mode settings toggle
+  en: Learning
+  verified_by_human: []
+learning_mode_active:
+  context: Subtitle for Learning Mode settings toggle when active
+  en: Active for all chats on this account
+  verified_by_human: []
+learning_mode_inactive:
+  context: Subtitle for Learning Mode settings toggle when inactive
+  en: Teach step-by-step instead of giving complete answers
+  verified_by_human: []
+learning_mode_load_error:
+  context: Error shown when the Learning Mode backend status cannot be loaded
+  en: Could not load Learning Mode status.
+  verified_by_human: []
+learning_mode_save_error:
+  context: Error shown when Learning Mode cannot be saved
+  en: Could not update Learning Mode.
+  verified_by_human: []
+learning_mode_enabled:
+  context: Success notification after enabling Learning Mode
+  en: Learning Mode enabled.
+  verified_by_human: []
+learning_mode_disabled:
+  context: Success notification after disabling Learning Mode
+  en: Learning Mode disabled.
+  verified_by_human: []
+learning_mode_age_group_prompt:
+  context: Prompt asking for the learner age group when enabling Learning Mode
+  en: "Learner age group: under_10, 10_12, 13_15, 16_18, or adult"
+  verified_by_human: []
+learning_mode_enable_passcode_prompt:
+  context: Prompt asking for the new Learning Mode passcode
+  en: Set a Learning Mode passcode.
+  verified_by_human: []
+learning_mode_disable_passcode_prompt:
+  context: Prompt asking for the Learning Mode passcode before disabling
+  en: Enter the Learning Mode passcode to disable it.
+  verified_by_human: []
+learning_mode_invalid_age_group:
+  context: Error shown when the entered Learning Mode age group is invalid
+  en: Invalid age group. Use under_10, 10_12, 13_15, 16_18, or adult.
+  verified_by_human: []
+learning_mode_enable_description:
+  context: Description on the Learning Mode setup page before activation
+  en: Choose the learner age group and set a passcode. Learning Mode will apply to every chat on this account.
+  verified_by_human: []
+learning_mode_disable_description:
+  context: Description on the Learning Mode setup page before deactivation
+  en: Enter the Learning Mode passcode to turn it off for this account.
+  verified_by_human: []
+learning_mode_guest_description:
+  context: Description on the guest Learning Mode setup page
+  en: Choose the learner age group. For guests, Learning Mode lasts only for this browser session and has no passcode.
+  verified_by_human: []
+learning_mode_active_detail:
+  context: Info text when Learning Mode is active
+  en: Learning Mode is active for every chat on this account. Answers stay teaching-first and selected tools are restricted.
+  verified_by_human: []
+learning_mode_inactive_detail:
+  context: Info text when Learning Mode is inactive
+  en: When enabled, OpenMates guides the learner step by step instead of giving complete answers.
+  verified_by_human: []
+learning_mode_guest_active_detail:
+  context: Info text when guest Learning Mode is active
+  en: Learning Mode is active for anonymous chats in this browser session. Create an account to lock it with a passcode across devices.
+  verified_by_human: []
+learning_mode_guest_inactive_detail:
+  context: Info text when guest Learning Mode is inactive
+  en: Guests can try Learning Mode for anonymous chats in this browser session. Create an account to lock it with a passcode.
+  verified_by_human: []
+learning_mode_age_group_label:
+  context: Label for the Learning Mode learner age group dropdown
+  en: Learner age group
+  verified_by_human: []
+learning_mode_age_under_10:
+  context: Learning Mode learner age group option
+  en: Under 10
+  verified_by_human: []
+learning_mode_age_10_12:
+  context: Learning Mode learner age group option
+  en: 10 to 12
+  verified_by_human: []
+learning_mode_age_13_15:
+  context: Learning Mode learner age group option
+  en: 13 to 15
+  verified_by_human: []
+learning_mode_age_16_18:
+  context: Learning Mode learner age group option
+  en: 16 to 18
+  verified_by_human: []
+learning_mode_age_adult:
+  context: Learning Mode learner age group option
+  en: Adult
+  verified_by_human: []
+learning_mode_enable_passcode_label:
+  context: Label for setting a Learning Mode passcode
+  en: Set passcode
+  verified_by_human: []
+learning_mode_disable_passcode_label:
+  context: Label for entering the Learning Mode passcode before disabling
+  en: Enter passcode
+  verified_by_human: []
+learning_mode_enable_passcode_placeholder:
+  context: Placeholder for setting a Learning Mode passcode
+  en: Create a passcode
+  verified_by_human: []
+learning_mode_disable_passcode_placeholder:
+  context: Placeholder for entering a Learning Mode passcode
+  en: Learning Mode passcode
+  verified_by_human: []
+learning_mode_passcode_required:
+  context: Validation error when Learning Mode passcode is missing
+  en: Enter a passcode to continue.
+  verified_by_human: []
+learning_mode_enable_button:
+  context: Button text for enabling Learning Mode
+  en: Start Learning Mode
+  verified_by_human: []
+learning_mode_disable_button:
+  context: Button text for disabling Learning Mode
+  en: Turn off Learning Mode
+  verified_by_human: []
 incognito_explainer_description:
   context: Description of what incognito mode does
   en: "Incognito mode applies only to new chats you create. New chats created while incognito mode is active are not synced across devices, not stored on the server, and not cached. These chats exist only in your current browser session. Existing chats remain unchanged."

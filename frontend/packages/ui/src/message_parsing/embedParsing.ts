@@ -224,7 +224,9 @@ export function parseEmbedNodes(
               // the same node ID, allowing ProseMirror to match and update instead
               // of destroying and recreating the NodeView.
               const id = embedRef.embed_id;
-              const embedStatus = mode === "write" ? "processing" : "finished";
+              // A complete JSON embed reference points at an already-created embed.
+              // Use explicit status when present; otherwise keep it renderable.
+              const embedStatus = "finished";
 
               // CRITICAL: Extract app_id and skill_id from JSON reference
               // These are needed by AppSkillUseRenderer to render the correct Svelte component

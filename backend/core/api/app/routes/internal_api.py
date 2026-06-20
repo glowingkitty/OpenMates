@@ -447,8 +447,10 @@ async def record_usage_route(
         # 1. Create usage entry (user-specific, private) - blocking
         # The directus_service.usage.create_usage_entry stores cleartext app_id/skill_id/chat_id/message_id
         # and encrypts sensitive fields (credits, tokens, model) using the user vault key
-        # Determine source: "api_key" if api_key_hash is provided, otherwise "chat" if chat_id is provided, else "direct"
-        if payload.api_key_hash:
+        # Determine source: explicit benchmark metadata wins, then API key/chat/direct.
+        if payload.cost_details and payload.cost_details.get("source") == "benchmark":
+            source = "benchmark"
+        elif payload.api_key_hash:
             source = "api_key"
         elif payload.chat_id:
             source = "chat"
@@ -562,7 +564,8 @@ async def charge_credits_route(
     """
     logger.info(f"Internal API: Charging {payload.credits} credits for user '{payload.user_id}', app '{payload.app_id}', skill '{payload.skill_id}'.")
 
-    if payload.credits <= 0:
+    local_self_hosted = bool((payload.usage_details or {}).get("local_self_hosted"))
+    if payload.credits <= 0 and not local_self_hosted:
         logger.warning(f"Attempted to charge non-positive credits ({payload.credits}) for user {payload.user_id}. Skipping.")
         return {"status": "skipped", "reason": "Non-positive credits"}
 

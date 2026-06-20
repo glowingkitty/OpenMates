@@ -80,7 +80,6 @@ skills:
       unit conversions, symbolic simplification, equation solving, derivatives,
       and integrals. NEVER attempt to compute a numeric result yourself — always
       call this skill so results are guaranteed to be exact.
-    stage: production
     class_path: |
       backend.apps.math.skills.calculate_skill.CalculateSkill
     # Fixed 1-credit cost per calculation — the minimum fallback for all app skills

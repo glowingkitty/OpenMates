@@ -89,6 +89,8 @@ struct AppleInteractiveQuestionPayload: Decodable, Equatable {
     let id: String
     let type: String
     let multiple: Bool?
+    let customOptionId: String?
+    let customPlaceholder: String?
     let question: String?
     let options: [Option]?
     let fields: [Field]?
@@ -106,6 +108,8 @@ struct AppleInteractiveQuestionPayload: Decodable, Equatable {
         case id
         case type
         case multiple
+        case customOptionId = "custom_option_id"
+        case customPlaceholder = "custom_placeholder"
         case question
         case options
         case fields
@@ -137,9 +141,15 @@ struct AppleInteractiveQuestionPayload: Decodable, Equatable {
         switch type {
         case "choice":
             let selection = response["selection"] as? [String] ?? []
+            let customAnswer = (response["custom_answer"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
             let texts = (options ?? [])
                 .filter { selection.contains($0.id) }
-                .map(\.text)
+                .map { option in
+                    if let customAnswer, !customAnswer.isEmpty, isCustomChoiceOption(option) {
+                        return customAnswer
+                    }
+                    return option.text
+                }
             return multiple == true ? texts.joined(separator: "\n") : texts.first ?? ""
 
         case "input":
@@ -207,6 +217,21 @@ struct AppleInteractiveQuestionPayload: Decodable, Equatable {
             return String(Int(rounded))
         }
         return String(value)
+    }
+
+    func isCustomChoiceOption(_ option: Option) -> Bool {
+        if let customOptionId { return option.id == customOptionId }
+        let normalizedText = option.text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return [
+            "i give you my own answer",
+            "my own answer",
+            "own answer",
+            "custom answer",
+            "something else",
+            "other"
+        ].contains(where: { pattern in
+            normalizedText == pattern || normalizedText.contains(pattern)
+        })
     }
 }
 
@@ -607,6 +632,7 @@ private struct AppleInteractiveQuestionCard: View {
     let payload: AppleInteractiveQuestionPayload
     let onSubmit: ((String) -> Void)?
     @State private var selectedOptionIds: Set<String>
+    @State private var customAnswer: String
     @State private var inputValues: [String: String]
     @State private var sliderValue: Double
     @State private var swipeValues: [String: String]
@@ -617,6 +643,7 @@ private struct AppleInteractiveQuestionCard: View {
         self.payload = payload
         self.onSubmit = onSubmit
         _selectedOptionIds = State(initialValue: [])
+        _customAnswer = State(initialValue: "")
         _inputValues = State(initialValue: [:])
         _sliderValue = State(initialValue: payload.defaultValue ?? payload.sliderLowerBound)
         _swipeValues = State(initialValue: [:])
@@ -650,7 +677,7 @@ private struct AppleInteractiveQuestionCard: View {
     private var canSubmit: Bool {
         switch payload.type {
         case "choice":
-            return !selectedOptionIds.isEmpty
+            return !selectedOptionIds.isEmpty && (!hasSelectedCustomOption || !customAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         case "input":
             let requiredFields = (payload.fields ?? []).filter { $0.required == true }
             if requiredFields.isEmpty {
@@ -717,18 +744,28 @@ private struct AppleInteractiveQuestionCard: View {
         case "choice":
             VStack(alignment: .leading, spacing: .spacing2) {
                 ForEach(payload.options ?? []) { option in
-                    answerButton(
-                        text: option.text,
-                        isSelected: selectedOptionIds.contains(option.id)
-                    ) {
-                        if payload.multiple == true {
-                            if selectedOptionIds.contains(option.id) {
-                                selectedOptionIds.remove(option.id)
+                    VStack(alignment: .leading, spacing: .spacing2) {
+                        answerButton(
+                            text: option.text,
+                            isSelected: selectedOptionIds.contains(option.id)
+                        ) {
+                            if payload.multiple == true {
+                                if selectedOptionIds.contains(option.id) {
+                                    selectedOptionIds.remove(option.id)
+                                } else {
+                                    selectedOptionIds.insert(option.id)
+                                }
                             } else {
-                                selectedOptionIds.insert(option.id)
+                                selectedOptionIds = [option.id]
                             }
-                        } else {
-                            selectedOptionIds = [option.id]
+                            if !hasSelectedCustomOption {
+                                customAnswer = ""
+                            }
+                        }
+                        if selectedOptionIds.contains(option.id), payload.isCustomChoiceOption(option) {
+                            TextField(payload.customPlaceholder ?? "", text: $customAnswer, axis: .vertical)
+                                .textFieldStyle(OMTextFieldStyle())
+                                .accessibilityIdentifier("interactive-question-custom-answer")
                         }
                     }
                 }
@@ -859,13 +896,24 @@ private struct AppleInteractiveQuestionCard: View {
         )
     }
 
+    private var hasSelectedCustomOption: Bool {
+        (payload.options ?? []).contains { option in
+            selectedOptionIds.contains(option.id) && payload.isCustomChoiceOption(option)
+        }
+    }
+
     private func responsePayload() -> [String: Any] {
         switch payload.type {
         case "choice":
             let orderedSelection = (payload.options ?? [])
                 .map(\.id)
                 .filter { selectedOptionIds.contains($0) }
-            return ["id": payload.id, "selection": orderedSelection]
+            var response: [String: Any] = ["id": payload.id, "selection": orderedSelection]
+            let trimmedCustomAnswer = customAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+            if hasSelectedCustomOption && !trimmedCustomAnswer.isEmpty {
+                response["custom_answer"] = trimmedCustomAnswer
+            }
+            return response
         case "input":
             let inputs = (payload.fields ?? []).reduce(into: [String: String]()) { result, field in
                 let value = (inputValues[field.id] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)

@@ -21,6 +21,7 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.schemas.chat import MessageInCache, AIHistoryMessage
 from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema
+from backend.shared.python_utils.learning_mode import build_learning_mode_context
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -36,6 +37,10 @@ AI_USER_PREFERENCE_FIELDS = [
     "default_app_skill_models",
     "follow_up_suggestions_enabled",
     "quick_tips_enabled",
+    "learning_mode_enabled",
+    "learning_mode_age_group",
+    "learning_mode_failed_attempts",
+    "learning_mode_deactivation_blocked_until",
 ]
 
 CONNECTED_ACCOUNT_FORBIDDEN_FIELDS = {
@@ -49,6 +54,26 @@ CONNECTED_ACCOUNT_FORBIDDEN_FIELDS = {
     "oauth_scopes",
     "scopes",
 }
+
+BENCHMARK_METADATA_STRING_FIELDS = {
+    "benchmark_run_id",
+    "benchmark_suite",
+    "benchmark_case",
+    "benchmark_target_model",
+    "benchmark_judge_model",
+}
+
+
+def _sanitize_benchmark_metadata(value: Any) -> dict[str, str] | None:
+    if not isinstance(value, dict) or value.get("source") != "benchmark":
+        return None
+
+    sanitized: dict[str, str] = {"source": "benchmark"}
+    for field in BENCHMARK_METADATA_STRING_FIELDS:
+        raw_value = value.get(field)
+        if isinstance(raw_value, str) and raw_value.strip():
+            sanitized[field] = raw_value.strip()[:128]
+    return sanitized
 
 
 def _sanitize_connected_account_directory(value: Any) -> list[dict[str, Any]] | None:
@@ -1463,6 +1488,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             else:
                 logger.warning(f"app_settings_memories_metadata is not a list: {type(app_settings_memories_metadata_from_client)}, ignoring")
                 app_settings_memories_metadata_from_client = None
+
+        benchmark_metadata = _sanitize_benchmark_metadata(payload.get("benchmark_metadata"))
         
         # 3. Construct AskSkillRequest payload
         # mate_id is set to None here; the AI app's preprocessor will select the appropriate mate.
@@ -1472,7 +1499,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # Fetch user data once from cache to avoid multiple cache lookups
         user_data_for_prefs = await cache_service.get_user_by_id(user_id)
         cached_user_data_for_prefs = user_data_for_prefs if isinstance(user_data_for_prefs, dict) else None
-        needs_directus_preferences = cached_user_data_for_prefs is None
+        needs_directus_preferences = (
+            cached_user_data_for_prefs is None
+            or any(field not in cached_user_data_for_prefs for field in AI_USER_PREFERENCE_FIELDS)
+        )
         if needs_directus_preferences:
             directus_preference_data = await directus_service.get_user_fields_direct(
                 user_id,
@@ -1530,7 +1560,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 f"Including quick_tips_enabled={user_preferences_dict['quick_tips_enabled']} "
                 f"in AI request for user {user_id}"
             )
+            learning_mode_context = build_learning_mode_context(user_data_for_prefs)
+            user_preferences_dict["learning_mode"] = learning_mode_context
+            if learning_mode_context.get("enabled"):
+                logger.info(
+                    f"Including Learning Mode context in AI request for user {user_id} "
+                    f"(age_group={learning_mode_context.get('age_group')})"
+                )
             # Furry Mode preferences are disabled until any furry art is made by human artists.
+        else:
+            learning_mode_context = {"enabled": False}
         
         mentioned_settings_memories_cleartext = message_payload_from_client.get("mentioned_settings_memories_cleartext")
         if mentioned_settings_memories_cleartext is not None and not isinstance(mentioned_settings_memories_cleartext, dict):
@@ -1566,10 +1605,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
             user_preferences=user_preferences_dict,
+            learning_mode=learning_mode_context,
             app_settings_memories_metadata=app_settings_memories_metadata_from_client,  # Client-provided metadata (source of truth)
             connected_account_directory=connected_account_directory,
             connected_account_token_refs=connected_account_token_refs,
             mentioned_settings_memories_cleartext=mentioned_settings_memories_cleartext,  # Cleartext for @memory mentions so backend does not re-request
+            benchmark_metadata=benchmark_metadata,
             embed_file_path_index=_embed_file_path_index if _embed_file_path_index else None,  # Maps embed_ref (filename) → embed_id UUID for skill resolution
             parent_id=db_parent_id,
             is_sub_chat=db_is_sub_chat,

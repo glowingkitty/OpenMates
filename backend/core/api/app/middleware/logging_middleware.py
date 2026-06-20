@@ -153,6 +153,18 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             response_from_handler = await call_next(request)
             status_code = response_from_handler.status_code
 
+            # Streaming responses (notably anonymous chat SSE) must pass through
+            # untouched. Iterating body_iterator here buffers the whole stream
+            # and prevents lifecycle events from reaching the browser early.
+            content_type = response_from_handler.headers.get("content-type", "").lower()
+            if content_type.startswith("text/event-stream"):
+                duration = time.time() - start_time
+                if not is_excluded:
+                    metrics_service = request.app.state.metrics_service
+                    metrics_service.track_api_request(method, path, status_code)
+                    metrics_service.track_request_duration(method, path, duration)
+                return response_from_handler
+
             # Read response body. This is necessary to inspect it and still send it to client.
             response_body_bytes = b""
             async for chunk in response_from_handler.body_iterator:

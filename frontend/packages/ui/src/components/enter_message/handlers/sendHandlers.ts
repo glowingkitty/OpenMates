@@ -17,8 +17,9 @@ import { tipTapToCanonicalMarkdown } from "../../../message_parsing/serializers"
 import { isPublicChat } from "../../../demo_chats/convertToChat";
 import { websocketStatus } from "../../../stores/websocketStatusStore"; // Import WebSocket status store
 import { chatListCache } from "../../../services/chatListCache";
-import { anonymousChatStorage } from "../../../services/anonymousChatStorage";
+import { AnonymousFreeUsageExhaustedError, anonymousChatStorage } from "../../../services/anonymousChatStorage";
 import { refreshAnonymousFreeUsageStatus } from "../../../stores/serverStatusStore";
+import { text } from "../../../i18n/translations";
 import { createEmbedFromUrl } from "../services/urlMetadataService"; // Import URL-to-embed creation
 import { authStore } from "../../../stores/authStore"; // Import authStore for authentication check
 import { appSettingsMemoriesPermissionStore } from "../../../stores/appSettingsMemoriesPermissionStore"; // For auto-dismissing permission dialog
@@ -40,6 +41,21 @@ import {
 } from "../../../stores/personalDataStore"; // Privacy settings store
 import { demoMode } from "../../../stores/demoModeStore";
 import { shouldDispatchDraftChatAsNewChat } from "./sendClassification";
+
+const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY = "chat.anonymous_free_usage.daily_credits_exhausted";
+const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_DEDUPE_KEY = "anonymous-daily-credits-exhausted";
+
+function showAnonymousDailyCreditsExhaustedNotification() {
+  notificationStore.addNotificationWithOptions("warning", {
+    message: get(text)(ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY),
+    actionLabel: get(text)("signup.sign_up"),
+    duration: 10000,
+    dedupeKey: ANONYMOUS_DAILY_CREDITS_EXHAUSTED_DEDUPE_KEY,
+    onAction: () => {
+      window.dispatchEvent(new CustomEvent("openSignupInterface"));
+    },
+  });
+}
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -337,6 +353,16 @@ function resetEditorContent(editor: Editor, shouldKeepFocus?: boolean) {
       "[resetEditorContent] Blurring editor (touch device behavior)",
     );
   }
+}
+
+function restoreEditorDraftText(editor: Editor, markdown: string): void {
+  const escaped = markdown
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br>");
+  editor.commands.setContent(`<p>${escaped}</p>`, { emitUpdate: false });
+  editor.commands.focus("end");
 }
 
 /**
@@ -1196,19 +1222,26 @@ export async function handleSend(
 
   try {
     if (!get(authStore).isAuthenticated) {
-      const anonymousResult = await anonymousChatStorage.sendTextMessage({
+      const anonymousStatus = await refreshAnonymousFreeUsageStatus();
+      if (anonymousStatus?.active !== true || anonymousStatus.can_send_text === false) {
+        showAnonymousDailyCreditsExhaustedNotification();
+        vibrateMessageField();
+        return;
+      }
+      await anonymousChatStorage.sendTextMessage({
         markdown,
         currentChatId,
         sourceDemoId: currentChatId && isPublicChat(currentChatId) ? currentChatId : null,
+        onPending: async (pending) => {
+          setHasContent(false);
+          resetEditorContent(editor, false);
+          await clearCurrentDraft();
+          dispatch("sendMessage", {
+            message: pending.userMessage,
+            newChat: pending.isNewChat ? pending.chat : undefined,
+          });
+        },
       });
-      setHasContent(false);
-      resetEditorContent(editor, false);
-      await clearCurrentDraft();
-      dispatch("sendMessage", {
-        message: anonymousResult.userMessage,
-        newChat: anonymousResult.isNewChat ? anonymousResult.chat : undefined,
-      });
-      dispatch("anonymousAssistantMessage", { result: anonymousResult });
       void refreshAnonymousFreeUsageStatus();
       return;
     }
@@ -1810,6 +1843,15 @@ export async function handleSend(
     }
     cleanupSpan.end();
   } catch (error) {
+    if (error instanceof AnonymousFreeUsageExhaustedError) {
+      showAnonymousDailyCreditsExhaustedNotification();
+      if (editor && !editor.isDestroyed) {
+        restoreEditorDraftText(editor, markdown);
+        setHasContent(true);
+      }
+      vibrateMessageField();
+      return;
+    }
     console.error("Failed to handle message send:", error);
     vibrateMessageField();
   } finally {

@@ -92,6 +92,8 @@ def load_content_catalog() -> dict[str, dict[str, str]]:
     for path in [SHARED_EMBED_TYPES_PATH, *sorted(APP_DIR.glob("*/app.yml"))]:
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         for embed_type in data.get("embed_types", []):
+            if embed_type.get("disabled"):
+                continue
             content_catalog = embed_type.get("content_catalog") or {}
             if not content_catalog.get("enabled"):
                 continue

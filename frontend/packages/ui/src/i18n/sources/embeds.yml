@@ -1,3 +1,27 @@
+learning_mode_shortened_notice:
+  context: Notice shown below generated code, document, or sheet content shortened by account-wide Learning Mode
+  en: Shortened since Learning Mode is active.
+  de: Shortened since Learning Mode is active.
+  zh: Shortened since Learning Mode is active.
+  es: Shortened since Learning Mode is active.
+  fr: Shortened since Learning Mode is active.
+  pt: Shortened since Learning Mode is active.
+  ru: Shortened since Learning Mode is active.
+  ja: Shortened since Learning Mode is active.
+  ko: Shortened since Learning Mode is active.
+  it: Shortened since Learning Mode is active.
+  tr: Shortened since Learning Mode is active.
+  vi: Shortened since Learning Mode is active.
+  id: Shortened since Learning Mode is active.
+  pl: Shortened since Learning Mode is active.
+  nl: Shortened since Learning Mode is active.
+  ar: Shortened since Learning Mode is active.
+  hi: Shortened since Learning Mode is active.
+  th: Shortened since Learning Mode is active.
+  cs: Shortened since Learning Mode is active.
+  sv: Shortened since Learning Mode is active.
+  he: Shortened since Learning Mode is active.
+  verified_by_human: [en]
 weather.rain_radar.no_rain:
   context: Rain radar fallback text when no rain is visible
   en: No rain visible near this location.
@@ -2693,6 +2717,78 @@ copy_failed:
   cs: Kopírování se nezdařilo
   sv: Kopiering misslyckades
   he: ההעתקה ללוח נכשלה
+  verified_by_human: []
+code_file_downloaded:
+  context: Notification shown when a code file has been downloaded
+  en: Code file downloaded successfully
+  de: Codedatei erfolgreich heruntergeladen
+  zh: 代码文件下载成功
+  es: Archivo de código descargado correctamente
+  fr: Fichier de code téléchargé avec succès
+  pt: Arquivo de código baixado com sucesso
+  ru: Файл кода успешно скачан
+  ja: コードファイルをダウンロードしました
+  ko: 코드 파일 다운로드 완료
+  it: File di codice scaricato correttamente
+  tr: Kod dosyası başarıyla indirildi
+  vi: Đã tải tệp mã xuống thành công
+  id: File kode berhasil diunduh
+  pl: Plik kodu został pobrany
+  nl: Codebestand gedownload
+  ar: تم تنزيل ملف الكود بنجاح
+  hi: कोड फ़ाइल सफलतापूर्वक डाउनलोड हो गई
+  th: ดาวน์โหลดไฟล์โค้ดสำเร็จแล้ว
+  cs: Soubor s kódem byl stažen
+  sv: Kodfilen har laddats ned
+  he: קובץ הקוד הורד בהצלחה
+  verified_by_human: []
+code_file_download_failed:
+  context: Notification shown when a code file download fails
+  en: Failed to download code file
+  de: Codedatei konnte nicht heruntergeladen werden
+  zh: 无法下载代码文件
+  es: Error al descargar el archivo de código
+  fr: Échec du téléchargement du fichier de code
+  pt: Falha ao baixar o arquivo de código
+  ru: Не удалось скачать файл кода
+  ja: コードファイルをダウンロードできませんでした
+  ko: 코드 파일을 다운로드하지 못했습니다
+  it: Download del file di codice non riuscito
+  tr: Kod dosyası indirilemedi
+  vi: Không thể tải tệp mã xuống
+  id: Gagal mengunduh file kode
+  pl: Nie udało się pobrać pliku kodu
+  nl: Codebestand downloaden mislukt
+  ar: تعذر تنزيل ملف الكود
+  hi: कोड फ़ाइल डाउनलोड करने में विफल
+  th: ดาวน์โหลดไฟล์โค้ดไม่สำเร็จ
+  cs: Soubor s kódem se nepodařilo stáhnout
+  sv: Det gick inte att ladda ned kodfilen
+  he: הורדת קובץ הקוד נכשלה
+  verified_by_human: []
+action_failed:
+  context: Generic notification shown when a contextual embed action fails
+  en: Failed to perform action
+  de: Aktion konnte nicht ausgeführt werden
+  zh: 无法执行操作
+  es: Error al realizar la acción
+  fr: Échec de l'action
+  pt: Falha ao executar a ação
+  ru: Не удалось выполнить действие
+  ja: 操作を実行できませんでした
+  ko: 작업을 수행하지 못했습니다
+  it: Impossibile eseguire l'azione
+  tr: İşlem gerçekleştirilemedi
+  vi: Không thể thực hiện hành động
+  id: Gagal melakukan tindakan
+  pl: Nie udało się wykonać działania
+  nl: Actie uitvoeren mislukt
+  ar: تعذر تنفيذ الإجراء
+  hi: कार्रवाई करने में विफल
+  th: ดำเนินการไม่สำเร็จ
+  cs: Akci se nepodařilo provést
+  sv: Det gick inte att utföra åtgärden
+  he: ביצוע הפעולה נכשל
   verified_by_human: []
 download_itinerary:
   context: Button label to download travel itinerary as PDF

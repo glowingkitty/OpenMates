@@ -2,7 +2,6 @@
 # ── Identity ─────────────────────────────────────────────────────────
 id: career_insights
 app: jobs
-stage: production
 icon: insight.svg
 
 # ── User-facing strings (English canonical) ─────────────────────────

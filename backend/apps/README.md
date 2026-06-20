@@ -19,7 +19,7 @@ Until OPE-342, every app folder had a corresponding `app-<name>` Uvicorn contain
 
 The current model:
 
-- **Discovery:** `backend/core/api/main.py:discover_apps()` → `backend/core/api/app/services/skill_registry.py:build_skill_registry()` filesystem-scans, applies stage filtering, instantiates a `BaseApp(register_http_routes=False)` per app. Each `BaseApp` resolves skill `class_path` strings via `importlib` at construction time.
+- **Discovery:** `backend/core/api/main.py:discover_apps()` → `backend/core/api/app/services/skill_registry.py:build_skill_registry()` filesystem-scans app manifests, applies feature availability from `default_enabled: false` and admin overrides, and instantiates a `BaseApp(register_http_routes=False)` per app. Each `BaseApp` resolves skill `class_path` strings via `importlib` at construction time.
 - **REST dispatch:** `backend/core/api/app/routes/apps_api.py:call_app_skill()` calls `SkillRegistry.dispatch_skill()` directly — no HTTP, no JSON serialization.
 - **Worker dispatch:** `backend/apps/ai/processing/skill_executor.py:execute_skill()` calls the same registry. Workers build their own `SkillRegistry` instance in `init_worker_process()` (`backend/core/api/app/tasks/celery_config.py`).
 - **Failure mode:** A skill whose `class_path` import fails is logged ERROR (in `BaseApp._resolve_skill_classes`) and becomes unavailable (REST returns 404, AI preprocessor doesn't see it as a tool). The rest of the app — and the rest of the api — keeps working.

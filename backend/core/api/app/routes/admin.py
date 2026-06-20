@@ -156,6 +156,7 @@ class AnonymousFreeUsageBudgetResponse(BaseModel):
     per_identity_daily_cap_credits: int
     daily_used_credits: int
     weekly_used_credits: int
+    monthly_used_credits: int
     monthly_remaining_credits: int
     daily_remaining_credits: int
     weekly_remaining_credits: int
@@ -190,6 +191,7 @@ def _anonymous_free_usage_budget_response(status) -> AnonymousFreeUsageBudgetRes
         per_identity_daily_cap_credits=status.per_identity_daily_cap_credits,
         daily_used_credits=status.daily_used_credits,
         weekly_used_credits=status.weekly_used_credits,
+        monthly_used_credits=status.monthly_used_credits,
         monthly_remaining_credits=status.monthly_remaining_credits,
         daily_remaining_credits=status.daily_remaining_credits,
         weekly_remaining_credits=status.weekly_remaining_credits,

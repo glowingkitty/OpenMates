@@ -12,6 +12,7 @@ from backend.shared.providers.e2b_application_preview import (
     ApplicationPreviewEntrypoint,
     ApplicationPreviewFile,
     ApplicationPreviewPlanningError,
+    _sandbox_screenshot_bytes,
     _vite_allowed_hosts,
     _wait_for_preview_ready,
     _with_vite_preview_settings,
@@ -48,7 +49,7 @@ def test_preview_planning_supports_fastapi_backend_entrypoint() -> None:
     assert plan.start_commands == [{"name": "api", "command": "uvicorn backend.main:app --host 0.0.0.0 --port 8000", "port": 8000}]
 
 
-def test_preview_planning_adds_tailwind_configs_when_generated_css_uses_directives() -> None:
+def test_preview_planning_does_not_add_hidden_tailwind_configs() -> None:
     plan = plan_application_preview_startup(
         files=[
             ApplicationPreviewFile(
@@ -64,24 +65,10 @@ def test_preview_planning_adds_tailwind_configs_when_generated_css_uses_directiv
         entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=5173)],
     )
 
-    files_by_path = {file.path: file.content for file in plan.files}
-    assert "tailwind.config.cjs" in files_by_path
-    assert "postcss.config.cjs" in files_by_path
-    assert "./src/**/*.{js,ts,jsx,tsx,svelte,html}" in files_by_path["tailwind.config.cjs"]
-    assert "tailwindcss: {}" in files_by_path["postcss.config.cjs"]
-
-
-def test_preview_planning_does_not_add_tailwind_configs_for_plain_css() -> None:
-    plan = plan_application_preview_startup(
-        files=[
-            ApplicationPreviewFile(path="package.json", content='{"scripts":{"dev":"vite"},"devDependencies":{"tailwindcss":"latest"}}'),
-            ApplicationPreviewFile(path="src/index.css", content="body { background: white; }\n"),
-        ],
-        entrypoints=[ApplicationPreviewEntrypoint(name="frontend", command="npm run dev", port=5173)],
-    )
-
-    assert "tailwind.config.cjs" not in {file.path for file in plan.files}
+    paths = {file.path for file in plan.files}
+    assert paths == {"package.json", "index.html", "src/index.css"}
     assert "postcss.config.cjs" not in {file.path for file in plan.files}
+    assert "tailwind.config.cjs" not in paths
 
 
 def test_preview_planning_keeps_existing_tailwind_configs() -> None:
@@ -155,6 +142,39 @@ def test_preview_writes_generated_vite_allowed_hosts_config() -> None:
     assert "allowedHosts: ['5173-izr5goe7od08cvlqzemo8.e2b.app']" in written["data"]
 
 
+def test_preview_writes_svelte_plugin_when_generated_svelte_app_has_no_vite_config() -> None:
+    class FakeFiles:
+        def __init__(self) -> None:
+            self.payloads = []
+
+        def write_files(self, payload):
+            self.payloads.append(payload)
+
+    class FakeSandbox:
+        def __init__(self) -> None:
+            self.files = FakeFiles()
+
+    sandbox = FakeSandbox()
+
+    path = _write_vite_allowed_hosts_config(
+        sandbox,
+        [
+            ApplicationPreviewFile(
+                path="package.json",
+                content='{"devDependencies":{"vite":"^5.0.0","@sveltejs/vite-plugin-svelte":"latest"}}',
+            ),
+            ApplicationPreviewFile(path="src/App.svelte", content="<main>Hello</main>"),
+        ],
+        ["5173-izr5goe7od08cvlqzemo8.e2b.app"],
+    )
+
+    assert path == "vite.config.openmates.mjs"
+    written = sandbox.files.payloads[0][0]
+    assert "import { svelte } from '@sveltejs/vite-plugin-svelte';" in written["data"]
+    assert "plugins: [svelte()]" in written["data"]
+    assert "allowedHosts: ['5173-izr5goe7od08cvlqzemo8.e2b.app']" in written["data"]
+
+
 def test_preview_keeps_existing_vite_config_for_framework_plugins() -> None:
     class FakeFiles:
         def __init__(self) -> None:
@@ -182,8 +202,21 @@ def test_preview_keeps_existing_vite_config_for_framework_plugins() -> None:
     assert sandbox.files.payloads == []
 
 
+def test_preview_reads_real_screenshot_bytes_from_sandbox_hook() -> None:
+    class FakeSandbox:
+        def take_screenshot(self, *, format: str):
+            assert format == "bytes"
+            return b"real-screenshot-bytes"
+
+    assert _sandbox_screenshot_bytes(FakeSandbox()) == b"real-screenshot-bytes"
+
+
+def test_preview_screenshot_bytes_returns_none_without_sandbox_hook() -> None:
+    assert _sandbox_screenshot_bytes(object()) is None
+
+
 def test_preview_readiness_waits_through_transient_e2b_502() -> None:
-    statuses = iter([502, 502, 200])
+    statuses = iter([502, 502, 200, 200])
     sleeps: list[float] = []
 
     _wait_for_preview_ready(
@@ -194,7 +227,37 @@ def test_preview_readiness_waits_through_transient_e2b_502() -> None:
         sleep=sleeps.append,
     )
 
-    assert sleeps == [0.01, 0.01]
+    assert sleeps == [0.01, 0.01, 0.01]
+
+
+def test_preview_readiness_requires_consecutive_successes() -> None:
+    statuses = iter([200, 502, 200, 200])
+    sleeps: list[float] = []
+
+    _wait_for_preview_ready(
+        "https://5173-example.e2b.app/",
+        timeout_seconds=5,
+        interval_seconds=0.01,
+        fetch_status=lambda _: next(statuses),
+        sleep=sleeps.append,
+    )
+
+    assert sleeps == [0.01, 0.01, 0.01]
+
+
+def test_preview_readiness_waits_through_e2b_root_404() -> None:
+    statuses = iter([404, 404, 200, 200])
+    sleeps: list[float] = []
+
+    _wait_for_preview_ready(
+        "https://5173-example.e2b.app/",
+        timeout_seconds=5,
+        interval_seconds=0.01,
+        fetch_status=lambda _: next(statuses),
+        sleep=sleeps.append,
+    )
+
+    assert sleeps == [0.01, 0.01, 0.01]
 
 
 def test_preview_readiness_times_out_with_last_status() -> None:

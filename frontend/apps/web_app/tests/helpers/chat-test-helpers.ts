@@ -226,6 +226,28 @@ async function waitForEmailLookupReady(page: any): Promise<boolean> {
 	return hasPasswordInput && hasSalt;
 }
 
+async function ensureStayLoggedInChecked(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void = noopLog
+): Promise<void> {
+	const stayLoggedInLabel = page.locator(
+		'label.toggle[for="stayLoggedIn"], label.toggle:has(#stayLoggedIn)'
+	);
+	try {
+		await stayLoggedInLabel.waitFor({ state: 'visible', timeout: 3000 });
+		const checkbox = page.locator('#stayLoggedIn');
+		const isChecked = await checkbox.evaluate((el: HTMLInputElement) => el.checked);
+		if (!isChecked) {
+			await stayLoggedInLabel.click();
+			logCheckpoint('Clicked "Stay logged in" toggle.');
+		} else {
+			logCheckpoint('"Stay logged in" toggle was already on.');
+		}
+	} catch {
+		logCheckpoint('Could not find "Stay logged in" toggle — proceeding without it.');
+	}
+}
+
 /**
  * Login to the test account with email, password, and 2FA OTP.
  * Checks "Stay logged in" so keys are persisted to IndexedDB.
@@ -284,22 +306,7 @@ async function loginToTestAccount(
 	await emailInput.fill(TEST_EMAIL);
 
 	// Click "Stay logged in" toggle so keys survive any page navigation during the test.
-	const stayLoggedInLabel = page.locator(
-		'label.toggle[for="stayLoggedIn"], label.toggle:has(#stayLoggedIn)'
-	);
-	try {
-		await stayLoggedInLabel.waitFor({ state: 'visible', timeout: 3000 });
-		const checkbox = page.locator('#stayLoggedIn');
-		const isChecked = await checkbox.evaluate((el: HTMLInputElement) => el.checked);
-		if (!isChecked) {
-			await stayLoggedInLabel.click();
-			logCheckpoint('Clicked "Stay logged in" toggle.');
-		} else {
-			logCheckpoint('"Stay logged in" toggle was already on.');
-		}
-	} catch {
-		logCheckpoint('Could not find "Stay logged in" toggle — proceeding without it.');
-	}
+	await ensureStayLoggedInChecked(page, logCheckpoint);
 
 	await page.getByRole('button', { name: /continue/i }).click();
 	logCheckpoint('Entered email and clicked continue.');
@@ -334,6 +341,7 @@ async function loginToTestAccount(
 		const retryEmailInput = page.locator('#login-email-input');
 		await expect(retryEmailInput).toBeVisible({ timeout: 15000 });
 		await retryEmailInput.fill(TEST_EMAIL);
+		await ensureStayLoggedInChecked(page, logCheckpoint);
 		await page.getByRole('button', { name: /continue/i }).click();
 		logCheckpoint(`Retry ${retryCount + 1}: re-entered email and clicked continue.`);
 		lookupReady = await waitForEmailLookupReady(page);

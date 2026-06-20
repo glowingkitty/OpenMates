@@ -165,5 +165,5 @@ If yes, suggest running `/add-embed-type {appId} {skillId} {SkillName}` next.
 - Use `logger = logging.getLogger(__name__)` — never `print()`
 - Type hints on all function parameters and return values
 - Pydantic models use `PascalCase` — end request models with `Request`, response with `Response`
-- Initial `stage` should be `development` until tested
+- Do not add `stage`; implemented skills are enabled by default unless `default_enabled: false` is explicitly needed
 - App-store examples are required for every new skill; do not ship a skill with an empty examples section

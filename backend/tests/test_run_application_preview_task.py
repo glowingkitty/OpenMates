@@ -22,6 +22,13 @@ from backend.shared.providers.e2b_application_preview import ApplicationPreviewR
 from backend.tests.test_application_preview_config import FakeCache, _user
 
 
+PNG_BYTES = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+    b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
 def _load_worker_module():
     module_path = Path(__file__).resolve().parents[1] / "apps" / "code" / "tasks" / "run_application_preview_task.py"
     spec = importlib.util.spec_from_file_location("run_application_preview_task_under_test", module_path)
@@ -331,8 +338,6 @@ async def test_store_application_preview_thumbnail_does_not_vault_encrypt_applic
     monkeypatch.setattr(worker, "index_generated_asset", fake_index_generated_asset)
     monkeypatch.setattr(worker, "create_download_token", lambda **_kwargs: "signed-token")
     monkeypatch.setattr(worker, "build_download_url", lambda **kwargs: f"{kwargs['base_url']}/download/{kwargs['asset_id']}/{kwargs['variant']}?token={kwargs['token']}")
-    monkeypatch.setattr(worker, "_build_application_preview_thumbnail_png", lambda **_kwargs: b"fake-png-bytes")
-
     result = await worker.store_application_preview_thumbnail(
         cache_service=cache,
         session_id="session-1",
@@ -345,6 +350,8 @@ async def test_store_application_preview_thumbnail_does_not_vault_encrypt_applic
             sandbox_id="sandbox-1",
             upstream_base_url="https://sandbox-1-5173.e2b.dev",
             ports={"frontend": 5173},
+            latest_screenshot_bytes=PNG_BYTES,
+            latest_screenshot_mime_type="image/png",
         ),
         now=2_030.0,
         secrets_manager=object(),
@@ -354,6 +361,9 @@ async def test_store_application_preview_thumbnail_does_not_vault_encrypt_applic
     assert result["download_url"] == "https://api.dev.openmates.org/download/app-embed-1/preview?token=signed-token"
     assert result["metadata"]["asset_id"] == "app-embed-1"
     assert result["metadata"]["files"]["preview"]["s3_key"].endswith("_application_preview.png")
+    assert result["metadata"]["files"]["preview"]["size_bytes"] == len(PNG_BYTES)
+    assert result["metadata"]["files"]["preview"]["width"] == 1
+    assert result["metadata"]["files"]["preview"]["height"] == 1
     assert uploads and uploads[0]["content_type"] == "application/octet-stream"
     assert b"OpenMates" not in uploads[0]["content"]
     assert indexed and indexed[0]["embed_id"] == "app-embed-1"
@@ -361,6 +371,46 @@ async def test_store_application_preview_thumbnail_does_not_vault_encrypt_applic
     assert updated_embeds == []
 
     assert await cache.redis.get("embed:app-embed-1") is None
+
+
+@pytest.mark.anyio
+async def test_store_application_preview_thumbnail_skips_when_provider_has_no_real_screenshot(monkeypatch) -> None:
+    worker = _load_worker_module()
+    cache = FakeCache()
+    await create_application_preview_session(
+        cache_service=cache,
+        session_id="session-1",
+        application_embed_id="app-embed-1",
+        body=ApplicationPreviewStartRequest(chat_id="chat-1"),
+        current_user=_user("alice-user"),
+        preview_origin="https://openmatesusercontent.org",
+        now=2_000.0,
+        preview_token="token-abc",
+    )
+
+    monkeypatch.setattr(worker, "EncryptionService", object)
+    monkeypatch.setattr(worker, "DirectusService", object)
+    monkeypatch.setattr(worker, "S3UploadService", object)
+    monkeypatch.setattr(worker, "get_bucket_name", lambda *_args: "dev-openmates-chatfiles")
+    monkeypatch.setattr(worker, "build_download_url", lambda **_kwargs: "")
+    monkeypatch.setattr(worker, "create_download_token", lambda **_kwargs: "")
+    monkeypatch.setattr(worker, "cache_s3_file_keys", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(worker, "index_generated_asset", lambda *_args, **_kwargs: None)
+
+    result = await worker.store_application_preview_thumbnail(
+        cache_service=cache,
+        session_id="session-1",
+        payload={"application_embed_id": "app-embed-1"},
+        runtime=ApplicationPreviewRuntime(
+            sandbox_id="sandbox-1",
+            upstream_base_url="https://sandbox-1-5173.e2b.dev",
+            ports={"frontend": 5173},
+        ),
+        now=2_030.0,
+        secrets_manager=object(),
+    )
+
+    assert result is None
 
 
 @pytest.mark.anyio

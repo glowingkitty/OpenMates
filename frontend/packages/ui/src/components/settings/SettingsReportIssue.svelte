@@ -19,7 +19,7 @@
     import { isPublicChat } from '../../demo_chats/convertToChat';
     import { logCollector } from '../../services/logCollector';
     import { userActionTracker } from '../../services/userActionTracker';
-    import { reportIssueStore, submittedIssueIdStore, reportIssueFormDraftStore } from '../../stores/reportIssueStore';
+    import { reportIssueStore, submittedIssueIdStore, submittedShortIssueIdStore, reportIssueFormDraftStore } from '../../stores/reportIssueStore';
     import { inspectChat } from '../../services/debugUtils';
     import { authStore } from '../../stores/authStore';
     import { getEmailDecryptedWithMasterKey } from '../../services/cryptoService';
@@ -599,6 +599,7 @@
                 success?: boolean;
                 message?: string;
                 issue_id?: string;
+                short_issue_id?: string;
                 detail?: Array<{
                     type: string;
                     loc: (string | number)[];
@@ -634,6 +635,7 @@
             
             if (response.ok && data.success) {
                 const issueId = data.issue_id || '';
+                const shortIssueId = data.short_issue_id || '';
 
                 // Reset form fields
                 issueTitle = '';
@@ -666,6 +668,7 @@
                 // Write the issue ID to the shared store so the confirmation sub-page
                 // can read it without prop drilling through the settings router.
                 submittedIssueIdStore.set(issueId);
+                submittedShortIssueIdStore.set(shortIssueId || issueId);
 
                 // Push console logs to OpenObserve tagged with the issue ID so admins
                 // can correlate client-side events with the submitted report.

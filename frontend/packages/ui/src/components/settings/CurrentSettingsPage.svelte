@@ -5,6 +5,8 @@
     import { userProfile } from '../../stores/userProfile';
     import { authStore } from '../../stores/authStore';
     import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
+    import { learningMode } from '../../stores/learningModeStore';
+    import { notificationStore } from '../../stores/notificationStore';
     import SettingsItem from '../SettingsItem.svelte';
     import { createEventDispatcher, tick } from 'svelte';
     import type { SvelteComponent } from 'svelte';
@@ -106,6 +108,19 @@
     $effect(() => {
         incognitoToggleChecked = $incognitoMode;
     });
+
+    $effect(() => {
+        if (!isAuthenticated) {
+            if ($learningMode.source === 'guest_session' || $learningMode.loading) return;
+            learningMode.loadGuest();
+            return;
+        }
+        if (($learningMode.loaded && $learningMode.source === 'account') || $learningMode.loading) return;
+        learningMode.load().catch((error) => {
+            console.error('[CurrentSettingsPage] Failed to load Learning Mode status:', error);
+            notificationStore.error($text('settings.learning_mode_load_error'));
+        });
+    });
     
     // Calculate the actual count of menu items for height adjustment using Svelte 5 runes
     $effect(() => {
@@ -116,7 +131,7 @@
         const settingsCount = topLevelSettingsCount + 1;
         // Quick settings are currently commented out (TODO), so don't reduce height in signup mode
         // This ensures consistent height and prevents content cutoff
-        const quickSettingsCount = 3; // Keep consistent height regardless of signup mode
+        const quickSettingsCount = 4; // Keep consistent height regardless of signup mode
         menuItemsCount = settingsCount + quickSettingsCount;
     });
 
@@ -142,16 +157,25 @@
         dispatch('quickSettingClick', { toggleName });
     }
 
+    const SETTINGS_VIEW_TITLE_KEYS: Record<string, string> = {
+        'learning-mode/setup': 'settings.learning_mode',
+    };
+
+    const SETTINGS_VIEW_ICON_OVERRIDES: Record<string, string> = {
+        'learning-mode/setup': 'study',
+    };
+
     function showSettingsView(viewName, event) {
         // Stop propagation to prevent document click handler from closing menu
         if (event) event.stopPropagation();
 
         const isLogsView = viewName === 'logs';
+        const titleKey = SETTINGS_VIEW_TITLE_KEYS[viewName] ?? `settings.${viewName}`;
         dispatch('openSettings', {
             settingsPath: viewName,
             direction: 'forward',
-            icon: isLogsView ? 'server' : viewName,
-            title: isLogsView ? 'Logs' : $text(`settings.${viewName}`)
+            icon: SETTINGS_VIEW_ICON_OVERRIDES[viewName] ?? (isLogsView ? 'server' : viewName),
+            title: isLogsView ? 'Logs' : $text(titleKey)
         });
     }
     
@@ -381,7 +405,20 @@
                         }}
                     />
                 </div>
+
             {/if}
+
+            <div data-testid="learning-mode-toggle-wrapper">
+                <SettingsItem
+                    type="quickaction"
+                    icon="study"
+                    title={$text('settings.learning_mode')}
+                    hasToggle={true}
+                    checked={$learningMode.enabled}
+                    disabled={$learningMode.loading}
+                    onClick={() => showSettingsView('learning-mode/setup', null)}
+                />
+            </div>
 
             <!-- Regular Settings -->
             {#each Object.entries(settingsViews).filter(([key]) => isTopLevelView(key) && (key !== 'logs' || isAdminUser)) as [key]}

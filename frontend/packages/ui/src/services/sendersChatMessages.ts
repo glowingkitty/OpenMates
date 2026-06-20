@@ -52,6 +52,22 @@ async function abortUnsafeKeyMismatch(
 	);
 }
 
+export function shouldSkipClientCodeBlockExtraction(language: string, content: string): boolean {
+	const normalizedLanguage = language.trim().toLowerCase();
+	if (normalizedLanguage === "interactive_question" || normalizedLanguage === "interactive_response") {
+		return true;
+	}
+	if (normalizedLanguage === "json" || normalizedLanguage === "json_embed") {
+		try {
+			const jsonData = JSON.parse(content.trim());
+			return "embed_id" in jsonData || "embed_ids" in jsonData;
+		} catch {
+			return false;
+		}
+	}
+	return false;
+}
+
 export async function sendNewMessageImpl(
 	serviceInstance: ChatSynchronizationService,
 	message: Message,
@@ -244,19 +260,11 @@ export async function sendNewMessageImpl(
 				}
 			}
 
-			// Skip JSON blocks that are already embed references
-			if (language.toLowerCase() === "json" || language.toLowerCase() === "json_embed") {
-				try {
-					const jsonData = JSON.parse(codeContent.trim());
-					if ("embed_id" in jsonData || "embed_ids" in jsonData) {
-						console.debug(
-							"[ChatSyncService:Senders] Skipping existing embed reference JSON block"
-						);
-						continue; // Keep as-is
-					}
-				} catch {
-					// Not valid JSON, treat as code block
-				}
+			if (shouldSkipClientCodeBlockExtraction(language, codeContent)) {
+				console.debug(
+					`[ChatSyncService:Senders] Skipping protocol/existing embed code block: ${language}`
+				);
+				continue; // Keep as-is
 			}
 
 			// Generate embed ID

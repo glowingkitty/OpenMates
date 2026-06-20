@@ -87,6 +87,26 @@ test.describe('InteractiveQuestions Component Previews (All 5 Types)', () => {
 		await expect(options.nth(0)).not.toHaveClass(/selected/);
 	});
 
+	test('shows and requires a text input for custom choice answers', async ({ page }) => {
+		await page.getByRole('button', { name: 'choice_custom' }).click();
+		await page.waitForTimeout(500);
+
+		const sendBtn = page.getByTestId('interactive-question-send');
+		await expect(sendBtn).toBeDisabled();
+
+		await page.getByTestId('interactive-question-option-own_answer').click();
+		const customInput = page.getByTestId('interactive-question-custom-answer');
+		await expect(customInput).toBeVisible();
+		await expect(sendBtn).toBeDisabled();
+
+		await customInput.fill('Let users type a custom response');
+		await expect(sendBtn).toBeEnabled();
+
+		await page.getByTestId('interactive-question-clear').click();
+		await expect(customInput).not.toBeVisible();
+		await expect(sendBtn).toBeDisabled();
+	});
+
 	// --- 3. Input Sequential Form ---
 	test('renders input forms, validates and locks required fields', async ({ page }) => {
 		await page.locator('.variant-btn:has-text("input_form")').click();
@@ -232,20 +252,20 @@ test.describe('InteractiveQuestions Chat Integration', () => {
 		await screenshot(page, 'assistant-quiz-received');
 
 		// Verify the interactive question card is mounted inside the message bubble
-		const questionCard = page.locator('.interactive-question-card');
+		const questionCard = page.getByTestId('interactive-question-card');
 		await expect(questionCard).toBeVisible({ timeout: 15000 });
 
 		// Assert the question heading title is parsed and rendered correctly
-		const title = questionCard.locator('.question-title');
+		const title = questionCard.getByTestId('interactive-question-title');
 		await expect(title).toBeVisible();
 
 		// Verify the option items list renders correctly
-		const options = questionCard.locator('.option-item');
+		const options = questionCard.locator('[data-testid^="interactive-question-option-"]');
 		await expect(options).toHaveCount(2);
 
 		// Verify "Send" and "Clear" buttons exist in the card footer
-		const clearBtn = questionCard.locator('.btn-clear');
-		const submitBtn = questionCard.locator('.btn-send');
+		const clearBtn = questionCard.getByTestId('interactive-question-clear');
+		const submitBtn = questionCard.getByTestId('interactive-question-send');
 		await expect(clearBtn).toBeVisible();
 		await expect(submitBtn).toBeVisible();
 
@@ -265,6 +285,9 @@ test.describe('InteractiveQuestions Chat Integration', () => {
 		await expect(latestUserMessage).not.toContainText('Selected:');
 		await expect(latestUserMessage).not.toContainText('interactive_response');
 		await expect(questionCard).toHaveClass(/locked/, { timeout: 10000 });
+		await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+		const latestAssistantMessage = page.getByTestId('mate-message-content').last();
+		await expect(latestAssistantMessage).not.toContainText('The AI service encountered an error while processing your request', { timeout: 15000 });
 		await screenshot(page, 'quiz-answer-submitted-answer-only');
 	});
 });

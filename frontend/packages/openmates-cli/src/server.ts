@@ -12,8 +12,9 @@ import { execSync, spawn as nodeSpawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
+import { createInterface as createPromptInterface } from "node:readline/promises";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 import {
   type ServerConfig,
@@ -43,6 +44,43 @@ const IMAGE_CHANNEL_TAGS = {
   main: MAIN_BRANCH,
   dev: DEV_BRANCH,
 } as const;
+const BACKEND_CONFIG_FILE = join("backend", "config", "backend_config.yml");
+const IMAGE_RUNTIME_CONFIG_FILE = join("config", "backend_config.yml");
+const LOCAL_AI_MODELS_FILE = "local-ai-models.yml";
+const OFF_BY_DEFAULT_FEATURES = new Map<string, string>([
+  ["embed:code:application", "Application previews are still unstable"],
+  ["platform:projects", "Projects workspace is not ready by default"],
+  ["platform:workflows", "Workflows workspace is not implemented yet"],
+  ["platform:tasks", "Tasks workspace is not implemented yet"],
+]);
+const LOCAL_MODEL_RUNTIME_DEFAULTS = {
+  ollama: {
+    label: "Ollama",
+    serverId: "ollama",
+    baseUrl: "http://host.docker.internal:11434/v1",
+    apiKey: "ollama",
+  },
+  "lm-studio": {
+    label: "LM Studio",
+    serverId: "lm_studio",
+    baseUrl: "http://host.docker.internal:1234/v1",
+    apiKey: "lm-studio",
+  },
+  custom: {
+    label: "Custom OpenAI-compatible API",
+    serverId: "custom_openai_compatible",
+    baseUrl: "",
+    apiKey: "local",
+  },
+} as const;
+const MODEL_CREATOR_OPTIONS = [
+  { id: "alibaba", name: "Alibaba / Qwen", match: /(^|[-_:/])qwen/i },
+  { id: "google", name: "Google / Gemma", match: /(^|[-_:/])gemma/i },
+  { id: "mistral", name: "Mistral", match: /(^|[-_:/])(mistral|mixtral|ministral)/i },
+  { id: "openai", name: "OpenAI", match: /(^|[-_:/])gpt-oss/i },
+  { id: "deepseek", name: "DeepSeek", match: /(^|[-_:/])deepseek/i },
+  { id: "custom", name: "Custom", match: null },
+];
 const MINIMAL_ENV_TEMPLATE = `# OpenMates self-host image-mode environment
 SECRET__MISTRAL_AI__API_KEY=
 SECRET__CEREBRAS__API_KEY=
@@ -143,6 +181,76 @@ function getInstallMode(
 
 function shouldPullImages(): boolean {
   return process.env.OPENMATES_SKIP_IMAGE_PULL !== "1";
+}
+
+type FeatureOverrides = {
+  enabled: string[];
+  disabled: string[];
+};
+
+function normalizeFeatureList(items: string[]): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const item of items) {
+    const value = item.trim();
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    normalized.push(value);
+  }
+  return normalized;
+}
+
+function parseListBlock(content: string, key: string): string[] {
+  const match = content.match(new RegExp(`^${key}:\\n((?:[ \\t]+.*\\n?)*)`, "m"));
+  if (!match) return [];
+  const block = match[1] ?? "";
+  return normalizeFeatureList(
+    [...block.matchAll(/^\s*-\s*["']?([^"'\n#]+)["']?/gm)].map((item) => item[1] ?? ""),
+  );
+}
+
+function parseFeatureOverrides(content: string): FeatureOverrides {
+  const overridesMatch = content.match(/^feature_overrides:\n((?:[ \t]+.*\n?)*)/m);
+  const overridesBlock = overridesMatch?.[1] ?? "";
+  const enabled = parseListBlock(overridesBlock.replace(/^ {2}/gm, ""), "enabled");
+  const disabled = parseListBlock(overridesBlock.replace(/^ {2}/gm, ""), "disabled");
+  const legacyDisabledApps = parseListBlock(content, "disabled_apps").map((appId) =>
+    appId.startsWith("app:") ? appId : `app:${appId}`,
+  );
+  return {
+    enabled: normalizeFeatureList(enabled),
+    disabled: normalizeFeatureList([...disabled, ...legacyDisabledApps]),
+  };
+}
+
+function renderFeatureOverrides(overrides: FeatureOverrides): string {
+  const renderList = (key: string, items: string[]) => {
+    if (!items.length) return `  ${key}: []`;
+    return [`  ${key}:`, ...items.map((item) => `    - "${item}"`)].join("\n");
+  };
+  return [
+    "# Admin feature overrides. Changes require a server restart.",
+    "feature_overrides:",
+    renderList("enabled", overrides.enabled),
+    renderList("disabled", overrides.disabled),
+    "",
+  ].join("\n");
+}
+
+function removeConfigBlock(content: string, key: string): string {
+  return content.replace(new RegExp(`(?:^|\\n)#.*\\n${key}:\\n(?:[ \\t]+.*\\n?)*`, "m"), "\n")
+    .replace(new RegExp(`^${key}:\\n(?:[ \\t]+.*\\n?)*`, "m"), "");
+}
+
+function updateFeatureOverridesContent(content: string, overrides: FeatureOverrides): string {
+  let next = removeConfigBlock(content, "feature_overrides");
+  next = removeConfigBlock(next, "disabled_apps");
+  next = next.trimEnd();
+  return `${next}\n\n${renderFeatureOverrides(overrides)}`;
+}
+
+function featureKind(featureId: string): string {
+  return featureId.split(":", 1)[0] || "unknown";
 }
 
 /** Build the docker compose argument array. */
@@ -334,8 +442,10 @@ async function writeImageModeRuntimeFiles(installPath: string, imageTag: string)
   const coreDir = join(installPath, "backend", "core");
   const vaultConfigDir = join(coreDir, "vault", "config");
   mkdirSync(vaultConfigDir, { recursive: true });
+  mkdirSync(join(installPath, "config", "providers"), { recursive: true });
   writeFileSync(join(coreDir, "docker-compose.selfhost.yml"), await loadSelfHostComposeTemplate(templateRefForImageTag(imageTag, getPackageVersion())));
   writeFileSync(join(vaultConfigDir, "vault.hcl"), VAULT_CONFIG_TEMPLATE);
+  ensureImageRuntimeConfig(installPath);
 
   const envPath = join(installPath, ".env");
   let envContent = existsSync(envPath) ? readFileSync(envPath, "utf-8") : MINIMAL_ENV_TEMPLATE;
@@ -417,6 +527,7 @@ export function defaultCloneBranchForVersion(version: string): string | null {
  */
 export function hasLlmCredentials(envPath: string): boolean {
   if (!existsSync(envPath)) return false;
+  if (hasLocalAiModels(dirname(envPath))) return true;
   const content = readFileSync(envPath, "utf-8");
   for (const line of content.split("\n")) {
     const trimmed = line.trim();
@@ -448,7 +559,7 @@ function warnIfMissingLlmCredentials(installPath: string): void {
     console.error(
       "No LLM provider API key found in .env.\n" +
       "OpenMates will start, but AI chat/model processing will stay unavailable until you add one.\n\n" +
-      "Add at least one of these to your .env file:\n" +
+      "Run 'openmates server ai models add' to add a local Ollama/LM Studio model, or add at least one of these to your .env file:\n" +
       "  SECRET__OPENAI__API_KEY=sk-...\n" +
       "  SECRET__ANTHROPIC__API_KEY=sk-ant-...\n" +
       "  SECRET__GOOGLE_AI_STUDIO__API_KEY=...\n\n" +
@@ -477,6 +588,197 @@ export async function confirmDestructive(phrase: string): Promise<boolean> {
 
 function printJson(data: unknown): void {
   console.log(JSON.stringify(data, null, 2));
+}
+
+type LocalModelOverlay = {
+  providers: Array<{
+    provider_id: string;
+    name?: string;
+    description?: string;
+    models: Array<Record<string, unknown>>;
+  }>;
+};
+
+type LocalRuntimeKey = keyof typeof LOCAL_MODEL_RUNTIME_DEFAULTS;
+
+function localModelsOverlayPath(installPath: string, installMode = getInstallMode(installPath)): string {
+  if (installMode === "source") return join(installPath, "backend", "providers", LOCAL_AI_MODELS_FILE);
+  return join(installPath, "config", "providers", LOCAL_AI_MODELS_FILE);
+}
+
+function imageBackendConfigPath(installPath: string): string {
+  return join(installPath, IMAGE_RUNTIME_CONFIG_FILE);
+}
+
+function ensureImageRuntimeConfig(installPath: string): void {
+  const configPath = imageBackendConfigPath(installPath);
+  if (existsSync(configPath)) return;
+  mkdirSync(dirname(configPath), { recursive: true });
+  writeFileSync(configPath, renderFeatureOverrides({ enabled: [], disabled: [] }));
+}
+
+function readLocalModelOverlay(path: string): LocalModelOverlay {
+  if (!existsSync(path)) return { providers: [] };
+  try {
+    const parsed = JSON.parse(readFileSync(path, "utf-8")) as LocalModelOverlay;
+    return { providers: Array.isArray(parsed.providers) ? parsed.providers : [] };
+  } catch (error) {
+    throw new Error(
+      `Could not parse ${path}. This file is managed by the OpenMates CLI and must remain JSON-compatible YAML. ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
+function writeLocalModelOverlay(path: string, overlay: LocalModelOverlay): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `${JSON.stringify(overlay, null, 2)}\n`);
+}
+
+function hasLocalAiModels(installPath: string): boolean {
+  const imagePath = join(installPath, "config", "providers", LOCAL_AI_MODELS_FILE);
+  const sourcePath = join(installPath, "backend", "providers", LOCAL_AI_MODELS_FILE);
+  return [imagePath, sourcePath].some((path) => {
+    if (!existsSync(path)) return false;
+    try {
+      return readLocalModelOverlay(path).providers.some((provider) => provider.models.length > 0);
+    } catch {
+      return false;
+    }
+  });
+}
+
+function sanitizeModelId(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "local-model";
+}
+
+function inferCreatorId(modelId: string): string {
+  return MODEL_CREATOR_OPTIONS.find((option) => option.match?.test(modelId))?.id ?? "custom";
+}
+
+function creatorDisplayName(creatorId: string): string {
+  return MODEL_CREATOR_OPTIONS.find((option) => option.id === creatorId)?.name ?? creatorId;
+}
+
+function normalizeCreatorId(value: string): string {
+  const normalized = value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_").replace(/^_+|_+$/g, "");
+  return normalized || "custom_local";
+}
+
+function normalizeRuntimeKey(value: string): LocalRuntimeKey {
+  const normalized = value.trim().toLowerCase().replace(/_/g, "-");
+  if (normalized === "lmstudio" || normalized === "lm-studio") return "lm-studio";
+  if (normalized === "ollama") return "ollama";
+  return "custom";
+}
+
+function boolFromFlag(value: string | boolean | undefined, defaultValue = false): boolean {
+  if (value === undefined) return defaultValue;
+  if (value === true) return true;
+  if (value === false) return false;
+  const normalized = value.toLowerCase();
+  return ["1", "true", "yes", "y", "on"].includes(normalized);
+}
+
+async function promptText(question: string, defaultValue = ""): Promise<string> {
+  const rl = createPromptInterface({ input: process.stdin, output: process.stderr });
+  try {
+    const suffix = defaultValue ? ` (${defaultValue})` : "";
+    const answer = await rl.question(`${question}${suffix}: `);
+    return answer.trim() || defaultValue;
+  } finally {
+    rl.close();
+  }
+}
+
+async function promptChoice(question: string, choices: Array<{ value: string; label: string }>, defaultValue: string): Promise<string> {
+  console.error(question);
+  choices.forEach((choice, index) => {
+    const marker = choice.value === defaultValue ? " [default]" : "";
+    console.error(`  ${index + 1}. ${choice.label}${marker}`);
+  });
+  const answer = await promptText("Choose number or value", defaultValue);
+  const numeric = Number.parseInt(answer, 10);
+  if (Number.isInteger(numeric) && numeric >= 1 && numeric <= choices.length) {
+    return choices[numeric - 1].value;
+  }
+  const direct = choices.find((choice) => choice.value === answer || choice.label.toLowerCase() === answer.toLowerCase());
+  return direct?.value ?? answer;
+}
+
+async function fetchLocalModelIds(baseUrl: string, apiKey: string): Promise<string[]> {
+  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/models`, {
+    headers: { Authorization: `Bearer ${apiKey || "local"}` },
+  });
+  if (!response.ok) throw new Error(`Failed to fetch local models: HTTP ${response.status}`);
+  const body = await response.json() as { data?: Array<{ id?: string }> };
+  return (body.data ?? []).map((model) => model.id).filter((id): id is string => Boolean(id));
+}
+
+async function testLocalModel(baseUrl: string, apiKey: string, modelId: string): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${apiKey || "local"}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: modelId,
+        messages: [
+          { role: "system", content: "Answer with only the number." },
+          { role: "user", content: "1+2?" },
+        ],
+        stream: false,
+        temperature: 0,
+      }),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+    const body = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+    return body.choices?.[0]?.message?.content?.trim() ?? "";
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function upsertLocalModel(path: string, providerId: string, providerName: string, model: Record<string, unknown>): void {
+  const overlay = readLocalModelOverlay(path);
+  let provider = overlay.providers.find((item) => item.provider_id === providerId);
+  if (!provider) {
+    provider = {
+      provider_id: providerId,
+      name: providerName,
+      description: `Local self-hosted models for ${providerName}.`,
+      models: [],
+    };
+    overlay.providers.push(provider);
+  }
+  const modelId = model.id;
+  provider.models = provider.models.filter((existing) => existing.id !== modelId);
+  provider.models.push(model);
+  writeLocalModelOverlay(path, overlay);
+}
+
+function removeLocalModel(path: string, fullModelId: string): boolean {
+  const [providerId, modelId] = fullModelId.split("/", 2);
+  if (!providerId || !modelId) throw new Error("Use provider/model-id format.");
+  const overlay = readLocalModelOverlay(path);
+  const provider = overlay.providers.find((item) => item.provider_id === providerId);
+  if (!provider) return false;
+  const before = provider.models.length;
+  provider.models = provider.models.filter((model) => model.id !== modelId);
+  writeLocalModelOverlay(path, overlay);
+  return provider.models.length !== before;
+}
+
+function localModelsFromOverlay(overlay: LocalModelOverlay): Array<{ providerId: string; model: Record<string, unknown> }> {
+  return overlay.providers.flatMap((provider) => provider.models.map((model) => ({ providerId: provider.provider_id, model })));
 }
 
 // ---------------------------------------------------------------------------
@@ -1024,6 +1326,281 @@ async function serverMakeAdmin(
   }
 }
 
+async function serverFeatures(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const action = rest[0] ?? "list";
+  const featureId = rest[1];
+  const installPath = resolveServerPath(flags);
+  const installMode = getInstallMode(installPath);
+  if (installMode === "image") ensureImageRuntimeConfig(installPath);
+  const configPath = installMode === "image" ? imageBackendConfigPath(installPath) : join(installPath, BACKEND_CONFIG_FILE);
+  if (!existsSync(configPath)) {
+    throw new Error(`Backend config not found at ${configPath}. Run 'openmates server install' first or pass --path <dir>.`);
+  }
+
+  const content = readFileSync(configPath, "utf-8");
+  const overrides = parseFeatureOverrides(content);
+  const writeOverrides = (nextOverrides: FeatureOverrides) => {
+    writeFileSync(configPath, updateFeatureOverridesContent(content, nextOverrides));
+    console.log(`Updated ${configPath}`);
+    console.log("Restart the server for feature changes to take effect: openmates server restart");
+  };
+
+  if (action === "list") {
+    console.log("Feature overrides:");
+    console.log(`  enabled: ${overrides.enabled.length ? overrides.enabled.join(", ") : "none"}`);
+    console.log(`  disabled: ${overrides.disabled.length ? overrides.disabled.join(", ") : "none"}`);
+    console.log("\nKnown off-by-default features:");
+    for (const [id, reason] of OFF_BY_DEFAULT_FEATURES.entries()) {
+      const override = overrides.enabled.includes(id) ? "enabled override" : overrides.disabled.includes(id) ? "disabled override" : "default off";
+      console.log(`  ${id} (${featureKind(id)}): ${override} - ${reason}`);
+    }
+    return;
+  }
+
+  if (!featureId) {
+    throw new Error(`Usage: openmates server features ${action} <feature-id>`);
+  }
+
+  if (action === "enable") {
+    writeOverrides({
+      enabled: normalizeFeatureList([...overrides.enabled, featureId]),
+      disabled: overrides.disabled.filter((id) => id !== featureId),
+    });
+    return;
+  }
+
+  if (action === "disable") {
+    writeOverrides({
+      enabled: overrides.enabled.filter((id) => id !== featureId),
+      disabled: normalizeFeatureList([...overrides.disabled, featureId]),
+    });
+    return;
+  }
+
+  if (action === "reset") {
+    writeOverrides({
+      enabled: overrides.enabled.filter((id) => id !== featureId),
+      disabled: overrides.disabled.filter((id) => id !== featureId),
+    });
+    return;
+  }
+
+  if (action === "explain") {
+    const defaultReason = OFF_BY_DEFAULT_FEATURES.get(featureId);
+    const override = overrides.enabled.includes(featureId) ? "enabled" : overrides.disabled.includes(featureId) ? "disabled" : "none";
+    const defaultState = defaultReason ? "off" : "on";
+    const effective = override === "enabled" ? "enabled" : override === "disabled" ? "disabled" : defaultState === "on" ? "enabled" : "disabled";
+    console.log(`Feature: ${featureId}`);
+    console.log(`Kind: ${featureKind(featureId)}`);
+    console.log(`Default: ${defaultState}${defaultReason ? ` (${defaultReason})` : ""}`);
+    console.log(`Override: ${override}`);
+    console.log(`Effective after restart: ${effective}`);
+    return;
+  }
+
+  throw new Error(`Unknown server features command '${action}'. Use list, enable, disable, reset, or explain.`);
+}
+
+async function serverAiModelsAdd(flags: Record<string, string | boolean>): Promise<void> {
+  const installPath = resolveServerPath(flags);
+  const installMode = getInstallMode(installPath);
+  const overlayPath = localModelsOverlayPath(installPath, installMode);
+
+  const runtimeInput = typeof flags.runtime === "string"
+    ? flags.runtime
+    : await promptChoice(
+        "Which local runtime should OpenMates use?",
+        [
+          { value: "ollama", label: "Ollama" },
+          { value: "lm-studio", label: "LM Studio" },
+          { value: "custom", label: "Custom OpenAI-compatible API" },
+        ],
+        "ollama",
+      );
+  const runtimeKey = normalizeRuntimeKey(runtimeInput);
+  const runtime = LOCAL_MODEL_RUNTIME_DEFAULTS[runtimeKey];
+  const baseUrl = typeof flags["base-url"] === "string"
+    ? flags["base-url"]
+    : await promptText("OpenAI-compatible base URL", runtime.baseUrl);
+  const apiKey = typeof flags["api-key"] === "string"
+    ? flags["api-key"]
+    : runtimeKey === "custom"
+      ? await promptText("API key", runtime.apiKey)
+      : runtime.apiKey;
+
+  let availableModels: string[] = [];
+  try {
+    availableModels = await fetchLocalModelIds(baseUrl, apiKey);
+  } catch (error) {
+    console.error(`Could not fetch /v1/models: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  const rawModelId = typeof flags.model === "string"
+    ? flags.model
+    : availableModels.length
+      ? await promptChoice(
+          "Which installed model should OpenMates add?",
+          [...availableModels.map((id) => ({ value: id, label: id })), { value: "manual", label: "Enter manually" }],
+          availableModels[0],
+        )
+      : await promptText("Local model ID");
+  const serverModelId = rawModelId === "manual" ? await promptText("Local model ID") : rawModelId;
+  if (!serverModelId) throw new Error("Model ID is required.");
+
+  const inferredCreator = inferCreatorId(serverModelId);
+  const creatorInput = typeof flags.creator === "string"
+    ? flags.creator
+    : await promptChoice(
+        "Who created the model?",
+        MODEL_CREATOR_OPTIONS.map((option) => ({ value: option.id, label: option.name })),
+        inferredCreator,
+      );
+  const providerId = creatorInput === "custom"
+    ? normalizeCreatorId(await promptText("Custom creator/provider ID", "custom_local"))
+    : normalizeCreatorId(creatorInput);
+  const providerName = providerId === creatorInput ? creatorDisplayName(providerId) : providerId;
+  const internalModelId = typeof flags.id === "string" ? sanitizeModelId(flags.id) : `${sanitizeModelId(serverModelId)}-local`;
+  const displayName = typeof flags.name === "string" ? flags.name : await promptText("Display name", serverModelId);
+  const supportsImages = boolFromFlag(flags.images ?? flags.image ?? flags.vision, false);
+  const supportsTools = boolFromFlag(flags.tools ?? flags["tool-use"], false);
+  const contextWindowInput = typeof flags["context-window"] === "string"
+    ? flags["context-window"]
+    : await promptText("Context window tokens", "32768");
+  const contextWindow = Number.parseInt(contextWindowInput, 10) || 32768;
+
+  if (flags["skip-test"] !== true) {
+    console.error(`Testing ${runtime.label} model '${serverModelId}'...`);
+    const testOutput = await testLocalModel(baseUrl, apiKey, serverModelId);
+    if (!testOutput) throw new Error("Local model test returned no content. Not saving model.");
+    console.error(`Test response: ${testOutput}`);
+  }
+
+  const model = {
+    id: internalModelId,
+    name: displayName,
+    description: `${displayName} served locally through ${runtime.label}.`,
+    country_origin: "local",
+    for_app_skill: "ai.ask",
+    allow_auto_select: false,
+    local: true,
+    self_hosted: true,
+    input_types: supportsImages ? ["text", "image"] : ["text"],
+    output_types: ["text"],
+    default_server: runtime.serverId,
+    servers: [
+      {
+        id: runtime.serverId,
+        name: runtime.label,
+        model_id: serverModelId,
+        region: "local",
+        base_url: baseUrl.replace(/\/+$/, ""),
+        api_key: apiKey,
+        supports_tools: supportsTools,
+      },
+    ],
+    pricing: { fixed: { credits: 0 } },
+    costs: {
+      input_per_million_token: { price: 0, currency: "USD", max_context: contextWindow },
+      output_per_million_token: { price: 0, currency: "USD", max_context: contextWindow },
+    },
+    features: {
+      streaming: true,
+      tool_use: supportsTools,
+      max_context: contextWindow,
+    },
+  };
+
+  upsertLocalModel(overlayPath, providerId, providerName, model);
+  if (installMode === "image") ensureImageRuntimeConfig(installPath);
+
+  if (flags.json === true) {
+    printJson({ command: "server ai models add", status: "success", model: `${providerId}/${internalModelId}`, overlayPath });
+  } else {
+    console.log(`Added local model: ${providerId}/${internalModelId}`);
+    console.log(`Updated ${overlayPath}`);
+    console.log("Restart the server for model changes to take effect: openmates server restart");
+    console.log("Self-hosted local models charge 0 credits; token usage may still be recorded in usage history.");
+  }
+}
+
+async function serverAiModelsList(flags: Record<string, string | boolean>): Promise<void> {
+  const installPath = resolveServerPath(flags);
+  const overlayPath = localModelsOverlayPath(installPath);
+  const overlay = readLocalModelOverlay(overlayPath);
+  const models = localModelsFromOverlay(overlay).map(({ providerId, model }) => ({
+    id: `${providerId}/${String(model.id ?? "")}`,
+    name: model.name ?? model.id,
+    server: Array.isArray(model.servers) ? (model.servers[0] as Record<string, unknown> | undefined)?.id : undefined,
+    serverModelId: Array.isArray(model.servers) ? (model.servers[0] as Record<string, unknown> | undefined)?.model_id : undefined,
+  }));
+  if (flags.json === true) {
+    printJson({ overlayPath, models });
+    return;
+  }
+  if (!models.length) {
+    console.log("No local AI models configured. Add one with: openmates server ai models add");
+    return;
+  }
+  console.log("Local AI models:");
+  for (const model of models) {
+    console.log(`  ${model.id} (${model.server}: ${model.serverModelId})`);
+  }
+}
+
+async function serverAiModelsTest(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const installPath = resolveServerPath(flags);
+  const overlayPath = localModelsOverlayPath(installPath);
+  const fullModelId = rest[0];
+  if (!fullModelId || !fullModelId.includes("/")) throw new Error("Usage: openmates server ai models test <provider/model-id>");
+  const [providerId, modelId] = fullModelId.split("/", 2);
+  const overlay = readLocalModelOverlay(overlayPath);
+  const provider = overlay.providers.find((item) => item.provider_id === providerId);
+  const model = provider?.models.find((item) => item.id === modelId);
+  const server = Array.isArray(model?.servers) ? model.servers[0] as Record<string, unknown> | undefined : undefined;
+  if (!server) throw new Error(`Local model not found in ${overlayPath}: ${fullModelId}`);
+  const baseUrl = String(server.base_url ?? "");
+  const apiKey = String(server.api_key ?? "local");
+  const serverModelId = String(server.model_id ?? "");
+  const output = await testLocalModel(baseUrl, apiKey, serverModelId);
+  if (flags.json === true) {
+    printJson({ model: fullModelId, status: "success", output });
+  } else {
+    console.log(`Model test succeeded: ${fullModelId}`);
+    console.log(`Response: ${output}`);
+  }
+}
+
+async function serverAiModelsRemove(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const installPath = resolveServerPath(flags);
+  const overlayPath = localModelsOverlayPath(installPath);
+  const fullModelId = rest[0];
+  if (!fullModelId) throw new Error("Usage: openmates server ai models remove <provider/model-id>");
+  const removed = removeLocalModel(overlayPath, fullModelId);
+  if (flags.json === true) {
+    printJson({ command: "server ai models remove", status: removed ? "success" : "not_found", model: fullModelId });
+  } else if (removed) {
+    console.log(`Removed local model: ${fullModelId}`);
+    console.log("Restart the server for model changes to take effect: openmates server restart");
+  } else {
+    console.log(`Local model not found: ${fullModelId}`);
+  }
+}
+
+async function serverAi(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const area = rest[0];
+  const action = rest[1] ?? "list";
+  const args = rest.slice(2);
+  if (area !== "models") throw new Error("Usage: openmates server ai models <add|list|test|remove>");
+  switch (action) {
+    case "add":    return serverAiModelsAdd(flags);
+    case "list":   return serverAiModelsList(flags);
+    case "test":   return serverAiModelsTest(args, flags);
+    case "remove": return serverAiModelsRemove(args, flags);
+    default:
+      throw new Error(`Unknown server ai models command '${action}'. Use add, list, test, or remove.`);
+  }
+}
+
 async function serverUninstall(flags: Record<string, string | boolean>): Promise<void> {
   requireDocker();
   const installPath = resolveServerPath(flags);
@@ -1109,6 +1686,7 @@ Commands:
   logs            Display server logs
   update          Update to latest version (pull images, or git pull + rebuild for source installs)
   make-admin      Grant admin privileges to a user
+  ai              Manage self-hosted local AI models
   reset           Reset server data (requires confirmation)
   uninstall       Completely remove OpenMates (requires confirmation)
 
@@ -1153,11 +1731,27 @@ Command Options:
   make-admin:
     openmates server make-admin <email>
 
+  features:
+    openmates server features list
+    openmates server features enable <feature-id>
+    openmates server features disable <feature-id>
+    openmates server features reset <feature-id>
+    openmates server features explain <feature-id>
+
+  ai models:
+    openmates server ai models add
+    openmates server ai models list
+    openmates server ai models test <provider/model-id>
+    openmates server ai models remove <provider/model-id>
+
 Examples:
   openmates server install
   openmates server start --with-overrides
   openmates server logs --container api --follow
   openmates server make-admin user@example.com
+  openmates server features disable app:videos
+  openmates server ai models add
+  openmates server features enable embed:code:application
   openmates server update
   openmates server update --dry-run
   openmates server update --image-tag v0.12.0-alpha.1
@@ -1190,6 +1784,8 @@ export async function handleServer(
     case "update":     return serverUpdate(flags);
     case "reset":      return serverReset(flags);
     case "make-admin": return serverMakeAdmin(rest, flags);
+    case "ai":         return serverAi(rest, flags);
+    case "features":   return serverFeatures(rest, flags);
     case "uninstall":  return serverUninstall(flags);
     default:
       throw new Error(`Unknown server command '${subcommand}'. Run 'openmates server --help'.`);

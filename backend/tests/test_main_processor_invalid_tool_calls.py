@@ -140,6 +140,61 @@ INVALID_TOOL_RESULT_REASON = main_processor.INVALID_TOOL_RESULT_REASON
 _append_tool_call_turn_to_history = main_processor._append_tool_call_turn_to_history
 _get_skill_execution_args = main_processor._get_skill_execution_args
 _has_diffable_embeds_for_prompt = main_processor._has_diffable_embeds_for_prompt
+_build_pending_app_settings_memories_context = main_processor._build_pending_app_settings_memories_context
+_apply_benchmark_usage_details = main_processor._apply_benchmark_usage_details
+
+
+def test_pending_app_settings_memories_context_preserves_model_preferences() -> None:
+    request_data = SimpleNamespace(
+        chat_id="chat-1",
+        message_id="message-1",
+        user_id="user-1",
+        user_id_hash="hash-1",
+        mate_id="mate-1",
+        active_focus_id="focus-1",
+        chat_has_title=True,
+        current_chat_title="Coding help",
+        is_incognito=False,
+        user_preferences={"default_ai_model_simple": "mistral/mistral-small-latest"},
+        embed_file_path_index={"snippet.py": "embed-1"},
+    )
+
+    context = _build_pending_app_settings_memories_context(
+        request_data=request_data,
+        request_id="request-1",
+        missing_keys=["code:preferred_technologies"],
+        task_id="task-1",
+    )
+
+    assert context["user_preferences"] == {"default_ai_model_simple": "mistral/mistral-small-latest"}
+    assert context["current_chat_title"] == "Coding help"
+    assert context["embed_file_path_index"] == {"snippet.py": "embed-1"}
+    assert "message_history" not in context
+
+
+def test_benchmark_metadata_tags_tool_skill_usage_details() -> None:
+    request_data = SimpleNamespace(
+        benchmark_metadata={
+            "source": "benchmark",
+            "benchmark_run_id": "run-1",
+            "benchmark_suite": "quick",
+            "benchmark_case": "image-brandenburg-gate",
+            "benchmark_target_model": "google/gemini-3.5-flash",
+            "benchmark_judge_model": "google/gemini-3-flash-preview",
+            "ignored_non_string": 123,
+        }
+    )
+    usage_details = {"chat_id": "chat-1", "units_processed": 1}
+
+    _apply_benchmark_usage_details(request_data, usage_details)
+
+    assert usage_details["source"] == "benchmark"
+    assert usage_details["benchmark_run_id"] == "run-1"
+    assert usage_details["benchmark_suite"] == "quick"
+    assert usage_details["benchmark_case"] == "image-brandenburg-gate"
+    assert usage_details["benchmark_target_model"] == "google/gemini-3.5-flash"
+    assert usage_details["benchmark_judge_model"] == "google/gemini-3-flash-preview"
+    assert "ignored_non_string" not in usage_details
 
 
 def test_invalid_tool_calls_are_hidden_protocol_bookkeeping() -> None:

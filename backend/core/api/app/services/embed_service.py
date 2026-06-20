@@ -28,6 +28,11 @@ from backend.shared.providers.e2b_application_preview import (
     ApplicationPreviewPlanningError,
     plan_application_preview_startup,
 )
+from backend.shared.python_utils.learning_mode import apply_learning_mode_cap_to_embed_result
+from backend.core.api.app.utils.text_sanitization import (
+    sanitize_text_payload_for_ascii_smuggling,
+    sanitize_text_simple,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -793,6 +798,7 @@ class EmbedService:
         version_number: Optional[int] = None,
         content_hash: Optional[str] = None,
         version_history_rows: Optional[List[Dict[str, Any]]] = None,
+        learning_mode_metadata: Optional[Dict[str, Any]] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -884,6 +890,8 @@ class EmbedService:
                 "status": status,
                 "line_count": line_count
             }
+            if learning_mode_metadata:
+                updated_content.update(learning_mode_metadata)
 
             # Convert to TOON format
             updated_toon = encode(updated_content)
@@ -1742,6 +1750,7 @@ class EmbedService:
         version_number: Optional[int] = None,
         content_hash: Optional[str] = None,
         version_history_rows: Optional[List[Dict[str, Any]]] = None,
+        learning_mode_metadata: Optional[Dict[str, Any]] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -1801,6 +1810,8 @@ class EmbedService:
                 "row_count": row_count,
                 "col_count": col_count,
             }
+            if learning_mode_metadata:
+                updated_content.update(learning_mode_metadata)
 
             updated_toon = encode(updated_content)
 
@@ -2632,6 +2643,7 @@ class EmbedService:
         version_number: Optional[int] = None,
         content_hash: Optional[str] = None,
         version_history_rows: Optional[List[Dict[str, Any]]] = None,
+        learning_mode_metadata: Optional[Dict[str, Any]] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -2725,6 +2737,8 @@ class EmbedService:
                 "status": status,
                 "word_count": word_count
             }
+            if learning_mode_metadata:
+                updated_content.update(learning_mode_metadata)
 
             # Convert to TOON format
             updated_toon = encode(updated_content)
@@ -3150,6 +3164,11 @@ class EmbedService:
         "s3_base_url",           # S3 bucket URL — resolved server-side
         "files",                 # Nested s3_key per variant — resolved server-side
         "content_hash",          # Internal dedup hash — not useful for LLM
+        "encrypted_content",     # Client/Vault encrypted content — never for LLM
+        "encrypted_diff",        # Client encrypted edit diff — never for LLM
+        "encrypted_payload",     # Generic encrypted payload — never for LLM
+        "encrypted_text_preview",  # Client encrypted preview — never for LLM
+        "encrypted_type",        # Client encrypted type — never for LLM
         "radar_blob_b64",        # Raw radar grids — too large and not useful for LLM inference
     })
 
@@ -3241,9 +3260,13 @@ class EmbedService:
                 })
                 filtered = {k: v for k, v in decoded.items() if k in _AUDIO_KEEP}
                 # Use filename as embed_ref; fall back to a short UUID prefix.
-                raw_ref = (decoded.get("filename") or embed_id[:8])
+                raw_ref = sanitize_text_simple(str(decoded.get("filename") or embed_id[:8]))
                 embed_ref = self._unique_embed_ref(raw_ref, seen_embed_refs)
                 filtered["embed_ref"] = embed_ref
+                filtered, _ = sanitize_text_payload_for_ascii_smuggling(
+                    filtered,
+                    log_prefix=f"{log_prefix}[embed:{embed_id[:8]}] ",
+                )
                 filtered_toon = encode(filtered)
                 logger.debug(
                     f"{log_prefix} Filtered audio-recording embed TOON for LLM: "
@@ -3290,9 +3313,13 @@ class EmbedService:
                     if k not in _PDF_STRIP_FIELDS and k != "embed_id"
                 }
                 # Use the original filename as embed_ref so the LLM passes it to pdf.* skills.
-                raw_ref = decoded.get("filename") or embed_id[:8]
+                raw_ref = sanitize_text_simple(str(decoded.get("filename") or embed_id[:8]))
                 embed_ref = self._unique_embed_ref(raw_ref, seen_embed_refs)
                 filtered["embed_ref"] = embed_ref
+                filtered, _ = sanitize_text_payload_for_ascii_smuggling(
+                    filtered,
+                    log_prefix=f"{log_prefix}[embed:{embed_id[:8]}] ",
+                )
                 filtered_toon = encode(filtered)
                 logger.debug(
                     f"{log_prefix} Filtered PDF embed TOON for LLM: "
@@ -3333,8 +3360,15 @@ class EmbedService:
                     }
                     # embed_ref is already in the dict; ensure it stays.
                     filtered["embed_ref"] = embed_ref_in_toon
-                    embed_ref = self._unique_embed_ref(embed_ref_in_toon, seen_embed_refs)
+                    embed_ref = self._unique_embed_ref(
+                        sanitize_text_simple(embed_ref_in_toon),
+                        seen_embed_refs,
+                    )
                     filtered["embed_ref"] = embed_ref
+                    filtered, _ = sanitize_text_payload_for_ascii_smuggling(
+                        filtered,
+                        log_prefix=f"{log_prefix}[embed:{embed_id[:8]}] ",
+                    )
                     filtered_toon = encode(filtered)
                     logger.debug(
                         f"{log_prefix} Passed embed_ref through for embed {embed_id}: "
@@ -3352,10 +3386,14 @@ class EmbedService:
                     filtered.setdefault("app_id", app_id or inferred_app_id)
                     filtered.setdefault("skill_id", skill_id or inferred_skill_id)
                     embed_ref = self._unique_embed_ref(
-                        self._generate_direct_embed_ref(embed_type, embed_id, filtered),
+                        sanitize_text_simple(self._generate_direct_embed_ref(embed_type, embed_id, filtered)),
                         seen_embed_refs,
                     )
                     filtered["embed_ref"] = embed_ref
+                    filtered, _ = sanitize_text_payload_for_ascii_smuggling(
+                        filtered,
+                        log_prefix=f"{log_prefix}[embed:{embed_id[:8]}] ",
+                    )
                     filtered_toon = encode(filtered)
                     logger.debug(
                         f"{log_prefix} Synthesized embed_ref for direct embed {embed_id}: "
@@ -3381,7 +3419,7 @@ class EmbedService:
             # meaningful to pass to images-view.
             raw_filename: str = decoded.get("filename") or ""
             if raw_filename:
-                raw_ref = raw_filename
+                raw_ref = sanitize_text_simple(raw_filename)
             else:
                 raw_ref = embed_id[:8]
 
@@ -3391,6 +3429,10 @@ class EmbedService:
             # embed_ref.  The UUID is intentionally NOT exposed to the LLM.
             filtered.pop("embed_id", None)
             filtered["embed_ref"] = embed_ref
+            filtered, _ = sanitize_text_payload_for_ascii_smuggling(
+                filtered,
+                log_prefix=f"{log_prefix}[embed:{embed_id[:8]}] ",
+            )
 
             # Re-encode to TOON
             filtered_toon = encode(filtered)
@@ -3979,7 +4021,8 @@ class EmbedService:
         user_vault_key_id: str,
         task_id: Optional[str] = None,
         log_prefix: str = "",
-        request_metadata: Optional[Dict[str, Any]] = None
+        request_metadata: Optional[Dict[str, Any]] = None,
+        learning_mode_context: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Update an existing "processing" embed with actual skill results.
@@ -4095,22 +4138,27 @@ class EmbedService:
                     # Fall back to generating a new slug only if embed_ref is missing (e.g., for
                     # non-composite skills or code paths that bypass the pre-generation step).
                     result_with_ref = dict(enriched_result)
-                    if "embed_ref" in result_with_ref:
-                        child_embed_ref = result_with_ref["embed_ref"]
+                    result_for_embed = apply_learning_mode_cap_to_embed_result(
+                        child_type,
+                        result_with_ref,
+                        learning_mode_context,
+                    )
+                    if "embed_ref" in result_for_embed:
+                        child_embed_ref = result_for_embed["embed_ref"]
                         logger.debug(f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
                     else:
                         child_embed_ref = self._generate_embed_ref_slug(child_type, enriched_result)
-                        result_with_ref["embed_ref"] = child_embed_ref
+                        result_for_embed["embed_ref"] = child_embed_ref
 
                     # Inject app_id and skill_id into child TOON so the frontend can
                     # extract them when registering embed_ref → appId in the in-memory index.
                     # Without this the inline badge gradient falls back to grey because
                     # the child result dict only contains flight/event fields, not app metadata.
-                    result_with_ref["app_id"] = app_id
-                    result_with_ref["skill_id"] = skill_id
+                    result_for_embed["app_id"] = app_id
+                    result_for_embed["skill_id"] = skill_id
 
                     # Convert result to TOON format (PLAINTEXT)
-                    flattened_result = _flatten_for_toon_tabular(result_with_ref)
+                    flattened_result = _flatten_for_toon_tabular(result_for_embed)
                     
                     # DEBUG: Log the result AFTER flattening to see if thumbnail_original/meta_url_favicon exist
                     logger.info(
@@ -4829,7 +4877,8 @@ class EmbedService:
         user_vault_key_id: str,
         task_id: Optional[str] = None,
         log_prefix: str = "",
-        request_metadata: Optional[Dict[str, Any]] = None
+        request_metadata: Optional[Dict[str, Any]] = None,
+        learning_mode_context: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Create embeds from skill results immediately after skill execution.
@@ -4903,21 +4952,26 @@ class EmbedService:
                     # The embed_ref is injected INSIDE the encrypted TOON content so only the
                     # client (after decryption) and the LLM (via filtered TOON) can see it.
                     result_with_ref = dict(enriched_result)
-                    if "embed_ref" in result_with_ref:
-                        child_embed_ref = result_with_ref["embed_ref"]
+                    result_for_embed = apply_learning_mode_cap_to_embed_result(
+                        child_type,
+                        result_with_ref,
+                        learning_mode_context,
+                    )
+                    if "embed_ref" in result_for_embed:
+                        child_embed_ref = result_for_embed["embed_ref"]
                         logger.debug(f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
                     else:
                         child_embed_ref = self._generate_embed_ref_slug(child_type, enriched_result)
-                        result_with_ref["embed_ref"] = child_embed_ref
+                        result_for_embed["embed_ref"] = child_embed_ref
 
                     # Inject app_id and skill_id into child TOON so the frontend can
                     # extract them when registering embed_ref → appId in the in-memory index.
                     # Without this the inline badge gradient falls back to grey because
                     # the child result dict only contains flight/event fields, not app metadata.
-                    result_with_ref["app_id"] = app_id
-                    result_with_ref["skill_id"] = skill_id
+                    result_for_embed["app_id"] = app_id
+                    result_for_embed["skill_id"] = skill_id
 
-                    flattened_result = _flatten_for_toon_tabular(result_with_ref)
+                    flattened_result = _flatten_for_toon_tabular(result_for_embed)
                     content_toon = encode(flattened_result)
                     
                     # Calculate text length for child embed

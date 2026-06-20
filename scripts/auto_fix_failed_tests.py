@@ -15,10 +15,12 @@ import argparse
 import base64
 import fcntl
 import hashlib
+import importlib.util
 import json
 import os
 import re
 import shutil
+import shlex
 import sqlite3
 import subprocess
 import sys
@@ -34,6 +36,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_DIR = PROJECT_ROOT / "test-results"
 TMP_DIR = PROJECT_ROOT / "scripts" / ".tmp" / "auto-fix"
 PROMPT_TEMPLATE = PROJECT_ROOT / "scripts" / "prompts" / "auto-fix-failed-test-group.md"
+TESTS_CONTROL_SCRIPT = PROJECT_ROOT / "scripts" / "tests.py"
 LOCKFILE = Path("/tmp/openmates-auto-fix-failed-tests.lock")
 STATE_FILE = RESULTS_DIR / "auto-fix-state.json"
 GH_BRANCH = "dev"
@@ -200,6 +203,34 @@ def load_failed_tests() -> tuple[str, list[dict[str, Any]]]:
     return str(data.get("run_id", "unknown")), tests
 
 
+def load_triaged_groups() -> tuple[str, list[FixGroup]]:
+    """Load deterministic failure groups from scripts/tests.py when available."""
+    if not TESTS_CONTROL_SCRIPT.is_file():
+        return "unknown", []
+    spec = importlib.util.spec_from_file_location("openmates_tests_control", TESTS_CONTROL_SCRIPT)
+    if spec is None or spec.loader is None:
+        return "unknown", []
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    triage = module.build_triage()
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for entry in triage.get("entries") or []:
+        grouped.setdefault(str(entry["group_id"]), []).append(entry)
+    groups = []
+    for group_id, entries in grouped.items():
+        first = entries[0]
+        command = shlex.split(str(first.get("verification_command") or "python3 scripts/tests.py run --only-failed"))
+        if command and command[0] == "python3":
+            command[0] = sys.executable
+        groups.append(FixGroup(
+            id=group_id,
+            suite=str(first.get("suite") or "unknown"),
+            tests=entries[:MAX_FAILURES_PER_GROUP],
+            verify_command=command,
+        ))
+    return str(triage.get("run_id") or "unknown"), groups
+
+
 def normalize_error(error: str) -> str:
     lines = [line.strip() for line in (error or "").splitlines() if line.strip()]
     interesting = []
@@ -243,13 +274,13 @@ def verification_command(suite: str, tests: list[dict[str, Any]]) -> list[str]:
     if suite == "playwright":
         spec = str(tests[0].get("file") or tests[0].get("name") or "").strip()
         if spec.endswith(".spec.ts"):
-            return [sys.executable, "scripts/run_tests.py", "--spec", spec]
-        return [sys.executable, "scripts/run_tests.py", "--suite", "playwright", "--only-failed"]
+            return [sys.executable, "scripts/tests.py", "run", "--spec", spec]
+        return [sys.executable, "scripts/tests.py", "run", "--suite", "playwright", "--only-failed"]
     if suite.startswith("pytest"):
-        return [sys.executable, "scripts/run_tests.py", "--suite", "pytest"]
+        return [sys.executable, "scripts/tests.py", "run", "--suite", "pytest"]
     if suite.startswith("vitest"):
-        return [sys.executable, "scripts/run_tests.py", "--suite", "vitest"]
-    return [sys.executable, "scripts/run_tests.py", "--only-failed"]
+        return [sys.executable, "scripts/tests.py", "run", "--suite", "vitest"]
+    return [sys.executable, "scripts/tests.py", "run", "--only-failed"]
 
 
 def start_controller_session(group: FixGroup) -> str:
@@ -814,17 +845,18 @@ def main() -> int:
         if not args.dry_run:
             log_dirty_worktree_context()
 
-        run_id, tests = load_failed_tests()
-        if not tests:
-            log("No failed tests found; nothing to fix.")
-            return 0
-
-        groups = group_failures(tests)
+        run_id, groups = load_triaged_groups()
+        if not groups:
+            run_id, tests = load_failed_tests()
+            if not tests:
+                log("No failed tests found; nothing to fix.")
+                return 0
+            groups = group_failures(tests)
         selected = groups[: max(0, args.max_groups)]
         state: dict[str, Any] = {
             "run_id": run_id,
             "started_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "total_failed_tests": len(tests),
+            "total_failed_tests": sum(len(group.tests) for group in groups),
             "total_groups": len(groups),
             "processed": [],
         }

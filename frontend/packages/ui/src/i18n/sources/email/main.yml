@@ -21,6 +21,114 @@ account_created:
   cs: Účet byl vytvořen
   sv: Konto skapat
   he: החשבון נוצר
+account_created_second_login_title:
+  context: Section title in account created email recommending another login method
+  en: Add a second login method
+  de: Zweite Login-Methode hinzufügen
+  es: Añade un segundo método de inicio de sesión
+  fr: Ajoutez une deuxième méthode de connexion
+  ja: 2つ目のログイン方法を追加
+  zh: 添加第二种登录方式
+  pt: Adicione um segundo método de login
+  ru: Добавьте второй способ входа
+  ko: 두 번째 로그인 방법 추가
+  it: Aggiungi un secondo metodo di accesso
+  tr: İkinci bir giriş yöntemi ekleyin
+  vi: Thêm phương thức đăng nhập thứ hai
+  id: Tambahkan metode login kedua
+  pl: Dodaj drugą metodę logowania
+  nl: Voeg een tweede inlogmethode toe
+  ar: أضف طريقة تسجيل دخول ثانية
+  hi: दूसरी लॉगिन विधि जोड़ें
+  th: เพิ่มวิธีเข้าสู่ระบบที่สอง
+  cs: Přidejte druhý způsob přihlášení
+  sv: Lägg till en andra inloggningsmetod
+  he: הוסף שיטת כניסה שנייה
+  verified_by_human: []
+account_created_second_login_info:
+  context: Body text in account created email explaining backup login methods for passkey and password users
+  en: If you signed up with a passkey, add password plus 2FA as a backup. If you signed up with password plus 2FA, add a passkey for faster secure login.
+  de: Wenn du dich mit einem Passkey registriert hast, füge Passwort plus 2FA als Backup hinzu. Wenn du dich mit Passwort plus 2FA registriert hast, füge einen Passkey für einen schnelleren sicheren Login hinzu.
+  es: Si te registraste con una clave de acceso, añade contraseña y 2FA como respaldo. Si te registraste con contraseña y 2FA, añade una clave de acceso para iniciar sesión de forma más rápida y segura.
+  fr: Si vous vous êtes inscrit avec une clé d'accès, ajoutez un mot de passe avec 2FA comme sauvegarde. Si vous vous êtes inscrit avec un mot de passe et 2FA, ajoutez une clé d'accès pour une connexion sécurisée plus rapide.
+  ja: パスキーで登録した場合は、バックアップとしてパスワードと2FAを追加してください。パスワードと2FAで登録した場合は、より速く安全にログインできるようパスキーを追加してください。
+  zh: 如果你使用通行密钥注册，请添加密码和 2FA 作为备用方式。如果你使用密码和 2FA 注册，请添加通行密钥以便更快、更安全地登录。
+  pt: Se você se cadastrou com uma chave de acesso, adicione senha e 2FA como backup. Se você se cadastrou com senha e 2FA, adicione uma chave de acesso para um login seguro mais rápido.
+  ru: Если вы зарегистрировались с ключом доступа, добавьте пароль и 2FA в качестве резервного способа. Если вы зарегистрировались с паролем и 2FA, добавьте ключ доступа для более быстрого и безопасного входа.
+  ko: 패스키로 가입했다면 백업으로 비밀번호와 2FA를 추가하세요. 비밀번호와 2FA로 가입했다면 더 빠르고 안전한 로그인을 위해 패스키를 추가하세요.
+  it: Se ti sei registrato con una passkey, aggiungi password e 2FA come backup. Se ti sei registrato con password e 2FA, aggiungi una passkey per un accesso sicuro più rapido.
+  tr: Geçiş anahtarıyla kaydolduysanız yedek olarak parola ve 2FA ekleyin. Parola ve 2FA ile kaydolduysanız daha hızlı ve güvenli giriş için bir geçiş anahtarı ekleyin.
+  vi: Nếu bạn đăng ký bằng khóa truy cập, hãy thêm mật khẩu và 2FA làm phương án dự phòng. Nếu bạn đăng ký bằng mật khẩu và 2FA, hãy thêm khóa truy cập để đăng nhập an toàn nhanh hơn.
+  id: Jika Anda mendaftar dengan kunci sandi, tambahkan kata sandi plus 2FA sebagai cadangan. Jika Anda mendaftar dengan kata sandi plus 2FA, tambahkan kunci sandi untuk login aman yang lebih cepat.
+  pl: Jeśli zarejestrowałeś się kluczem dostępu, dodaj hasło i 2FA jako zabezpieczenie. Jeśli zarejestrowałeś się hasłem i 2FA, dodaj klucz dostępu, aby logować się szybciej i bezpieczniej.
+  nl: Als je je hebt aangemeld met een passkey, voeg dan wachtwoord plus 2FA toe als back-up. Als je je hebt aangemeld met wachtwoord plus 2FA, voeg dan een passkey toe voor sneller veilig inloggen.
+  ar: إذا سجلت باستخدام مفتاح مرور، فأضف كلمة مرور مع المصادقة الثنائية كخيار احتياطي. وإذا سجلت باستخدام كلمة مرور مع المصادقة الثنائية، فأضف مفتاح مرور لتسجيل دخول آمن وأسرع.
+  hi: यदि आपने पासकी से साइन अप किया है, तो बैकअप के रूप में पासवर्ड और 2FA जोड़ें। यदि आपने पासवर्ड और 2FA से साइन अप किया है, तो तेज़ और सुरक्षित लॉगिन के लिए पासकी जोड़ें।
+  th: หากคุณสมัครด้วยพาสคีย์ ให้เพิ่มรหัสผ่านพร้อม 2FA เป็นวิธีสำรอง หากคุณสมัครด้วยรหัสผ่านพร้อม 2FA ให้เพิ่มพาสคีย์เพื่อเข้าสู่ระบบอย่างปลอดภัยและรวดเร็วยิ่งขึ้น
+  cs: Pokud jste se zaregistrovali pomocí přístupového klíče, přidejte jako zálohu heslo a 2FA. Pokud jste se zaregistrovali pomocí hesla a 2FA, přidejte přístupový klíč pro rychlejší bezpečné přihlášení.
+  sv: Om du registrerade dig med en nyckelkod, lägg till lösenord plus 2FA som reserv. Om du registrerade dig med lösenord plus 2FA, lägg till en nyckelkod för snabbare säker inloggning.
+  he: אם נרשמת באמצעות מפתח גישה, הוסף סיסמה ו-2FA כגיבוי. אם נרשמת באמצעות סיסמה ו-2FA, הוסף מפתח גישה לכניסה מאובטחת ומהירה יותר.
+  verified_by_human: []
+existing_account.subject:
+  context: Subject for signup attempt using an email that already has an account
+  en: An OpenMates account already exists for this email
+  de: Für diese E-Mail-Adresse existiert bereits ein OpenMates-Konto
+  verified_by_human: []
+existing_account.title:
+  context: Header for signup attempt using an email that already has an account
+  en: An account with your email already exists
+  de: Mit deiner E-Mail-Adresse existiert bereits ein Konto
+  verified_by_human: []
+existing_account.intro:
+  context: Intro text for existing-account signup email
+  en: Someone tried to create a new OpenMates account with this email address, but this email is already connected to an existing account.
+  de: Jemand hat versucht, mit dieser E-Mail-Adresse ein neues OpenMates-Konto zu erstellen. Diese E-Mail-Adresse ist aber bereits mit einem bestehenden Konto verbunden.
+  verified_by_human: []
+existing_account.saved_logins_title:
+  context: Section title reminding users to check saved credentials
+  en: Check your saved logins
+  de: Prüfe deine gespeicherten Logins
+  verified_by_human: []
+existing_account.saved_logins_body:
+  context: Body text reminding users to check browser/password manager credentials
+  en: Your browser, password manager, or device may already have the login saved. Look for OpenMates in saved passwords or passkeys before creating a new account.
+  de: Dein Browser, Passwortmanager oder Gerät hat den Login möglicherweise bereits gespeichert. Suche nach OpenMates in gespeicherten Passwörtern oder Passkeys, bevor du ein neues Konto erstellst.
+  verified_by_human: []
+existing_account.login_methods_title:
+  context: Section title listing normal login methods
+  en: Try your login methods
+  de: Versuche deine Login-Methoden
+  verified_by_human: []
+existing_account.login_methods_body:
+  context: Body text listing password, passkey, and 2FA login methods
+  en: You can log in with a passkey, or with your password plus 2FA. If you set up backup codes, keep them ready for the 2FA step.
+  de: Du kannst dich mit einem Passkey anmelden oder mit deinem Passwort plus 2FA. Wenn du Backup-Codes eingerichtet hast, halte sie für den 2FA-Schritt bereit.
+  verified_by_human: []
+existing_account.login_button:
+  context: Button label to open OpenMates login
+  en: Log in to OpenMates
+  de: Bei OpenMates einloggen
+  verified_by_human: []
+existing_account.recovery_key_title:
+  context: Section title for recovery key login guidance
+  en: Have your recovery key?
+  de: Hast du deinen Wiederherstellungsschlüssel?
+  verified_by_human: []
+existing_account.recovery_key_body:
+  context: Body text explaining recovery key login preserves data
+  en: If you do not remember your password or passkey but still have your recovery key, use recovery key login. It preserves your encrypted chats and account data.
+  de: Wenn du dich nicht an dein Passwort oder deinen Passkey erinnerst, aber deinen Wiederherstellungsschlüssel noch hast, nutze den Login mit Wiederherstellungsschlüssel. Dadurch bleiben deine verschlüsselten Chats und Kontodaten erhalten.
+  verified_by_human: []
+existing_account.recovery_button:
+  context: Button label to open login for recovery key use
+  en: Open login and use recovery key
+  de: Login öffnen und Wiederherstellungsschlüssel nutzen
+  verified_by_human: []
+existing_account.reset_warning:
+  context: Warning that full account reset is a last resort and may delete encrypted data
+  en: If you lost every login method and your recovery key, account reset is the last resort. Because OpenMates encrypts your data, resetting the account can permanently delete encrypted chats, memories, app settings, embeds, passkeys, and API keys.
+  de: Wenn du alle Login-Methoden und deinen Wiederherstellungsschlüssel verloren hast, ist ein Konto-Reset der letzte Ausweg. Da OpenMates deine Daten verschlüsselt, kann ein Reset verschlüsselte Chats, Erinnerungen, App-Einstellungen, Embeds, Passkeys und API-Schlüssel dauerhaft löschen.
+  verified_by_human: []
 password_security_reminder.subject:
   context: Subject line for recurring security reminders when password login is enabled without 2FA
   en: Action needed to secure your OpenMates account
@@ -1764,50 +1872,27 @@ welcome_to_openmates:
   he: "ברוכים הבאים ל-OpenMates!"
 complete_signup_info:
   context: Email body for account created confirmation
-  en: Once you completed the signup process by purchasing usage credits or redeeming a gift card, you can start using OpenMates!
-  de: Sobald du den Registrierungsprozess durch den Kauf von Nutzungsguthaben oder das Einlösen einer Geschenkkarte abgeschlossen hast, kannst du OpenMates nutzen!
-  es: Una vez que hayas completado el proceso de registro comprando créditos de uso o canjeando una tarjeta de regalo, ¡podrás empezar a usar OpenMates!
-  fr: Une fois que vous aurez terminé le processus d'inscription en achetant des crédits d'utilisation ou en utilisant une carte-cadeau, vous pourrez commencer à utiliser OpenMates !
-  ja: 利用クレジットの購入またはギフトカードの引き換えによりサインアッププロセスが完了すると、OpenMatesの使用を開始できます。
-  zh: 一旦您通过购买使用额度或兑换礼品卡完成了注册流程，您就可以开始使用 OpenMates 了！
-  pt: Depois de completar o processo de registro comprando créditos de uso ou resgatando um cartão-presente, você pode começar a usar o OpenMates!
-  ru: После завершения процесса регистрации путём покупки кредитов использования или активации подарочной карты вы сможете начать пользоваться OpenMates!
-  ko: 사용 크레딧을 구매하거나 기프트 카드를 사용하여 가입 과정을 완료하면 OpenMates를 사용할 수 있습니다!
-  it: Una volta completato il processo di registrazione acquistando crediti di utilizzo o riscattando una carta regalo, puoi iniziare a usare OpenMates!
-  tr: Kullanım kredisi satın alarak veya hediye kartı kullanarak kayıt işlemini tamamladığınızda, OpenMates'i kullanmaya başlayabilirsiniz!
-  vi: Khi bạn hoàn tất quá trình đăng ký bằng cách mua tín dụng sử dụng hoặc đổi thẻ quà tặng, bạn có thể bắt đầu sử dụng OpenMates!
-  id: Setelah menyelesaikan proses pendaftaran dengan membeli kredit penggunaan atau menukarkan kartu hadiah, Anda dapat mulai menggunakan OpenMates!
-  pl: Po zakończeniu procesu rejestracji poprzez zakup kredytów użytkowania lub realizację karty podarunkowej możesz zacząć korzystać z OpenMates!
-  nl: Zodra je het aanmeldingsproces hebt voltooid door gebruikskredieten te kopen of een cadeaukaart in te wisselen, kun je OpenMates gaan gebruiken!
-  ar: بمجرد إكمال عملية التسجيل عن طريق شراء رصيد الاستخدام أو استرداد بطاقة هدية، يمكنك البدء في استخدام OpenMates!
-  hi: एक बार जब आप उपयोग क्रेडिट खरीदकर या गिफ्ट कार्ड रिडीम करके साइनअप प्रक्रिया पूरी कर लेते हैं, तो आप OpenMates का उपयोग शुरू कर सकते हैं!
-  th: เมื่อคุณดำเนินการสมัครเสร็จสมบูรณ์โดยการซื้อเครดิตการใช้งานหรือแลกบัตรของขวัญ คุณสามารถเริ่มใช้ OpenMates ได้!
-  cs: Jakmile dokončíte proces registrace zakoupením kreditů využití nebo uplatněním dárkové karty, můžete začít používat OpenMates!
-  sv: När du har slutfört registreringsprocessen genom att köpa användningskrediter eller lösa in ett presentkort kan du börja använda OpenMates!
-  he: "ברגע שתשלים את תהליך ההרשמה על ידי רכישת קרדיטים לשימוש או מימוש כרטיס מתנה, תוכל להתחיל להשתמש ב-OpenMates!"
-auto_delete_warning:
-  context: Email body warning for account created confirmation
-  en: "Please note: Accounts that haven't completed the signup process will be automatically deleted after 7 days."
-  de: "Bitte beachte: Konten, die den Registrierungsprozess nicht abgeschlossen haben, werden nach 7 Tagen automatisch gelöscht."
-  es: "Ten en cuenta: Las cuentas que no hayan completado el process de registro se eliminarán automáticamente después de 7 días."
-  fr: "Remarque : les comptes qui n'ont pas terminé le processus d'inscription seront automatiquement supprimés après 7 jours."
-  ja: "注意：サインアップが完了していないアカウントは、7日後に自動的に削除されます。"
-  zh: "请注意：未完成注册流程的账户将在 7 天后自动删除。"
-  pt: "Atenção: Contas que não concluíram o processo de registro serão excluídas automaticamente após 7 dias."
-  ru: "Обратите внимание: аккаунты, не завершившие процесс регистрации, будут автоматически удалены через 7 дней."
-  ko: "참고: 가입 과정을 완료하지 않은 계정은 7일 후 자동으로 삭제됩니다."
-  it: "Nota bene: gli account che non hanno completato il processo di registrazione saranno automaticamente eliminati dopo 7 giorni."
-  tr: "Lütfen dikkat: Kayıt işlemini tamamlamamış hesaplar 7 gün sonra otomatik olarak silinecektir."
-  vi: "Lưu ý: Các tài khoản chưa hoàn thành quá trình đăng ký sẽ tự động bị xóa sau 7 ngày."
-  id: "Perhatian: Akun yang belum menyelesaikan proses pendaftaran akan otomatis dihapus setelah 7 hari."
-  pl: "Uwaga: Konta, które nie ukończyły procesu rejestracji, zostaną automatycznie usunięte po 7 dniach."
-  nl: "Let op: Accounts die het aanmeldingsproces niet hebben voltooid, worden na 7 dagen automatisch verwijderd."
-  ar: "يُرجى الملاحظة: سيتم حذف الحسابات التي لم تستكمل عملية التسجيل تلقائيًا بعد 7 أيام."
-  hi: "कृपया ध्यान दें: जिन खातों ने साइनअप प्रक्रिया पूरी नहीं की है उन्हें 7 दिनों के बाद स्वचालित रूप से हटा दिया जाएगा।"
-  th: "โปรดทราบ: บัญชีที่ยังไม่ได้ดำเนินการสมัครให้เสร็จสมบูรณ์จะถูกลบโดยอัตโนมัติหลังจาก 7 วัน"
-  cs: "Upozornění: Účty, které nedokončily proces registrace, budou automaticky smazány po 7 dnech."
-  sv: "Observera: Konton som inte har slutfört registreringsprocessen kommer att raderas automatiskt efter 7 dagar."
-  he: "לתשומת לבך: חשבונות שלא השלימו את תהליך ההרשמה יימחקו אוטומטית לאחר 7 ימים."
+  en: Your account is ready. Here are a few helpful next steps to protect your access and keep a copy of your data.
+  de: Dein Konto ist bereit. Hier sind ein paar hilfreiche nächste Schritte, um deinen Zugriff zu schützen und eine Kopie deiner Daten aufzubewahren.
+  es: Tu cuenta está lista. Aquí tienes algunos próximos pasos útiles para proteger tu acceso y conservar una copia de tus datos.
+  fr: Votre compte est prêt. Voici quelques étapes utiles pour protéger votre accès et conserver une copie de vos données.
+  ja: アカウントの準備ができました。アクセスを保護し、データのコピーを保管するための次の手順をご確認ください。
+  zh: 你的账户已准备就绪。以下是几个有用的后续步骤，可帮助你保护访问权限并保留数据副本。
+  pt: Sua conta está pronta. Aqui estão alguns próximos passos úteis para proteger seu acesso e manter uma cópia dos seus dados.
+  ru: Ваш аккаунт готов. Вот несколько полезных следующих шагов, чтобы защитить доступ и сохранить копию ваших данных.
+  ko: 계정이 준비되었습니다. 접근 권한을 보호하고 데이터 사본을 보관하기 위한 몇 가지 다음 단계를 확인하세요.
+  it: Il tuo account è pronto. Ecco alcuni prossimi passaggi utili per proteggere l'accesso e conservare una copia dei tuoi dati.
+  tr: Hesabınız hazır. Erişiminizi korumak ve verilerinizin bir kopyasını saklamak için birkaç yararlı sonraki adım burada.
+  vi: Tài khoản của bạn đã sẵn sàng. Dưới đây là một vài bước tiếp theo hữu ích để bảo vệ quyền truy cập và giữ một bản sao dữ liệu của bạn.
+  id: Akun Anda sudah siap. Berikut beberapa langkah berikutnya yang berguna untuk melindungi akses dan menyimpan salinan data Anda.
+  pl: Twoje konto jest gotowe. Oto kilka przydatnych kolejnych kroków, które pomogą chronić dostęp i zachować kopię danych.
+  nl: Je account is klaar. Hier zijn een paar handige volgende stappen om je toegang te beschermen en een kopie van je gegevens te bewaren.
+  ar: حسابك جاهز. إليك بعض الخطوات التالية المفيدة لحماية وصولك والاحتفاظ بنسخة من بياناتك.
+  hi: आपका खाता तैयार है। अपनी पहुंच सुरक्षित रखने और अपने डेटा की एक प्रति रखने के लिए ये कुछ उपयोगी अगले कदम हैं।
+  th: บัญชีของคุณพร้อมแล้ว ต่อไปนี้คือขั้นตอนถัดไปที่มีประโยชน์เพื่อปกป้องการเข้าถึงและเก็บสำเนาข้อมูลของคุณไว้
+  cs: Váš účet je připraven. Zde je několik užitečných dalších kroků, jak chránit přístup a uchovat si kopii svých dat.
+  sv: Ditt konto är klart. Här är några hjälpsamma nästa steg för att skydda din åtkomst och behålla en kopia av dina data.
+  he: החשבון שלך מוכן. הנה כמה צעדים מועילים להגנה על הגישה שלך ולשמירת עותק של הנתונים שלך.
 want_to_delete_account:
   context: Email body link text for account deletion
   en: Want to delete your account?

@@ -24,7 +24,6 @@ settings_and_memories:
     description_translation_key: ai.communication_style.description
     icon_image: chat.svg
     type: single
-    stage: production
     example_translation_keys:
       - "ai.communication_style.example_1"
       - "ai.communication_style.example_2"
@@ -69,7 +68,6 @@ settings_and_memories:
     description_translation_key: ai.learning_preferences.description
     icon_image: library.svg
     type: list
-    stage: production
     example_translation_keys:
       - "ai.learning_preferences.example_1"
       - "ai.learning_preferences.example_2"
@@ -122,7 +120,6 @@ settings_and_memories:
     name_translation_key: ai.interaction_preferences
     description_translation_key: ai.interaction_preferences.description
     type: single
-    stage: planning
     schema:
       type: object
       properties:
@@ -180,7 +177,6 @@ skills:
     # The @mention dropdown filtering is handled in mentionSearchService.ts (hardcoded skip).
     # Do NOT mark as internal=true — that would hide it from the Apps/Settings,
     # where it needs to appear so users can configure their AI models.
-    stage: production
     class_path: |
       ai.skills.ask_skill.AskSkill
     # Providers are auto-discovered from backend/providers/*.yml files

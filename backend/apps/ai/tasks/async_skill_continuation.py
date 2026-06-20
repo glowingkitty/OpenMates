@@ -24,6 +24,7 @@ except ImportError:  # pragma: no cover - test environments may not install opti
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.core.api.app.schemas.chat import AIHistoryMessage
+from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
 
 logger = logging.getLogger(__name__)
 
@@ -261,10 +262,20 @@ def _build_completed_tool_result_payload(
     request_metadata: dict[str, Any],
 ) -> dict[str, Any]:
     tool_name = context.get("tool_name") or f"{context.get('app_id')}-{context.get('skill_id')}"
-    return {
+    payload = {
         "status": result_status,
         "tool_name": tool_name,
         "arguments": context.get("tool_arguments") or {},
         "request_metadata": request_metadata,
         "results": completed_results,
     }
+    sanitized_payload, stats = sanitize_text_payload_for_ascii_smuggling(
+        payload,
+        log_prefix=f"[async_skill_continuation:{tool_name}] ",
+    )
+    if stats.get("removed_count", 0) > 0:
+        logger.warning(
+            "Removed %s ASCII-smuggling characters from async skill continuation payload",
+            stats["removed_count"],
+        )
+    return sanitized_payload

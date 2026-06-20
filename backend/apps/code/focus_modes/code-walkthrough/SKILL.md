@@ -1,7 +1,6 @@
 ---
 id: code_walkthrough
 app: code
-stage: planning
 
 name: code-walkthrough
 description: "Walk through code problems step-by-step."

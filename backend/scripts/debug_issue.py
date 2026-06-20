@@ -80,6 +80,7 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.core.api.app.utils.report_issue_ids import issue_identifier_query_params
 
 # Shared inspection utilities — replaces duplicated helpers
 from debug_utils import (
@@ -220,6 +221,7 @@ def map_production_issue_to_local_format(api_response: Dict[str, Any]) -> Dict[s
     # Build a pseudo-Directus issue record from the API response
     issue = {
         "id": api_response.get("id"),
+        "short_issue_id": api_response.get("short_issue_id"),
         "title": api_response.get("title", ""),
         "description": api_response.get("description"),
         "timestamp": api_response.get("timestamp", ""),
@@ -271,6 +273,7 @@ def map_production_issues_list(api_response: Dict[str, Any]) -> tuple:
     for item in api_response.get("issues", []):
         issue = {
             "id": item.get("id"),
+            "short_issue_id": item.get("short_issue_id"),
             "title": item.get("title", ""),
             "description": item.get("description"),
             "timestamp": item.get("timestamp", ""),
@@ -309,9 +312,8 @@ async def get_issue(directus_service: DirectusService, issue_id: str) -> Optiona
     script_logger.debug(f"Fetching issue metadata for issue_id: {issue_id}")
 
     params = {
-        'filter[id][_eq]': issue_id,
+        **issue_identifier_query_params(issue_id),
         'fields': '*',
-        'limit': 1
     }
 
     try:

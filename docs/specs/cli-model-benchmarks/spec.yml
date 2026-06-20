@@ -1,0 +1,392 @@
+id: cli-model-benchmarks
+title: CLI Model Benchmarks
+status: verified
+
+goal: >
+  Extend the OpenMates CLI benchmark command into a real product-path benchmark
+  runner that can quickly smoke-test one or more models, run broader evaluated
+  suites, compare models in parallel, preflight estimated credit costs, and
+  preserve useful partial results when a run is interrupted or credits run out.
+
+scope:
+  in:
+    - CLI benchmark suites for quick, extensive, image, multi-turn, long-context, coding, and comparison use cases.
+    - Real logged-in OpenMates chat inference for every live target and judge request.
+    - A default committed Brandenburger Tor image fixture for image-understanding benchmark cases.
+    - Pricing metadata lookup before live runs, with refusal to start if target or judge pricing is unavailable.
+    - Incremental judging after each target case so partial summaries contain evaluated findings.
+    - Parallel target-model requests by default, including comparison runs.
+    - Partial result output for interrupted or insufficient-credit runs.
+    - Usage rows tagged as `source: benchmark` for target and judge requests.
+  out:
+    - Provider-only benchmarks that bypass the OpenMates product chat path.
+    - Browser UI for benchmark dashboards.
+    - Apple app benchmark parity.
+    - Exact spend guarantees; estimates are conservative preflight checks and actual billing remains authoritative.
+    - Synthetic mock inference for live benchmark commands.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 bad credentials. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"benchmark model CLI\" --state all --limit 10 --json number,title,state,labels,url` returned no existing issue."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/standards/cli.md
+    - docs/specs/app-skill-processing-quality/spec.yml
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+  code_patterns:
+    - frontend/packages/openmates-cli/src/benchmark.ts: current benchmark command with smoke/tools/quality suites and judge support.
+    - frontend/packages/openmates-cli/src/client.ts: sendMessage benchmark metadata, incognito message_history, prepared embeds, and response collection.
+    - frontend/packages/openmates-cli/src/cli.ts: normal chat file/image attachment path using processFiles, uploadFile, preparedEmbeds, and sendMessage.
+    - backend/providers/google.yml: model pricing metadata under pricing.tokens input/output per_credit_unit.
+    - backend/core/api/app/services/directus/usage.py: usage source accepts benchmark.
+  tests:
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - backend/tests/test_usage_entries.py
+    - backend/tests/test_ai_skill_request_schema.py
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This is a Node.js CLI benchmark runner and backend usage-tagging workflow. Apple has no benchmark command counterpart.
+  verification:
+    - Apple not affected.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should the image benchmark use a built-in image fixture or a caller-provided image path?
+      answer: Use a predefined image by default, specifically Brandenburger Tor, and ask a question such as when it was built and who designed it.
+    - question: What should the extensive suite size default to?
+      answer: 10 questions by default.
+    - question: What should the comparison command syntax be?
+      answer: Use `openmates benchmark model model-a model-b --compare`.
+    - question: What should happen when pricing is unavailable or credits run out?
+      answer: Refuse to start if estimated total cost cannot be computed from model pricing; if interrupted or out of credits, output a summary of learnings so far.
+  vision_summary: >
+    The benchmark should become a practical model-evaluation harness, not just a
+    token smoke test. It must cover simple correctness, image understanding,
+    coding, multi-turn follow-ups, and long-context behavior, and then use Gemini
+    to judge each case as soon as it completes. Comparisons should run model
+    requests in parallel by default while keeping credit-spend and partial-output
+    behavior safe and explicit.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Quick suite checks core model health
+    given:
+      - Alice is logged into the OpenMates CLI.
+      - Alice runs `openmates benchmark model google/gemini-3.5-flash --suite quick --confirm-spend-credits --json`.
+    when:
+      - The benchmark starts after pricing preflight succeeds.
+    then:
+      - The suite runs real OpenMates chat inference for exact-token, arithmetic, concise reasoning, coding, and image-understanding cases.
+      - The image case uses the default Brandenburger Tor fixture unless Alice passes an explicit image path.
+      - The output includes per-case model name, duration, assistant answer, pass/fail, and judge score where applicable.
+
+  - id: S-2
+    title: Extensive suite scales evaluated coverage
+    given:
+      - Alice runs `openmates benchmark model <model> --suite extensive --extensive-size 10 --confirm-spend-credits --json`.
+    when:
+      - The benchmark expands the extensive suite.
+    then:
+      - The default extensive size is 10 when `--extensive-size` is omitted.
+      - Valid extensive sizes are 5, 10, and 20.
+      - At least 15 percent of extensive cases are code generation or code reasoning.
+      - Cases cover multiple complexity levels, including simple facts, reasoning, planning, tool-aware behavior, coding, image understanding, and synthesis.
+
+  - id: S-3
+    title: Multi-turn and long-context cases use real follow-up turns
+    given:
+      - Alice selects a suite that includes multi-turn and long-context cases.
+    when:
+      - The benchmark executes those cases.
+    then:
+      - Multi-turn cases send 2-3 follow-up requests in the same chat after the first target response.
+      - The long-context case initializes a predefined 20-message conversation and sends a real follow-up that depends on earlier context.
+      - Result JSON preserves per-turn prompts and answers so the judge can evaluate continuity.
+
+  - id: S-4
+    title: Comparison mode runs models in parallel
+    given:
+      - Alice runs `openmates benchmark model model-a model-b --compare --suite quick --confirm-spend-credits --json`.
+    when:
+      - Pricing preflight succeeds for both target models and the judge model.
+    then:
+      - Target model requests for the same case are started in parallel by default.
+      - The output contains per-model summaries and a comparison section with ranked scores and notable strengths/weaknesses.
+      - Judge requests may run after each completed target case, but each case is judged incrementally rather than only at the end.
+
+  - id: S-5
+    title: Pricing preflight protects live runs
+    given:
+      - Alice requests a live benchmark for one or more models.
+    when:
+      - The CLI cannot find token pricing metadata for a target or judge model.
+    then:
+      - The benchmark refuses to start before sending any inference request.
+      - The error names the missing model pricing and suggests using a model with provider pricing metadata.
+    and:
+      - When pricing is available, dry-run and live output include estimated credits and the assumptions used.
+
+  - id: S-6
+    title: Interrupted runs keep evaluated learnings
+    given:
+      - Alice starts a live benchmark.
+    when:
+      - The process receives an interrupt or a request fails because credits are insufficient.
+    then:
+      - The CLI writes or prints a partial result with status `partial`.
+      - Completed target responses that already have judge results remain included.
+      - The summary reports completed, failed, skipped, and interrupted cases by model.
+      - No completed case waits until the full benchmark ends before judgment.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The quick suite includes core text correctness, coding, and default Brandenburger Tor image-understanding cases, all through real OpenMates chat inference.
+  - id: AC-2
+    scenario: S-2
+    text: The extensive suite defaults to 10 cases, supports 5/10/20 sizes, and keeps at least 15 percent coding tasks.
+  - id: AC-3
+    scenario: S-3
+    text: Multi-turn benchmark cases send 2-3 real follow-up turns, and long-context cases send a follow-up after a predefined 20-message history.
+  - id: AC-4
+    scenario: S-4
+    text: "`openmates benchmark model model-a model-b --compare` runs target model requests in parallel by default and reports per-model plus comparison summaries."
+  - id: AC-5
+    scenario: S-5
+    text: Live runs refuse to start when target or judge pricing metadata is unavailable; dry-run/live output includes estimated credits when pricing is available.
+  - id: AC-6
+    scenario: S-6
+    text: Completed cases are judged incrementally, and interrupted or insufficient-credit runs output a partial evaluated summary.
+  - id: AC-7
+    scenario: S-1
+    text: "All live target and judge usage entries continue to be tagged as `source: benchmark`."
+
+contracts:
+  cli:
+    - command: openmates benchmark model <model...> --confirm-spend-credits [--compare] [--suite quick|extensive|all] [--extensive-size 5|10|20] [--parallel <n>] [--judge-model <provider/model>] [--image <path>] [--dry-run] [--json]
+      behavior:
+        - Multiple models without `--compare` are rejected to avoid ambiguous output.
+        - "`--compare` requires at least two models."
+        - "`--dry-run` never sends inference but must still perform pricing and suite expansion when possible."
+        - Live runs require `--confirm-spend-credits`.
+  data:
+    - Result JSON status is `planned`, `completed`, or `partial`.
+    - Each model has a per-model summary and per-case results.
+    - Comparison mode adds aggregate rankings and model-pair observations.
+    - Partial results include completed judge outputs and failed/interrupted case records.
+  privacy_security:
+    - Benchmark metadata contains non-sensitive labels only.
+    - The default image fixture is public, committed test media, and contains no personal data.
+    - Live benchmark requests spend the logged-in user's credits and must be explicitly confirmed.
+
+tests:
+  - id: T-UNIT-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+      - AC-5
+      - AC-6
+    assertions:
+      - benchmark help documents quick/extensive/all, compare mode, extensive-size, parallelism, image, and pricing preflight.
+      - dry-run expands quick and extensive suites without login.
+      - extensive-size rejects values other than 5, 10, or 20.
+      - multiple models require --compare and --compare requires at least two models.
+      - dry-run for priced models includes estimated credits.
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_required_existing_feature_expansion
+        run_id: ""
+        timestamp: "2026-06-19T13:36:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "npm-run-test-unit-cli-2026-06-19"
+        timestamp: "2026-06-19T13:36:00Z"
+
+  - id: T-UNIT-002
+    type: unit
+    file: frontend/packages/openmates-cli/tests/client.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts
+    covers:
+      - AC-1
+      - AC-3
+    assertions:
+      - incognito benchmark sends current message history.
+      - benchmark multi-turn helpers preserve same chat id for follow-ups.
+      - long-context helpers build exactly 20 predefined history messages before the real follow-up.
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_required_existing_feature_expansion
+        run_id: ""
+        timestamp: "2026-06-19T13:36:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "node-test-client-2026-06-19"
+        timestamp: "2026-06-19T13:36:00Z"
+
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_usage_entries.py
+    command: docker exec -i api python -m pytest /app/backend/tests/test_usage_entries.py /app/backend/tests/test_ai_skill_request_schema.py
+    covers:
+      - AC-7
+    assertions:
+      - benchmark usage source remains accepted.
+      - benchmark metadata remains preserved in AI skill schemas.
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_required_existing_coverage
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "pytest-benchmark-metadata-2026-06-19"
+        timestamp: "2026-06-19T13:36:00Z"
+
+  - id: T-LIVE-001
+    type: manual
+    covers:
+      - AC-1
+      - AC-5
+      - AC-7
+    assertions:
+      - quick suite performs real inference, including the default image case.
+      - output includes estimated credits and actual per-case results.
+      - latest billing usage contains source benchmark rows.
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_required_live_spend
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "5bde1312-4b95-4234-b4a0-34dd51dd5737"
+        timestamp: "2026-06-19T13:36:00Z"
+
+implementation_plan:
+  existing_patterns:
+    - frontend/packages/openmates-cli/src/benchmark.ts for command handling and result writing.
+    - frontend/packages/openmates-cli/src/client.ts for real chat sendMessage and benchmark metadata.
+    - frontend/packages/openmates-cli/src/cli.ts for file/image prepared embed creation.
+    - backend/providers/*.yml for pricing.tokens per_credit_unit metadata.
+  architecture: >
+    Keep the benchmark runner CLI-local and continue using OpenMatesClient.sendMessage
+    for all live inference. Add helper functions for suite expansion, pricing
+    estimation, model comparison concurrency, incremental judging, image fixture
+    attachment, and partial result output. Avoid backend route changes unless a
+    small client capability is required for long-context history injection.
+  data_flow:
+    - CLI parses models, suite, comparison, size, parallelism, image, judge, run id, and output flags.
+    - CLI expands cases and computes pricing estimates from provider metadata.
+    - CLI refuses live runs when pricing or spend confirmation is missing.
+    - CLI sends target requests through sendMessage with benchmark metadata.
+    - CLI judges each completed target case immediately.
+    - CLI writes completed or partial JSON to stdout/output.
+  affected_files:
+    - path: docs/specs/cli-model-benchmarks/spec.yml
+      reason: Executable product contract.
+    - path: frontend/packages/openmates-cli/src/benchmark.ts
+      reason: Benchmark suites, comparison mode, cost preflight, and partial summaries.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Long-context history and image prepared-embed support if needed by benchmark runner.
+    - path: frontend/packages/openmates-cli/tests/cli.test.ts
+      reason: CLI benchmark command regression tests.
+    - path: frontend/packages/openmates-cli/tests/client.test.ts
+      reason: Client benchmark payload regression tests.
+    - path: frontend/packages/openmates-cli/fixtures/brandenburger-tor.*
+      reason: Public default image fixture for real image inference benchmark.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/cli-model-benchmarks/spec.yml
+    - cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+    - cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts
+    - docker exec -i api python -m pytest /app/backend/tests/test_usage_entries.py /app/backend/tests/test_ai_skill_request_schema.py
+    - cd frontend/packages/openmates-cli && node dist/cli.js benchmark model google/gemini-3.5-flash --suite quick --confirm-spend-credits --json
+  verification_order:
+    - Unit and backend contract tests first.
+    - CLI live product-path benchmark second.
+    - Billing usage source check third.
+
+tasks:
+  - id: TASK-1
+    title: Add benchmark suite expansion and pricing preflight
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-5
+    expected_files:
+      - frontend/packages/openmates-cli/src/benchmark.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+    verification:
+      - T-UNIT-001
+    independently_deployable: false
+  - id: TASK-2
+    title: Add image, multi-turn, long-context, and partial-result execution
+    covers:
+      scenarios:
+        - S-1
+        - S-3
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-3
+        - AC-6
+    expected_files:
+      - frontend/packages/openmates-cli/src/benchmark.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/tests/client.test.ts
+      - frontend/packages/openmates-cli/fixtures/brandenburger-tor.*
+    verification:
+      - T-UNIT-001
+      - T-UNIT-002
+      - T-LIVE-001
+    independently_deployable: false
+  - id: TASK-3
+    title: Add comparison mode and final reporting
+    covers:
+      scenarios:
+        - S-4
+        - S-6
+      acceptance_criteria:
+        - AC-4
+        - AC-6
+    expected_files:
+      - frontend/packages/openmates-cli/src/benchmark.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+    verification:
+      - T-UNIT-001
+    independently_deployable: true

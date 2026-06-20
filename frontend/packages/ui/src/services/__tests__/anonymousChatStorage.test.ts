@@ -21,6 +21,17 @@ vi.mock("../../i18n/translations", () => ({
   },
 }));
 
+const mockChatSyncService = vi.hoisted(() => ({
+  activeAITasks: new Map<string, { taskId: string; userMessageId: string }>(),
+  dispatchEvent: vi.fn((_event: Event) => true),
+}));
+
+const mockAiTypingStore = vi.hoisted(() => ({
+  setTyping: vi.fn(),
+  clearTyping: vi.fn(),
+  clearTypingForChat: vi.fn(),
+}));
+
 const mockDbState = vi.hoisted(() => ({
   chats: new Map<string, Chat>(),
   messages: new Map<string, Message[]>(),
@@ -74,6 +85,8 @@ const mockChatKeyManager = vi.hoisted(() => ({
 }));
 
 vi.mock("../db", () => ({ chatDB: mockChatDB }));
+vi.mock("../chatSyncService", () => ({ chatSyncService: mockChatSyncService }));
+vi.mock("../../stores/aiTypingStore", () => ({ aiTypingStore: mockAiTypingStore }));
 vi.mock("../encryption/ChatKeyManager", () => ({ chatKeyManager: mockChatKeyManager }));
 vi.mock("../cryptoService", () => ({
   encryptWithChatKey: vi.fn(async (value: string) => `encrypted:${value}`),
@@ -103,6 +116,7 @@ function mockAnonymousFetch(response: Record<string, unknown>, ok = true, status
   const fetchMock = vi.fn(async () => ({
     ok,
     status,
+    headers: new Headers({ "content-type": "application/json" }),
     json: async () => response,
   }));
   vi.stubGlobal("fetch", fetchMock);
@@ -147,6 +161,11 @@ describe("anonymousChatStorage", () => {
     mockDbState.messages.clear();
     mockKeyState.keys.clear();
     mockKeyState.hasAnonymousSession = false;
+    mockChatSyncService.activeAITasks.clear();
+    mockChatSyncService.dispatchEvent.mockClear();
+    mockAiTypingStore.setTyping.mockClear();
+    mockAiTypingStore.clearTyping.mockClear();
+    mockAiTypingStore.clearTypingForChat.mockClear();
     let uuidCounter = 0;
     vi.spyOn(crypto, "randomUUID").mockImplementation(() => {
       uuidCounter += 1;
@@ -158,7 +177,7 @@ describe("anonymousChatStorage", () => {
     const fetchMock = mockAnonymousFetch({
       messageId: "assistant-message",
       assistant: "Hello from anonymous chat",
-      category: "ai",
+      category: "general_knowledge",
       modelName: "test-model",
     });
     const storage = await loadStorage();
@@ -203,6 +222,83 @@ describe("anonymousChatStorage", () => {
       expect.objectContaining({ role: "assistant", content: "First answer" }),
     ]);
     expect(JSON.stringify(secondRequest.message_history)).not.toContain(FEATURE_NOTICE);
+  });
+
+  it("keeps the user message when the API echoes the client message ID", async () => {
+    const storage = await loadStorage();
+    const firstResponse = vi.fn(async (_url: string, init: RequestInit) => {
+      const request = JSON.parse(init.body as string) as Record<string, unknown>;
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "application/json" }),
+        json: async () => ({
+          messageId: request.client_message_id,
+          assistant: "Echoed ID answer",
+          category: "general_knowledge",
+          modelName: "test-model",
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", firstResponse);
+
+    const result = await storage.sendTextMessage({ markdown: "Question with echoed id" });
+    const messages = await storage.getMessagesForChat(result.chat.chat_id);
+
+    expect(messages.map((message) => message.role)).toEqual(["system", "user", "assistant"]);
+    expect(messages.find((message) => message.role === "user")?.content).toBe("Question with echoed id");
+    expect(messages.find((message) => message.role === "assistant")?.content).toBe("Echoed ID answer");
+    expect(messages.find((message) => message.role === "assistant")?.message_id).not.toBe(
+      messages.find((message) => message.role === "user")?.message_id,
+    );
+  });
+
+  it("emits the regular chat sync streaming lifecycle for anonymous responses", async () => {
+    mockAnonymousFetch({
+      messageId: "assistant-message",
+      assistant: "Streaming anonymous answer",
+      category: "general_knowledge",
+      modelName: "test-model",
+    });
+    const storage = await loadStorage();
+
+    await storage.sendTextMessage({ markdown: "Use the normal pipeline" });
+
+    const events = mockChatSyncService.dispatchEvent.mock.calls.map(([event]) => event as CustomEvent);
+    expect(events.map((event) => event.type)).toEqual(
+      expect.arrayContaining(["aiTaskInitiated", "chatUpdated", "aiTypingStarted", "aiMessageChunk"]),
+    );
+
+    const taskEvent = events.find((event) => event.type === "aiTaskInitiated");
+    expect(taskEvent?.detail).toEqual(expect.objectContaining({ status: "processing_started" }));
+
+    const typingEvent = events.find((event) => event.type === "aiTypingStarted");
+    expect(typingEvent?.detail).toEqual(expect.objectContaining({
+      message_id: "assistant-message",
+      category: "general_knowledge",
+      model_name: "test-model",
+    }));
+    expect(mockAiTypingStore.setTyping).toHaveBeenCalledWith(
+      expect.stringMatching(/^anonymous-/),
+      expect.any(String),
+      "assistant-message",
+      "general_knowledge",
+      "test-model",
+      null,
+      null,
+      ["sparkles"],
+    );
+
+    const chunkEvents = events.filter((event) => event.type === "aiMessageChunk");
+    expect(chunkEvents.length).toBeGreaterThanOrEqual(1);
+    expect(chunkEvents[chunkEvents.length - 1]?.detail).toEqual(expect.objectContaining({
+      type: "ai_message_chunk",
+      message_id: "assistant-message",
+      full_content_so_far: "Streaming anonymous answer",
+      is_final_chunk: true,
+      model_name: "test-model",
+    }));
+    expect(mockAiTypingStore.clearTypingForChat).toHaveBeenCalledWith(expect.stringMatching(/^anonymous-/));
   });
 
   it("orders same-second anonymous request history by conversation turn", async () => {
@@ -268,6 +364,7 @@ describe("anonymousChatStorage", () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
       json: async () => ({ messageId: "assistant-after-failure", assistant: "Recovered" }),
     });
     await storage.sendTextMessage({ markdown: "Try again", currentChatId: chat.chat_id });

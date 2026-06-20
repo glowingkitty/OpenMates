@@ -12,12 +12,13 @@ from pydantic import BaseModel, Field
 
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.services.feature_availability_guards import ensure_projects_enabled
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/v1/projects", tags=["Projects"])
+router = APIRouter(prefix="/v1/projects", tags=["Projects"], dependencies=[Depends(ensure_projects_enabled)])
 
 
 def get_directus_service(request: Request) -> DirectusService:

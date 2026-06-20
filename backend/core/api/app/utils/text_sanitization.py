@@ -65,7 +65,7 @@ See: docs/architecture/prompt_injection_protection.md
 
 import unicodedata
 import logging
-from typing import Tuple, List, Optional, Dict, Any
+from typing import Tuple, List, Optional, Dict, Any, Set
 
 logger = logging.getLogger(__name__)
 
@@ -380,6 +380,120 @@ def sanitize_text_simple(text: str, log_prefix: str = "") -> str:
     return sanitized
 
 
+PAYLOAD_SANITIZER_SKIP_FIELD_NAMES: Set[str] = {
+    "aes_key",
+    "aes_nonce",
+    "api_key_hash",
+    "base64",
+    "ciphertext",
+    "content_base64",
+    "content_hash",
+    "encrypted_content",
+    "encrypted_diff",
+    "encrypted_payload",
+    "encrypted_text_preview",
+    "encrypted_type",
+    "hash",
+    "image_base64",
+    "image_bytes_b64",
+    "nonce",
+    "radar_blob_b64",
+    "s3_key",
+    "vault_wrapped_aes_key",
+}
+
+def _empty_payload_sanitization_stats() -> Dict[str, Any]:
+    return {
+        "removed_count": 0,
+        "unicode_tags_count": 0,
+        "variant_selectors_count": 0,
+        "zero_width_count": 0,
+        "bidi_control_count": 0,
+        "other_invisible_count": 0,
+        "hidden_ascii_detected": False,
+        "hidden_ascii_content": None,
+        "fields_sanitized": 0,
+    }
+
+
+def _merge_payload_sanitization_stats(total: Dict[str, Any], next_stats: Dict[str, Any]) -> None:
+    for key in (
+        "removed_count",
+        "unicode_tags_count",
+        "variant_selectors_count",
+        "zero_width_count",
+        "bidi_control_count",
+        "other_invisible_count",
+    ):
+        total[key] += int(next_stats.get(key, 0) or 0)
+    if next_stats.get("hidden_ascii_detected"):
+        total["hidden_ascii_detected"] = True
+        if next_stats.get("hidden_ascii_content") and not total.get("hidden_ascii_content"):
+            total["hidden_ascii_content"] = next_stats.get("hidden_ascii_content")
+
+
+def _should_skip_payload_text_field(path: str, text: str, skip_field_names: Set[str]) -> bool:
+    key_name = path.rsplit(".", 1)[-1].lower() if path else ""
+    if "[" in key_name:
+        key_name = key_name.split("[", 1)[0]
+    if key_name in skip_field_names:
+        return True
+    return key_name.endswith("_b64") or key_name.endswith("_base64")
+
+
+def sanitize_text_payload_for_ascii_smuggling(
+    payload: Any,
+    log_prefix: str = "",
+    include_stats: bool = False,
+    skip_field_names: Optional[Set[str]] = None,
+) -> Tuple[Any, Dict[str, Any]]:
+    """
+    Recursively remove ASCII-smuggling characters from LLM-visible text payloads.
+
+    This deterministic guard is safe for central tool-result and embed filtering
+    paths: it sanitizes normal strings while preserving encrypted blobs, Vault
+    ciphertexts, AES fields, hashes, and base64 media payloads.
+    """
+    effective_skip_fields = PAYLOAD_SANITIZER_SKIP_FIELD_NAMES | (skip_field_names or set())
+    stats = _empty_payload_sanitization_stats()
+
+    def _sanitize(value: Any, path: str) -> Any:
+        if isinstance(value, dict):
+            sanitized_dict = {}
+            for key, nested in value.items():
+                sanitized_key = key
+                if isinstance(key, str):
+                    sanitized_key, key_stats = sanitize_text_for_ascii_smuggling(
+                        key,
+                        log_prefix=log_prefix,
+                        include_stats=include_stats,
+                    )
+                    _merge_payload_sanitization_stats(stats, key_stats)
+                    if key_stats.get("removed_count", 0) > 0:
+                        stats["fields_sanitized"] += 1
+                next_path = f"{path}.{sanitized_key}" if path else str(sanitized_key)
+                sanitized_dict[sanitized_key] = _sanitize(nested, next_path)
+            return sanitized_dict
+        if isinstance(value, list):
+            return [_sanitize(item, f"{path}[{index}]") for index, item in enumerate(value)]
+        if isinstance(value, str):
+            if _should_skip_payload_text_field(path, value, effective_skip_fields):
+                return value
+            sanitized, field_stats = sanitize_text_for_ascii_smuggling(
+                value,
+                log_prefix=log_prefix,
+                include_stats=include_stats,
+            )
+            _merge_payload_sanitization_stats(stats, field_stats)
+            if field_stats.get("removed_count", 0) > 0:
+                stats["fields_sanitized"] += 1
+            return sanitized
+        return value
+
+    sanitized_payload = _sanitize(payload, "")
+    return sanitized_payload, stats
+
+
 def sanitize_message_history(
     message_history: List[Dict[str, Any]],
     log_prefix: str = ""
@@ -536,4 +650,3 @@ def get_invisible_char_breakdown(text: str) -> Dict[str, List[str]]:
             breakdown["ascii_control"].append(hex_code)
     
     return breakdown
-

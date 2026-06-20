@@ -156,7 +156,7 @@ Apps run **in-process** inside the `api` container and the Celery workers. There
 At startup, `discover_apps()` in [main.py](../../backend/core/api/main.py) calls `build_skill_registry()` in [skill_registry.py](../../backend/core/api/app/services/skill_registry.py) which:
 
 1. Filesystem-scans `backend/apps/*/app.yml`.
-2. Applies stage filtering (development/production).
+2. Applies feature availability filtering (`default_enabled: false` and admin overrides).
 3. Instantiates a `BaseApp(register_http_routes=False)` per app — each `BaseApp` resolves every skill `class_path` via `importlib`.
 4. Stores the resulting `SkillRegistry` on `app.state.skill_registry` and as a process-global singleton.
 

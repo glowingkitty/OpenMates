@@ -1,7 +1,6 @@
 ---
 id: prepare_doctor_appointment
 app: health
-stage: planning
 
 name: prepare-doctor-appointment
 description: Prepare what to discuss at your next visit.

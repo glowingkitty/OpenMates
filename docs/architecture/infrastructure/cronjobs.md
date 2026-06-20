@@ -89,7 +89,7 @@ Continuous automated maintenance reduces manual toil: deploy failures are auto-i
 | `02:30 Wed+Sat`               | `red-teaming.sh`                       | External attacker simulation (GET only)   |
 | `02:35 Mon-Fri`               | `nightly-pattern-consistency.sh`       | Pattern consistency scan (Haiku, plan only)|
 | `02:50 Mon-Fri`               | `nightly-code-structure.sh`            | Code structure cleanup suggestions        |
-| `03:00 Mon-Fri`               | `run_tests.py --daily`                 | Full test suite (Playwright + pytest)     |
+| `03:00 Mon-Fri`               | `tests.py run --daily`                 | Full test suite (Playwright + pytest)     |
 | `04:10 Tue+Fri`               | `nightly-ui-design-review.sh`          | UI design system/code review (plan only)  |
 | `04:30 Mon+Thu`               | `nightly-apple-parity-review.sh`       | Apple/web parity review (plan only)       |
 | `04:50 Sun`                   | `nightly-seo-audit.sh`                 | Deep SEO optimization review (plan only)  |

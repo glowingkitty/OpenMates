@@ -77,13 +77,15 @@ devices = data.get("result", {}).get("devices", []) if isinstance(data, dict) el
 wired = [d for d in devices if d.get("connectionProperties", {}).get("transportType") == "wired"]
 print(f"devices={len(devices)}")
 print(f"wired_devices={len(wired)}")
-for index, device in enumerate(wired, 1):
+for index, device in enumerate(devices, 1):
     properties = device.get("deviceProperties", {})
     connection = device.get("connectionProperties", {})
-    print(f"wired_{index}_pairing={connection.get('pairingState', 'unknown')}")
-    print(f"wired_{index}_developer_mode={properties.get('developerModeStatus', 'unknown')}")
-    print(f"wired_{index}_os={properties.get('osVersionNumber', properties.get('osVersion', 'unknown'))}")
-sys.exit(0 if wired else 3)
+    print(f"device_{index}_transport={connection.get('transportType', 'unknown')}")
+    print(f"device_{index}_pairing={connection.get('pairingState', 'unknown')}")
+    print(f"device_{index}_developer_mode={properties.get('developerModeStatus', 'unknown')}")
+    print(f"device_{index}_product_type={properties.get('productType', 'unknown')}")
+    print(f"device_{index}_os={properties.get('osVersionNumber', properties.get('osVersion', 'unknown'))}")
+sys.exit(0 if devices else 3)
 '''
 
 
@@ -99,6 +101,7 @@ import tempfile
 configuration = sys.argv[1]
 allow_provisioning_updates = sys.argv[2] == "1"
 with_associated_domains = sys.argv[3] == "1"
+device_index = int(sys.argv[4]) if sys.argv[4] else None
 
 
 def print_tail(label, text, device_id, app_path=None, limit=160):
@@ -129,12 +132,28 @@ finally:
         pass
 
 devices = data.get("result", {}).get("devices", []) if isinstance(data, dict) else []
-wired = [d for d in devices if d.get("connectionProperties", {}).get("transportType") == "wired"]
-if not wired:
-    print("install_status=no_wired_device")
+eligible = [
+    d
+    for d in devices
+    if d.get("connectionProperties", {}).get("pairingState") == "paired"
+    and d.get("deviceProperties", {}).get("developerModeStatus") == "enabled"
+]
+if device_index is not None:
+    if device_index < 1 or device_index > len(devices):
+        print("install_status=device_index_out_of_range")
+        sys.exit(3)
+    selected = devices[device_index - 1]
+    if selected not in eligible:
+        print("install_status=device_not_ready")
+        sys.exit(3)
+elif len(eligible) == 1:
+    selected = eligible[0]
+else:
+    print(f"install_status=ambiguous_device")
+    print(f"eligible_devices={len(eligible)}")
     sys.exit(3)
 
-device_id = wired[0].get("identifier")
+device_id = selected.get("identifier")
 if not device_id:
     print("install_status=no_device_identifier")
     sys.exit(4)
@@ -471,6 +490,7 @@ def install_ios_device_command(
     configuration: str,
     allow_provisioning_updates: bool,
     with_associated_domains: bool,
+    device_index: int | None,
 ) -> str:
     return shell_join([
         "python3",
@@ -479,6 +499,7 @@ def install_ios_device_command(
         configuration,
         "1" if allow_provisioning_updates else "0",
         "1" if with_associated_domains else "0",
+        str(device_index or ""),
     ])
 
 
@@ -525,8 +546,9 @@ def build_parser() -> argparse.ArgumentParser:
     device_parser = subparsers.add_parser("device-status", help="Show sanitized physical iOS device readiness")
     device_parser.set_defaults(_uses_repo=True)
 
-    install_parser = subparsers.add_parser("install-ios-device", help="Build and install OpenMates_iOS to a wired iPhone")
+    install_parser = subparsers.add_parser("install-ios-device", help="Build and install OpenMates_iOS to a paired iOS/iPadOS device")
     install_parser.add_argument("--configuration", default="Debug", choices=["Debug", "Release"])
+    install_parser.add_argument("--device-index", type=int, help="Sanitized index from device-status output")
     install_parser.add_argument("--allow-provisioning-updates", action="store_true")
     install_parser.add_argument(
         "--with-associated-domains",
@@ -581,6 +603,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         args.configuration,
                         args.allow_provisioning_updates,
                         args.with_associated_domains,
+                        args.device_index,
                     ),
                 ]),
             )

@@ -31,6 +31,10 @@ from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
+from backend.core.api.app.utils.report_issue_ids import (
+    create_issue_record_with_short_id,
+    issue_identifier_filter,
+)
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
 optional_api_key_scheme = HTTPBearer(
@@ -64,13 +68,31 @@ LLM_PROVIDER_VAULT_PATHS = (
     "kv/data/providers/together",
 )
 
+LOCAL_LLM_SERVER_IDS = {"ollama", "lm_studio", "custom_openai_compatible"}
+
 
 def _has_configured_secret_value(value: Optional[str]) -> bool:
     return bool(value and value.strip() and value.strip() != "IMPORTED_TO_VAULT")
 
 
+def _has_configured_local_llm_model() -> bool:
+    for provider_config in config_manager.get_provider_configs().values():
+        for model in provider_config.get("models", []):
+            if not isinstance(model, dict):
+                continue
+            for server in model.get("servers", []):
+                if not isinstance(server, dict):
+                    continue
+                if server.get("id") in LOCAL_LLM_SERVER_IDS and server.get("base_url") and server.get("model_id"):
+                    return True
+    return False
+
+
 async def _are_ai_models_configured(request: Request) -> bool:
     """Return True when at least one server LLM provider key is configured."""
+    if _has_configured_local_llm_model():
+        return True
+
     for env_key in LLM_PROVIDER_ENV_KEYS:
         if _has_configured_secret_value(os.getenv(env_key)):
             return True
@@ -2617,6 +2639,7 @@ class IssueReportResponse(BaseModel):
     success: bool
     message: str
     issue_id: Optional[str] = None  # The database ID of the created issue report (for admin lookup via /v1/admin/debug/issues/{issue_id})
+    short_issue_id: Optional[str] = None  # User-facing compact issue reference.
     # Set to True if the submitter attached a screenshot AND it was successfully
     # decoded, uploaded to S3, and the encrypted key was stored in Directus.
     # Surfaced synchronously so E2E tests can assert the screenshot path worked
@@ -3043,33 +3066,24 @@ async def report_issue(
             # Log the data being saved (without sensitive encrypted data)
             logger.debug(f"Creating issue record in Directus with data keys: {list(issue_data_dict.keys())}")
             
-            # Create issue record in Directus
-            # NOTE: create_item returns a tuple (success: bool, data: dict)
-            success, issue_record = await directus_service.create_item("issues", issue_data_dict)
-            
-            if not success:
-                # issue_record contains error details when success is False
-                error_msg = issue_record.get('text', str(issue_record)) if issue_record else 'Unknown error'
-                raise ValueError(f"Directus create_item failed: {error_msg}")
-            
-            if not issue_record:
-                raise ValueError("Directus create_item returned None - issue record was not created")
+            # Create issue record in Directus with a unique user-facing short ID.
+            issue_record = await create_issue_record_with_short_id(directus_service, issue_data_dict)
             
             issue_id = issue_record.get('id')
             if not issue_id:
                 raise ValueError(f"Directus create_item returned record without 'id' field: {issue_record}")
+            short_issue_id = issue_record.get('short_issue_id')
+            if not short_issue_id:
+                raise ValueError(f"Directus create_item returned record without 'short_issue_id' field: {issue_record}")
             
-            logger.info(f"Issue report saved to database with ID: {issue_id}")
+            logger.info(f"Issue report saved to database with ID: {issue_id} and short ID: {short_issue_id}")
         except Exception as e:
             logger.error(
                 f"Failed to save issue report to database: {str(e)}. "
-                f"Email will still be sent but YAML report will NOT be uploaded to S3 "
-                f"(issue_id will be None in the email task).",
+                f"Issue report submission cannot continue without a database row and short issue ID.",
                 exc_info=True
             )
-            # Continue - email will still be sent even if database save fails,
-            # but S3 upload will be skipped since issue_id is None
-            issue_id = None
+            raise
         
         from backend.core.api.app.tasks.celery_config import app
 
@@ -3160,6 +3174,7 @@ async def report_issue(
             success=True,
             message="Issue report submitted successfully. Thank you for your feedback!",
             issue_id=issue_id,  # Return issue ID so frontend can display it for admin lookup
+            short_issue_id=short_issue_id,
             screenshot_uploaded=bool(encrypted_screenshot_s3_key),
         )
         
@@ -3178,6 +3193,7 @@ class IssueStatusResponse(BaseModel):
     poll for completion without needing an admin API key.
     """
     id: str
+    short_issue_id: Optional[str] = None
     has_screenshot: bool
     has_yaml_report: bool
     processed: bool
@@ -3209,7 +3225,7 @@ async def get_issue_status(
         directus_service: DirectusService = request.app.state.directus_service
         items = await directus_service.get_items(
             "issues",
-            {"filter[id][_eq]": issue_id, "limit": 1},
+            {"filter": issue_identifier_filter(issue_id), "limit": 1},
             no_cache=True,
             admin_required=True,
         )
@@ -3225,6 +3241,7 @@ async def get_issue_status(
 
         return IssueStatusResponse(
             id=issue["id"],
+            short_issue_id=issue.get("short_issue_id"),
             has_screenshot=bool(issue.get("encrypted_screenshot_s3_key")),
             has_yaml_report=bool(issue.get("encrypted_issue_report_yaml_s3_key")),
             processed=bool(issue.get("processed", False)),

@@ -1,7 +1,6 @@
 ---
 id: check_security
 app: code
-stage: development
 
 name: check-security
 description: Audit your Caddyfile, Nginx config, Docker Compose, or web server setup for security vulnerabilities.

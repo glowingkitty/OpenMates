@@ -1180,6 +1180,7 @@
 			'appstore', // Alias
 			'ai', // AI settings (models, pricing, providers — browse for non-auth users)
 			'pricing', // Pricing overview (non-auth only, replaced by billing for auth users)
+			'learning_mode', // Guest Learning Mode setup for anonymous chat
 			'mates', // Mates browsing (read-only for unauthenticated users)
 			'interface',
 			'main', // Main settings page

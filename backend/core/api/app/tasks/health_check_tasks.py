@@ -1319,7 +1319,7 @@ async def _check_app_health(app_id: str, port: int = 8000) -> Dict[str, Any]:
             base_app = get_global_registry().apps.get(app_id)
             if base_app and base_app.app_config:
                 for skill_def in base_app.app_config.skills:
-                    if skill_def.stage == "planning":
+                    if not skill_def.class_path:
                         continue
                     skill_id = skill_def.id
                     skill_available = True
@@ -2174,25 +2174,21 @@ def check_all_apps_health(self):
                         from backend.core.api.app.services.skill_registry import build_skill_registry
 
                         server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
-                        disabled_app_ids = config_manager.get_disabled_apps()
                         _registry, discovered = build_skill_registry(
-                            disabled_app_ids=disabled_app_ids,
                             server_environment=server_environment,
                         )
                         app_ids = list(discovered.keys())
                         logger.info(f"Health check: In-process registry built — {len(app_ids)} app(s)")
                     else:
-                        # Use app IDs from cache - apps are already filtered by components when discovered
-                        disabled_app_ids = config_manager.get_disabled_apps()
-                        
+                        # Use app IDs from cache - apps are already filtered by feature availability when discovered.
                         cached_app_ids = list(discovered_metadata_json.keys())
-                        app_ids = [app_id for app_id in cached_app_ids if app_id not in disabled_app_ids]
+                        app_ids = cached_app_ids
                         
                         logger.info(f"Health check: Retrieved {len(app_ids)} app(s) from cache: {', '.join(app_ids)}")
                 
                 except Exception as e:
                     logger.error(f"Error getting app list for health check: {e}", exc_info=True)
-                    # Fallback: scan filesystem - check all apps (except disabled ones)
+                    # Fallback: scan filesystem and apply app-level feature overrides.
                     from backend.core.api.app.services.skill_registry import scan_filesystem_for_apps
 
                     APPS_DIR = "/app/backend/apps"

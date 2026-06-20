@@ -941,19 +941,8 @@ def init_worker_process(*args, **kwargs):
             build_skill_registry,
             set_global_registry,
         )
-        from backend.core.api.app.utils.config_manager import ConfigManager
-
-        worker_disabled_apps: list = []
-        try:
-            worker_disabled_apps = ConfigManager().get_disabled_apps() or []
-        except Exception as cfg_e:
-            logger.warning(
-                f"[SkillRegistry] Could not read disabled_apps from ConfigManager: {cfg_e}. "
-                f"Continuing with empty disabled list."
-            )
 
         worker_registry, worker_metadata = build_skill_registry(
-            disabled_app_ids=worker_disabled_apps,
             server_environment=os.getenv("SERVER_ENVIRONMENT", "development").lower(),
         )
         set_global_registry(worker_registry)

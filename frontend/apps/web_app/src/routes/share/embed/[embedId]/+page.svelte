@@ -165,7 +165,7 @@
                     isLoading = false;
                     return;
                 } else if (result.error === 'invalid_password') {
-                    passwordError = 'Invalid password. Please try again.';
+                    passwordError = 'Incorrect password. Please try again.';
                     isLoading = false;
                     return;
                 } else {
@@ -600,8 +600,9 @@
             <div class="password-icon">🔒</div>
             <h1>Password Required</h1>
             <p>This shared embed is protected with a password.</p>
-            <form onsubmit={(e) => { e.preventDefault(); handlePasswordSubmit(); }}>
+            <form data-testid="shared-embed-password-form" onsubmit={(e) => { e.preventDefault(); handlePasswordSubmit(); }}>
                 <input
+                    data-testid="shared-embed-password-input"
                     type="password"
                     bind:value={passwordInput}
                     placeholder="Enter password"
@@ -609,9 +610,9 @@
                     class:error={!!passwordError}
                 />
                 {#if passwordError}
-                    <p class="password-error">{passwordError}</p>
+                    <p class="password-error" data-testid="shared-embed-password-error">{passwordError}</p>
                 {/if}
-                <button type="submit">Access Embed</button>
+                <button type="submit" data-testid="shared-embed-password-submit">Access Embed</button>
             </form>
         </div>
     {/if}

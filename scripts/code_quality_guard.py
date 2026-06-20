@@ -37,6 +37,9 @@ OPENCODE_AUTOMATION_PATH_RE = re.compile(
 )
 CADDYFILE_PATH_RE = re.compile(r"^deployment/[^/]+/Caddyfile$")
 BACKEND_PY_PATH_RE = re.compile(r"^backend/(?!tests/).+\.py$")
+SETTINGS_UI_PATH_RE = re.compile(r"^frontend/packages/ui/src/components/(Settings\.svelte|settings/.+\.(svelte|ts))$")
+SETTINGS_NATIVE_DIALOG_RE = re.compile(r"\b(?:window\.)?(alert|confirm|prompt)\s*\(")
+REPORTED_ISSUE_FINDING_RE = re.compile(r"^docs/findings/issues/(?!README\.md$).+\.md$")
 EMBED_VAULT_INFERENCE_CACHE_MARKER = "EMBED_VAULT_INFERENCE_CACHE_OK"
 
 BLOCK_PATTERNS = {
@@ -227,6 +230,21 @@ def _audit_backend_embed_vault_boundaries(staged_files: list[str]) -> list[str]:
     return issues
 
 
+def _audit_settings_native_dialogs(added_lines: list[tuple[str, int, str]]) -> list[str]:
+    issues: list[str] = []
+    for path, line_no, line in added_lines:
+        if not SETTINGS_UI_PATH_RE.search(path):
+            continue
+        match = SETTINGS_NATIVE_DIALOG_RE.search(line)
+        if not match:
+            continue
+        issues.append(
+            f"{path}:{line_no}: native browser {match.group(1)}() dialogs are not allowed in settings UI; "
+            "use canonical settings/elements components and an in-settings confirmation or form instead"
+        )
+    return issues
+
+
 def main() -> int:
     strict = os.environ.get("CODE_QUALITY_GUARD_STRICT", "").lower() in {"1", "true", "yes"}
     blocks: list[str] = []
@@ -263,6 +281,9 @@ def main() -> int:
 
     for path in staged_files:
         suffix = Path(path).suffix
+        if REPORTED_ISSUE_FINDING_RE.search(path):
+            blocks.append(f"{path}: reported issue findings are local-only; use scripts/issues.py findings and keep notes untracked")
+            continue
         if re.search(r"frontend/packages/ui/src/i18n/locales/.*\.json$", path):
             blocks.append(f"{path}: generated translation JSON must not be committed directly; edit YAML sources instead")
             continue
@@ -277,6 +298,9 @@ def main() -> int:
     for issue in audit_sensitive_logging.audit_added_lines(added_lines_with_numbers):
         line_label = f":{issue.line}" if issue.line else ""
         blocks.append(f"sensitive logging: {issue.path}{line_label}: {issue.message}")
+
+    for issue in _audit_settings_native_dialogs(added_lines_with_numbers):
+        blocks.append(f"settings native dialog: {issue}")
 
     added_lines = [(path, line) for path, _line_no, line in added_lines_with_numbers]
     for path, line in added_lines:

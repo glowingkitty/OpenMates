@@ -7,7 +7,8 @@
 
 from __future__ import annotations
 
-import json
+import base64
+import logging
 import re
 import shlex
 import time
@@ -26,24 +27,13 @@ VITE_OPENMATES_CONFIG_PATH = "vite.config.openmates.mjs"
 PREVIEW_READINESS_TIMEOUT_SECONDS = 90.0
 PREVIEW_READINESS_INTERVAL_SECONDS = 1.5
 PREVIEW_READINESS_REQUEST_TIMEOUT_SECONDS = 5.0
+PREVIEW_READINESS_REQUIRED_SUCCESSES = 2
 VITE_CONFIG_FILENAMES = {
     "vite.config.js",
     "vite.config.mjs",
     "vite.config.cjs",
     "vite.config.ts",
     "vite.config.mts",
-}
-TAILWIND_CONFIG_FILENAMES = {
-    "tailwind.config.js",
-    "tailwind.config.cjs",
-    "tailwind.config.mjs",
-    "tailwind.config.ts",
-}
-POSTCSS_CONFIG_FILENAMES = {
-    "postcss.config.js",
-    "postcss.config.cjs",
-    "postcss.config.mjs",
-    "postcss.config.ts",
 }
 SECRET_PATTERNS = [
     re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
@@ -52,6 +42,8 @@ SECRET_PATTERNS = [
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----", re.DOTALL),
     re.compile(r"(?i)(api[_-]?key|token|secret|password)\s*=\s*[^\s]+"),
 ]
+
+logger = logging.getLogger(__name__)
 
 
 class ApplicationPreviewPlanningError(ValueError):
@@ -88,6 +80,8 @@ class ApplicationPreviewRuntime:
     ports: dict[str, int]
     upstream_base_urls: dict[str, str] | None = None
     latest_screenshot_url: str | None = None
+    latest_screenshot_bytes: bytes | None = None
+    latest_screenshot_mime_type: str | None = None
 
 
 def plan_application_preview_startup(
@@ -98,7 +92,7 @@ def plan_application_preview_startup(
     if not entrypoints:
         raise ApplicationPreviewPlanningError("Application preview requires at least one entrypoint")
 
-    normalized_files = _with_generated_tailwind_configs([_normalize_file(file) for file in files])
+    normalized_files = [_normalize_file(file) for file in files]
     if not normalized_files:
         raise ApplicationPreviewPlanningError("Application preview requires at least one file")
 
@@ -134,69 +128,6 @@ def _safe_application_path(path: str) -> str:
 
 def _looks_like_secret(value: str) -> bool:
     return any(pattern.search(value) for pattern in SECRET_PATTERNS)
-
-
-def _with_generated_tailwind_configs(files: list[ApplicationPreviewFile]) -> list[ApplicationPreviewFile]:
-    if not _needs_tailwind_config_fallback(files):
-        return files
-
-    paths = {file.path for file in files}
-    generated_files = list(files)
-    if not paths.intersection(TAILWIND_CONFIG_FILENAMES):
-        generated_files.append(
-            ApplicationPreviewFile(
-                path="tailwind.config.cjs",
-                content=(
-                    "/** @type {import('tailwindcss').Config} */\n"
-                    "module.exports = {\n"
-                    "  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx,svelte,html}'],\n"
-                    "  theme: { extend: {} },\n"
-                    "  plugins: [],\n"
-                    "};\n"
-                ),
-            )
-        )
-    if not paths.intersection(POSTCSS_CONFIG_FILENAMES):
-        generated_files.append(
-            ApplicationPreviewFile(
-                path="postcss.config.cjs",
-                content=(
-                    "module.exports = {\n"
-                    "  plugins: {\n"
-                    "    tailwindcss: {},\n"
-                    "    autoprefixer: {},\n"
-                    "  },\n"
-                    "};\n"
-                ),
-            )
-        )
-    return generated_files
-
-
-def _needs_tailwind_config_fallback(files: list[ApplicationPreviewFile]) -> bool:
-    return _package_declares_dependency(files, "tailwindcss") and _css_uses_tailwind_directives(files)
-
-
-def _package_declares_dependency(files: list[ApplicationPreviewFile], package_name: str) -> bool:
-    for file in files:
-        if file.path.rsplit("/", 1)[-1] != "package.json" or not file.content:
-            continue
-        try:
-            package_json = json.loads(file.content)
-        except json.JSONDecodeError:
-            return f'"{package_name}"' in file.content
-        for section in ("dependencies", "devDependencies", "peerDependencies"):
-            dependencies = package_json.get(section)
-            if isinstance(dependencies, dict) and package_name in dependencies:
-                return True
-    return False
-
-
-def _css_uses_tailwind_directives(files: list[ApplicationPreviewFile]) -> bool:
-    for file in files:
-        if file.path.endswith(".css") and file.content and re.search(r"@(tailwind|apply)\b", file.content):
-            return True
-    return False
 
 
 def _dependency_commands(files: list[ApplicationPreviewFile]) -> list[str]:
@@ -287,6 +218,8 @@ def start_application_preview_in_e2b(
         upstream_base_urls=upstream_base_urls,
         ports=ports,
         latest_screenshot_url=_sandbox_screenshot_url(sandbox),
+        latest_screenshot_bytes=_sandbox_screenshot_bytes(sandbox),
+        latest_screenshot_mime_type="image/png",
     )
 
 
@@ -328,6 +261,7 @@ def _wait_for_preview_ready(
     *,
     timeout_seconds: float = PREVIEW_READINESS_TIMEOUT_SECONDS,
     interval_seconds: float = PREVIEW_READINESS_INTERVAL_SECONDS,
+    required_successes: int = PREVIEW_READINESS_REQUIRED_SUCCESSES,
     fetch_status: Callable[[str], int] | None = None,
     sleep: Callable[[float], None] = time.sleep,
 ) -> None:
@@ -335,15 +269,22 @@ def _wait_for_preview_ready(
     last_status: int | None = None
     last_error: Exception | None = None
     status_fetcher = fetch_status or _fetch_preview_status
+    consecutive_successes = 0
+    successes_needed = max(1, required_successes)
 
     while True:
         try:
             status = status_fetcher(url)
-            if status < 500:
-                return
-            last_status = status
-            last_error = None
+            if 200 <= status < 400:
+                consecutive_successes += 1
+                if consecutive_successes >= successes_needed:
+                    return
+            else:
+                consecutive_successes = 0
+                last_status = status
+                last_error = None
         except (TimeoutError, OSError, URLError) as exc:
+            consecutive_successes = 0
             last_error = exc
 
         remaining = deadline - time.monotonic()
@@ -395,12 +336,19 @@ def _write_vite_allowed_hosts_config(sandbox: Any, files: list[ApplicationPrevie
     if not allowed_hosts or not _has_vite_dependency(files) or _has_existing_vite_config(files):
         return None
     hosts = ", ".join(repr(host) for host in allowed_hosts)
+    uses_svelte = _has_svelte_vite_plugin_dependency(files)
+    imports = "import { defineConfig } from 'vite';\n"
+    plugins = ""
+    if uses_svelte:
+        imports += "import { svelte } from '@sveltejs/vite-plugin-svelte';\n"
+        plugins = "  plugins: [svelte()],\n"
     sandbox.files.write_files([
         {
             "path": VITE_OPENMATES_CONFIG_PATH,
             "data": (
-                "import { defineConfig } from 'vite';\n\n"
+                f"{imports}\n"
                 "export default defineConfig({\n"
+                f"{plugins}"
                 "  server: {\n"
                 f"    allowedHosts: [{hosts}],\n"
                 "  },\n"
@@ -418,6 +366,13 @@ def _has_vite_dependency(files: list[ApplicationPreviewFile]) -> bool:
     return False
 
 
+def _has_svelte_vite_plugin_dependency(files: list[ApplicationPreviewFile]) -> bool:
+    for file in files:
+        if file.path.rsplit("/", 1)[-1] == "package.json" and "@sveltejs/vite-plugin-svelte" in file.content:
+            return True
+    return False
+
+
 def _has_existing_vite_config(files: list[ApplicationPreviewFile]) -> bool:
     return any(file.path.rsplit("/", 1)[-1] in VITE_CONFIG_FILENAMES for file in files)
 
@@ -425,3 +380,42 @@ def _has_existing_vite_config(files: list[ApplicationPreviewFile]) -> bool:
 def _sandbox_screenshot_url(sandbox: Any) -> str | None:
     value = getattr(sandbox, "latest_screenshot_url", None) or getattr(sandbox, "screenshot_url", None)
     return str(value) if value else None
+
+
+def _sandbox_screenshot_bytes(sandbox: Any) -> bytes | None:
+    screenshot = getattr(sandbox, "take_screenshot", None)
+    if not callable(screenshot):
+        return None
+
+    try:
+        value = screenshot(format="bytes")
+    except TypeError:
+        try:
+            value = screenshot()
+        except Exception as exc:  # pragma: no cover - depends on E2B runtime capabilities.
+            logger.warning("E2B screenshot capture failed: %s", exc, exc_info=True)
+            return None
+    except Exception as exc:  # pragma: no cover - depends on E2B runtime capabilities.
+        logger.warning("E2B screenshot capture failed: %s", exc, exc_info=True)
+        return None
+
+    return _coerce_screenshot_bytes(value)
+
+
+def _coerce_screenshot_bytes(value: Any) -> bytes | None:
+    if isinstance(value, bytes):
+        return value
+    if isinstance(value, bytearray):
+        return bytes(value)
+    for attr in ("bytes", "data", "content"):
+        nested = getattr(value, attr, None)
+        if isinstance(nested, bytes):
+            return nested
+        if isinstance(nested, bytearray):
+            return bytes(nested)
+    if isinstance(value, str):
+        try:
+            return base64.b64decode(value, validate=True)
+        except ValueError:
+            return None
+    return None

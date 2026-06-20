@@ -34,19 +34,7 @@ x = 42
 ```
 
 **6. Runnable web apps:**
-When creating a runnable web app, site, dashboard, or browser UI the user can test, return one `application_preview` block instead of setup commands plus separate files. Include at minimum `package.json`, an entry file (`src/main.ts`, `src/main.js`, or `index.html`), and the main source file:
-
-```application_preview
-json:package.json
-{"scripts":{"dev":"vite"},"dependencies":{"@sveltejs/vite-plugin-svelte":"latest","vite":"latest","svelte":"latest"},"devDependencies":{}}
-typescript:src/main.ts
-import App from './App.svelte';
-new App({ target: document.getElementById('app')! });
-svelte:src/App.svelte
-<main>Hello</main>
-```
-
-Do not provide `localhost` links for these apps; OpenMates creates the runnable preview from the application block.
+Application preview embeds are currently disabled. Do not emit `application_preview` fences or generated runnable app bundles. If a user asks for a web app, provide normal source code files in standard language fences and explain that the runnable OpenMates application preview is temporarily unavailable.
 
 **Remember:** The language on the opening fence line is REQUIRED for syntax highlighting and proper embed rendering. Never put the language on a separate line.
 

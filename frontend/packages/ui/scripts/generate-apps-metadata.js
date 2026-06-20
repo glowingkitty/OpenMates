@@ -24,16 +24,9 @@ const BACKEND_PROVIDERS_DIR = resolve(
 );
 const OUTPUT_FILE = resolve(__dirname, "../src/data/appsMetadata.ts");
 
-// Check if we should include development items
-// Use SERVER_ENVIRONMENT to match backend filtering logic (same as backend/core/api/main.py)
-// Default to including development items unless SERVER_ENVIRONMENT is explicitly set to 'production'
-// This ensures frontend static metadata matches what the backend API would return
-const SERVER_ENVIRONMENT = (
-  process.env.SERVER_ENVIRONMENT || "development"
-).toLowerCase();
-const INCLUDE_DEVELOPMENT =
-  SERVER_ENVIRONMENT !== "production" ||
-  process.env.INCLUDE_DEV_APPS === "true";
+function isDefaultEnabled(definition) {
+  return definition?.default_enabled !== false;
+}
 
 /**
  * Recursively find all app.yml files in the backend/apps directory.
@@ -211,7 +204,7 @@ function parseSkillMd(filePath, appId, dirName) {
   // code (field extraction, translation key normalization) works unchanged.
   return {
     id: focusId,
-    stage: fm.stage || "development",
+    default_enabled: fm.default_enabled,
     icon_image: fm.icon || undefined,
     // Derive translation keys from the snake_case focusId
     name_translation_key: `${appId}.${focusId}`,
@@ -461,7 +454,7 @@ function extractPricingFromSkillConfig(skillConfig) {
 
 /**
  * Parse app.yml file and convert to frontend AppMetadata format.
- * Only includes production-stage skills.
+ * Excludes only features that intentionally ship off by default.
  *
  * @param {string} appId - The app ID (directory name)
  * @param {string} filePath - Path to the app.yml file
@@ -508,10 +501,12 @@ function parseAppYaml(appId, filePath) {
       return null;
     }
 
-    // Note: We do NOT check app-level stage. Apps are included if ANY of their
-    // skills, settings_and_memories, or focuses have a stage matching the environment.
-    // This allows apps to have mixed-stage content and still appear in the Apps
-    // if they have at least one item matching the current environment.
+    if (!isDefaultEnabled(appData)) {
+      console.warn(
+        `[generate-apps-metadata] ${appId}: default_enabled is false, excluding from static Apps metadata`,
+      );
+      return null;
+    }
 
     // Extract app metadata
     // Auto-prepend "apps." prefix to app-level translation keys if not already present
@@ -555,15 +550,11 @@ function parseAppYaml(appId, filePath) {
     // Collect all unique providers from skills
     const providersSet = new Set();
 
-    // Process skills - include production-stage skills, and development if INCLUDE_DEVELOPMENT is true
+    // Process skills. Implemented skills are enabled by default unless they
+    // explicitly declare default_enabled: false.
     if (Array.isArray(appData.skills)) {
       for (const skill of appData.skills) {
-        const stage = (skill.stage || "development").trim().toLowerCase();
-        // Only include production-stage skills, or development if INCLUDE_DEVELOPMENT is true
-        if (
-          stage !== "production" &&
-          (!INCLUDE_DEVELOPMENT || stage !== "development")
-        ) {
+        if (!isDefaultEnabled(skill)) {
           continue;
         }
 
@@ -740,12 +731,7 @@ function parseAppYaml(appId, filePath) {
     ];
 
     for (const focus of mergedFocusModes) {
-        const stage = (focus.stage || "development").trim().toLowerCase().split(/\s/)[0];
-        // Only include production-stage focus modes, or development if INCLUDE_DEVELOPMENT is true
-        if (
-          stage !== "production" &&
-          (!INCLUDE_DEVELOPMENT || stage !== "development")
-        ) {
+        if (!isDefaultEnabled(focus)) {
           continue;
         }
 
@@ -804,23 +790,13 @@ function parseAppYaml(appId, filePath) {
         }
       }
 
-    // Process settings_and_memories - include production-stage items, and development if INCLUDE_DEVELOPMENT is true
+    // Process settings_and_memories. Implemented fields are enabled by default
+    // unless they explicitly declare default_enabled: false.
     // Note: settings_and_memories is the field name in app.yml and is used consistently in the frontend
     const settingsAndMemories = appData.settings_and_memories || [];
     if (Array.isArray(settingsAndMemories)) {
       for (const item of settingsAndMemories) {
-        // Stage field is required - no default
-        const stage = item.stage
-          ? (item.stage || "").trim().toLowerCase()
-          : null;
-        if (!stage) {
-          continue;
-        }
-        // Only include production-stage settings_and_memories, or development if INCLUDE_DEVELOPMENT is true
-        if (
-          stage !== "production" &&
-          (!INCLUDE_DEVELOPMENT || stage !== "development")
-        ) {
+        if (!isDefaultEnabled(item)) {
           continue;
         }
 
@@ -909,18 +885,7 @@ function parseAppYaml(appId, filePath) {
     const memoryFields = appData.memory_fields || appData.memory || [];
     if (Array.isArray(memoryFields)) {
       for (const memory of memoryFields) {
-        // Stage field is required - no default
-        const stage = memory.stage
-          ? (memory.stage || "").trim().toLowerCase()
-          : null;
-        if (!stage) {
-          continue;
-        }
-        // Only include production-stage memory fields, or development if INCLUDE_DEVELOPMENT is true
-        if (
-          stage !== "production" &&
-          (!INCLUDE_DEVELOPMENT || stage !== "development")
-        ) {
+        if (!isDefaultEnabled(memory)) {
           continue;
         }
 
@@ -954,10 +919,8 @@ function parseAppYaml(appId, filePath) {
     const hasInstructions =
       Array.isArray(appData.instructions) && appData.instructions.length > 0;
 
-    // Only include apps that have at least one skill, focus mode, settings_and_memories,
-    // or instructions matching the current environment (production or development).
-    // Apps are included if ANY of their items match the environment stage, regardless
-    // of app-level stage field (which we don't check).
+    // Only include apps that have at least one default-enabled skill, focus mode,
+    // settings_and_memories entry, or instructions.
     const hasContent =
       appMetadata.skills.length > 0 ||
       appMetadata.focus_modes.length > 0 ||
@@ -965,11 +928,8 @@ function parseAppYaml(appId, filePath) {
       hasInstructions;
 
     if (!hasContent) {
-      const stageType = INCLUDE_DEVELOPMENT
-        ? "production or development"
-        : "production";
       console.warn(
-        `[generate-apps-metadata] ${appId}: No ${stageType} skills, focus modes, settings_and_memories, or instructions found. Excluding from Apps.`,
+        `[generate-apps-metadata] ${appId}: No default-enabled skills, focus modes, settings_and_memories, or instructions found. Excluding from Apps.`,
       );
       return null;
     }
@@ -1266,8 +1226,8 @@ function generateTypeScript(appsMetadata) {
 //   npm run generate-apps-metadata
 //   (or automatically via: npm run build)
 //
-// **Note**: Only production-stage skills are included. Development skills
-// are only available on development servers, not production servers.
+// **Note**: Implemented features are enabled by default. Features that declare
+// default_enabled: false are excluded from this static metadata.
 //
 // **Usage**: Import and use directly - no API calls needed
 // \`\`\`typescript
@@ -1297,12 +1257,6 @@ ${apps}
 function main() {
   console.log("[generate-apps-metadata] Starting app metadata generation...");
   console.log(
-    `[generate-apps-metadata] Server environment: ${SERVER_ENVIRONMENT}`,
-  );
-  console.log(
-    `[generate-apps-metadata] Including development apps: ${INCLUDE_DEVELOPMENT}`,
-  );
-  console.log(
     `[generate-apps-metadata] Reading apps from: ${BACKEND_APPS_DIR}`,
   );
 
@@ -1326,7 +1280,7 @@ function main() {
       );
     } else {
       console.warn(
-        `[generate-apps-metadata]   ✗ ${appId}: Failed to parse or excluded (no production content)`,
+        `[generate-apps-metadata]   ✗ ${appId}: Failed to parse or excluded (no default-enabled content)`,
       );
     }
   }

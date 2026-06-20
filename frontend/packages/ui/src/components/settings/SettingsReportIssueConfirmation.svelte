@@ -15,7 +15,8 @@
     import { createEventDispatcher } from 'svelte';
     import { get } from 'svelte/store';
     import { text } from '@repo/ui';
-    import { submittedIssueIdStore } from '../../stores/reportIssueStore';
+    import { SettingsButton } from './elements';
+    import { submittedIssueIdStore, submittedShortIssueIdStore } from '../../stores/reportIssueStore';
     import { copyToClipboard } from '../../utils/clipboardUtils';
 
     const dispatch = createEventDispatcher();
@@ -31,7 +32,7 @@
      *
      * get() captures the value once at creation time — immune to re-mounts.
      */
-    const issueId = get(submittedIssueIdStore);
+    const issueId = get(submittedShortIssueIdStore) || get(submittedIssueIdStore);
 
     /** True for 2 seconds after the user copies the issue ID. */
     let issueIdCopied = $state(false);
@@ -70,36 +71,38 @@
         {$text('settings.report_issue.confirmation_body')}
     </p>
 
-    <!-- Issue ID block -->
+    <!-- Issue ID -->
     {#if issueId}
-        <div class="issue-id-block">
+        <div class="issue-id-block" data-testid="report-issue-id-block" data-appearance="plain">
             <span class="issue-id-label">
                 {$text('settings.report_issue.issue_id_label')}
             </span>
             <div class="issue-id-row">
-                <code class="issue-id-value">{issueId}</code>
-                <button
-                    type="button"
-                    class:copied={issueIdCopied}
-                    onclick={handleCopyIssueId}
-                    aria-label={$text('common.copy')}
+                <span class="issue-id-value" data-testid="report-issue-id-value">{issueId}</span>
+                <SettingsButton
+                    variant="ghost"
+                    size="sm"
+                    dataTestid="report-issue-copy-id"
+                    ariaLabel={$text('common.copy')}
+                    onClick={handleCopyIssueId}
                 >
                     {issueIdCopied
                         ? $text('common.not_found.url_copied')
                         : $text('common.copy')}
-                </button>
+                </SettingsButton>
             </div>
         </div>
     {/if}
 
     <!-- Submit another report -->
-    <button
-        type="button"
-        class="another-btn"
-        onclick={handleSubmitAnother}
+    <SettingsButton
+        variant="secondary"
+        size="sm"
+        dataTestid="report-issue-submit-another"
+        onClick={handleSubmitAnother}
     >
         {$text('settings.report_issue.confirmation_submit_another')}
-    </button>
+    </SettingsButton>
 </div>
 
 <style>
@@ -145,15 +148,13 @@
         gap: var(--spacing-4);
         width: 100%;
         max-width: 360px;
-        border-radius: var(--border-radius-md, 6px);
-        padding: var(--spacing-6) var(--spacing-8);
-        background: var(--color-grey-10);
+        padding: var(--spacing-2) 0 0;
     }
 
     .issue-id-label {
         font-size: var(--font-size-xxs);
         font-weight: 500;
-        color: var(--color-grey-100);
+        color: var(--color-font-secondary);
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -169,24 +170,8 @@
     .issue-id-value {
         font-family: monospace;
         font-size: var(--font-size-xs);
-        color: var(--color-grey-100);
+        color: var(--color-font-primary);
         word-break: break-all;
     }
 
-    /* Submit another button */
-    .another-btn {
-        margin-top: var(--spacing-4);
-        padding: var(--spacing-5) var(--spacing-10);
-        border: 1px solid var(--color-border, #ccc);
-        border-radius: var(--border-radius-md, 6px);
-        background: transparent;
-        color: var(--color-font-primary);
-        font-size: var(--font-size-small);
-        cursor: pointer;
-        transition: background var(--duration-fast);
-    }
-
-    .another-btn:hover {
-        background: var(--color-surface-2, #f5f5f5);
-    }
 </style>

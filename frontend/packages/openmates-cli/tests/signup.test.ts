@@ -72,6 +72,26 @@ describe("CLI signup SDK", () => {
     });
   });
 
+  it("accepts generic success when signup email already belongs to an account", async () => {
+    await withMockFetch(() => ({
+      success: true,
+      message: "If this email can create an account, a verification code will be sent.",
+    }), async (calls) => {
+      const client = new OpenMatesClient({ apiUrl: "https://api.example.test" });
+
+      const result = await client.requestSignupEmailCode({ email: "USER@example.com", language: "de", darkmode: true });
+
+      assert.deepStrictEqual(result, {
+        success: true,
+        message: "If this email can create an account, a verification code will be sent.",
+      });
+      assert.strictEqual(calls[0].url, "https://api.example.test/v1/auth/request_confirm_email_code");
+      assert.strictEqual(calls[0].body?.email, "user@example.com");
+      assert.strictEqual(calls[0].body?.language, "de");
+      assert.strictEqual(calls[0].body?.darkmode, true);
+    });
+  });
+
   it("posts setup_password payload and stores an immediately usable session", async () => {
     await withTempHome(async () => {
       await withMockFetch(() => ({ success: true, message: "created", user: { id: "user-1", username: "alice" } }), async (calls) => {

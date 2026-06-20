@@ -50,11 +50,31 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
+from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
+
 logger = logging.getLogger(__name__)
 
 # Gemini page-break sentinel — unique enough that Gemini is unlikely to emit it
 # as part of actual document content.
 _GEMINI_PAGE_BREAK = "---PAGE_BREAK---"
+
+
+def sanitize_ocr_pages_for_ascii_smuggling(
+    pages: List[Dict[str, Any]],
+    log_prefix: str = "[OCR] ",
+) -> List[Dict[str, Any]]:
+    """Remove hidden Unicode instructions from OCR page text fields."""
+    sanitized, stats = sanitize_text_payload_for_ascii_smuggling(
+        pages,
+        log_prefix=log_prefix,
+        skip_field_names={"base64", "image_base64"},
+    )
+    if stats.get("removed_count", 0) > 0:
+        logger.warning(
+            f"{log_prefix}Removed {stats['removed_count']} ASCII-smuggling characters "
+            f"from OCR output across {stats.get('fields_sanitized', 0)} field(s)"
+        )
+    return sanitized
 
 
 # ---------------------------------------------------------------------------
@@ -455,6 +475,7 @@ async def run_ocr_with_fallback(
     # ------------------------------------------------------------------
     try:
         pages = await _run_mistral_ocr(pdf_bytes, secrets_manager, log_prefix)
+        pages = sanitize_ocr_pages_for_ascii_smuggling(pages, log_prefix=f"{log_prefix} [Mistral] ")
         logger.info(f"{log_prefix} OCR succeeded via Mistral ({len(pages)} pages)")
         return pages, "mistral"
     except Exception as exc:
@@ -468,6 +489,7 @@ async def run_ocr_with_fallback(
     # ------------------------------------------------------------------
     try:
         pages = await _run_gemini_ocr(pdf_bytes, secrets_manager, log_prefix)
+        pages = sanitize_ocr_pages_for_ascii_smuggling(pages, log_prefix=f"{log_prefix} [Gemini] ")
         logger.info(
             f"{log_prefix} OCR succeeded via Gemini Flash ({len(pages)} pages)"
         )
@@ -482,6 +504,7 @@ async def run_ocr_with_fallback(
     # Provider 3: pymupdf (last resort — never raises)
     # ------------------------------------------------------------------
     pages = await asyncio.to_thread(_run_pymupdf_ocr_sync, pdf_bytes, log_prefix)
+    pages = sanitize_ocr_pages_for_ascii_smuggling(pages, log_prefix=f"{log_prefix} [pymupdf] ")
     logger.info(
         f"{log_prefix} OCR completed via pymupdf text extraction ({len(pages)} pages)"
     )

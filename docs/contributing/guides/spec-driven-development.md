@@ -113,7 +113,7 @@ implementation starts:
 1. **OpenMates CLI first:** a CLI command or CLI contract test that exercises the
    shared backend/API/WebSocket behavior without browser or native UI state.
 2. **Web app second:** a Playwright `*.spec.ts` run through
-   `python3 scripts/run_tests.py --spec <name>.spec.ts` after the CLI proof is
+   `python3 scripts/tests.py run --spec <name>.spec.ts` after the CLI proof is
    green.
 3. **Apple app third:** `python3 scripts/apple_remote.py test-ios` when a
    targeted native test exists, otherwise `python3 scripts/apple_remote.py
@@ -124,6 +124,15 @@ Skip the CLI-first requirement only for clearly browser-only changes, such as
 selectors, layout/screenshot diffs, pointer-event overlays, or Svelte-only
 rendering. Skip Apple verification only when there is no Apple counterpart or
 when `scripts/apple_remote.py` records a sanitized access/build failure.
+
+## Feature Availability Metadata
+
+New app metadata must not use `stage`. Implemented apps, skills, embeds, focus
+modes, memory fields, and platform sections are enabled by default. Only add
+`default_enabled: false` when a feature intentionally ships off by default, and
+state the disabled behavior in the spec. Admin overrides use stable feature IDs
+such as `app:videos`, `skill:web:search`, `embed:code:application`, and
+`platform:projects`.
 
 ## Playwright Red And Green Phases
 
@@ -248,7 +257,7 @@ tests:
   - id: T-E2E-001
     type: playwright
     file: frontend/apps/web_app/tests/teams-settings.spec.ts
-    command: python3 scripts/run_tests.py --spec teams-settings.spec.ts
+    command: python3 scripts/tests.py run --spec teams-settings.spec.ts
     target: app.dev.openmates.org
     covers:
       - AC-1

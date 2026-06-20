@@ -28,20 +28,22 @@ from backend.apps.ai.utils.timeout_utils import (
     get_first_chunk_timeout_seconds,
     get_inter_chunk_timeout_seconds,
 )
+from backend.apps.ai.utils.preprocessing_history import (
+    STANDARDIZED_USER_ERROR_MESSAGE,
+    normalize_preprocessing_message_history,
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.text_sanitization import (
+    sanitize_text_payload_for_ascii_smuggling,
+    sanitize_text_simple,
+)
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.core.api.app.services.cache import CacheService
 from toon_format import decode, encode
 
 logger = logging.getLogger(__name__)
 
-# Standard error message shown to users when all providers fail.
-# Defined once to ensure consistency across all error paths.
-STANDARDIZED_USER_ERROR_MESSAGE = (
-    "The AI service encountered an error while processing your request. "
-    "Please try again in a moment."
-)
-
+NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS = {"google", "google_ai_studio"}
 
 class AllServersFailedError(Exception):
     """Raised when all configured servers for a model fail during an LLM call.
@@ -599,6 +601,25 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
         - For tool: {"role": "tool", "tool_call_id": str, "content": str}
     """
     transformed_messages = []
+
+    def _sanitize_llm_content(content: Any, log_prefix: str) -> Any:
+        if isinstance(content, list):
+            sanitized, _ = sanitize_text_payload_for_ascii_smuggling(content, log_prefix=log_prefix)
+            return sanitized
+        if not isinstance(content, str):
+            return sanitize_text_simple(str(content), log_prefix=log_prefix)
+        try:
+            decoded_content = decode(content)
+            sanitized, _ = sanitize_text_payload_for_ascii_smuggling(decoded_content, log_prefix=log_prefix)
+            return encode(sanitized)
+        except Exception:
+            try:
+                decoded_content = json.loads(content)
+                sanitized, _ = sanitize_text_payload_for_ascii_smuggling(decoded_content, log_prefix=log_prefix)
+                return json.dumps(sanitized, ensure_ascii=False)
+            except Exception:
+                return sanitize_text_simple(content, log_prefix=log_prefix)
+
     for idx, msg in enumerate(message_history):
         role = "assistant"
         if msg.get("sender_name") == "user":
@@ -775,6 +796,11 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                         f"Using content as-is. This may result in higher token usage."
                     )
             
+            plain_text_content = _sanitize_llm_content(
+                plain_text_content,
+                log_prefix=f"[LLM transform tool msg {idx}] ",
+            )
+
             transformed_messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call_id,
@@ -792,13 +818,20 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
                 "tool_calls": msg["tool_calls"]  # Preserve tool_calls structure
             }
             if plain_text_content:
-                assistant_msg["content"] = plain_text_content
+                assistant_msg["content"] = sanitize_text_simple(
+                    plain_text_content,
+                    log_prefix=f"[LLM transform assistant tool msg {idx}] ",
+                )
             transformed_messages.append(assistant_msg)
             continue
         
         # Handle regular user/assistant messages
         content_input = msg.get("content", "")
         plain_text_content = _extract_text_from_tiptap(content_input)
+        plain_text_content = sanitize_text_simple(
+            plain_text_content,
+            log_prefix=f"[LLM transform {role} msg {idx}] ",
+        )
         
         # Always append the message, even if content is empty, to preserve message count
         # Empty messages might be important for maintaining conversation context
@@ -875,7 +908,13 @@ async def call_preprocessing_llm(
     else:
         logger.warning(f"[{task_id}] LLM Utils: Preprocessing tool definition issue. Cannot inject dynamic context. Def: {current_tool_definition}")
 
-    transformed_messages_for_llm = _transform_message_history_for_llm(message_history)
+    normalized_message_history = normalize_preprocessing_message_history(message_history)
+    if len(normalized_message_history) != len(message_history):
+        logger.warning(
+            f"[{task_id}] LLM Utils: Dropped {len(message_history) - len(normalized_message_history)} "
+            "trailing standardized error message(s) before preprocessing."
+        )
+    transformed_messages_for_llm = _transform_message_history_for_llm(normalized_message_history)
 
     # CRITICAL: Strip tool_calls from assistant messages and remove tool-role messages entirely.
     # The preprocessing LLM must only see plain user/assistant text conversation.
@@ -1152,6 +1191,10 @@ async def call_preprocessing_llm(
         # provider (OpenRouter) will handle it correctly, so treat it as retryable.
         if "attempted to call tool 'json' which was not in request.tools" in error_lower:
             return True
+        # Mistral rejects malformed histories whose final message is not a user turn.
+        # Preprocessing can recover by trying normalized history/fallback providers.
+        if "expected last role user" in error_lower:
+            return True
         # Non-retryable errors: 400 (bad request) — the request itself is malformed,
         # sending the same request to another provider won't help.
         non_retryable_indicators = ["bad request", "400"]
@@ -1263,7 +1306,11 @@ async def call_main_llm_stream(
     logger.info(f"{log_prefix} Preparing to call. Temp: {temperature}. Tools: {len(tools) if tools else 0}. Choice: {tool_choice}")
 
     transformed_user_assistant_messages = _transform_message_history_for_llm(message_history)
-    llm_api_messages = [{"role": "system", "content": system_prompt}] if system_prompt else []
+    sanitized_system_prompt = sanitize_text_simple(
+        system_prompt,
+        log_prefix=f"[{task_id}] LLM system prompt ",
+    )
+    llm_api_messages = [{"role": "system", "content": sanitized_system_prompt}] if sanitized_system_prompt else []
     llm_api_messages.extend(transformed_user_assistant_messages)
 
     # Sanitize tools for all providers (remove min/max from integer schemas)
@@ -1295,7 +1342,7 @@ async def call_main_llm_stream(
     # Log the exact input being sent to the LLM
     logger.info(f"{log_prefix} Message history transformation: {len(message_history)} input messages -> {len(transformed_user_assistant_messages)} transformed messages")
     logger.debug(f"{log_prefix} Final payload being sent to LLM provider:\n"
-                 f"System Prompt: {system_prompt}\n"
+                 f"System Prompt: {sanitized_system_prompt}\n"
                  f"Messages: {json.dumps(llm_api_messages, indent=2)}")
 
     # Validate that model_id is not None before processing
@@ -1419,6 +1466,18 @@ async def call_main_llm_stream(
             stripped.append(msg_copy)
         return stripped
 
+    def _provider_prefix_from_server_model_id(server_model_id: str) -> str:
+        return server_model_id.split("/", 1)[0] if "/" in server_model_id else ""
+
+    def _accepts_stripped_thought_signatures(server_model_id: str) -> bool:
+        provider_prefix = _provider_prefix_from_server_model_id(server_model_id)
+        return provider_prefix not in NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS
+
+    def _messages_for_server(server_model_id: str) -> List[Dict[str, Any]]:
+        if _accepts_stripped_thought_signatures(server_model_id):
+            return _strip_thought_signatures_from_messages(llm_api_messages)
+        return llm_api_messages
+
     # Flag: have we already stripped thought signatures and retried for this call?
     # We only do this once to avoid an infinite retry loop.
     thought_signatures_stripped = False
@@ -1444,9 +1503,22 @@ async def call_main_llm_stream(
         non-thinking history entry which OpenRouter accepts.  Trying AI Studio
         or Vertex first is pointless because they reject stripped signatures.
         """
-        # Re-order so OpenRouter entries come before native Google servers.
-        # This avoids wasting two round-trips (AI Studio → Vertex) that are
-        # known to fail with a *different* error before reaching OpenRouter.
+        # Re-order so OpenRouter entries come before other compatible servers.
+        # Native Google servers reject stripped signatures, so do not retry them
+        # after we have stripped Gemini-specific thought_signature metadata.
+        retry_servers = [s for s in retry_servers if _accepts_stripped_thought_signatures(s)]
+        if not retry_servers:
+            logger.warning(
+                f"{log_prefix} [ThoughtSigRetry] No compatible servers accept stripped "
+                "thought signatures; deferring to model fallback."
+            )
+            raise AllServersFailedError(
+                original_model_id,
+                [],
+                "No compatible servers accept stripped thought signatures",
+            )
+
+        # Re-order so OpenRouter entries come before other compatible servers.
         openrouter_servers = [s for s in retry_servers if s.split("/", 1)[0] == "openrouter"]
         other_servers = [s for s in retry_servers if s.split("/", 1)[0] != "openrouter"]
         ordered_servers = openrouter_servers + other_servers
@@ -1584,7 +1656,7 @@ async def call_main_llm_stream(
         server_llm_input_details = {
             "task_id": task_id, 
             "model_id": server_actual_model_id, 
-            "messages": llm_api_messages,
+            "messages": _messages_for_server(server_model_id),
             "temperature": temperature, 
             "tools": sanitized_tools,  # Use sanitized tools (min/max removed) for all providers
             "tool_choice": tool_choice, 
@@ -1736,6 +1808,16 @@ async def call_main_llm_stream(
             # The helper prefers OpenRouter first because Google AI Studio and Vertex both
             # reject stripped signatures with a different error.
             if _is_thought_signature_error(error_msg) and not thought_signatures_stripped:
+                compatible_retry_servers = [
+                    server for server in servers_to_try if _accepts_stripped_thought_signatures(server)
+                ]
+                if not compatible_retry_servers:
+                    logger.warning(
+                        f"{attempt_log_prefix} Gemini thought signature error detected, but no "
+                        "configured server accepts stripped signatures. Deferring to model fallback."
+                    )
+                    raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
+
                 logger.warning(
                     f"{attempt_log_prefix} Gemini thought signature error detected. "
                     "Stripping stale thought_signature fields and retrying via shared helper."
@@ -1770,6 +1852,16 @@ async def call_main_llm_stream(
             # Special case: Gemini "Thought signature is not valid" (same as ValueError block above)
             # Delegate to the shared helper which prefers OpenRouter first.
             if _is_thought_signature_error(error_msg) and not thought_signatures_stripped:
+                compatible_retry_servers = [
+                    server for server in servers_to_try if _accepts_stripped_thought_signatures(server)
+                ]
+                if not compatible_retry_servers:
+                    logger.warning(
+                        f"{attempt_log_prefix} Gemini thought signature error detected, but no "
+                        "configured server accepts stripped signatures. Deferring to model fallback."
+                    )
+                    raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
+
                 logger.warning(
                     f"{attempt_log_prefix} Gemini thought signature error (unexpected exception). "
                     "Stripping stale thought_signature fields and retrying via shared helper."

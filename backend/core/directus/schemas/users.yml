@@ -328,6 +328,41 @@ directus_users:
       nullable: true
       note: "Auto-delete chats older than N days. Null means never auto-delete. The daily Celery Beat task reads this field and dispatches persist_delete_chat for stale chats. Settable via POST /v1/settings/auto-delete-chats."
 
+    # Learning Mode settings
+    learning_mode_enabled:
+      type: boolean
+      default: false
+      nullable: false
+      note: "Account-wide Learning Mode toggle. Enforced server-side for all chat entry points when true."
+
+    learning_mode_age_group:
+      type: string
+      length: 32
+      nullable: true
+      note: "Learner age group for Learning Mode prompt adaptation. Allowed values: under_10, 10_12, 13_15, 16_18, adult."
+
+    learning_mode_passcode_hash:
+      type: string
+      length: 256
+      nullable: true
+      note: "PBKDF2 hash of the passcode required to deactivate Learning Mode. The plaintext passcode is never stored."
+
+    learning_mode_failed_attempts:
+      type: integer
+      default: 0
+      nullable: false
+      note: "Failed Learning Mode deactivation attempts since the last successful passcode check."
+
+    learning_mode_deactivation_blocked_until:
+      type: integer
+      nullable: true
+      note: "Unix timestamp until which Learning Mode deactivation is blocked after repeated failed passcode attempts."
+
+    learning_mode_activated_at:
+      type: integer
+      nullable: true
+      note: "Unix timestamp when Learning Mode was last activated."
+
     # Note: auto_delete_usage_after_days was removed — usage retention is now
     # enforced by the S3 bucket lifecycle policy on `usage_archives` (3 years).
     # The column is left in place on existing production DBs (harmless orphan);

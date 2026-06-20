@@ -307,10 +307,10 @@
       const result = await copyToClipboard(renderCodeContent);
       if (!result.success) throw new Error(result.error || 'Copy failed');
       console.debug('[CodeEmbedFullscreen] Copied code to clipboard');
-      notificationStore.success('Code copied to clipboard');
+      notificationStore.success($text('embeds.copied_to_clipboard'));
     } catch (error) {
       console.error('[CodeEmbedFullscreen] Failed to copy code:', error);
-      notificationStore.error('Failed to copy code to clipboard');
+      notificationStore.error($text('embeds.copy_failed'));
     }
   }
 
@@ -319,10 +319,10 @@
     try {
       console.debug('[CodeEmbedFullscreen] Starting code file download');
       await downloadCodeFile(renderCodeContent, renderLanguage, renderFilename);
-      notificationStore.success('Code file downloaded successfully');
+      notificationStore.success($text('embeds.code_file_downloaded'));
     } catch (error) {
       console.error('[CodeEmbedFullscreen] Failed to download code file:', error);
-      notificationStore.error('Failed to download code file');
+      notificationStore.error($text('embeds.code_file_download_failed'));
     }
   }
 

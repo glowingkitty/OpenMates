@@ -1,7 +1,6 @@
 ---
 id: create_layout
 app: pcb_design
-stage: planning
 
 name: create-layout
 description: "Plan & create a PCB layout."

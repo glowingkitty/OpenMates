@@ -1685,8 +1685,8 @@ async def handle_preprocessing(
  
     # Extract and log available app skills for tool preselection
     # Note: Exclude ai.ask from available skills - it's the main processing entry point, not a tool
-    # Note: No stage filtering needed here - discovered_apps_metadata already contains only apps
-    # with valid stages (filtered during server startup). All skills in these apps are valid.
+    # Note: No availability filtering needed here - discovered_apps_metadata already contains
+    # implemented and enabled apps/skills from server startup.
     # Two lists are maintained:
     #   - available_skills_list: enriched with preprocessor_hints for the LLM prompt (e.g., "travel-price_calendar: Monthly flight price overview...")
     #   - available_skill_ids: bare identifiers for validation of LLM responses (e.g., "travel-price_calendar")
@@ -1714,8 +1714,8 @@ async def handle_preprocessing(
                             logger.debug(f"{log_prefix} Skipping skill '{skill.id}' from app '{app_id}' - all providers unhealthy")
                             continue
 
-                    # No stage filtering needed - discovered_apps_metadata already contains only apps
-                    # with valid stages (filtered during server startup via should_include_app_by_stage)
+                    # No availability filtering needed - discovered_apps_metadata already contains
+                    # implemented and enabled apps/skills from server startup.
                     # Use hyphen format for skill identifiers (consistent with tool names)
                     skill_identifier = f"{app_id}-{skill.id}"
                     available_skill_ids.append(skill_identifier)
