@@ -165,7 +165,7 @@
                     isLoading = false;
                     return;
                 } else if (result.error === 'invalid_password') {
-                    passwordError = 'Invalid password. Please try again.';
+                    passwordError = 'Incorrect password. Please try again.';
                     isLoading = false;
                     return;
                 } else {

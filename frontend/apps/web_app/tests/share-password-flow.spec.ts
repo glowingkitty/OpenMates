@@ -140,7 +140,7 @@ test('password-protected shared embed requires the right password before opening
 
 	await page.getByTestId('shared-embed-password-input').fill(WRONG_PASSWORD);
 	await page.getByTestId('shared-embed-password-submit').click();
-	await expect(page.getByTestId('shared-embed-password-error')).toContainText(/invalid password/i);
+	await expect(page.getByTestId('shared-embed-password-error')).toContainText(/incorrect|invalid password/i);
 
 	await page.getByTestId('shared-embed-password-input').fill(PASSWORD);
 	await page.getByTestId('shared-embed-password-submit').click();
