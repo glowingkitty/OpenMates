@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 event_logger = logging.getLogger("app.events")
 
 GENERIC_EMAIL_CODE_MESSAGE = "If this email can create an account, a verification code will be sent."
+EXISTING_ACCOUNT_EMAIL_TASK = "app.tasks.email_tasks.existing_account_email_task.send_existing_account_email"
+EXISTING_ACCOUNT_EMAIL_COOLDOWN_SECONDS = 3600
 
 @router.post("/request_confirm_email_code", response_model=RequestEmailCodeResponse, dependencies=[Depends(verify_allowed_origin)])
 @limiter.limit("5/minute")
@@ -145,6 +147,26 @@ async def request_confirm_email_code(
 
         if exists_result:
             logger.warning("Signup email-code request matched an existing email; returning generic response")
+            existing_account_cache_key = f"signup_existing_account_email:{hashed_email}"
+            email_recently_sent = await cache_service.get(existing_account_cache_key)
+            if not email_recently_sent:
+                task = celery_app.send_task(
+                    name=EXISTING_ACCOUNT_EMAIL_TASK,
+                    kwargs={
+                        'email': email_request.email,
+                        'language': email_request.language,
+                        'darkmode': email_request.darkmode,
+                    },
+                    queue='email'
+                )
+                await cache_service.set(
+                    existing_account_cache_key,
+                    task.id,
+                    ttl=EXISTING_ACCOUNT_EMAIL_COOLDOWN_SECONDS,
+                )
+                logger.info("Existing-account signup email task %s submitted to Celery", task.id)
+            else:
+                logger.info("Existing-account signup email recently sent; skipping duplicate task")
             return RequestEmailCodeResponse(
                 success=True,
                 message=GENERIC_EMAIL_CODE_MESSAGE,

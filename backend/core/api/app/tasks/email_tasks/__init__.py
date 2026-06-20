@@ -6,6 +6,7 @@
 
 # Import all email task modules to ensure tasks are registered with Celery
 from . import verification_email_task
+from . import existing_account_email_task
 from . import new_device_email_task
 from . import backup_code_email_task
 from . import purchase_confirmation_email_task
@@ -44,6 +45,7 @@ from . import free_testing_budget_email_task  # Import Free testing credits budg
 
 __all__ = [
     'verification_email_task',
+    'existing_account_email_task',
     'new_device_email_task',
     'backup_code_email_task',
     'purchase_confirmation_email_task',

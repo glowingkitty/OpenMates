@@ -69,6 +69,66 @@ account_created_second_login_info:
   sv: Om du registrerade dig med en nyckelkod, lägg till lösenord plus 2FA som reserv. Om du registrerade dig med lösenord plus 2FA, lägg till en nyckelkod för snabbare säker inloggning.
   he: אם נרשמת באמצעות מפתח גישה, הוסף סיסמה ו-2FA כגיבוי. אם נרשמת באמצעות סיסמה ו-2FA, הוסף מפתח גישה לכניסה מאובטחת ומהירה יותר.
   verified_by_human: []
+existing_account.subject:
+  context: Subject for signup attempt using an email that already has an account
+  en: An OpenMates account already exists for this email
+  de: Für diese E-Mail-Adresse existiert bereits ein OpenMates-Konto
+  verified_by_human: []
+existing_account.title:
+  context: Header for signup attempt using an email that already has an account
+  en: An account with your email already exists
+  de: Mit deiner E-Mail-Adresse existiert bereits ein Konto
+  verified_by_human: []
+existing_account.intro:
+  context: Intro text for existing-account signup email
+  en: Someone tried to create a new OpenMates account with this email address, but this email is already connected to an existing account.
+  de: Jemand hat versucht, mit dieser E-Mail-Adresse ein neues OpenMates-Konto zu erstellen. Diese E-Mail-Adresse ist aber bereits mit einem bestehenden Konto verbunden.
+  verified_by_human: []
+existing_account.saved_logins_title:
+  context: Section title reminding users to check saved credentials
+  en: Check your saved logins
+  de: Prüfe deine gespeicherten Logins
+  verified_by_human: []
+existing_account.saved_logins_body:
+  context: Body text reminding users to check browser/password manager credentials
+  en: Your browser, password manager, or device may already have the login saved. Look for OpenMates in saved passwords or passkeys before creating a new account.
+  de: Dein Browser, Passwortmanager oder Gerät hat den Login möglicherweise bereits gespeichert. Suche nach OpenMates in gespeicherten Passwörtern oder Passkeys, bevor du ein neues Konto erstellst.
+  verified_by_human: []
+existing_account.login_methods_title:
+  context: Section title listing normal login methods
+  en: Try your login methods
+  de: Versuche deine Login-Methoden
+  verified_by_human: []
+existing_account.login_methods_body:
+  context: Body text listing password, passkey, and 2FA login methods
+  en: You can log in with a passkey, or with your password plus 2FA. If you set up backup codes, keep them ready for the 2FA step.
+  de: Du kannst dich mit einem Passkey anmelden oder mit deinem Passwort plus 2FA. Wenn du Backup-Codes eingerichtet hast, halte sie für den 2FA-Schritt bereit.
+  verified_by_human: []
+existing_account.login_button:
+  context: Button label to open OpenMates login
+  en: Log in to OpenMates
+  de: Bei OpenMates einloggen
+  verified_by_human: []
+existing_account.recovery_key_title:
+  context: Section title for recovery key login guidance
+  en: Have your recovery key?
+  de: Hast du deinen Wiederherstellungsschlüssel?
+  verified_by_human: []
+existing_account.recovery_key_body:
+  context: Body text explaining recovery key login preserves data
+  en: If you do not remember your password or passkey but still have your recovery key, use recovery key login. It preserves your encrypted chats and account data.
+  de: Wenn du dich nicht an dein Passwort oder deinen Passkey erinnerst, aber deinen Wiederherstellungsschlüssel noch hast, nutze den Login mit Wiederherstellungsschlüssel. Dadurch bleiben deine verschlüsselten Chats und Kontodaten erhalten.
+  verified_by_human: []
+existing_account.recovery_button:
+  context: Button label to open login for recovery key use
+  en: Open login and use recovery key
+  de: Login öffnen und Wiederherstellungsschlüssel nutzen
+  verified_by_human: []
+existing_account.reset_warning:
+  context: Warning that full account reset is a last resort and may delete encrypted data
+  en: If you lost every login method and your recovery key, account reset is the last resort. Because OpenMates encrypts your data, resetting the account can permanently delete encrypted chats, memories, app settings, embeds, passkeys, and API keys.
+  de: Wenn du alle Login-Methoden und deinen Wiederherstellungsschlüssel verloren hast, ist ein Konto-Reset der letzte Ausweg. Da OpenMates deine Daten verschlüsselt, kann ein Reset verschlüsselte Chats, Erinnerungen, App-Einstellungen, Embeds, Passkeys und API-Schlüssel dauerhaft löschen.
+  verified_by_human: []
 password_security_reminder.subject:
   context: Subject line for recurring security reminders when password login is enabled without 2FA
   en: Action needed to secure your OpenMates account

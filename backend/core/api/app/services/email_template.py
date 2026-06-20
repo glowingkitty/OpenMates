@@ -272,6 +272,9 @@ class EmailTemplateService:
                         subject = subject_template.format(code=context["code"])
                     else:
                         subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "existing-account":
+                    subject_key = "email.existing_account.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "purchase-confirmation":
                     # Managed Payments (non-EU Stripe Checkout) send a "Confirmation" email,
                     # not an "Invoice" — use the managed subject key for that document type.
@@ -409,6 +412,7 @@ class EmailTemplateService:
             # These are essential account-related emails that users can't unsubscribe from
             transactional_templates = {
                 'confirm-email', 'new-device-login', 'backup-code-was-used',
+                'existing-account',
                 'recovery-key-was-used', 'purchase-confirmation', 'refund-confirmation',
                 'signup_milestone', 'issue_report', 'issue_report_confirmation',
                 'community_share_notification',
