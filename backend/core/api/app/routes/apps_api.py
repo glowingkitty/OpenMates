@@ -32,7 +32,10 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import get_curren
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
-from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
+from backend.core.api.app.utils.text_sanitization import (
+    sanitize_text_payload_for_ascii_smuggling,
+    sanitize_text_simple,
+)
 
 # Import AI models for documentation purposes
 # Use absolute imports to avoid circular dependencies
@@ -763,7 +766,18 @@ async def call_app_skill(
     request_payload['_external_request'] = True
 
     try:
-        return await registry.dispatch_skill(app_id, skill_id, request_payload)
+        result = await registry.dispatch_skill(app_id, skill_id, request_payload)
+        sanitized_result, ascii_stats = sanitize_text_payload_for_ascii_smuggling(
+            result,
+            log_prefix=log_prefix,
+        )
+        if ascii_stats.get("removed_count", 0) > 0:
+            logger.warning(
+                f"{log_prefix}Removed {ascii_stats['removed_count']} ASCII-smuggling "
+                f"characters from REST skill output across "
+                f"{ascii_stats.get('fields_sanitized', 0)} field(s)"
+            )
+        return sanitized_result
     except HTTPException:
         # 4xx/5xx from inside the skill (validation, billing, missing skill, ...) —
         # propagate as-is so the REST handler returns the original status/detail.

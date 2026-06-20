@@ -19,6 +19,10 @@ from typing import Any, Dict, List, Optional
 import httpx
 
 from backend.apps.pdf.utils.instruction_loader import get_pdf_instruction
+from backend.core.api.app.utils.text_sanitization import (
+    sanitize_text_payload_for_ascii_smuggling,
+    sanitize_text_simple,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +217,7 @@ def _pages_to_text(pages: List[Dict[str, Any]], page_nums: List[int]) -> str:
         page = page_map.get(num)
         if not page:
             continue
-        md = page.get("markdown", "").strip()
+        md = sanitize_text_simple(page.get("markdown", "").strip())
         parts.append(f"=== Page {num} ===\n{md}")
     return "\n\n".join(parts)
 
@@ -315,11 +319,15 @@ async def detect_toc(
         f"chapters={len(accumulated_chapters)}, source_pages={accumulated_source_pages}"
     )
 
-    return {
-        "detected": toc_detected,
-        "source_pages": sorted(accumulated_source_pages),
-        "chapters": accumulated_chapters,
-    }
+    sanitized_result, _ = sanitize_text_payload_for_ascii_smuggling(
+        {
+            "detected": toc_detected,
+            "source_pages": sorted(accumulated_source_pages),
+            "chapters": accumulated_chapters,
+        },
+        log_prefix=f"{log_prefix} ",
+    )
+    return sanitized_result
 
 
 async def detect_legend(
@@ -377,8 +385,12 @@ async def detect_legend(
         f"source_pages={result.get('source_pages', [])}"
     )
 
-    return {
-        "detected": detected,
-        "source_pages": result.get("source_pages", []),
-        "content": result.get("content", ""),
-    }
+    sanitized_result, _ = sanitize_text_payload_for_ascii_smuggling(
+        {
+            "detected": detected,
+            "source_pages": result.get("source_pages", []),
+            "content": result.get("content", ""),
+        },
+        log_prefix=f"{log_prefix} ",
+    )
+    return sanitized_result

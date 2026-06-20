@@ -35,6 +35,7 @@ from pydantic import BaseModel, Field
 from toon_format import decode as toon_decode
 
 from backend.apps.base_skill import BaseSkill
+from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,11 @@ logger = logging.getLogger(__name__)
 # Leaves room for conversation history in the LLM's context window.
 MAX_OUTPUT_TOKENS = 50_000
 CHARS_PER_TOKEN = 4  # rough approximation
+
+
+def sanitize_pdf_read_content(content: str, log_prefix: str = "[pdf.read] ") -> str:
+    """Remove ASCII-smuggling characters from PDF read markdown."""
+    return sanitize_text_simple(content, log_prefix=log_prefix)
 
 
 class ReadRequest(BaseModel):
@@ -358,7 +364,10 @@ class ReadSkill(BaseSkill):
                     pages_skipped.append(page_num)
                     continue
 
-                md = page_data.get("markdown", "").strip()
+                md = sanitize_pdf_read_content(
+                    page_data.get("markdown", "").strip(),
+                    log_prefix=f"{log_prefix} [page:{page_num}] ",
+                )
                 page_text = f"### Page {page_num}\n\n{md}"
                 page_chars = len(page_text)
 

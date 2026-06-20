@@ -194,12 +194,16 @@ async def _async_process_pdf(task: BaseServiceTask, arguments: Dict[str, Any]) -
         # Step 3: Run OCR with fallback chain (Mistral → Gemini Flash → pymupdf)
         # -----------------------------------------------------------------------
         logger.info(f"{log_prefix} Step 3: Running OCR (Mistral → Gemini Flash → pymupdf)")
-        from backend.apps.pdf.services.ocr_service import run_ocr_with_fallback
+        from backend.apps.pdf.services.ocr_service import run_ocr_with_fallback, sanitize_ocr_pages_for_ascii_smuggling
 
         ocr_pages, ocr_provider = await run_ocr_with_fallback(
             pdf_bytes=pdf_bytes,
             secrets_manager=task._secrets_manager,
             log_prefix=log_prefix,
+        )
+        ocr_pages = sanitize_ocr_pages_for_ascii_smuggling(
+            ocr_pages,
+            log_prefix=f"{log_prefix} [post-ocr] ",
         )
         logger.info(f"{log_prefix} OCR complete via {ocr_provider}: {len(ocr_pages)} pages")
 

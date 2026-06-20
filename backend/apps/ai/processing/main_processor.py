@@ -52,6 +52,7 @@ from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkill
 from backend.shared.providers.wikipedia.wikipedia_api import normalize_wikipedia_language
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.config_manager import config_manager
+from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
 
 # Import services for type hinting
 from backend.core.api.app.services.directus.directus import DirectusService
@@ -4864,6 +4865,16 @@ async def handle_main_processing(
                             cache_service=cache_service
                             # max_retries uses default (1 retry = 2 total attempts)
                         )
+                        results, ascii_sanitization_stats = sanitize_text_payload_for_ascii_smuggling(
+                            results,
+                            log_prefix=f"{log_prefix}[{app_id}.{skill_id}] ",
+                        )
+                        if ascii_sanitization_stats.get("removed_count", 0) > 0:
+                            logger.warning(
+                                f"{log_prefix} Removed {ascii_sanitization_stats['removed_count']} "
+                                f"ASCII-smuggling characters from {app_id}.{skill_id} skill results "
+                                f"across {ascii_sanitization_stats.get('fields_sanitized', 0)} field(s)"
+                            )
                         if connected_account_token_artifacts:
                             connected_account_journal_entries = await _record_connected_account_operation_journal_entries(
                                 app_id=app_id,

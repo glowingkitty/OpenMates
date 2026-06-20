@@ -37,6 +37,10 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.apps.base_skill import BaseSkill
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.text_sanitization import (
+    sanitize_text_payload_for_ascii_smuggling,
+    sanitize_text_simple,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +52,24 @@ VOXTRAL_MODEL = "voxtral-mini-2602"
 
 # Timeout for Mistral API calls (seconds)
 MISTRAL_API_TIMEOUT = 120
+
+
+def _sanitize_transcription_result_text(
+    result: Dict[str, Any],
+    log_prefix: str = "[TranscribeSkill] ",
+) -> Dict[str, Any]:
+    """Remove ASCII-smuggling characters from transcript fields only."""
+    sanitized, stats = sanitize_text_payload_for_ascii_smuggling(
+        result,
+        log_prefix=log_prefix,
+        skip_field_names={"s3_key"},
+    )
+    if stats.get("removed_count", 0) > 0:
+        logger.warning(
+            f"{log_prefix}Removed {stats['removed_count']} ASCII-smuggling characters "
+            f"from transcription output across {stats.get('fields_sanitized', 0)} field(s)"
+        )
+    return sanitized
 
 
 class TranscribeRequestItem(BaseModel):
@@ -576,7 +598,10 @@ class TranscribeSkill(BaseSkill):
             )
 
             # Step 6: Build result & perform Gemini correction
-            transcript_text = mistral_result.get("text", "").strip()
+            transcript_text = sanitize_text_simple(
+                mistral_result.get("text", "").strip(),
+                log_prefix="[TranscribeSkill][Mistral] ",
+            )
             detected_language = mistral_result.get("language")
             duration_seconds = mistral_result.get("duration")
 
@@ -592,6 +617,10 @@ class TranscribeSkill(BaseSkill):
                     transcript_corrected = await self._correct_transcript_with_gemini(
                         raw_transcript=transcript_text,
                         google_api_key=google_api_key,
+                    )
+                    transcript_corrected = sanitize_text_simple(
+                        transcript_corrected,
+                        log_prefix="[TranscribeSkill][Gemini correction] ",
                     )
                 else:
                     logger.warning("[TranscribeSkill] Google AI Studio API key not found in Vault, skipping correction")
@@ -612,6 +641,7 @@ class TranscribeSkill(BaseSkill):
                 "model": VOXTRAL_MODEL,
                 "correction_model": "gemini-3.5-flash" if use_corrected else None,
             }
+            result_entry = _sanitize_transcription_result_text(result_entry)
 
             logger.debug(
                 f"[TranscribeSkill] Request {request_id} complete: "
