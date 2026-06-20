@@ -398,10 +398,10 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: running
-        run_id: manual-2026-06-20T13:19:39Z
-        timestamp: "2026-06-20T13:29:55Z"
-        note: Control plane still reports playwright::feature-availability.spec.ts as running with no local report or screenshot output yet.
+        status: blocked_privileged_caddy_reload
+        run_id: "27873069990"
+        timestamp: "2026-06-20T14:04:48Z"
+        note: After deploy c5caae2, feature-availability.spec.ts failed because https://api.dev.openmates.org/v1/features/availability disconnected at Caddy before FastAPI. Internal FastAPI returned 200 after restarting api. Follow-up commit 6a54580 added /v1/features/availability to dev/prod/example Caddy allowlists, but /etc/caddy/Caddyfile still needs a privileged host reload before rerunning the spec.
 
   - id: T-VITEST-002
     type: vitest
