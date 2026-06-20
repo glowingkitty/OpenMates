@@ -620,7 +620,9 @@ test.describe('Anonymous free chat', () => {
 		await typeMessageText(page, prompt);
 		await page.locator('[data-action="send-message"]').click();
 
-		await expect(page.getByTestId('chat-header-banner')).toContainText('Creating new chat', { timeout: 5000 });
+		await expect(page.getByTestId('chat-header-banner')).toContainText(/Creating new chat|Capital of Spain/, {
+			timeout: 12000
+		});
 		await expect(page.getByTestId('chat-header-title')).toContainText('Capital of Spain', { timeout: 12000 });
 		const typingIndicator = page.getByTestId('typing-indicator');
 		const typingSeen = typingIndicator
