@@ -16,7 +16,7 @@
     import { get } from 'svelte/store';
     import { text } from '@repo/ui';
     import { SettingsButton } from './elements';
-    import { submittedIssueIdStore } from '../../stores/reportIssueStore';
+    import { submittedIssueIdStore, submittedShortIssueIdStore } from '../../stores/reportIssueStore';
     import { copyToClipboard } from '../../utils/clipboardUtils';
 
     const dispatch = createEventDispatcher();
@@ -32,7 +32,7 @@
      *
      * get() captures the value once at creation time — immune to re-mounts.
      */
-    const issueId = get(submittedIssueIdStore);
+    const issueId = get(submittedShortIssueIdStore) || get(submittedIssueIdStore);
 
     /** True for 2 seconds after the user copies the issue ID. */
     let issueIdCopied = $state(false);

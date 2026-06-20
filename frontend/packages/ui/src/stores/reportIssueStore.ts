@@ -12,12 +12,13 @@ export interface ReportIssueTemplate {
 export const reportIssueStore = writable<ReportIssueTemplate | null>(null);
 
 /**
- * Holds the issue ID of the most recently submitted issue report.
+ * Holds the IDs of the most recently submitted issue report.
  * Set by SettingsReportIssue on successful submission; read by
- * SettingsReportIssueConfirmation to display the ID to the user.
+ * SettingsReportIssueConfirmation to display the public ID to the user.
  * Retained until the next submission so settings view re-mounts keep the ID visible.
  */
 export const submittedIssueIdStore = writable<string>("");
+export const submittedShortIssueIdStore = writable<string>("");
 
 /**
  * In-progress draft of the Report Issue form.

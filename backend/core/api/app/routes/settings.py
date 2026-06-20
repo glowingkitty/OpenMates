@@ -3080,14 +3080,10 @@ async def report_issue(
         except Exception as e:
             logger.error(
                 f"Failed to save issue report to database: {str(e)}. "
-                f"Email will still be sent but YAML report will NOT be uploaded to S3 "
-                f"(issue_id will be None in the email task).",
+                f"Issue report submission cannot continue without a database row and short issue ID.",
                 exc_info=True
             )
-            # Continue - email will still be sent even if database save fails,
-            # but S3 upload will be skipped since issue_id is None
-            issue_id = None
-            short_issue_id = None
+            raise
         
         from backend.core.api.app.tasks.celery_config import app
 

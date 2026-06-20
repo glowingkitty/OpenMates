@@ -2021,6 +2021,27 @@ async function printSettingsMutationResult(
   if (result && typeof result === "object") printGenericObject(result);
 }
 
+function printReportIssueCreateResult(result: unknown, flags: Record<string, string | boolean>): void {
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+
+  process.stdout.write("\x1b[32m✓\x1b[0m Issue reported\n");
+  const obj = result && typeof result === "object" ? result as Record<string, unknown> : {};
+  const issueId = typeof obj.issue_id === "string" ? obj.issue_id : "";
+  const shortIssueId = typeof obj.short_issue_id === "string" ? obj.short_issue_id : "";
+  if (shortIssueId || issueId) {
+    console.log(`Issue reference: ${shortIssueId || issueId}`);
+  }
+  if (issueId && shortIssueId && issueId !== shortIssueId) {
+    console.log(`Internal issue ID: ${issueId}`);
+  }
+  if (typeof obj.message === "string") {
+    console.log(obj.message);
+  }
+}
+
 function addQueryParam(
   params: URLSearchParams,
   key: string,
@@ -3034,7 +3055,8 @@ async function handleSettings(
     const title = typeof flags.title === "string" ? flags.title : undefined;
     const body = typeof flags.body === "string" ? flags.body : undefined;
     if (!title || !body) throw new Error("Provide --title and --body.");
-    await printSettingsMutationResult(client.settingsPost("issues", { title, description: body }), flags);
+    const result = await client.settingsPost("issues", { title, description: body });
+    printReportIssueCreateResult(result, flags);
     return;
   }
 

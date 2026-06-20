@@ -214,9 +214,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "session-84c0: python3 -m pytest backend/tests/test_short_report_issue_ids.py"
+        timestamp: "2026-06-20T18:18:38Z"
 
   - id: T-CLI-001
     type: unit
@@ -241,9 +241,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "session-84c0: npm run test:unit:cli"
+        timestamp: "2026-06-20T18:18:38Z"
 
   - id: T-E2E-001
     type: playwright
@@ -293,9 +293,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "session-84c0: python3 scripts/apple_remote.py build-ios --simulator \"iPhone 17\""
+        timestamp: "2026-06-20T18:18:38Z"
 
 implementation_plan:
   existing_patterns:

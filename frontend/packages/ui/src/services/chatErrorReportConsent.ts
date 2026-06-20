@@ -63,9 +63,10 @@ export function promptChatErrorReportConsent(options: ChatErrorReportOptions): v
 
       if (notificationId) notificationStore.removeNotification(notificationId);
       if (result.success) {
+        const displayIssueId = result.shortIssueId || result.issueId;
         notificationStore.success(
-          result.issueId
-            ? `${translate("settings.report_issue_success")} (${result.issueId})`
+          displayIssueId
+            ? `${translate("settings.report_issue_success")} (${displayIssueId})`
             : translate("settings.report_issue_success"),
           7000,
         );

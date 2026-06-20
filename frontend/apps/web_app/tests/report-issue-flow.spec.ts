@@ -288,12 +288,13 @@ test.describe('Report Issue Flow', () => {
 		expect(statusCode).toBe(200);
 		expect(responseBody?.success).toBe(true);
 		expect(responseBody?.issue_id).toBeTruthy();
+		expect(responseBody?.short_issue_id).toMatch(/^[A-HJ-NP-Z2-9]{5}$/);
 		expect(responseBody?.screenshot_uploaded).toBe(true);
 		const submittedPayload = apiResponse.request().postDataJSON?.();
 		expect(submittedPayload?.add_to_linear).toBe(adminControlsVisible ? false : true);
 		expect(submittedPayload?.send_email_notification).toBe(adminControlsVisible ? false : true);
 		logCheckpoint(
-			`Issue created with ID: ${responseBody?.issue_id} ` +
+			`Issue created with ID: ${responseBody?.issue_id} and short ID: ${responseBody?.short_issue_id} ` +
 			`(screenshot_uploaded=${responseBody?.screenshot_uploaded})`
 		);
 		await takeStepScreenshot(page, '05-submitted');
@@ -304,10 +305,11 @@ test.describe('Report Issue Flow', () => {
 		// screenshot synchronously but intentionally do not create YAML unless the
 		// admin enables email notifications.
 		const issueId: string = responseBody?.issue_id;
-		const statusUrl = `${API_BASE_URL}/v1/settings/issues/${issueId}/status`;
+		const shortIssueId: string = responseBody?.short_issue_id;
+		const statusUrl = `${API_BASE_URL}/v1/settings/issues/${shortIssueId}/status`;
 		logCheckpoint(`Polling status endpoint: ${statusUrl}`);
 		const statusDeadline = Date.now() + 90_000; // 90s — celery + S3 upload
-		let lastStatus: { has_screenshot?: boolean; has_yaml_report?: boolean; processed?: boolean } | null = null;
+		let lastStatus: { id?: string; short_issue_id?: string; has_screenshot?: boolean; has_yaml_report?: boolean; processed?: boolean } | null = null;
 		let lastStatusHttp = 0;
 		while (Date.now() < statusDeadline) {
 			const statusResp = await page.request.get(statusUrl);
@@ -328,6 +330,8 @@ test.describe('Report Issue Flow', () => {
 		logCheckpoint(`Final /status HTTP=${lastStatusHttp} payload=${JSON.stringify(lastStatus)}`);
 		logCheckpoint(`Final /status payload: ${JSON.stringify(lastStatus)}`);
 		expect(lastStatus, 'issue status endpoint returned nothing').not.toBeNull();
+		expect(lastStatus?.id).toBe(issueId);
+		expect(lastStatus?.short_issue_id).toBe(shortIssueId);
 		expect(lastStatus?.has_screenshot, 'screenshot never persisted to S3/Directus').toBe(true);
 		if (adminControlsVisible) {
 			expect(lastStatus?.has_yaml_report, 'admin report should skip YAML when email notification is off by default').toBe(false);
@@ -348,7 +352,8 @@ test.describe('Report Issue Flow', () => {
 		await expect(issueIdBlock).toHaveAttribute('data-appearance', 'plain');
 		await expect(issueIdElement).toBeVisible({ timeout: 5000 });
 		const displayedIssueId = await issueIdElement.textContent();
-		expect(displayedIssueId).toBe(responseBody?.issue_id);
+		expect(displayedIssueId).toBe(shortIssueId);
+		expect(displayedIssueId).not.toBe(issueId);
 		logCheckpoint(`Confirmation shows issue ID: ${displayedIssueId}`);
 		await takeStepScreenshot(page, '06-confirmation');
 

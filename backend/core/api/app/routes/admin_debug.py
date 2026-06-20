@@ -48,6 +48,7 @@ from backend.core.api.app.utils.api_key_auth import (
     get_api_key_auth_service,
 )
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.utils.report_issue_ids import issue_identifier_filter
 
 logger = logging.getLogger(__name__)
 
@@ -216,6 +217,7 @@ class LogsResponse(BaseModel):
 class IssueListItem(BaseModel):
     """Summary item for issue list."""
     id: str
+    short_issue_id: Optional[str] = None
     title: str
     issue_type: str = "bug_report"
     description: Optional[str]
@@ -245,6 +247,7 @@ class IssuesListResponse(BaseModel):
 class IssueDetailResponse(BaseModel):
     """Response model for issue details."""
     id: str
+    short_issue_id: Optional[str] = None
     title: str
     issue_type: str = "bug_report"
     description: Optional[str]
@@ -516,6 +519,7 @@ async def list_issues(
             
             result_issues.append(IssueListItem(
                 id=issue["id"],
+                short_issue_id=issue.get("short_issue_id"),
                 title=issue.get("title", ""),
                 issue_type=issue.get("issue_type") or "bug_report",
                 description=issue.get("description"),
@@ -573,7 +577,7 @@ async def get_issue_detail(
     try:
         # Fetch issue from Directus
         params = {
-            "filter[id][_eq]": issue_id,
+            "filter": issue_identifier_filter(issue_id),
             "limit": 1,
         }
         issues = await directus_service.get_items("issues", params, no_cache=True, admin_required=True)
@@ -688,6 +692,7 @@ async def get_issue_detail(
         
         return IssueDetailResponse(
             id=issue["id"],
+            short_issue_id=issue.get("short_issue_id"),
             title=issue.get("title", ""),
             issue_type=issue.get("issue_type") or "bug_report",
             description=issue.get("description"),
@@ -754,11 +759,12 @@ async def get_issue_timeline(
 
     # 1. Fetch the issue metadata (to get created_at and reported_by_user_id)
     try:
-        params = {"filter[id][_eq]": issue_id, "fields": "*", "limit": 1}
+        params = {"filter": issue_identifier_filter(issue_id), "fields": "*", "limit": 1}
         issues = await directus_service.get_items("issues", params, no_cache=True)
         if not issues:
             raise HTTPException(status_code=404, detail=f"Issue not found: {issue_id}")
         issue = issues[0]
+        issue_id = issue["id"]
     except HTTPException:
         raise
     except Exception as e:
