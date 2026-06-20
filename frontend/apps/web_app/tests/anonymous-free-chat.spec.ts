@@ -364,10 +364,26 @@ test.describe('Anonymous free chat', () => {
 			'target',
 			'_blank'
 		);
+		await expect(termsReminder.getByRole('link', { name: 'Terms of service' })).toHaveAttribute(
+			'href',
+			/\/legal\/terms$/
+		);
 		await expect(termsReminder.getByRole('link', { name: 'Privacy policy' })).toHaveAttribute(
 			'target',
 			'_blank'
 		);
+		await expect(termsReminder.getByRole('link', { name: 'Privacy policy' })).toHaveAttribute(
+			'href',
+			/\/legal\/privacy$/
+		);
+
+		await page.getByText('Hey there!').click();
+		await expect(page.getByTestId('anonymous-terms-reminder')).toHaveCount(0);
+		await expect(page.getByTestId('message-field')).toHaveClass(/draft-preview/);
+		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
+		await page.getByTestId('message-field').click();
+		await expect(page.getByTestId('anonymous-terms-reminder')).toBeVisible({ timeout: 5000 });
+		await expect(page.locator('[data-action="send-message"]')).toBeVisible({ timeout: 5000 });
 		await page.locator('[data-action="send-message"]').click();
 
 		await expect(termsReminder).toHaveCount(0);
@@ -722,6 +738,12 @@ test.describe('Anonymous free chat', () => {
 		await expect(page.getByTestId('notification').filter({
 			hasText: 'You used up your free daily credits. Sign up & buy credits to make full use of OpenMates.'
 		})).toBeVisible({ timeout: 5000 });
+		const exhaustedNotification = page.getByTestId('notification').filter({
+			hasText: 'You used up your free daily credits. Sign up & buy credits to make full use of OpenMates.'
+		});
+		await expect(exhaustedNotification.getByTestId('notification-action')).toContainText('Sign up');
+		await exhaustedNotification.getByTestId('notification-action').click();
+		await expect(page.getByTestId('login-tabs')).toBeVisible({ timeout: 10000 });
 		await expect(editor).toContainText(prompt);
 		await expect(page.getByTestId('message-user').filter({ hasText: prompt })).toHaveCount(0);
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Create an account to keep using OpenMates.' })).toHaveCount(0);

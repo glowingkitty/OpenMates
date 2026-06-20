@@ -32,7 +32,7 @@
     import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
     import { demoMode } from '../../stores/demoModeStore';
     import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus } from '../../stores/serverStatusStore';
-    import { externalLinks, getWebsiteUrl } from '../../config/links';
+    import { externalLinks } from '../../config/links';
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -362,7 +362,7 @@
         $anonymousFreeUsageStatus?.can_send_text !== false &&
         !anonymousFileAttachmentPending
     );
-    let showAnonymousTermsReminder = $derived(anonymousTextSendEnabled && hasContent);
+    let showAnonymousTermsReminder = $derived(anonymousTextSendEnabled && hasContent && isMessageFieldFocused);
 
     function editorHasEmbedContent(editor: Editor): boolean {
         let found = false;
@@ -383,7 +383,7 @@
 
     // Draft preview mode: text-only field has content but is not focused — show truncated text, hide buttons.
     // File/PDF/image embeds keep non-send actions visible, but Send still requires text.
-    let isDraftPreview = $derived(hasContent && !hasEmbedContent && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible && !anonymousTextSendEnabled);
+    let isDraftPreview = $derived(hasContent && !hasEmbedContent && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible);
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -5026,11 +5026,11 @@
     {#if showAnonymousTermsReminder}
         <div class="anonymous-terms-reminder" data-testid="anonymous-terms-reminder" transition:fade={{ duration: 160 }}>
             {$text('enter_message.anonymous_terms_reminder_prefix')}
-            <a href={getWebsiteUrl(externalLinks.legal.terms)} target="_blank" rel="noopener noreferrer">
+            <a href={externalLinks.legal.terms} target="_blank" rel="noopener noreferrer">
                 {$text('signup.terms_of_service')}
             </a>
             {$text('enter_message.anonymous_terms_reminder_connector')}
-            <a href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} target="_blank" rel="noopener noreferrer">
+            <a href={externalLinks.legal.privacyPolicy} target="_blank" rel="noopener noreferrer">
                 {$text('signup.privacy_policy')}
             </a>
             {$text('enter_message.anonymous_terms_reminder_suffix')}

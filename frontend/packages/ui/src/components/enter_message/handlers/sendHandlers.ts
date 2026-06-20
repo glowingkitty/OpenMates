@@ -43,6 +43,19 @@ import { demoMode } from "../../../stores/demoModeStore";
 import { shouldDispatchDraftChatAsNewChat } from "./sendClassification";
 
 const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY = "chat.anonymous_free_usage.daily_credits_exhausted";
+const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_DEDUPE_KEY = "anonymous-daily-credits-exhausted";
+
+function showAnonymousDailyCreditsExhaustedNotification() {
+  notificationStore.addNotificationWithOptions("warning", {
+    message: get(text)(ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY),
+    actionLabel: get(text)("signup.sign_up"),
+    duration: 10000,
+    dedupeKey: ANONYMOUS_DAILY_CREDITS_EXHAUSTED_DEDUPE_KEY,
+    onAction: () => {
+      window.dispatchEvent(new CustomEvent("openSignupInterface"));
+    },
+  });
+}
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -1211,12 +1224,7 @@ export async function handleSend(
     if (!get(authStore).isAuthenticated) {
       const anonymousStatus = await refreshAnonymousFreeUsageStatus();
       if (anonymousStatus?.active !== true || anonymousStatus.can_send_text === false) {
-        notificationStore.warning(
-          get(text)(ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY),
-          undefined,
-          true,
-          "anonymous-daily-credits-exhausted",
-        );
+        showAnonymousDailyCreditsExhaustedNotification();
         vibrateMessageField();
         return;
       }
@@ -1836,12 +1844,7 @@ export async function handleSend(
     cleanupSpan.end();
   } catch (error) {
     if (error instanceof AnonymousFreeUsageExhaustedError) {
-      notificationStore.warning(
-        get(text)(ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY),
-        undefined,
-        true,
-        "anonymous-daily-credits-exhausted",
-      );
+      showAnonymousDailyCreditsExhaustedNotification();
       if (editor && !editor.isDestroyed) {
         restoreEditorDraftText(editor, markdown);
         setHasContent(true);
