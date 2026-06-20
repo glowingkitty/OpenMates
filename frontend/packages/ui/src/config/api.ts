@@ -37,6 +37,28 @@ export const apiUrls = {
   production: import.meta.env.VITE_API_URL_PROD || "https://api.openmates.org",
 } as const;
 
+function getBrowserDerivedApiUrl(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const host = window.location.hostname;
+  if (
+    host.includes(".dev.") ||
+    host.startsWith("dev.") ||
+    host === "localhost" ||
+    host === "127.0.0.1"
+  ) {
+    return "https://api.dev.openmates.org";
+  }
+
+  if (host === "openmates.org" || host === "app.openmates.org") {
+    return "https://api.openmates.org";
+  }
+
+  return null;
+}
+
 // Helper to get API URL
 export function getApiUrl(): string {
   // VITE_API_URL takes precedence - used for self-hosted deployments
@@ -44,6 +66,11 @@ export function getApiUrl(): string {
   // Example: VITE_API_URL=http://192.168.1.100:8000 pnpm build
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
+  }
+
+  const browserDerivedApiUrl = getBrowserDerivedApiUrl();
+  if (browserDerivedApiUrl) {
+    return browserDerivedApiUrl;
   }
 
   // Use VITE_ENV to distinguish between environments.
