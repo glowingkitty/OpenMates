@@ -821,7 +821,7 @@ class AnonymousChatStorage {
       await Promise.resolve();
     }
 
-    aiTypingStore.clearTyping(params.chat.chat_id, params.assistantMessage.message_id);
+    aiTypingStore.clearTypingForChat(params.chat.chat_id);
     chatSyncService.activeAITasks.delete(params.chat.chat_id);
     chatSyncService.dispatchEvent(new CustomEvent("aiTaskEnded", {
       detail: { chatId: params.chat.chat_id, taskId, status: "completed" },
