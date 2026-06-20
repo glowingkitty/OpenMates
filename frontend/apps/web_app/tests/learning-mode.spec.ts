@@ -38,11 +38,16 @@ function learningModeRow(page: any) {
 }
 
 async function answerPromptSequence(page: any, replies: string[]): Promise<void> {
-	page.on('dialog', async (dialog: any) => {
-		const reply = replies.shift();
+	const remainingReplies = [...replies];
+	const handler = async (dialog: any) => {
+		const reply = remainingReplies.shift();
 		expect(dialog.type()).toBe('prompt');
 		await dialog.accept(reply ?? '');
-	});
+		if (remainingReplies.length === 0) {
+			page.off('dialog', handler);
+		}
+	};
+	page.on('dialog', handler);
 }
 
 test.describe('Learning Mode settings', () => {
