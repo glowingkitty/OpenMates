@@ -328,6 +328,9 @@ class AnonymousChatStorage {
         }
         chatSyncService.activeAITasks.delete(chatId);
         aiTypingStore.clearTypingForChat(chatId);
+        chatSyncService.dispatchEvent(new CustomEvent("anonymousSendRolledBack", {
+          detail: { chatId, userMessageId: userMessage.message_id, reason: error.reason },
+        }));
         window.dispatchEvent(new CustomEvent("anonymousChatsUpdated"));
         throw error;
       }

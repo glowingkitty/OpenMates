@@ -3499,6 +3499,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // those are cleared explicitly on chat switch via resetChatHeaderState().
     }
 
+    function rollbackAnonymousSend(chatId: string, userMessageId: string | null) {
+        if (currentChat?.chat_id && currentChat.chat_id !== chatId) return;
+        const rolledBackMessages = currentMessages.filter((message) => {
+            if (userMessageId && message.message_id === userMessageId) return false;
+            if (userMessageId && message.user_message_id === userMessageId) return false;
+            return true;
+        });
+        clearProcessingPhase();
+        currentTypingStatus = null;
+        aiTypingStore.clearTypingForChat(chatId);
+
+        const hasRemainingConversation = rolledBackMessages.some((message) => {
+            if (message.status === 'failed') return false;
+            if (message.role !== 'user' && message.role !== 'assistant') return false;
+            return typeof message.content === 'string' && message.content.trim().length > 0;
+        });
+        if (currentChat?.is_anonymous && !hasRemainingConversation) {
+            currentMessages = [];
+            currentChat = null;
+            showWelcome = true;
+            activeChatStore.clearActiveChat();
+            resetChatHeaderState();
+        } else {
+            currentMessages = rolledBackMessages;
+        }
+        chatHistoryRef?.updateMessages(currentMessages);
+    }
+
     /**
      * Reset the chat header state (new-chat title/category/icon placeholder).
      * Called when switching to a different chat or starting a fresh new chat.
@@ -5043,6 +5071,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const chunk = event.detail as AiMessageChunkPayload; // AIMessageUpdatePayload
         const timestamp = new Date().toISOString();
         const contentLength = chunk.full_content_so_far?.length || 0;
+        if (chunk.rejection_reason === 'budget_exhausted' && chunk.chat_id?.startsWith('anonymous-')) {
+            rollbackAnonymousSend(chunk.chat_id, chunk.user_message_id ?? null);
+            return;
+        }
         
         // 🔍 STREAMING DEBUG: Log chunk processing start
         console.log(
@@ -9724,9 +9756,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             handleMessageStatusChanged(event); 
         }) as EventListenerCallback;
 
+        const anonymousRollbackHandler = ((event: CustomEvent<{ chatId: string; userMessageId?: string | null }>) => {
+            rollbackAnonymousSend(event.detail.chatId, event.detail.userMessageId ?? null);
+        }) as EventListenerCallback;
+
         // Listen to events directly from chatSyncService
         chatSyncService.addEventListener('chatUpdated', chatUpdateHandler);
         chatSyncService.addEventListener('messageStatusChanged', messageStatusHandler);
+        chatSyncService.addEventListener('anonymousSendRolledBack', anonymousRollbackHandler);
         
         // Add listener for AI message chunks
         console.log('[ActiveChat] 📌 Registering aiMessageChunk event listener');
@@ -10560,6 +10597,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             uninstallChatReplayCommand();
             chatSyncService.removeEventListener('chatUpdated', chatUpdateHandler);
             chatSyncService.removeEventListener('messageStatusChanged', messageStatusHandler);
+            chatSyncService.removeEventListener('anonymousSendRolledBack', anonymousRollbackHandler);
             unsubscribeAiTyping(); // Unsubscribe from AI typing store
             unsubscribeDraftState(); // Unsubscribe from draft state
             chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListenerCallback); // Remove listener

@@ -723,6 +723,10 @@ test.describe('Anonymous free chat', () => {
 			hasText: 'You used up your free daily credits. Sign up & buy credits to make full use of OpenMates.'
 		})).toBeVisible({ timeout: 5000 });
 		await expect(editor).toContainText(prompt);
+		await expect(page.getByTestId('message-user').filter({ hasText: prompt })).toHaveCount(0);
+		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Create an account to keep using OpenMates.' })).toHaveCount(0);
+		await expect(page.getByText('Create an account to keep using OpenMates.')).toHaveCount(0);
+		await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
 		expect(streamRequests).toHaveLength(1);
 		expect(await getAnonymousIndexedDbState(page)).toEqual({ anonymousChats: [], anonymousMessages: [] });
 		await assertNoMissingTranslations(page);
