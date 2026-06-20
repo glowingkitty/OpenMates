@@ -1,4 +1,6 @@
-import { expect, test } from './helpers/cookie-audit';
+/* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers in this directory expose CommonJS exports. */
+const { expect, test } = require('./helpers/cookie-audit');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 function deriveApiUrl(baseUrl: string): string {
 	try {
@@ -20,13 +22,20 @@ test.describe('Feature availability', () => {
 		const availabilityResponse = await page.request.get(`${apiUrl}/v1/features/availability`);
 		expect(availabilityResponse.ok()).toBe(true);
 		const availability = await availabilityResponse.json();
-		const projects = availability.features.find((feature: { id?: string }) => feature.id === 'platform:projects');
-		const workflows = availability.features.find((feature: { id?: string }) => feature.id === 'platform:workflows');
-		const tasks = availability.features.find((feature: { id?: string }) => feature.id === 'platform:tasks');
+		const disabled = availability.disabled ?? [];
 
-		expect(projects?.enabled).toBe(false);
-		expect(workflows?.enabled).toBe(false);
-		expect(tasks?.enabled).toBe(false);
+		expect(disabled).toContain('platform:projects');
+		expect(disabled).toContain('platform:workflows');
+		expect(disabled).toContain('platform:tasks');
+		expect(disabled).not.toContain('app:web');
+
+		await page.goto('/', { waitUntil: 'domcontentloaded' });
+		await loginToTestAccount(page, () => {}, async () => {});
+
+		await expect(page.getByTestId('chats-nav-link')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('projects-nav-link')).toHaveCount(0);
+		await expect(page.getByTestId('workflows-nav-link')).toHaveCount(0);
+		await expect(page.getByTestId('tasks-nav-link')).toHaveCount(0);
 
 		await page.goto('/projects', { waitUntil: 'domcontentloaded' });
 

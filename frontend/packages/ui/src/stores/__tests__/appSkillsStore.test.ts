@@ -38,9 +38,7 @@ describe("appSkillsStore", () => {
     featureAvailabilityStore.set({
       initialized: true,
       loading: false,
-      featuresById: {
-        "app:videos": { id: "app:videos", enabled: false },
-      },
+      disabledById: { "app:videos": true },
     });
 
     const apps = appSkillsStore.getState().apps;
@@ -52,9 +50,7 @@ describe("appSkillsStore", () => {
     featureAvailabilityStore.set({
       initialized: true,
       loading: false,
-      featuresById: {
-        "skill:web:search": { id: "skill:web:search", enabled: false },
-      },
+      disabledById: { "skill:web:search": true },
     });
 
     const web = appSkillsStore.getState().apps.web;
@@ -67,9 +63,7 @@ describe("appSkillsStore", () => {
     featureAvailabilityStore.set({
       initialized: true,
       loading: false,
-      featuresById: {
-        "memory:ai:communication_style": { id: "memory:ai:communication_style", enabled: false },
-      },
+      disabledById: { "memory:ai:communication_style": true },
     });
 
     const ai = appSkillsStore.getState().apps.ai;

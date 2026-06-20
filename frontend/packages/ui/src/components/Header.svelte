@@ -70,21 +70,30 @@
         disabled: boolean;
     };
 
+    let isChatsRoute = $derived($page.url.pathname === '/');
     let isProjectsRoute = $derived($page.url.pathname.startsWith('/projects'));
-    let featureAvailability = $derived($featureAvailabilityStore.featuresById);
-    let projectsEnabled = $derived(featureAvailability?.['platform:projects']?.enabled === true);
-    let workflowsEnabled = $derived(featureAvailability?.['platform:workflows']?.enabled === true);
-    let tasksEnabled = $derived(featureAvailability?.['platform:tasks']?.enabled === true);
+    let isWorkflowsRoute = $derived($page.url.pathname.startsWith('/workflows'));
+    let isTasksRoute = $derived($page.url.pathname.startsWith('/tasks'));
+    let disabledFeatures = $derived($featureAvailabilityStore.disabledById);
+    const isWorkspaceFeatureEnabled = (featureId: string, defaultEnabled: boolean = true): boolean => {
+        return disabledFeatures ? disabledFeatures[featureId] !== true : defaultEnabled;
+    };
+    let chatsEnabled = $derived(isWorkspaceFeatureEnabled('platform:chats'));
+    let projectsEnabled = $derived(isWorkspaceFeatureEnabled('platform:projects', false));
+    let workflowsEnabled = $derived(isWorkspaceFeatureEnabled('platform:workflows', false));
+    let tasksEnabled = $derived(isWorkspaceFeatureEnabled('platform:tasks', false));
     let webappWorkspaceTabs: WorkspaceTab[] = $derived([
-        { href: '/', testId: 'chats-nav-link', label: $text('common.chat'), iconClass: 'chat-icon', active: !isProjectsRoute, disabled: false },
+        ...(chatsEnabled
+            ? [{ href: '/', testId: 'chats-nav-link', label: $text('common.chat'), iconClass: 'chat-icon', active: isChatsRoute, disabled: false }]
+            : []),
         ...(projectsEnabled
             ? [{ href: '/projects', testId: 'projects-nav-link', label: $text('navigation.projects'), iconClass: 'project-icon', active: isProjectsRoute, disabled: false }]
             : []),
         ...(workflowsEnabled
-            ? [{ href: '', testId: 'workflows-nav-link', label: $text('navigation.workflows'), iconClass: 'workflow-icon', active: false, disabled: true }]
+            ? [{ href: '/workflows', testId: 'workflows-nav-link', label: $text('navigation.workflows'), iconClass: 'workflow-icon', active: isWorkflowsRoute, disabled: false }]
             : []),
         ...(tasksEnabled
-            ? [{ href: '', testId: 'tasks-nav-link', label: $text('navigation.tasks'), iconClass: 'task-icon', active: false, disabled: true }]
+            ? [{ href: '/tasks', testId: 'tasks-nav-link', label: $text('navigation.tasks'), iconClass: 'task-icon', active: isTasksRoute, disabled: false }]
             : []),
     ] satisfies WorkspaceTab[]);
 

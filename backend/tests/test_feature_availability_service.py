@@ -6,6 +6,10 @@
 #
 # Spec: docs/specs/simplified-feature-availability/spec.yml
 
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from backend.core.api.app.routes import features as features_route
 from backend.core.api.app.services.feature_availability_service import (
     FeatureAvailabilityService,
     FeatureDefinition,
@@ -56,6 +60,37 @@ def test_disabled_parent_disables_children_unless_child_explicitly_enabled() -> 
     assert service.is_enabled("app:videos") is False
     assert service.is_enabled("skill:videos:create") is True
     assert service.is_enabled("embed:videos:video") is False
+
+
+def test_sparse_disabled_feature_ids_do_not_list_enabled_defaults() -> None:
+    definitions = [
+        FeatureDefinition(id="app:web", kind="app"),
+        FeatureDefinition(id="embed:code:application", kind="embed", default_enabled=False),
+        FeatureDefinition(id="platform:projects", kind="platform", default_enabled=False),
+    ]
+    service = FeatureAvailabilityService(
+        definitions=definitions,
+        config={"feature_overrides": {"enabled": ["platform:projects"], "disabled": ["app:videos"]}},
+    )
+
+    assert service.list_disabled_feature_ids() == ["app:videos", "embed:code:application"]
+
+
+def test_availability_route_returns_sparse_disabled_ids(monkeypatch) -> None:
+    definitions = [
+        FeatureDefinition(id="app:web", kind="app"),
+        FeatureDefinition(id="platform:projects", kind="platform", default_enabled=False),
+    ]
+    monkeypatch.setattr(features_route, "_definitions_from_raw_manifests", lambda: definitions)
+
+    app = FastAPI()
+    app.include_router(features_route.router)
+
+    response = TestClient(app).get("/v1/features/availability")
+
+    assert response.status_code == 200
+    assert response.json() == {"disabled": ["platform:projects"]}
+    assert "features" not in response.json()
 
 
 def test_legacy_disabled_apps_migrate_to_feature_overrides() -> None:

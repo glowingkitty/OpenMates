@@ -125,6 +125,21 @@ class FeatureAvailabilityService:
         ids = set(self._definitions) | self._enabled_overrides | self._disabled_overrides
         return [self.explain(feature_id) for feature_id in sorted(ids)]
 
+    def list_disabled_feature_ids(self) -> list[str]:
+        """Return the sparse client-facing disabled feature list.
+
+        This intentionally lists only feature IDs that are directly inactive via
+        metadata defaults or admin overrides. Children inherited from a disabled
+        parent are not expanded, keeping the client contract small: clients treat
+        everything not listed here as enabled by default.
+        """
+
+        disabled = set(self._disabled_overrides)
+        for feature_id, definition in self._definitions.items():
+            if not definition.default_enabled and feature_id not in self._enabled_overrides:
+                disabled.add(feature_id)
+        return sorted(disabled - self._enabled_overrides)
+
 
 def app_feature_id(app_id: str) -> str:
     return f"app:{app_id}"

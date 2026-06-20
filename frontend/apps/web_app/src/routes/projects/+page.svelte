@@ -9,7 +9,7 @@
   import { Header, ProjectsPage, Settings, Notification, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability } from '@repo/ui';
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
-  let projectsEnabled = $derived($featureAvailabilityStore.featuresById?.['platform:projects']?.enabled === true);
+  let projectsEnabled = $derived($featureAvailabilityStore.disabledById?.['platform:projects'] !== true && $featureAvailabilityStore.disabledById !== null);
 
   onMount(() => {
     initialize().catch((error) => {

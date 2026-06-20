@@ -218,10 +218,10 @@ contracts:
     - route: GET /v1/features/availability
       auth: optional
       response: >
-        { features: [{ id, kind, app_id?, parent_id?, default_enabled, enabled,
-        disabled_reason?, source }] }
+        { disabled: [feature_id] }
       notes:
-        - Returns effective availability for frontend and native clients.
+        - Returns only sparse inactive feature IDs for frontend and native clients.
+        - Clients must treat every feature ID not listed in disabled as enabled by default.
         - Must not expose secrets or provider API key state.
     - route: Existing skill dispatch, REST skill routes, embed creation routes, and application preview routes
       errors:
@@ -269,6 +269,7 @@ tests:
       - implemented features without default_enabled are effectively enabled by default
       - default_enabled false features are disabled until explicitly enabled
       - disabled parent apps disable child skills and embeds
+      - public client availability lists only sparse disabled feature IDs
       - feature_overrides.enabled overrides default_enabled false
       - disabled_apps migrates to app:<id> feature IDs
     red_phase:
@@ -383,6 +384,7 @@ tests:
       - AC-5
     assertions:
       - projects navigation is hidden while platform:projects is off by default
+      - availability response contains sparse disabled feature IDs rather than active-feature objects
       - direct /projects navigation shows a disabled or not-found state
       - application embed creation UI is hidden while embed:code:application is off by default
       - stale execution attempts surface FEATURE_DISABLED rather than silently failing

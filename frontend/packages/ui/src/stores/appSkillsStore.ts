@@ -28,19 +28,14 @@ import { appHealthStore, getAppHealthStatus } from './appHealthStore';
 import type { AppHealthStatusValue } from './appHealthStore';
 import { get, writable } from 'svelte/store';
 
-type FeatureAvailabilityItem = {
-    id: string;
-    enabled: boolean;
-};
-
 interface FeatureAvailabilityState {
-    featuresById: Record<string, FeatureAvailabilityItem> | null;
+    disabledById: Record<string, true> | null;
     initialized: boolean;
     loading: boolean;
 }
 
 const initialFeatureAvailabilityState: FeatureAvailabilityState = {
-    featuresById: null,
+    disabledById: null,
     initialized: false,
     loading: false,
 };
@@ -60,26 +55,23 @@ export async function initializeFeatureAvailability(force: boolean = false): Pro
 
         if (!response.ok) {
             console.warn(`[AppSkillsStore] /v1/features/availability returned ${response.status}, skipping feature availability filtering`);
-            featureAvailabilityStore.set({ featuresById: null, initialized: true, loading: false });
+            featureAvailabilityStore.set({ disabledById: null, initialized: true, loading: false });
             return;
         }
 
         const data = await response.json();
-        const featuresById: Record<string, FeatureAvailabilityItem> = {};
-        for (const item of data.features ?? []) {
-            if (typeof item?.id === 'string') {
-                featuresById[item.id] = {
-                    id: item.id,
-                    enabled: item.enabled === true,
-                };
+        const disabledById: Record<string, true> = {};
+        for (const featureId of data.disabled ?? []) {
+            if (typeof featureId === 'string') {
+                disabledById[featureId] = true;
             }
         }
 
-        featureAvailabilityStore.set({ featuresById, initialized: true, loading: false });
+        featureAvailabilityStore.set({ disabledById, initialized: true, loading: false });
     } catch (e) {
         // Fail open for app metadata so offline/static catalog browsing still works.
         console.warn('[AppSkillsStore] Failed to fetch feature availability, skipping filtering:', e);
-        featureAvailabilityStore.set({ featuresById: null, initialized: true, loading: false });
+        featureAvailabilityStore.set({ disabledById: null, initialized: true, loading: false });
     }
 }
 
@@ -88,8 +80,8 @@ export function resetFeatureAvailability(): void {
 }
 
 export function isFeatureEnabled(featureId: string, defaultEnabled: boolean = true): boolean {
-    const featuresById = get(featureAvailabilityStore).featuresById;
-    return featuresById?.[featureId]?.enabled ?? defaultEnabled;
+    const disabledById = get(featureAvailabilityStore).disabledById;
+    return disabledById ? disabledById[featureId] !== true : defaultEnabled;
 }
 
 // --- User-Specific Skill Availability Store ---
@@ -215,8 +207,8 @@ class AppSkillsStore {
 
         const annotatedApps: Record<string, AppMetadata> = {};
         const featureAvailability = get(featureAvailabilityStore);
-        const featuresById = featureAvailability.initialized ? featureAvailability.featuresById : null;
-        const featureEnabled = (featureId: string): boolean => featuresById?.[featureId]?.enabled ?? true;
+        const disabledById = featureAvailability.initialized ? featureAvailability.disabledById : null;
+        const featureEnabled = (featureId: string): boolean => disabledById ? disabledById[featureId] !== true : true;
 
         for (const [appId, appMetadata] of Object.entries(this.state.apps)) {
             if (!featureEnabled(`app:${appId}`)) {

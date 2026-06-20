@@ -11,7 +11,7 @@ import os
 from typing import Any
 
 from fastapi import APIRouter, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import yaml
 
 from backend.core.api.app.services.feature_availability_service import (
@@ -25,18 +25,8 @@ APPS_DIR = os.getenv("BACKEND_APPS_DIR", "/app/backend/apps")
 router = APIRouter(prefix="/v1/features", tags=["Features"])
 
 
-class FeatureAvailabilityItem(BaseModel):
-    id: str
-    kind: str
-    default_enabled: bool
-    enabled: bool
-    override: str | None = None
-    parent_id: str | None = None
-    source: str | None = None
-
-
 class FeatureAvailabilityResponse(BaseModel):
-    features: list[FeatureAvailabilityItem]
+    disabled: list[str] = Field(default_factory=list)
 
 
 def _definitions_from_discovered_metadata(discovered_apps: dict[str, Any]) -> list[Any]:
@@ -80,17 +70,4 @@ async def get_feature_availability(request: Request) -> FeatureAvailabilityRespo
     config_manager = getattr(request.app.state, "config_manager", None)
     config = config_manager.get_backend_config() if config_manager else {}
     service = FeatureAvailabilityService(definitions, config)
-    return FeatureAvailabilityResponse(
-        features=[
-            FeatureAvailabilityItem(
-                id=item.id,
-                kind=item.kind,
-                default_enabled=item.default_enabled,
-                enabled=item.effective_enabled,
-                override=item.override,
-                parent_id=item.parent_id,
-                source=item.source,
-            )
-            for item in service.list_features()
-        ]
-    )
+    return FeatureAvailabilityResponse(disabled=service.list_disabled_feature_ids())
