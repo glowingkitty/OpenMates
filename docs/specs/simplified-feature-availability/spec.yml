@@ -285,9 +285,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: local-pytest-feature-availability
-        timestamp: "2026-06-20T12:27:59Z"
-        note: python3 -m pytest backend/tests/test_feature_availability_service.py backend/tests/test_feature_availability_enforcement.py backend/tests/test_app_metadata_no_stage.py backend/tests/test_postprocessor.py passed 12, skipped 22.
+        run_id: local-pytest-feature-availability-sparse-api
+        timestamp: "2026-06-20T15:33:53Z"
+        note: python3 -m pytest backend/tests/test_feature_availability_service.py backend/tests/test_feature_availability_enforcement.py backend/tests/test_app_metadata_no_stage.py passed 15.
 
   - id: T-PYTEST-002
     type: pytest
@@ -401,9 +401,9 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        run_id: "27874496107"
-        timestamp: "2026-06-20T14:48:15Z"
-        note: After the host Caddy reload exposed /v1/features/availability externally, python3 scripts/tests.py run -- --spec feature-availability.spec.ts passed against live dev. Earlier run 27873069990 failed at the API precheck because Caddy had not yet loaded the committed allowlist fix.
+        run_id: "27876260347"
+        timestamp: "2026-06-20T15:57:46Z"
+        note: python3 scripts/tests.py run -- --spec feature-availability.spec.ts passed against live dev after Vercel deployed 4ce6a28 and the dev api container was rebuilt; earlier run 27876050389 failed because api.dev was still serving the old verbose availability response.
 
   - id: T-VITEST-002
     type: vitest
@@ -429,9 +429,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "2026-06-20T13:18:33Z"
-        timestamp: "2026-06-20T13:19:31Z"
-        note: Vitest control plane recorded the new appSkillsStore tests as passed. The overall vitest suite had one unrelated existing failure in highlightToLines fallback (document is not defined).
+        run_id: "2026-06-20T15:33:53Z"
+        timestamp: "2026-06-20T15:34:51Z"
+        note: Vitest control plane recorded 449/450 passing, including the updated appSkillsStore sparse disabled-map tests; the overall suite still has one unrelated existing failure in highlightToLines fallback (document is not defined).
 
   - id: T-MANUAL-APPLE-001
     type: manual
