@@ -398,10 +398,10 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: blocked_privileged_caddy_reload
-        run_id: "27873069990"
-        timestamp: "2026-06-20T14:04:48Z"
-        note: After deploy c5caae2, feature-availability.spec.ts failed because https://api.dev.openmates.org/v1/features/availability disconnected at Caddy before FastAPI. Internal FastAPI returned 200 after restarting api. Follow-up commit 6a54580 added /v1/features/availability to dev/prod/example Caddy allowlists, but /etc/caddy/Caddyfile still needs a privileged host reload before rerunning the spec.
+        status: passed
+        run_id: "27874496107"
+        timestamp: "2026-06-20T14:48:15Z"
+        note: After the host Caddy reload exposed /v1/features/availability externally, python3 scripts/tests.py run -- --spec feature-availability.spec.ts passed against live dev. Earlier run 27873069990 failed at the API precheck because Caddy had not yet loaded the committed allowlist fix.
 
   - id: T-VITEST-002
     type: vitest
