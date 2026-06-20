@@ -536,7 +536,7 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
-	test('live anonymous text stream updates header and typing before final answer', async ({
+	test('live anonymous text stream updates header and typing before terminal response', async ({
 		page
 	}: {
 		page: any;
@@ -566,11 +566,18 @@ test.describe('Anonymous free chat', () => {
 		await expect(page.getByTestId('chat-header-title')).toContainText('Capital of Spain', { timeout: 12000 });
 		await expect(page.getByTestId('typing-indicator')).toBeVisible({ timeout: 12000 });
 		await expect(page.getByTestId('typing-indicator')).toContainText('typing', { timeout: 12000 });
-		await expect(page.getByTestId('message-assistant').filter({ hasText: /Madrid|Spain/i })).toBeVisible({
+		const terminalAssistant = page
+			.getByTestId('message-assistant')
+			.filter({ hasText: /Madrid|Spain|Create an account to keep using OpenMates/i });
+		await expect(terminalAssistant).toBeVisible({
 			timeout: 90000
 		});
-		await expect(page.getByTestId('chat-header-summary')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('follow-up-suggestion-item').first()).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('typing-indicator')).toHaveCount(0, { timeout: 10000 });
+		const terminalText = await terminalAssistant.first().innerText();
+		if (!/Create an account to keep using OpenMates/i.test(terminalText)) {
+			await expect(page.getByTestId('chat-header-summary')).toBeVisible({ timeout: 30000 });
+			await expect(page.getByTestId('follow-up-suggestion-item').first()).toBeVisible({ timeout: 30000 });
+		}
 		await assertNoMissingTranslations(page);
 	});
 

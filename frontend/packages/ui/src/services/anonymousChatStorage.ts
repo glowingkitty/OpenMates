@@ -558,7 +558,7 @@ class AnonymousChatStorage {
         }
         case "ai_task_ended":
         case "aiTaskEnded":
-          aiTypingStore.clearTyping(chat.chat_id, messageId);
+          aiTypingStore.clearTypingForChat(chat.chat_id);
           chatSyncService.activeAITasks.delete(chat.chat_id);
           chatSyncService.dispatchEvent(new CustomEvent("aiTaskEnded", {
             detail: {

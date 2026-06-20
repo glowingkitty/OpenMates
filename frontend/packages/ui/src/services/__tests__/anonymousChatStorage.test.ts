@@ -29,6 +29,7 @@ const mockChatSyncService = vi.hoisted(() => ({
 const mockAiTypingStore = vi.hoisted(() => ({
   setTyping: vi.fn(),
   clearTyping: vi.fn(),
+  clearTypingForChat: vi.fn(),
 }));
 
 const mockDbState = vi.hoisted(() => ({
@@ -163,6 +164,7 @@ describe("anonymousChatStorage", () => {
     mockChatSyncService.dispatchEvent.mockClear();
     mockAiTypingStore.setTyping.mockClear();
     mockAiTypingStore.clearTyping.mockClear();
+    mockAiTypingStore.clearTypingForChat.mockClear();
     let uuidCounter = 0;
     vi.spyOn(crypto, "randomUUID").mockImplementation(() => {
       uuidCounter += 1;
@@ -294,7 +296,7 @@ describe("anonymousChatStorage", () => {
       is_final_chunk: true,
       model_name: "test-model",
     }));
-    expect(mockAiTypingStore.clearTyping).toHaveBeenCalledWith(expect.stringMatching(/^anonymous-/), "assistant-message");
+    expect(mockAiTypingStore.clearTypingForChat).toHaveBeenCalledWith(expect.stringMatching(/^anonymous-/));
   });
 
   it("orders same-second anonymous request history by conversation turn", async () => {
