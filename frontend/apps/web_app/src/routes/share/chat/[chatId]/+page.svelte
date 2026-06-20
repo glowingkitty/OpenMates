@@ -889,12 +889,14 @@
 			<h1>Password Required</h1>
 			<p>This shared chat is protected with a password.</p>
 			<form
+				data-testid="shared-chat-password-form"
 				onsubmit={(e) => {
 					e.preventDefault();
 					handlePasswordSubmit();
 				}}
 			>
 				<input
+					data-testid="shared-chat-password-input"
 					type="password"
 					bind:value={passwordInput}
 					placeholder="Enter password"
@@ -902,9 +904,9 @@
 					class:error={!!passwordError}
 				/>
 				{#if passwordError}
-					<p class="password-error">{passwordError}</p>
+					<p class="password-error" data-testid="shared-chat-password-error">{passwordError}</p>
 				{/if}
-				<button type="submit">Access Chat</button>
+				<button type="submit" data-testid="shared-chat-password-submit">Access Chat</button>
 			</form>
 		</div>
 	{/if}
