@@ -237,6 +237,26 @@ def build_learning_mode_context(policy: Optional[Mapping[str, Any]]) -> Dict[str
     return context
 
 
+def build_anonymous_request_learning_mode_context(
+    value: Optional[Mapping[str, Any]],
+) -> Dict[str, Any]:
+    """Return safe request-scoped Learning Mode context for anonymous chat.
+
+    Anonymous users do not have a trustworthy account policy or passcode. The
+    client may only opt into Learning Mode for the current request/session; it
+    cannot express lockout or deactivation semantics.
+    """
+
+    if not value or value.get("enabled") is not True:
+        return {"enabled": False}
+    age_group = _validate_age_group(str(value.get("age_group") or ""))
+    return {
+        "enabled": True,
+        "age_group": age_group,
+        "source": "anonymous_session",
+    }
+
+
 def is_learning_mode_enabled(context: Optional[Mapping[str, Any]]) -> bool:
     return bool(context and context.get("enabled") is True)
 

@@ -110,7 +110,12 @@
     });
 
     $effect(() => {
-        if (!isAuthenticated || $learningMode.loaded || $learningMode.loading) return;
+        if (!isAuthenticated) {
+            if ($learningMode.source === 'guest_session' || $learningMode.loading) return;
+            learningMode.loadGuest();
+            return;
+        }
+        if (($learningMode.loaded && $learningMode.source === 'account') || $learningMode.loading) return;
         learningMode.load().catch((error) => {
             console.error('[CurrentSettingsPage] Failed to load Learning Mode status:', error);
             notificationStore.error($text('settings.learning_mode_load_error'));
@@ -392,18 +397,19 @@
                     />
                 </div>
 
-                <div data-testid="learning-mode-toggle-wrapper">
-                    <SettingsItem
-                        type="quickaction"
-                        icon="study"
-                        title={$text('settings.learning_mode')}
-                        hasToggle={true}
-                        checked={$learningMode.enabled}
-                        disabled={$learningMode.loading}
-                        onClick={() => showSettingsView('learning-mode/setup', null)}
-                    />
-                </div>
             {/if}
+
+            <div data-testid="learning-mode-toggle-wrapper">
+                <SettingsItem
+                    type="quickaction"
+                    icon="study"
+                    title={$text('settings.learning_mode')}
+                    hasToggle={true}
+                    checked={$learningMode.enabled}
+                    disabled={$learningMode.loading}
+                    onClick={() => showSettingsView('learning-mode/setup', null)}
+                />
+            </div>
 
             <!-- Regular Settings -->
             {#each Object.entries(settingsViews).filter(([key]) => isTopLevelView(key) && (key !== 'logs' || isAdminUser)) as [key]}

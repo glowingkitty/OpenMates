@@ -10,6 +10,7 @@
 import { get } from "svelte/store";
 
 import { getApiEndpoint } from "../config/api";
+import { getAnonymousLearningModeContext } from "../stores/learningModeStore";
 import { text } from "../i18n/translations";
 import type { AIMessageUpdatePayload, AITaskInitiatedPayload, AITypingStartedPayload, Chat, Message } from "../types/chat";
 import { aiTypingStore } from "../stores/aiTypingStore";
@@ -500,21 +501,26 @@ class AnonymousChatStorage {
     previousMessages: Message[],
   ): Promise<AnonymousChatResponse> {
     let activeChat = chat;
+    const learningModeContext = getAnonymousLearningModeContext();
+    const requestBody: Record<string, unknown> = {
+      anonymous_id: this.getAnonymousId(),
+      client_chat_id: chat.chat_id,
+      client_message_id: messageId,
+      plaintext_message: markdown,
+      message_history: previousMessages.filter(isConversationMessage).map((message) => ({
+        role: message.role,
+        content: message.content ?? "",
+        created_at: message.created_at,
+        sender_name: message.sender_name ?? message.role,
+      })),
+    };
+    if (learningModeContext) {
+      requestBody.learning_mode = learningModeContext;
+    }
     const response = await fetch(getApiEndpoint("/v1/anonymous/chat/stream"), {
       method: "POST",
       headers: { "Accept": "text/event-stream", "Content-Type": "application/json" },
-      body: JSON.stringify({
-        anonymous_id: this.getAnonymousId(),
-        client_chat_id: chat.chat_id,
-        client_message_id: messageId,
-        plaintext_message: markdown,
-        message_history: previousMessages.filter(isConversationMessage).map((message) => ({
-          role: message.role,
-          content: message.content ?? "",
-          created_at: message.created_at,
-          sender_name: message.sender_name ?? message.role,
-        })),
-      }),
+      body: JSON.stringify(requestBody),
     });
     if (response.ok && isEventStreamResponse(response)) {
       return this.consumeAnonymousEventStream(response, activeChat, messageId, (updatedChat) => {

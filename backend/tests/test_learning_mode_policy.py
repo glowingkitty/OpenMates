@@ -14,10 +14,12 @@ import pytest
 
 from backend.shared.python_utils.learning_mode import (
     AGE_GROUP_13_15,
+    AGE_GROUP_10_12,
     DEACTIVATION_BLOCK_SECONDS,
     MAX_FAILED_DEACTIVATION_ATTEMPTS,
     LearningModeError,
     activate_learning_mode_policy,
+    build_anonymous_request_learning_mode_context,
     build_learning_mode_context,
     deactivate_learning_mode_policy,
     verify_learning_mode_passcode,
@@ -88,3 +90,23 @@ def test_deactivation_with_correct_passcode_resets_policy() -> None:
 def test_invalid_age_group_is_rejected() -> None:
     with pytest.raises(ValueError):
         activate_learning_mode_policy(passcode="teacher-pin-123", age_group="exact_age_9", now=1)
+
+
+def test_anonymous_request_context_enables_learning_mode_with_age_group() -> None:
+    context = build_anonymous_request_learning_mode_context(
+        {"enabled": True, "age_group": AGE_GROUP_10_12}
+    )
+
+    assert context == {"enabled": True, "age_group": AGE_GROUP_10_12, "source": "anonymous_session"}
+
+
+def test_anonymous_request_context_rejects_invalid_age_group() -> None:
+    with pytest.raises(ValueError):
+        build_anonymous_request_learning_mode_context(
+            {"enabled": True, "age_group": "exact_age_9"}
+        )
+
+
+def test_anonymous_request_context_disabled_when_flag_missing_or_false() -> None:
+    assert build_anonymous_request_learning_mode_context(None) == {"enabled": False}
+    assert build_anonymous_request_learning_mode_context({"enabled": False, "age_group": AGE_GROUP_13_15}) == {"enabled": False}

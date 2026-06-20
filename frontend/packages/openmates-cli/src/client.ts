@@ -159,6 +159,7 @@ export interface LearningModeStatus {
 export interface LearningModeContext {
   enabled: boolean;
   ageGroup?: LearningModeAgeGroup | null;
+  source?: "anonymous_session";
 }
 
 export interface AppSettingsMemorySystemMessage {
@@ -1340,7 +1341,7 @@ export class OpenMatesClient {
     };
   }
 
-  async sendAnonymousMessage(params: { message: string }): Promise<{
+  async sendAnonymousMessage(params: { message: string; learningMode?: LearningModeContext }): Promise<{
     status: "completed";
     chatId: string;
     messageId: string;
@@ -1369,6 +1370,21 @@ export class OpenMatesClient {
     }
     const chatId = `anonymous-${randomUUID()}`;
     const messageId = `anonymous-message-${randomUUID()}`;
+    const requestBody: Record<string, unknown> = {
+      anonymous_id: anonymousId,
+      client_chat_id: chatId,
+      client_message_id: messageId,
+      plaintext_message: params.message,
+      message_history: [],
+    };
+    if (params.learningMode?.enabled === true) {
+      requestBody.learning_mode = {
+        enabled: true,
+        age_group: params.learningMode.ageGroup ?? null,
+        source: params.learningMode.source ?? "anonymous_session",
+      };
+    }
+
     const response = await this.http.post<{
       status?: string;
       chatId?: string;
@@ -1378,13 +1394,7 @@ export class OpenMatesClient {
       modelName?: string | null;
       followUpSuggestions?: string[];
       detail?: { code?: string; message?: string } | string;
-    }>("/v1/anonymous/chat/stream", {
-      anonymous_id: anonymousId,
-      client_chat_id: chatId,
-      client_message_id: messageId,
-      plaintext_message: params.message,
-      message_history: [],
-    });
+    }>("/v1/anonymous/chat/stream", requestBody);
     if (!response.ok) {
       const detail = response.data.detail;
       const message = typeof detail === "object" && detail?.message

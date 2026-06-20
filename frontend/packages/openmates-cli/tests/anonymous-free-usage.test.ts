@@ -135,6 +135,44 @@ describe("anonymous free usage CLI", () => {
     });
   });
 
+  it("sends anonymous Learning Mode context when requested", async () => {
+    await withAnonymousMockApi({}, async ({ apiUrl, tempHome, requests }) => {
+      await runCliJson(
+        [
+          "chats",
+          "new",
+          "Help me understand fractions",
+          "--learning-mode",
+          "--age-group",
+          "10_12",
+          "--json",
+          "--api-url",
+          apiUrl,
+        ],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+
+      assert.equal(requests.length, 1);
+      assert.deepEqual(requests[0].learning_mode, {
+        enabled: true,
+        age_group: "10_12",
+        source: "anonymous_session",
+      });
+    });
+  });
+
+  it("omits anonymous Learning Mode context by default", async () => {
+    await withAnonymousMockApi({}, async ({ apiUrl, tempHome, requests }) => {
+      await runCliJson(
+        ["chats", "new", "Hello", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+
+      assert.equal(requests.length, 1);
+      assert.equal(Object.hasOwn(requests[0], "learning_mode"), false);
+    });
+  });
+
   it("blocks inactive anonymous status before chat execution", async () => {
     await withAnonymousMockApi(
       { statusBody: { active: false, reason: "inactive", reset_at: "2026-06-17T00:00:00+00:00", cta: "Create an account to keep using OpenMates." } },

@@ -356,6 +356,7 @@ async function handleChats(
         autoApproveSubChats: flags["auto-approve"] === true,
         autoApproveMemories: flags["auto-approve-memories"] === true,
         piiDetection: flags["no-pii-detection"] !== true,
+        anonymousLearningMode: client.hasSession() ? undefined : parseAnonymousLearningModeFlags(flags),
       },
       redactor,
     );
@@ -3167,6 +3168,15 @@ function parseLearningModeAgeGroup(value: string | boolean | undefined): Learnin
   return value as LearningModeAgeGroup;
 }
 
+function parseAnonymousLearningModeFlags(flags: Record<string, string | boolean>): LearningModeContext | undefined {
+  if (flags["learning-mode"] !== true) return undefined;
+  return {
+    enabled: true,
+    ageGroup: parseLearningModeAgeGroup(flags["age-group"]),
+    source: "anonymous_session",
+  };
+}
+
 function parseRequiredStringFlag(value: string | boolean | undefined, name: string): string {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`Provide ${name}.`);
@@ -3588,6 +3598,7 @@ async function sendMessageStreaming(
     autoApproveSubChats?: boolean;
     autoApproveMemories?: boolean;
     piiDetection?: boolean;
+    anonymousLearningMode?: LearningModeContext;
   },
   redactor?: OutputRedactor,
 ): Promise<{
@@ -3977,7 +3988,10 @@ async function sendMessageStreaming(
   if (!client.hasSession()) {
     let result: Awaited<ReturnType<OpenMatesClient["sendAnonymousMessage"]>>;
     try {
-      result = await client.sendAnonymousMessage({ message: finalMessage });
+      result = await client.sendAnonymousMessage({
+        message: finalMessage,
+        learningMode: params.anonymousLearningMode,
+      });
     } finally {
       clearTyping();
     }
@@ -5850,7 +5864,7 @@ function printChatsHelp(): void {
   openmates chats show <chat-id> [--raw] [--json]
   openmates chats open [<n|example-id|slug>] [--json]
   openmates chats search <query> [--json]
-  openmates chats new <message> [--json] [--auto-approve] [--auto-approve-memories] [--no-pii-detection]
+  openmates chats new <message> [--json] [--learning-mode --age-group <group>] [--auto-approve] [--auto-approve-memories] [--no-pii-detection]
   openmates chats send [--chat <id>] [--incognito] <message> [--json] [--auto-approve] [--auto-approve-memories] [--no-pii-detection]
   openmates chats send --chat <id> --followup <n> [--json] [--auto-approve] [--auto-approve-memories]
   openmates chats answer-interactive --chat <id> --question-json '<json>' --answer-json '<json>' [--json]
@@ -5896,6 +5910,11 @@ Options for 'new', 'send', and 'incognito':
   --no-pii-detection       Send the message exactly as typed. By default, the CLI
                             replaces detected PII with placeholders before send.
 
+Guest-only options for logged-out 'new':
+  --learning-mode          Opt anonymous chat into request-scoped Learning Mode.
+  --age-group <group>      Required with --learning-mode: under_10, 10_12,
+                            13_15, 16_18, or adult.
+
 Options for 'download':
   --output <path>  Target directory (default: current directory)
   --zip            Create a .zip archive instead of a folder
@@ -5932,6 +5951,7 @@ Examples:
   openmates chats show "Flight Connections Berlin to Bangkok"
   openmates chats search "Madrid"
   openmates chats new "Hello, what can you help me with?"
+  openmates chats new "Help me understand fractions" --learning-mode --age-group 10_12
   openmates chats send --chat d262cb68 "follow-up question"
   openmates chats send --chat d262cb68 --followup 1
   openmates chats send --chat d262cb68 --followup 3

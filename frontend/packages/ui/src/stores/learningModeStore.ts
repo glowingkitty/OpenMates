@@ -1,9 +1,9 @@
 /**
  * Learning Mode Store
  *
- * Purpose: keep the browser UI aligned with the account-wide backend policy.
- * Architecture: authenticated REST state, not localStorage, so clearing browser
- * state cannot disable Learning Mode. Used by settings and chat send payloads.
+ * Purpose: keep the browser UI aligned with Learning Mode policy.
+ * Architecture: authenticated users use backend account policy; guests use
+ * sessionStorage-only request opt-in for anonymous free chat.
  * Tests: covered through Learning Mode specs and focused sender/store tests.
  */
 
@@ -22,7 +22,19 @@ export interface LearningModeStatus {
 interface LearningModeStoreState extends LearningModeStatus {
 	loaded: boolean;
 	loading: boolean;
+	source: 'account' | 'guest_session' | null;
 }
+
+export interface AnonymousLearningModeContext {
+	enabled: true;
+	age_group: LearningModeAgeGroup;
+	source: 'anonymous_session';
+}
+
+const GUEST_ENABLED_STORAGE_KEY = 'openmates.learningMode.enabled';
+const GUEST_AGE_GROUP_STORAGE_KEY = 'openmates.learningMode.ageGroup';
+const DEFAULT_GUEST_AGE_GROUP: LearningModeAgeGroup = '13_15';
+const VALID_AGE_GROUPS = new Set<LearningModeAgeGroup>(['under_10', '10_12', '13_15', '16_18', 'adult']);
 
 const INITIAL_STATE: LearningModeStoreState = {
 	enabled: false,
@@ -30,7 +42,8 @@ const INITIAL_STATE: LearningModeStoreState = {
 	failed_attempts: 0,
 	deactivation_blocked_until: null,
 	loaded: false,
-	loading: false
+	loading: false,
+	source: null
 };
 
 function normalizeStatus(status: LearningModeStatus): LearningModeStoreState {
@@ -40,7 +53,53 @@ function normalizeStatus(status: LearningModeStatus): LearningModeStoreState {
 		failed_attempts: status.failed_attempts ?? 0,
 		deactivation_blocked_until: status.deactivation_blocked_until ?? null,
 		loaded: true,
-		loading: false
+		loading: false,
+		source: 'account'
+	};
+}
+
+function getSessionStorage(): Storage | null {
+	if (typeof window === 'undefined' || !window.sessionStorage) return null;
+	return window.sessionStorage;
+}
+
+function normalizeAgeGroup(value: string | null | undefined): LearningModeAgeGroup {
+	return VALID_AGE_GROUPS.has(value as LearningModeAgeGroup)
+		? value as LearningModeAgeGroup
+		: DEFAULT_GUEST_AGE_GROUP;
+}
+
+function readGuestStatus(): LearningModeStoreState {
+	const storage = getSessionStorage();
+	const enabled = storage?.getItem(GUEST_ENABLED_STORAGE_KEY) === 'true';
+	const ageGroup = normalizeAgeGroup(storage?.getItem(GUEST_AGE_GROUP_STORAGE_KEY));
+	return {
+		enabled,
+		age_group: enabled ? ageGroup : null,
+		failed_attempts: 0,
+		deactivation_blocked_until: null,
+		loaded: true,
+		loading: false,
+		source: 'guest_session'
+	};
+}
+
+function writeGuestStatus(enabled: boolean, ageGroup: LearningModeAgeGroup): LearningModeStoreState {
+	const storage = getSessionStorage();
+	if (storage) {
+		storage.setItem(GUEST_ENABLED_STORAGE_KEY, String(enabled));
+		storage.setItem(GUEST_AGE_GROUP_STORAGE_KEY, ageGroup);
+	}
+	return readGuestStatus();
+}
+
+export function getAnonymousLearningModeContext(): AnonymousLearningModeContext | undefined {
+	const status = readGuestStatus();
+	if (!status.enabled || !status.age_group) return undefined;
+	return {
+		enabled: true,
+		age_group: status.age_group,
+		source: 'anonymous_session'
 	};
 }
 
@@ -106,6 +165,21 @@ function createLearningModeStore() {
 			const normalized = normalizeStatus(status);
 			set(normalized);
 			return normalized;
+		},
+		loadGuest: () => {
+			const status = readGuestStatus();
+			set(status);
+			return status;
+		},
+		activateGuest: (ageGroup: LearningModeAgeGroup) => {
+			const status = writeGuestStatus(true, ageGroup);
+			set(status);
+			return status;
+		},
+		deactivateGuest: () => {
+			const status = writeGuestStatus(false, normalizeAgeGroup(getSessionStorage()?.getItem(GUEST_AGE_GROUP_STORAGE_KEY)));
+			set(status);
+			return status;
 		},
 		reset: () => set(INITIAL_STATE)
 	};

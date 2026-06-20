@@ -10,6 +10,7 @@
     import { text } from '@repo/ui';
     import { createEventDispatcher } from 'svelte';
     import { learningMode, type LearningModeAgeGroup } from '../../../stores/learningModeStore';
+    import { authStore } from '../../../stores/authStore';
     import { notificationStore } from '../../../stores/notificationStore';
     import {
         SettingsButton,
@@ -36,6 +37,7 @@
     let passcode = $state('');
     let isSubmitting = $state(false);
     let formError = $state('');
+    let isAuthenticated = $derived($authStore.isAuthenticated);
 
     $effect(() => {
         if ($learningMode.enabled && $learningMode.age_group) {
@@ -44,7 +46,12 @@
     });
 
     $effect(() => {
-        if ($learningMode.loaded || $learningMode.loading) return;
+        if (!isAuthenticated) {
+            if ($learningMode.source === 'guest_session' || $learningMode.loading) return;
+            learningMode.loadGuest();
+            return;
+        }
+        if (($learningMode.loaded && $learningMode.source === 'account') || $learningMode.loading) return;
         learningMode.load().catch((error) => {
             console.error('[SettingsLearningModeSetup] Failed to load Learning Mode status:', error);
             formError = $text('settings.learning_mode_load_error');
@@ -62,7 +69,7 @@
 
     async function handleSubmit() {
         const trimmedPasscode = passcode.trim();
-        if (!trimmedPasscode) {
+        if (isAuthenticated && !trimmedPasscode) {
             formError = $text('settings.learning_mode_passcode_required');
             return;
         }
@@ -70,6 +77,18 @@
         formError = '';
         isSubmitting = true;
         try {
+            if (!isAuthenticated) {
+                if ($learningMode.enabled) {
+                    learningMode.deactivateGuest();
+                    notificationStore.success($text('settings.learning_mode_disabled'));
+                } else {
+                    learningMode.activateGuest(selectedAgeGroup as LearningModeAgeGroup);
+                    notificationStore.success($text('settings.learning_mode_enabled'));
+                }
+                navigateBack();
+                return;
+            }
+
             if ($learningMode.enabled) {
                 await learningMode.deactivate(trimmedPasscode);
                 notificationStore.success($text('settings.learning_mode_disabled'));
@@ -95,7 +114,9 @@
 <SettingsPageContainer>
     <SettingsPageHeader
         title={$text('settings.learning_mode')}
-        description={$learningMode.enabled
+        description={!isAuthenticated
+            ? $text('settings.learning_mode_guest_description')
+            : $learningMode.enabled
             ? $text('settings.learning_mode_disable_description')
             : $text('settings.learning_mode_enable_description')}
     />
@@ -106,11 +127,11 @@
         </SettingsInfoBox>
     {:else if $learningMode.enabled}
         <SettingsInfoBox type="warning" ariaLabel={$text('settings.learning_mode_active')}>
-            <p>{$text('settings.learning_mode_active_detail')}</p>
+            <p>{isAuthenticated ? $text('settings.learning_mode_active_detail') : $text('settings.learning_mode_guest_active_detail')}</p>
         </SettingsInfoBox>
     {:else}
         <SettingsInfoBox type="info" ariaLabel={$text('settings.learning_mode_inactive')}>
-            <p>{$text('settings.learning_mode_inactive_detail')}</p>
+            <p>{isAuthenticated ? $text('settings.learning_mode_inactive_detail') : $text('settings.learning_mode_guest_inactive_detail')}</p>
         </SettingsInfoBox>
     {/if}
 
@@ -125,35 +146,37 @@
         />
     {/if}
 
-    <SettingsSectionHeading title={$learningMode.enabled
-        ? $text('settings.learning_mode_disable_passcode_label')
-        : $text('settings.learning_mode_enable_passcode_label')} icon="lock" />
-    <SettingsInput
-        bind:value={passcode}
-        type="password"
-        name="learning-mode-passcode"
-        autocomplete="new-password"
-        dataTestid="learning-mode-passcode-input"
-        placeholder={$learningMode.enabled
-            ? $text('settings.learning_mode_disable_passcode_placeholder')
-            : $text('settings.learning_mode_enable_passcode_placeholder')}
-        ariaLabel={$learningMode.enabled
+    {#if isAuthenticated}
+        <SettingsSectionHeading title={$learningMode.enabled
             ? $text('settings.learning_mode_disable_passcode_label')
-            : $text('settings.learning_mode_enable_passcode_label')}
-        onKeydown={(event) => {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                handleSubmit();
-            }
-        }}
-    />
+            : $text('settings.learning_mode_enable_passcode_label')} icon="lock" />
+        <SettingsInput
+            bind:value={passcode}
+            type="password"
+            name="learning-mode-passcode"
+            autocomplete="new-password"
+            dataTestid="learning-mode-passcode-input"
+            placeholder={$learningMode.enabled
+                ? $text('settings.learning_mode_disable_passcode_placeholder')
+                : $text('settings.learning_mode_enable_passcode_placeholder')}
+            ariaLabel={$learningMode.enabled
+                ? $text('settings.learning_mode_disable_passcode_label')
+                : $text('settings.learning_mode_enable_passcode_label')}
+            onKeydown={(event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    handleSubmit();
+                }
+            }}
+        />
+    {/if}
 
     <SettingsButtonGroup align="left">
         <SettingsButton
             variant={$learningMode.enabled ? 'danger' : 'primary'}
             fullWidth={true}
             loading={isSubmitting || $learningMode.loading}
-            disabled={!passcode.trim()}
+            disabled={isAuthenticated && !passcode.trim()}
             dataTestid={$learningMode.enabled ? 'learning-mode-disable-button' : 'learning-mode-enable-button'}
             onClick={handleSubmit}
         >

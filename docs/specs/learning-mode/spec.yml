@@ -21,6 +21,7 @@ scope:
     - CLI support and CLI/backend tests as the first verification target.
     - Web app settings controls, request propagation, and embed-shortening UI.
     - Apple app settings parity, request propagation, and embed-shortening UI.
+    - Guest Learning Mode opt-in for anonymous chat requests using sessionStorage state and age group only.
   out:
     - Classroom roster management, educator dashboards, or remote assignment of policies to other accounts.
     - Exact birth date collection or precise age tracking.
@@ -28,6 +29,7 @@ scope:
     - OCR or computer-vision inspection of generated images in the first slice.
     - Offline-only Learning Mode policy that can be trusted without backend verification.
     - Migration of existing incognito behavior or focus modes.
+    - Passcode, lockout, or cross-session persistence for unauthenticated guest Learning Mode.
 
 context_discovery:
   github_issues:
@@ -91,7 +93,10 @@ clarification:
     usage for the same account. Normal mate prompts are used when the mode is
     off; Learning Mode prompt variants and a global teaching-first prompt are
     used when the mode is on, while generated embeds are capped and full
-    application artifacts are disabled.
+    application artifacts are disabled. Anonymous users may opt into Learning
+    Mode for the current browser session only by selecting an age group; that
+    guest state is sent with anonymous chat requests and cannot disable an
+    authenticated account policy.
   approved_by_user: true
 
 scenarios:
@@ -204,6 +209,24 @@ scenarios:
       - Media generation remains allowed for conceptual diagrams, flashcards, metaphors, and short illustrative learning aids.
       - The first slice relies on prompt/tool policy and embed limits, not OCR of generated images.
 
+  - id: S-9
+    title: Guest enables Learning Mode for anonymous chat requests
+    given:
+      - Eve is not authenticated and can use anonymous free chat.
+      - Learning Mode is inactive in the current browser session.
+    when:
+      - Eve opens Settings and clicks the Learning quick setting.
+      - Eve selects learner age group 10-12 from a settings dropdown.
+      - Eve enables Learning Mode without entering a passcode.
+      - Eve sends an anonymous chat message.
+    then:
+      - The web app stores `enabled=true` and `age_group=10_12` in sessionStorage only.
+      - The anonymous chat request includes Learning Mode context for this request.
+      - The backend validates the age group and applies the same Learning Mode prompt, blocked-skill, and artifact-cap policy as authenticated Learning Mode.
+      - Clearing sessionStorage or starting a new browser session removes guest Learning Mode.
+      - No passcode, failed-attempt, lockout, or account-wide persistence state is created for guests.
+      - If the request is authenticated, server-side account Learning Mode state takes precedence and client flags cannot disable it.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -229,6 +252,9 @@ acceptance_criteria:
   - id: AC-8
     scenario: S-8
     text: Learning Mode prompt and tool policy prevent generated media from being used as a complete-answer bypass.
+  - id: AC-9
+    scenario: S-9
+    text: Unauthenticated users can opt into request-scoped anonymous Learning Mode with an age group stored in sessionStorage and no passcode.
 
 contracts:
   api:
@@ -249,11 +275,17 @@ contracts:
       errors:
         - 401 when unauthenticated
         - 403 when passcode is wrong or deactivation is blocked
+    - route: POST /v1/anonymous/chat/stream
+      request: "{ anonymous_id: string, plaintext_message: string, learning_mode?: { enabled: boolean, age_group?: string } }"
+      response: existing anonymous chat response or event stream
+      errors:
+        - 422 for invalid Learning Mode age group when enabled
   data:
     - Store account-wide Learning Mode policy on the user profile or a user-owned settings record available to all clients.
     - Store only a passcode hash and metadata, never plaintext passcodes.
     - Store `age_group`, `enabled`, `failed_attempts`, `deactivation_blocked_until`, and timestamps.
     - Include Learning Mode shortened metadata in generated embed decoded content.
+    - Guest Learning Mode state is stored in browser sessionStorage only and sent per anonymous request.
   ui_states:
     - inactive
     - activation form
@@ -262,9 +294,12 @@ contracts:
     - wrong passcode with attempts remaining
     - deactivation blocked with remaining time
     - shortened embed notice
+    - guest active with age group only
+    - guest inactive
   privacy_security:
     - Clients must not be able to disable Learning Mode by clearing local storage.
     - Clients must not be able to bypass Learning Mode by omitting request flags.
+    - Guest request flags may enable anonymous Learning Mode but must not disable authenticated account Learning Mode.
     - Do not log plaintext passcodes or generated private learner answers beyond existing encrypted chat behavior.
     - GitHub/public docs must not contain private educator or student data.
   prompts:
@@ -382,6 +417,31 @@ tests:
         run_id: "local-pytest-learning-mode-prompts-embeds-2026-06-20"
         timestamp: "2026-06-20T08:18:47Z"
 
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_learning_mode_policy.py
+    command: python3 -m pytest backend/tests/test_learning_mode_policy.py
+    covers:
+      - AC-9
+    assertions:
+      - anonymous request Learning Mode context validates age group and enables policy
+      - invalid anonymous request age group fails explicitly
+      - disabled anonymous request context does not enable Learning Mode
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "local-pytest-learning-mode-policy-red-missing-helper-2026-06-20"
+        timestamp: "2026-06-20T11:47:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-pytest-learning-mode-policy-guest-context-2026-06-20"
+        timestamp: "2026-06-20T11:53:00Z"
+
   - id: T-E2E-001
     type: playwright
     file: frontend/apps/web_app/tests/learning-mode.spec.ts
@@ -414,6 +474,56 @@ tests:
         status: passed
         run_id: "27869307575"
         timestamp: "2026-06-20T11:09:46Z"
+
+  - id: T-CLI-002
+    type: unit
+    file: frontend/packages/openmates-cli/tests/anonymous-free-usage.test.ts
+    command: npm run build && node --test tests/anonymous-free-usage.test.ts
+    covers:
+      - AC-9
+    assertions:
+      - CLI anonymous chat can include Learning Mode context in the anonymous request payload.
+      - Existing anonymous chat payload behavior is unchanged when no Learning Mode context is provided.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "local-cli-anonymous-free-usage-red-missing-learning-mode-payload-2026-06-20"
+        timestamp: "2026-06-20T11:47:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-cli-anonymous-free-usage-guest-learning-mode-2026-06-20"
+        timestamp: "2026-06-20T11:53:00Z"
+
+  - id: T-E2E-002
+    type: playwright
+    file: frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    command: python3 scripts/tests.py run -- --spec anonymous-free-chat.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-9
+    assertions:
+      - guest Learning Mode setup has no passcode input
+      - guest age group and enabled state are stored in sessionStorage
+      - anonymous chat requests include Learning Mode context when guest Learning Mode is active
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
 
   - id: T-APPLE-001
     type: build
@@ -487,9 +597,11 @@ implementation_plan:
     - path: frontend/packages/openmates-cli/src/cli.ts
       reason: Add Learning Mode status/enable/disable commands.
     - path: frontend/packages/ui/src/stores/learningModeStore.ts
-      reason: Store web Learning Mode policy state from backend.
+      reason: Store authenticated backend policy state and guest sessionStorage Learning Mode state.
     - path: frontend/packages/ui/src/components/settings/**
       reason: Add settings activation/deactivation UI.
+    - path: backend/core/api/app/routes/anonymous.py
+      reason: Accept and validate anonymous request-scoped Learning Mode context.
     - path: frontend/packages/ui/src/components/embeds/**
       reason: Render shortened Learning Mode notices.
     - path: frontend/packages/ui/src/i18n/sources/**

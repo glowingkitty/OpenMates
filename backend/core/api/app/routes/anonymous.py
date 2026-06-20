@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
 from backend.core.api.app.utils.device_fingerprint import _extract_client_ip
 from backend.core.api.app.utils.server_mode import validate_request_domain
+from backend.shared.python_utils.learning_mode import build_anonymous_request_learning_mode_context
 
 try:
     from backend.core.api.app.services.limiter import limiter
@@ -56,6 +57,7 @@ class AnonymousChatStreamRequest(BaseModel):
     plaintext_message: str = Field(..., min_length=1)
     message_history: list[AnonymousHistoryMessage | dict[str, Any]] = Field(default_factory=list)
     requested_skill_ids: Optional[list[str]] = None
+    learning_mode: Optional[dict[str, Any]] = None
     encrypted_context_metadata: Optional[dict[str, Any]] = None
     files: Optional[list[dict[str, Any]]] = None
     embeds: Optional[list[dict[str, Any]]] = None
@@ -191,6 +193,10 @@ async def anonymous_chat_stream(
         for message in payload.message_history
     ]
     messages.append({"role": "user", "content": payload.plaintext_message, "name": "User"})
+    try:
+        learning_mode_context = build_anonymous_request_learning_mode_context(payload.learning_mode)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail={"code": "invalid_learning_mode", "message": str(exc)}) from exc
 
     if not _wants_event_stream(request):
         reservation = await service.reserve_budget(
@@ -217,6 +223,7 @@ async def anonymous_chat_stream(
                     "is_anonymous": True,
                     "anonymous_reservation_id": reservation.request_id,
                     "apps_enabled": True,
+                    "learning_mode": learning_mode_context,
                 },
             )
             usage = result.get("usage") if isinstance(result, dict) else None
@@ -315,6 +322,7 @@ async def anonymous_chat_stream(
                     "is_anonymous": True,
                     "anonymous_reservation_id": reservation.request_id,
                     "apps_enabled": True,
+                    "learning_mode": learning_mode_context,
                 },
             )
             if isinstance(result, dict):
