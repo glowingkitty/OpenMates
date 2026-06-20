@@ -514,16 +514,16 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "27873481383"
+        timestamp: "2026-06-20T14:12:16Z"
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "27873971764"
+        timestamp: "2026-06-20T14:28:34Z"
 
   - id: T-APPLE-001
     type: build
