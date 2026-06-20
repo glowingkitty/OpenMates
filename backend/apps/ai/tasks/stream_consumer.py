@@ -1873,7 +1873,7 @@ async def _charge_credits(
     """
     _apply_benchmark_usage_details(request_data, usage_details)
 
-    if credits <= 0:
+    if credits <= 0 and not usage_details.get("local_self_hosted"):
         return {}
         
     charge_payload = {
@@ -2373,6 +2373,11 @@ async def _handle_normal_billing(
         "server_region": preprocessing_result.server_region,
         "tool_inference_iterations": tool_inference_iterations,
     }
+
+    if model_pricing_details.get("local") or model_pricing_details.get("self_hosted"):
+        usage_details["local_self_hosted"] = True
+        usage_details["charged_cost_usd"] = 0
+        usage_details["margin_usd"] = 0
 
     if getattr(request_data, "is_anonymous", False):
         logger.info(

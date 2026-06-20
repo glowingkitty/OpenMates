@@ -22,7 +22,10 @@ x-openmates-worker-base: &openmates-worker-base
     SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
   volumes:
     - api-logs:/app/logs
+    - ../../config:/app_config
     - vault-setup-data:/vault-data
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   networks:
     - openmates
   depends_on:
@@ -56,12 +59,17 @@ services:
       SERVER_ENVIRONMENT: "${SERVER_ENVIRONMENT}"
       APPLICATION_PREVIEW_ORIGIN: "${APPLICATION_PREVIEW_ORIGIN:-}"
       CORE_SIDECAR_URL: "http://admin-sidecar:8001"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
     command: sh /app/backend/core/api/wait-for-vault.sh
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
       - api-logs:/app/logs
+      - ../../config:/app_config
       - vault-setup-data:/vault-data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - openmates
     depends_on:
@@ -175,8 +183,11 @@ services:
     command: python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule
     volumes:
       - api-logs:/app/logs
+      - ../../config:/app_config
       - celerybeat-schedule-data:/celerybeat-data
       - vault-setup-data:/vault-data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   app-ai-worker:
     <<: *openmates-worker-base

@@ -564,7 +564,8 @@ async def charge_credits_route(
     """
     logger.info(f"Internal API: Charging {payload.credits} credits for user '{payload.user_id}', app '{payload.app_id}', skill '{payload.skill_id}'.")
 
-    if payload.credits <= 0:
+    local_self_hosted = bool((payload.usage_details or {}).get("local_self_hosted"))
+    if payload.credits <= 0 and not local_self_hosted:
         logger.warning(f"Attempted to charge non-positive credits ({payload.credits}) for user {payload.user_id}. Skipping.")
         return {"status": "skipped", "reason": "Non-positive credits"}
 

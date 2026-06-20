@@ -108,6 +108,21 @@ The `--with-overrides` flag includes admin UIs such as Directus CMS and Grafana 
 
 If the `.env` file has no real LLM provider API key, startup continues with a warning. Empty, commented, non-model provider, or `IMPORTED_TO_VAULT` values do not count as configured AI model keys. Add a real key and run `openmates server restart` to enable AI chat/model processing.
 
+Alternatively, self-hosted servers can add a local Ollama, LM Studio, or custom OpenAI-compatible model:
+
+```
+openmates server ai models add
+openmates server restart
+```
+
+The CLI writes local model entries to a runtime provider overlay, tests the selected model with a small request, and configures the model with `0` charged credits. List, test, or remove local models with:
+
+```
+openmates server ai models list
+openmates server ai models test <provider/model-id>
+openmates server ai models remove <provider/model-id>
+```
+
 ## Stopping the Server
 
 ```

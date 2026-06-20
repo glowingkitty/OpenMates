@@ -22,6 +22,7 @@ BACKEND_CONFIG_FILE = os.getenv(
     os.path.join(CONTAINER_BACKEND_ROOT, "config/backend_config.yml"),
 )
 PROVIDERS_CONFIG_DIR = os.path.join(CONTAINER_BACKEND_ROOT, "providers")
+PROVIDER_OVERLAY_CONFIG_DIR = os.getenv("PROVIDER_CONFIG_DIR")
 
 class ConfigManager:
     """
@@ -64,32 +65,78 @@ class ConfigManager:
             self._backend_config = {} # Default to empty on error
 
 
-    def _load_provider_configs(self):
-        """Loads all provider YAML files from the providers directory."""
-        self._provider_configs = {}
-        if not os.path.isdir(PROVIDERS_CONFIG_DIR):
-            logger.error(f"Providers configuration directory not found: {PROVIDERS_CONFIG_DIR}")
-            # Do not try to create it, as it should be mounted by Docker.
+    def _merge_provider_config(self, config_data: Dict[str, Any], source_name: str) -> None:
+        """Merge a provider config into the loaded provider map."""
+        if not config_data or 'provider_id' not in config_data:
+            logger.warning(f"Provider configuration file {source_name} is missing the 'provider_id' field. Skipping.")
             return
 
-        for filename in os.listdir(PROVIDERS_CONFIG_DIR):
+        provider_key = config_data['provider_id']
+        existing = self._provider_configs.get(provider_key) if self._provider_configs else None
+        if not existing:
+            self._provider_configs[provider_key] = config_data
+            logger.info(f"Successfully loaded provider configuration: {source_name} for provider_id: {provider_key}")
+            return
+
+        merged = dict(existing)
+
+        existing_models = [model for model in existing.get("models", []) if isinstance(model, dict)]
+        overlay_models = [model for model in config_data.get("models", []) if isinstance(model, dict)]
+        model_by_id = {model.get("id"): model for model in existing_models if model.get("id")}
+        for model in overlay_models:
+            model_id = model.get("id")
+            if model_id:
+                model_by_id[model_id] = model
+        merged["models"] = list(model_by_id.values())
+        self._provider_configs[provider_key] = merged
+        logger.info(
+            "Merged provider overlay: %s into provider_id: %s (%d overlay model(s))",
+            source_name,
+            provider_key,
+            len(overlay_models),
+        )
+
+    def _load_provider_config_file(self, provider_file_path: str, source_name: str) -> None:
+        try:
+            with open(provider_file_path, 'r') as f:
+                config_data = yaml.safe_load(f)
+                if not config_data:
+                    logger.warning(f"Provider configuration file {source_name} is empty or invalid.")
+                    return
+                if isinstance(config_data, dict) and isinstance(config_data.get("providers"), list):
+                    for index, provider_config in enumerate(config_data["providers"]):
+                        if isinstance(provider_config, dict):
+                            self._merge_provider_config(provider_config, f"{source_name}#providers[{index}]")
+                    return
+                if isinstance(config_data, dict):
+                    self._merge_provider_config(config_data, source_name)
+                    return
+                logger.warning(f"Provider configuration file {source_name} is not a mapping. Skipping.")
+        except yaml.YAMLError as e:
+            logger.error(f"Error parsing provider configuration file {source_name}: {e}")
+        except IOError as e:
+            logger.error(f"Error reading provider configuration file {source_name}: {e}")
+
+    def _load_provider_configs_from_dir(self, directory: str, *, overlay: bool = False) -> None:
+        if not os.path.isdir(directory):
+            if overlay:
+                logger.info(f"Provider overlay configuration directory not found: {directory}")
+            else:
+                logger.error(f"Providers configuration directory not found: {directory}")
+            return
+
+        for filename in os.listdir(directory):
             if filename.endswith((".yml", ".yaml")):
-                provider_file_path = os.path.join(PROVIDERS_CONFIG_DIR, filename)
-                try:
-                    with open(provider_file_path, 'r') as f:
-                        config_data = yaml.safe_load(f)
-                        if config_data and 'provider_id' in config_data:
-                            provider_key = config_data['provider_id']
-                            self._provider_configs[provider_key] = config_data
-                            logger.info(f"Successfully loaded provider configuration: {filename} for provider_id: {provider_key}")
-                        elif config_data:
-                            logger.warning(f"Provider configuration file {filename} is missing the 'provider_id' field. Skipping.")
-                        else:
-                            logger.warning(f"Provider configuration file {filename} is empty or invalid.")
-                except yaml.YAMLError as e:
-                    logger.error(f"Error parsing provider configuration file {filename}: {e}")
-                except IOError as e:
-                    logger.error(f"Error reading provider configuration file {filename}: {e}")
+                provider_file_path = os.path.join(directory, filename)
+                self._load_provider_config_file(provider_file_path, filename)
+
+    def _load_provider_configs(self):
+        """Loads built-in provider YAML files and optional runtime overlays."""
+        self._provider_configs = {}
+        self._load_provider_configs_from_dir(PROVIDERS_CONFIG_DIR)
+
+        if PROVIDER_OVERLAY_CONFIG_DIR and os.path.abspath(PROVIDER_OVERLAY_CONFIG_DIR) != os.path.abspath(PROVIDERS_CONFIG_DIR):
+            self._load_provider_configs_from_dir(PROVIDER_OVERLAY_CONFIG_DIR, overlay=True)
 
     def get_backend_config(self) -> Dict[str, Any]:
         """Returns the entire backend configuration."""

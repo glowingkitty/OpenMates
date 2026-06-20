@@ -64,13 +64,31 @@ LLM_PROVIDER_VAULT_PATHS = (
     "kv/data/providers/together",
 )
 
+LOCAL_LLM_SERVER_IDS = {"ollama", "lm_studio", "custom_openai_compatible"}
+
 
 def _has_configured_secret_value(value: Optional[str]) -> bool:
     return bool(value and value.strip() and value.strip() != "IMPORTED_TO_VAULT")
 
 
+def _has_configured_local_llm_model() -> bool:
+    for provider_config in config_manager.get_provider_configs().values():
+        for model in provider_config.get("models", []):
+            if not isinstance(model, dict):
+                continue
+            for server in model.get("servers", []):
+                if not isinstance(server, dict):
+                    continue
+                if server.get("id") in LOCAL_LLM_SERVER_IDS and server.get("base_url") and server.get("model_id"):
+                    return True
+    return False
+
+
 async def _are_ai_models_configured(request: Request) -> bool:
     """Return True when at least one server LLM provider key is configured."""
+    if _has_configured_local_llm_model():
+        return True
+
     for env_key in LLM_PROVIDER_ENV_KEYS:
         if _has_configured_secret_value(os.getenv(env_key)):
             return True
