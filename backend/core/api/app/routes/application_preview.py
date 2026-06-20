@@ -22,6 +22,7 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.services.feature_availability_guards import ensure_application_preview_enabled
 from backend.shared.providers.e2b_application_preview import (
     ApplicationPreviewEntrypoint,
     ApplicationPreviewFile,
@@ -698,6 +699,8 @@ async def start_application_preview(
     directus_service: Any = Depends(get_directus_service),
     encryption_service: EncryptionService = Depends(get_encryption_service),
 ) -> ApplicationPreviewStartResponse:
+    ensure_application_preview_enabled(request)
+
     if body.auto_started and body.shared_context:
         raise HTTPException(status_code=400, detail="Auto-started previews are only available to the creator chat session")
 

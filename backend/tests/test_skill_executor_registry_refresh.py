@@ -6,13 +6,10 @@
 #
 # Architecture: docs/architecture/apps/app-skills.md
 
-from types import SimpleNamespace
-
 import pytest
 
 from backend.apps.ai.processing.skill_executor import execute_skill
 from backend.core.api.app.services import skill_registry as skill_registry_module
-from backend.core.api.app.utils import config_manager as config_manager_module
 
 
 class FakeRegistry:
@@ -38,18 +35,13 @@ async def test_execute_skill_refreshes_stale_registry_before_missing_skill_404(m
     build_calls: list[dict] = []
     registered: list[FakeRegistry] = []
 
-    def fake_build_skill_registry(*, disabled_app_ids: list, server_environment: str):
-        build_calls.append({"disabled_app_ids": disabled_app_ids, "server_environment": server_environment})
+    def fake_build_skill_registry(*, server_environment: str):
+        build_calls.append({"server_environment": server_environment})
         return refreshed_registry, {"weather": object()}
 
     monkeypatch.setattr(skill_registry_module, "get_global_registry", lambda: stale_registry)
     monkeypatch.setattr(skill_registry_module, "build_skill_registry", fake_build_skill_registry)
     monkeypatch.setattr(skill_registry_module, "set_global_registry", lambda registry: registered.append(registry))
-    monkeypatch.setattr(
-        config_manager_module,
-        "ConfigManager",
-        lambda: SimpleNamespace(get_disabled_apps=lambda: ["disabled_app"]),
-    )
     monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
 
     result = await execute_skill("weather", "rain_radar", {"location": "Berlin"}, max_retries=0)
@@ -60,4 +52,4 @@ async def test_execute_skill_refreshes_stale_registry_before_missing_skill_404(m
         ("weather", "rain_radar", {"location": "Berlin"}),
     ]
     assert registered == [refreshed_registry]
-    assert build_calls == [{"disabled_app_ids": ["disabled_app"], "server_environment": "development"}]
+    assert build_calls == [{"server_environment": "development"}]

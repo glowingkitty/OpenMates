@@ -241,7 +241,6 @@ class AskSkill(BaseSkill):
                  skill_id: str,
                  skill_name: str,  # Changed from 'name' to match BaseSkill
                  skill_description: str,  # Changed from 'description' to match BaseSkill
-                 stage: str = "development",
                  full_model_reference: Optional[str] = None, # From skill's app.yml definition
                  pricing_config: Optional[Dict[str, Any]] = None,    # From skill's app.yml definition
                  celery_producer: Optional[Celery] = None,  # Added to match BaseSkill
@@ -255,7 +254,6 @@ class AskSkill(BaseSkill):
             skill_id=skill_id,
             skill_name=skill_name,
             skill_description=skill_description,
-            stage=stage,
             full_model_reference=full_model_reference,
             pricing_config=pricing_config,
             celery_producer=celery_producer

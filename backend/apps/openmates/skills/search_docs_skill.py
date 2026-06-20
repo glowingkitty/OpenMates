@@ -78,7 +78,6 @@ class SearchDocsSkill(BaseSkill):
         skill_id: str,
         skill_name: str,
         skill_description: str,
-        stage: str = "production",
         full_model_reference: Optional[str] = None,
         pricing_config: Optional[Dict[str, Any]] = None,
         **kwargs,
@@ -89,7 +88,6 @@ class SearchDocsSkill(BaseSkill):
             skill_id=skill_id,
             skill_name=skill_name,
             skill_description=skill_description,
-            stage=stage,
             full_model_reference=full_model_reference,
             pricing_config=pricing_config,
         )

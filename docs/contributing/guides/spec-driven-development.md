@@ -125,6 +125,15 @@ selectors, layout/screenshot diffs, pointer-event overlays, or Svelte-only
 rendering. Skip Apple verification only when there is no Apple counterpart or
 when `scripts/apple_remote.py` records a sanitized access/build failure.
 
+## Feature Availability Metadata
+
+New app metadata must not use `stage`. Implemented apps, skills, embeds, focus
+modes, memory fields, and platform sections are enabled by default. Only add
+`default_enabled: false` when a feature intentionally ships off by default, and
+state the disabled behavior in the spec. Admin overrides use stable feature IDs
+such as `app:videos`, `skill:web:search`, `embed:code:application`, and
+`platform:projects`.
+
 ## Playwright Red And Green Phases
 
 Playwright specs always test the live dev app, not undeployed local code.

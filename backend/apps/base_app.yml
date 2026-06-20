@@ -8,8 +8,8 @@ icon_image: |
 # Icon colors are defined in theme.css instead of here
 
 settings_and_memories:
-  - memory_type_1_name: dict (example: recent_visits)
-  - memory_type_2_name: dict (example: upcoming_appointments)
+  - memory_type_1_name: "dict (example: recent_visits)"
+  - memory_type_2_name: "dict (example: upcoming_appointments)"
 
 skills:
   - id: |
@@ -18,8 +18,8 @@ skills:
       string
     description: |
       string
-    stage: |
-      string (planning, execution, etc.)
+    default_enabled: |
+      false (optional; omit for normal enabled-by-default skills)
     class_path: |
       string (path to the skill class)
     providers:
@@ -32,8 +32,8 @@ skills:
       string
     description: |
       string
-    stage: |
-      string (planning, execution, etc.)
+    default_enabled: |
+      false (optional; omit for normal enabled-by-default skills)
     class_path: |
       string (path to the skill class)
     providers:
@@ -69,6 +69,9 @@ embed_types:
     # Backend type string sent over WebSocket / stored in Directus
     backend_type: |
       string (e.g. "app_skill_use", "code", "math-plot")
+    # Off-by-default marker. Omit for normal enabled-by-default embeds.
+    default_enabled: |
+      false
     # Whether this embed produces child embeds (composite results like search)
     has_children: |
       boolean (default: false)
@@ -103,8 +106,8 @@ focuses:
       string
     description: |
       string
-    stage: |
-      string (planning, execution, etc.)
+    default_enabled: |
+      false (optional; omit for normal enabled-by-default focus modes)
     process:
       - step_1_description
       - step_2_description
@@ -117,8 +120,8 @@ focuses:
       string
     description: |
       string
-    stage: |
-      string (planning, execution, etc.)
+    default_enabled: |
+      false (optional; omit for normal enabled-by-default focus modes)
     process:
       - step_1_description
       - step_2_description

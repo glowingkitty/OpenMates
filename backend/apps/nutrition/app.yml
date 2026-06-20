@@ -20,13 +20,11 @@ settings_and_memories:
     description_translation_key: nutrition.saved_recipes.description
     icon_image: bookmark.svg
     type: list
-    stage: planning
   - id: meal_plan
     name_translation_key: nutrition.meal_plan
     description_translation_key: nutrition.meal_plan.description
     icon_image: calendar.svg
     type: list
-    stage: planning
 embed_types:
   - id: search_recipes
     category: app-skill-use
@@ -58,7 +56,6 @@ skills:
       source links, and nutrition metadata. Recipes without instructions are
       filtered out. Best for: recipe recommendations, meal planning, dietary
       filtering, and cooking guidance.
-    stage: production
     class_path: backend.apps.nutrition.skills.search_recipes.SearchRecipesSkill
     pricing:
       per_unit:

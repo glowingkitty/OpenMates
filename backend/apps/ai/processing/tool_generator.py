@@ -5,7 +5,6 @@
 # into OpenAI function calling format tool definitions.
 
 import logging
-import os
 import copy
 from typing import Dict, Any, List, Optional, Set, TYPE_CHECKING
 
@@ -101,23 +100,6 @@ def skill_definition_to_tool_definition(
     if app_id == "ai" and skill_def.id == "ask":
         logger.debug(f"Skipping skill '{skill_def.id}' from app '{app_id}' - this is the main processing entry point, not a tool")
         return None
-    
-    # Filter skills by stage based on SERVER_ENVIRONMENT
-    # Development: Include both "development" and "production" stage skills
-    # Production: Only include "production" stage skills
-    server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
-    
-    if server_environment == "production":
-        # Production server: Only include production-stage skills
-        if skill_def.stage != "production":
-            logger.debug(f"Skipping skill '{skill_def.id}' from app '{app_id}' - stage is '{skill_def.stage}', but production server requires 'production' stage")
-            return None
-    else:
-        # Development server: Include both development and production stage skills
-        # Only exclude planning stage (or invalid stages)
-        if skill_def.stage not in ["development", "production"]:
-            logger.debug(f"Skipping skill '{skill_def.id}' from app '{app_id}' - stage is '{skill_def.stage}', not 'development' or 'production'")
-            return None
     
     # Check preselection filter (architecture: only preselected skills are forwarded)
     # Use hyphen separator for LLM provider compatibility (Cerebras and others don't allow dots in function names)
@@ -348,4 +330,3 @@ def generate_tools_from_apps(
     logger.info(f"Generated {len(tools)} tool definitions from {len(apps_to_process)} apps")
     logger.info(f"Available skills for LLM: {', '.join(skill_names) if skill_names else 'None'}")
     return tools
-

@@ -47,7 +47,6 @@ skills:
       Get current and upcoming weather forecasts for a place, including daily weather, temperatures,
       rain likelihood, and hourly details stored in day embeds. Use this for weather questions,
       forecast requests, and trip/day planning involving weather.
-    stage: production
     class_path: |
       backend.apps.weather.skills.forecast_skill.ForecastSkill
     providers:
@@ -103,7 +102,6 @@ skills:
       whether rain is expected around the selected location in about 10 minutes, and compact
       frame-by-frame rain intensity metadata. Use this for rain radar, precipitation radar,
       and hyperlocal "will it rain here soon" questions in Germany.
-    stage: production
     class_path: |
       backend.apps.weather.skills.rain_radar_skill.RainRadarSkill
     providers:

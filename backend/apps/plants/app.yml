@@ -9,7 +9,6 @@ settings_and_memories:
     name_translation_key: plants.my_plants
     description_translation_key: plants.my_plants.description
     type: list
-    stage: planning
     example_translation_keys:
       - "plants.my_plants.example_1"
       - "plants.my_plants.example_2"
@@ -85,6 +84,5 @@ focuses:
   - id: plant_care_guide
     name_translation_key: plants.plant_care_guide
     description_translation_key: plants.plant_care_guide.description
-    stage: planning
     systemprompt: |
       You are an expert plant care specialist and horticulturist. Your role is to help users understand how to properly care for their specific plants through thoughtful questioning and personalized guidance. Ask detailed questions about the plant's species, current condition, environment, and care history. Provide specific, actionable recommendations for watering, fertilizing, light, and other care needs. Help identify and troubleshoot common plant problems. When appropriate, guide users to update their plant care schedule in their 'my_plants' collection. Be encouraging and educational, helping users become confident plant parents.

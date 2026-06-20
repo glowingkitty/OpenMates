@@ -1,7 +1,6 @@
 ---
 id: research
 app: web
-stage: development
 
 name: Deep research
 description: Investigate complex topics across evidence, incentives, and competing narratives.

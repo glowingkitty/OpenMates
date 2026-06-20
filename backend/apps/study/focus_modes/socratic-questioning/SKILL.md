@@ -1,7 +1,6 @@
 ---
 id: socratic_questioning
 app: study
-stage: planning
 
 name: socratic-questioning
 description: Deepen understanding through guided questions.

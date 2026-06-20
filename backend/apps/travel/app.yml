@@ -66,7 +66,6 @@ settings_and_memories:
     description_translation_key: travel.saved_connections.description
     icon_image: travel.svg
     type: list
-    stage: production
     schema:
       type: object
       properties:
@@ -110,7 +109,6 @@ settings_and_memories:
     description_translation_key: travel.saved_stays.description
     icon_image: home.svg
     type: list
-    stage: production
     schema:
       type: object
       properties:
@@ -149,7 +147,6 @@ settings_and_memories:
     description_translation_key: travel.trips.description
     icon_image: travel.svg
     type: list
-    stage: production
     example_translation_keys:
       - "travel.trips.example_1"
       - "travel.trips.example_2"
@@ -190,7 +187,6 @@ settings_and_memories:
     description_translation_key: travel.preferred_airlines.description
     icon_image: travel.svg
     type: list
-    stage: production
     example_translation_keys:
       - "travel.preferred_airlines.example_1"
       - "travel.preferred_airlines.example_2"
@@ -212,7 +208,6 @@ settings_and_memories:
     description_translation_key: travel.preferred_transport_methods.description
     icon_image: travel.svg
     type: list
-    stage: production
     example_translation_keys:
       - "travel.preferred_transport_methods.example_1"
       - "travel.preferred_transport_methods.example_2"
@@ -243,7 +238,6 @@ settings_and_memories:
     description_translation_key: travel.preferred_activities.description
     icon_image: planning.svg
     type: list
-    stage: production
     example_translation_keys:
       - "travel.preferred_activities.example_1"
       - "travel.preferred_activities.example_2"
@@ -272,7 +266,6 @@ skills:
       If no provider is specified, all providers for the selected transport method are searched.
       Add countries with ISO 3166-1 alpha-2 route country codes when clear; country matching uses OR semantics.
       Costs 25 credits per search.
-    stage: production
     class_path: backend.apps.travel.skills.search_connections.SearchConnectionsSkill
     pricing:
       per_unit:
@@ -465,7 +458,6 @@ skills:
     name_translation_key: app_skills.travel.search_stays
     description_translation_key: app_skills.travel.search_stays.description
     icon_image: home.svg
-    stage: production
     class_path: backend.apps.travel.skills.search_stays.SearchStaysSkill
     pricing:
       per_unit:
@@ -547,7 +539,6 @@ skills:
     name_translation_key: app_skills.travel.get_flight
     description_translation_key: app_skills.travel.get_flight.description
     icon_image: travel.svg
-    stage: production
     preprocessor_hint: >
       Fetch the real GPS flight track and actual departure/landing times for a specific
       completed/past flight. Use when the user asks to see how a flight actually went,

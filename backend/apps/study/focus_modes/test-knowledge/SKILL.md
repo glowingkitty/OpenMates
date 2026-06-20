@@ -1,7 +1,6 @@
 ---
 id: test_knowledge
 app: study
-stage: planning
 
 name: test-knowledge
 description: "Test your knowledge with quiz-style questions."

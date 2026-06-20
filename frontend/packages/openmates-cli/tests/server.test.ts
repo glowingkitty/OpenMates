@@ -148,6 +148,72 @@ function resolveTargetImageTag(
   return { tag: getDefaultImageTagForVersion(packageVersion) };
 }
 
+type FeatureOverrides = {
+  enabled: string[];
+  disabled: string[];
+};
+
+function normalizeFeatureList(items: string[]): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const item of items) {
+    const value = item.trim();
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    normalized.push(value);
+  }
+  return normalized;
+}
+
+function parseListBlock(content: string, key: string): string[] {
+  const match = content.match(new RegExp(`^${key}:\\n((?:[ \\t]+.*\\n?)*)`, "m"));
+  if (!match) return [];
+  const block = match[1] ?? "";
+  return normalizeFeatureList(
+    [...block.matchAll(/^\s*-\s*["']?([^"'\n#]+)["']?/gm)].map((item) => item[1] ?? ""),
+  );
+}
+
+function parseFeatureOverrides(content: string): FeatureOverrides {
+  const overridesMatch = content.match(/^feature_overrides:\n((?:[ \t]+.*\n?)*)/m);
+  const overridesBlock = overridesMatch?.[1] ?? "";
+  const enabled = parseListBlock(overridesBlock.replace(/^ {2}/gm, ""), "enabled");
+  const disabled = parseListBlock(overridesBlock.replace(/^ {2}/gm, ""), "disabled");
+  const legacyDisabledApps = parseListBlock(content, "disabled_apps").map((appId) =>
+    appId.startsWith("app:") ? appId : `app:${appId}`,
+  );
+  return {
+    enabled: normalizeFeatureList(enabled),
+    disabled: normalizeFeatureList([...disabled, ...legacyDisabledApps]),
+  };
+}
+
+function renderFeatureOverrides(overrides: FeatureOverrides): string {
+  const renderList = (key: string, items: string[]) => {
+    if (!items.length) return `  ${key}: []`;
+    return [`  ${key}:`, ...items.map((item) => `    - "${item}"`)].join("\n");
+  };
+  return [
+    "# Admin feature overrides. Changes require a server restart.",
+    "feature_overrides:",
+    renderList("enabled", overrides.enabled),
+    renderList("disabled", overrides.disabled),
+    "",
+  ].join("\n");
+}
+
+function removeConfigBlock(content: string, key: string): string {
+  return content.replace(new RegExp(`(?:^|\\n)#.*\\n${key}:\\n(?:[ \\t]+.*\\n?)*`, "m"), "\n")
+    .replace(new RegExp(`^${key}:\\n(?:[ \\t]+.*\\n?)*`, "m"), "");
+}
+
+function updateFeatureOverridesContent(content: string, overrides: FeatureOverrides): string {
+  let next = removeConfigBlock(content, "feature_overrides");
+  next = removeConfigBlock(next, "disabled_apps");
+  next = next.trimEnd();
+  return `${next}\n\n${renderFeatureOverrides(overrides)}`;
+}
+
 function docAssert(claimId: string, assertion: () => void): void {
   try {
     assertion();
@@ -356,6 +422,48 @@ describe("composeArgs", () => {
     const args = composeArgs(emptyDir, true);
     assert.equal(args.length, 5); // No override added
     rmSync(emptyDir, { recursive: true, force: true });
+  });
+});
+
+describe("feature override config", () => {
+  it("migrates legacy disabled_apps into feature_overrides.disabled", () => {
+    const content = `# config\ndisabled_apps:\n  - "images"\n  - videos\nfeature_overrides:\n  enabled:\n    - "embed:code:application"\n  disabled:\n    - "app:web"\n`;
+
+    const overrides = parseFeatureOverrides(content);
+
+    assert.deepEqual(overrides.enabled, ["embed:code:application"]);
+    assert.deepEqual(overrides.disabled, ["app:web", "app:images", "app:videos"]);
+  });
+
+  it("writes deterministic feature_overrides and removes legacy disabled_apps", () => {
+    const content = `logging:\n  level: INFO\n\ndisabled_apps:\n  - videos\n`;
+    const next = updateFeatureOverridesContent(content, {
+      enabled: ["embed:code:application"],
+      disabled: ["app:videos", "platform:projects"],
+    });
+
+    assert.match(next, /feature_overrides:\n {2}enabled:\n {4}- "embed:code:application"\n {2}disabled:\n {4}- "app:videos"\n {4}- "platform:projects"/);
+    assert.doesNotMatch(next, /disabled_apps:/);
+  });
+
+  it("supports enable disable reset list updates", () => {
+    const initial = parseFeatureOverrides(`feature_overrides:\n  enabled: []\n  disabled:\n    - "app:videos"\n`);
+    const enabled = {
+      enabled: normalizeFeatureList([...initial.enabled, "app:videos"]),
+      disabled: initial.disabled.filter((id) => id !== "app:videos"),
+    };
+    const disabled = {
+      enabled: enabled.enabled.filter((id) => id !== "platform:projects"),
+      disabled: normalizeFeatureList([...enabled.disabled, "platform:projects"]),
+    };
+    const reset = {
+      enabled: disabled.enabled.filter((id) => id !== "app:videos"),
+      disabled: disabled.disabled.filter((id) => id !== "app:videos"),
+    };
+
+    assert.deepEqual(enabled, { enabled: ["app:videos"], disabled: [] });
+    assert.deepEqual(disabled, { enabled: ["app:videos"], disabled: ["platform:projects"] });
+    assert.deepEqual(reset, { enabled: [], disabled: ["platform:projects"] });
   });
 });
 

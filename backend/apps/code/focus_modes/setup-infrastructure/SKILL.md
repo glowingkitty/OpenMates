@@ -1,7 +1,6 @@
 ---
 id: setup_infrastructure
 app: code
-stage: planning
 
 name: setup-infrastructure
 description: Get help setting up software or infra.

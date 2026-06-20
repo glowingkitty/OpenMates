@@ -1,7 +1,6 @@
 ---
 id: content_calendar_strategist
 app: social_media
-stage: planning
 
 name: content-calendar-strategist
 description: "Create a 30-day social media content plan."

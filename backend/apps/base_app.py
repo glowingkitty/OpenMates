@@ -126,8 +126,7 @@ class BaseApp:
 
         for skill_def in self.app_config.skills:
             if not skill_def.class_path:
-                # Planning-stage or stub skill — no implementation yet, skip silently
-                logger.debug(f"Skill '{self.app_id}.{skill_def.id}' has no class_path, skipping (likely planning-stage)")
+                logger.debug(f"Skill '{self.app_id}.{skill_def.id}' has no class_path, skipping (not implemented)")
                 continue
             try:
                 module_path, class_name = skill_def.class_path.strip().rsplit('.', 1)
@@ -218,9 +217,9 @@ class BaseApp:
 
         for skill_def in self.app_config.skills:
             try:
-                # Skip skills without a class_path (e.g., planning-stage skills)
+                # Skip skills without a class_path (unimplemented placeholders)
                 if not skill_def.class_path:
-                    logger.debug(f"Skill '{skill_def.id}' has no class_path, skipping route registration (likely a planning-stage skill)")
+                    logger.debug(f"Skill '{skill_def.id}' has no class_path, skipping route registration (not implemented)")
                     continue
                 
                 module_path, class_name = skill_def.class_path.rsplit('.', 1)
@@ -409,7 +408,6 @@ class BaseApp:
                 skill_id=skill_definition.id,
                 skill_name=skill_name,
                 skill_description=skill_description,
-                stage=skill_definition.stage,
                 full_model_reference=full_model_ref,
                 pricing_config=skill_definition.pricing.model_dump(exclude_none=True) if skill_definition.pricing else None,
                 celery_producer=self.celery_producer,
@@ -827,7 +825,7 @@ class BaseApp:
             if self.app_config and self.app_config.skills:
                 skills_status = []
                 for skill in self.app_config.skills:
-                    if skill.stage == "planning":
+                    if not skill.class_path:
                         continue
                     skill_info = {
                         "id": skill.id,
@@ -957,13 +955,8 @@ class BaseApp:
 
         all_paths_valid = True
         for skill_def in self.app_config.skills:
-            # Skip planning stage skills - they don't need class_path yet
-            if skill_def.stage == "planning":
-                continue
-            # For development/production skills, class_path is required
             if not skill_def.class_path:
-                logger.warning(f"Skill '{skill_def.id}' has stage '{skill_def.stage}' but no class_path defined")
-                all_paths_valid = False
+                logger.debug(f"Skill '{skill_def.id}' has no class_path, skipping class path validation")
                 continue
             try:
                 module_path, class_name = skill_def.class_path.strip().rsplit('.', 1)

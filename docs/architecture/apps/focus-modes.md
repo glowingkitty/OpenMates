@@ -16,7 +16,7 @@ The legacy layout splits a single focus mode across 3–4 files:
 
 | File | Holds |
 |---|---|
-| `backend/apps/<app>/app.yml` → `focuses[]` | id, translation keys, `system_prompt`, `process`, `stage`, `preprocessor_hint`, `icon_image` |
+| `backend/apps/<app>/app.yml` → `focuses[]` | id, translation keys, `system_prompt`, `process`, `default_enabled`, `preprocessor_hint`, `icon_image` |
 | `frontend/packages/ui/src/i18n/sources/focus_modes/<app>_<mode>.yml` | name, description, process bullets, `how_to_use.1/2/3` examples — all languages |
 | `frontend/packages/ui/src/i18n/sources/app_focus_modes/<app>.yml` | Per-app grouping of the same strings (duplicated) |
 | `backend/apps/<app>/app.yml` → `preprocessor_hint` | Often contains the *actual* system prompt text (legacy drift) |
@@ -71,7 +71,6 @@ with OpenMates-specific extensions.
 # ── Identity ────────────────────────────────────────────────────────
 id: career_insights
 app: jobs
-stage: production
 icon: insight.svg
 
 # ── User-facing strings (English canonical) ─────────────────────────
@@ -133,14 +132,13 @@ How long have they been doing it? What prompted them to seek advice?
 ### Localized override (`SKILL.de.md`)
 
 Only the user-facing strings and markdown body are translated. All
-structural frontmatter (id, app, stage, gating lists, phases) must match
+structural frontmatter (id, app, default_enabled, gating lists, phases) must match
 the canonical file — enforced by the parity lint.
 
 ```markdown
 ---
 id: career_insights
 app: jobs
-stage: production
 icon: insight.svg
 
 name: Karriere-Einblicke
@@ -190,7 +188,7 @@ Required fields in **bold**. All others optional.
 | **`name`** | string | User-facing display name (≤60 chars). |
 | **`description`** | string | One-line user-facing description (≤140 chars). |
 | **`lang`** | string | BCP 47-ish language code (`en`, `de`, `zh`, …). The canonical file uses `en`. |
-| `stage` | `planning` \| `development` \| `production` | Lifecycle gate. `planning` is excluded from API responses. Defaults to `development`. |
+| `default_enabled` | `false` | Optional off-by-default marker. Omit for normal enabled-by-default focus modes. |
 | `icon` | string | SVG filename in the app's icon directory. |
 | `preprocessor-hint` | string (1–3 sentences) | LLM-facing hint used during focus mode selection. Lives in the canonical English file only — selection runs in English. |
 | `allowed-models` | list\<string\> | Model allowlist (e.g. `[claude-opus-4-6, gpt-5]`). Empty or missing = any model. |
@@ -261,7 +259,7 @@ as a warning but **does not fail startup** — the legacy path is
 authoritative in the prototype phase. This catches accidental drift
 between the two sources while migration is incomplete.
 
-Compared fields: `id`, `stage`, `icon_image`, `preprocessor_hint`
+Compared fields: `id`, `default_enabled`, `icon_image`, `preprocessor_hint`
 (normalized), and any field both sources populate. Fields unique to
 SKILL.md (gating, how_to_use) are not compared.
 
@@ -330,7 +328,7 @@ ignored. OpenMates-specific frontmatter fields (`app`, `allowed-apps`,
 works as a skill prompt.
 
 Going the other way (Claude Code skill → OpenMates focus mode) requires
-adding the OpenMates-specific frontmatter (`app`, `stage`) and wiring the
+adding the OpenMates-specific frontmatter (`app`) and wiring the
 focus mode into the parent app's routing.
 
 ---

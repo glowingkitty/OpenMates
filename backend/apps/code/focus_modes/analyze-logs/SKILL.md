@@ -1,7 +1,6 @@
 ---
 id: analyze_logs
 app: code
-stage: planning
 
 name: analyze-logs
 description: Understand and analyze logs to find issues.

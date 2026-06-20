@@ -1,7 +1,6 @@
 ---
 id: create_schematic
 app: pcb_design
-stage: planning
 
 name: create-schematic
 description: "Plan & create a PCB schematic."

@@ -1,7 +1,6 @@
 ---
 id: prepare_doctor_report
 app: health
-stage: planning
 
 name: prepare-doctor-report
 description: Create a report for your next doctor visit.

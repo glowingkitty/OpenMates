@@ -6,17 +6,30 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Header, ProjectsPage, Settings, Notification, authStore, initialize, notificationStore, panelState } from '@repo/ui';
+  import { Header, ProjectsPage, Settings, Notification, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability } from '@repo/ui';
+
+  let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
+  let projectsEnabled = $derived($featureAvailabilityStore.featuresById?.['platform:projects']?.enabled === true);
 
   onMount(() => {
     initialize().catch((error) => {
       console.error('[ProjectsRoute] Failed to initialize auth:', error);
     });
+
+    initializeFeatureAvailability().catch((error: unknown) => {
+      console.warn('[ProjectsRoute] Failed to load feature availability:', error);
+    });
   });
 </script>
 
-{#if !$authStore.isInitialized}
+{#if !$authStore.isInitialized || !featureAvailabilityLoaded}
   <main class="projects-route-state" data-testid="projects-auth-loading">Loading projects...</main>
+{:else if !projectsEnabled}
+  <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
+  <main class="projects-route-state" data-testid="projects-feature-disabled">
+    <h1>Projects unavailable</h1>
+    <p>Projects are disabled on this server.</p>
+  </main>
 {:else if $authStore.isAuthenticated}
   <div class="sidebar" class:closed={!$panelState.isActivityHistoryOpen}>
     {#if $panelState.isActivityHistoryOpen}

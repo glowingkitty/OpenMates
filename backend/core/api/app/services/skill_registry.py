@@ -15,7 +15,7 @@
 #
 # How it works:
 #   1. At api startup, discover_apps() in main.py filesystem-scans
-#      backend/apps/*/app.yml, applies stage filtering, then constructs a
+#      backend/apps/*/app.yml, applies feature availability filtering, then constructs a
 #      BaseApp(register_http_routes=False, preloaded_config_dict=...) per app.
 #      Each BaseApp resolves its skill class_path strings via importlib at
 #      construction time.
@@ -37,6 +37,17 @@ import yaml
 from fastapi import HTTPException
 
 from backend.apps.base_app import BaseApp
+from backend.core.api.app.services.feature_availability_service import (
+    FeatureAvailabilityService,
+    PLATFORM_FEATURES,
+    collect_feature_definitions_from_app_config,
+    app_feature_id,
+    embed_feature_id,
+    focus_feature_id,
+    memory_feature_id,
+    skill_feature_id,
+)
+from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 
 logger = logging.getLogger(__name__)
@@ -65,22 +76,14 @@ def scan_filesystem_for_apps(apps_dir: str = APPS_DIR) -> List[str]:
     return app_ids
 
 
-def filter_app_components_by_stage(
+def filter_app_components_by_availability(
+    app_id: str,
     app_metadata_json: Dict[str, Any],
-    server_environment: str,
+    availability: FeatureAvailabilityService,
 ) -> Optional[Dict[str, Any]]:
-    """
-    Filter an app's raw config dict by component stage. Returns the filtered
-    dict, or None if the app has no remaining valid components.
-
-    Rules:
-      - Production server: include components with stage == 'production' only
-      - Development server: include components with stage in {'development', 'production'}
-    """
-    if server_environment.lower() == "production":
-        required_stages = {"production"}
-    else:
-        required_stages = {"development", "production"}
+    """Filter raw app config to implemented, effectively enabled components."""
+    if not availability.is_enabled(app_feature_id(app_id)):
+        return None
 
     filtered = app_metadata_json.copy()
 
@@ -89,10 +92,22 @@ def filter_app_components_by_stage(
     if isinstance(skills_data, list):
         filtered["skills"] = [
             s for s in skills_data
-            if isinstance(s, dict) and s.get("stage", "").lower() in required_stages
+            if isinstance(s, dict)
+            and s.get("class_path")
+            and availability.is_enabled(skill_feature_id(app_id, str(s.get("id") or "")))
         ]
     else:
         filtered["skills"] = []
+
+    embed_types = filtered.get("embed_types", [])
+    if isinstance(embed_types, list):
+        filtered["embed_types"] = [
+            e for e in embed_types
+            if isinstance(e, dict)
+            and availability.is_enabled(embed_feature_id(app_id, str(e.get("id") or "")))
+        ]
+    else:
+        filtered["embed_types"] = []
 
     # Focuses (key may be 'focuses' or 'focus_modes')
     focuses_data: List[Dict[str, Any]] = []
@@ -102,7 +117,9 @@ def filter_app_components_by_stage(
         focuses_data = filtered["focus_modes"]
     filtered["focuses"] = [
         f for f in focuses_data
-        if isinstance(f, dict) and f.get("stage", "").lower() in required_stages
+        if isinstance(f, dict)
+        and (f.get("system_prompt") or f.get("systemprompt") or f.get("systemprompt_translation_key"))
+        and availability.is_enabled(focus_feature_id(app_id, str(f.get("id") or "")))
     ]
 
     # Memory fields (key may be 'settings_and_memories', 'memory_fields', or 'memory')
@@ -115,7 +132,9 @@ def filter_app_components_by_stage(
         memory_data = filtered["memory"]
     filtered["settings_and_memories"] = [
         m for m in memory_data
-        if isinstance(m, dict) and m.get("stage", "").lower() in required_stages
+        if isinstance(m, dict)
+        and m.get("schema")
+        and availability.is_enabled(memory_feature_id(app_id, str(m.get("id") or "")))
     ]
 
     has_valid_skill = bool(filtered.get("skills"))
@@ -131,10 +150,11 @@ def filter_app_components_by_stage(
 def build_skill_registry(
     disabled_app_ids: Optional[List[str]] = None,
     server_environment: Optional[str] = None,
+    feature_availability: Optional[FeatureAvailabilityService] = None,
 ) -> tuple["SkillRegistry", Dict[str, AppYAML]]:
     """
     Build a fresh SkillRegistry by filesystem-scanning backend/apps/, applying
-    stage filtering, and instantiating an in-process BaseApp per app.
+    feature availability filtering, and instantiating an in-process BaseApp per app.
 
     Returns (registry, metadata_dict). The metadata dict is provided for the
     legacy ``app.state.discovered_apps_metadata`` consumers in main.py — the
@@ -150,8 +170,6 @@ def build_skill_registry(
     the app keeps working. Apps that fail to load entirely are logged ERROR
     and skipped.
     """
-    if disabled_app_ids is None:
-        disabled_app_ids = []
     if server_environment is None:
         server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
 
@@ -161,13 +179,11 @@ def build_skill_registry(
     excluded_apps: List[str] = []
 
     all_app_ids = scan_filesystem_for_apps()
+    raw_configs: Dict[str, Dict[str, Any]] = {}
+    feature_definitions = list(PLATFORM_FEATURES)
     logger.info(f"[SkillRegistry] Building registry for {len(all_app_ids)} app(s) (env={server_environment})")
 
     for app_id in all_app_ids:
-        if app_id in disabled_app_ids:
-            logger.info(f"[SkillRegistry] Skipping '{app_id}' (disabled in config)")
-            continue
-
         app_dir = os.path.join(APPS_DIR, app_id)
         app_yml_path = os.path.join(app_dir, "app.yml")
 
@@ -183,9 +199,28 @@ def build_skill_registry(
             failed_apps.append(app_id)
             continue
 
-        filtered = filter_app_components_by_stage(raw_config, server_environment)
+        raw_configs[app_id] = raw_config
+        feature_definitions.extend(collect_feature_definitions_from_app_config(app_id, raw_config, source=app_yml_path))
+
+    if feature_availability is None:
+        config = ConfigManager().get_backend_config()
+        if disabled_app_ids:
+            disabled = [f"app:{app_id}" for app_id in disabled_app_ids]
+            config = {
+                **config,
+                "feature_overrides": {
+                    **(config.get("feature_overrides") or {}),
+                    "disabled": [*(config.get("feature_overrides") or {}).get("disabled", []), *disabled],
+                },
+            }
+        feature_availability = FeatureAvailabilityService(feature_definitions, config)
+
+    for app_id, raw_config in raw_configs.items():
+        app_dir = os.path.join(APPS_DIR, app_id)
+
+        filtered = filter_app_components_by_availability(app_id, raw_config, feature_availability)
         if filtered is None:
-            logger.info(f"[SkillRegistry] '{app_id}' excluded (no components match stage '{server_environment}')")
+            logger.info(f"[SkillRegistry] '{app_id}' excluded by feature availability or missing implemented components")
             excluded_apps.append(app_id)
             continue
 
@@ -221,7 +256,7 @@ def build_skill_registry(
             f"See ERROR logs above for details."
         )
     if excluded_apps:
-        logger.info(f"[SkillRegistry] {len(excluded_apps)} app(s) excluded by stage filter: {excluded_apps}")
+        logger.info(f"[SkillRegistry] {len(excluded_apps)} app(s) excluded by feature availability: {excluded_apps}")
 
     logger.info(f"[SkillRegistry] Build complete: {len(metadata)} app(s) loaded in-process")
     return registry, metadata

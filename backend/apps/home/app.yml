@@ -20,7 +20,6 @@ settings_and_memories:
     description_translation_key: home.saved_listings.description
     icon_image: home.svg
     type: list
-    stage: production
     schema:
       type: object
       properties:
@@ -140,7 +139,6 @@ skills:
       Searches ImmoScout24, Kleinanzeigen, and WG-Gesucht simultaneously.
       Returns listings with prices, sizes, rooms, addresses, and direct links.
       Costs 10 credits per search. Use when user asks about finding housing in Germany.
-    stage: production
     class_path: backend.apps.home.skills.search_skill.SearchSkill
     pricing:
       per_unit:

@@ -3,7 +3,6 @@ description_translation_key: calendar.description
 icon_image: |
   calendar.svg
 category: work
-stage: development
 settings_and_memories: []
 embed_types:
   - id: events
@@ -59,7 +58,6 @@ skills:
     name_translation_key: app_skills.calendar.get_events
     description_translation_key: app_skills.calendar.get_events.description
     icon_image: calendar.svg
-    stage: development
     class_path: backend.apps.calendar.skills.get_events_skill.GetEventsSkill
     providers:
       - name: Google
@@ -89,7 +87,6 @@ skills:
     name_translation_key: app_skills.calendar.create_event
     description_translation_key: app_skills.calendar.create_event.description
     icon_image: calendar.svg
-    stage: development
     class_path: backend.apps.calendar.skills.create_event_skill.CreateEventSkill
     providers:
       - name: Google
@@ -116,7 +113,6 @@ skills:
     name_translation_key: app_skills.calendar.update_event
     description_translation_key: app_skills.calendar.update_event.description
     icon_image: calendar.svg
-    stage: development
     class_path: backend.apps.calendar.skills.update_event_skill.UpdateEventSkill
     providers:
       - name: Google
@@ -144,7 +140,6 @@ skills:
     name_translation_key: app_skills.calendar.delete_event
     description_translation_key: app_skills.calendar.delete_event.description
     icon_image: calendar.svg
-    stage: development
     class_path: backend.apps.calendar.skills.delete_event_skill.DeleteEventSkill
     providers:
       - name: Google

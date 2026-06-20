@@ -124,7 +124,6 @@ skills:
       or profiles. Supports Reddit subreddits, Bluesky profile feeds, and
       Mastodon public profiles. Use for profile monitoring, community research, and
       finding conversations to review manually. Costs 10 credits per request.
-    stage: production
     pricing:
       per_unit:
         credits: 10
@@ -244,7 +243,6 @@ skills:
       Use this for topic monitoring and broad discovery across pages/profiles,
       not for monitoring a known profile; use Get posts for profile/page posts.
       Omit platform to search every supported social platform. Costs 10 credits per request.
-    stage: production
     pricing:
       per_unit:
         credits: 10
@@ -367,7 +365,6 @@ focuses:
   - id: content_calendar_strategist
     name_translation_key: social_media.content_calendar_strategist
     description_translation_key: social_media.content_calendar_strategist.description
-    stage: planning
 
 marketing_discovery:
   skills:

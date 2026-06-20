@@ -18,7 +18,6 @@ skills:
   - id: search_locations_and_courses
     name_translation_key: fitness.search_locations_and_courses
     description_translation_key: fitness.search_locations_and_courses.description
-    stage: planning
     class_path: |
       skills.search_locations_and_courses.SearchLocationsAndCoursesSkill
     providers:

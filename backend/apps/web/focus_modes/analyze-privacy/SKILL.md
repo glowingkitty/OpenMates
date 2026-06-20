@@ -1,7 +1,6 @@
 ---
 id: analyze_privacy
 app: web
-stage: planning
 
 name: analyze-privacy
 description: Analyze a website's privacy based on its terms.

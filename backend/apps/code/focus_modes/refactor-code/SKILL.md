@@ -1,7 +1,6 @@
 ---
 id: refactor_code
 app: code
-stage: planning
 
 name: refactor-code
 description: Improve code structure and readability.

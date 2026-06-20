@@ -273,6 +273,9 @@ export const apiEndpoints = {
     metadata: "/v1/apps/metadata", // Get metadata for all discovered apps
     mostUsed: "/v1/apps/most-used", // Get most used apps in last 30 days (public endpoint)
   },
+  features: {
+    availability: "/v1/features/availability", // Effective feature availability for apps, skills, embeds, and platform sections
+  },
   admin: {
     generateGiftCards: "/v1/admin/generate-gift-cards", // Admin-only: generate gift card codes
     listGiftCards: "/v1/admin/gift-cards", // Admin-only: list all active (unredeemed) gift cards

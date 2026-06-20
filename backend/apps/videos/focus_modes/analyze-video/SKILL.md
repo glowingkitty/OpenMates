@@ -1,7 +1,6 @@
 ---
 id: analyze_video
 app: videos
-stage: production
 icon: videos.svg
 
 name: analyze-video

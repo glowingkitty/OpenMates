@@ -43,6 +43,13 @@ const IMAGE_CHANNEL_TAGS = {
   main: MAIN_BRANCH,
   dev: DEV_BRANCH,
 } as const;
+const BACKEND_CONFIG_FILE = join("backend", "config", "backend_config.yml");
+const OFF_BY_DEFAULT_FEATURES = new Map<string, string>([
+  ["embed:code:application", "Application previews are still unstable"],
+  ["platform:projects", "Projects workspace is not ready by default"],
+  ["platform:workflows", "Workflows workspace is not implemented yet"],
+  ["platform:tasks", "Tasks workspace is not implemented yet"],
+]);
 const MINIMAL_ENV_TEMPLATE = `# OpenMates self-host image-mode environment
 SECRET__MISTRAL_AI__API_KEY=
 SECRET__CEREBRAS__API_KEY=
@@ -143,6 +150,76 @@ function getInstallMode(
 
 function shouldPullImages(): boolean {
   return process.env.OPENMATES_SKIP_IMAGE_PULL !== "1";
+}
+
+type FeatureOverrides = {
+  enabled: string[];
+  disabled: string[];
+};
+
+function normalizeFeatureList(items: string[]): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const item of items) {
+    const value = item.trim();
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    normalized.push(value);
+  }
+  return normalized;
+}
+
+function parseListBlock(content: string, key: string): string[] {
+  const match = content.match(new RegExp(`^${key}:\\n((?:[ \\t]+.*\\n?)*)`, "m"));
+  if (!match) return [];
+  const block = match[1] ?? "";
+  return normalizeFeatureList(
+    [...block.matchAll(/^\s*-\s*["']?([^"'\n#]+)["']?/gm)].map((item) => item[1] ?? ""),
+  );
+}
+
+function parseFeatureOverrides(content: string): FeatureOverrides {
+  const overridesMatch = content.match(/^feature_overrides:\n((?:[ \t]+.*\n?)*)/m);
+  const overridesBlock = overridesMatch?.[1] ?? "";
+  const enabled = parseListBlock(overridesBlock.replace(/^ {2}/gm, ""), "enabled");
+  const disabled = parseListBlock(overridesBlock.replace(/^ {2}/gm, ""), "disabled");
+  const legacyDisabledApps = parseListBlock(content, "disabled_apps").map((appId) =>
+    appId.startsWith("app:") ? appId : `app:${appId}`,
+  );
+  return {
+    enabled: normalizeFeatureList(enabled),
+    disabled: normalizeFeatureList([...disabled, ...legacyDisabledApps]),
+  };
+}
+
+function renderFeatureOverrides(overrides: FeatureOverrides): string {
+  const renderList = (key: string, items: string[]) => {
+    if (!items.length) return `  ${key}: []`;
+    return [`  ${key}:`, ...items.map((item) => `    - "${item}"`)].join("\n");
+  };
+  return [
+    "# Admin feature overrides. Changes require a server restart.",
+    "feature_overrides:",
+    renderList("enabled", overrides.enabled),
+    renderList("disabled", overrides.disabled),
+    "",
+  ].join("\n");
+}
+
+function removeConfigBlock(content: string, key: string): string {
+  return content.replace(new RegExp(`(?:^|\\n)#.*\\n${key}:\\n(?:[ \\t]+.*\\n?)*`, "m"), "\n")
+    .replace(new RegExp(`^${key}:\\n(?:[ \\t]+.*\\n?)*`, "m"), "");
+}
+
+function updateFeatureOverridesContent(content: string, overrides: FeatureOverrides): string {
+  let next = removeConfigBlock(content, "feature_overrides");
+  next = removeConfigBlock(next, "disabled_apps");
+  next = next.trimEnd();
+  return `${next}\n\n${renderFeatureOverrides(overrides)}`;
+}
+
+function featureKind(featureId: string): string {
+  return featureId.split(":", 1)[0] || "unknown";
 }
 
 /** Build the docker compose argument array. */
@@ -1024,6 +1101,79 @@ async function serverMakeAdmin(
   }
 }
 
+async function serverFeatures(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const action = rest[0] ?? "list";
+  const featureId = rest[1];
+  const installPath = resolveServerPath(flags);
+  const configPath = join(installPath, BACKEND_CONFIG_FILE);
+  if (!existsSync(configPath)) {
+    throw new Error(`Backend config not found at ${configPath}. Run 'openmates server install' first or pass --path <dir>.`);
+  }
+
+  const content = readFileSync(configPath, "utf-8");
+  const overrides = parseFeatureOverrides(content);
+  const writeOverrides = (nextOverrides: FeatureOverrides) => {
+    writeFileSync(configPath, updateFeatureOverridesContent(content, nextOverrides));
+    console.log(`Updated ${configPath}`);
+    console.log("Restart the server for feature changes to take effect: openmates server restart");
+  };
+
+  if (action === "list") {
+    console.log("Feature overrides:");
+    console.log(`  enabled: ${overrides.enabled.length ? overrides.enabled.join(", ") : "none"}`);
+    console.log(`  disabled: ${overrides.disabled.length ? overrides.disabled.join(", ") : "none"}`);
+    console.log("\nKnown off-by-default features:");
+    for (const [id, reason] of OFF_BY_DEFAULT_FEATURES.entries()) {
+      const override = overrides.enabled.includes(id) ? "enabled override" : overrides.disabled.includes(id) ? "disabled override" : "default off";
+      console.log(`  ${id} (${featureKind(id)}): ${override} - ${reason}`);
+    }
+    return;
+  }
+
+  if (!featureId) {
+    throw new Error(`Usage: openmates server features ${action} <feature-id>`);
+  }
+
+  if (action === "enable") {
+    writeOverrides({
+      enabled: normalizeFeatureList([...overrides.enabled, featureId]),
+      disabled: overrides.disabled.filter((id) => id !== featureId),
+    });
+    return;
+  }
+
+  if (action === "disable") {
+    writeOverrides({
+      enabled: overrides.enabled.filter((id) => id !== featureId),
+      disabled: normalizeFeatureList([...overrides.disabled, featureId]),
+    });
+    return;
+  }
+
+  if (action === "reset") {
+    writeOverrides({
+      enabled: overrides.enabled.filter((id) => id !== featureId),
+      disabled: overrides.disabled.filter((id) => id !== featureId),
+    });
+    return;
+  }
+
+  if (action === "explain") {
+    const defaultReason = OFF_BY_DEFAULT_FEATURES.get(featureId);
+    const override = overrides.enabled.includes(featureId) ? "enabled" : overrides.disabled.includes(featureId) ? "disabled" : "none";
+    const defaultState = defaultReason ? "off" : "on";
+    const effective = override === "enabled" ? "enabled" : override === "disabled" ? "disabled" : defaultState === "on" ? "enabled" : "disabled";
+    console.log(`Feature: ${featureId}`);
+    console.log(`Kind: ${featureKind(featureId)}`);
+    console.log(`Default: ${defaultState}${defaultReason ? ` (${defaultReason})` : ""}`);
+    console.log(`Override: ${override}`);
+    console.log(`Effective after restart: ${effective}`);
+    return;
+  }
+
+  throw new Error(`Unknown server features command '${action}'. Use list, enable, disable, reset, or explain.`);
+}
+
 async function serverUninstall(flags: Record<string, string | boolean>): Promise<void> {
   requireDocker();
   const installPath = resolveServerPath(flags);
@@ -1153,11 +1303,20 @@ Command Options:
   make-admin:
     openmates server make-admin <email>
 
+  features:
+    openmates server features list
+    openmates server features enable <feature-id>
+    openmates server features disable <feature-id>
+    openmates server features reset <feature-id>
+    openmates server features explain <feature-id>
+
 Examples:
   openmates server install
   openmates server start --with-overrides
   openmates server logs --container api --follow
   openmates server make-admin user@example.com
+  openmates server features disable app:videos
+  openmates server features enable embed:code:application
   openmates server update
   openmates server update --dry-run
   openmates server update --image-tag v0.12.0-alpha.1
@@ -1190,6 +1349,7 @@ export async function handleServer(
     case "update":     return serverUpdate(flags);
     case "reset":      return serverReset(flags);
     case "make-admin": return serverMakeAdmin(rest, flags);
+    case "features":   return serverFeatures(rest, flags);
     case "uninstall":  return serverUninstall(flags);
     default:
       throw new Error(`Unknown server command '${subcommand}'. Run 'openmates server --help'.`);

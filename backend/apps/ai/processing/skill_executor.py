@@ -351,27 +351,12 @@ def _refresh_skill_registry_for_missing_skill(app_id: str, skill_id: str, regist
         return registry
 
     from backend.core.api.app.services.skill_registry import build_skill_registry, set_global_registry
-    from backend.core.api.app.utils.config_manager import ConfigManager
-
-    disabled_apps: list = []
-    try:
-        disabled_apps = ConfigManager().get_disabled_apps() or []
-    except Exception as exc:
-        logger.warning(
-            "[SkillRegistry] Could not read disabled_apps while refreshing missing skill %s.%s: %s. "
-            "Continuing with empty disabled list.",
-            app_id,
-            skill_id,
-            exc,
-        )
-
     logger.warning(
         "[SkillRegistry] Missing skill '%s.%s' in worker registry; rebuilding registry once before dispatch.",
         app_id,
         skill_id,
     )
     refreshed_registry, metadata = build_skill_registry(
-        disabled_app_ids=disabled_apps,
         server_environment=os.getenv("SERVER_ENVIRONMENT", "development").lower(),
     )
     set_global_registry(refreshed_registry)
@@ -564,5 +549,4 @@ def _extract_multiple_requests(arguments: Dict[str, Any]) -> Optional[List[Dict[
     
     # If no multiple requests pattern found, return None to indicate single request
     return None
-
 

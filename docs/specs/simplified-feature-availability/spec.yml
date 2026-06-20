@@ -1,0 +1,659 @@
+id: simplified-feature-availability
+title: Simplified Feature Availability And Stage Removal
+status: implementing
+
+goal: >
+  Replace OpenMates' stage-based app metadata gating with a simpler feature
+  availability model where every implemented feature is enabled by default unless
+  it explicitly declares default_enabled: false or an admin disables it. Remove
+  stage fields and stage filtering entirely so self-host administrators can use
+  one CLI-driven mechanism for apps, skills, embeds, focus modes, memory fields,
+  and platform sections.
+
+scope:
+  in:
+    - Remove stage fields from app.yml schemas, focus mode frontmatter, runtime metadata, generated metadata, docs, and tests.
+    - "Add default_enabled: false as the only metadata needed for features that ship off by default."
+    - Add feature IDs for apps, skills, embeds, focus modes, memory fields, and platform features.
+    - Add admin overrides in backend_config.yml with enabled and disabled lists.
+    - Add backend enforcement so disabled features cannot be executed or newly created through hidden endpoints.
+    - Add CLI commands under openmates server features for self-host administrators.
+    - Expose effective feature availability to frontend clients so UI entry points can hide disabled features.
+    - Keep historical content readable when its feature is disabled unless rendering it would execute unsafe code.
+    - Migrate current disabled_apps configuration to feature_overrides.disabled entries.
+  out:
+    - Per-user feature flags or A/B experiments.
+    - Dynamic hot reload of feature configuration without server restart.
+    - Cloud tenant billing/package management.
+    - Rebuilding unfinished planned features such as workflows or tasks.
+    - Deleting historical embeds, chats, memories, or files when a feature is disabled.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP search failed with bad credentials; gh issue list fallback for feature availability/stage/default_enabled returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/apps/function-calling.md
+    - docs/architecture/apps/app-skills.md
+    - docs/architecture/apps/rest-api.md
+    - docs/architecture/apps/focus-modes.md
+  code_patterns:
+    - backend/config/backend_config.yml currently contains disabled_apps.
+    - backend/core/api/app/utils/config_manager.py reads disabled_apps and uses hardcoded config paths.
+    - backend/shared/python_schemas/app_metadata_schemas.py defines stage for skills, focus modes, and memory fields, plus disabled for embed types.
+    - backend/apps/ai/processing/tool_generator.py filters skills by stage and SERVER_ENVIRONMENT.
+    - backend/apps/ai/processing/postprocessor.py filters app-skill suggestions by production stage.
+    - backend/apps/ai/processing/skill_executor.py checks disabled_apps before executing skills.
+    - "backend/apps/code/app.yml has embed type application with disabled: true because application previews are unstable."
+    - frontend/packages/openmates-cli/src/server.ts owns self-host server management commands.
+    - frontend/packages/ui/src/components/Header.svelte contains commented projects, workflows, and tasks workspace tabs.
+    - frontend/apps/web_app/src/routes/projects/+page.svelte has an implemented projects route.
+  tests:
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - backend tests for skill registry/config behavior need to be identified or created during implementation.
+    - frontend web Playwright coverage for projects/workspace navigation needs to be identified or created during implementation.
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Shared/AppSkill metadata consumers, if they exist.
+    - apple/OpenMates/Sources/Chat embed rendering surfaces, if they consume disabled embed metadata.
+  parity_expectations:
+    - Apple has no self-host admin CLI surface for this first slice.
+    - If Apple consumes backend app, skill, focus, memory, or embed metadata, it must respect effective availability the same way the web app does.
+    - Historical disabled embeds should remain readable on Apple when web can render them read-only.
+  verification:
+    - Run or attempt python3 scripts/apple_remote.py status.
+    - Run or attempt python3 scripts/apple_remote.py build-ios after backend/frontend green evidence if Apple metadata consumers are affected.
+  intentional_native_differences:
+    - Admin feature management is CLI-only in this slice and does not need a native settings screen.
+
+clarification:
+  rounds:
+    - question: "Should the existing stage model be replaced with lifecycle metadata or simplified further?"
+      answer: Simplify further. A feature is on by default or off, and because on is the default only off-by-default features need metadata.
+    - question: "Should stages remain as development/catalog hints while runtime availability moves to default_enabled?"
+      answer: No. Create the spec including complete removal of stages.
+  vision_summary: >
+    OpenMates should have one simple availability rule: implemented features are
+    enabled by default unless the feature declares default_enabled: false or an
+    administrator overrides it. Stages must be removed instead of renamed; old
+    planning-only metadata should leave runtime metadata rather than being hidden
+    by a lifecycle gate.
+  approved_by_user: true
+
+feature_model:
+  feature_id_formats:
+    app: "app:<app_id>"
+    skill: "skill:<app_id>:<skill_id>"
+    embed: "embed:<app_id>:<embed_id>"
+    focus: "focus:<app_id>:<focus_id>"
+    memory: "memory:<app_id>:<memory_id>"
+    platform: "platform:<feature_id>"
+  metadata_rule: >
+    default_enabled is omitted for normal on-by-default features. The only valid
+    authoring value is default_enabled: false for a feature that ships off by
+    default. Do not add default_enabled: true noise to metadata.
+  admin_config_shape:
+    feature_overrides:
+      enabled: []
+      disabled: []
+  effective_state_rule: >
+    A feature is enabled when it is explicitly enabled by admin, or when it does
+    not declare default_enabled: false and is not explicitly disabled by admin.
+    Admin enabled overrides are used only to opt into features that are off by
+    default.
+  initial_off_by_default_features:
+    - id: embed:code:application
+      reason: "Application previews are still unstable; replaces backend/apps/code/app.yml disabled: true."
+    - id: platform:projects
+      reason: Projects route exists but should not be exposed by default yet.
+    - id: platform:workflows
+      reason: Workspace tab is a commented future section, not an implemented product surface.
+    - id: platform:tasks
+      reason: Workspace tab is a commented future section, not an implemented product surface.
+  old_stage_mapping:
+    production: "Remove stage; keep the implemented feature enabled by default unless explicitly listed above."
+    development: "Remove stage; keep the implemented feature enabled by default unless explicitly marked default_enabled: false."
+    planning: "Remove runtime metadata entry unless the feature is implemented; if implemented but intentionally hidden, use default_enabled: false."
+
+scenarios:
+  - id: S-1
+    title: Default-on implemented skill remains available after stage removal
+    given:
+      - The web app skill search exists in backend/apps/web/app.yml and has a valid class_path.
+      - The skill metadata no longer contains stage.
+      - The admin config does not mention skill:web:search.
+    when:
+      - The backend builds app metadata and AI tool definitions.
+    then:
+      - skill:web:search is listed as effectively enabled.
+      - The AI tool generator may expose the skill on every server environment.
+      - No stage value is read to decide availability.
+
+  - id: S-2
+    title: Off-by-default embed is hidden until an admin enables it
+    given:
+      - "embed:code:application declares default_enabled: false."
+      - The admin config does not include embed:code:application in feature_overrides.enabled.
+    when:
+      - The backend builds embed availability and frontend metadata.
+    then:
+      - New application embed creation and application preview start routes are blocked with FEATURE_DISABLED.
+      - The frontend does not advertise application embed creation or catalog entries.
+      - Existing historical application embeds remain read-only unless preview execution is requested.
+
+  - id: S-3
+    title: Self-host admin disables and re-enables a default-on app
+    given:
+      - The videos app is implemented and has no default_enabled field.
+      - The self-host admin can run openmates server commands.
+    when:
+      - The admin runs openmates server features disable app:videos.
+      - The admin restarts the server.
+    then:
+      - app:videos and its child skills, embeds, focus modes, and memory fields are effectively disabled unless a more specific feature is explicitly enabled.
+      - Video skills cannot execute through chat, REST, or CLI execution paths.
+      - The frontend hides video app and skill entry points.
+      - Running openmates server features enable app:videos followed by restart restores the app.
+
+  - id: S-4
+    title: Projects, workflows, and tasks ship off by default as platform features
+    given:
+      - "platform:projects, platform:workflows, and platform:tasks are declared as platform features with default_enabled: false."
+      - The admin config does not explicitly enable them.
+    when:
+      - The web app renders app navigation or a user visits /projects directly.
+    then:
+      - Projects, workflows, and tasks navigation entries are hidden.
+      - /projects returns a disabled/not-found state rather than the active ProjectsPage.
+      - The backend exposes the features as off by default in the availability response.
+
+  - id: S-5
+    title: Stage fields cannot re-enter app metadata
+    given:
+      - "A developer adds stage: planning, stage: development, or stage: production to an app, skill, focus mode, memory field, or embed type."
+    when:
+      - The metadata validation/audit runs.
+    then:
+      - "The audit fails with a clear message that stage is removed and default_enabled: false is the only off-by-default marker."
+      - Generated metadata does not contain stage.
+      - Documentation no longer instructs agents to add stage.
+
+  - id: S-6
+    title: Existing disabled_apps config is migrated
+    given:
+      - A self-host install has backend_config.yml with disabled_apps containing images and videos.
+    when:
+      - The new feature config migration runs through update or the server CLI.
+    then:
+      - The config stores app:images and app:videos under feature_overrides.disabled.
+      - disabled_apps is removed from the written config.
+      - The backend logs the migration without exposing secrets.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Implemented app skills are enabled by default after stage removal, regardless of SERVER_ENVIRONMENT.
+  - id: AC-2
+    scenario: S-2
+    text: Off-by-default embeds are unavailable for new creation/execution until explicitly enabled by admin.
+  - id: AC-3
+    scenario: S-3
+    text: Self-host admins can list, disable, enable, reset, and explain features through openmates server features commands.
+  - id: AC-4
+    scenario: S-3
+    text: Backend execution paths enforce effective availability for apps and skills, not just frontend visibility.
+  - id: AC-5
+    scenario: S-4
+    text: Platform sections projects, workflows, and tasks are modeled as off-by-default platform features.
+  - id: AC-6
+    scenario: S-5
+    text: Stage fields are removed from schemas, metadata, generated outputs, docs, and runtime filtering.
+  - id: AC-7
+    scenario: S-6
+    text: Existing disabled_apps config is migrated to feature_overrides.disabled without losing admin intent.
+
+contracts:
+  api:
+    - route: GET /v1/features/availability
+      auth: optional
+      response: >
+        { features: [{ id, kind, app_id?, parent_id?, default_enabled, enabled,
+        disabled_reason?, source }] }
+      notes:
+        - Returns effective availability for frontend and native clients.
+        - Must not expose secrets or provider API key state.
+    - route: Existing skill dispatch, REST skill routes, embed creation routes, and application preview routes
+      errors:
+        - 403 FEATURE_DISABLED when an authenticated user attempts a disabled feature.
+        - 404 or FEATURE_DISABLED for anonymous/public routes where exposing feature existence is undesirable.
+  cli:
+    - command: openmates server features list
+      behavior: Shows feature IDs, kind, default state, override state, effective state, and restart reminder.
+    - command: openmates server features enable <feature-id>
+      behavior: Adds feature-id to feature_overrides.enabled and removes it from disabled.
+    - command: openmates server features disable <feature-id>
+      behavior: Adds feature-id to feature_overrides.disabled and removes it from enabled.
+    - command: openmates server features reset <feature-id>
+      behavior: Removes feature-id from both override lists so metadata defaults apply.
+    - command: openmates server features explain <feature-id>
+      behavior: Prints where the feature was defined, its default, current override, effective state, and dependent child features.
+  data:
+    - backend_config.yml stores feature_overrides.enabled and feature_overrides.disabled as arrays of feature IDs.
+    - backend_config.yml no longer stores disabled_apps after migration.
+    - app.yml, focus mode frontmatter, embed metadata, and generated registries must not contain stage.
+    - "default_enabled may be omitted or false; default_enabled: true should fail audit as unnecessary metadata noise."
+  ui_states:
+    - Disabled app/skill/focus/memory/embed entry points are hidden from discoverability.
+    - Direct navigation to disabled platform pages shows a disabled or not-found state.
+    - Historical disabled embeds render read-only where safe.
+    - Attempts to execute a disabled feature from stale UI receive a visible error.
+  privacy_security:
+    - Disabling a feature must not delete user data.
+    - Disabling a feature must block new server-side execution for that feature.
+    - Availability responses must not reveal secrets, provider credentials, private config paths, or admin-only values.
+    - Application previews must stay blocked while embed:code:application is off by default.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_feature_availability_service.py
+    command: python3 -m pytest backend/tests/test_feature_availability_service.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+      - AC-5
+      - AC-7
+    assertions:
+      - implemented features without default_enabled are effectively enabled by default
+      - default_enabled false features are disabled until explicitly enabled
+      - disabled parent apps disable child skills and embeds
+      - feature_overrides.enabled overrides default_enabled false
+      - disabled_apps migrates to app:<id> feature IDs
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: local-pytest-import-missing-service
+        timestamp: "2026-06-20T12:27:59Z"
+        note: Combined red run failed because backend.core.api.app.services.feature_availability_service did not exist yet.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-feature-availability
+        timestamp: "2026-06-20T12:27:59Z"
+        note: python3 -m pytest backend/tests/test_feature_availability_service.py backend/tests/test_feature_availability_enforcement.py backend/tests/test_app_metadata_no_stage.py backend/tests/test_postprocessor.py passed 12, skipped 22.
+
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_feature_availability_enforcement.py
+    command: python3 -m pytest backend/tests/test_feature_availability_enforcement.py
+    covers:
+      - AC-2
+      - AC-4
+    assertions:
+      - disabled application preview routes return FEATURE_DISABLED before preview execution
+      - disabled projects routes return FEATURE_DISABLED/not found before project execution
+      - admin-enabled overrides allow the guarded route dependencies
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run_added_after_green
+        run_id: local-focused-guard-test
+        timestamp: "2026-06-20T12:27:59Z"
+        note: Guard test was added after implementation to cover route-level enforcement without Redis/Directus dependencies.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-feature-availability
+        timestamp: "2026-06-20T12:27:59Z"
+        note: python3 -m pytest backend/tests/test_feature_availability_service.py backend/tests/test_feature_availability_enforcement.py backend/tests/test_app_metadata_no_stage.py backend/tests/test_postprocessor.py passed 12, skipped 22.
+
+  - id: T-VITEST-001
+    type: vitest
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test:unit:server
+    covers:
+      - AC-3
+      - AC-7
+    assertions:
+      - server features list prints default and effective states
+      - enable, disable, and reset update backend_config.yml deterministically
+      - explain reports metadata default, override, and restart requirement
+      - legacy disabled_apps config is migrated or reported with a safe migration path
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: local-node-test-before-cli-feature-commands
+        timestamp: "2026-06-20T12:27:59Z"
+        note: Initial red phase failed before server features helpers and tests were implemented.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-node-test-server
+        timestamp: "2026-06-20T12:27:59Z"
+        note: npm run test:unit:server passed 31 tests; npm run build also passed.
+
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_app_metadata_no_stage.py
+    command: python3 -m pytest backend/tests/test_app_metadata_no_stage.py
+    covers:
+      - AC-6
+    assertions:
+      - backend app metadata schemas reject stage fields
+      - app.yml fixtures containing stage fail validation
+      - default_enabled true fails validation as metadata noise
+      - generated metadata fixtures contain no stage keys
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: local-pytest-stage-schema-red
+        timestamp: "2026-06-20T12:27:59Z"
+        note: Combined red run failed before the schema/service removal work existed.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-feature-availability
+        timestamp: "2026-06-20T12:27:59Z"
+        note: python3 -m pytest backend/tests/test_feature_availability_service.py backend/tests/test_feature_availability_enforcement.py backend/tests/test_app_metadata_no_stage.py backend/tests/test_postprocessor.py passed 12, skipped 22.
+
+  - id: T-PLAYWRIGHT-001
+    type: playwright
+    file: frontend/apps/web_app/tests/feature-availability.spec.ts
+    command: python3 scripts/tests.py run --spec feature-availability.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-2
+      - AC-5
+    assertions:
+      - projects navigation is hidden while platform:projects is off by default
+      - direct /projects navigation shows a disabled or not-found state
+      - application embed creation UI is hidden while embed:code:application is off by default
+      - stale execution attempts surface FEATURE_DISABLED rather than silently failing
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run_added_after_implementation
+        run_id: feature-availability-spec-created-during-implementation
+        timestamp: "2026-06-20T13:29:55Z"
+        note: The Playwright regression spec was added during implementation after backend/frontend slices existed; no pre-implementation live-dev red run is available.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: running
+        run_id: manual-2026-06-20T13:19:39Z
+        timestamp: "2026-06-20T13:29:55Z"
+        note: Control plane still reports playwright::feature-availability.spec.ts as running with no local report or screenshot output yet.
+
+  - id: T-VITEST-002
+    type: vitest
+    file: frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    command: python3 scripts/tests.py run -- --suite vitest
+    covers:
+      - AC-2
+      - AC-5
+    assertions:
+      - disabled app entries are filtered from frontend app metadata
+      - disabled skill entries are filtered and provider lists are recomputed
+      - disabled memory fields are filtered from frontend metadata
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_required
+        run_id: frontend-store-filtering-added-during-implementation
+        timestamp: "2026-06-20T13:29:55Z"
+        note: Store coverage was added with the frontend implementation to prove filtering behavior; Playwright is the required live-dev red/green flow.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: partial_suite_passed_target_tests
+        run_id: "2026-06-20T13:18:33Z"
+        timestamp: "2026-06-20T13:19:31Z"
+        note: Vitest control plane recorded the new appSkillsStore tests as passed. The overall vitest suite had one unrelated existing failure in highlightToLines fallback (document is not defined).
+
+  - id: T-MANUAL-APPLE-001
+    type: manual
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+    assertions:
+      - Apple metadata consumers, if present, receive effective availability rather than stage values
+      - Apple build or sanitized remote failure is recorded after web/backend green evidence
+      - No native admin feature-management UI is required
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: manual_or_build_attempt
+      evidence:
+        status: passed
+        run_id: apple-remote-build-ios
+        timestamp: "2026-06-20T13:29:55Z"
+        note: python3 scripts/apple_remote.py status reported ssh_reachable=True, then python3 scripts/apple_remote.py build-ios completed successfully.
+
+implementation_plan:
+  existing_patterns:
+    - backend/core/api/app/utils/config_manager.py for backend_config.yml access.
+    - backend/core/api/app/services/skill_registry.py for app and skill discovery.
+    - backend/apps/ai/processing/skill_executor.py for runtime skill execution enforcement.
+    - backend/apps/ai/processing/tool_generator.py for AI tool exposure.
+    - frontend/packages/openmates-cli/src/server.ts for self-host server command structure.
+    - frontend/packages/ui/src/stores/appSkillsStore.ts for frontend app/skill metadata consumption.
+  architecture: >
+    Add a backend FeatureAvailabilityService that owns feature ID discovery,
+    metadata defaults, admin overrides, parent-child inheritance, and effective
+    state. App metadata should describe implemented capabilities only; unavailable
+    placeholders should be removed from runtime metadata, and intentionally hidden
+    implemented features should declare default_enabled: false.
+  data_flow:
+    - FeatureAvailabilityService loads app, skill, embed, focus, memory, and platform feature definitions at server startup.
+    - ConfigManager loads backend_config.yml from an environment-overridable path and returns feature_overrides.
+    - The service computes effective enabled/disabled states and parent-child inherited disables.
+    - Backend metadata routes and dispatchers call the service before exposing or executing features.
+    - Frontend and Apple clients fetch effective availability and hide disabled entry points.
+    - CLI feature commands edit backend_config.yml and instruct admins to restart.
+  affected_files:
+    - path: backend/shared/python_schemas/app_metadata_schemas.py
+      reason: Remove stage fields, replace embed disabled with default_enabled false validation.
+    - path: backend/apps/*/app.yml
+      reason: Remove all stage keys and migrate disabled/default-off metadata.
+    - path: backend/apps/*/focus_modes/*/SKILL*.md
+      reason: Remove stage frontmatter and update focus mode metadata validation.
+    - path: backend/core/api/app/utils/config_manager.py
+      reason: Add feature_overrides loading, migration, and environment-overridable config file path.
+    - path: backend/core/api/app/services/feature_availability_service.py
+      reason: New service for feature discovery, defaults, overrides, and enforcement helpers.
+    - path: backend/core/api/app/services/skill_registry.py
+      reason: Apply feature availability during app and skill discovery.
+    - path: backend/apps/ai/processing/tool_generator.py
+      reason: Remove SERVER_ENVIRONMENT stage filtering and use feature availability.
+    - path: backend/apps/ai/processing/postprocessor.py
+      reason: Remove production-stage filtering and use feature availability.
+    - path: backend/apps/ai/processing/skill_executor.py
+      reason: Replace disabled_apps checks with feature availability enforcement.
+    - path: backend/core/api/app/routes/application_preview.py
+      reason: Block preview execution while embed:code:application is disabled.
+    - path: frontend/packages/openmates-cli/src/server.ts
+      reason: Add server features commands and config editing.
+    - path: frontend/packages/ui/src/stores/appSkillsStore.ts
+      reason: Merge effective availability into app/skill UI state.
+    - path: frontend/packages/ui/src/components/Header.svelte
+      reason: Gate projects, workflows, and tasks workspace tabs by platform feature availability.
+    - path: frontend/apps/web_app/src/routes/projects/+page.svelte
+      reason: Block direct projects route while platform:projects is disabled.
+    - path: docs/contributing/guides/spec-driven-development.md
+      reason: Update new feature guidance to use default_enabled false and no stages.
+    - path: AGENTS.md
+      reason: Update app/skill/embed/focus/memory authoring instructions to forbid stage.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/simplified-feature-availability/spec.yml
+    - python3 -m pytest backend/tests/test_feature_availability_service.py
+    - python3 -m pytest backend/tests/test_feature_availability_enforcement.py
+    - python3 -m pytest backend/tests/test_app_metadata_no_stage.py
+    - cd frontend/packages/openmates-cli && npm run test:unit:server
+    - cd frontend/packages/openmates-cli && npm run build
+    - cd frontend/packages/openmates-cli && npm run typecheck (currently blocked by existing workspace-level TypeScript errors outside changed CLI server files)
+    - cd frontend/apps/web_app && npm run check (currently blocked by existing workspace-level Svelte/TypeScript errors outside the projects route)
+    - Deploy before Playwright green verification.
+    - python3 scripts/tests.py run --spec feature-availability.spec.ts
+    - python3 scripts/apple_remote.py status and build-ios when Apple metadata consumers are affected.
+  verification_order:
+    - Backend service and metadata pytest first.
+    - CLI vitest second through scripts/tests.py.
+    - Web Playwright after deploy.
+    - Apple remote build or sanitized failure evidence last if affected.
+
+tasks:
+  - id: TASK-1
+    title: Add feature availability service and config model
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-4
+        - AC-7
+    expected_files:
+      - backend/core/api/app/services/feature_availability_service.py
+      - backend/core/api/app/utils/config_manager.py
+      - backend/tests/test_feature_availability_service.py
+    verification:
+      - T-PYTEST-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Remove stage from metadata schemas and app definitions
+    covers:
+      scenarios:
+        - S-1
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-6
+    expected_files:
+      - backend/shared/python_schemas/app_metadata_schemas.py
+      - backend/apps/*/app.yml
+      - backend/apps/*/focus_modes/*/SKILL*.md
+      - backend/tests/test_app_metadata_no_stage.py
+    verification:
+      - T-PYTEST-003
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Enforce availability in backend discovery and execution
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-4
+    expected_files:
+      - backend/core/api/app/services/skill_registry.py
+      - backend/apps/ai/processing/tool_generator.py
+      - backend/apps/ai/processing/postprocessor.py
+      - backend/apps/ai/processing/skill_executor.py
+      - backend/core/api/app/routes/application_preview.py
+      - backend/tests/test_feature_availability_enforcement.py
+    verification:
+      - T-PYTEST-001
+      - T-PYTEST-002
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Add self-host CLI feature commands
+    covers:
+      scenarios:
+        - S-3
+        - S-6
+      acceptance_criteria:
+        - AC-3
+        - AC-7
+    expected_files:
+      - frontend/packages/openmates-cli/src/server.ts
+      - frontend/packages/openmates-cli/tests/server.test.ts
+    verification:
+      - T-VITEST-001
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Gate frontend platform sections and feature entry points
+    covers:
+      scenarios:
+        - S-2
+        - S-4
+      acceptance_criteria:
+        - AC-2
+        - AC-5
+    expected_files:
+      - frontend/packages/ui/src/stores/appSkillsStore.ts
+      - frontend/packages/ui/src/components/Header.svelte
+      - frontend/apps/web_app/src/routes/projects/+page.svelte
+      - frontend/apps/web_app/tests/feature-availability.spec.ts
+    verification:
+      - T-PLAYWRIGHT-001
+      - T-VITEST-002
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Update docs and authoring guardrails
+    covers:
+      scenarios:
+        - S-5
+      acceptance_criteria:
+        - AC-6
+    expected_files:
+      - docs/contributing/guides/spec-driven-development.md
+      - docs/architecture/apps/function-calling.md
+      - docs/architecture/apps/app-skills.md
+      - docs/architecture/apps/rest-api.md
+      - docs/architecture/apps/focus-modes.md
+      - AGENTS.md
+    verification:
+      - T-PYTEST-003
+    independently_deployable: false
+
+risks:
+  - "Removing stage may expose implemented but previously development-only skills; each must be reviewed and marked default_enabled: false only when truly unsafe or unstable."
+  - Removing planning metadata may affect docs or previews that relied on placeholder app.yml entries.
+  - Parent app disables must be clear so admins understand child skills and embeds are disabled too.
+  - Direct URL/API access must not bypass frontend hiding.
+  - Apple behavior may drift if native clients cache generated metadata without effective availability.
+
+open_questions:
+  - "Should default_enabled: true fail hard everywhere, or only in app metadata authoring audits?"
+  - Should unknown feature IDs in admin config fail startup, warn and ignore, or be preserved for future features?
+  - Should direct navigation to disabled platform pages return 404, 403 FEATURE_DISABLED, or a branded disabled state for authenticated admins?
+  - How long should legacy disabled_apps migration support remain before being removed completely?

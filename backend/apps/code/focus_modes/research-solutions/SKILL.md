@@ -1,7 +1,6 @@
 ---
 id: research_solutions
 app: code
-stage: development
 
 name: Research solutions
 description: Compare technical options and choose the best fit for your requirements.

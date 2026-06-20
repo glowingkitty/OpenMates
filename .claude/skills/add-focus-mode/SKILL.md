@@ -131,7 +131,7 @@ explicitly says to proceed without draft approval.
 ### Step 8: Finalize the Draft
 
 Incorporate feedback and show the final version briefly. Confirm any remaining
-tradeoffs, such as `stage`, activation breadth, or safety wording.
+tradeoffs, such as activation breadth, default-enabled behavior, or safety wording.
 
 ### Step 9: Implement the Focus Mode
 

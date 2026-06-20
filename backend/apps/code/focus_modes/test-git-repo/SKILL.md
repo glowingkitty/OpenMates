@@ -1,7 +1,6 @@
 ---
 id: test_git_repo
 app: code
-stage: planning
 
 name: test-git-repo
 description: Clone a git repo and test if it works.

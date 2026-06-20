@@ -11,10 +11,8 @@ focuses:
     description_translation_key: pcb_design.create_schematic.description
     process_translation_key: focus_modes.pcb_design_create_schematic.process
     systemprompt_translation_key: focus_modes.pcb_design_create_schematic.systemprompt
-    stage: planning
   - id: create_layout
     name_translation_key: pcb_design.create_layout
     description_translation_key: pcb_design.create_layout.description
     process_translation_key: focus_modes.pcb_design_create_layout.process
     systemprompt_translation_key: focus_modes.pcb_design_create_layout.systemprompt
-    stage: planning

@@ -2,7 +2,6 @@ name_translation_key: music
 description_translation_key: music.description
 icon_image: music.svg
 category: creative
-stage: production
 last_updated: "2026-05-21"
 embed_types:
   - id: generate
@@ -57,7 +56,6 @@ skills:
       Do not use this to imitate the voice, vocals, cadence, or persona of a real
       public figure, living artist, famous educator, or recognizable person. Use
       original voices and styles only, and reject scams, spam, or detection evasion.
-    stage: production
     class_path: backend.apps.music.skills.generate_skill.GenerateSkill
     providers:
       - Google

@@ -182,7 +182,6 @@ class SearchSkill(BaseSkill):
                  skill_id: str,
                  skill_name: str,  # Changed from 'name' to match BaseSkill
                  skill_description: str,  # Changed from 'description' to match BaseSkill
-                 stage: str = "development",
                  full_model_reference: Optional[str] = None,  # From skill's app.yml definition
                  pricing_config: Optional[Dict[str, Any]] = None,  # From skill's app.yml definition
                  celery_producer: Optional[Celery] = None,  # Added to match BaseSkill
@@ -198,7 +197,6 @@ class SearchSkill(BaseSkill):
             skill_id: Unique identifier for this skill
             skill_name: Display name for the skill
             skill_description: Description of what the skill does
-            stage: Deployment stage (development/production)
             full_model_reference: Optional model reference if skill uses a specific model
             pricing_config: Optional pricing configuration for this skill
             celery_producer: Optional Celery instance for async task processing
@@ -211,7 +209,6 @@ class SearchSkill(BaseSkill):
             skill_id=skill_id,
             skill_name=skill_name,
             skill_description=skill_description,
-            stage=stage,
             full_model_reference=full_model_reference,
             pricing_config=pricing_config,
             celery_producer=celery_producer

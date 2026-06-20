@@ -17,7 +17,10 @@ CONTAINER_BACKEND_ROOT = "/app/backend"
 
 # Define absolute paths to the configuration files within the container.
 # This is more robust than relative path calculations.
-BACKEND_CONFIG_FILE = os.path.join(CONTAINER_BACKEND_ROOT, "config/backend_config.yml")
+BACKEND_CONFIG_FILE = os.getenv(
+    "BACKEND_CONFIG_FILE",
+    os.path.join(CONTAINER_BACKEND_ROOT, "config/backend_config.yml"),
+)
 PROVIDERS_CONFIG_DIR = os.path.join(CONTAINER_BACKEND_ROOT, "providers")
 
 class ConfigManager:
@@ -51,6 +54,7 @@ class ConfigManager:
                 self._backend_config = yaml.safe_load(f)
             if self._backend_config is None: # Handle empty YAML file
                 self._backend_config = {}
+            self._backend_config = self._migrate_legacy_feature_config(self._backend_config)
             logger.info(f"Successfully loaded backend configuration from {BACKEND_CONFIG_FILE}")
         except yaml.YAMLError as e:
             logger.error(f"Error parsing backend configuration file {BACKEND_CONFIG_FILE}: {e}")
@@ -91,26 +95,48 @@ class ConfigManager:
         """Returns the entire backend configuration."""
         return self._backend_config if self._backend_config is not None else {}
 
+    @staticmethod
+    def _normalize_feature_list(value: Any) -> List[str]:
+        if not isinstance(value, list):
+            return []
+        return [item for item in (str(raw).strip() for raw in value) if item]
+
+    def _migrate_legacy_feature_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Migrate legacy disabled_apps into feature_overrides in memory."""
+        migrated = dict(config)
+        legacy_disabled_apps = self._normalize_feature_list(migrated.pop("disabled_apps", []))
+        overrides = dict(migrated.get("feature_overrides") or {})
+        disabled = self._normalize_feature_list(overrides.get("disabled"))
+        enabled = self._normalize_feature_list(overrides.get("enabled"))
+        for app_id in legacy_disabled_apps:
+            feature_id = app_id if app_id.startswith("app:") else f"app:{app_id}"
+            if feature_id not in disabled:
+                disabled.append(feature_id)
+        overrides["enabled"] = enabled
+        overrides["disabled"] = disabled
+        migrated["feature_overrides"] = overrides
+        return migrated
+
+    def get_feature_overrides(self) -> Dict[str, List[str]]:
+        """Returns admin feature override lists from backend_config.yml."""
+        config = self.get_backend_config()
+        overrides = config.get("feature_overrides") if isinstance(config, dict) else {}
+        if not isinstance(overrides, dict):
+            logger.warning("'feature_overrides' in backend_config.yml is not a mapping. Returning empty overrides.")
+            return {"enabled": [], "disabled": []}
+        return {
+            "enabled": self._normalize_feature_list(overrides.get("enabled")),
+            "disabled": self._normalize_feature_list(overrides.get("disabled")),
+        }
+
     def get_disabled_apps(self) -> List[str]:
         """
         Returns the list of disabled app IDs (service names).
         Apps are enabled by default - this is an opt-out list for temporarily disabling problematic apps.
         Assumes 'disabled_apps' in backend_config.yml is a simple list of strings.
         """
-        if self._backend_config and "disabled_apps" in self._backend_config:
-            apps = self._backend_config["disabled_apps"]
-            if isinstance(apps, list):
-                # Ensure all items are strings
-                valid_apps = [str(app_id) for app_id in apps if isinstance(app_id, (str, int))] # Allow int for convenience, convert to str
-                if len(valid_apps) != len(apps):
-                    logger.warning("Some items in 'disabled_apps' were not strings and have been filtered or converted.")
-                if valid_apps:
-                    logger.info(f"Found {len(valid_apps)} disabled app(s): {valid_apps}")
-                return valid_apps
-            else:
-                logger.warning(f"'disabled_apps' in backend_config.yml is not a list. Found: {type(apps)}. Returning empty list.")
-        # If disabled_apps is not found, return empty list (all apps enabled by default)
-        return []
+        disabled_features = self.get_feature_overrides().get("disabled", [])
+        return [feature_id.removeprefix("app:") for feature_id in disabled_features if feature_id.startswith("app:")]
 
     def get_provider_configs(self) -> Dict[str, Dict[str, Any]]:
         """Returns all loaded provider configurations."""

@@ -29,9 +29,8 @@ except ImportError as _exc:
 # ---------------------------------------------------------------------------
 
 class FakeSkill:
-    def __init__(self, id: str, stage: str = "production", internal: bool = False, preprocessor_hint: str = ""):
+    def __init__(self, id: str, internal: bool = False, preprocessor_hint: str = ""):
         self.id = id
-        self.stage = stage
         self.internal = internal
         self.preprocessor_hint = preprocessor_hint
 
@@ -53,11 +52,11 @@ class TestExtractAvailableSkills:
         apps = {"web": FakeAppYAML(skills=[])}
         assert extract_available_skills(apps) == []
 
-    def test_production_skills_included(self):
+    def test_available_skills_included(self):
         apps = {
             "web": FakeAppYAML(skills=[
-                FakeSkill("search", stage="production", preprocessor_hint="Search the web"),
-                FakeSkill("read", stage="production", preprocessor_hint="Read a page"),
+                FakeSkill("search", preprocessor_hint="Search the web"),
+                FakeSkill("read", preprocessor_hint="Read a page"),
             ])
         }
         result = extract_available_skills(apps)
@@ -66,22 +65,23 @@ class TestExtractAvailableSkills:
         assert result[0]["hint"] == "Search the web"
         assert result[1]["id"] == "web-read"
 
-    def test_development_skills_excluded(self):
+    def test_discovered_non_internal_skills_included(self):
         apps = {
             "web": FakeAppYAML(skills=[
-                FakeSkill("search", stage="production"),
-                FakeSkill("beta_feature", stage="development"),
+                FakeSkill("search"),
+                FakeSkill("beta_feature"),
             ])
         }
         result = extract_available_skills(apps)
-        assert len(result) == 1
+        assert len(result) == 2
         assert result[0]["id"] == "web-search"
+        assert result[1]["id"] == "web-beta_feature"
 
     def test_internal_skills_excluded(self):
         apps = {
             "ai": FakeAppYAML(skills=[
-                FakeSkill("ask", stage="production", internal=True),
-                FakeSkill("generate", stage="production", internal=False),
+                FakeSkill("ask", internal=True),
+                FakeSkill("generate", internal=False),
             ])
         }
         result = extract_available_skills(apps)

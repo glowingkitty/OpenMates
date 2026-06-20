@@ -9,9 +9,6 @@ description_translation_key: docs.description
 icon_image: |
   docs.svg
 category: productivity
-stage: production
-
-# Legacy embed descriptions (kept for documentation)
 embeds:
   - id: doc_embed
     description_embed: Rich document preview with formatted HTML content (reports, articles, letters, etc.)
@@ -76,7 +73,6 @@ settings_and_memories:
     description_translation_key: docs.writing_style.description
     icon_image: text.svg
     type: list
-    stage: production
     example_translation_keys:
       - "docs.writing_style.example_1"
       - "docs.writing_style.example_2"

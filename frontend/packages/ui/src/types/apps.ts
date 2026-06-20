@@ -41,7 +41,7 @@ export interface AppMetadata {
  * **Backend Implementation**:
  * - Defined in: `backend/shared/python_schemas/app_metadata_schemas.py:AppSkillDefinition`
  * - Registered in: `backend/apps/base_app.py:_register_skill_routes()`
- * - Note: Only production-stage skills are included. Development skills are only available on development servers, not production servers.
+ * - Note: Implemented skills are enabled by default unless `default_enabled: false` is set.
  */
 export interface SkillMetadata {
   id: string;
@@ -79,7 +79,7 @@ export interface SkillPricing {
  *
  * **Backend Implementation**:
  * - Defined in: `backend/shared/python_schemas/app_metadata_schemas.py:AppFocusDefinition`
- * - Note: Only production-stage focus modes are included. Development focus modes are only available on development servers, not production servers.
+ * - Note: Implemented focus modes are enabled by default unless `default_enabled: false` is set.
  */
 export interface FocusModeMetadata {
   id: string;

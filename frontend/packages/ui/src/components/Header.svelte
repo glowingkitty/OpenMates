@@ -13,6 +13,7 @@
     import { authStore } from '../stores/authStore'; // Import auth store to check login status
     import { demoMode } from '../stores/demoModeStore';
     import { signupFreeTestingCreditsPromotion } from '../stores/serverStatusStore';
+    import { featureAvailabilityStore, initializeFeatureAvailability } from '../stores/appSkillsStore';
     import { getLastAuthMethod, type LastAuthMethod } from '../utils/lastAuthMethod';
 
     // Props using Svelte 5 runes
@@ -69,42 +70,23 @@
         disabled: boolean;
     };
 
-    // let isProjectsRoute = $derived($page.url.pathname.startsWith('/projects'));
+    let isProjectsRoute = $derived($page.url.pathname.startsWith('/projects'));
+    let featureAvailability = $derived($featureAvailabilityStore.featuresById);
+    let projectsEnabled = $derived(featureAvailability?.['platform:projects']?.enabled === true);
+    let workflowsEnabled = $derived(featureAvailability?.['platform:workflows']?.enabled === true);
+    let tasksEnabled = $derived(featureAvailability?.['platform:tasks']?.enabled === true);
     let webappWorkspaceTabs: WorkspaceTab[] = $derived([
-        // Workspace navigation is temporarily hidden until these sections are ready.
-        // {
-        //     href: '/',
-        //     testId: 'chats-nav-link',
-        //     label: $text('common.chat'),
-        //     iconClass: 'chat-icon',
-        //     active: !isProjectsRoute,
-        //     disabled: false,
-        // },
-        // {
-        //     href: '/projects',
-        //     testId: 'projects-nav-link',
-        //     label: $text('navigation.projects'),
-        //     iconClass: 'project-icon',
-        //     active: isProjectsRoute,
-        //     disabled: false,
-        // },
-        // {
-        //     href: '',
-        //     testId: 'workflows-nav-link',
-        //     label: $text('navigation.workflows'),
-        //     iconClass: 'workflow-icon',
-        //     active: false,
-        //     disabled: true,
-        // },
-        // {
-        //     href: '',
-        //     testId: 'tasks-nav-link',
-        //     label: $text('navigation.tasks'),
-        //     iconClass: 'task-icon',
-        //     active: false,
-        //     disabled: true,
-        // },
-    ]);
+        { href: '/', testId: 'chats-nav-link', label: $text('common.chat'), iconClass: 'chat-icon', active: !isProjectsRoute, disabled: false },
+        ...(projectsEnabled
+            ? [{ href: '/projects', testId: 'projects-nav-link', label: $text('navigation.projects'), iconClass: 'project-icon', active: isProjectsRoute, disabled: false }]
+            : []),
+        ...(workflowsEnabled
+            ? [{ href: '', testId: 'workflows-nav-link', label: $text('navigation.workflows'), iconClass: 'workflow-icon', active: false, disabled: true }]
+            : []),
+        ...(tasksEnabled
+            ? [{ href: '', testId: 'tasks-nav-link', label: $text('navigation.tasks'), iconClass: 'task-icon', active: false, disabled: true }]
+            : []),
+    ] satisfies WorkspaceTab[]);
 
     // Define the type for social links
     type SocialLink = {
@@ -229,6 +211,10 @@
                 console.error('[Header] Error fetching server status:', error);
             }
         })();
+
+        initializeFeatureAvailability().catch((error) => {
+            console.warn('[Header] Failed to initialize feature availability:', error);
+        });
 
         return () => {
             window.removeEventListener('resize', checkMobile);

@@ -76,7 +76,7 @@ REST routes are **auto-registered per discovered app** at `api` startup by `regi
 
 Discovery flow (in-process since OPE-342):
 1. `discover_apps()` in [main.py](../../backend/core/api/main.py) delegates to `build_skill_registry()` in [skill_registry.py](../../backend/core/api/app/services/skill_registry.py).
-2. `build_skill_registry()` filesystem-scans `backend/apps/*/app.yml`, applies stage filtering, and instantiates a `BaseApp(register_http_routes=False)` per app. Each `BaseApp` resolves every skill `class_path` via `importlib`.
+2. `build_skill_registry()` filesystem-scans `backend/apps/*/app.yml`, applies feature availability filtering, and instantiates a `BaseApp(register_http_routes=False)` per app. Each `BaseApp` resolves every skill `class_path` via `importlib`.
 3. The result is published as `app.state.skill_registry` (and as a process-global singleton for code paths without FastAPI app context).
 4. `register_app_and_skill_routes()` registers `GET /v1/apps/{id}`, `GET /v1/apps/{id}/skills/{skill_id}`, and `POST /v1/apps/{id}/skills/{skill_id}` for every loaded app.
 5. `call_app_skill()` dispatches via `SkillRegistry.dispatch_skill()` — directly in-process, no HTTP to sibling containers.

@@ -10,7 +10,6 @@ settings_and_memories:
     description_translation_key: events.saved_events.description
     icon_image: event.svg
     type: list
-    stage: production
     schema:
       type: object
       properties:
@@ -93,7 +92,6 @@ skills:
       Do NOT retry with broader or alternative queries if results are empty or if there is a provider error.
       Do NOT fall back to web.search after this skill returns an error — report the
       error to the user instead.
-    stage: production
     class_path: |
       backend.apps.events.skills.search_skill.SearchSkill
     pricing:

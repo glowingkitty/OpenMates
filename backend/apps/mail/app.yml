@@ -3,7 +3,6 @@ description_translation_key: mail.description
 icon_image: |
   mail.svg
 category: work
-stage: production
 last_updated: "2026-03-04"
 settings_and_memories:
   - id: writing_styles
@@ -11,7 +10,6 @@ settings_and_memories:
     description_translation_key: mail.writing_styles.description
     icon_image: mail.svg
     type: list
-    stage: production
     example_translation_keys:
       - "mail.writing_styles.example_1"
       - "mail.writing_styles.example_2"
@@ -123,7 +121,6 @@ skills:
     name_translation_key: app_skills.mail.search
     description_translation_key: app_skills.mail.search.description
     icon_image: search.svg
-    stage: production
     class_path: |
       backend.apps.mail.skills.search_skill.SearchSkill
     providers:

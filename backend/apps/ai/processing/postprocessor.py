@@ -43,7 +43,7 @@ def extract_available_skills(
     discovered_apps: Dict[str, AppYAML],
 ) -> List[Dict[str, str]]:
     """
-    Extract a compact list of all production-stage skills from discovered apps.
+    Extract a compact list of all available user-facing skills from discovered apps.
 
     These are injected into the postprocessor system prompt so the LLM can
     generate natural-language suggestions that should auto-route to app skills.
@@ -61,8 +61,6 @@ def extract_available_skills(
             continue
 
         for skill in app_metadata.skills:
-            if getattr(skill, "stage", "development") != "production":
-                continue
             # Skip internal skills (auto-invoked, not user-facing)
             if getattr(skill, "internal", False):
                 continue
@@ -75,7 +73,7 @@ def extract_available_skills(
 
             skills.append({"id": skill_id, "hint": hint})
 
-    logger.debug(f"[PostProcessor] Extracted {len(skills)} production-stage skills")
+    logger.debug(f"[PostProcessor] Extracted {len(skills)} available user-facing skills")
     return skills
 
 

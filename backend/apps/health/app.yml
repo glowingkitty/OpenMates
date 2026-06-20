@@ -37,7 +37,6 @@ settings_and_memories:
     description_translation_key: health.appointments.description
     icon_image: calendar.svg
     type: list
-    stage: production
     example_translation_keys:
       - "health.appointments.example_1"
       - "health.appointments.example_2"
@@ -92,7 +91,6 @@ settings_and_memories:
     description_translation_key: health.medical_history.description
     icon_image: heart.svg
     type: list
-    stage: production
     example_translation_keys:
       - "health.medical_history.example_1"
       - "health.medical_history.example_2"
@@ -139,7 +137,6 @@ settings_and_memories:
     name_translation_key: health.symptoms_log
     description_translation_key: health.symptoms_log.description
     type: list
-    stage: planning
     schema:
       type: object
       properties:
@@ -175,7 +172,6 @@ settings_and_memories:
     name_translation_key: health.sleep_diary
     description_translation_key: health.sleep_diary.description
     type: list
-    stage: planning
     schema:
       type: object
       properties:
@@ -224,7 +220,6 @@ skills:
       check-ups, blood tests, and other examinations.
       Note: "Termin" in a medical context means appointment, not event — route here instead of events-search.
       Sources: Doctolib, Jameda (Germany only).
-    stage: production
     class_path: backend.apps.health.skills.search_appointments_skill.SearchAppointmentsSkill
     pricing:
       per_unit:
@@ -348,21 +343,17 @@ skills:
   - id: create_report
     name_translation_key: health.create_report
     description_translation_key: health.create_report.description
-    stage: planning
 
 focuses:
   - id: prepare_doctor_report
     name_translation_key: health.prepare_doctor_report
     description_translation_key: health.prepare_doctor_report.description
-    stage: planning
   - id: health_insights
     name_translation_key: health.health_insights
     description_translation_key: health.health_insights.description
-    stage: planning
   - id: prepare_doctor_appointment
     name_translation_key: health.prepare_doctor_appointment
     description_translation_key: health.prepare_doctor_appointment.description
-    stage: planning
 
 marketing_discovery:
   skills:

@@ -46,7 +46,6 @@ settings_and_memories:
     name_translation_key: maps.favorite_places
     description_translation_key: maps.favorite_places.description
     type: list
-    stage: development
     example_translation_keys:
       - "maps.favorite_places.example_1"
       - "maps.favorite_places.example_2"
@@ -88,7 +87,6 @@ skills:
     icon_image: search.svg
     preprocessor_hint: >
       Search for places, businesses, restaurants, directions, locations.
-    stage: production
     class_path: |
       backend.apps.maps.skills.search_skill.SearchSkill
     providers:

@@ -73,6 +73,7 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 - Add backend shared logic under `backend/shared/python_utils/`, `backend/shared/python_schemas/`, or `backend/shared/providers/`.
 - Do not import from another backend skill. Move shared behavior to `BaseSkill` or `backend/shared/`.
 - Use the repo scripts rather than ad hoc commands when available.
+- App metadata must not use `stage`. Apps, skills, embeds, focus modes, memory fields, and platform features are enabled by default; add sparse `default_enabled: false` only when a feature intentionally ships off by default.
 - Treat deterministic scripts as a first-class outcome of bug fixes and code-quality work. Prefer updating an existing script over adding a new one; wire checks into hooks only when they are path-scoped, fast, and low-noise, otherwise expose them as on-demand scripts from the relevant skill.
 - For Playwright and Vitest, follow `.claude/rules/testing.md`; do not run local test commands that the repo forbids.
 - For `*.spec.ts` Playwright verification, deploy the change to `dev` first, wait for the deployment to be live, then run the spec. Do not run E2E specs against undeployed local code.

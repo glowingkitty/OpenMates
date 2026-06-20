@@ -163,7 +163,7 @@ explicitly says to proceed without draft approval.
 ### Step 8: Finalize the Draft
 
 Incorporate feedback and show the final version briefly. Confirm any remaining
-tradeoffs, such as `stage`, field count, required fields, or sensitive data
+tradeoffs, such as default-enabled behavior, field count, required fields, or sensitive data
 boundaries.
 
 ### Step 9: Implement the Memory Type

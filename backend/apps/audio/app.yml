@@ -42,7 +42,6 @@ skills:
       Transcribe an audio recording uploaded by the user to text using Mistral Voxtral.
       Use this skill only for manually uploaded audio files or failed/missing transcripts.
       Do not use it for web app voice recordings that already include transcript text.
-    stage: production
     class_path: |
       backend.apps.audio.skills.transcribe_skill.TranscribeSkill
     providers:

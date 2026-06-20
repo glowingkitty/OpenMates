@@ -103,7 +103,6 @@ class BaseSkill:
     app_id: str # Added app_id
     skill_name: str
     skill_description: str
-    stage: str = Field(default="development", description="The deployment stage of the skill (e.g., 'development', 'production').")
     full_model_reference: Optional[str] = Field(None, description="Full reference to the model used by the skill, if applicable (e.g., 'google/gemini-2.5-pro').")
     pricing: Optional[SkillPricing] = Field(None, description="Specific pricing for this skill (from backend.core.api.app.yml), overrides provider model pricing if set.")
     skill_operational_defaults: Optional[Dict[str, Any]] = Field(None, description="Operational defaults for the skill (from app.yml default_config).")
@@ -128,7 +127,6 @@ class BaseSkill:
         skill_id: str,
         skill_name: str,
         skill_description: str,
-        stage: str = "development",
         full_model_reference: Optional[str] = None,
         pricing_config: Optional[Dict[str, Any]] = None, # This dict should match SkillPricing structure
         celery_producer: Optional[Celery] = None,
@@ -139,7 +137,6 @@ class BaseSkill:
         self.skill_id = skill_id
         self.skill_name = skill_name
         self.skill_description = skill_description
-        self.stage = stage
         self.full_model_reference = full_model_reference
         self.celery_producer = celery_producer
         self.skill_operational_defaults = skill_operational_defaults
@@ -311,7 +308,6 @@ class BaseSkill:
             "app_id": self.app_id, # Added app_id
             "name": self.skill_name,
             "description": self.skill_description,
-            "stage": self.stage,
             "full_model_reference": self.full_model_reference,
             "pricing": self.pricing.model_dump(exclude_none=True) if self.pricing else None,
             # Add other relevant metadata
@@ -831,7 +827,7 @@ class BaseSkill:
     #     return False
 
     def __repr__(self) -> str:
-        return f"<BaseSkill(skill_id='{self.skill_id}', name='{self.skill_name}', stage='{self.stage}')>"
+        return f"<BaseSkill(skill_id='{self.skill_id}', name='{self.skill_name}')>"
 
 if __name__ == '__main__':
     # Example Usage (for testing purposes)
@@ -850,7 +846,6 @@ if __name__ == '__main__':
             skill_id="sample.greet",
             skill_name="Sample Greeting Skill",
             skill_description="A simple skill that greets the user.",
-            stage="production",
             full_model_reference="custom/local-model-v1",
             pricing_config=sample_skill_pricing
         )

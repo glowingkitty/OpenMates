@@ -28,6 +28,70 @@ import { appHealthStore, getAppHealthStatus } from './appHealthStore';
 import type { AppHealthStatusValue } from './appHealthStore';
 import { get, writable } from 'svelte/store';
 
+type FeatureAvailabilityItem = {
+    id: string;
+    enabled: boolean;
+};
+
+interface FeatureAvailabilityState {
+    featuresById: Record<string, FeatureAvailabilityItem> | null;
+    initialized: boolean;
+    loading: boolean;
+}
+
+const initialFeatureAvailabilityState: FeatureAvailabilityState = {
+    featuresById: null,
+    initialized: false,
+    loading: false,
+};
+
+export const featureAvailabilityStore = writable<FeatureAvailabilityState>(initialFeatureAvailabilityState);
+
+export async function initializeFeatureAvailability(force: boolean = false): Promise<void> {
+    const current = get(featureAvailabilityStore);
+    if (current.initialized && !force) return;
+    if (current.loading) return;
+
+    featureAvailabilityStore.update(s => ({ ...s, loading: true }));
+
+    try {
+        const { getApiEndpoint, apiEndpoints } = await import('../config/api');
+        const response = await fetch(getApiEndpoint(apiEndpoints.features.availability));
+
+        if (!response.ok) {
+            console.warn(`[AppSkillsStore] /v1/features/availability returned ${response.status}, skipping feature availability filtering`);
+            featureAvailabilityStore.set({ featuresById: null, initialized: true, loading: false });
+            return;
+        }
+
+        const data = await response.json();
+        const featuresById: Record<string, FeatureAvailabilityItem> = {};
+        for (const item of data.features ?? []) {
+            if (typeof item?.id === 'string') {
+                featuresById[item.id] = {
+                    id: item.id,
+                    enabled: item.enabled === true,
+                };
+            }
+        }
+
+        featureAvailabilityStore.set({ featuresById, initialized: true, loading: false });
+    } catch (e) {
+        // Fail open for app metadata so offline/static catalog browsing still works.
+        console.warn('[AppSkillsStore] Failed to fetch feature availability, skipping filtering:', e);
+        featureAvailabilityStore.set({ featuresById: null, initialized: true, loading: false });
+    }
+}
+
+export function resetFeatureAvailability(): void {
+    featureAvailabilityStore.set(initialFeatureAvailabilityState);
+}
+
+export function isFeatureEnabled(featureId: string, defaultEnabled: boolean = true): boolean {
+    const featuresById = get(featureAvailabilityStore).featuresById;
+    return featuresById?.[featureId]?.enabled ?? defaultEnabled;
+}
+
 // --- User-Specific Skill Availability Store ---
 
 interface UserAvailableSkillsState {
@@ -150,8 +214,23 @@ class AppSkillsStore {
         const healthStatus = get(getAppHealthStatus);
 
         const annotatedApps: Record<string, AppMetadata> = {};
+        const featureAvailability = get(featureAvailabilityStore);
+        const featuresById = featureAvailability.initialized ? featureAvailability.featuresById : null;
+        const featureEnabled = (featureId: string): boolean => featuresById?.[featureId]?.enabled ?? true;
+
         for (const [appId, appMetadata] of Object.entries(this.state.apps)) {
+            if (!featureEnabled(`app:${appId}`)) {
+                continue;
+            }
+
             const hasSkills = appMetadata.skills && appMetadata.skills.length > 0;
+            const filteredSkills = (appMetadata.skills ?? []).filter(skill => featureEnabled(`skill:${appId}:${skill.id}`));
+            const filteredFocusModes = (appMetadata.focus_modes ?? []).filter(focus => featureEnabled(`focus:${appId}:${focus.id}`));
+            const filteredMemories = (appMetadata.settings_and_memories ?? []).filter(memory => featureEnabled(`memory:${appId}:${memory.id}`));
+            const providerSet = new Set<string>();
+            for (const skill of filteredSkills) {
+                skill.providers?.forEach(provider => providerSet.add(provider));
+            }
 
             // Determine health status for this app
             let status: AppHealthStatusValue | undefined;
@@ -168,6 +247,10 @@ class AppSkillsStore {
 
             annotatedApps[appId] = {
                 ...appMetadata,
+                skills: filteredSkills,
+                focus_modes: filteredFocusModes,
+                settings_and_memories: filteredMemories,
+                providers: Array.from(providerSet),
                 healthStatus: status === 'healthy' ? undefined : status,
             };
         }

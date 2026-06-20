@@ -1170,10 +1170,6 @@ async def list_apps(
             logger.info("No apps discovered, returning empty list")
             return AppsListResponse(apps=[])
         
-        # Get server environment for stage filtering
-        server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
-        allowed_stages = ["production"] if server_environment == "production" else ["development", "production"]
-        
         apps = []
         for app_id, app_metadata in discovered_apps.items():
             # Skip apps that are explicitly hidden from the public REST API.
@@ -1197,7 +1193,7 @@ async def list_apps(
                 fallback=""
             )
             
-            # Convert skills - filter by stage and API key availability
+            # Convert skills - filter by API key availability
             # TODO(audit-2026-03-18): is_skill_available() may call secrets_manager.get_secret()
             # (a Vault HTTP call) per provider per skill, and get_skill_providers_with_pricing()
             # issues an internal HTTP call per provider.  For N apps × M skills × K providers
@@ -1206,10 +1202,6 @@ async def list_apps(
             # See audit finding #5.
             skills = []
             for skill in app_metadata.skills or []:
-                skill_stage = getattr(skill, 'stage', 'development').lower()
-                if skill_stage not in allowed_stages:
-                    continue
-                
                 # Check if skill is available based on API key configuration.
                 # When include_unavailable=True (used by CLI to match the web app's
                 # build-time static metadata), skip provider availability checks.
@@ -1246,13 +1238,9 @@ async def list_apps(
                     providers=providers
                 ))
             
-            # Convert focus modes - filter by stage
+            # Convert focus modes
             focus_modes = []
             for focus in app_metadata.focuses or []:
-                focus_stage = getattr(focus, 'stage', 'development').lower()
-                if focus_stage not in allowed_stages:
-                    continue
-                
                 focus_name = resolve_translation(
                     translation_service,
                     focus.name_translation_key,
@@ -1271,14 +1259,10 @@ async def list_apps(
                     description=focus_description
                 ))
             
-            # Convert settings_and_memories - filter by stage
+            # Convert settings_and_memories
             settings_and_memories = []
             if app_metadata.memory_fields:
                 for field in app_metadata.memory_fields:
-                    field_stage = getattr(field, 'stage', 'development').lower()
-                    if field_stage not in allowed_stages:
-                        continue
-                    
                     field_name = resolve_translation(
                         translation_service,
                         field.name_translation_key,
@@ -1972,10 +1956,6 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
     if hasattr(app.state, 'translation_service'):
         translation_service = app.state.translation_service
     
-    # Get server environment for stage filtering
-    server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
-    allowed_stages = ["production"] if server_environment == "production" else ["development", "production"]
-    
     for app_id, app_metadata in discovered_apps.items():
         # Resolve app name and description
         app_name = resolve_translation(
@@ -2000,10 +1980,6 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
             ) -> AppMetadata:
                 """Get metadata for a specific app. Accepts session cookie or API key authentication."""
                 try:
-                    # Get server environment for stage filtering
-                    server_env = os.getenv("SERVER_ENVIRONMENT", "development").lower()
-                    allowed = ["production"] if server_env == "production" else ["development", "production"]
-                    
                     trans_service = get_translation_service(request)
                     config_mgr = get_config_manager(request)
                     
@@ -2021,13 +1997,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         fallback=""
                     )
                     
-                    # Convert skills - filter by stage
+                    # Convert skills
                     skills = []
                     for skill in captured_app_metadata.skills or []:
-                        skill_stage = getattr(skill, 'stage', 'development').lower()
-                        if skill_stage not in allowed:
-                            continue
-                        
                         skill_name = resolve_translation(
                             trans_service,
                             skill.name_translation_key,
@@ -2051,13 +2023,9 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             providers=providers
                         ))
                     
-                    # Convert focus modes - filter by stage
+                    # Convert focus modes
                     focus_modes = []
                     for focus in captured_app_metadata.focuses or []:
-                        focus_stage = getattr(focus, 'stage', 'development').lower()
-                        if focus_stage not in allowed:
-                            continue
-                        
                         focus_name = resolve_translation(
                             trans_service,
                             focus.name_translation_key,
@@ -2076,14 +2044,10 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             description=focus_description
                         ))
                     
-                    # Convert settings_and_memories - filter by stage
+                    # Convert settings_and_memories
                     settings_and_memories = []
                     if captured_app_metadata.memory_fields:
                         for field in captured_app_metadata.memory_fields:
-                            field_stage = getattr(field, 'stage', 'development').lower()
-                            if field_stage not in allowed:
-                                continue
-                            
                             field_name = resolve_translation(
                                 trans_service,
                                 field.name_translation_key,
@@ -2144,10 +2108,6 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
         
         # Register routes for each skill in the app
         for skill in app_metadata.skills or []:
-            skill_stage = getattr(skill, 'stage', 'development').lower()
-            if skill_stage not in allowed_stages:
-                continue
-            
             # Resolve skill name for documentation
             skill_name = resolve_translation(
                 translation_service,
