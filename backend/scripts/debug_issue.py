@@ -273,6 +273,7 @@ def map_production_issues_list(api_response: Dict[str, Any]) -> tuple:
     for item in api_response.get("issues", []):
         issue = {
             "id": item.get("id"),
+            "short_issue_id": item.get("short_issue_id"),
             "title": item.get("title", ""),
             "description": item.get("description"),
             "timestamp": item.get("timestamp", ""),
