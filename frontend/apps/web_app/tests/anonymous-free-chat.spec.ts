@@ -429,7 +429,7 @@ test.describe('Anonymous free chat', () => {
 			/\/legal\/privacy$/
 		);
 
-		await page.getByText('Hey there!').click();
+		await page.getByTestId('input-dismiss-button').click();
 		await expect(page.getByTestId('anonymous-terms-reminder')).toHaveCount(0);
 		await expect(page.getByTestId('message-field')).toHaveClass(/draft-preview/);
 		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
