@@ -46,6 +46,7 @@ changes to the documentation (to keep the documentation up to date).
     import { webSocketService } from '../services/websocketService';
     import { notificationStore } from '../stores/notificationStore'; // Import notification store for payment notifications
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
+    import { learningMode } from '../stores/learningModeStore';
     import { demoMode } from '../stores/demoModeStore'; // Hide admin-only server/logs entries when demoing
     import { isMobileView } from '../stores/uiStateStore'; // Import global isMobileView store
     import { panelState } from '../stores/panelStateStore'; // Import panelState to sync with isSettingsOpen
@@ -100,9 +101,19 @@ changes to the documentation (to keep the documentation up to date).
     const SETTINGS_ROUTE_ICON_OVERRIDES: Record<string, string> = {
         'account/export': 'download',
         'apps/all': 'app',
+        'learning-mode/setup': 'study',
         'privacy/hide-personal-data': 'anonym',
         'privacy/share-debug-logs': 'privacy',
     };
+
+    const SETTINGS_ROUTE_TITLE_KEY_OVERRIDES: Record<string, string> = {
+        'learning-mode': 'settings.learning_mode',
+        'learning-mode/setup': 'settings.learning_mode',
+    };
+
+    function getSettingsRouteTitleKey(settingsPath: string): string | undefined {
+        return SETTINGS_ROUTE_TITLE_KEY_OVERRIDES[settingsPath] ?? getGiftCardTitleKeyForPath(settingsPath);
+    }
 
     function getSettingsRouteIcon(settingsPath: string, providedIcon?: string): string {
         const cleanPath = settingsPath.split('&')[0];
@@ -730,7 +741,7 @@ changes to the documentation (to keep the documentation up to date).
                 }
             } else {
                 // For other routes, use translation keys
-                const translationKey = getGiftCardTitleKeyForPath(pathString) ??
+                const translationKey = getSettingsRouteTitleKey(pathString) ??
                     `settings.${pathUpToSegment.map(segment => segment.replace(/-/g, '_')).join('.')}`;
                 pathLabels.push($text(translationKey));
             }
@@ -775,6 +786,7 @@ changes to the documentation (to keep the documentation up to date).
     let showReferralCta = $derived(
         $authStore.isAuthenticated && !$isRestrictedSession && !isSelfHosted && !!$referralStatus?.available
     );
+    let showLearningModeCta = $derived($learningMode.enabled);
 
     $effect(() => {
         const url = $userProfile.profile_image_url;
@@ -1520,9 +1532,9 @@ changes to the documentation (to keep the documentation up to date).
             activeSubMenuIcon = icon || '';
             // Store the translation key instead of the translated text
             // Special handling for security sub-routes - skip "security" segment in translation key
-            const giftCardTitleKey = getGiftCardTitleKeyForPath(settingsPath);
-            if (giftCardTitleKey) {
-                activeSubMenuTitleKey = giftCardTitleKey;
+            const routeTitleKey = getSettingsRouteTitleKey(settingsPath);
+            if (routeTitleKey) {
+                activeSubMenuTitleKey = routeTitleKey;
             } else if (settingsPath === 'account/security/passkeys') {
                 activeSubMenuTitleKey = 'settings.account.passkeys';
             } else if (settingsPath === 'account/security/2fa') {
@@ -1703,10 +1715,9 @@ changes to the documentation (to keep the documentation up to date).
                 // or 'ai/provider' path (which don't exist as navigable views).
                 previousPath = 'ai';
                 previousPathSegments = ['ai'];
-            } else if (navigationPath.join('/') === 'incognito/info') {
-                // 'incognito/info' is the only incognito route — there is no bare 'incognito' route.
-                // Pressing back should return to the main settings page, not try to navigate to
-                // a non-existent 'incognito' route.
+            } else if (navigationPath.join('/') === 'incognito/info' || navigationPath.join('/') === 'learning-mode/setup') {
+                // These routes are leaf-only setup pages. There is no bare 'incognito' or
+                // 'learning-mode' route, so back returns to main settings instead of an empty page.
                 direction = 'backward';
                 activeSettingsView = 'main';
                 showSubmenuInfo = false;
@@ -1820,7 +1831,7 @@ changes to the documentation (to keep the documentation up to date).
                 
                 if (!title) {
                     // Build the translation key for the previous view's title
-                    const titleKey = getGiftCardTitleKeyForPath(previousPath) ??
+                    const titleKey = getSettingsRouteTitleKey(previousPath) ??
                         `settings.${previousPathSegments.map(segment => segment.replace(/-/g, '_')).join('.')}`;
                     const translatedTitle = $text(titleKey);
                     title = translatedTitle;
@@ -1879,6 +1890,24 @@ changes to the documentation (to keep the documentation up to date).
                 direction: 'forward',
                 icon: 'icon_gift',
                 title: $text('settings.billing.referral_code')
+            }
+        }));
+    }
+
+    function openLearningModeSettings(event: MouseEvent) {
+        event.stopPropagation();
+        if (!isMenuVisible) {
+            isMenuVisible = true;
+            settingsMenuVisible.set(true);
+            panelState.openSettings();
+            lastProgrammaticOpenTime = Date.now();
+        }
+        handleOpenSettings(new CustomEvent('openSettings', {
+            detail: {
+                settingsPath: 'learning-mode/setup',
+                direction: 'forward',
+                icon: 'study',
+                title: $text('settings.learning_mode')
             }
         }));
     }
@@ -2462,12 +2491,14 @@ changes to the documentation (to keep the documentation up to date).
                 } else if (cleanPath === 'privacy/connected-accounts') {
                     translationKey = 'settings.privacy.connected_accounts.title';
                 } else if (cleanPath === 'incognito/info') {
-                // Incognito info page: use the incognito icon and the top-level "Incognito" title.
-                // The path 'incognito/info' would otherwise auto-generate 'settings.incognito.info'
-                // which does not exist in translations.
-                activeSubMenuIcon = 'incognito';
-                activeSubMenuTitleKey = 'settings.incognito';
-            } else if (cleanPath.startsWith('account/storage/')) {
+                    // Incognito info page: use the incognito icon and the top-level "Incognito" title.
+                    // The path 'incognito/info' would otherwise auto-generate 'settings.incognito.info'
+                    // which does not exist in translations.
+                    activeSubMenuIcon = 'incognito';
+                    activeSubMenuTitleKey = 'settings.incognito';
+                } else if (cleanPath === 'learning-mode/setup') {
+                    translationKey = 'settings.learning_mode';
+                } else if (cleanPath.startsWith('account/storage/')) {
                     // Storage category pages use the storage_category_* keys in storage.yml
                     const deepLinkStorageCategoryKeyMap: Record<string, string> = {
                         images:   'settings.storage.storage_category_images',
@@ -2642,18 +2673,37 @@ changes to the documentation (to keep the documentation up to date).
     	out:fade
     >
     <div bind:this={profileContainerWrapper}> <!-- Bind the wrapper -->
-        {#if showReferralCta}
-            <button
-                type="button"
-                class="referral-cta"
-                class:compact={referralCtaCompact}
-                data-testid="referral-cta"
-                aria-label={$text('settings.billing.get_free_credits')}
-                onclick={openReferralSettings}
-            >
-                <span class="referral-cta-icon" aria-hidden="true"></span>
-                <span class="referral-cta-text">{$text('settings.billing.get_free_credits')}</span>
-            </button>
+        {#if showLearningModeCta || showReferralCta}
+            {#key showLearningModeCta ? 'learning-mode' : 'referral'}
+                {#if showLearningModeCta}
+                    <button
+                        type="button"
+                        class="referral-cta learning-mode-cta compact"
+                        data-testid="learning-mode-header-cta"
+                        aria-label={$text('settings.learning_mode')}
+                        onclick={openLearningModeSettings}
+                        in:fade={{ duration: 180 }}
+                        out:fade={{ duration: 140 }}
+                    >
+                        <span class="learning-mode-cta-icon" aria-hidden="true"></span>
+                        <span class="referral-cta-text">{$text('settings.learning_mode')}</span>
+                    </button>
+                {:else}
+                    <button
+                        type="button"
+                        class="referral-cta"
+                        class:compact={referralCtaCompact}
+                        data-testid="referral-cta"
+                        aria-label={$text('settings.billing.get_free_credits')}
+                        onclick={openReferralSettings}
+                        in:fade={{ duration: 180 }}
+                        out:fade={{ duration: 140 }}
+                    >
+                        <span class="referral-cta-icon" aria-hidden="true"></span>
+                        <span class="referral-cta-text">{$text('settings.billing.get_free_credits')}</span>
+                    </button>
+                {/if}
+            {/key}
         {/if}
      	<div
 			id="settings-menu-toggle"
@@ -3012,6 +3062,10 @@ changes to the documentation (to keep the documentation up to date).
         justify-content: center;
     }
 
+    .referral-cta.learning-mode-cta {
+        color: var(--color-app-study, var(--color-primary-end));
+    }
+
     .referral-cta-icon {
         width: 20px;
         height: 20px;
@@ -3019,6 +3073,21 @@ changes to the documentation (to keep the documentation up to date).
         background: var(--color-primary);
         -webkit-mask-image: url('@openmates/ui/static/icons/gift.svg');
         mask-image: url('@openmates/ui/static/icons/gift.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+    }
+
+    .learning-mode-cta-icon {
+        width: 20px;
+        height: 20px;
+        flex: 0 0 20px;
+        background: var(--color-app-study, var(--color-primary));
+        -webkit-mask-image: url('@openmates/ui/static/icons/study.svg');
+        mask-image: url('@openmates/ui/static/icons/study.svg');
         -webkit-mask-size: contain;
         mask-size: contain;
         -webkit-mask-position: center;

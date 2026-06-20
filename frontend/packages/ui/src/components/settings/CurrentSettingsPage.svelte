@@ -157,16 +157,25 @@
         dispatch('quickSettingClick', { toggleName });
     }
 
+    const SETTINGS_VIEW_TITLE_KEYS: Record<string, string> = {
+        'learning-mode/setup': 'settings.learning_mode',
+    };
+
+    const SETTINGS_VIEW_ICON_OVERRIDES: Record<string, string> = {
+        'learning-mode/setup': 'study',
+    };
+
     function showSettingsView(viewName, event) {
         // Stop propagation to prevent document click handler from closing menu
         if (event) event.stopPropagation();
 
         const isLogsView = viewName === 'logs';
+        const titleKey = SETTINGS_VIEW_TITLE_KEYS[viewName] ?? `settings.${viewName}`;
         dispatch('openSettings', {
             settingsPath: viewName,
             direction: 'forward',
-            icon: isLogsView ? 'server' : viewName,
-            title: isLogsView ? 'Logs' : $text(`settings.${viewName}`)
+            icon: SETTINGS_VIEW_ICON_OVERRIDES[viewName] ?? (isLogsView ? 'server' : viewName),
+            title: isLogsView ? 'Logs' : $text(titleKey)
         });
     }
     

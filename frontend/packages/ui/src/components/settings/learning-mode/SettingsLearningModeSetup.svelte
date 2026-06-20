@@ -19,7 +19,6 @@
         SettingsInfoBox,
         SettingsInput,
         SettingsPageContainer,
-        SettingsPageHeader,
         SettingsSectionHeading,
     } from '../elements';
 
@@ -112,15 +111,6 @@
 
 <div data-testid="learning-mode-settings-page">
 <SettingsPageContainer>
-    <SettingsPageHeader
-        title={$text('settings.learning_mode')}
-        description={!isAuthenticated
-            ? $text('settings.learning_mode_guest_description')
-            : $learningMode.enabled
-            ? $text('settings.learning_mode_disable_description')
-            : $text('settings.learning_mode_enable_description')}
-    />
-
     {#if formError}
         <SettingsInfoBox type="error" ariaLabel={$text('settings.learning_mode_save_error')}>
             <p>{formError}</p>
