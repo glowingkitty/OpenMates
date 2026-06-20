@@ -17,7 +17,7 @@ import { tipTapToCanonicalMarkdown } from "../../../message_parsing/serializers"
 import { isPublicChat } from "../../../demo_chats/convertToChat";
 import { websocketStatus } from "../../../stores/websocketStatusStore"; // Import WebSocket status store
 import { chatListCache } from "../../../services/chatListCache";
-import { anonymousChatStorage } from "../../../services/anonymousChatStorage";
+import { AnonymousFreeUsageExhaustedError, anonymousChatStorage } from "../../../services/anonymousChatStorage";
 import { refreshAnonymousFreeUsageStatus } from "../../../stores/serverStatusStore";
 import { text } from "../../../i18n/translations";
 import { createEmbedFromUrl } from "../services/urlMetadataService"; // Import URL-to-embed creation
@@ -340,6 +340,16 @@ function resetEditorContent(editor: Editor, shouldKeepFocus?: boolean) {
       "[resetEditorContent] Blurring editor (touch device behavior)",
     );
   }
+}
+
+function restoreEditorDraftText(editor: Editor, markdown: string): void {
+  const escaped = markdown
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\n/g, "<br>");
+  editor.commands.setContent(`<p>${escaped}</p>`, { emitUpdate: false });
+  editor.commands.focus("end");
 }
 
 /**
@@ -1825,6 +1835,20 @@ export async function handleSend(
     }
     cleanupSpan.end();
   } catch (error) {
+    if (error instanceof AnonymousFreeUsageExhaustedError) {
+      notificationStore.warning(
+        get(text)(ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY),
+        undefined,
+        true,
+        "anonymous-daily-credits-exhausted",
+      );
+      if (editor && !editor.isDestroyed) {
+        restoreEditorDraftText(editor, markdown);
+        setHasContent(true);
+      }
+      vibrateMessageField();
+      return;
+    }
     console.error("Failed to handle message send:", error);
     vibrateMessageField();
   } finally {

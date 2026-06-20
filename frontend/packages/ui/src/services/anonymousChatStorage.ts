@@ -52,6 +52,16 @@ interface AnonymousChatResponse {
 
 type AnonymousStreamPayload = Record<string, unknown> & { type?: string };
 
+export class AnonymousFreeUsageExhaustedError extends Error {
+  readonly reason: string;
+
+  constructor(reason: string) {
+    super("Anonymous free usage exhausted");
+    this.name = "AnonymousFreeUsageExhaustedError";
+    this.reason = reason;
+  }
+}
+
 function buildAnonymousTaskId(userMessageId: string): string {
   return `anonymous-task-${userMessageId}`;
 }
@@ -309,6 +319,18 @@ class AnonymousChatStorage {
     try {
       response = await this.postAnonymousChat(chat, userMessage.message_id, params.markdown, previousMessages);
     } catch (error) {
+      if (error instanceof AnonymousFreeUsageExhaustedError) {
+        if (isNewChat) {
+          await chatDB.deleteChat(chatId);
+        } else {
+          await chatDB.deleteMessage(userMessage.message_id);
+          await chatDB.addChat(stripPlainChatFields(existingChat));
+        }
+        chatSyncService.activeAITasks.delete(chatId);
+        aiTypingStore.clearTypingForChat(chatId);
+        window.dispatchEvent(new CustomEvent("anonymousChatsUpdated"));
+        throw error;
+      }
       const failedUserMessage = { ...userMessage, status: "failed" as const };
       await chatDB.saveMessage(failedUserMessage);
       window.dispatchEvent(new CustomEvent("anonymousChatsUpdated"));
@@ -527,6 +549,8 @@ class AnonymousChatStorage {
     let messageId = createMessageId(chat.chat_id);
     let category: string | null = chat.category ?? DEFAULT_ANONYMOUS_CATEGORY;
     let modelName: string | null = null;
+    let rejectionReason: string | null = null;
+    let taskEndedStatus: string | null = null;
 
     const handlePayload = async (rawPayload: AnonymousStreamPayload) => {
       const payload = normalizeStreamPayload(rawPayload);
@@ -553,18 +577,22 @@ class AnonymousChatStorage {
           messageId = chunkPayload.message_id;
           assistant = chunkPayload.full_content_so_far;
           modelName = chunkPayload.model_name ?? modelName;
+          if (typeof payload.rejection_reason === "string") {
+            rejectionReason = payload.rejection_reason;
+          }
           chatSyncService.dispatchEvent(new CustomEvent("aiMessageChunk", { detail: chunkPayload }));
           break;
         }
         case "ai_task_ended":
         case "aiTaskEnded":
+          taskEndedStatus = typeof payload.status === "string" ? payload.status : "completed";
           aiTypingStore.clearTypingForChat(chat.chat_id);
           chatSyncService.activeAITasks.delete(chat.chat_id);
           chatSyncService.dispatchEvent(new CustomEvent("aiTaskEnded", {
             detail: {
               chatId: typeof payload.chatId === "string" ? payload.chatId : chat.chat_id,
               taskId: typeof payload.taskId === "string" ? payload.taskId : buildAnonymousTaskId(userMessageId),
-              status: typeof payload.status === "string" ? payload.status : "completed",
+              status: taskEndedStatus,
             },
           }));
           break;
@@ -606,6 +634,10 @@ class AnonymousChatStorage {
     }
     buffer += decoder.decode();
     await drainBuffer(true);
+
+    if (rejectionReason || taskEndedStatus === "failed") {
+      throw new AnonymousFreeUsageExhaustedError(rejectionReason ?? "budget_exhausted");
+    }
 
     return {
       status: "completed",

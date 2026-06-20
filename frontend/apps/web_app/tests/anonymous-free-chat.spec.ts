@@ -624,14 +624,13 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
-	test('anonymous budget exhaustion at send time keeps draft and does not create chat', async ({
+	test('anonymous stream budget rejection keeps draft and does not create chat', async ({
 		page
 	}: {
 		page: any;
 	}) => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
-		let budgetExhausted = false;
 		await page.route('**/v1/settings/server-status', async (route: any) => {
 			await route.fulfill({
 				status: 200,
@@ -643,31 +642,69 @@ test.describe('Anonymous free chat', () => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
-				body: JSON.stringify(
-					budgetExhausted
-						? {
-								active: false,
-								can_send_text: false,
-								reason: 'budget_exhausted',
-								reset_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-								cta: 'Create an account to keep using OpenMates.'
-							}
-						: {
-								active: true,
-								can_send_text: true,
-								reason: null,
-								reset_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-								cta: 'Create an account to keep using OpenMates.'
-							}
-				)
+				body: JSON.stringify({
+					active: true,
+					can_send_text: true,
+					reason: null,
+					reset_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+					cta: 'Create an account to keep using OpenMates.'
+				})
 			});
 		});
 
 		const streamRequests: string[] = [];
-		page.on('request', (request: any) => {
-			if (request.url().includes('/v1/anonymous/chat/stream')) {
-				streamRequests.push(`${request.method()} ${request.url()}`);
-			}
+		await page.route('**/v1/anonymous/chat/stream', async (route: any) => {
+			const request = route.request();
+			streamRequests.push(`${request.method()} ${request.url()}`);
+			const body = request.postDataJSON();
+			const taskId = 'anonymous-budget-rejected-task';
+			const messageId = 'anonymous-budget-rejected-message';
+			await route.fulfill({
+				status: 200,
+				contentType: 'text/event-stream',
+				body: [
+					{
+						type: 'ai_task_initiated',
+						chat_id: body.client_chat_id,
+						user_message_id: body.client_message_id,
+						ai_task_id: taskId,
+						status: 'processing_started'
+					},
+					{
+						type: 'ai_typing_started',
+						chat_id: body.client_chat_id,
+						message_id: messageId,
+						user_message_id: body.client_message_id,
+						category: 'general_knowledge',
+						model_name: null,
+						provider_name: null,
+						server_region: null,
+						title: 'Budget race should stay draft',
+						icon_names: ['ai'],
+						task_id: taskId
+					},
+					{
+						type: 'ai_message_chunk',
+						task_id: taskId,
+						chat_id: body.client_chat_id,
+						message_id: messageId,
+						user_message_id: body.client_message_id,
+						full_content_so_far: 'Create an account to keep using OpenMates.',
+						sequence: 1,
+						is_final_chunk: true,
+						model_name: null,
+						rejection_reason: 'budget_exhausted'
+					},
+					{
+						type: 'ai_task_ended',
+						chatId: body.client_chat_id,
+						taskId: taskId,
+						status: 'failed'
+					}
+				]
+					.map((payload) => `data: ${JSON.stringify(payload)}\n\n`)
+					.join('')
+			});
 		});
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -680,14 +717,13 @@ test.describe('Anonymous free chat', () => {
 		const prompt = 'Budget race should stay draft';
 		const editor = await typeMessageText(page, prompt);
 		await expect(page.locator('[data-action="send-message"]')).toBeVisible({ timeout: 5000 });
-		budgetExhausted = true;
 		await page.locator('[data-action="send-message"]').click();
 
 		await expect(page.getByTestId('notification').filter({
 			hasText: 'You used up your free daily credits. Sign up & buy credits to make full use of OpenMates.'
 		})).toBeVisible({ timeout: 5000 });
 		await expect(editor).toContainText(prompt);
-		expect(streamRequests).toEqual([]);
+		expect(streamRequests).toHaveLength(1);
 		expect(await getAnonymousIndexedDbState(page)).toEqual({ anonymousChats: [], anonymousMessages: [] });
 		await assertNoMissingTranslations(page);
 	});
