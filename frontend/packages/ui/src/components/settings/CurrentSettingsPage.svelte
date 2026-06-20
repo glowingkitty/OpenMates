@@ -7,7 +7,7 @@
     import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
     import { learningMode } from '../../stores/learningModeStore';
     import { notificationStore } from '../../stores/notificationStore';
-    import { SettingsItem } from './elements';
+    import SettingsItem from '../SettingsItem.svelte';
     import { createEventDispatcher, tick } from 'svelte';
     import type { SvelteComponent } from 'svelte';
 
