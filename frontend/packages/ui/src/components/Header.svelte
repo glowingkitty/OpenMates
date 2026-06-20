@@ -407,7 +407,7 @@
                         <a href="/docs" class="docs-tab active">{$text('common.docs')}</a>
                         <a href="/" class="docs-tab">{$text('common.chat')}</a>
                     </div>
-                {:else if context === 'webapp' && isLoggedIn && webappWorkspaceTabs.length > 0}
+                {:else if context === 'webapp' && isLoggedIn && webappWorkspaceTabs.length >= 2}
                     <div class="webapp-center-tabs" aria-label="Workspace switcher">
                         {#each webappWorkspaceTabs as item}
                             {#if item.disabled}

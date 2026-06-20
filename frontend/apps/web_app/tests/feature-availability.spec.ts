@@ -32,7 +32,7 @@ test.describe('Feature availability', () => {
 		await page.goto('/', { waitUntil: 'domcontentloaded' });
 		await loginToTestAccount(page, () => {}, async () => {});
 
-		await expect(page.getByTestId('chats-nav-link')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('chats-nav-link')).toHaveCount(0);
 		await expect(page.getByTestId('projects-nav-link')).toHaveCount(0);
 		await expect(page.getByTestId('workflows-nav-link')).toHaveCount(0);
 		await expect(page.getByTestId('tasks-nav-link')).toHaveCount(0);
