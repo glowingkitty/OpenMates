@@ -182,7 +182,8 @@ test('admin can view and save anonymous free usage budget settings', async ({ pa
 	await mockServerStatus(page, false);
 	const budgetApi = await mockBudgetEndpoint(page);
 	await loginToTestAccount(page, log, screenshot, { waitForEditor: true });
-	await openSettingsPath(page, 'server/anonymous-free-usage');
+	await openSettingsPath(page, 'server');
+	await page.getByTestId('anonymous-free-usage-settings-item').click();
 	await expect(page.getByText('Anonymous free usage', { exact: true })).toBeVisible({ timeout: 10000 });
 	await expect(page.getByTestId('anonymous-free-usage-budget-settings')).toBeVisible({ timeout: 10000 });
 	await expect(page.getByText('Anonymous free usage is currently inactive.')).toBeVisible();
@@ -230,5 +231,5 @@ test('self-hosted server settings hide anonymous free usage settings', async ({ 
 	await mockServerStatus(page, true);
 	await loginToTestAccount(page, log, screenshot, { waitForEditor: true });
 	await openSettingsPath(page, 'server');
-	await expect(page.getByText('Anonymous free usage', { exact: true })).toHaveCount(0);
+	await expect(page.getByTestId('anonymous-free-usage-settings-item')).toHaveCount(0);
 });
