@@ -147,7 +147,7 @@ function createLearningModeStore() {
 				set(normalized);
 				return normalized;
 			} catch (error) {
-				update((state) => ({ ...state, loading: false }));
+				update((state) => ({ ...state, loaded: true, loading: false, source: 'account' }));
 				throw error;
 			}
 		},
