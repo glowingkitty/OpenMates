@@ -85,8 +85,10 @@ async def create_issue_record_with_short_id(directus_service, issue_data: dict) 
         success, issue_record = await directus_service.create_item(
             "issues",
             {**issue_data, "short_issue_id": short_issue_id},
+            admin_required=True,
         )
         if success and issue_record:
+            issue_record.setdefault("short_issue_id", short_issue_id)
             return issue_record
 
         error_text = issue_record.get("text", str(issue_record)) if isinstance(issue_record, dict) else str(issue_record)

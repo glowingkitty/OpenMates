@@ -20,8 +20,9 @@ from backend.core.api.app.utils.report_issue_ids import (
 
 
 class FakeDirectus:
-    def __init__(self, existing_short_ids: set[str] | None = None):
+    def __init__(self, existing_short_ids: set[str] | None = None, echo_short_id: bool = True):
         self.existing_short_ids = existing_short_ids or set()
+        self.echo_short_id = echo_short_id
         self.created_payloads: list[dict] = []
 
     async def get_items(self, collection: str, params: dict, **_kwargs):
@@ -31,9 +32,12 @@ class FakeDirectus:
             return [{"id": "existing", "short_issue_id": short_id}]
         return []
 
-    async def create_item(self, collection: str, payload: dict):
+    async def create_item(self, collection: str, payload: dict, admin_required: bool = False):
         assert collection == "issues"
+        assert admin_required is True
         self.created_payloads.append(payload)
+        if not self.echo_short_id:
+            return True, {"id": "issue-uuid", "title": payload.get("title")}
         return True, {"id": "issue-uuid", **payload}
 
 
@@ -63,6 +67,17 @@ async def test_create_issue_record_retries_existing_short_id(monkeypatch):
 
     assert issue["short_issue_id"] == "Z8R4T"
     assert directus.created_payloads == [{"title": "Bug", "short_issue_id": "Z8R4T"}]
+
+
+@pytest.mark.asyncio
+async def test_create_issue_record_returns_generated_short_id_when_directus_omits_field(monkeypatch):
+    monkeypatch.setattr("backend.core.api.app.utils.report_issue_ids.generate_short_issue_id", lambda: "K7M2Q")
+    directus = FakeDirectus(echo_short_id=False)
+
+    issue = await create_issue_record_with_short_id(directus, {"title": "Bug"})
+
+    assert issue["id"] == "issue-uuid"
+    assert issue["short_issue_id"] == "K7M2Q"
 
 
 @pytest.mark.asyncio
