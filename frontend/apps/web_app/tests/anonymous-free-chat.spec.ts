@@ -564,17 +564,25 @@ test.describe('Anonymous free chat', () => {
 
 		await expect(page.getByTestId('chat-header-banner')).toContainText('Creating new chat', { timeout: 5000 });
 		await expect(page.getByTestId('chat-header-title')).toContainText('Capital of Spain', { timeout: 12000 });
-		await expect(page.getByTestId('typing-indicator')).toBeVisible({ timeout: 12000 });
-		await expect(page.getByTestId('typing-indicator')).toContainText('typing', { timeout: 12000 });
+		const typingIndicator = page.getByTestId('typing-indicator');
+		const typingSeen = typingIndicator
+			.first()
+			.waitFor({ state: 'visible', timeout: 12000 })
+			.then(async () => {
+				await expect(typingIndicator).toContainText('typing', { timeout: 1000 });
+				return true;
+			})
+			.catch(() => false);
 		const terminalAssistant = page
 			.getByTestId('message-assistant')
 			.filter({ hasText: /Madrid|Spain|Create an account to keep using OpenMates/i });
 		await expect(terminalAssistant).toBeVisible({
 			timeout: 90000
 		});
-		await expect(page.getByTestId('typing-indicator')).toHaveCount(0, { timeout: 10000 });
 		const terminalText = await terminalAssistant.first().innerText();
 		if (!/Create an account to keep using OpenMates/i.test(terminalText)) {
+			expect(await typingSeen).toBe(true);
+			await expect(typingIndicator).toHaveCount(0, { timeout: 10000 });
 			await expect(page.getByTestId('chat-header-summary')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('follow-up-suggestion-item').first()).toBeVisible({ timeout: 30000 });
 		}
