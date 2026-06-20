@@ -13,6 +13,7 @@
  */
 
 import { embedStore } from "./embedStore";
+import type { ShareDuration } from "./shareEncryption";
 
 // Re-export ShareDuration type from shareEncryption for consistency
 export type { ShareDuration } from "./shareEncryption";
@@ -131,10 +132,14 @@ async function encryptAESGCM(
   const iv = crypto.getRandomValues(new Uint8Array(12));
 
   // Encrypt the data
+  const dataBuffer = data.buffer.slice(
+    data.byteOffset,
+    data.byteOffset + data.byteLength,
+  ) as ArrayBuffer;
   const ciphertext = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv: iv },
     key,
-    data,
+    dataBuffer,
   );
 
   // Combine IV + ciphertext
@@ -184,9 +189,17 @@ async function decryptAESGCM(
  */
 function base64UrlEncode(data: Uint8Array): string {
   // Convert to regular base64
-  const base64 = btoa(String.fromCharCode(...data));
+  const base64 = btoa(uint8ArrayToBinaryString(data));
   // Make URL-safe: replace + with -, / with _, remove padding
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function uint8ArrayToBinaryString(data: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < data.length; i += 1) {
+    binary += String.fromCharCode(data[i]);
+  }
+  return binary;
 }
 
 /**
@@ -282,7 +295,7 @@ export async function generateEmbedShareKeyBlob(
   }
 
   // Convert embed key to base64 for storage in blob
-  const embedKeyBase64 = btoa(String.fromCharCode(...embedKey));
+  const embedKeyBase64 = btoa(uint8ArrayToBinaryString(embedKey));
 
   const encoder = new TextEncoder();
 
@@ -400,12 +413,19 @@ export async function decryptEmbedShareKeyBlob(
       console.debug(
         "[EmbedShareEncryption] Decrypting password-protected embed key",
       );
-      const passwordKey = await deriveKeyFromPassword(password, embedId);
-      const decryptedKeyBytes = await decryptAESGCM(
-        blob.embed_encryption_key,
-        passwordKey,
-      );
-      embedKeyBase64 = decoder.decode(decryptedKeyBytes);
+      try {
+        const passwordKey = await deriveKeyFromPassword(password, embedId);
+        const decryptedKeyBytes = await decryptAESGCM(
+          blob.embed_encryption_key,
+          passwordKey,
+        );
+        embedKeyBase64 = decoder.decode(decryptedKeyBytes);
+      } catch (_error) {
+        console.debug(
+          "[EmbedShareEncryption] Password decryption failed - invalid password",
+        );
+        return { success: false, error: "invalid_password" };
+      }
     } else {
       embedKeyBase64 = blob.embed_encryption_key;
     }
