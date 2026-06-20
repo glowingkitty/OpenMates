@@ -19,6 +19,7 @@ import { websocketStatus } from "../../../stores/websocketStatusStore"; // Impor
 import { chatListCache } from "../../../services/chatListCache";
 import { anonymousChatStorage } from "../../../services/anonymousChatStorage";
 import { refreshAnonymousFreeUsageStatus } from "../../../stores/serverStatusStore";
+import { text } from "../../../i18n/translations";
 import { createEmbedFromUrl } from "../services/urlMetadataService"; // Import URL-to-embed creation
 import { authStore } from "../../../stores/authStore"; // Import authStore for authentication check
 import { appSettingsMemoriesPermissionStore } from "../../../stores/appSettingsMemoriesPermissionStore"; // For auto-dismissing permission dialog
@@ -40,6 +41,8 @@ import {
 } from "../../../stores/personalDataStore"; // Privacy settings store
 import { demoMode } from "../../../stores/demoModeStore";
 import { shouldDispatchDraftChatAsNewChat } from "./sendClassification";
+
+const ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY = "chat.anonymous_free_usage.daily_credits_exhausted";
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -1196,6 +1199,17 @@ export async function handleSend(
 
   try {
     if (!get(authStore).isAuthenticated) {
+      const anonymousStatus = await refreshAnonymousFreeUsageStatus();
+      if (anonymousStatus?.active !== true || anonymousStatus.can_send_text === false) {
+        notificationStore.warning(
+          get(text)(ANONYMOUS_DAILY_CREDITS_EXHAUSTED_KEY),
+          undefined,
+          true,
+          "anonymous-daily-credits-exhausted",
+        );
+        vibrateMessageField();
+        return;
+      }
       await anonymousChatStorage.sendTextMessage({
         markdown,
         currentChatId,

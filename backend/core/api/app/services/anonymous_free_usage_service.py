@@ -81,6 +81,13 @@ class AnonymousFreeUsageService:
         status = await self.get_budget_status()
         active = status.active
         reason = status.reason
+        if active and estimated_credits > 0 and (
+            estimated_credits > status.daily_remaining_credits
+            or estimated_credits > status.weekly_remaining_credits
+            or estimated_credits > status.monthly_remaining_credits
+        ):
+            active = False
+            reason = "budget_exhausted"
         if active and anonymous_id and ip_address and estimated_credits > 0:
             local_hash = self._hmac_identity("local", anonymous_id)
             ip_hash = self._hmac_identity("ip", ip_address)

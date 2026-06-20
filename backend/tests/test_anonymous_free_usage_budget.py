@@ -210,6 +210,31 @@ async def test_public_status_checks_per_identity_remaining_budget() -> None:
 
 
 @pytest.mark.asyncio
+async def test_public_status_rejects_when_shared_daily_remaining_cannot_cover_estimate() -> None:
+    service, directus = make_service()
+    await service.save_budget(
+        enabled=True,
+        monthly_budget_credits=10_000,
+        daily_hard_cap_percent=5,
+        weekly_cap_percent=25,
+        per_identity_daily_cap_credits=400,
+        admin_user_id="admin-1",
+    )
+    assert directus.budget is not None
+    directus.budget["daily_used_credits"] = 497
+
+    public = await service.get_public_status(
+        anonymous_id="anon-1",
+        ip_address="203.0.113.9",
+        estimated_credits=10,
+    )
+
+    assert public["active"] is False
+    assert public["can_send_text"] is False
+    assert public["reason"] == "budget_exhausted"
+
+
+@pytest.mark.asyncio
 async def test_admin_budget_update_failure_does_not_return_synthetic_success() -> None:
     service, directus = make_service()
     await service.save_budget(
