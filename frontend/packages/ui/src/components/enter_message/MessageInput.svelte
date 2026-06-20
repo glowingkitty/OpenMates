@@ -8,6 +8,7 @@
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui'; // Use text store
     import { chatSyncService } from '../../services/chatSyncService'; // Import chatSyncService
+    import { chatDB } from '../../services/db';
 
     // Services & Stores
     import {
@@ -56,7 +57,8 @@
     import {
         formatDuration,
         isContentEmptyExceptMention,
-        getInitialContent
+        getInitialContent,
+        vibrateMessageField
     } from './utils';
 
     // Unified parser imports
@@ -544,6 +546,7 @@
     let cancelRequestedWhileAwaiting = $state(false); // If user clicks stop before task_id exists
     let cancelRequestedChatId = $state<string | null>(null);
     let awaitingAITaskTimeoutId: NodeJS.Timeout | null = null;
+    let sendClickInProgress = $state(false);
     let pendingNewChatDraftRestore = $state<{ chatId: string | null; text: string } | null>(null);
     
     // --- Backspace State ---
@@ -4198,7 +4201,7 @@
         }
     }
 
-    function handleSendMessage() {
+    async function handleSendMessage() {
         // Guard: if there's no content, do nothing (handles edge cases where button
         // is visible but editor is actually empty).
         const editorHasContent = editorHasSendableText(editor);
@@ -4216,6 +4219,18 @@
         // pending embed resolves.
         if (pendingPasteEmbedCount > 0) {
             sendRequestedWhilePending = true;
+            return;
+        }
+
+        if (sendClickInProgress) return;
+        sendClickInProgress = true;
+
+        try {
+            await chatDB.ensureReadyForSend();
+        } catch (error) {
+            sendClickInProgress = false;
+            console.error('[MessageInput] Local chat storage is not ready for send:', error);
+            vibrateMessageField();
             return;
         }
 
@@ -4281,6 +4296,7 @@
             piiExclusions, // Pass PII exclusions so excluded matches are not replaced
             broadcastToSiblings
         );
+        sendClickInProgress = false;
         
         // Clear PII state after sending
         detectedPII = [];

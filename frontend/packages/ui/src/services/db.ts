@@ -73,6 +73,8 @@ type EmbedMigrationRecord = {
   is_shared?: boolean | null;
 };
 
+type RawStoreSnapshot = Record<string, unknown[]>;
+
 // Helper to safely detect Date values when legacy records store Date objects.
 const isDateValue = (value: unknown): value is Date => value instanceof Date;
 
@@ -165,8 +167,14 @@ class ChatDatabase {
     ...this.REQUIRED_STORE_NAMES,
     "user_drafts",
   ];
+  private readonly SCHEMA_REPAIR_DELETE_TIMEOUT_MS = 5000;
+  private readonly SCHEMA_REPAIR_BACKUP_DB_NAME = "chats_db_schema_repair_backup";
+  private readonly SCHEMA_REPAIR_BACKUP_STORE_NAME = "records";
+  private readonly SCHEMA_REPAIR_BACKUP_MARKER =
+    "openmates_chats_db_schema_repair_backup";
   private initializationPromise: Promise<void> | null = null;
   private catastrophicSchemaRepairAttempted = false;
+  private partialSchemaRepairAttempted = false;
 
   // Flag to prevent new operations during database deletion
   private isDeleting: boolean = false;
@@ -270,6 +278,349 @@ class ChatDatabase {
       (storeName) => db.objectStoreNames.contains(storeName),
     );
     return !hasAnyDataBearingStore;
+  }
+
+  private getExistingDataBearingStores(db: IDBDatabase): string[] {
+    return this.DATA_BEARING_STORE_NAMES.filter((storeName) =>
+      db.objectStoreNames.contains(storeName),
+    );
+  }
+
+  private async readRawStoreRecords(
+    db: IDBDatabase,
+    storeName: string,
+  ): Promise<unknown[]> {
+    return new Promise((resolve, reject) => {
+      try {
+        const transaction = db.transaction(storeName, "readonly");
+        const store = transaction.objectStore(storeName);
+        const request = store.getAll();
+        request.onsuccess = () => resolve(request.result ?? []);
+        request.onerror = () => reject(request.error);
+        transaction.onerror = () => reject(transaction.error);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  private async captureRawStoreSnapshot(
+    db: IDBDatabase,
+    storeNames: string[],
+  ): Promise<RawStoreSnapshot> {
+    const snapshot: RawStoreSnapshot = {};
+    for (const storeName of storeNames) {
+      snapshot[storeName] = await this.readRawStoreRecords(db, storeName);
+    }
+    return snapshot;
+  }
+
+  private hasSchemaRepairBackupMarker(): boolean {
+    return (
+      typeof localStorage !== "undefined" &&
+      localStorage.getItem(this.SCHEMA_REPAIR_BACKUP_MARKER) === "true"
+    );
+  }
+
+  private clearSchemaRepairBackupMarker(): void {
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem(this.SCHEMA_REPAIR_BACKUP_MARKER);
+    }
+  }
+
+  private async deleteSchemaRepairBackup(): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.deleteDatabase(this.SCHEMA_REPAIR_BACKUP_DB_NAME);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+      request.onblocked = () =>
+        reject(new Error("Schema repair backup deletion blocked"));
+    });
+    this.clearSchemaRepairBackupMarker();
+  }
+
+  private async writeSchemaRepairBackup(snapshot: RawStoreSnapshot): Promise<void> {
+    try {
+      await this.deleteSchemaRepairBackup();
+    } catch {
+      // No previous backup, or it was blocked. Opening with the same version below
+      // will still overwrite individual backup records by deterministic IDs.
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open(this.SCHEMA_REPAIR_BACKUP_DB_NAME, 1);
+      request.onerror = () => reject(request.error);
+      request.onblocked = () =>
+        reject(new Error("Schema repair backup open blocked"));
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(this.SCHEMA_REPAIR_BACKUP_STORE_NAME)) {
+          db.createObjectStore(this.SCHEMA_REPAIR_BACKUP_STORE_NAME, {
+            keyPath: "id",
+          });
+        }
+      };
+      request.onsuccess = () => {
+        const backupDb = request.result;
+        try {
+          const transaction = backupDb.transaction(
+            this.SCHEMA_REPAIR_BACKUP_STORE_NAME,
+            "readwrite",
+          );
+          const store = transaction.objectStore(
+            this.SCHEMA_REPAIR_BACKUP_STORE_NAME,
+          );
+          store.clear();
+          for (const [storeName, records] of Object.entries(snapshot)) {
+            records.forEach((record, index) => {
+              store.put({ id: `${storeName}:${index}`, storeName, record });
+            });
+          }
+          transaction.oncomplete = () => {
+            backupDb.close();
+            if (typeof localStorage !== "undefined") {
+              localStorage.setItem(this.SCHEMA_REPAIR_BACKUP_MARKER, "true");
+            }
+            resolve();
+          };
+          transaction.onerror = () => {
+            backupDb.close();
+            reject(transaction.error);
+          };
+          transaction.onabort = () => {
+            backupDb.close();
+            reject(transaction.error ?? new Error("Schema repair backup aborted"));
+          };
+        } catch (error) {
+          backupDb.close();
+          reject(error);
+        }
+      };
+    });
+  }
+
+  private async readSchemaRepairBackup(): Promise<RawStoreSnapshot | null> {
+    if (!this.hasSchemaRepairBackupMarker()) return null;
+
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.SCHEMA_REPAIR_BACKUP_DB_NAME, 1);
+      request.onerror = () => reject(request.error);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(this.SCHEMA_REPAIR_BACKUP_STORE_NAME)) {
+          db.createObjectStore(this.SCHEMA_REPAIR_BACKUP_STORE_NAME, {
+            keyPath: "id",
+          });
+        }
+      };
+      request.onsuccess = () => {
+        const backupDb = request.result;
+        try {
+          const transaction = backupDb.transaction(
+            this.SCHEMA_REPAIR_BACKUP_STORE_NAME,
+            "readonly",
+          );
+          const store = transaction.objectStore(
+            this.SCHEMA_REPAIR_BACKUP_STORE_NAME,
+          );
+          const getAllRequest = store.getAll();
+          getAllRequest.onsuccess = () => {
+            const snapshot: RawStoreSnapshot = {};
+            for (const row of getAllRequest.result as Array<{
+              storeName?: string;
+              record?: unknown;
+            }>) {
+              if (!row.storeName) continue;
+              if (!snapshot[row.storeName]) snapshot[row.storeName] = [];
+              snapshot[row.storeName].push(row.record);
+            }
+            backupDb.close();
+            resolve(Object.keys(snapshot).length > 0 ? snapshot : null);
+          };
+          getAllRequest.onerror = () => {
+            backupDb.close();
+            reject(getAllRequest.error);
+          };
+        } catch (error) {
+          backupDb.close();
+          reject(error);
+        }
+      };
+    });
+  }
+
+  private async restoreSchemaRepairBackupIfPresent(
+    db: IDBDatabase,
+  ): Promise<void> {
+    const snapshot = await this.readSchemaRepairBackup();
+    if (!snapshot) {
+      try {
+        await this.deleteSchemaRepairBackup();
+      } catch {
+        // Ignore stale-marker cleanup failures; the next init will retry cleanup.
+      }
+      return;
+    }
+
+    console.warn(
+      `[ChatDatabase] Restoring interrupted schema repair backup into ${this.DB_NAME}`,
+    );
+    await this.restoreRawStoreSnapshot(db, snapshot);
+    this.clearSchemaRepairBackupMarker();
+    try {
+      await this.deleteSchemaRepairBackup();
+    } catch (error) {
+      console.warn("[ChatDatabase] Failed to delete schema repair backup:", error);
+    }
+  }
+
+  private async deleteDatabaseForSchemaRepair(): Promise<void> {
+    this.isDeleting = true;
+    this.db = null;
+    this.initializationPromise = null;
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.isDeleting = false;
+        this.deletionPromise = null;
+        reject(
+          new Error(
+            `Timed out deleting ${this.DB_NAME} during schema repair`,
+          ),
+        );
+      }, this.SCHEMA_REPAIR_DELETE_TIMEOUT_MS);
+
+      const finish = (callback: () => void) => {
+        clearTimeout(timeout);
+        this.isDeleting = false;
+        this.deletionPromise = null;
+        callback();
+      };
+
+      try {
+        const request = indexedDB.deleteDatabase(this.DB_NAME);
+        request.onsuccess = () => finish(resolve);
+        request.onerror = () =>
+          finish(() => reject(request.error ?? new Error("Database delete failed")));
+        request.onblocked = () =>
+          finish(() =>
+            reject(
+              new Error(
+                `Schema repair blocked while deleting ${this.DB_NAME}; another tab may still have it open`,
+              ),
+            ),
+          );
+      } catch (error) {
+        finish(() => reject(error));
+      }
+    });
+  }
+
+  private async restoreRawStoreSnapshot(
+    db: IDBDatabase,
+    snapshot: RawStoreSnapshot,
+  ): Promise<void> {
+    const storeNames = Object.keys(snapshot).filter(
+      (storeName) =>
+        db.objectStoreNames.contains(storeName) &&
+        (snapshot[storeName]?.length ?? 0) > 0,
+    );
+    if (storeNames.length === 0) return;
+
+    await new Promise<void>((resolve, reject) => {
+      try {
+        const transaction = db.transaction(storeNames, "readwrite");
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () =>
+          reject(transaction.error ?? new Error("Schema repair restore aborted"));
+
+        for (const storeName of storeNames) {
+          const store = transaction.objectStore(storeName);
+          for (const record of snapshot[storeName] ?? []) {
+            store.put(record);
+          }
+        }
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  private async recreateDatabaseFromSnapshot(
+    snapshot: RawStoreSnapshot,
+  ): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open(this.DB_NAME, this.VERSION);
+
+      request.onerror = () => reject(request.error);
+      request.onblocked = () =>
+        reject(
+          new Error(
+            `Schema repair reopen blocked for ${this.DB_NAME}; another tab may still have it open`,
+          ),
+        );
+      request.onupgradeneeded = (event) => {
+        const db = request.result;
+        const transaction = request.transaction;
+        this.performMigrations(
+          db,
+          transaction,
+          event.oldVersion,
+          event.newVersion || this.VERSION,
+        );
+      };
+      request.onsuccess = async () => {
+        const repairedDb = request.result;
+        try {
+          await this.restoreRawStoreSnapshot(repairedDb, snapshot);
+          repairedDb.close();
+          resolve();
+        } catch (error) {
+          repairedDb.close();
+          reject(error);
+        }
+      };
+    });
+  }
+
+  private async repairPartialMissingStoreSchema(
+    missingStores: string[],
+  ): Promise<boolean> {
+    const invalidDb = this.db;
+    if (!invalidDb || this.partialSchemaRepairAttempted) return false;
+
+    const existingStores = this.getExistingDataBearingStores(invalidDb);
+    if (existingStores.length === 0) return false;
+
+    this.partialSchemaRepairAttempted = true;
+    console.warn(
+      `[ChatDatabase] Partial schema detected; snapshotting ${existingStores.length} store(s), recreating ${this.DB_NAME}, and restoring raw records. Missing store(s): ${missingStores.join(", ")}`,
+    );
+
+    const snapshot = await this.captureRawStoreSnapshot(invalidDb, existingStores);
+    await this.writeSchemaRepairBackup(snapshot);
+    try {
+      invalidDb.close();
+    } catch (error) {
+      console.warn(
+        "[ChatDatabase] Error closing partially invalid schema connection:",
+        error,
+      );
+    }
+
+    this.db = null;
+    this.initializationPromise = null;
+    chatKeyManager.clearAll({ broadcast: false });
+    await this.deleteDatabaseForSchemaRepair();
+    await this.recreateDatabaseFromSnapshot(snapshot);
+    this.clearSchemaRepairBackupMarker();
+    try {
+      await this.deleteSchemaRepairBackup();
+    } catch (error) {
+      console.warn("[ChatDatabase] Failed to delete schema repair backup:", error);
+    }
+    return true;
   }
 
   private async repairCatastrophicMissingStoreSchema(
@@ -589,9 +940,19 @@ class ChatDatabase {
 
         const missingStores = this.getMissingRequiredStores(this.db);
         if (missingStores.length > 0) {
-          const repaired = await this.repairCatastrophicMissingStoreSchema(
-            missingStores,
-          );
+          let repaired = false;
+          try {
+            repaired =
+              (await this.repairCatastrophicMissingStoreSchema(missingStores)) ||
+              (await this.repairPartialMissingStoreSchema(missingStores));
+          } catch (error) {
+            this.closeInvalidSchemaConnection(
+              missingStores,
+              "Database schema repair failed",
+            );
+            reject(error);
+            return;
+          }
           if (repaired) {
             try {
               await this.init(options);
@@ -614,7 +975,19 @@ class ChatDatabase {
           return;
         }
 
+        try {
+          await this.restoreSchemaRepairBackupIfPresent(this.db);
+        } catch (error) {
+          console.error(
+            "[ChatDatabase] Failed to restore schema repair backup:",
+            error,
+          );
+          reject(error);
+          return;
+        }
+
         this.catastrophicSchemaRepairAttempted = false;
+        this.partialSchemaRepairAttempted = false;
 
         // Set marker in localStorage to indicate database has been initialized
         // This is used by orphaned database detection to know if cleanup is needed
@@ -1377,6 +1750,16 @@ class ChatDatabase {
       }
     }
     return this.db.transaction(storeNames, mode);
+  }
+
+  public async ensureReadyForSend(): Promise<void> {
+    await this.init();
+    const missingStores = this.getMissingRequiredStores(this.db);
+    if (missingStores.length > 0) {
+      throw new Error(
+        `IndexedDB schema invalid before send: missing required store(s): ${missingStores.join(", ")}`,
+      );
+    }
   }
 
   // ============================================================================

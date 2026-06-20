@@ -16,6 +16,9 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+const PARTIAL_SCHEMA_CHAT_ID = 'e2e-current-version-partial-schema-chat';
+const PARTIAL_SCHEMA_MESSAGE_ID = `${PARTIAL_SCHEMA_CHAT_ID.slice(-10)}-00000000-0000-4000-8000-000000000001`;
+
 async function clearLocalChatIndexedDb(page: any): Promise<void> {
 	await page.evaluate(async () => {
 		await new Promise<void>((resolve, reject) => {
@@ -137,6 +140,109 @@ async function replaceLocalChatDbWithMissingStores(page: any): Promise<void> {
 			};
 		});
 	});
+}
+
+async function replaceLocalChatDbAtCurrentVersionWithMissingStores(page: any): Promise<void> {
+	const prepUrl = `${new URL(page.url()).origin}/e2e-current-version-indexeddb-prep`;
+	await page.route(prepUrl, (route: any) =>
+		route.fulfill({
+			contentType: 'text/html',
+			body: '<!doctype html><title>prepare current-version missing stores</title>'
+		})
+	);
+	await page.goto(prepUrl);
+	await page.unroute(prepUrl);
+
+	const currentVersion = await page.evaluate(async () => {
+		return await new Promise<number>((resolve, reject) => {
+			const request = indexedDB.open('chats_db');
+			request.onerror = () =>
+				reject(request.error ?? new Error('Failed to read current chats_db version'));
+			request.onsuccess = () => {
+				const db = request.result;
+				const version = db.version;
+				db.close();
+				resolve(version);
+			};
+		});
+	});
+
+	await page.evaluate(
+		async ({ currentVersion, chatId, messageId }: { currentVersion: number; chatId: string; messageId: string }) => {
+			await new Promise<void>((resolve, reject) => {
+				const deleteRequest = indexedDB.deleteDatabase('chats_db');
+				deleteRequest.onerror = () =>
+					reject(deleteRequest.error ?? new Error('Failed to delete chats_db'));
+				deleteRequest.onblocked = () => reject(new Error('Deleting chats_db was blocked'));
+				deleteRequest.onsuccess = () => resolve();
+			});
+
+			await new Promise<void>((resolve, reject) => {
+				const request = indexedDB.open('chats_db', currentVersion);
+				request.onerror = () =>
+					reject(request.error ?? new Error('Failed to create current-version partial chats_db'));
+				request.onupgradeneeded = () => {
+					const db = request.result;
+					const chatStore = db.createObjectStore('chats', { keyPath: 'chat_id' });
+					chatStore.createIndex('last_edited_overall_timestamp', 'last_edited_overall_timestamp', {
+						unique: false
+					});
+					chatStore.createIndex('updated_at', 'updated_at', { unique: false });
+					chatStore.createIndex('pinned', 'pinned', { unique: false });
+
+					const messageStore = db.createObjectStore('messages', { keyPath: 'message_id' });
+					messageStore.createIndex('chat_id_created_at', ['chat_id', 'created_at'], {
+						unique: false
+					});
+					messageStore.createIndex('chat_id', 'chat_id', { unique: false });
+					messageStore.createIndex('created_at', 'created_at', { unique: false });
+				};
+				request.onsuccess = () => {
+					const db = request.result;
+					const transaction = db.transaction(['chats', 'messages'], 'readwrite');
+					transaction.onerror = () => {
+						db.close();
+						reject(transaction.error ?? new Error('Failed to seed partial chats_db'));
+					};
+					transaction.oncomplete = () => {
+						db.close();
+						resolve();
+					};
+
+					transaction.objectStore('chats').put({
+						chat_id: chatId,
+						encrypted_title: null,
+						messages_v: 1,
+						title_v: 0,
+						draft_v: 0,
+						encrypted_draft_md: null,
+						encrypted_draft_preview: null,
+						last_edited_overall_timestamp: 1700000000,
+						unread_count: 0,
+						created_at: 1700000000,
+						updated_at: 1700000000,
+						processing_metadata: false,
+						waiting_for_metadata: false
+					});
+					transaction.objectStore('messages').put({
+						message_id: messageId,
+						chat_id: chatId,
+						role: 'user',
+						content: '',
+						status: 'synced',
+						created_at: 1700000000,
+						sender_name: 'user',
+						encrypted_content: null
+					});
+				};
+			});
+		},
+		{
+			currentVersion,
+			chatId: PARTIAL_SCHEMA_CHAT_ID,
+			messageId: PARTIAL_SCHEMA_MESSAGE_ID
+		}
+	);
 }
 
 async function installColdCacheWebSocketInterceptor(page: any): Promise<void> {
@@ -377,5 +483,79 @@ test('partial local IndexedDB schema is healed before authenticated sync starts'
 		expect(storeNames).toContain('pending_embed_operations');
 		expect(storeNames).toContain('embed_diffs');
 		expect(storeNames).toContain('daily_inspirations');
+	}).toPass({ timeout: 30000, intervals: [1000, 2000, 5000] });
+});
+
+test('current-version partial IndexedDB schema is recreated without dropping local rows', async ({
+	page
+}: {
+	page: any;
+}) => {
+	test.slow();
+	test.setTimeout(180000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const logCheckpoint = createSignupLogger('CHAT_SYNC_CURRENT_VERSION_MISSING_STORE_RECOVERY');
+	const consoleLogs: string[] = [];
+	page.on('console', (message: any) => {
+		consoleLogs.push(`[${message.type()}] ${message.text()}`);
+	});
+
+	await loginToTestAccount(page, logCheckpoint, async () => undefined, { waitForEditor: true });
+	await replaceLocalChatDbAtCurrentVersionWithMissingStores(page);
+
+	await page.goto(getE2EDebugUrl('/?current-version-missing-store-recovery=1'));
+	await page.waitForLoadState('load');
+	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
+
+	await expect(async () => {
+		const hasMissingStoreError = consoleLogs.some(
+			(entry) =>
+				entry.includes('IndexedDB schema invalid') ||
+				entry.includes('One of the specified object stores was not found') ||
+				entry.includes('NotFoundError')
+		);
+		expect(hasMissingStoreError).toBe(false);
+
+		const dbState = await page.evaluate(
+			async ({ chatId, messageId }: { chatId: string; messageId: string }) => {
+				return await new Promise<{
+					storeNames: string[];
+					hasSeededChat: boolean;
+					hasSeededMessage: boolean;
+				}>((resolve, reject) => {
+					const request = indexedDB.open('chats_db');
+					request.onerror = () =>
+						reject(request.error ?? new Error('Failed to open repaired chats_db'));
+					request.onsuccess = () => {
+						const db = request.result;
+						const storeNames = Array.from(db.objectStoreNames);
+						const transaction = db.transaction(['chats', 'messages'], 'readonly');
+						const chatRequest = transaction.objectStore('chats').get(chatId);
+						const messageRequest = transaction.objectStore('messages').get(messageId);
+						transaction.onerror = () => {
+							db.close();
+							reject(transaction.error ?? new Error('Failed to inspect repaired chats_db'));
+						};
+						transaction.oncomplete = () => {
+							db.close();
+							resolve({
+								storeNames,
+								hasSeededChat: !!chatRequest.result,
+								hasSeededMessage: !!messageRequest.result
+							});
+						};
+					};
+				});
+			},
+			{ chatId: PARTIAL_SCHEMA_CHAT_ID, messageId: PARTIAL_SCHEMA_MESSAGE_ID }
+		);
+
+		expect(dbState.storeNames).toContain('pending_embed_operations');
+		expect(dbState.storeNames).toContain('embed_diffs');
+		expect(dbState.storeNames).toContain('daily_inspirations');
+		expect(dbState.storeNames).toContain('chat_compression_checkpoints');
+		expect(dbState.hasSeededChat).toBe(true);
+		expect(dbState.hasSeededMessage).toBe(true);
 	}).toPass({ timeout: 30000, intervals: [1000, 2000, 5000] });
 });
