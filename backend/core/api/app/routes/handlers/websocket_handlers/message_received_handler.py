@@ -21,6 +21,7 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.schemas.chat import MessageInCache, AIHistoryMessage
 from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema
+from backend.shared.python_utils.learning_mode import build_learning_mode_context
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -36,6 +37,10 @@ AI_USER_PREFERENCE_FIELDS = [
     "default_app_skill_models",
     "follow_up_suggestions_enabled",
     "quick_tips_enabled",
+    "learning_mode_enabled",
+    "learning_mode_age_group",
+    "learning_mode_failed_attempts",
+    "learning_mode_deactivation_blocked_until",
 ]
 
 CONNECTED_ACCOUNT_FORBIDDEN_FIELDS = {
@@ -1494,7 +1499,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # Fetch user data once from cache to avoid multiple cache lookups
         user_data_for_prefs = await cache_service.get_user_by_id(user_id)
         cached_user_data_for_prefs = user_data_for_prefs if isinstance(user_data_for_prefs, dict) else None
-        needs_directus_preferences = cached_user_data_for_prefs is None
+        needs_directus_preferences = (
+            cached_user_data_for_prefs is None
+            or any(field not in cached_user_data_for_prefs for field in AI_USER_PREFERENCE_FIELDS)
+        )
         if needs_directus_preferences:
             directus_preference_data = await directus_service.get_user_fields_direct(
                 user_id,
@@ -1552,7 +1560,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 f"Including quick_tips_enabled={user_preferences_dict['quick_tips_enabled']} "
                 f"in AI request for user {user_id}"
             )
+            learning_mode_context = build_learning_mode_context(user_data_for_prefs)
+            user_preferences_dict["learning_mode"] = learning_mode_context
+            if learning_mode_context.get("enabled"):
+                logger.info(
+                    f"Including Learning Mode context in AI request for user {user_id} "
+                    f"(age_group={learning_mode_context.get('age_group')})"
+                )
             # Furry Mode preferences are disabled until any furry art is made by human artists.
+        else:
+            learning_mode_context = {"enabled": False}
         
         mentioned_settings_memories_cleartext = message_payload_from_client.get("mentioned_settings_memories_cleartext")
         if mentioned_settings_memories_cleartext is not None and not isinstance(mentioned_settings_memories_cleartext, dict):
@@ -1588,6 +1605,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
             user_preferences=user_preferences_dict,
+            learning_mode=learning_mode_context,
             app_settings_memories_metadata=app_settings_memories_metadata_from_client,  # Client-provided metadata (source of truth)
             connected_account_directory=connected_account_directory,
             connected_account_token_refs=connected_account_token_refs,

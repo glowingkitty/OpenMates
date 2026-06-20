@@ -147,6 +147,20 @@ export interface ConnectedAccountTurnTokenRef {
   expires_at: number;
 }
 
+export type LearningModeAgeGroup = "under_10" | "10_12" | "13_15" | "16_18" | "adult";
+
+export interface LearningModeStatus {
+  enabled: boolean;
+  age_group: LearningModeAgeGroup | null;
+  failed_attempts: number;
+  deactivation_blocked_until: number | null;
+}
+
+export interface LearningModeContext {
+  enabled: boolean;
+  ageGroup?: LearningModeAgeGroup | null;
+}
+
 export interface AppSettingsMemorySystemMessage {
   message_id: string;
   role: "system";
@@ -1596,6 +1610,47 @@ export class OpenMatesClient {
     return response.data.user ?? {};
   }
 
+  async getLearningModeStatus(): Promise<LearningModeStatus> {
+    this.requireSession();
+    const response = await this.http.get<LearningModeStatus>(
+      "/v1/learning-mode",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Learning Mode status failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async activateLearningMode(params: {
+    ageGroup: LearningModeAgeGroup;
+    passcode: string;
+  }): Promise<LearningModeStatus> {
+    this.requireSession();
+    const response = await this.http.post<LearningModeStatus>(
+      "/v1/learning-mode/activate",
+      { age_group: params.ageGroup, passcode: params.passcode },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Learning Mode activation failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async deactivateLearningMode(passcode: string): Promise<LearningModeStatus> {
+    this.requireSession();
+    const response = await this.http.post<LearningModeStatus>(
+      "/v1/learning-mode/deactivate",
+      { passcode },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Learning Mode deactivation failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
   async logout(): Promise<void> {
     if (this.session) {
       await this.http
@@ -2483,6 +2538,8 @@ export class OpenMatesClient {
     benchmarkMetadata?: BenchmarkMetadata;
     /** Full plaintext history for incognito benchmark turns. */
     messageHistory?: BenchmarkHistoryMessage[];
+    /** Account-wide Learning Mode context when already known by the caller. */
+    learningMode?: LearningModeContext;
     /** Start collecting before send for latency-sensitive benchmark turns. */
     precollectResponse?: boolean;
   }): Promise<{
@@ -2594,6 +2651,12 @@ export class OpenMatesClient {
     }
     if (params.benchmarkMetadata) {
       messagePayload.benchmark_metadata = params.benchmarkMetadata;
+    }
+    if (params.learningMode) {
+      messagePayload.learning_mode = {
+        enabled: params.learningMode.enabled,
+        age_group: params.learningMode.ageGroup ?? null,
+      };
     }
     if (params.incognito) {
       const providedHistory = (params.messageHistory ?? []).map((historyMessage) => ({

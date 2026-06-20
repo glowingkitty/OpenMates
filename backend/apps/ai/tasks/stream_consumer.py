@@ -64,6 +64,15 @@ from backend.shared.python_utils.url_normalizer import (
     sanitize_text_urls_with_safeguard,
 )
 from backend.shared.python_utils.markdown_links import iter_markdown_links
+from backend.shared.python_utils.learning_mode import (
+    LEARNING_MODE_CODE_MAX_LINES,
+    LEARNING_MODE_DOCUMENT_MAX_LINES,
+    LEARNING_MODE_SHEET_MAX_COLS,
+    LEARNING_MODE_SHEET_MAX_ROWS,
+    cap_learning_mode_lines,
+    is_learning_mode_enabled,
+    should_disable_learning_mode_application_artifact,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -922,9 +931,16 @@ async def _apply_diff_block_to_existing_embed(
 
     embed_type = cached_embed.get("type") or "code"
     if embed_type == "code" or "code" in (cached_embed.get("encrypted_type") or ""):
+        capped_current_content, _ = _cap_code_for_learning_mode(request_data, current_content)
+        capped_new_content, learning_mode_metadata = _cap_code_for_learning_mode(request_data, patch_result.new_content)
+        capped_diff_content, _ = _cap_code_for_learning_mode(request_data, diff_content)
+        if version_history_rows and version_history_rows[0].get("snapshot") == current_content:
+            version_history_rows[0]["snapshot"] = capped_current_content
+        version_history_rows[-1]["patch"] = capped_diff_content
+        new_content_hash = hashlib.sha256(capped_new_content.encode("utf-8")).hexdigest()
         await embed_service.update_code_embed_content(
             embed_id=target_embed_id,
-            code_content=patch_result.new_content,
+            code_content=capped_new_content,
             chat_id=request_data.chat_id,
             user_id=request_data.user_id,
             user_id_hash=request_data.user_id_hash,
@@ -933,10 +949,18 @@ async def _apply_diff_block_to_existing_embed(
             version_number=new_version,
             content_hash=new_content_hash,
             version_history_rows=version_history_rows,
+            learning_mode_metadata=learning_mode_metadata,
             log_prefix=log_prefix
         )
     elif embed_type == "document":
-        doc_title, doc_filename, docx_model = _extract_document_title_and_filename("docx_model", patch_result.new_content)
+        capped_current_content, _ = _cap_document_for_learning_mode(request_data, current_content)
+        capped_new_content, learning_mode_metadata = _cap_document_for_learning_mode(request_data, patch_result.new_content)
+        capped_diff_content, _ = _cap_document_for_learning_mode(request_data, diff_content)
+        if version_history_rows and version_history_rows[0].get("snapshot") == current_content:
+            version_history_rows[0]["snapshot"] = capped_current_content
+        version_history_rows[-1]["patch"] = capped_diff_content
+        new_content_hash = hashlib.sha256(capped_new_content.encode("utf-8")).hexdigest()
+        doc_title, doc_filename, docx_model = _extract_document_title_and_filename("docx_model", capped_new_content)
         await embed_service.update_document_embed_content(
             embed_id=target_embed_id,
             html_content="",
@@ -951,6 +975,7 @@ async def _apply_diff_block_to_existing_embed(
             version_number=new_version,
             content_hash=new_content_hash,
             version_history_rows=version_history_rows,
+            learning_mode_metadata=learning_mode_metadata,
             log_prefix=log_prefix
         )
         celery_config.app.send_task(
@@ -970,17 +995,38 @@ async def _apply_diff_block_to_existing_embed(
             queue="app_docs",
         )
     elif embed_type == "sheet":
+        table_row_count = max(0, len(patch_result.new_content.splitlines()) - 2)
+        capped_table_content, capped_row_count, capped_col_count, learning_mode_metadata = _cap_table_for_learning_mode(
+            request_data,
+            patch_result.new_content,
+            table_row_count,
+            0,
+        )
+        capped_current_table, _, _, _ = _cap_table_for_learning_mode(
+            request_data,
+            current_content,
+            max(0, len(current_content.splitlines()) - 2),
+            0,
+        )
+        capped_diff_content, _ = _cap_code_for_learning_mode(request_data, diff_content)
+        if version_history_rows and version_history_rows[0].get("snapshot") == current_content:
+            version_history_rows[0]["snapshot"] = capped_current_table
+        version_history_rows[-1]["patch"] = capped_diff_content
+        new_content_hash = hashlib.sha256(capped_table_content.encode("utf-8")).hexdigest()
         await embed_service.update_table_embed_content(
             embed_id=target_embed_id,
-            table_content=patch_result.new_content,
+            table_content=capped_table_content,
             chat_id=request_data.chat_id,
             user_id=request_data.user_id,
             user_id_hash=request_data.user_id_hash,
             user_vault_key_id=user_vault_key_id,
             status="finished",
+            row_count=capped_row_count,
+            col_count=capped_col_count,
             version_number=new_version,
             content_hash=new_content_hash,
             version_history_rows=version_history_rows,
+            learning_mode_metadata=learning_mode_metadata,
             log_prefix=log_prefix
         )
     elif embed_type == "mail":
@@ -2676,6 +2722,86 @@ INTERACTIVE_QUESTION_FALLBACK_TEXT = "Failed to display question."
 INTERACTIVE_QUESTION_TYPES = {"choice", "input", "slider", "swipe", "rating"}
 
 
+def _learning_mode_context(request_data: AskSkillRequest) -> Dict[str, Any]:
+    context = getattr(request_data, "learning_mode", None)
+    return context if isinstance(context, dict) else {"enabled": False}
+
+
+def _cap_code_for_learning_mode(
+    request_data: AskSkillRequest,
+    code_content: str,
+) -> tuple[str, Optional[Dict[str, Any]]]:
+    if not is_learning_mode_enabled(_learning_mode_context(request_data)):
+        return code_content, None
+    capped, metadata = cap_learning_mode_lines(
+        code_content,
+        max_lines=LEARNING_MODE_CODE_MAX_LINES,
+    )
+    return capped, metadata
+
+
+def _cap_document_for_learning_mode(
+    request_data: AskSkillRequest,
+    document_content: str,
+) -> tuple[str, Optional[Dict[str, Any]]]:
+    if not is_learning_mode_enabled(_learning_mode_context(request_data)):
+        return document_content, None
+    capped, metadata = cap_learning_mode_lines(
+        document_content,
+        max_lines=LEARNING_MODE_DOCUMENT_MAX_LINES,
+    )
+    return capped, metadata
+
+
+def _split_markdown_table_row(line: str) -> list[str]:
+    stripped = line.strip()
+    if stripped.startswith("|"):
+        stripped = stripped[1:]
+    if stripped.endswith("|"):
+        stripped = stripped[:-1]
+    return stripped.split("|")
+
+
+def _join_markdown_table_row(cells: list[str]) -> str:
+    return "|" + "|".join(cells) + "|"
+
+
+def _cap_table_for_learning_mode(
+    request_data: AskSkillRequest,
+    table_content: str,
+    row_count: int,
+    col_count: int,
+) -> tuple[str, int, int, Optional[Dict[str, Any]]]:
+    if not is_learning_mode_enabled(_learning_mode_context(request_data)):
+        return table_content, row_count, col_count, None
+
+    lines = table_content.splitlines()
+    original_line_count = len(lines)
+    original_row_count = row_count or max(0, original_line_count - 2)
+    max_lines = LEARNING_MODE_SHEET_MAX_ROWS + 2  # header + separator + data rows
+    capped_lines = lines[:max_lines]
+    capped_table_lines: list[str] = []
+    original_col_count = col_count
+    shown_col_count = col_count
+
+    for line in capped_lines:
+        cells = _split_markdown_table_row(line)
+        original_col_count = max(original_col_count, len([cell for cell in cells if cell.strip()]))
+        capped_cells = cells[:LEARNING_MODE_SHEET_MAX_COLS]
+        shown_col_count = min(max(shown_col_count, len([cell for cell in capped_cells if cell.strip()])), LEARNING_MODE_SHEET_MAX_COLS)
+        capped_table_lines.append(_join_markdown_table_row(capped_cells))
+
+    shown_row_count = max(0, len(capped_table_lines) - 2)
+    metadata = {
+        "learning_mode_shortened": original_line_count > len(capped_lines) or original_col_count > shown_col_count,
+        "original_row_count": original_row_count,
+        "shown_row_count": shown_row_count,
+        "original_col_count": original_col_count,
+        "shown_col_count": shown_col_count,
+    }
+    return "\n".join(capped_table_lines), shown_row_count, shown_col_count, metadata
+
+
 def _is_valid_interactive_question_payload(payload: Any) -> bool:
     if not isinstance(payload, dict):
         return False
@@ -3503,6 +3629,10 @@ async def _create_application_preview_child_code_embeds(
 ) -> str:
     embed_references: List[str] = []
     for file in files:
+        file_content, learning_mode_metadata = _cap_code_for_learning_mode(
+            request_data,
+            file.get("content", ""),
+        )
         embed_data = await embed_service.create_code_embed_placeholder(
             language=file.get("language", ""),
             chat_id=request_data.chat_id,
@@ -3520,12 +3650,13 @@ async def _create_application_preview_child_code_embeds(
         embed_id = embed_data["embed_id"]
         await embed_service.update_code_embed_content(
             embed_id=embed_id,
-            code_content=file.get("content", ""),
+            code_content=file_content,
             chat_id=request_data.chat_id,
             user_id=request_data.user_id,
             user_id_hash=request_data.user_id_hash,
             user_vault_key_id=user_vault_key_id,
             status="finished",
+            learning_mode_metadata=learning_mode_metadata,
             log_prefix=log_prefix,
         )
         _record_generated_code_file_embed(
@@ -3549,6 +3680,10 @@ async def _create_remotion_video_embed_reference(
     user_vault_key_id: str,
     log_prefix: str,
 ) -> str:
+    if is_learning_mode_enabled(_learning_mode_context(request_data)):
+        logger.info("%s Skipping Remotion video artifact because Learning Mode is active", log_prefix)
+        return "Learning Mode is active, so I can outline the video concept or storyboard instead of generating a finished video artifact.\n\n"
+
     embed_data = await embed_service.create_remotion_video_embed_placeholder(
         chat_id=request_data.chat_id,
         message_id=request_data.message_id,
@@ -3610,6 +3745,10 @@ async def _create_application_artifact_embed_reference(
     user_vault_key_id: str,
     log_prefix: str,
 ) -> Optional[str]:
+    if should_disable_learning_mode_application_artifact(_learning_mode_context(request_data)):
+        logger.info("%s Skipping generated application artifact because Learning Mode is active", log_prefix)
+        return None
+
     application_embed_data = await embed_service.create_application_artifact_embed(
         name="Generated application",
         framework="svelte" if any(file.get("filename", "").endswith(".svelte") for file in files) else "web",
@@ -3693,6 +3832,10 @@ async def _create_application_parent_embed_reference(
     log_prefix: str,
     response_text: str = "",
 ) -> Optional[str]:
+    if should_disable_learning_mode_application_artifact(_learning_mode_context(request_data)):
+        logger.info("%s Skipping generated application parent because Learning Mode is active", log_prefix)
+        return None
+
     application_manifest = _build_application_manifest_from_code_embeds(generated_code_file_embeds)
     embed_service = None
     if not application_manifest:
@@ -4734,7 +4877,11 @@ async def _consume_main_processing_stream(
                                         current_code_content = ""
                                         current_code_embed_id = None
                                 elif is_document_html:
-                                    doc_title, doc_filename, docx_model = _extract_document_title_and_filename(current_code_language, code_content)
+                                    capped_document_content, learning_mode_metadata = _cap_document_for_learning_mode(
+                                        request_data,
+                                        code_content,
+                                    )
+                                    doc_title, doc_filename, docx_model = _extract_document_title_and_filename(current_code_language, capped_document_content)
                                     
                                     # Create document embed placeholder and finalize immediately
                                     embed_data = await embed_service.create_document_embed_placeholder(
@@ -4754,7 +4901,7 @@ async def _consume_main_processing_stream(
                                         # Store the structured model, then let the docs worker generate artifacts.
                                         await embed_service.update_document_embed_content(
                                             embed_id=current_code_embed_id,
-                                            html_content=code_content,
+                                            html_content=capped_document_content,
                                             chat_id=request_data.chat_id,
                                             user_id=request_data.user_id,
                                             user_id_hash=request_data.user_id_hash,
@@ -4763,6 +4910,7 @@ async def _consume_main_processing_stream(
                                             title=doc_title,
                                             filename=doc_filename,
                                             docx_model=docx_model,
+                                            learning_mode_metadata=learning_mode_metadata,
                                             log_prefix=log_prefix
                                         )
                                         celery_config.app.send_task(
@@ -4861,15 +5009,21 @@ async def _consume_main_processing_stream(
                                             code_content,
                                         ) or _parse_application_preview_json_bundle_files(current_code_language, code_content)
                                         if application_preview_files:
-                                            embed_reference_code = await _create_application_artifact_embed_reference(
-                                                files=application_preview_files,
-                                                embed_service=embed_service,
-                                                generated_code_file_embeds=generated_code_file_embeds,
-                                                request_data=request_data,
-                                                task_id=task_id,
-                                                user_vault_key_id=user_vault_key_id,
-                                                log_prefix=log_prefix,
-                                            )
+                                            if should_disable_learning_mode_application_artifact(_learning_mode_context(request_data)):
+                                                embed_reference_code = "Learning Mode is active, so I won't generate the full runnable project. I can help build it step by step with short examples.\n\n"
+                                                logger.info(
+                                                    f"{log_prefix} Replaced combined application artifact with Learning Mode guidance"
+                                                )
+                                            else:
+                                                embed_reference_code = await _create_application_artifact_embed_reference(
+                                                    files=application_preview_files,
+                                                    embed_service=embed_service,
+                                                    generated_code_file_embeds=generated_code_file_embeds,
+                                                    request_data=request_data,
+                                                    task_id=task_id,
+                                                    user_vault_key_id=user_vault_key_id,
+                                                    log_prefix=log_prefix,
+                                                )
                                             if embed_reference_code:
                                                 chunk = embed_reference_code
                                                 application_parent_embed_created = True
@@ -4917,6 +5071,14 @@ async def _consume_main_processing_stream(
                                                         )
 
                                                 if current_content:
+                                                    capped_current_content, _ = _cap_code_for_learning_mode(
+                                                        request_data,
+                                                        current_content,
+                                                    )
+                                                    capped_code_content, learning_mode_metadata = _cap_code_for_learning_mode(
+                                                        request_data,
+                                                        code_content,
+                                                    )
                                                     current_version = cached_embed.get("version_number") or 1
                                                     new_version = current_version + 1
                                                     now = int(time.time())
@@ -4925,26 +5087,27 @@ async def _consume_main_processing_stream(
                                                         version_history_rows.append({
                                                             "embed_id": target_embed_id,
                                                             "version_number": 1,
-                                                            "snapshot": current_content,
+                                                            "snapshot": capped_current_content,
                                                             "created_at": now,
                                                         })
                                                     version_history_rows.append({
                                                         "embed_id": target_embed_id,
                                                         "version_number": new_version,
-                                                        "snapshot": code_content,
+                                                        "snapshot": capped_code_content,
                                                         "created_at": now,
                                                     })
                                                     await embed_service.update_code_embed_content(
                                                         embed_id=target_embed_id,
-                                                        code_content=code_content,
+                                                        code_content=capped_code_content,
                                                         chat_id=request_data.chat_id,
                                                         user_id=request_data.user_id,
                                                         user_id_hash=request_data.user_id_hash,
                                                         user_vault_key_id=user_vault_key_id,
                                                         status="finished",
                                                         version_number=new_version,
-                                                        content_hash=hashlib.sha256(code_content.encode("utf-8")).hexdigest(),
+                                                        content_hash=hashlib.sha256(capped_code_content.encode("utf-8")).hexdigest(),
                                                         version_history_rows=version_history_rows,
+                                                        learning_mode_metadata=learning_mode_metadata,
                                                         log_prefix=log_prefix,
                                                     )
                                                     embed_reference_json = json.dumps({
@@ -4972,6 +5135,10 @@ async def _consume_main_processing_stream(
                                                 current_code_content = ""
                                                 current_code_embed_id = None
                                             else:
+                                                capped_code_content, learning_mode_metadata = _cap_code_for_learning_mode(
+                                                    request_data,
+                                                    code_content,
+                                                )
                                                 # Create code embed placeholder
                                                 embed_data = await embed_service.create_code_embed_placeholder(
                                                     language=current_code_language,
@@ -4991,12 +5158,13 @@ async def _consume_main_processing_stream(
                                                     # Update with full content and finalize
                                                     await embed_service.update_code_embed_content(
                                                         embed_id=current_code_embed_id,
-                                                        code_content=code_content,
+                                                        code_content=capped_code_content,
                                                         chat_id=request_data.chat_id,
                                                         user_id=request_data.user_id,
                                                         user_id_hash=request_data.user_id_hash,
                                                         user_vault_key_id=user_vault_key_id,
                                                         status="finished",
+                                                        learning_mode_metadata=learning_mode_metadata,
                                                         log_prefix=log_prefix
                                                     )
                                                     _record_generated_code_file_embed(
@@ -5159,15 +5327,20 @@ async def _consume_main_processing_stream(
                                         
                                         # If there's content after the opening fence, update embed immediately
                                         if current_code_content:
+                                            capped_document_content, learning_mode_metadata = _cap_document_for_learning_mode(
+                                                request_data,
+                                                current_code_content,
+                                            )
                                             await embed_service.update_document_embed_content(
                                                 embed_id=current_code_embed_id,
-                                                html_content=current_code_content,
+                                                html_content=capped_document_content,
                                                 chat_id=request_data.chat_id,
                                                 user_id=request_data.user_id,
                                                 user_id_hash=request_data.user_id_hash,
                                                 user_vault_key_id=user_vault_key_id,
                                                 status="processing",
                                                 title=current_document_title,
+                                                learning_mode_metadata=learning_mode_metadata,
                                                 log_prefix=log_prefix
                                             )
                                         
@@ -5349,14 +5522,19 @@ async def _consume_main_processing_stream(
 
                                             # If there's content after the opening fence, update embed immediately
                                             if current_code_content:
+                                                capped_code_content, learning_mode_metadata = _cap_code_for_learning_mode(
+                                                    request_data,
+                                                    current_code_content,
+                                                )
                                                 await embed_service.update_code_embed_content(
                                                     embed_id=current_code_embed_id,
-                                                    code_content=current_code_content,
+                                                    code_content=capped_code_content,
                                                     chat_id=request_data.chat_id,
                                                     user_id=request_data.user_id,
                                                     user_id_hash=request_data.user_id_hash,
                                                     user_vault_key_id=user_vault_key_id,
                                                     status="processing",
+                                                    learning_mode_metadata=learning_mode_metadata,
                                                     log_prefix=log_prefix
                                                 )
 
@@ -5540,15 +5718,20 @@ async def _consume_main_processing_stream(
                                         
                                         # If there's content, update embed immediately
                                         if current_code_content:
+                                            capped_document_content, learning_mode_metadata = _cap_document_for_learning_mode(
+                                                request_data,
+                                                current_code_content,
+                                            )
                                             await embed_service.update_document_embed_content(
                                                 embed_id=current_code_embed_id,
-                                                html_content=current_code_content,
+                                                html_content=capped_document_content,
                                                 chat_id=request_data.chat_id,
                                                 user_id=request_data.user_id,
                                                 user_id_hash=request_data.user_id_hash,
                                                 user_vault_key_id=user_vault_key_id,
                                                 status="processing",
                                                 title=current_document_title,
+                                                learning_mode_metadata=learning_mode_metadata,
                                                 log_prefix=log_prefix
                                             )
                                         
@@ -5895,16 +6078,21 @@ async def _consume_main_processing_stream(
                                     
                                     if embed_data:
                                         current_code_embed_id = embed_data["embed_id"]
-                                        
+                                        capped_code_content, learning_mode_metadata = _cap_code_for_learning_mode(
+                                            request_data,
+                                            current_code_content,
+                                        )
+                                          
                                         # Finalize with full content
                                         await embed_service.update_code_embed_content(
                                             embed_id=current_code_embed_id,
-                                            code_content=current_code_content,
+                                            code_content=capped_code_content,
                                             chat_id=request_data.chat_id,
                                             user_id=request_data.user_id,
                                             user_id_hash=request_data.user_id_hash,
                                             user_vault_key_id=user_vault_key_id,
                                             status="finished",
+                                            learning_mode_metadata=learning_mode_metadata,
                                             log_prefix=log_prefix
                                         )
                                         
@@ -5986,15 +6174,18 @@ async def _consume_main_processing_stream(
                                         status="error",
                                         log_prefix=log_prefix,
                                     )
-                                chunk = await _create_application_artifact_embed_reference(
-                                    files=application_preview_files_at_close,
-                                    embed_service=embed_service,
-                                    generated_code_file_embeds=generated_code_file_embeds,
-                                    request_data=request_data,
-                                    task_id=task_id,
-                                    user_vault_key_id=user_vault_key_id,
-                                    log_prefix=log_prefix,
-                                )
+                                if should_disable_learning_mode_application_artifact(_learning_mode_context(request_data)):
+                                    chunk = "Learning Mode is active, so I won't generate the full runnable project. I can help build it step by step with short examples.\n\n"
+                                else:
+                                    chunk = await _create_application_artifact_embed_reference(
+                                        files=application_preview_files_at_close,
+                                        embed_service=embed_service,
+                                        generated_code_file_embeds=generated_code_file_embeds,
+                                        request_data=request_data,
+                                        task_id=task_id,
+                                        user_vault_key_id=user_vault_key_id,
+                                        log_prefix=log_prefix,
+                                    )
                                 if chunk:
                                     application_parent_embed_created = True
                                     logger.info(
@@ -6033,15 +6224,18 @@ async def _consume_main_processing_stream(
                                 try:
                                     from backend.core.api.app.services.embed_service import EmbedService
                                     embed_service = EmbedService(cache_service, directus_service, encryption_service)
-                                    chunk = await _create_application_artifact_embed_reference(
-                                        files=application_preview_files,
-                                        embed_service=embed_service,
-                                        generated_code_file_embeds=generated_code_file_embeds,
-                                        request_data=request_data,
-                                        task_id=task_id,
-                                        user_vault_key_id=user_vault_key_id,
-                                        log_prefix=log_prefix,
-                                    )
+                                    if should_disable_learning_mode_application_artifact(_learning_mode_context(request_data)):
+                                        chunk = "Learning Mode is active, so I won't generate the full runnable project. I can help build it step by step with short examples.\n\n"
+                                    else:
+                                        chunk = await _create_application_artifact_embed_reference(
+                                            files=application_preview_files,
+                                            embed_service=embed_service,
+                                            generated_code_file_embeds=generated_code_file_embeds,
+                                            request_data=request_data,
+                                            task_id=task_id,
+                                            user_vault_key_id=user_vault_key_id,
+                                            log_prefix=log_prefix,
+                                        )
                                     if chunk:
                                         application_parent_embed_created = True
                                         logger.info(
@@ -6111,7 +6305,11 @@ async def _consume_main_processing_stream(
                                 f"emitting {len(current_code_content)} chars as raw markdown "
                                 f"(language={current_code_language or 'none'})"
                             )
-                            raw_block = f"```{current_code_language or ''}\n{current_code_content}```\n\n"
+                            capped_code_content, _ = _cap_code_for_learning_mode(
+                                request_data,
+                                current_code_content,
+                            )
+                            raw_block = f"```{current_code_language or ''}\n{capped_code_content}```\n\n"
                             chunk = raw_block
 
                             in_code_block = False
@@ -6185,12 +6383,16 @@ async def _consume_main_processing_stream(
                                     logger.info(f"{log_prefix} Finalized math-plot embed {current_code_embed_id} with expr len={len(current_code_content)}")
                                 elif in_document_block:
                                     # Store the final model and queue real DOCX artifact generation.
-                                    doc_title, doc_filename, docx_model = _extract_document_title_and_filename(current_code_language, current_code_content)
+                                    capped_document_content, learning_mode_metadata = _cap_document_for_learning_mode(
+                                        request_data,
+                                        current_code_content,
+                                    )
+                                    doc_title, doc_filename, docx_model = _extract_document_title_and_filename(current_code_language, capped_document_content)
                                     current_document_title = current_document_title or doc_title
-                                     
+                                      
                                     await embed_service.update_document_embed_content(
                                         embed_id=current_code_embed_id,
-                                        html_content=current_code_content,
+                                        html_content=capped_document_content,
                                         chat_id=request_data.chat_id,
                                         user_id=request_data.user_id,
                                         user_id_hash=request_data.user_id_hash,
@@ -6199,6 +6401,7 @@ async def _consume_main_processing_stream(
                                         title=current_document_title,
                                         filename=doc_filename,
                                         docx_model=docx_model,
+                                        learning_mode_metadata=learning_mode_metadata,
                                         log_prefix=log_prefix
                                     )
                                     celery_config.app.send_task(
@@ -6284,6 +6487,11 @@ async def _consume_main_processing_stream(
                                 else:
                                     version_history_rows = None
                                     new_version = None
+                                    capped_code_content, learning_mode_metadata = _cap_code_for_learning_mode(
+                                        request_data,
+                                        current_code_content,
+                                    )
+                                    current_code_content = capped_code_content
                                     if current_code_replacement_ref:
                                         current_code_content = _apply_requested_symbol_rename(
                                             request_data,
@@ -6312,6 +6520,10 @@ async def _consume_main_processing_stream(
                                                 )
 
                                         if current_content:
+                                            capped_current_content, _ = _cap_code_for_learning_mode(
+                                                request_data,
+                                                current_content,
+                                            )
                                             current_version = cached_embed.get("version_number") or 1
                                             new_version = current_version + 1
                                             now = int(time.time())
@@ -6320,7 +6532,7 @@ async def _consume_main_processing_stream(
                                                 version_history_rows.append({
                                                     "embed_id": current_code_embed_id,
                                                     "version_number": 1,
-                                                    "snapshot": current_content,
+                                                    "snapshot": capped_current_content,
                                                     "created_at": now,
                                                 })
                                             version_history_rows.append({
@@ -6352,6 +6564,7 @@ async def _consume_main_processing_stream(
                                             version_number=new_version,
                                             content_hash=hashlib.sha256(current_code_content.encode("utf-8")).hexdigest(),
                                             version_history_rows=version_history_rows,
+                                            learning_mode_metadata=learning_mode_metadata,
                                             log_prefix=log_prefix,
                                         )
                                     else:
@@ -6363,6 +6576,7 @@ async def _consume_main_processing_stream(
                                             user_id_hash=request_data.user_id_hash,
                                             user_vault_key_id=user_vault_key_id,
                                             status="finished",
+                                            learning_mode_metadata=learning_mode_metadata,
                                             log_prefix=log_prefix,
                                         )
                                     _record_generated_code_file_embed(
@@ -6452,15 +6666,20 @@ async def _consume_main_processing_stream(
                                 embed_service = EmbedService(cache_service, directus_service, encryption_service)
                                 
                                 if in_document_block:
+                                    capped_document_content, learning_mode_metadata = _cap_document_for_learning_mode(
+                                        request_data,
+                                        current_code_content,
+                                    )
                                     await embed_service.update_document_embed_content(
                                         embed_id=current_code_embed_id,
-                                        html_content=current_code_content,
+                                        html_content=capped_document_content,
                                         chat_id=request_data.chat_id,
                                         user_id=request_data.user_id,
                                         user_id_hash=request_data.user_id_hash,
                                         user_vault_key_id=user_vault_key_id,
                                         status="processing",
                                         title=current_document_title,
+                                        learning_mode_metadata=learning_mode_metadata,
                                         log_prefix=log_prefix
                                     )
                                     logger.debug(f"{log_prefix} Updated document embed {current_code_embed_id} (per-line update, {len(current_code_content)} chars)")
@@ -6520,14 +6739,19 @@ async def _consume_main_processing_stream(
                                     )
                                     logger.debug(f"{log_prefix} Updated Mermaid embed {current_code_embed_id} (per-line update)")
                                 else:
+                                    capped_code_content, learning_mode_metadata = _cap_code_for_learning_mode(
+                                        request_data,
+                                        current_code_content,
+                                    )
                                     await embed_service.update_code_embed_content(
                                         embed_id=current_code_embed_id,
-                                        code_content=current_code_content,
+                                        code_content=capped_code_content,
                                         chat_id=request_data.chat_id,
                                         user_id=request_data.user_id,
                                         user_id_hash=request_data.user_id_hash,
                                         user_vault_key_id=user_vault_key_id,
                                         status="processing",
+                                        learning_mode_metadata=learning_mode_metadata,
                                         log_prefix=log_prefix
                                     )
                                     logger.debug(f"{log_prefix} Updated code embed {current_code_embed_id} (per-line update, {len(current_code_content)} chars, {current_code_content.count(chr(10))} lines)")
@@ -6608,17 +6832,24 @@ async def _consume_main_processing_stream(
                                 try:
                                     from backend.core.api.app.services.embed_service import EmbedService
                                     _table_embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                    capped_table_content, capped_row_count, capped_col_count, learning_mode_metadata = _cap_table_for_learning_mode(
+                                        request_data,
+                                        current_table_content.rstrip('\n'),
+                                        current_table_row_count,
+                                        current_table_col_count,
+                                    )
                                     await _table_embed_service.update_table_embed_content(
                                         embed_id=current_table_embed_id,
-                                        table_content=current_table_content.rstrip('\n'),
+                                        table_content=capped_table_content,
                                         chat_id=request_data.chat_id,
                                         user_id=request_data.user_id,
                                         user_id_hash=request_data.user_id_hash,
                                         user_vault_key_id=user_vault_key_id,
                                         status="processing",
                                         title=current_table_title,
-                                        row_count=current_table_row_count,
-                                        col_count=current_table_col_count,
+                                        row_count=capped_row_count,
+                                        col_count=capped_col_count,
+                                        learning_mode_metadata=learning_mode_metadata,
                                         log_prefix=log_prefix
                                     )
                                 except Exception as e:
@@ -6631,17 +6862,24 @@ async def _consume_main_processing_stream(
                                 try:
                                     from backend.core.api.app.services.embed_service import EmbedService
                                     _table_embed_service = EmbedService(cache_service, directus_service, encryption_service)
+                                    capped_table_content, capped_row_count, capped_col_count, learning_mode_metadata = _cap_table_for_learning_mode(
+                                        request_data,
+                                        current_table_content.rstrip('\n'),
+                                        current_table_row_count,
+                                        current_table_col_count,
+                                    )
                                     await _table_embed_service.update_table_embed_content(
                                         embed_id=current_table_embed_id,
-                                        table_content=current_table_content.rstrip('\n'),
+                                        table_content=capped_table_content,
                                         chat_id=request_data.chat_id,
                                         user_id=request_data.user_id,
                                         user_id_hash=request_data.user_id_hash,
                                         user_vault_key_id=user_vault_key_id,
                                         status="finished",
                                         title=current_table_title,
-                                        row_count=current_table_row_count,
-                                        col_count=current_table_col_count,
+                                        row_count=capped_row_count,
+                                        col_count=capped_col_count,
+                                        learning_mode_metadata=learning_mode_metadata,
                                         log_prefix=log_prefix
                                     )
                                     logger.info(
@@ -6751,15 +6989,20 @@ async def _consume_main_processing_stream(
             
             if in_document_block:
                 # Finalize document embed with partial HTML content (interrupted)
+                capped_document_content, learning_mode_metadata = _cap_document_for_learning_mode(
+                    request_data,
+                    current_code_content,
+                )
                 await embed_service.update_document_embed_content(
                     embed_id=current_code_embed_id,
-                    html_content=current_code_content,
+                    html_content=capped_document_content,
                     chat_id=request_data.chat_id,
                     user_id=request_data.user_id,
                     user_id_hash=request_data.user_id_hash,
                     user_vault_key_id=user_vault_key_id,
                     status="finished",  # Mark as finished even if interrupted
                     title=current_document_title,
+                    learning_mode_metadata=learning_mode_metadata,
                     log_prefix=log_prefix
                 )
                 logger.info(f"{log_prefix} Finalized interrupted document embed {current_code_embed_id} with {len(current_code_content)} chars")
@@ -6800,14 +7043,19 @@ async def _consume_main_processing_stream(
                 logger.info(f"{log_prefix} Finalized interrupted Mermaid embed {current_code_embed_id}")
             else:
                 # Finalize code embed with partial content (interrupted)
+                capped_code_content, learning_mode_metadata = _cap_code_for_learning_mode(
+                    request_data,
+                    current_code_content,
+                )
                 await embed_service.update_code_embed_content(
                     embed_id=current_code_embed_id,
-                    code_content=current_code_content,
+                    code_content=capped_code_content,
                     chat_id=request_data.chat_id,
                     user_id=request_data.user_id,
                     user_id_hash=request_data.user_id_hash,
                     user_vault_key_id=user_vault_key_id,
                     status="finished",  # Mark as finished even if interrupted
+                    learning_mode_metadata=learning_mode_metadata,
                     log_prefix=log_prefix
                 )
                 logger.info(f"{log_prefix} Finalized interrupted code embed {current_code_embed_id} with {len(current_code_content)} chars")
@@ -6820,17 +7068,24 @@ async def _consume_main_processing_stream(
         try:
             from backend.core.api.app.services.embed_service import EmbedService
             embed_service = EmbedService(cache_service, directus_service, encryption_service)
+            capped_table_content, capped_row_count, capped_col_count, learning_mode_metadata = _cap_table_for_learning_mode(
+                request_data,
+                current_table_content.rstrip('\n'),
+                current_table_row_count,
+                current_table_col_count,
+            )
             await embed_service.update_table_embed_content(
                 embed_id=current_table_embed_id,
-                table_content=current_table_content.rstrip('\n'),
+                table_content=capped_table_content,
                 chat_id=request_data.chat_id,
                 user_id=request_data.user_id,
                 user_id_hash=request_data.user_id_hash,
                 user_vault_key_id=user_vault_key_id,
                 status="finished",
                 title=current_table_title,
-                row_count=current_table_row_count,
-                col_count=current_table_col_count,
+                row_count=capped_row_count,
+                col_count=capped_col_count,
+                learning_mode_metadata=learning_mode_metadata,
                 log_prefix=log_prefix
             )
             logger.info(

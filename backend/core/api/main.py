@@ -69,6 +69,7 @@ from backend.core.api.app.routes import connected_account_actions  # noqa: E402 
 from backend.core.api.app.routes import connected_account_oauth  # noqa: E402 # One-time connected-account OAuth handoffs
 from backend.core.api.app.routes import provider_oauth_google_calendar  # noqa: E402 # Google Calendar connected-account OAuth adapter
 from backend.core.api.app.routes import settings_software_update  # noqa: E402 # Import software update settings router (admin-only)
+from backend.core.api.app.routes import learning_mode  # noqa: E402 # Account-wide Learning Mode policy endpoints
 from backend.core.api.app.routes import notifications as notifications_api  # noqa: E402 # Safe notification list + SSE stream
 from backend.core.api.app.routes import telemetry  # noqa: E402 # Import OTLP proxy for frontend browser traces
 from backend.core.api.app.routes import test_recordings  # noqa: E402 # Dev-only Playwright recording browser API
@@ -1367,6 +1368,7 @@ def create_app() -> FastAPI:
     app.include_router(analytics_beacon.router, include_in_schema=False)  # Analytics beacon - privacy-preserving first-party aggregate analytics (no PII)
     app.include_router(debug_sync.router, include_in_schema=False)  # Debug sync status - JWT auth, no admin required, window.debug integration
     app.include_router(sync_api.router, include_in_schema=False)  # Native/desktop optional offline prefetch - JWT auth, encrypted payloads only
+    app.include_router(learning_mode.router, include_in_schema=False)  # Account-wide Learning Mode policy - web/CLI/Apple authenticated only
     app.include_router(token_broker.router, include_in_schema=False)  # Connected-account token refs - web/CLI/Apple authenticated only
     app.include_router(connected_accounts.router, include_in_schema=False)  # Encrypted connected-account rows - client source of truth
     app.include_router(connected_account_actions.router, include_in_schema=False)  # Connected-account operation actions

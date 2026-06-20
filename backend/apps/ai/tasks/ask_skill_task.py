@@ -43,6 +43,11 @@ from backend.apps.ai.processing.postprocessor import (
     PostProcessingResult,
     extract_available_skills,
 )
+from backend.shared.python_utils.learning_mode import (
+    filter_learning_mode_suggestions,
+    is_learning_mode_enabled,
+    learning_mode_context_from_preferences,
+)
 from .stream_consumer import _consume_main_processing_stream
 
 # Import override parser for @ mentioning syntax (e.g., @ai-model:claude-opus-4-5)
@@ -1978,6 +1983,10 @@ async def _async_process_ai_skill_ask_task(
             user_system_language = request_data.user_preferences.get("language", "en") if request_data.user_preferences else "en"
             follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
             quick_tips_enabled = (request_data.user_preferences or {}).get("quick_tips_enabled", True) is not False
+            effective_learning_mode_context = (
+                getattr(request_data, "learning_mode", None)
+                or learning_mode_context_from_preferences(request_data.user_preferences)
+            )
 
             # Phase 1: Post-processing with category selection
             # OPE-265: Determine current chat title for post-processing title update evaluation.
@@ -2008,7 +2017,16 @@ async def _async_process_ai_skill_ask_task(
                 current_chat_title=current_title_for_postproc,  # OPE-265: For title update evaluation
                 follow_up_suggestions_enabled=follow_up_suggestions_enabled,
                 quick_tips_enabled=quick_tips_enabled,
+                learning_mode_context=effective_learning_mode_context,
             )
+
+            if postprocessing_result and is_learning_mode_enabled(effective_learning_mode_context):
+                postprocessing_result.follow_up_request_suggestions = filter_learning_mode_suggestions(
+                    postprocessing_result.follow_up_request_suggestions
+                )
+                postprocessing_result.new_chat_request_suggestions = filter_learning_mode_suggestions(
+                    postprocessing_result.new_chat_request_suggestions
+                )
 
 
 

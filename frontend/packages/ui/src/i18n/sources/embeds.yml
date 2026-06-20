@@ -1,3 +1,27 @@
+learning_mode_shortened_notice:
+  context: Notice shown below generated code, document, or sheet content shortened by account-wide Learning Mode
+  en: Shortened since Learning Mode is active.
+  de: Shortened since Learning Mode is active.
+  zh: Shortened since Learning Mode is active.
+  es: Shortened since Learning Mode is active.
+  fr: Shortened since Learning Mode is active.
+  pt: Shortened since Learning Mode is active.
+  ru: Shortened since Learning Mode is active.
+  ja: Shortened since Learning Mode is active.
+  ko: Shortened since Learning Mode is active.
+  it: Shortened since Learning Mode is active.
+  tr: Shortened since Learning Mode is active.
+  vi: Shortened since Learning Mode is active.
+  id: Shortened since Learning Mode is active.
+  pl: Shortened since Learning Mode is active.
+  nl: Shortened since Learning Mode is active.
+  ar: Shortened since Learning Mode is active.
+  hi: Shortened since Learning Mode is active.
+  th: Shortened since Learning Mode is active.
+  cs: Shortened since Learning Mode is active.
+  sv: Shortened since Learning Mode is active.
+  he: Shortened since Learning Mode is active.
+  verified_by_human: [en]
 weather.rain_radar.no_rain:
   context: Rain radar fallback text when no rain is visible
   en: No rain visible near this location.

@@ -19,6 +19,9 @@ import {
   type DailyInspiration,
   type DecryptedNewChatSuggestion,
   type DocsTree,
+  type LearningModeContext,
+  type LearningModeAgeGroup,
+  type LearningModeStatus,
   type SubChatApprovalRequest,
   type BankTransferOrderDetails,
   type BankTransferStatus,
@@ -118,6 +121,10 @@ async function main(): Promise<void> {
     }
     if (command === "settings") {
       printSettingsHelp(client);
+      return;
+    }
+    if (command === "learning-mode") {
+      printLearningModeHelp();
       return;
     }
     if (command === "signup") {
@@ -229,6 +236,11 @@ async function main(): Promise<void> {
 
   if (command === "settings") {
     await handleSettings(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "learning-mode") {
+    await handleLearningMode(client, subcommand, parsed.flags);
     return;
   }
 
@@ -3104,6 +3116,84 @@ async function handleSettings(
   process.exit(1);
 }
 
+const LEARNING_MODE_AGE_GROUPS = new Set<LearningModeAgeGroup>([
+  "under_10",
+  "10_12",
+  "13_15",
+  "16_18",
+  "adult",
+]);
+
+async function handleLearningMode(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printLearningModeHelp();
+    return;
+  }
+
+  if (subcommand === "status") {
+    printLearningModeStatus(await client.getLearningModeStatus(), flags.json === true);
+    return;
+  }
+
+  if (subcommand === "enable") {
+    const ageGroup = parseLearningModeAgeGroup(flags["age-group"]);
+    const passcode = parseRequiredStringFlag(flags.passcode, "--passcode");
+    printLearningModeStatus(
+      await client.activateLearningMode({ ageGroup, passcode }),
+      flags.json === true,
+    );
+    return;
+  }
+
+  if (subcommand === "disable") {
+    const passcode = parseRequiredStringFlag(flags.passcode, "--passcode");
+    printLearningModeStatus(await client.deactivateLearningMode(passcode), flags.json === true);
+    return;
+  }
+
+  console.error(`Unknown learning-mode command '${subcommand}'.\n`);
+  printLearningModeHelp();
+  process.exit(1);
+}
+
+function parseLearningModeAgeGroup(value: string | boolean | undefined): LearningModeAgeGroup {
+  if (typeof value !== "string" || !LEARNING_MODE_AGE_GROUPS.has(value as LearningModeAgeGroup)) {
+    throw new Error("Provide --age-group as one of: under_10, 10_12, 13_15, 16_18, adult.");
+  }
+  return value as LearningModeAgeGroup;
+}
+
+function parseRequiredStringFlag(value: string | boolean | undefined, name: string): string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`Provide ${name}.`);
+  }
+  return value;
+}
+
+function printLearningModeStatus(status: LearningModeStatus, json: boolean): void {
+  if (json) {
+    printJson(status);
+    return;
+  }
+  console.log(`Learning Mode: ${status.enabled ? "enabled" : "disabled"}`);
+  if (status.age_group) console.log(`Age group: ${status.age_group}`);
+  if (status.failed_attempts > 0) console.log(`Failed disable attempts: ${status.failed_attempts}`);
+  if (status.deactivation_blocked_until) {
+    console.log(`Disable blocked until: ${new Date(status.deactivation_blocked_until * 1000).toISOString()}`);
+  }
+}
+
+function learningModeStatusToContext(status: LearningModeStatus): LearningModeContext {
+  return {
+    enabled: status.enabled,
+    ageGroup: status.age_group,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Memories
 // ---------------------------------------------------------------------------
@@ -3907,6 +3997,7 @@ async function sendMessageStreaming(
   const urlResult = prepareUrlEmbeds(finalMessage);
   finalMessage = urlResult.message;
   preparedEmbeds.push(...urlResult.embeds);
+  const learningMode = learningModeStatusToContext(await client.getLearningModeStatus());
 
   const result = await client.sendMessage({
     message: finalMessage,
@@ -3917,6 +4008,7 @@ async function sendMessageStreaming(
     onSubChatApprovalRequest,
     autoApproveSubChats: params.autoApproveSubChats,
     autoApproveMemories: params.autoApproveMemories,
+    learningMode,
     preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
     piiMappings: piiResult.mappings.map((mapping) => ({
       placeholder: mapping.placeholder,
@@ -5670,6 +5762,7 @@ Commands:
   openmates mentions [--help]                List available @mentions
   openmates embeds [--help]                  Embed commands (show)
   openmates settings [--help]                Predefined settings commands
+  openmates learning-mode [--help]           Account-wide Learning Mode controls
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
   openmates feedback [--help]                Assistant response feedback helpers
@@ -5696,6 +5789,23 @@ Mirrors the web chat assistant-response feedback decision:
 Options:
   --rating <1-5>  Required star rating
   --json          Output the decision contract as JSON`);
+}
+
+function printLearningModeHelp(): void {
+  console.log(`Learning Mode commands:
+  openmates learning-mode status [--json]
+  openmates learning-mode enable --age-group <group> --passcode <passcode> [--json]
+  openmates learning-mode disable --passcode <passcode> [--json]
+
+Learning Mode is account-wide and applies to CLI, web, Apple, and API chat requests.
+
+Age groups:
+  under_10, 10_12, 13_15, 16_18, adult
+
+Options:
+  --age-group <group>  Required for enable
+  --passcode <value>   Required for enable and disable
+  --json               Output backend status JSON`);
 }
 
 function printSignupHelp(): void {

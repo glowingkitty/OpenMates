@@ -24,6 +24,7 @@ openmates apps list
 openmates apps ai ask "What is Docker?"
 openmates apps code run --language python --code 'print("Hello")'
 openmates settings account export data --json
+openmates learning-mode status --json
 openmates settings memories list --json
 openmates docs list
 openmates benchmark model google/gemini-3.5-flash --dry-run --json

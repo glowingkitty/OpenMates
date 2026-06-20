@@ -61,7 +61,7 @@ openmates apps list
 | `signup`, `login`, `logout`, `whoami` | Account creation, authentication, and session | [authentication.md](./authentication.md) |
 | `chats` | List, search, show, send, share, download, delete, incognito | [chats.md](./chats.md) |
 | `apps` | List apps, run skills, view skill info | [apps-and-skills.md](./apps-and-skills.md) |
-| `settings` | Predefined settings commands, invoices, notifications, mates, newsletter, memories | [settings.md](./settings.md) |
+| `settings`, `learning-mode` | Predefined settings commands, Learning Mode controls, invoices, notifications, mates, newsletter, memories | [settings.md](./settings.md) |
 | `benchmark` | Run real product-path model benchmarks, comparisons, and judged case suites | [benchmarks.md](./benchmarks.md) |
 | `embeds`, `mentions` | View embeds, create share links, search mentions | [embeds-and-sharing.md](./embeds-and-sharing.md) |
 | `inspirations`, `newchatsuggestions` | Daily inspirations and personalized suggestions | [chats.md](./chats.md) |

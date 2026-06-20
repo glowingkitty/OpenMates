@@ -384,6 +384,97 @@ async function withAnonymousMockApi<T>(
   }
 }
 
+async function withLearningModeMockApi<T>(
+  run: (params: { apiUrl: string; requests: Array<{ method: string; url: string; body?: Record<string, unknown> }>; tempHome: string }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Array<{ method: string; url: string; body?: Record<string, unknown> }> = [];
+  const tempHome = join(tmpdir(), `openmates-cli-learning-mode-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const stateDir = join(tempHome, ".openmates");
+  mkdirSync(stateDir, { recursive: true });
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl: "http://127.0.0.1:0",
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.url?.startsWith("/v1/learning-mode")) {
+        assert.match(String(request.headers.cookie ?? ""), /auth_refresh_token=refresh-token/);
+      }
+
+      if (request.method === "GET" && request.url === "/v1/learning-mode") {
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, {
+          enabled: true,
+          age_group: "13_15",
+          failed_attempts: 1,
+          deactivation_blocked_until: null,
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/learning-mode/activate") {
+        const body = await readJsonBody(request);
+        requests.push({ method: request.method, url: request.url, body });
+        writeJson(response, {
+          enabled: true,
+          age_group: body.age_group,
+          failed_attempts: 0,
+          deactivation_blocked_until: null,
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/learning-mode/deactivate") {
+        const body = await readJsonBody(request);
+        requests.push({ method: request.method, url: request.url, body });
+        writeJson(response, {
+          enabled: false,
+          age_group: null,
+          failed_attempts: 0,
+          deactivation_blocked_until: null,
+        });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, requests, tempHome });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
 async function withEmbedVersionsMockApi<T>(
   run: (params: { apiUrl: string; requests: string[] }) => T | Promise<T>,
 ): Promise<T> {
@@ -1798,6 +1889,57 @@ describe("settings command surface", () => {
     const parsed = JSON.parse(output) as Array<{ id: string; mention: string }>;
     assert.ok(parsed.some((mate) => mate.id === "software_development"));
     assert.ok(parsed.some((mate) => mate.mention === "@mate:general_knowledge"));
+  });
+});
+
+describe("learning-mode command surface", () => {
+  it("is listed in global help and has contextual help", () => {
+    assert.match(runCli(["help"]), /openmates learning-mode \[--help\]/);
+    const output = runCli(["learning-mode", "--help"]);
+    assert.match(output, /openmates learning-mode status/);
+    assert.match(output, /openmates learning-mode enable --age-group <group>/);
+    assert.match(output, /openmates learning-mode disable/);
+  });
+
+  it("prints authenticated status as JSON", async () => {
+    await withLearningModeMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const output = await runCliAsync(
+        ["learning-mode", "status", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const parsed = JSON.parse(output) as Record<string, unknown>;
+      assert.equal(parsed.enabled, true);
+      assert.equal(parsed.age_group, "13_15");
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "GET /v1/learning-mode",
+      ]);
+    });
+  });
+
+  it("activates and deactivates through the dedicated API", async () => {
+    await withLearningModeMockApi(async ({ apiUrl, tempHome, requests }) => {
+      await runCliAsync(
+        ["learning-mode", "enable", "--age-group", "16_18", "--passcode", "teach-1234", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      await runCliAsync(
+        ["learning-mode", "disable", "--passcode", "teach-1234", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+
+      assert.deepEqual(requests, [
+        {
+          method: "POST",
+          url: "/v1/learning-mode/activate",
+          body: { age_group: "16_18", passcode: "teach-1234" },
+        },
+        {
+          method: "POST",
+          url: "/v1/learning-mode/deactivate",
+          body: { passcode: "teach-1234" },
+        },
+      ]);
+    });
   });
 });
 

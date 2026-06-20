@@ -55,6 +55,7 @@ class MateConfig(BaseModel):
     category: str = Field(..., description="Category the Mate belongs to (e.g., 'software_development').")
     description: str = Field(..., description="A brief description of the Mate's purpose or expertise.")
     default_system_prompt: str = Field(..., description="English default system prompt. From the markdown body.")
+    learning_mode_system_prompt: str = Field(..., description="English Learning Mode system prompt variant from frontmatter.")
 
     # Reserved fields — parsed but not yet enforced downstream.
     # When a frontmatter value is omitted or set to "inherit", these become None
@@ -180,6 +181,7 @@ def _build_mate_from_file(file_path: Path) -> MateConfig:
         "category": frontmatter.get("category"),
         "description": frontmatter.get("description"),
         "default_system_prompt": body,
+        "learning_mode_system_prompt": frontmatter.get("learning_mode_system_prompt"),
         "tools": tools,
         "model": model,
         "focus_modes": focus_modes,

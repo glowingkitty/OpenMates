@@ -5,6 +5,8 @@
     import { userProfile } from '../../stores/userProfile';
     import { authStore } from '../../stores/authStore';
     import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
+    import { learningMode, type LearningModeAgeGroup } from '../../stores/learningModeStore';
+    import { notificationStore } from '../../stores/notificationStore';
     import SettingsItem from '../SettingsItem.svelte';
     import { createEventDispatcher, tick } from 'svelte';
     import type { SvelteComponent } from 'svelte';
@@ -90,6 +92,7 @@
     
     // Local state for incognito toggle that syncs with store
     let incognitoToggleChecked = $state(false);
+    let learningModeActionInProgress = $state(false);
     
     // Guard to prevent the onClick handler from firing twice in the same tick.
     // Toggle.svelte uses bind:checked on a checkbox inside a <label>, and SettingsItem wraps
@@ -106,6 +109,14 @@
     $effect(() => {
         incognitoToggleChecked = $incognitoMode;
     });
+
+    $effect(() => {
+        if (!isAuthenticated || $learningMode.loaded || $learningMode.loading) return;
+        learningMode.load().catch((error) => {
+            console.error('[CurrentSettingsPage] Failed to load Learning Mode status:', error);
+            notificationStore.error($text('settings.learning_mode_load_error'));
+        });
+    });
     
     // Calculate the actual count of menu items for height adjustment using Svelte 5 runes
     $effect(() => {
@@ -116,7 +127,7 @@
         const settingsCount = topLevelSettingsCount + 1;
         // Quick settings are currently commented out (TODO), so don't reduce height in signup mode
         // This ensures consistent height and prevents content cutoff
-        const quickSettingsCount = 3; // Keep consistent height regardless of signup mode
+        const quickSettingsCount = 4; // Keep consistent height regardless of signup mode
         menuItemsCount = settingsCount + quickSettingsCount;
     });
 
@@ -166,6 +177,37 @@
 
     function handleLogout() {
         dispatch('logout');
+    }
+
+    async function handleLearningModeToggle() {
+        if (learningModeActionInProgress) return;
+        learningModeActionInProgress = true;
+        try {
+            if ($learningMode.enabled) {
+                const passcode = window.prompt($text('settings.learning_mode_disable_passcode_prompt'))?.trim();
+                if (!passcode) return;
+                await learningMode.deactivate(passcode);
+                notificationStore.success($text('settings.learning_mode_disabled'));
+                return;
+            }
+
+            const ageGroupInput = window.prompt($text('settings.learning_mode_age_group_prompt'), '13_15')?.trim();
+            if (!ageGroupInput) return;
+            const validAgeGroups: LearningModeAgeGroup[] = ['under_10', '10_12', '13_15', '16_18', 'adult'];
+            if (!validAgeGroups.includes(ageGroupInput as LearningModeAgeGroup)) {
+                notificationStore.error($text('settings.learning_mode_invalid_age_group'));
+                return;
+            }
+            const passcode = window.prompt($text('settings.learning_mode_enable_passcode_prompt'))?.trim();
+            if (!passcode) return;
+            await learningMode.activate(passcode, ageGroupInput as LearningModeAgeGroup);
+            notificationStore.success($text('settings.learning_mode_enabled'));
+        } catch (error) {
+            console.error('[CurrentSettingsPage] Learning Mode update failed:', error);
+            notificationStore.error(error instanceof Error ? error.message : $text('settings.learning_mode_save_error'));
+        } finally {
+            learningModeActionInProgress = false;
+        }
     }
 
     // Get credits from userProfile store using Svelte 5 runes
@@ -379,6 +421,19 @@
                             // Dispatch to parent for any additional handling
                             handleQuickSettingClick('incognito');
                         }}
+                    />
+                </div>
+
+                <div data-testid="learning-mode-toggle-wrapper">
+                    <SettingsItem
+                        type="quickaction"
+                        icon="ai"
+                        title={$text('settings.learning_mode')}
+                        subtitleTop={$learningMode.enabled ? $text('settings.learning_mode_active') : $text('settings.learning_mode_inactive')}
+                        hasToggle={true}
+                        checked={$learningMode.enabled}
+                        disabled={$learningMode.loading || learningModeActionInProgress}
+                        onClick={handleLearningModeToggle}
                     />
                 </div>
             {/if}

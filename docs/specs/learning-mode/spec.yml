@@ -1,0 +1,633 @@
+id: learning-mode
+title: Account-Wide Learning Mode
+status: approved
+
+goal: >
+  Let educators or guardians lock an OpenMates account into a teaching-first
+  mode across CLI, web, Apple, API, and all chats so learners receive guided
+  explanations, short illustrative examples, and capped generated artifacts
+  instead of complete answers, long code files, or runnable projects.
+
+scope:
+  in:
+    - Account-wide Learning Mode policy that applies to every chat and platform for the authenticated account while active.
+    - Settings activation flow that asks for a custom passcode and learner age group.
+    - Passcode-protected deactivation with a 24-hour deactivation block after 5 failed attempts.
+    - Backend-enforced request processing policy independent of client-provided flags.
+    - Global Learning Mode system prompt modifier with age-group adaptation.
+    - Per-mate Learning Mode prompt variants derived from each existing mate prompt.
+    - Generated embed caps for code, sheets, documents, mail, diagrams, plots, and generated application artifacts.
+    - Localized UI notice after shortened embed content: Shortened since Learning Mode is active.
+    - CLI support and CLI/backend tests as the first verification target.
+    - Web app settings controls, request propagation, and embed-shortening UI.
+    - Apple app settings parity, request propagation, and embed-shortening UI.
+  out:
+    - Classroom roster management, educator dashboards, or remote assignment of policies to other accounts.
+    - Exact birth date collection or precise age tracking.
+    - Regex-based intent detection of restricted wording in user prompts.
+    - OCR or computer-vision inspection of generated images in the first slice.
+    - Offline-only Learning Mode policy that can be trusted without backend verification.
+    - Migration of existing incognito behavior or focus modes.
+
+context_discovery:
+  github_issues:
+    - "No matching public issue found via gh fallback search: learning mode learn education student code generation. GitHub MCP issue search returned 401 bad credentials."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/ai/mates.md
+    - docs/specs/application-embeds/spec.yml
+    - docs/specs/apple-settings-billing-parity/spec.yml
+    - docs/specs/apple-skill-application-parity/spec.yml
+    - docs/specs/code-run-cli-app-skill/spec.yml
+  code_patterns:
+    - backend/apps/ai/utils/mate_utils.py
+    - backend/apps/ai/mates/*.md
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/ui/src/stores/incognitoModeStore.ts
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - shared/config/embed_types.yml
+    - apple/OpenMates/Sources/**/Settings*.swift
+  tests:
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/apps/web_app/tests/incognito-mode.spec.ts
+    - frontend/apps/web_app/tests/*settings*.spec.ts
+    - apple/OpenMatesUITests/SettingsInterfaceLanguageParityUITests.swift
+    - apple/OpenMatesUITests/SettingsAppsParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/**/Settings*.swift
+    - apple/OpenMates/Sources/**/Chat*.swift
+    - apple/OpenMates/Sources/**/Embed*.swift
+    - apple/OpenMates/Sources/Shared/Components/**
+    - apple/OpenMates/Sources/**/Core/I18n/AppStrings.swift
+  parity_expectations:
+    - Apple shows an account-wide Learning Mode settings row near Incognito with the same activation, age-group, deactivation, failed-attempt, and lockout states as web.
+    - Apple includes effective Learning Mode context on chat sends when the backend policy reports active mode.
+    - Apple renders Learning Mode shortened notices below capped code/document/sheet-like content without using native chrome that conflicts with the web design system.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios
+  intentional_native_differences:
+    - Apple may use platform secure text entry for the passcode while preserving the same product states and localized copy.
+
+clarification:
+  rounds:
+    - question: Should Learning Mode be enforced for all chats on the account once active, including existing chats and CLI/API usage, or only for new chats created after activation?
+      answer: All chats. All platforms for the same account.
+  vision_summary: >
+    Learning Mode is an account-wide, backend-enforced policy. When active it
+    applies to every current and future chat across CLI, web, Apple, and API
+    usage for the same account. Normal mate prompts are used when the mode is
+    off; Learning Mode prompt variants and a global teaching-first prompt are
+    used when the mode is on, while generated embeds are capped and full
+    application artifacts are disabled.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Educator activates account-wide Learning Mode from settings
+    given:
+      - Alice is authenticated in the web app.
+      - Learning Mode is inactive for Alice's account.
+    when:
+      - Alice opens Settings and clicks the Learning Mode quick setting.
+      - Alice enters and confirms a custom passcode.
+      - Alice selects learner age group 13-15.
+      - Alice confirms activation.
+    then:
+      - The backend stores an active account-wide Learning Mode policy with age group 13-15 and a hashed passcode.
+      - The plaintext passcode is not stored or logged.
+      - Settings shows Learning Mode as active on reload and on other clients for Alice's account.
+      - Every chat request for Alice's account is processed with Learning Mode active, including existing chats.
+
+  - id: S-2
+    title: Deactivation requires passcode and blocks after repeated failures
+    given:
+      - Alice's account has Learning Mode active.
+      - The passcode is known only to the educator.
+    when:
+      - A learner tries to deactivate Learning Mode with the wrong passcode 5 times.
+    then:
+      - The backend keeps Learning Mode active.
+      - The backend records 5 failed deactivation attempts.
+      - The backend blocks further deactivation attempts for 24 hours.
+      - Web, CLI, and Apple display a localized locked state with the remaining time.
+      - A correct passcode cannot deactivate the mode until the block expires.
+
+  - id: S-3
+    title: CLI sends are governed by backend Learning Mode policy
+    given:
+      - Alice's account has Learning Mode active with age group 16-18.
+      - Alice uses OpenMates CLI to send a message in an existing chat.
+    when:
+      - The CLI sends the chat message over the WebSocket path.
+    then:
+      - The request payload includes Learning Mode context when known locally.
+      - The backend resolves the effective account policy and does not rely only on client-provided flags.
+      - Main processing uses the global Learning Mode prompt and the selected mate's Learning Mode prompt variant.
+      - The response is teaching-first and uses the user's normal output language.
+
+  - id: S-4
+    title: Normal mate prompt is replaced by Learning Mode mate prompt while active
+    given:
+      - Alice's account has Learning Mode active.
+      - The preprocessor selects Sophia, the software development mate.
+    when:
+      - Main processing builds the system prompt.
+    then:
+      - Sophia's normal `default_system_prompt` is not used as the active mate prompt.
+      - Sophia's `learning_mode_system_prompt` is used instead.
+      - The global Learning Mode prompt is also appended.
+      - Every mate has an explicit Learning Mode prompt variant validated by tests.
+
+  - id: S-5
+    title: Generated code embed is shortened in Learning Mode
+    given:
+      - Alice's account has Learning Mode active.
+      - The assistant emits an 80-line code block that would normally become a code embed.
+    when:
+      - The stream consumer creates the code embed.
+    then:
+      - The stored code embed contains only the first configured Learning Mode code lines.
+      - The embed decoded content includes `learning_mode_shortened`, `original_line_count`, and `shown_line_count` metadata.
+      - The UI renders the code content followed by a localized Learning Mode shortened notice outside the code block.
+      - No language-specific code comment is added.
+
+  - id: S-6
+    title: Generated sheets and documents are capped in Learning Mode
+    given:
+      - Alice's account has Learning Mode active.
+      - The assistant emits a large markdown table and a long document block.
+    when:
+      - The stream consumer creates sheet and document embeds.
+    then:
+      - The sheet stores only the configured maximum rows and columns.
+      - The document stores only the configured maximum lines or blocks.
+      - Both embeds include Learning Mode shortened metadata.
+      - Web and Apple show the same localized shortened notice below the visible content.
+
+  - id: S-7
+    title: Generated application artifacts are disabled in Learning Mode
+    given:
+      - Alice's account has Learning Mode active.
+      - The assistant emits a combined generated application artifact or code fences that would normally infer a runnable app.
+    when:
+      - The stream consumer handles the generated artifact.
+    then:
+      - OpenMates does not create a code-application parent embed.
+      - OpenMates does not auto-start or offer a runnable application preview for that response.
+      - At most capped illustrative code snippets are stored as code embeds.
+      - The assistant message explains that Learning Mode can walk through building the project step by step.
+
+  - id: S-8
+    title: Generated media cannot be used to bypass Learning Mode
+    given:
+      - Alice's account has Learning Mode active.
+      - Alice asks an image or video generation app to create a visual answer key or screenshot of a complete solution.
+    when:
+      - Main processing builds app/tool instructions.
+    then:
+      - The system prompt instructs the model not to use images, videos, documents, sheets, or code as a bypass for complete answers.
+      - Media generation remains allowed for conceptual diagrams, flashcards, metaphors, and short illustrative learning aids.
+      - The first slice relies on prompt/tool policy and embed limits, not OCR of generated images.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: An authenticated user can activate account-wide Learning Mode with a custom passcode and age group from settings.
+  - id: AC-2
+    scenario: S-2
+    text: Deactivation requires the passcode and is blocked for 24 hours after 5 failed attempts.
+  - id: AC-3
+    scenario: S-3
+    text: Backend request processing resolves and enforces the effective account Learning Mode policy for all platforms and chats.
+  - id: AC-4
+    scenario: S-4
+    text: Every mate has a Learning Mode prompt variant that replaces the normal mate prompt while Learning Mode is active.
+  - id: AC-5
+    scenario: S-5
+    text: Generated code embeds are capped in Learning Mode and include localized non-code shortened UI notices.
+  - id: AC-6
+    scenario: S-6
+    text: Generated sheet and document embeds are capped in Learning Mode and include shortened metadata and UI notices.
+  - id: AC-7
+    scenario: S-7
+    text: Runnable generated application artifacts and previews are disabled in Learning Mode.
+  - id: AC-8
+    scenario: S-8
+    text: Learning Mode prompt and tool policy prevent generated media from being used as a complete-answer bypass.
+
+contracts:
+  api:
+    - route: GET /v1/learning-mode
+      request: none
+      response: "{ enabled: boolean, age_group?: string, deactivation_blocked_until?: number, failed_attempts: number }"
+      errors:
+        - 401 when unauthenticated
+    - route: POST /v1/learning-mode/activate
+      request: "{ passcode: string, age_group: 'under_10'|'10_12'|'13_15'|'16_18'|'adult' }"
+      response: "{ enabled: true, age_group: string, failed_attempts: 0 }"
+      errors:
+        - 400 for invalid age group or weak/missing passcode
+        - 401 when unauthenticated
+    - route: POST /v1/learning-mode/deactivate
+      request: "{ passcode: string }"
+      response: "{ enabled: false, failed_attempts: 0 }"
+      errors:
+        - 401 when unauthenticated
+        - 403 when passcode is wrong or deactivation is blocked
+  data:
+    - Store account-wide Learning Mode policy on the user profile or a user-owned settings record available to all clients.
+    - Store only a passcode hash and metadata, never plaintext passcodes.
+    - Store `age_group`, `enabled`, `failed_attempts`, `deactivation_blocked_until`, and timestamps.
+    - Include Learning Mode shortened metadata in generated embed decoded content.
+  ui_states:
+    - inactive
+    - activation form
+    - active
+    - deactivation passcode form
+    - wrong passcode with attempts remaining
+    - deactivation blocked with remaining time
+    - shortened embed notice
+  privacy_security:
+    - Clients must not be able to disable Learning Mode by clearing local storage.
+    - Clients must not be able to bypass Learning Mode by omitting request flags.
+    - Do not log plaintext passcodes or generated private learner answers beyond existing encrypted chat behavior.
+    - GitHub/public docs must not contain private educator or student data.
+  prompts:
+    - Normal mate prompts are used when Learning Mode is off.
+    - Learning Mode mate prompts are used when Learning Mode is on.
+    - The global Learning Mode prompt is appended in addition to the mate prompt variant.
+    - Output language enforcement remains active after Learning Mode prompt injection.
+
+learning_mode_limits:
+  age_groups:
+    - under_10
+    - 10_12
+    - 13_15
+    - 16_18
+    - adult
+  embeds:
+    code:
+      max_lines: 40
+    sheet:
+      max_rows: 12
+      max_cols: 8
+    document:
+      max_lines: 80
+    mail:
+      max_lines: 30
+    mermaid:
+      max_lines: 40
+    plot:
+      max_lines: 20
+    application:
+      allowed: false
+    remotion_video:
+      allowed: false
+
+tests:
+  - id: T-CLI-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/client.test.ts
+    command: python3 scripts/tests.py run -- --suite cli
+    covers:
+      - AC-3
+    assertions:
+      - CLI chat payload can include Learning Mode context when known locally.
+      - Existing incognito payload behavior is unchanged.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: "not-recorded-before-implementation"
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-node-test-cli-2026-06-20"
+        timestamp: "2026-06-20T08:18:47Z"
+
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_learning_mode_policy.py
+    command: python3 -m pytest backend/tests/test_learning_mode_policy.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - activation validates age group and stores hashed passcode metadata
+      - five wrong deactivation attempts create a 24-hour block
+      - effective policy is resolved server-side for request processing
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: "not-recorded-before-implementation"
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-pytest-learning-mode-policy-2026-06-20"
+        timestamp: "2026-06-20T08:18:47Z"
+
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_learning_mode_prompts_and_embeds.py
+    command: python3 -m pytest backend/tests/test_learning_mode_prompts_and_embeds.py
+    covers:
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-8
+    assertions:
+      - every mate loads with an explicit Learning Mode prompt variant
+      - active Learning Mode uses mate variant plus global prompt
+      - code, sheet, and document content are capped with metadata
+      - generated application parent creation is disabled in Learning Mode
+      - media/tool prompt contains no-bypass instruction
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: "not-recorded-before-implementation"
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-pytest-learning-mode-prompts-embeds-2026-06-20"
+        timestamp: "2026-06-20T08:18:47Z"
+
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/learning-mode.spec.ts
+    command: python3 scripts/tests.py run --spec learning-mode.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-5
+      - AC-6
+      - AC-7
+    assertions:
+      - settings shows Learning Mode quick setting for authenticated users
+      - activation asks for passcode and age group
+      - wrong deactivation attempts lead to lockout state
+      - shortened generated embed notice is visible when backend marks content shortened
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "27865342962"
+        timestamp: "2026-06-20T08:10:34Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-001
+    type: build
+    file: apple/OpenMatesUITests/SettingsLearningModeParityUITests.swift
+    command: python3 scripts/apple_remote.py build-ios
+    covers:
+      - AC-1
+      - AC-2
+      - AC-5
+      - AC-6
+    assertions:
+      - Apple settings build includes Learning Mode settings parity UI
+      - Apple request model carries Learning Mode context from effective account policy
+      - Apple embed rendering supports shortened notice metadata
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_required_static_native_parity
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "remote-apple-build-ios-2026-06-20"
+        timestamp: "2026-06-20T08:18:47Z"
+
+implementation_plan:
+  existing_patterns:
+    - Incognito quick setting and explainer flow in `CurrentSettingsPage.svelte` and `incognitoModeStore.ts`.
+    - User preference injection in `message_received_handler.py`.
+    - Mate prompt loading in `mate_utils.py` from frontmatter markdown.
+    - System prompt assembly in `main_processor.py`.
+    - Generated embed conversion in `stream_consumer.py`.
+    - CLI WebSocket payload tests in `frontend/packages/openmates-cli/tests/client.test.ts`.
+    - Apple settings UI parity tests under `apple/OpenMatesUITests/`.
+  architecture: >
+    Store Learning Mode as a backend account policy. Clients expose activation and
+    deactivation flows and may pass local context, but the WebSocket handler and
+    API path resolve the effective server policy for every request. Main
+    processing swaps the selected mate prompt to its Learning Mode variant and
+    appends a global Learning Mode instruction. Stream-time embed creation caps
+    durable generated artifacts and records metadata for localized UI notices.
+  data_flow:
+    - User activates Learning Mode in settings with passcode and age group.
+    - Backend stores hashed policy metadata on the account.
+    - CLI/web/Apple fetch or receive the active policy for UI state.
+    - Every chat send reaches the backend, which resolves effective policy server-side.
+    - Main processor receives Learning Mode context and builds teaching-first prompts.
+    - Stream consumer caps generated embeds and disables application artifacts while active.
+    - Clients render shortened metadata as localized UI outside generated content.
+  affected_files:
+    - path: backend/apps/ai/mates/*.md
+      reason: Add explicit Learning Mode prompt variants for each mate.
+    - path: backend/apps/ai/utils/mate_utils.py
+      reason: Load and validate Learning Mode mate prompts.
+    - path: backend/apps/ai/skills/ask_skill.py
+      reason: Extend request schemas with Learning Mode context.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Inject Learning Mode prompts and media/tool no-bypass instructions.
+    - path: backend/apps/ai/tasks/stream_consumer.py
+      reason: Enforce generated embed caps and disable application artifacts.
+    - path: backend/core/api/app/routes/learning_mode.py
+      reason: Add account policy API endpoints.
+    - path: backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+      reason: Resolve effective Learning Mode policy server-side for chat sends.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Add CLI Learning Mode context to chat sends.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Add Learning Mode status/enable/disable commands.
+    - path: frontend/packages/ui/src/stores/learningModeStore.ts
+      reason: Store web Learning Mode policy state from backend.
+    - path: frontend/packages/ui/src/components/settings/**
+      reason: Add settings activation/deactivation UI.
+    - path: frontend/packages/ui/src/components/embeds/**
+      reason: Render shortened Learning Mode notices.
+    - path: frontend/packages/ui/src/i18n/sources/**
+      reason: Add localized settings and embed notice strings.
+    - path: apple/OpenMates/Sources/**
+      reason: Add native settings parity, request propagation, and shortened notices.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/learning-mode/spec.yml
+    - python3 scripts/tests.py run --suite openmates-cli
+    - python3 -m pytest backend/tests/test_learning_mode_policy.py backend/tests/test_learning_mode_prompts_and_embeds.py
+    - python3 scripts/tests.py run --spec learning-mode.spec.ts after deploy is Ready
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios
+    - python3 scripts/spec_verify.py docs/specs/learning-mode/spec.yml
+  verification_order:
+    - CLI/backend contract first
+    - Web Playwright second after deploy to dev
+    - Apple remote build third
+
+tasks:
+  - id: TASK-1
+    title: Add Learning Mode spec and red tests
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+    expected_files:
+      - docs/specs/learning-mode/spec.yml
+      - backend/tests/test_learning_mode_policy.py
+      - backend/tests/test_learning_mode_prompts_and_embeds.py
+      - frontend/packages/openmates-cli/tests/client.test.ts
+    verification:
+      - T-CLI-001
+      - T-PYTEST-001
+      - T-PYTEST-002
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Implement backend account policy, prompt selection, and embed caps
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+    expected_files:
+      - backend/apps/ai/mates/*.md
+      - backend/apps/ai/utils/mate_utils.py
+      - backend/apps/ai/skills/ask_skill.py
+      - backend/apps/ai/processing/main_processor.py
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/core/api/app/routes/learning_mode.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    verification:
+      - T-PYTEST-001
+      - T-PYTEST-002
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Implement CLI Learning Mode commands and request propagation
+    covers:
+      scenarios:
+        - S-3
+      acceptance_criteria:
+        - AC-3
+    expected_files:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/tests/client.test.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+    verification:
+      - T-CLI-001
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Implement web settings and shortened embed UI
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-5
+        - AC-6
+        - AC-7
+    expected_files:
+      - frontend/packages/ui/src/stores/learningModeStore.ts
+      - frontend/packages/ui/src/components/settings/**
+      - frontend/packages/ui/src/components/embeds/**
+      - frontend/packages/ui/src/i18n/sources/**
+      - frontend/apps/web_app/tests/learning-mode.spec.ts
+    verification:
+      - T-E2E-001
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Implement Apple parity
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-5
+        - AC-6
+    expected_files:
+      - apple/OpenMates/Sources/**
+      - apple/OpenMatesUITests/SettingsLearningModeParityUITests.swift
+    verification:
+      - T-APPLE-001
+    independently_deployable: false

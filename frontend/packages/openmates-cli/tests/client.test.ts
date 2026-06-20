@@ -600,6 +600,78 @@ describe("CLI chat PII redaction payloads", () => {
 });
 
 describe("CLI incognito chat payloads", () => {
+  it("can include known Learning Mode context without changing incognito state", async () => {
+    const captured: { messagePayload?: Record<string, unknown> } = {};
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token" }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+          if (frame.type !== "chat_message_added") return;
+
+          captured.messagePayload = frame.payload;
+          const message = frame.payload.message as Record<string, unknown>;
+          ws.send(JSON.stringify({
+            type: "chat_message_confirmed",
+            payload: {
+              chat_id: frame.payload.chat_id,
+              message_id: message.message_id,
+            },
+          }));
+          ws.send(JSON.stringify({
+            type: "ai_background_response_completed",
+            payload: {
+              chat_id: frame.payload.chat_id,
+              user_message_id: message.message_id,
+              message_id: "assistant-message-id",
+              full_content: "ok",
+              category: "general_knowledge",
+              model_name: "test-model",
+            },
+          }));
+          ws.send(JSON.stringify({
+            type: "post_processing_metadata",
+            payload: { chat_id: frame.payload.chat_id },
+          }));
+        });
+      });
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await client.sendMessage({
+        message: "Explain slowly",
+        incognito: true,
+        learningMode: { enabled: true, ageGroup: "16_18" },
+        precollectResponse: true,
+      });
+
+      assert.equal(captured.messagePayload?.is_incognito, true);
+      assert.deepEqual(captured.messagePayload?.learning_mode, {
+        enabled: true,
+        age_group: "16_18",
+      });
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("sends current message history with incognito messages", async () => {
     const captured: { messagePayload?: Record<string, unknown> } = {};
     const wss = new WebSocketServer({ noServer: true });

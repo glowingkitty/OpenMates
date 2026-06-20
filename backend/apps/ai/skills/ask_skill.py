@@ -64,6 +64,7 @@ class AskSkillRequest(BaseModel):
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User-specific preferences.")
+    learning_mode: Optional[Dict[str, Any]] = Field(default=None, description="Effective account-wide Learning Mode context resolved by the backend.")
     app_settings_memories_metadata: Optional[List[str]] = Field(default=None, description="List of available app settings/memories keys from client in 'app_id-item_type' format (e.g., ['code-preferred_technologies', 'travel-trips']). Client is source of truth since only client can decrypt.")
     connected_account_directory: Optional[List[Dict[str, Any]]] = Field(default=None, description="Redacted connected-account directory from the client. Must not include provider tokens or plaintext account identity.")
     connected_account_token_refs: Optional[List[Dict[str, Any]]] = Field(default=None, description="Short-lived turn-token refs created by the client token broker before send. Opaque refs only; no refresh tokens.")
@@ -129,6 +130,7 @@ class OpenAICompletionRequest(BaseModel):
     provider: Optional[str] = Field(default=None, description="Preferred provider (e.g., 'openai', 'cerebras', 'anthropic').")
     focus_mode: Optional[str] = Field(default=None, description="Focus mode ID to use.")
     is_incognito: Optional[bool] = Field(default=False, description="Whether this is an incognito request (no storage/billing).")
+    learning_mode: Optional[Dict[str, Any]] = Field(default=None, description="Effective account-wide Learning Mode context for API requests.")
     is_anonymous: Optional[bool] = Field(default=False, description="Whether this is an anonymous free-usage request billed against the shared anonymous budget.")
     anonymous_reservation_id: Optional[str] = Field(default=None, description="Anonymous budget reservation ID for server-side reconciliation.")
     

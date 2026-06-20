@@ -28,6 +28,7 @@ from backend.shared.providers.e2b_application_preview import (
     ApplicationPreviewPlanningError,
     plan_application_preview_startup,
 )
+from backend.shared.python_utils.learning_mode import apply_learning_mode_cap_to_embed_result
 
 logger = logging.getLogger(__name__)
 
@@ -793,6 +794,7 @@ class EmbedService:
         version_number: Optional[int] = None,
         content_hash: Optional[str] = None,
         version_history_rows: Optional[List[Dict[str, Any]]] = None,
+        learning_mode_metadata: Optional[Dict[str, Any]] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -884,6 +886,8 @@ class EmbedService:
                 "status": status,
                 "line_count": line_count
             }
+            if learning_mode_metadata:
+                updated_content.update(learning_mode_metadata)
 
             # Convert to TOON format
             updated_toon = encode(updated_content)
@@ -1742,6 +1746,7 @@ class EmbedService:
         version_number: Optional[int] = None,
         content_hash: Optional[str] = None,
         version_history_rows: Optional[List[Dict[str, Any]]] = None,
+        learning_mode_metadata: Optional[Dict[str, Any]] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -1801,6 +1806,8 @@ class EmbedService:
                 "row_count": row_count,
                 "col_count": col_count,
             }
+            if learning_mode_metadata:
+                updated_content.update(learning_mode_metadata)
 
             updated_toon = encode(updated_content)
 
@@ -2632,6 +2639,7 @@ class EmbedService:
         version_number: Optional[int] = None,
         content_hash: Optional[str] = None,
         version_history_rows: Optional[List[Dict[str, Any]]] = None,
+        learning_mode_metadata: Optional[Dict[str, Any]] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -2725,6 +2733,8 @@ class EmbedService:
                 "status": status,
                 "word_count": word_count
             }
+            if learning_mode_metadata:
+                updated_content.update(learning_mode_metadata)
 
             # Convert to TOON format
             updated_toon = encode(updated_content)
@@ -3979,7 +3989,8 @@ class EmbedService:
         user_vault_key_id: str,
         task_id: Optional[str] = None,
         log_prefix: str = "",
-        request_metadata: Optional[Dict[str, Any]] = None
+        request_metadata: Optional[Dict[str, Any]] = None,
+        learning_mode_context: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Update an existing "processing" embed with actual skill results.
@@ -4095,22 +4106,27 @@ class EmbedService:
                     # Fall back to generating a new slug only if embed_ref is missing (e.g., for
                     # non-composite skills or code paths that bypass the pre-generation step).
                     result_with_ref = dict(enriched_result)
-                    if "embed_ref" in result_with_ref:
-                        child_embed_ref = result_with_ref["embed_ref"]
+                    result_for_embed = apply_learning_mode_cap_to_embed_result(
+                        child_type,
+                        result_with_ref,
+                        learning_mode_context,
+                    )
+                    if "embed_ref" in result_for_embed:
+                        child_embed_ref = result_for_embed["embed_ref"]
                         logger.debug(f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
                     else:
                         child_embed_ref = self._generate_embed_ref_slug(child_type, enriched_result)
-                        result_with_ref["embed_ref"] = child_embed_ref
+                        result_for_embed["embed_ref"] = child_embed_ref
 
                     # Inject app_id and skill_id into child TOON so the frontend can
                     # extract them when registering embed_ref → appId in the in-memory index.
                     # Without this the inline badge gradient falls back to grey because
                     # the child result dict only contains flight/event fields, not app metadata.
-                    result_with_ref["app_id"] = app_id
-                    result_with_ref["skill_id"] = skill_id
+                    result_for_embed["app_id"] = app_id
+                    result_for_embed["skill_id"] = skill_id
 
                     # Convert result to TOON format (PLAINTEXT)
-                    flattened_result = _flatten_for_toon_tabular(result_with_ref)
+                    flattened_result = _flatten_for_toon_tabular(result_for_embed)
                     
                     # DEBUG: Log the result AFTER flattening to see if thumbnail_original/meta_url_favicon exist
                     logger.info(
@@ -4829,7 +4845,8 @@ class EmbedService:
         user_vault_key_id: str,
         task_id: Optional[str] = None,
         log_prefix: str = "",
-        request_metadata: Optional[Dict[str, Any]] = None
+        request_metadata: Optional[Dict[str, Any]] = None,
+        learning_mode_context: Optional[Dict[str, Any]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Create embeds from skill results immediately after skill execution.
@@ -4903,21 +4920,26 @@ class EmbedService:
                     # The embed_ref is injected INSIDE the encrypted TOON content so only the
                     # client (after decryption) and the LLM (via filtered TOON) can see it.
                     result_with_ref = dict(enriched_result)
-                    if "embed_ref" in result_with_ref:
-                        child_embed_ref = result_with_ref["embed_ref"]
+                    result_for_embed = apply_learning_mode_cap_to_embed_result(
+                        child_type,
+                        result_with_ref,
+                        learning_mode_context,
+                    )
+                    if "embed_ref" in result_for_embed:
+                        child_embed_ref = result_for_embed["embed_ref"]
                         logger.debug(f"{log_prefix} Reusing pre-generated embed_ref '{child_embed_ref}' for child embed")
                     else:
                         child_embed_ref = self._generate_embed_ref_slug(child_type, enriched_result)
-                        result_with_ref["embed_ref"] = child_embed_ref
+                        result_for_embed["embed_ref"] = child_embed_ref
 
                     # Inject app_id and skill_id into child TOON so the frontend can
                     # extract them when registering embed_ref → appId in the in-memory index.
                     # Without this the inline badge gradient falls back to grey because
                     # the child result dict only contains flight/event fields, not app metadata.
-                    result_with_ref["app_id"] = app_id
-                    result_with_ref["skill_id"] = skill_id
+                    result_for_embed["app_id"] = app_id
+                    result_for_embed["skill_id"] = skill_id
 
-                    flattened_result = _flatten_for_toon_tabular(result_with_ref)
+                    flattened_result = _flatten_for_toon_tabular(result_for_embed)
                     content_toon = encode(flattened_result)
                     
                     # Calculate text length for child embed
