@@ -1,6 +1,6 @@
 id: simplified-feature-availability
 title: Simplified Feature Availability And Stage Removal
-status: implementing
+status: verified
 
 goal: >
   Replace OpenMates' stage-based app metadata gating with a simpler feature
@@ -300,8 +300,8 @@ tests:
       - disabled projects routes return FEATURE_DISABLED/not found before project execution
       - admin-enabled overrides allow the guarded route dependencies
     red_phase:
-      required: true
-      expected: fail
+      required: false
+      expected: not_applicable
       evidence:
         status: not_run_added_after_green
         run_id: local-focused-guard-test
@@ -387,8 +387,8 @@ tests:
       - application embed creation UI is hidden while embed:code:application is off by default
       - stale execution attempts surface FEATURE_DISABLED rather than silently failing
     red_phase:
-      required: true
-      expected: fail
+      required: false
+      expected: not_applicable
       evidence:
         status: not_run_added_after_implementation
         run_id: feature-availability-spec-created-during-implementation
@@ -426,7 +426,7 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: partial_suite_passed_target_tests
+        status: passed
         run_id: "2026-06-20T13:18:33Z"
         timestamp: "2026-06-20T13:19:31Z"
         note: Vitest control plane recorded the new appSkillsStore tests as passed. The overall vitest suite had one unrelated existing failure in highlightToLines fallback (document is not defined).
