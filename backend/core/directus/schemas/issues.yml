@@ -10,6 +10,13 @@ issues:
       force_migrate: true
       note: "Issue title (cleartext for text search). Uses TEXT to accommodate HTML-escaped multi-byte titles that can expand well past the former 255-char varchar limit."
 
+    short_issue_id:
+      type: string
+      length: 5
+      nullable: true
+      unique: true
+      note: "User-facing 5-character issue reference. UUID id remains the internal primary key."
+
     description:
       type: text
       note: "Issue description (cleartext for text search)"

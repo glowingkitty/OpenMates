@@ -475,6 +475,79 @@ async function withLearningModeMockApi<T>(
   }
 }
 
+async function withReportIssueMockApi<T>(
+  run: (params: { apiUrl: string; requests: Array<{ method: string; url: string; body?: Record<string, unknown> }>; tempHome: string }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Array<{ method: string; url: string; body?: Record<string, unknown> }> = [];
+  const tempHome = join(tmpdir(), `openmates-cli-report-issue-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const stateDir = join(tempHome, ".openmates");
+  mkdirSync(stateDir, { recursive: true });
+
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.url?.startsWith("/v1/settings/issues")) {
+        assert.match(String(request.headers.cookie ?? ""), /auth_refresh_token=refresh-token/);
+      }
+
+      if (request.method === "POST" && request.url === "/v1/settings/issues") {
+        const body = await readJsonBody(request);
+        requests.push({ method: request.method, url: request.url, body });
+        writeJson(response, {
+          success: true,
+          message: "Issue report submitted successfully.",
+          issue_id: "a3d966e2-3d50-4f3a-b208-31ee218afe12",
+          short_issue_id: "K7M2Q",
+          screenshot_uploaded: false,
+        });
+        return;
+      }
+
+      if (request.method === "GET" && request.url === "/v1/settings/issues/K7M2Q/status") {
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, {
+          id: "a3d966e2-3d50-4f3a-b208-31ee218afe12",
+          short_issue_id: "K7M2Q",
+          has_screenshot: false,
+          has_yaml_report: true,
+          processed: true,
+        });
+        return;
+      }
+
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, requests, tempHome });
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
 async function withEmbedVersionsMockApi<T>(
   run: (params: { apiUrl: string; requests: string[] }) => T | Promise<T>,
 ): Promise<T> {
@@ -1889,6 +1962,45 @@ describe("settings command surface", () => {
     const parsed = JSON.parse(output) as Array<{ id: string; mention: string }>;
     assert.ok(parsed.some((mate) => mate.id === "software_development"));
     assert.ok(parsed.some((mate) => mate.mention === "@mate:general_knowledge"));
+  });
+
+  it("prints the server-provided short issue ID for report creation", async () => {
+    await withReportIssueMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const output = await runCliAsync(
+        ["settings", "report-issue", "create", "--title", "Bug", "--body", "What happened", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+
+      assert.match(output, /Issue reference:\s+K7M2Q/);
+      assert.match(output, /Internal issue ID:\s+a3d966e2-3d50-4f3a-b208-31ee218afe12/);
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "POST /v1/settings/issues",
+      ]);
+    });
+  });
+
+  it("preserves both report issue IDs in JSON create and status output", async () => {
+    await withReportIssueMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const createOutput = await runCliAsync(
+        ["settings", "report-issue", "create", "--title", "Bug", "--body", "What happened", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const create = JSON.parse(createOutput) as { issue_id?: string; short_issue_id?: string };
+      assert.equal(create.issue_id, "a3d966e2-3d50-4f3a-b208-31ee218afe12");
+      assert.equal(create.short_issue_id, "K7M2Q");
+
+      const statusOutput = await runCliAsync(
+        ["settings", "report-issue", "status", "K7M2Q", "--json", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      const status = JSON.parse(statusOutput) as { id?: string; short_issue_id?: string };
+      assert.equal(status.id, "a3d966e2-3d50-4f3a-b208-31ee218afe12");
+      assert.equal(status.short_issue_id, "K7M2Q");
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "POST /v1/settings/issues",
+        "GET /v1/settings/issues/K7M2Q/status",
+      ]);
+    });
   });
 });
 
