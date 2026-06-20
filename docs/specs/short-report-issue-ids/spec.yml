@@ -1,0 +1,421 @@
+id: short-report-issue-ids
+title: Short Report Issue IDs
+status: draft
+
+goal: >
+  Replace user-facing report issue UUIDs with compact 5-character references in
+  the OpenMates web app and CLI, while preserving the existing UUID as the
+  internal database key for logs, storage, and backward-compatible operations.
+
+scope:
+  in:
+    - Add a unique `short_issue_id` field to the Directus `issues` collection.
+    - Generate uppercase 5-character non-ambiguous issue references such as `K7M2Q` when a report is created.
+    - Return both the internal UUID and the short ID from `POST /v1/settings/issues`.
+    - Let authenticated reporters and admins poll `GET /v1/settings/issues/{id_or_short_id}/status` using either the UUID or the short ID.
+    - Show and copy the short ID in the web report issue confirmation page.
+    - Show the short ID in OpenMates CLI report issue creation output and accept it in CLI status checks.
+    - Let admin/debug issue lookup resolve either the UUID or the short ID where practical.
+    - Keep existing UUID-based logs, S3 YAML linkage, Linear linkage, and old status URLs working.
+  out:
+    - Removing or replacing the UUID primary key.
+    - Hiding the UUID from authenticated JSON/API clients that need internal correlation.
+    - Migrating old issue reports to backfill short IDs in this slice.
+    - Changing Linear identifiers such as `OPE-123`.
+    - Changing the Apple native report issue UI in this slice; it currently does not display an issue ID.
+
+context_discovery:
+  github_issues:
+    - "none found via `gh issue list --repo glowingkitty/OpenMates --search \"short issue id report issue\" --state all --limit 10`"
+    - "GitHub MCP issue search failed with 401 bad credentials; `gh` CLI fallback returned no matches."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/share-short-links-og-images/spec.yml
+  code_patterns:
+    - backend/core/directus/schemas/issues.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/admin_debug.py
+    - backend/scripts/debug_issue.py
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/components/settings/SettingsReportIssueConfirmation.svelte
+    - frontend/packages/ui/src/services/issueReportSubmission.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+  tests:
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - backend/tests/ currently has no report issue route coverage.
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+  parity_expectations:
+    - The Apple app has a report issue view, but its current submitted confirmation does not display an issue ID and posts to a different path in the checked source.
+    - This slice targets the web app and OpenMates CLI surfaces requested by the user; no Apple UI change is required unless the native route is later aligned with `/v1/settings/issues`.
+  verification:
+    - Run `python3 scripts/apple_remote.py status` and `python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"` after implementation because settings/report issue is an Apple-backed surface.
+  intentional_native_differences:
+    - Apple continues not to show a report issue reference in this slice.
+
+clarification:
+  rounds:
+    - question: Should the short issue ID be 5 uppercase non-ambiguous characters such as `K7M2Q`, preserving the UUID internally?
+      answer: Yes, 5 chars as described is good.
+  vision_summary: >
+    Users should see a short reference they can read, copy, and provide in follow-up support conversations instead of a full UUID. Internally, OpenMates should continue using UUIDs for durable joins and logs, with short IDs acting as a user-facing alias that CLI and web status checks understand.
+  approved_by_user: false
+
+scenarios:
+  - id: S-1
+    title: Web user submits a report and sees a short reference
+    given:
+      - Alice is logged in and opens Settings > Report issue in the web app.
+      - Alice fills the required issue fields and submits the report.
+    when:
+      - The backend creates the issue report.
+    then:
+      - The response includes `issue_id` with the UUID and `short_issue_id` with a 5-character code.
+      - The confirmation page displays the short code, not the UUID.
+      - The copy button copies the short code.
+      - The web app still sends logs to the issue-log endpoint using the UUID for internal correlation.
+
+  - id: S-2
+    title: Web status polling accepts the short reference
+    given:
+      - Alice submitted an issue and received short ID `K7M2Q`.
+      - Alice is authenticated as the reporter.
+    when:
+      - The web app polls `/v1/settings/issues/K7M2Q/status`.
+    then:
+      - The endpoint resolves `K7M2Q` to Alice's issue UUID.
+      - The response includes the internal UUID, the short ID, and the same screenshot/YAML status fields as before.
+      - A different non-admin user cannot read the status by guessing `K7M2Q`.
+
+  - id: S-3
+    title: CLI creates a report and prints the short reference
+    given:
+      - Alice has an authenticated OpenMates CLI session.
+    when:
+      - Alice runs `openmates settings report-issue create --title "Bug" --body "What happened"`.
+    then:
+      - Human-readable CLI output includes the short issue ID as the primary reference.
+      - JSON CLI output includes both `issue_id` and `short_issue_id`.
+      - The CLI does not truncate or synthesize the short ID client-side.
+
+  - id: S-4
+    title: CLI status works with short and full references
+    given:
+      - Alice created an issue with UUID `<ISSUE_UUID>` and short ID `K7M2Q`.
+    when:
+      - Alice runs `openmates settings report-issue status K7M2Q`.
+      - Alice runs `openmates settings report-issue status <ISSUE_UUID>`.
+    then:
+      - Both commands call the existing settings status API shape and receive the same issue status.
+      - JSON output includes both identifiers.
+
+  - id: S-5
+    title: Short ID generation handles collisions safely
+    given:
+      - A generated candidate short ID already exists in the `issues` collection.
+    when:
+      - The backend creates a new report issue.
+    then:
+      - The backend retries with a new candidate rather than returning a duplicate.
+      - If all retry attempts collide or Directus rejects the unique value, issue creation fails visibly instead of silently creating a report without a short ID.
+
+  - id: S-6
+    title: Admin/debug lookup can use either identifier
+    given:
+      - An admin receives user-facing short ID `K7M2Q` from a user.
+    when:
+      - The admin uses an admin/debug issue lookup path that previously accepted a UUID.
+    then:
+      - The lookup resolves the short ID to the matching issue record.
+      - Existing UUID-based admin/debug lookups continue to work.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Web report issue confirmation displays and copies the backend-provided 5-character `short_issue_id` instead of the UUID.
+  - id: AC-2
+    scenario: S-2
+    text: The settings issue status endpoint accepts either UUID or short ID and preserves reporter/admin authorization.
+  - id: AC-3
+    scenario: S-3
+    text: CLI report creation surfaces the short ID as the primary human reference and keeps both IDs in JSON output.
+  - id: AC-4
+    scenario: S-4
+    text: CLI issue status accepts both the short ID and UUID and returns both IDs in JSON output.
+  - id: AC-5
+    scenario: S-5
+    text: Short ID generation uses a non-ambiguous 5-character alphabet, stores a unique value, and visibly fails if uniqueness cannot be achieved.
+  - id: AC-6
+    scenario: S-6
+    text: Admin/debug issue lookup paths resolve both the UUID and the short ID.
+  - id: AC-7
+    scenario: S-1
+    text: Existing UUID-based internal log submission, S3 YAML linkage, Linear linkage, and old status URLs continue to work.
+
+contracts:
+  api:
+    - route: POST /v1/settings/issues
+      response: >
+        { success: true, message: string, issue_id: string, short_issue_id: string, screenshot_uploaded: boolean }
+      errors:
+        - 500 if an issue record cannot be created with a unique short ID.
+    - route: GET /v1/settings/issues/{issue_id_or_short_id}/status
+      response: >
+        { id: string, short_issue_id: string | null, has_screenshot: boolean, has_yaml_report: boolean, processed: boolean }
+      errors:
+        - 401 when unauthenticated.
+        - 403 when the caller is neither the reporter nor an admin.
+        - 404 when no issue matches the UUID or short ID.
+  data:
+    - Collection `issues` gains `short_issue_id` as a nullable, unique string field with length 5.
+    - New reports must populate `short_issue_id`; old records may have null until a future backfill.
+    - Short IDs use uppercase non-ambiguous characters from an alphabet excluding `0`, `O`, `1`, and `I`.
+  ui_states:
+    - Web confirmation label remains the existing issue ID label unless copy requires a wording update.
+    - Web confirmation value is the short ID when available and falls back to UUID only if the backend response lacks a short ID for backward compatibility during rollout.
+  cli:
+    - "`openmates settings report-issue create` prints short ID first in human output."
+    - "`openmates settings report-issue create --json` includes `issue_id` and `short_issue_id`."
+    - "`openmates settings report-issue status <id>` accepts UUID or short ID."
+  privacy_security:
+    - Short IDs are aliases, not secrets.
+    - Status and debug/admin lookups must keep existing authorization checks.
+    - Guessing a valid short ID must not let a non-admin read another user's issue status.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_short_report_issue_ids.py
+    command: python3 -m pytest backend/tests/test_short_report_issue_ids.py
+    covers:
+      - AC-2
+      - AC-5
+      - AC-6
+      - AC-7
+    assertions:
+      - generated short IDs are exactly 5 characters and use the allowed alphabet
+      - collision generation retries and returns a different candidate
+      - status lookup filters by UUID when given a UUID
+      - status lookup filters by `short_issue_id` when given a short ID
+      - unauthorized status lookup remains forbidden after short-ID resolution
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-CLI-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: npm run test:unit:cli
+    covers:
+      - AC-3
+      - AC-4
+    assertions:
+      - mocked report issue create response with `short_issue_id` is printed in human output
+      - mocked report issue create JSON preserves both IDs
+      - report issue status accepts a 5-character short ID path
+      - status JSON preserves both IDs
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    command: python3 scripts/tests.py run -- --spec report-issue-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-7
+    assertions:
+      - issue submission response includes UUID and 5-character short ID
+      - status polling uses the short ID and succeeds for the reporter
+      - confirmation page shows the short ID and not the UUID
+      - screenshot/YAML persistence assertions still pass
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-BUILD-001
+    type: build
+    file: apple/OpenMates.xcodeproj
+    command: python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    covers:
+      - AC-1
+    assertions:
+      - Apple app still builds after shared settings/report issue contract changes
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - backend/core/directus/schemas/issues.yml uses YAML field definitions and `unique: true` maps to Directus field uniqueness on create.
+    - backend/core/api/app/routes/settings.py already creates issue records and returns `issue_id`.
+    - frontend report issue flow already stores the submitted ID for the confirmation sub-page.
+    - OpenMates CLI settings commands proxy to `/v1/settings/...` routes.
+  architecture: >
+    Add a backend-generated public alias for new issue reports. The UUID remains
+    the durable primary key and internal correlation value; `short_issue_id` is a
+    unique user-facing alias returned to clients and accepted by lookup routes.
+  data_flow:
+    - Server generates a short ID before creating the Directus issue record.
+    - Server stores both UUID and short ID on the issue record.
+    - Web and CLI display the short ID to users.
+    - Web and CLI status calls can use the short ID; backend resolves it before authorization decisions.
+    - Internal log/YAML/Linear calls continue to use the UUID.
+  affected_files:
+    - path: backend/core/directus/schemas/issues.yml
+      reason: Add unique `short_issue_id` field.
+    - path: backend/core/api/app/routes/settings.py
+      reason: Generate, store, return, and resolve short issue IDs.
+    - path: backend/scripts/debug_issue.py
+      reason: Allow admin/debug issue lookup by short ID.
+    - path: backend/tests/test_short_report_issue_ids.py
+      reason: Backend contract tests.
+    - path: frontend/packages/ui/src/stores/reportIssueStore.ts
+      reason: Store display and internal issue IDs separately.
+    - path: frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+      reason: Store short ID for confirmation while retaining UUID for logs.
+    - path: frontend/packages/ui/src/components/settings/SettingsReportIssueConfirmation.svelte
+      reason: Display/copy short ID.
+    - path: frontend/packages/ui/src/services/issueReportSubmission.ts
+      reason: Return short ID from helper reports.
+    - path: frontend/packages/ui/src/services/chatErrorReportConsent.ts
+      reason: Use the short ID in the success notification when available.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Print short ID and accept it for status.
+    - path: frontend/packages/openmates-cli/tests/cli.test.ts
+      reason: CLI create/status coverage.
+    - path: frontend/apps/web_app/tests/report-issue-flow.spec.ts
+      reason: Web E2E confirmation/status coverage.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/short-report-issue-ids/spec.yml
+    - python3 -m pytest backend/tests/test_short_report_issue_ids.py
+    - npm run test:unit:cli from frontend/packages/openmates-cli
+    - python3 scripts/tests.py run -- --spec report-issue-flow.spec.ts after deploy
+    - python3 scripts/apple_remote.py status and build-ios if reachable
+  verification_order:
+    - Backend pytest first.
+    - CLI unit test second.
+    - Web Playwright red before implementation and green after deploy.
+    - Apple remote build after backend/frontend verification because settings/report issue has a native counterpart.
+
+tasks:
+  - id: TASK-1
+    title: Backend short ID contract
+    covers:
+      scenarios:
+        - S-2
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-2
+        - AC-5
+        - AC-6
+        - AC-7
+    expected_files:
+      - backend/core/directus/schemas/issues.yml
+      - backend/core/api/app/routes/settings.py
+      - backend/scripts/debug_issue.py
+      - backend/tests/test_short_report_issue_ids.py
+    verification:
+      - T-PYTEST-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Web and CLI short ID surfaces
+    covers:
+      scenarios:
+        - S-1
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-3
+        - AC-4
+        - AC-7
+    expected_files:
+      - frontend/packages/ui/src/stores/reportIssueStore.ts
+      - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+      - frontend/packages/ui/src/components/settings/SettingsReportIssueConfirmation.svelte
+      - frontend/packages/ui/src/services/issueReportSubmission.ts
+      - frontend/packages/ui/src/services/chatErrorReportConsent.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+      - frontend/apps/web_app/tests/report-issue-flow.spec.ts
+    verification:
+      - T-CLI-001
+      - T-E2E-001
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Deployment and native impact verification
+    covers:
+      scenarios:
+        - S-1
+      acceptance_criteria:
+        - AC-1
+    expected_files:
+      - none
+    verification:
+      - T-E2E-001
+      - T-APPLE-BUILD-001
+    independently_deployable: false
+
+risks:
+  - A 5-character ID has limited namespace size; uniqueness relies on database uniqueness and bounded retry.
+  - Short IDs are guessable aliases, so all lookup routes must preserve authorization checks.
+  - Old issue records may not have short IDs until a future backfill; UI should tolerate missing `short_issue_id` during rollout.
+
+open_questions:
+  - Should old issue reports be backfilled with short IDs in a later maintenance task?

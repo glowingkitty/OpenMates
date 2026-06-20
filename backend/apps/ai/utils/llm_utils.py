@@ -43,6 +43,8 @@ from toon_format import decode, encode
 
 logger = logging.getLogger(__name__)
 
+NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS = {"google", "google_ai_studio"}
+
 class AllServersFailedError(Exception):
     """Raised when all configured servers for a model fail during an LLM call.
 
@@ -1464,6 +1466,18 @@ async def call_main_llm_stream(
             stripped.append(msg_copy)
         return stripped
 
+    def _provider_prefix_from_server_model_id(server_model_id: str) -> str:
+        return server_model_id.split("/", 1)[0] if "/" in server_model_id else ""
+
+    def _accepts_stripped_thought_signatures(server_model_id: str) -> bool:
+        provider_prefix = _provider_prefix_from_server_model_id(server_model_id)
+        return provider_prefix not in NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS
+
+    def _messages_for_server(server_model_id: str) -> List[Dict[str, Any]]:
+        if _accepts_stripped_thought_signatures(server_model_id):
+            return _strip_thought_signatures_from_messages(llm_api_messages)
+        return llm_api_messages
+
     # Flag: have we already stripped thought signatures and retried for this call?
     # We only do this once to avoid an infinite retry loop.
     thought_signatures_stripped = False
@@ -1489,9 +1503,22 @@ async def call_main_llm_stream(
         non-thinking history entry which OpenRouter accepts.  Trying AI Studio
         or Vertex first is pointless because they reject stripped signatures.
         """
-        # Re-order so OpenRouter entries come before native Google servers.
-        # This avoids wasting two round-trips (AI Studio → Vertex) that are
-        # known to fail with a *different* error before reaching OpenRouter.
+        # Re-order so OpenRouter entries come before other compatible servers.
+        # Native Google servers reject stripped signatures, so do not retry them
+        # after we have stripped Gemini-specific thought_signature metadata.
+        retry_servers = [s for s in retry_servers if _accepts_stripped_thought_signatures(s)]
+        if not retry_servers:
+            logger.warning(
+                f"{log_prefix} [ThoughtSigRetry] No compatible servers accept stripped "
+                "thought signatures; deferring to model fallback."
+            )
+            raise AllServersFailedError(
+                original_model_id,
+                [],
+                "No compatible servers accept stripped thought signatures",
+            )
+
+        # Re-order so OpenRouter entries come before other compatible servers.
         openrouter_servers = [s for s in retry_servers if s.split("/", 1)[0] == "openrouter"]
         other_servers = [s for s in retry_servers if s.split("/", 1)[0] != "openrouter"]
         ordered_servers = openrouter_servers + other_servers
@@ -1629,7 +1656,7 @@ async def call_main_llm_stream(
         server_llm_input_details = {
             "task_id": task_id, 
             "model_id": server_actual_model_id, 
-            "messages": llm_api_messages,
+            "messages": _messages_for_server(server_model_id),
             "temperature": temperature, 
             "tools": sanitized_tools,  # Use sanitized tools (min/max removed) for all providers
             "tool_choice": tool_choice, 
@@ -1781,6 +1808,16 @@ async def call_main_llm_stream(
             # The helper prefers OpenRouter first because Google AI Studio and Vertex both
             # reject stripped signatures with a different error.
             if _is_thought_signature_error(error_msg) and not thought_signatures_stripped:
+                compatible_retry_servers = [
+                    server for server in servers_to_try if _accepts_stripped_thought_signatures(server)
+                ]
+                if not compatible_retry_servers:
+                    logger.warning(
+                        f"{attempt_log_prefix} Gemini thought signature error detected, but no "
+                        "configured server accepts stripped signatures. Deferring to model fallback."
+                    )
+                    raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
+
                 logger.warning(
                     f"{attempt_log_prefix} Gemini thought signature error detected. "
                     "Stripping stale thought_signature fields and retrying via shared helper."
@@ -1815,6 +1852,16 @@ async def call_main_llm_stream(
             # Special case: Gemini "Thought signature is not valid" (same as ValueError block above)
             # Delegate to the shared helper which prefers OpenRouter first.
             if _is_thought_signature_error(error_msg) and not thought_signatures_stripped:
+                compatible_retry_servers = [
+                    server for server in servers_to_try if _accepts_stripped_thought_signatures(server)
+                ]
+                if not compatible_retry_servers:
+                    logger.warning(
+                        f"{attempt_log_prefix} Gemini thought signature error detected, but no "
+                        "configured server accepts stripped signatures. Deferring to model fallback."
+                    )
+                    raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
+
                 logger.warning(
                     f"{attempt_log_prefix} Gemini thought signature error (unexpected exception). "
                     "Stripping stale thought_signature fields and retrying via shared helper."

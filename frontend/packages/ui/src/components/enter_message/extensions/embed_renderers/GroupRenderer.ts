@@ -3358,6 +3358,7 @@ export class GroupRenderer implements EmbedRenderer {
             ? decodedContent.entrypoints
             : [],
           latest_screenshot_url: decodedContent?.latest_screenshot_url,
+          latest_screenshot: decodedContent?.latest_screenshot,
           status: status as "processing" | "finished" | "error",
           taskId: decodedContent?.task_id,
           isMobile: false,

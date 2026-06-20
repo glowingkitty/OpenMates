@@ -5,8 +5,8 @@ scripts/issues.py
 Workflow wrapper for OpenMates user-reported issues.
 The issue database stays the source of truth; this script delegates privileged
 decryption, timeline, and admin API access to backend/scripts/debug.py, then
-adds operator workflow helpers: recent issue views, clustering, durable findings
-notes, and local note status/link updates.
+adds operator workflow helpers: recent issue views, clustering, local-only
+findings notes, and local note status/link updates.
 """
 
 from __future__ import annotations

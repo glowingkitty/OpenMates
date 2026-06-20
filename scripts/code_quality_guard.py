@@ -39,6 +39,7 @@ CADDYFILE_PATH_RE = re.compile(r"^deployment/[^/]+/Caddyfile$")
 BACKEND_PY_PATH_RE = re.compile(r"^backend/(?!tests/).+\.py$")
 SETTINGS_UI_PATH_RE = re.compile(r"^frontend/packages/ui/src/components/(Settings\.svelte|settings/.+\.(svelte|ts))$")
 SETTINGS_NATIVE_DIALOG_RE = re.compile(r"\b(?:window\.)?(alert|confirm|prompt)\s*\(")
+REPORTED_ISSUE_FINDING_RE = re.compile(r"^docs/findings/issues/(?!README\.md$).+\.md$")
 EMBED_VAULT_INFERENCE_CACHE_MARKER = "EMBED_VAULT_INFERENCE_CACHE_OK"
 
 BLOCK_PATTERNS = {
@@ -280,6 +281,9 @@ def main() -> int:
 
     for path in staged_files:
         suffix = Path(path).suffix
+        if REPORTED_ISSUE_FINDING_RE.search(path):
+            blocks.append(f"{path}: reported issue findings are local-only; use scripts/issues.py findings and keep notes untracked")
+            continue
         if re.search(r"frontend/packages/ui/src/i18n/locales/.*\.json$", path):
             blocks.append(f"{path}: generated translation JSON must not be committed directly; edit YAML sources instead")
             continue

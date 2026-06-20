@@ -1825,7 +1825,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * @param messages - Array of chat messages
      * @returns Array of embed IDs in visual (on-screen) order
      */
-    function extractEmbedIdsFromMessages(messages: ChatMessageModel[]): string[] {
+    function extractEmbedIdsFromMessages(messages: unknown): string[] {
+        if (!Array.isArray(messages)) {
+            console.warn('[ActiveChat] Cannot extract embed IDs: currentMessages is not an array', {
+                valueType: typeof messages,
+                keys: messages && typeof messages === 'object'
+                    ? Object.keys(messages as Record<string, unknown>).slice(0, 10)
+                    : []
+            });
+            return [];
+        }
+
         // Collect embed refs with their types so we can detect app-skill-use runs.
         const embedRefs: Array<{ type: string; embed_id: string }> = [];
         

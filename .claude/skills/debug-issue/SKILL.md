@@ -18,7 +18,7 @@ python3 scripts/issues.py show $ARGS --env prod
 python3 scripts/issues.py findings $ARGS --env prod
 ```
 
-If the issue is known to be from dev, use `--env dev`. The findings command creates `docs/findings/issues/<env>/<YYYY>/...md`. Update this note with the first anomaly, root-cause hypothesis, related reports, attempts, tests, and final status before changing product code.
+If the issue is known to be from dev, use `--env dev`. The findings command creates a local-only, gitignored note at `docs/findings/issues/<env>/<YYYY>/...md`. Update this note with the first anomaly, root-cause hypothesis, related reports, attempts, tests, and final status before changing product code. Do not store reported-issue findings elsewhere.
 
 Use these workflow helpers before raw debug commands:
 

@@ -1,6 +1,8 @@
 # Reported Issue Findings
 
-Durable findings notes for user-reported issues live under this directory.
+Local findings notes for user-reported issues live under this directory.
+
+These notes are intentionally gitignored because they may contain private report context. Keep the workflow documentation in this README, but do not commit generated issue findings files.
 
 ## Workflow
 
@@ -13,7 +15,7 @@ python3 scripts/issues.py findings <issue-id> --env prod
 python3 scripts/issues.py timeline <issue-id> --env prod --compact
 ```
 
-Create or update the findings note before changing product code. The note records the first anomaly, root-cause hypothesis, related reports, attempts, tests, and final verification.
+Create or update the local findings note before changing product code. The note records the first anomaly, root-cause hypothesis, related reports, attempts, tests, and final verification.
 
 ## Layout
 
