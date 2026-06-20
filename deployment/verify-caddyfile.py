@@ -69,6 +69,7 @@ FASTAPI_ROUTES = [
     ("/v1/skills", "Skills API", False),
     ("/v1/settings/usage", "Usage API", False),
     ("/v1/settings/software_update", "Software update settings", False),
+    ("/v1/learning-mode", "Learning Mode account settings", False),
     ("/e2e", "E2E test endpoints", False),
     ("/docs", "Swagger UI", False),
     ("/openapi.json", "OpenAPI schema", False),
