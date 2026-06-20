@@ -184,7 +184,7 @@ test('admin can view and save anonymous free usage budget settings', async ({ pa
 	await loginToTestAccount(page, log, screenshot, { waitForEditor: true });
 	await openSettingsPath(page, 'server');
 	await page.getByTestId('anonymous-free-usage-settings-item').click();
-	await expect(page.getByText('Anonymous free usage', { exact: true })).toBeVisible({ timeout: 10000 });
+	await expect(page.getByRole('heading', { name: 'Anonymous free usage' })).toBeVisible({ timeout: 10000 });
 	await expect(page.getByTestId('anonymous-free-usage-budget-settings')).toBeVisible({ timeout: 10000 });
 	await expect(page.getByText('Anonymous free usage is currently inactive.')).toBeVisible();
 
