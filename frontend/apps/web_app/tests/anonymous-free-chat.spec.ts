@@ -303,6 +303,11 @@ async function getAnonymousIndexedDbState(page: any) {
 				request.onerror = () => reject(request.error);
 				request.onsuccess = () => {
 					const db = request.result;
+					if (!db.objectStoreNames.contains('chats') || !db.objectStoreNames.contains('messages')) {
+						db.close();
+						resolve({ anonymousChats: [], anonymousMessages: [] });
+						return;
+					}
 					const transaction = db.transaction(['chats', 'messages'], 'readonly');
 					const chatsRequest = transaction.objectStore('chats').getAll();
 					const messagesRequest = transaction.objectStore('messages').getAll();
@@ -616,6 +621,74 @@ test.describe('Anonymous free chat', () => {
 		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
 		await expect(page.locator('[data-action="sign-up-to-send"]')).toBeVisible();
 		expect(streamRequests).toEqual([]);
+		await assertNoMissingTranslations(page);
+	});
+
+	test('anonymous budget exhaustion at send time keeps draft and does not create chat', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 390, height: 844 });
+		let budgetExhausted = false;
+		await page.route('**/v1/settings/server-status', async (route: any) => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify(anonymousActiveServerStatusBody())
+			});
+		});
+		await page.route('**/v1/anonymous/free-usage/status**', async (route: any) => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify(
+					budgetExhausted
+						? {
+								active: false,
+								can_send_text: false,
+								reason: 'budget_exhausted',
+								reset_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+								cta: 'Create an account to keep using OpenMates.'
+							}
+						: {
+								active: true,
+								can_send_text: true,
+								reason: null,
+								reset_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+								cta: 'Create an account to keep using OpenMates.'
+							}
+				)
+			});
+		});
+
+		const streamRequests: string[] = [];
+		page.on('request', (request: any) => {
+			if (request.url().includes('/v1/anonymous/chat/stream')) {
+				streamRequests.push(`${request.method()} ${request.url()}`);
+			}
+		});
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+			timeout: 15000
+		});
+		await page.getByTestId('new-chat-cta-fullwidth').click();
+
+		const prompt = 'Budget race should stay draft';
+		const editor = await typeMessageText(page, prompt);
+		await expect(page.locator('[data-action="send-message"]')).toBeVisible({ timeout: 5000 });
+		budgetExhausted = true;
+		await page.locator('[data-action="send-message"]').click();
+
+		await expect(page.getByTestId('notification').filter({
+			hasText: 'You used up your free daily credits. Sign up & buy credits to make full use of OpenMates.'
+		})).toBeVisible({ timeout: 5000 });
+		await expect(editor).toContainText(prompt);
+		expect(streamRequests).toEqual([]);
+		expect(await getAnonymousIndexedDbState(page)).toEqual({ anonymousChats: [], anonymousMessages: [] });
 		await assertNoMissingTranslations(page);
 	});
 
