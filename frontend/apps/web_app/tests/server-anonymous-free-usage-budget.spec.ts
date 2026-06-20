@@ -14,6 +14,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
+	getE2EDebugUrl,
 	getTestAccount
 } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
@@ -161,11 +162,11 @@ async function mockBudgetEndpoint(page: any) {
 	};
 }
 
-async function openSettingsMenu(page: any) {
-	const settingsToggle = page.locator('#settings-menu-toggle');
-	await expect(settingsToggle).toBeVisible({ timeout: 10000 });
-	await settingsToggle.click();
-	await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 10000 });
+async function openSettingsPath(page: any, settingsPath: string) {
+	await page.goto(getE2EDebugUrl(`/#settings/${settingsPath}`), { waitUntil: 'domcontentloaded' });
+	const settingsMenu = page.getByTestId('settings-menu');
+	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+	await expect(settingsMenu).toHaveAttribute('data-active-view', settingsPath, { timeout: 10000 });
 }
 
 test('admin can view and save anonymous free usage budget settings', async ({ page }: { page: any }) => {
@@ -181,11 +182,8 @@ test('admin can view and save anonymous free usage budget settings', async ({ pa
 	await mockServerStatus(page, false);
 	const budgetApi = await mockBudgetEndpoint(page);
 	await loginToTestAccount(page, log, screenshot, { waitForEditor: true });
-	await openSettingsMenu(page);
-
-	await page.getByRole('menuitem', { name: /server/i }).click();
+	await openSettingsPath(page, 'server/anonymous-free-usage');
 	await expect(page.getByText('Anonymous free usage', { exact: true })).toBeVisible({ timeout: 10000 });
-	await page.getByText('Anonymous free usage', { exact: true }).click();
 	await expect(page.getByTestId('anonymous-free-usage-budget-settings')).toBeVisible({ timeout: 10000 });
 	await expect(page.getByText('Anonymous free usage is currently inactive.')).toBeVisible();
 
@@ -231,8 +229,6 @@ test('self-hosted server settings hide anonymous free usage settings', async ({ 
 	await forceSessionAdminFlag(page, true);
 	await mockServerStatus(page, true);
 	await loginToTestAccount(page, log, screenshot, { waitForEditor: true });
-	await openSettingsMenu(page);
-
-	await page.getByRole('menuitem', { name: /server/i }).click();
+	await openSettingsPath(page, 'server');
 	await expect(page.getByText('Anonymous free usage', { exact: true })).toHaveCount(0);
 });
