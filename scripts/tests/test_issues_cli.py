@@ -33,6 +33,7 @@ def load_issues_cli(tmp_path, monkeypatch):
 def sample_issue() -> dict:
     return {
         "id": "a3d966e2-3d50-4f3a-b208-31ee218afe12",
+        "short_issue_id": "K7M2Q",
         "title": "Audio upload failed",
         "created_at": "2026-06-19T09:10:11Z",
         "processed": False,
@@ -67,6 +68,7 @@ def test_normalize_issue_detail_matches_debug_detail_shape(tmp_path, monkeypatch
     normalized = issues_cli.normalize_issue_detail(
         {
             "issue_id": "issue-123",
+            "short_issue_id": "Q8R7T",
             "issue_metadata": {"title": "Broken upload", "created_at": "2026-06-19T09:10:11Z"},
             "decrypted_fields": {"description": "The upload failed"},
         },
@@ -74,6 +76,7 @@ def test_normalize_issue_detail_matches_debug_detail_shape(tmp_path, monkeypatch
     )
 
     assert normalized["id"] == "issue-123"
+    assert normalized["short_issue_id"] == "Q8R7T"
     assert normalized["title"] == "Broken upload"
     assert normalized["decrypted"] == {"description": "The upload failed"}
     assert normalized["_env"] == "prod"
@@ -96,6 +99,7 @@ def test_findings_note_creation_redacts_url_and_uses_year_path(tmp_path, monkeyp
     )
     note = path.read_text(encoding="utf-8")
     assert "issue_id: a3d966e2-3d50-4f3a-b208-31ee218afe12" in note
+    assert "short_issue_id: K7M2Q" in note
     assert "status: open" in note
     assert "#key=<redacted>" in note
     assert "secret-value" not in note
@@ -118,3 +122,19 @@ def test_mark_and_link_update_findings_frontmatter(tmp_path, monkeypatch, capsys
     assert "status: verified" in note
     assert "github: [#123]" in note
     assert "linear: [OPE-512, OPE-999]" in note
+
+
+def test_issue_table_and_show_prefer_short_issue_id(tmp_path, monkeypatch, capsys):
+    issues_cli = load_issues_cli(tmp_path, monkeypatch)
+    issue = sample_issue()
+
+    issues_cli.print_issue_table([issue])
+    table_output = capsys.readouterr().out
+    assert "K7M2Q" in table_output
+    assert "a3d966e2" not in table_output
+
+    monkeypatch.setattr(issues_cli, "fetch_issue_detail", lambda env, issue_id, include_logs=False: issue)
+    assert issues_cli.main(["show", "K7M2Q", "--env", "prod"]) == 0
+    show_output = capsys.readouterr().out
+    assert "Issue: K7M2Q" in show_output
+    assert "UUID: a3d966e2-3d50-4f3a-b208-31ee218afe12" in show_output

@@ -43,6 +43,7 @@ REDACTED_HASH = "#key=<redacted>"
 UUID_RE = re.compile(
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 )
+SHORT_ISSUE_ID_RE = re.compile(r"^[A-HJ-NP-Z2-9]{5}$")
 SHARE_RE = re.compile(r"/share/(chat|embed)/([0-9a-fA-F-]{36})")
 
 
@@ -100,6 +101,13 @@ def title_slug(title: str, max_len: int = 56) -> str:
 
 def short_id(issue_id: str) -> str:
     return issue_id[:8] if issue_id else "unknown"
+
+
+def display_issue_id(issue: dict[str, Any]) -> str:
+    short_issue_id = str(issue.get("short_issue_id") or "").strip().upper()
+    if SHORT_ISSUE_ID_RE.fullmatch(short_issue_id):
+        return short_issue_id
+    return short_id(str(issue.get("id") or ""))
 
 
 def extract_json_object(output: str) -> dict[str, Any]:
@@ -192,6 +200,9 @@ def normalize_issue_detail(response: dict[str, Any], env: str) -> dict[str, Any]
     issue_id = response.get("issue_id") or issue.get("id")
     if issue_id:
         issue["id"] = issue_id
+    short_issue_id = response.get("short_issue_id") or issue.get("short_issue_id")
+    if short_issue_id:
+        issue["short_issue_id"] = str(short_issue_id).upper()
     decrypted = response.get("decrypted_fields") or response.get("decrypted") or issue.get("decrypted") or {}
     if isinstance(decrypted, dict):
         issue["decrypted"] = decrypted
@@ -271,6 +282,7 @@ def append_list_frontmatter_value(note: str, key: str, value: str) -> str:
 
 def format_note(issue: dict[str, Any], env: str) -> str:
     issue_id = str(issue.get("id") or "")
+    short_issue_id = str(issue.get("short_issue_id") or "").upper()
     title = str(issue.get("title") or "")
     created = (issue_timestamp(issue) or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ")
     url = redact_url(related_url(issue))
@@ -279,6 +291,7 @@ def format_note(issue: dict[str, Any], env: str) -> str:
     linear_items = f"[{linear}]" if linear else "[]"
     return f"""---
 issue_id: {issue_id}
+short_issue_id: {short_issue_id or 'null'}
 env: {normalize_env(env)}
 status: open
 title: {json.dumps(title, ensure_ascii=False)}
@@ -290,7 +303,7 @@ resolved_by: []
 verified_by: []
 ---
 
-# {title or issue_id}
+# {title or short_issue_id or issue_id}
 
 ## Summary
 
@@ -335,12 +348,12 @@ def print_issue_table(issues: list[dict[str, Any]]) -> None:
     for index, issue in enumerate(issues, start=1):
         created = issue_timestamp(issue)
         created_text = created.strftime("%Y-%m-%d %H:%M") if created else "unknown"
-        issue_id = str(issue.get("id") or "")
+        display_id = display_issue_id(issue)
         title = str(issue.get("title") or "")
         env = str(issue.get("_env") or "?")
         linear = issue.get("linear_issue_identifier") or "-"
         processed = "processed" if issue.get("processed") else "open"
-        print(f"{index:>3}. [{env}] {short_id(issue_id)}  {created_text}  {processed}  Linear:{linear}")
+        print(f"{index:>3}. [{env}] {display_id}  {created_text}  {processed}  Linear:{linear}")
         print(f"     {title}")
         url = redact_url(related_url(issue))
         if url:
@@ -383,7 +396,9 @@ def command_show(args: argparse.Namespace) -> int:
         return 0
     issue = normalize_issue_detail(response, args.env)
     decrypted = get_decrypted(issue)
-    print(f"Issue: {issue.get('id') or args.issue_id}")
+    print(f"Issue: {display_issue_id(issue)}")
+    if issue.get("id"):
+        print(f"UUID: {issue.get('id')}")
     print(f"Env: {normalize_env(args.env)}")
     print(f"Title: {issue.get('title') or ''}")
     print(f"Reported: {issue.get('created_at') or issue.get('timestamp') or ''}")
@@ -434,7 +449,7 @@ def command_cluster(args: argparse.Namespace) -> int:
         for issue in group:
             created = issue_timestamp(issue)
             created_text = created.strftime("%Y-%m-%d %H:%M") if created else "unknown"
-            print(f"  - [{issue.get('_env')}] {short_id(str(issue.get('id') or ''))} {created_text}: {issue.get('title')}")
+            print(f"  - [{issue.get('_env')}] {display_issue_id(issue)} {created_text}: {issue.get('title')}")
     if shown == 0:
         print("No multi-issue clusters found.")
     return 0
