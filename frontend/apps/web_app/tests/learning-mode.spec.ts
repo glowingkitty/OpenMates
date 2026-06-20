@@ -65,7 +65,8 @@ test.describe('Learning Mode settings', () => {
 		await expect(row).toContainText(/Learning Mode/i);
 
 		const toggle = row.getByRole('checkbox');
-		await expect(toggle).toBeVisible({ timeout: 5000 });
+		await expect(row.getByTestId('toggle-container')).toBeVisible({ timeout: 5000 });
+		await expect(toggle).toBeEnabled({ timeout: 15000 });
 
 		if (await toggle.isChecked()) {
 			test.skip(true, 'Learning Mode is already active on the shared test account; skipping to avoid unknown-passcode lockout.');
