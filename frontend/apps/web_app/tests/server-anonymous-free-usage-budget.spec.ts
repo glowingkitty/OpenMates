@@ -166,7 +166,7 @@ async function openSettingsPath(page: any, settingsPath: string) {
 	await page.goto(getE2EDebugUrl(`/#settings/${settingsPath}`), { waitUntil: 'domcontentloaded' });
 	const settingsMenu = page.getByTestId('settings-menu');
 	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
-	await expect(settingsMenu).toHaveAttribute('data-active-view', settingsPath, { timeout: 10000 });
+	await expect(settingsMenu).toHaveAttribute('data-active-view', settingsPath.replaceAll('-', '_'), { timeout: 10000 });
 }
 
 test('admin can view and save anonymous free usage budget settings', async ({ page }: { page: any }) => {
