@@ -385,7 +385,7 @@ tests:
   - id: T-E2E-001
     type: playwright
     file: frontend/apps/web_app/tests/learning-mode.spec.ts
-    command: python3 scripts/tests.py run --spec learning-mode.spec.ts
+    command: python3 scripts/tests.py run -- --spec learning-mode.spec.ts
     target: app.dev.openmates.org
     covers:
       - AC-1
@@ -394,7 +394,7 @@ tests:
       - AC-6
       - AC-7
     assertions:
-      - settings shows Learning Mode quick setting for authenticated users
+      - settings shows the Learning quick setting for authenticated users
       - activation opens a Learning Mode sub-settings page
       - activation uses a canonical settings dropdown for age group
       - activation and deactivation use canonical settings input and button elements
@@ -411,9 +411,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "27869307575"
+        timestamp: "2026-06-20T11:09:46Z"
 
   - id: T-APPLE-001
     type: build
