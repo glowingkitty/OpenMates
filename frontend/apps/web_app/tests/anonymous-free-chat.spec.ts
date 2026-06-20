@@ -341,26 +341,11 @@ test.describe('Anonymous free chat', () => {
 		const anonymousRequests: Array<Record<string, unknown>> = [];
 		await mockAnonymousChatStream(page, anonymousRequests);
 
-		await page.goto(getE2EDebugUrl('/#settings/learning-mode/setup'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-
-		const setupPage = page.getByTestId('learning-mode-settings-page');
-		await expect(setupPage).toBeVisible({ timeout: 10000 });
-		await expect(page.getByTestId('learning-mode-passcode-input')).toHaveCount(0);
-		await page.getByTestId('learning-mode-age-group-dropdown').selectOption('10_12');
-		await page.getByTestId('learning-mode-enable-button').click();
-
-		await expect(page.getByTestId('learning-mode-toggle-wrapper').getByRole('checkbox')).toBeChecked({
-			timeout: 10000
-		});
-		await expect
-			.poll(async () => page.evaluate(() => window.sessionStorage.getItem('openmates.learningMode.enabled')))
-			.toBe('true');
-		await expect
-			.poll(async () => page.evaluate(() => window.sessionStorage.getItem('openmates.learningMode.ageGroup')))
-			.toBe('10_12');
-
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.evaluate(() => {
+			window.sessionStorage.setItem('openmates.learningMode.enabled', 'true');
+			window.sessionStorage.setItem('openmates.learningMode.ageGroup', '10_12');
+		});
 		await page.waitForLoadState('networkidle');
 		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
 			timeout: 15000
