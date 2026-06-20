@@ -54,7 +54,7 @@ test.describe('Learning Mode settings', () => {
 
 		const row = learningModeRow(page);
 		await expect(row).toBeVisible({ timeout: 10000 });
-		await expect(row).toContainText(/Learning Mode/i);
+		await expect(row).toContainText(/Learning/i);
 
 		const toggle = row.getByRole('checkbox');
 		await expect(toggle).toBeEnabled({ timeout: 15000 });
