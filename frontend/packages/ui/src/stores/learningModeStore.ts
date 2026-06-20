@@ -60,12 +60,18 @@ function createLearningModeStore() {
 	const { subscribe, set, update } = writable<LearningModeStoreState>(INITIAL_STATE);
 
 	async function request(path: string, body?: Record<string, unknown>): Promise<LearningModeStatus> {
-		const response = await fetch(getApiEndpoint(path), {
-			method: body ? 'POST' : 'GET',
-			credentials: 'include',
-			headers: body ? { 'Content-Type': 'application/json' } : undefined,
-			body: body ? JSON.stringify(body) : undefined
-		});
+		const endpoint = getApiEndpoint(path);
+		let response: Response;
+		try {
+			response = await fetch(endpoint, {
+				method: body ? 'POST' : 'GET',
+				credentials: 'include',
+				headers: body ? { 'Content-Type': 'application/json' } : undefined,
+				body: body ? JSON.stringify(body) : undefined
+			});
+		} catch (error) {
+			throw new Error(`Learning Mode request failed for ${endpoint}: ${error instanceof Error ? error.message : String(error)}`);
+		}
 		if (!response.ok) {
 			throw await parseError(response, 'Learning Mode request failed');
 		}
