@@ -45,6 +45,7 @@
     const payload = topicPreferencesStore.loadGuest();
     selectedTagIds = payload?.selectedTagIds ?? [];
     onSelectionChange(selectedTagIds);
+    tick().then(centerFirstTag);
   });
 
   function labelFor(labelKey: string, fallbackLabel: string): string {
@@ -65,6 +66,10 @@
       : [...selectedTagIds, tagId];
     selectedTagIds = next;
     onSelectionChange(selectedTagIds);
+    tick().then(() => {
+      centerFirstTag();
+      setTimeout(centerFirstTag, 100);
+    });
   }
 
   function handleContinue() {

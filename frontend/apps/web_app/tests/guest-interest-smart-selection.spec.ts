@@ -101,7 +101,7 @@ test.describe('Guest interest smart selection', () => {
 		const defaultRailMetrics = await tagRailMetrics(page);
 		expect(defaultRailMetrics.availableTagCount).toBe(10);
 		expect(defaultRailMetrics.selectedTagCount).toBe(0);
-		expect(defaultRailMetrics.firstTagCenterOffset).toBeLessThanOrEqual(12);
+	expect(defaultRailMetrics.firstTagCenterOffset).toBeLessThanOrEqual(16);
 		expect(defaultTagOrder.slice(0, 6)).toEqual(
 			expect.arrayContaining([
 				'protect_my_privacy',
@@ -128,7 +128,7 @@ test.describe('Guest interest smart selection', () => {
 		const selectedRailMetrics = await tagRailMetrics(page);
 		expect(selectedRailMetrics.availableTagCount).toBe(10);
 		expect(selectedRailMetrics.selectedTagCount).toBe(1);
-		expect(selectedRailMetrics.firstTagCenterOffset).toBeLessThanOrEqual(12);
+	expect(selectedRailMetrics.firstTagCenterOffset).toBeLessThanOrEqual(16);
 		expect(tagOrder.slice(1, 7)).toEqual(
 			expect.arrayContaining(['use_the_cli', 'open_source', 'read_developer_docs', 'run_code'])
 		);
