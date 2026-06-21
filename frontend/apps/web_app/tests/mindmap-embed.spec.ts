@@ -97,7 +97,7 @@ test('native mindmap upload renders preview and fullscreen controls', async ({ p
 	const download = await downloadPromise;
 	expect(download.suggestedFilename()).toMatch(/launch-plan.*\.ommindmap$/);
 
-	await fullscreenOverlay.getByRole('button', { name: /close/i }).click();
+	await fullscreenOverlay.getByTestId('embed-minimize').click();
 	await expect(fullscreenOverlay).not.toBeVisible({ timeout: 10000 });
 
 	await stopActiveResponseIfNeeded(page);
