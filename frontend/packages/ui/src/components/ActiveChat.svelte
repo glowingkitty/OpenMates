@@ -4664,9 +4664,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     );
     let activeSuggestionSearchText = $derived(messageInputRecentlyFocused ? liveInputText : '');
     let selectedGuestInterestTagIds = $state<InterestTagId[]>([]);
+    let guestInterestContinueConfirmed = $state(false);
 
     function handleGuestInterestSelectionChange(selectedTagIds: InterestTagId[]) {
         selectedGuestInterestTagIds = selectedTagIds;
+        if (selectedTagIds.length === 0) {
+            guestInterestContinueConfirmed = false;
+        }
         const state = get(dailyInspirationStore);
         if (state.isPersonalized || state.inspirations.length === 0) {
             return;
@@ -4680,6 +4684,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     function handleGuestInterestContinue(selectedTagIds: InterestTagId[]) {
         handleGuestInterestSelectionChange(selectedTagIds);
+        guestInterestContinueConfirmed = selectedTagIds.length > 0;
         messageInputFieldRef?.focus();
     }
     
@@ -11209,7 +11214,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     {/if}
                                 </div>
                             <!-- Non-auth: scrollable list of intro + example chats (same card design as auth recent chats) -->
-                            {:else if !$authStore.isAuthenticated && selectedGuestInterestTagIds.length > 0 && nonAuthRecentChats.length > 0}
+                            {:else if !$authStore.isAuthenticated && guestInterestContinueConfirmed && selectedGuestInterestTagIds.length > 0 && nonAuthRecentChats.length > 0}
                                 <div
                                     class="recent-chats-scroll-container"
                                     data-testid="recent-chats-scroll-container"
@@ -11424,7 +11429,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                       {$text('enter_message.attachments.remove_pending_file')}
                                   </button>
                               </div>
-                          {:else if showWelcome && ($authStore.isAuthenticated || selectedGuestInterestTagIds.length > 0) && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
+                          {:else if showWelcome && ($authStore.isAuthenticated || (guestInterestContinueConfirmed && selectedGuestInterestTagIds.length > 0)) && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
                                 <NewChatSuggestions
                                    messageInputContent={activeSuggestionSearchText}
                                    selectedInterestTagIds={selectedGuestInterestTagIds}

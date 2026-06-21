@@ -68,8 +68,10 @@ test.describe('Guest interest smart selection', () => {
 			'data-interest-active',
 			'true'
 		);
+		await expect(page.getByTestId('interest-tag-software_development-check')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByTestId('guest-interest-continue')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);
+		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
 
 		const tagOrder = await interestTagOrder(page);
 		expect(tagOrder[0]).toBe('software_development');
@@ -86,6 +88,7 @@ test.describe('Guest interest smart selection', () => {
 		expect(storageState.sessionValue).toContain('software_development');
 
 		await page.getByTestId('guest-interest-continue').click();
+		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('suggestions-wrapper')).toBeVisible({ timeout: 15000 });
 
 		const suggestionIds = await visibleSuggestionIds(page);

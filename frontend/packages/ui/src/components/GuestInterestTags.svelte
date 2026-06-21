@@ -20,6 +20,8 @@
   import { getCategoryGradientColors } from '../utils/categoryUtils';
   import { getLucideIcon } from '../utils/categoryUtils';
 
+  const CheckIcon = getLucideIcon('check');
+
   let {
     onSelectionChange,
     onContinue,
@@ -68,16 +70,22 @@
   <div class="guest-interest-rail" data-testid="guest-interest-rail">
     {#each rankedTags as tag (tag.id)}
       {@const IconComponent = getLucideIcon(tag.icon)}
+      {@const isActive = selectedSet.has(tag.id)}
       <button
         type="button"
         class="guest-interest-tag"
-        class:active={selectedSet.has(tag.id)}
+        class:active={isActive}
         data-testid={`interest-tag-${tag.id}`}
-        data-interest-active={selectedSet.has(tag.id) ? 'true' : 'false'}
+        data-interest-active={isActive ? 'true' : 'false'}
         data-app-id={tag.appId}
         style:background={gradientFor(tag.appId, tag.gradientCategory)}
         onclick={() => toggleTag(tag.id)}
       >
+        {#if isActive}
+          <span class="guest-interest-active-check" data-testid={`interest-tag-${tag.id}-check`} aria-hidden="true">
+            <CheckIcon size={11} color="white" strokeWidth={3} />
+          </span>
+        {/if}
         <IconComponent size={15} color="white" />
         <span>{labelFor(tag.labelKey, tag.fallbackLabel)}</span>
       </button>
@@ -133,6 +141,7 @@
   }
 
   .guest-interest-tag {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -164,6 +173,22 @@
 
   .guest-interest-tag.active {
     border-color: rgba(255, 255, 255, 0.72);
+  }
+
+  .guest-interest-active-check {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: #18a957;
+    border: 2px solid var(--color-grey-20, #222);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.26);
+    pointer-events: none;
   }
 
   .guest-interest-continue {
