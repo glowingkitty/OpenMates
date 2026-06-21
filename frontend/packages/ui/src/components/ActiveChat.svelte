@@ -434,6 +434,10 @@
     let welcomePromptParts = $derived.by(() => {
         return splitHtmlLineBreaks($text('chat.welcome.what_do_you_need_help_with'));
     });
+
+    let guestInterestHeadingParts = $derived.by(() => {
+        return splitHtmlLineBreaks($text('chat.interests.title'));
+    });
     
     // State for current user ID (cached to avoid repeated DB lookups)
     let currentUserId = $state<string | null>(null);
@@ -10804,9 +10808,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
                                 <div class="welcome-text">
                                     <h2>
-                                        {#each welcomeHeadingParts as part, index}
-                                            <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
-                                        {/each}
+                                        {#if !$authStore.isAuthenticated}
+                                            {#each welcomeHeadingParts as part, index}
+                                                <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{:else}{' '}{/if}
+                                            {/each}
+                                            {#each guestInterestHeadingParts as part, index}
+                                                <span>{part}</span>{#if index < guestInterestHeadingParts.length - 1}<br>{/if}
+                                            {/each}
+                                        {:else}
+                                            {#each welcomeHeadingParts as part, index}
+                                                <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
+                                            {/each}
+                                        {/if}
                                     </h2>
                                     <!-- Subtitle: decrypting indicator while Phase 1 metadata is syncing, then "Continue where you left off" when cards are ready. -->
                                     {#if isContinueChatsLoading}
@@ -10815,8 +10828,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         </p>
                                     {:else if hasContinueItems}
                                         <p transition:fade={fadeParams}>{$text('chats.resume_last_chat.title')}</p>
-                                    {:else if !$authStore.isAuthenticated}
-                                        <p>{$text('chats.explore_openmates.title')}</p>
                                     {:else}
                                         <p>
                                             {#each welcomePromptParts as part, index}
@@ -11191,7 +11202,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     {/if}
                                 </div>
                             <!-- Non-auth: scrollable list of intro + example chats (same card design as auth recent chats) -->
-                            {:else if !$authStore.isAuthenticated && nonAuthRecentChats.length > 0}
+                            {:else if !$authStore.isAuthenticated && selectedGuestInterestTagIds.length > 0 && nonAuthRecentChats.length > 0}
                                 <div
                                     class="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}

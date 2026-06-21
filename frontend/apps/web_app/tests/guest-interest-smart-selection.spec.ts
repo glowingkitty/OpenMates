@@ -48,6 +48,7 @@ test.describe('Guest interest smart selection', () => {
 
 		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByText('Hey there! What are you interested in?')).toBeVisible({ timeout: 15000 });
 		expect(await page.evaluate(() => window.location.hash)).not.toContain('demo-for-everyone');
 
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
@@ -58,6 +59,7 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('daily-inspiration-info-card')).toHaveAttribute('data-direct-video', 'true');
 
 		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);
 		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
 
 		await page.getByTestId('interest-tag-software_development').click();
@@ -66,6 +68,7 @@ test.describe('Guest interest smart selection', () => {
 			'true'
 		);
 		await expect(page.getByTestId('guest-interest-continue')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 5000 });
 
 		const tagOrder = await interestTagOrder(page);
 		expect(tagOrder[0]).toBe('software_development');

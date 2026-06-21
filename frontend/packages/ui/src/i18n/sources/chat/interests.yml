@@ -23,8 +23,8 @@ eyebrow:
   he: "התאמה אישית מקומית ופרטית"
   verified_by_human: []
 title:
-  context: Prompt above interest chips on the logged-out new-chat welcome screen
-  en: "Choose what you care about. Your picks stay in this browser session."
+  context: Prompt shown after "Hey there!" on the logged-out new-chat welcome screen
+  en: "What are you interested in?"
   de: "Wähle, was dir wichtig ist. Deine Auswahl bleibt in dieser Browsersitzung."
   zh: "选择你关心的内容。你的选择只保留在此浏览器会话中。"
   es: "Elige lo que te importa. Tus elecciones se quedan en esta sesión del navegador."

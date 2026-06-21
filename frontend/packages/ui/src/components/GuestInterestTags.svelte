@@ -62,10 +62,6 @@
 </script>
 
 <div class="guest-interest-tags" data-testid="guest-interest-tags">
-  <div class="guest-interest-copy">
-    <span class="guest-interest-eyebrow">{$text('chat.interests.eyebrow')}</span>
-    <span class="guest-interest-title">{$text('chat.interests.title')}</span>
-  </div>
   <div class="guest-interest-rail" data-testid="guest-interest-rail">
     {#each rankedTags as tag (tag.id)}
       {@const IconComponent = getLucideIcon(tag.icon)}
@@ -100,37 +96,20 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-2, 8px);
-    width: min(920px, calc(100vw - 32px));
-    margin: 8px auto 0;
+    width: min(1040px, calc(100vw - 32px));
+    margin: 10px auto 0;
     align-items: center;
-  }
-
-  .guest-interest-copy {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    text-align: center;
-  }
-
-  .guest-interest-eyebrow {
-    font-size: 0.75rem;
-    line-height: 1.2;
-    color: var(--color-font-secondary, rgba(255, 255, 255, 0.72));
-  }
-
-  .guest-interest-title {
-    font-size: 0.9rem;
-    line-height: 1.25;
-    color: var(--color-font-primary, white);
   }
 
   .guest-interest-rail {
     display: flex;
     gap: 8px;
+    width: 100%;
     max-width: 100%;
     overflow-x: auto;
     padding: 4px 6px 8px;
+    box-sizing: border-box;
+    justify-content: flex-start;
     scrollbar-width: none;
   }
 
@@ -149,6 +128,9 @@
     font-size: 0.82rem;
     line-height: 1;
     white-space: nowrap;
+    flex: 0 0 auto;
+    width: auto;
+    min-width: max-content;
     padding: 8px 11px;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
     opacity: 0.78;
