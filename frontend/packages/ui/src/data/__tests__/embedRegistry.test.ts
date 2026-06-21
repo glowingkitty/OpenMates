@@ -444,6 +444,7 @@ describe("Embed Registry — content catalog", () => {
       "mail.email",
       "maps.location",
       "math.plot",
+      "mindmaps.mindmap",
       "pdf.pdf",
       "sheets.sheet",
       "videos.video",
