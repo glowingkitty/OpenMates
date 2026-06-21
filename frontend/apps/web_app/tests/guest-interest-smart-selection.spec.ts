@@ -27,6 +27,18 @@ async function visibleSuggestionIds(page: any): Promise<string[]> {
 	);
 }
 
+async function showIntroInspiration(page: any): Promise<void> {
+	const phrase = page.getByTestId('daily-inspiration-phrase');
+	for (let attempt = 0; attempt < 8; attempt += 1) {
+		const text = (await phrase.textContent({ timeout: 5000 })) || '';
+		if (text.includes('OpenMates gives you')) return;
+		await page.getByTestId('daily-inspiration-next').click();
+		await page.waitForTimeout(100);
+	}
+
+	throw new Error('OpenMates intro inspiration was not visible after cycling the carousel');
+}
+
 test.describe('Guest interest smart selection', () => {
 	test('fresh guest welcome uses session-only tags and local smart ranking', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
@@ -39,6 +51,7 @@ test.describe('Guest interest smart selection', () => {
 		expect(await page.evaluate(() => window.location.hash)).not.toContain('demo-for-everyone');
 
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
+		await showIntroInspiration(page);
 		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('OpenMates gives you', {
 			timeout: 15000
 		});
