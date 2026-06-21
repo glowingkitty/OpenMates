@@ -11450,7 +11450,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                       {$text('enter_message.attachments.remove_pending_file')}
                                   </button>
                               </div>
-                          {:else if showWelcome && ($authStore.isAuthenticated || guestInterestContinueConfirmed) && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
+                          {:else if showWelcome && ($authStore.isAuthenticated || guestInterestContinueConfirmed) && !messageInputMapsOpen && (guestInterestContinueConfirmed || !suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
                                 <NewChatSuggestions
                                    messageInputContent={activeSuggestionSearchText}
                                    selectedInterestTagIds={selectedGuestInterestTagIds}
