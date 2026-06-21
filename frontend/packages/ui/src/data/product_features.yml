@@ -1,0 +1,109 @@
+# frontend/packages/ui/src/data/product_features.yml
+# Canonical editorial feature highlights for logged-out product inspiration cards.
+# These are concise public feature claims, not runtime feature availability flags.
+
+features:
+  - id: pii-detection
+    title: Personal Data Replacement
+    headline: Replace emails, phone numbers, names, and addresses with safe placeholders before AI sees them.
+    description: OpenMates can replace sensitive personal details before sending a request to an AI provider.
+    icon: shield-check
+    tags: [protect_my_privacy, summarize_documents, open_source]
+
+  - id: relevant-memories
+    title: Relevant Memories
+    headline: Use app-specific memories only with consent and only when they are relevant.
+    description: OpenMates keeps memories scoped to apps and includes them only when they help the current task.
+    icon: heart
+    tags: [protect_my_privacy, learn_anything, write_better]
+
+  - id: trusted-quotes
+    title: Trusted Quotes
+    headline: Trust quotes because unsupported or false quotes are automatically removed.
+    description: OpenMates removes quotes it cannot verify against the source material.
+    icon: quote
+    tags: [summarize_documents, learn_anything, read_developer_docs, follow_news]
+
+  - id: learning-mode
+    title: Learning Mode
+    headline: Learn step by step with a mode built for understanding, not just quick answers.
+    description: Learning mode guides explanations, checks understanding, and keeps the chat focused on learning.
+    icon: graduation-cap
+    tags: [learn_anything, software_development, read_developer_docs]
+
+  - id: incognito-mode
+    title: Incognito Mode
+    headline: Start temporary chats when you do not want them saved to history.
+    description: Incognito chats are for throwaway conversations that should not remain in your chat list.
+    icon: mask
+    tags: [protect_my_privacy]
+
+  - id: audio-messages
+    title: Audio Messages
+    headline: Send audio messages and get corrected transcripts before the AI responds.
+    description: OpenMates can clean up speech transcripts so the AI receives clearer text.
+    icon: mic
+    tags: [write_better, learn_anything, stay_healthy]
+
+  - id: chat-file-downloads
+    title: Chat and File Downloads
+    headline: Download chats and files easily from the chat menu.
+    description: Right-click a chat to export useful chat and file data when you need a local copy.
+    icon: download
+    tags: [protect_my_privacy, summarize_documents]
+
+  - id: provider-independent
+    title: Provider Independent
+    headline: Use different AI models across providers without locking work into one company.
+    description: OpenMates lets capabilities work across multiple model providers instead of a single chatbot stack.
+    icon: network
+    tags: [open_source, software_development, protect_my_privacy]
+
+  - id: image-upload
+    title: Image Uploads
+    headline: Upload images and ask OpenMates to inspect, explain, or work with them.
+    description: Image uploads let mates reason about screenshots, photos, designs, and visual context.
+    icon: image
+    tags: [create_images, learn_anything, local_life]
+
+  - id: document-upload
+    title: Document Uploads
+    headline: Upload PDFs and documents so OpenMates can read, summarize, and quote them.
+    description: Document uploads make long PDFs and files available inside the chat workflow.
+    icon: file-text
+    tags: [summarize_documents, read_developer_docs, write_better]
+
+  - id: sandbox-code-execution
+    title: Sandbox Code Execution
+    headline: Run generated code in a sandbox to test whether it actually works.
+    description: Code execution helps validate generated snippets before you use them elsewhere.
+    icon: square-terminal
+    tags: [software_development, run_code, use_the_cli]
+
+  - id: offline-search
+    title: Offline Search
+    headline: Search across chats and embeds locally, even when you are offline.
+    description: Offline search helps you find previous work without depending on a server round trip.
+    icon: search
+    tags: [learn_anything, follow_news, summarize_documents]
+
+  - id: cli-parity
+    title: OpenMates CLI
+    headline: Use the OpenMates CLI with the same chats and capabilities as the web app.
+    description: The CLI can access the same chats and core workflows instead of being a separate toy interface.
+    icon: terminal
+    tags: [use_the_cli, software_development, open_source, run_code]
+
+  - id: rest-api
+    title: REST API
+    headline: Automate OpenMates workflows through a REST API.
+    description: The REST API lets developers integrate OpenMates workflows into their own systems.
+    icon: braces
+    tags: [software_development, use_the_cli, open_source]
+
+  - id: webhooks
+    title: Webhooks
+    headline: Connect OpenMates to your own tools with webhooks.
+    description: Webhooks let outside systems react to OpenMates events and workflow updates.
+    icon: webhook
+    tags: [software_development, use_the_cli, open_source]

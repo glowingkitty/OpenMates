@@ -836,15 +836,18 @@
         >
 
           {#if isGuestIntroVariant}
-            <div class="guest-intro-copy" data-testid="guest-intro-copy">
+            <div
+              class="guest-intro-copy"
+              class:guest-feature-copy={current.inspiration_id !== 'openmates-intro'}
+              data-testid="guest-intro-copy"
+            >
               {#if current.inspiration_id === 'openmates-intro'}
                 <div class="guest-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
                 <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line1')}</span>
                 <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line2')}</span>
                 <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line3')}</span>
               {:else}
-                <span class="guest-intro-copy-line">{infoCardTitle || current.title || $text('daily_inspiration.label')}</span>
-                <span class="guest-intro-copy-summary" data-testid="daily-inspiration-phrase">{current.phrase}</span>
+                <span class="guest-feature-headline" data-testid="daily-inspiration-phrase">{current.phrase}</span>
               {/if}
             </div>
           {:else}
@@ -915,7 +918,11 @@
               <span class="guest-intro-play" aria-hidden="true"><span></span></span>
             </button>
           {:else if isGuestIntroVariant && hasInfoContent}
-            <div class="guest-intro-feature-card" data-testid="daily-inspiration-info-card">
+            <div
+              class="guest-intro-feature-card"
+              class:guest-feature-card={current.inspiration_id !== 'openmates-intro'}
+              data-testid="daily-inspiration-info-card"
+            >
               {#if InfoCardIconComponent}
                 <div class="guest-intro-feature-icon" aria-hidden="true">
                   <InfoCardIconComponent size={34} color="white" />
@@ -923,7 +930,7 @@
               {/if}
               <div class="guest-intro-feature-text">
                 <h3>{infoCardTitle}</h3>
-                {#if infoCardSubtitle}
+                {#if infoCardSubtitle && current.inspiration_id === 'openmates-intro'}
                   <p>{infoCardSubtitle}</p>
                 {/if}
               </div>
@@ -1234,6 +1241,21 @@
     color: rgba(255, 255, 255, 0.92);
   }
 
+  .guest-feature-copy {
+    justify-content: center;
+  }
+
+  .guest-feature-headline {
+    display: block;
+    max-width: 700px;
+    font-size: clamp(1.35rem, 2vw, 2.7rem);
+    line-height: 1.12;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: rgba(255, 255, 255, 0.96);
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.2);
+  }
+
   .guest-intro-video-box,
   .guest-intro-feature-card {
     position: relative;
@@ -1302,6 +1324,11 @@
     text-align: center;
   }
 
+  .guest-intro-feature-card.guest-feature-card {
+    gap: var(--spacing-5);
+    padding: var(--spacing-6);
+  }
+
   .guest-intro-feature-icon {
     display: grid;
     place-items: center;
@@ -1309,6 +1336,17 @@
     height: 62px;
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.14);
+  }
+
+  .guest-feature-card .guest-intro-feature-icon {
+    width: 68px;
+    height: 68px;
+  }
+
+  .guest-feature-card .guest-intro-feature-text h3 {
+    max-width: 260px;
+    font-size: clamp(1.05rem, 1.6vw, 1.45rem);
+    line-height: 1.12;
   }
 
   .guest-intro-feature-text h3,
@@ -1757,6 +1795,16 @@
       overflow: hidden;
     }
 
+    .guest-feature-headline {
+      font-size: clamp(1.05rem, 5vw, 1.55rem);
+      line-height: 1.12;
+      -webkit-line-clamp: 4;
+      line-clamp: 4;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
     .guest-intro-video-box,
     .guest-intro-feature-card {
       width: 100%;
@@ -1764,6 +1812,21 @@
       flex-basis: auto;
       height: auto;
       max-height: 145px;
+    }
+
+    .guest-intro-feature-card.guest-feature-card {
+      gap: var(--spacing-3);
+      padding: var(--spacing-4);
+    }
+
+    .guest-feature-card .guest-intro-feature-icon {
+      width: 52px;
+      height: 52px;
+    }
+
+    .guest-feature-card .guest-intro-feature-text h3 {
+      max-width: 220px;
+      font-size: var(--font-size-small);
     }
 
     .carousel-arrow {

@@ -53,14 +53,14 @@ describe("guestSmartSelection", () => {
     );
   });
 
-  it("ranks developer, CLI, and privacy inspirations before generic defaults", () => {
+  it("ranks developer, CLI, and privacy feature inspirations before generic defaults", () => {
     const inspirations = [
       { inspiration_id: "openmates-intro", category: "openmates_official" },
       { inspiration_id: "generic-curiosity", category: "general_knowledge" },
-      { inspiration_id: "cli-programmatic-use", category: "software_development" },
-      { inspiration_id: "developer-docs-code", category: "software_development" },
-      { inspiration_id: "privacy-pii-replacement", category: "openmates_official" },
-      { inspiration_id: "apps-skills-tools", category: "openmates_official" },
+      { inspiration_id: "cli-parity", category: "software_development" },
+      { inspiration_id: "sandbox-code-execution", category: "software_development" },
+      { inspiration_id: "pii-detection", category: "openmates_official" },
+      { inspiration_id: "relevant-memories", category: "openmates_official" },
     ];
 
     const ranked = rankDailyInspirationsByInterests(inspirations, [
@@ -69,10 +69,10 @@ describe("guestSmartSelection", () => {
     ]).map((inspiration) => inspiration.inspiration_id);
 
     expect(ranked.slice(0, 4)).toEqual([
-      "developer-docs-code",
-      "cli-programmatic-use",
-      "privacy-pii-replacement",
-      "apps-skills-tools",
+      "sandbox-code-execution",
+      "cli-parity",
+      "pii-detection",
+      "relevant-memories",
     ]);
     expect(ranked.indexOf("generic-curiosity")).toBeGreaterThan(
       ranked.indexOf("openmates-intro"),
@@ -134,8 +134,8 @@ describe("guestSmartSelection", () => {
         ["software_development", "protect_my_privacy"],
       ).slice(0, 2),
     ).toEqual([
-      "chat.new_chat_suggestions.learn_coding",
       "chat.new_chat_suggestions.cybersecurity",
+      "chat.new_chat_suggestions.learn_coding",
     ]);
   });
 
@@ -143,7 +143,7 @@ describe("guestSmartSelection", () => {
     const ranked = rankDailyInspirationsByInterests(
       [
         {
-          inspiration_id: "privacy-pii-replacement",
+          inspiration_id: "pii-detection",
           category: "openmates_official",
         },
         {
