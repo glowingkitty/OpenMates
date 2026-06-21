@@ -129,7 +129,10 @@ test.describe('Guest interest smart selection', () => {
 		await page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => {
 			const tag = rail.querySelector<HTMLElement>('[data-testid="interest-tag-software_development"]');
 			if (!tag) throw new Error('software_development tag not found');
+			const previousScrollBehavior = rail.style.scrollBehavior;
+			rail.style.scrollBehavior = 'auto';
 			rail.scrollLeft = Math.max(0, tag.offsetLeft - rail.clientWidth / 2 + tag.offsetWidth / 2);
+			rail.style.scrollBehavior = previousScrollBehavior;
 		});
 		const tagOffsetBeforeTagClick = await tagOffsetFromRail(page, 'software_development');
 		await page.getByTestId('interest-tag-software_development').click();
