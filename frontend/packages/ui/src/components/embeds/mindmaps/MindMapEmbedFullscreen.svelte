@@ -316,6 +316,7 @@
                   <button
                     type="button"
                     class="mindmap-collapse"
+                    onpointerdown={(event) => event.stopPropagation()}
                     onclick={(event) => { event.stopPropagation(); toggleCollapsed(node.id); }}
                     aria-label={node.collapsed ? `Expand ${node.label}` : `Collapse ${node.label}`}
                     data-testid="mindmap-collapse-toggle"
