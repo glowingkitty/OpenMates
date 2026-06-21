@@ -23,7 +23,7 @@ eyebrow:
   he: "התאמה אישית מקומית ופרטית"
   verified_by_human: []
 title:
-  context: Prompt shown after "Hey there!" on the logged-out new-chat welcome screen
+  context: Prompt shown after "Hey there!" once logged-out tag selection is skipped or completed
   en: "Explore what you can do:"
   de: "Wähle, was dir wichtig ist. Deine Auswahl bleibt in dieser Browsersitzung."
   zh: "选择你关心的内容。你的选择只保留在此浏览器会话中。"
@@ -45,6 +45,30 @@ title:
   cs: "Vyberte, na čem vám záleží. Volby zůstanou v této relaci prohlížeče."
   sv: "Välj vad du bryr dig om. Dina val stannar i den här webbläsarsessionen."
   he: "בחר מה חשוב לך. הבחירות נשארות בסשן הדפדפן הזה."
+  verified_by_human: []
+active_title:
+  context: Prompt shown after "Hey there!" while logged-out interest tag selection is active
+  en: "What are your interests?"
+  de: "Was sind deine Interessen?"
+  zh: "你对什么感兴趣？"
+  es: "¿Cuáles son tus intereses?"
+  fr: "Quels sont vos centres d'intérêt ?"
+  pt: "Quais são seus interesses?"
+  ru: "Что вам интересно?"
+  ja: "興味のあることは何ですか？"
+  ko: "어떤 것에 관심이 있나요?"
+  it: "Quali sono i tuoi interessi?"
+  tr: "İlgi alanların neler?"
+  vi: "Bạn quan tâm đến điều gì?"
+  id: "Apa minat Anda?"
+  pl: "Jakie masz zainteresowania?"
+  nl: "Wat zijn je interesses?"
+  ar: "ما اهتماماتك؟"
+  hi: "आपकी रुचियाँ क्या हैं?"
+  th: "คุณสนใจอะไรบ้าง?"
+  cs: "Jaké máte zájmy?"
+  sv: "Vilka är dina intressen?"
+  he: "מה תחומי העניין שלך?"
   verified_by_human: []
 continue:
   context: Button shown after a guest selects at least one interest tag

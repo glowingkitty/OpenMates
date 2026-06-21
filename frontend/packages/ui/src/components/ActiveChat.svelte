@@ -442,7 +442,8 @@
     });
 
     let guestInterestHeadingParts = $derived.by(() => {
-        return splitHtmlLineBreaks($text('chat.interests.title'));
+        const key = guestInterestSelectorVisible ? 'chat.interests.active_title' : 'chat.interests.title';
+        return splitHtmlLineBreaks($text(key));
     });
     
     // State for current user ID (cached to avoid repeated DB lookups)
