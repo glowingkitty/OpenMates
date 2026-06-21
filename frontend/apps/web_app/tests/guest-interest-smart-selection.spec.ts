@@ -27,6 +27,10 @@ async function visibleSuggestionIds(page: any): Promise<string[]> {
 	);
 }
 
+function firstContinueChatCard(page: any) {
+	return page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first();
+}
+
 async function tagRailMetrics(page: any): Promise<{
 	availableTagCount: number;
 	selectedTagCount: number;
@@ -174,7 +178,7 @@ test.describe('Guest interest smart selection', () => {
 		expect(storageStateAfterContinue.localValue).toBeNull();
 		expect(storageStateAfterContinue.sessionValue).toContain('software_development');
 		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('resume-chat-large-card').first()).toHaveAttribute(
+		await expect(firstContinueChatCard(page)).toHaveAttribute(
 			'data-chat-id',
 			'demo-for-developers',
 			{ timeout: 15000 }
