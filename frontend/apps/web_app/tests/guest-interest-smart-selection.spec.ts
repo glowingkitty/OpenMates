@@ -32,7 +32,7 @@ async function showIntroInspiration(page: any): Promise<void> {
 	for (let attempt = 0; attempt < 8; attempt += 1) {
 		const text = (await phrase.textContent({ timeout: 5000 })) || '';
 		if (text.includes('OpenMates gives you')) return;
-		await page.getByTestId('daily-inspiration-next').click();
+		await page.getByTestId('daily-inspiration-next').evaluate((element: HTMLElement) => element.click());
 		await page.waitForTimeout(100);
 	}
 
