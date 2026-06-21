@@ -83,18 +83,22 @@
     if (!rail) return;
     const firstAvailableTag = rail.querySelector<HTMLElement>('[data-interest-active="false"]');
     if (!firstAvailableTag) return;
-    const scrollLeft = Math.max(
-      0,
-      firstAvailableTag.offsetLeft - rail.clientWidth / 2 + firstAvailableTag.offsetWidth / 2,
-    );
 
     const previousScrollBehavior = rail.style.scrollBehavior;
     rail.style.scrollBehavior = 'auto';
-    rail.scrollLeft = scrollLeft;
+
+    const centerTag = () => {
+      const railRect = rail.getBoundingClientRect();
+      const tagRect = firstAvailableTag.getBoundingClientRect();
+      const centerDelta = (tagRect.left + tagRect.width / 2) - (railRect.left + railRect.width / 2);
+      rail.scrollLeft = Math.max(0, rail.scrollLeft + centerDelta);
+    };
+
+    centerTag();
     requestAnimationFrame(() => {
-      rail.scrollLeft = scrollLeft;
+      centerTag();
       requestAnimationFrame(() => {
-        rail.scrollLeft = scrollLeft;
+        centerTag();
         rail.style.scrollBehavior = previousScrollBehavior;
       });
     });
