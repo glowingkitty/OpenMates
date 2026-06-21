@@ -78,7 +78,7 @@ test('native mindmap upload renders preview and fullscreen controls', async ({ p
 	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
 	await expect(fullscreenOverlay).toBeVisible({ timeout: 15000 });
 	await expect(fullscreenOverlay.getByTestId('mindmap-fullscreen-canvas')).toBeVisible({ timeout: 10000 });
-	await expect(fullscreenOverlay.getByText('Launch Plan', { exact: false })).toBeVisible({ timeout: 10000 });
+	await expect(fullscreenOverlay.getByTestId('embed-header-title')).toHaveText('Launch Plan', { timeout: 10000 });
 
 	const stage = fullscreenOverlay.getByTestId('mindmap-fullscreen-stage');
 	const beforeZoom = await stage.getAttribute('style');
