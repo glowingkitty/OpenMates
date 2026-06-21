@@ -16,7 +16,7 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const GUEST_TOPIC_PREFERENCES_STORAGE_KEY = 'openmates.guest_interest_tags.v1';
 
 async function interestTagOrder(page: any): Promise<string[]> {
-	return page.getByTestId('guest-interest-rail').locator('[data-testid^="interest-tag-"]').evaluateAll(
+	return page.getByTestId('guest-interest-rail').locator('button[data-testid^="interest-tag-"]').evaluateAll(
 		(nodes: Element[]) => nodes.map((node) => (node.getAttribute('data-testid') || '').replace('interest-tag-', ''))
 	);
 }
@@ -33,7 +33,7 @@ async function tagRailMetrics(page: any): Promise<{
 	selectedTagCount: number;
 }> {
 	return page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => {
-		const tags = Array.from(rail.querySelectorAll<HTMLElement>('[data-testid^="interest-tag-"]'));
+		const tags = Array.from(rail.querySelectorAll<HTMLElement>('button[data-testid^="interest-tag-"]'));
 		const firstTag = tags[0];
 		const railRect = rail.getBoundingClientRect();
 		const firstRect = firstTag?.getBoundingClientRect();
