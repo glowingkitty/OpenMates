@@ -709,8 +709,9 @@
     if (isAuthenticated) return true;
 
     const feature = inspiration.feature;
-    if (!feature?.settings_path) return false;
+    if (!feature) return false;
     if (AUTHENTICATED_ONLY_FEATURE_IDS.has(feature.feature_id)) return false;
+    if (!feature.settings_path) return feature.requires_authentication !== true;
     if (feature.requires_authentication === true && !GUEST_ALLOWED_FEATURE_PATHS.has(feature.settings_path)) return false;
     return GUEST_ALLOWED_FEATURE_PATHS.has(feature.settings_path);
   }
