@@ -792,7 +792,7 @@
       <!-- ── Large decorative category icons at left and right edges (126×126px, 0.4 opacity).
            These sit outside .banner-inner so they are not constrained by the 680px inner width.
            On smaller viewports they will be partially clipped by overflow:hidden — intentional. ── -->
-      {#if CategoryIconComponent}
+      {#if CategoryIconComponent && !isGuestIntroVariant}
         <div class="deco-icon deco-icon-left">
           <CategoryIconComponent size={126} color="white" />
         </div>

@@ -126,20 +126,17 @@
         getInterestSurfaceIds,
         rankDailyInspirationsByInterests,
         rankExampleChatIdsByInterests,
-        rankIntroChatIdsByInterests,
     } from '../demo_chats/guestSmartSelection';
+    import { getGuestProductInspirations } from '../demo_chats/guestProductInspirations';
     import type { InterestTagId } from '../demo_chats/interestTags';
     import { topicPreferencesStore } from '../stores/topicPreferencesStore';
-    import { OPENMATES_EVENTS, type OpenMatesEvent } from '../data/openmatesEvents';
+    import type { OpenMatesEvent } from '../data/openmatesEvents';
     import {
         AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS,
-        formatOpenMatesEventContinueTitle,
-        formatOpenMatesEventSummary,
         getOgExampleResumeChat,
         getContinueGradientColors,
         getResumeCardGradientStyle,
         getResumeLargeCardStyle,
-        hasOpenMatesEventEnded,
         isOgExampleSharedChatCuttlefish,
     } from './activeChatUtils';
 
@@ -2950,47 +2947,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      */
     function loadNonAuthRecentChats(selectedTagIds: InterestTagId[] = []): RecentChatMeta[] {
         // 1. Static intro chats (DEMO_CHATS = INTRO_CHATS, already excludes LEGAL_CHATS)
-        const introMetas: RecentChatMeta[] = DEMO_CHATS.map((demoChat) => {
-            const translated = translateDemoChat(demoChat);
-            const chat = convertDemoChatToChat(translated);
-            return {
-                chat,
-                title: translated.title ?? null,
-                category: translated.metadata.category ?? null,
-                icon: translated.metadata.icon_names?.[0] ?? null,
-                summary: translated.description ?? null,
-                imageBubbles: null,
-                draftPreview: null,
-            };
-        });
+        const introMetas: RecentChatMeta[] = DEMO_CHATS
+            .filter((demoChat) => demoChat.id === 'demo-for-everyone')
+            .map((demoChat) => {
+                const translated = translateDemoChat(demoChat);
+                const chat = convertDemoChatToChat(translated);
+                return {
+                    chat,
+                    title: translated.title ?? null,
+                    category: translated.metadata.category ?? null,
+                    icon: translated.metadata.icon_names?.[0] ?? null,
+                    summary: translated.description ?? null,
+                    imageBubbles: null,
+                    draftPreview: null,
+                };
+            });
 
-        // 2. Public events — same hardcoded event embeds as the sidebar, before examples.
-        const eventMetas: RecentChatMeta[] = OPENMATES_EVENTS
-            .filter((event) => !hasOpenMatesEventEnded(event))
-            .map((event) => ({
-                chat: {
-                    chat_id: `event:${event.embed_id}`,
-                    title: event.title,
-                    encrypted_title: null,
-                    messages_v: 0,
-                    title_v: 0,
-                    last_edited_overall_timestamp: Math.floor(new Date(event.date_start).getTime() / 1000) || 0,
-                    unread_count: 0,
-                    created_at: 0,
-                    updated_at: 0,
-                    category: 'events',
-                    icon: 'calendar-days',
-                },
-                title: formatOpenMatesEventContinueTitle(event),
-                category: 'events',
-                icon: 'calendar-days',
-                summary: formatOpenMatesEventSummary(event),
-                imageBubbles: null,
-                draftPreview: null,
-                event,
-            }));
-
-        // 3. Example chats (static, always available, no legal chats)
+        // 2. Example chats (static, always available, no legal chats)
         const communityMetas: RecentChatMeta[] = getAllExampleChats().map((chat) => ({
             chat,
             title: chat.title ?? null,
@@ -3002,28 +2975,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }));
 
         if (selectedTagIds.length === 0) {
-            return [...introMetas, ...eventMetas, ...communityMetas];
+            return [...introMetas, ...communityMetas];
         }
 
-        const introIds = getInterestSurfaceIds(selectedTagIds, 'introChats');
-        const rankedIntroIds = rankIntroChatIdsByInterests(
-            introMetas.map((meta) => meta.chat.chat_id),
-            selectedTagIds
-        );
         const rankedExampleIds = rankExampleChatIdsByInterests(
             communityMetas.map((meta) => meta.chat.chat_id),
             selectedTagIds
         );
         const metaById = new Map([...introMetas, ...communityMetas].map((meta) => [meta.chat.chat_id, meta]));
-        const rankedIntroMetas = rankedIntroIds
-            .filter((id) => introIds.has(id))
-            .map((id) => metaById.get(id))
-            .filter((meta): meta is RecentChatMeta => Boolean(meta));
         const rankedCommunityMetas = rankedExampleIds
             .map((id) => metaById.get(id))
             .filter((meta): meta is RecentChatMeta => Boolean(meta));
 
-        return [...rankedIntroMetas, ...eventMetas, ...rankedCommunityMetas];
+        return [...introMetas, ...rankedCommunityMetas];
     }
 
     // State for non-authenticated users' intro + example chats scroll list
@@ -4708,6 +4672,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
         const dailyInspirationIds = getInterestSurfaceIds(selectedTagIds, 'dailyInspirations');
         const introInspiration = state.inspirations.find((inspiration) =>
+            inspiration.inspiration_id === GUEST_DEFAULT_INTRO_INSPIRATION_ID
+        ) ?? getGuestProductInspirations().find((inspiration) =>
             inspiration.inspiration_id === GUEST_DEFAULT_INTRO_INSPIRATION_ID
         );
         const filteredInspirations = state.inspirations.filter((inspiration) =>
@@ -10896,15 +10862,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         onSkip={handleGuestInterestSkip}
                                     />
                                 </div>
-                            {:else if !$authStore.isAuthenticated && guestInterestContinueConfirmed}
-                                <button
-                                    type="button"
-                                    class="guest-interest-select-link"
-                                    data-testid="guest-interest-select-interests"
-                                    onclick={handleGuestInterestSelectInterests}
-                                >
-                                    {$text('chat.interests.select_interests')}
-                                </button>
                             {/if}
 
                             <!-- Resume card + recent chats horizontal scroll (authenticated users) -->
@@ -11373,6 +11330,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         {/if}
                                     {/each}
                                 </div>
+                                <button
+                                    type="button"
+                                    class="guest-interest-select-link"
+                                    data-testid="guest-interest-select-interests"
+                                    onclick={handleGuestInterestSelectInterests}
+                                >
+                                    {$text('chat.interests.select_interests')}
+                                </button>
                             {/if}
                         </div>
                     {/if}
@@ -12498,15 +12463,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .guest-interest-select-link {
         border: none;
         background: transparent;
-        color: var(--color-button-primary);
-        padding: var(--spacing-2) 0 0;
+        color: var(--color-grey-60);
+        padding: var(--spacing-1) 0 0;
         font: inherit;
         font-size: 0.9rem;
         font-weight: 650;
         cursor: pointer;
         pointer-events: auto;
-        text-decoration: underline;
-        text-underline-offset: 3px;
+        text-decoration: none;
     }
 
     .welcome-text .decrypting-chats-text {

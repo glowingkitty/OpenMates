@@ -23,6 +23,7 @@
   const CheckIcon = getLucideIcon('check');
   const AVAILABLE_TAG_LIMIT = 10;
   const MIN_TAGS_TO_CONTINUE = 4;
+  const TAG_RAIL_CENTER_ITEM_WIDTH = 150;
 
   let {
     onSelectionChange,
@@ -103,7 +104,12 @@
 </script>
 
 <div class="guest-interest-tags" data-testid="guest-interest-tags">
-  <div class="guest-interest-rail" data-testid="guest-interest-rail" bind:this={railEl}>
+  <div
+    class="guest-interest-rail"
+    data-testid="guest-interest-rail"
+    bind:this={railEl}
+    style:--guest-interest-center-offset={`${TAG_RAIL_CENTER_ITEM_WIDTH / 2}px`}
+  >
     {#each visibleTags as tag (tag.id)}
       {@const IconComponent = getLucideIcon(tag.icon)}
       {@const isActive = selectedSet.has(tag.id)}
@@ -127,24 +133,26 @@
       </button>
     {/each}
   </div>
-  {#if canContinue}
+  <div class="guest-interest-actions">
+    {#if canContinue}
+      <button
+        type="button"
+        class="guest-interest-continue"
+        data-testid="guest-interest-continue"
+        onclick={handleContinue}
+      >
+        {$text('chat.interests.continue')}
+      </button>
+    {/if}
     <button
       type="button"
-      class="guest-interest-continue"
-      data-testid="guest-interest-continue"
-      onclick={handleContinue}
+      class="guest-interest-skip"
+      data-testid="guest-interest-skip"
+      onclick={onSkip}
     >
-      {$text('chat.interests.continue')}
+      {$text('chat.interests.skip')}
     </button>
-  {/if}
-  <button
-    type="button"
-    class="guest-interest-skip"
-    data-testid="guest-interest-skip"
-    onclick={onSkip}
-  >
-    {$text('chat.interests.skip')}
-  </button>
+  </div>
 </div>
 
 <style>
@@ -172,7 +180,7 @@
     scroll-behavior: smooth;
     overscroll-behavior-x: contain;
     touch-action: pan-x;
-    padding: 4px 6px 8px;
+    padding: 4px 48px 8px max(6px, calc(50% - var(--guest-interest-center-offset, 75px)));
     box-sizing: border-box;
     justify-content: flex-start;
     scrollbar-width: none;
@@ -247,16 +255,23 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
   }
 
+  .guest-interest-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-4, 16px);
+    min-height: 40px;
+  }
+
   .guest-interest-skip {
     border: none;
     background: transparent;
-    color: var(--color-button-primary, #6366f1);
+    color: var(--color-grey-60, #777);
     padding: 0;
     font: inherit;
     font-size: 0.86rem;
     font-weight: 650;
     cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    text-decoration: none;
   }
 </style>

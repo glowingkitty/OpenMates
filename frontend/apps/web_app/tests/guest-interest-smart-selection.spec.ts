@@ -198,11 +198,7 @@ test.describe('Guest interest smart selection', () => {
 		expect(storageStateAfterContinue.localValue).toBeNull();
 		expect(storageStateAfterContinue.sessionValue).toContain('software_development');
 		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
-		await expect(firstContinueChatCard(page)).toHaveAttribute(
-			'data-chat-id',
-			'demo-for-developers',
-			{ timeout: 15000 }
-		);
+		await expect(firstContinueChatCard(page)).toHaveAttribute('data-chat-id', 'demo-for-everyone', { timeout: 15000 });
 		await expect(page.getByTestId('example-chat-badge').first()).toContainText('Example chat', { timeout: 15000 });
 		await expect(page.getByTestId('suggestions-wrapper')).toBeVisible({ timeout: 15000 });
 
@@ -217,7 +213,7 @@ test.describe('Guest interest smart selection', () => {
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0, { timeout: 15000 });
 		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 15000 });
-		await expect(firstContinueChatCard(page)).toHaveAttribute('data-chat-id', 'demo-for-developers', { timeout: 15000 });
+		await expect(firstContinueChatCard(page)).toHaveAttribute('data-chat-id', 'demo-for-everyone', { timeout: 15000 });
 		await page.getByTestId('guest-interest-select-interests').click();
 		await expect(page.getByTestId('interest-tag-software_development')).toHaveAttribute(
 			'data-interest-active',
