@@ -76,14 +76,16 @@
   function centerFirstTag() {
     const firstTag = railEl?.querySelector<HTMLElement>('[data-testid^="interest-tag-"]');
     if (!railEl || !firstTag) return;
-    railEl.style.setProperty('--first-tag-width', `${firstTag.offsetWidth}px`);
+    const sidePadding = Math.max(6, (railEl.clientWidth - firstTag.offsetWidth) / 2);
+    railEl.style.paddingLeft = `${sidePadding}px`;
+    railEl.style.paddingRight = `${sidePadding}px`;
     railEl.scrollTo({ left: 0, behavior: 'auto' });
   }
 
   $effect(() => {
     void visibleTags;
     void railEl;
-    tick().then(centerFirstTag);
+    tick().then(() => requestAnimationFrame(centerFirstTag));
   });
 </script>
 
@@ -149,7 +151,7 @@
     scroll-behavior: smooth;
     overscroll-behavior-x: contain;
     touch-action: pan-x;
-    padding: 4px max(6px, calc(50% - (var(--first-tag-width, 160px) * 0.5))) 8px;
+    padding: 4px 6px 8px;
     box-sizing: border-box;
     justify-content: flex-start;
     scrollbar-width: none;
