@@ -47,8 +47,8 @@
   const ChevronLeft = getLucideIcon('chevron-left');
   const ChevronRight = getLucideIcon('chevron-right');
 
-  const MOBILE_CARD_ROTATION_INTERVAL_MS = 5000;
   const INSPIRATION_AUTO_ROTATION_INTERVAL_MS = 20000;
+  const MOBILE_CARD_ROTATION_INTERVAL_MS = Math.round(INSPIRATION_AUTO_ROTATION_INTERVAL_MS * 0.55);
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
   // Temporarily disabled with the visit-cycling effect below.
@@ -88,9 +88,11 @@
     surface?: DailyInspirationSurface;
     /** Visual treatment. Guest intro keeps carousel behavior with ChatHeader-like split media. */
     variant?: 'default' | 'guest-intro';
+    /** Called when the visible inspiration changes, including manual and automatic carousel moves. */
+    onVisibleInspirationChange?: (inspiration: DailyInspiration) => void;
   }
 
-  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default' }: Props = $props();
+  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', onVisibleInspirationChange }: Props = $props();
   let isGuestIntroVariant = $derived(variant === 'guest-intro');
 
   // ─── Local state (Svelte 5 runes) ──────────────────────────────────────────
@@ -125,6 +127,7 @@
   let isOpeningInspiration = $state(false);
   let directVideoFullscreenOpen = $state(false);
   let progressRestartToken = $state(0);
+  let lastNotifiedInspirationId = $state('');
   // Temporarily disabled with the visit-cycling effect below.
   // let visitCycleTargetIndexes = $state(new Map<string, number>());
   // let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
@@ -267,6 +270,13 @@
     // Mark before sending to prevent duplicate sends if the effect re-runs quickly
     viewedIds = new Set([...viewedIds, id]);
     sendViewedEvent(id);
+  });
+
+  $effect(() => {
+    if (!current) return;
+    if (current.inspiration_id === lastNotifiedInspirationId) return;
+    lastNotifiedInspirationId = current.inspiration_id;
+    onVisibleInspirationChange?.(current);
   });
 
   // Mobile card loop: start on the assistant message, then alternate message and preview.

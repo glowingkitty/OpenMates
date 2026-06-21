@@ -169,6 +169,12 @@ test.describe('Guest interest smart selection', () => {
 		);
 		expect(defaultTagOrder.indexOf('software_development')).toBeGreaterThan(0);
 
+		await page.getByTestId('daily-inspiration-next').click();
+		await expect.poll(async () => (await interestTagOrder(page)).join('|'), { timeout: 5000 }).not.toBe(defaultTagOrder.join('|'));
+		const reshuffledRailMetrics = await tagRailMetrics(page);
+		expect(reshuffledRailMetrics.availableTagCount).toBe(10);
+		expect(reshuffledRailMetrics.selectedTagCount).toBe(0);
+
 		await clickInterestTag(page, 'software_development');
 		await expect(page.getByTestId('interest-tag-software_development')).toHaveAttribute(
 			'data-interest-active',
@@ -252,8 +258,10 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('guest-intro-video-shell')).toBeVisible({ timeout: 15000 });
 		expect(await guestIntroOpacity(page, 'guest-intro-copy')).toBeGreaterThan(0.7);
 
-		await expect.poll(async () => await guestIntroOpacity(page, 'guest-intro-video-shell'), { timeout: 7000 }).toBeGreaterThan(0.7);
-		await expect.poll(async () => await guestIntroOpacity(page, 'guest-intro-copy'), { timeout: 1000 }).toBeLessThan(0.4);
-		await expect.poll(async () => await guestIntroOpacity(page, 'guest-intro-copy'), { timeout: 7000 }).toBeGreaterThan(0.7);
+		await page.waitForTimeout(8000);
+		expect(await guestIntroOpacity(page, 'guest-intro-copy')).toBeGreaterThan(0.7);
+		expect(await guestIntroOpacity(page, 'guest-intro-video-shell')).toBeLessThan(0.4);
+		await expect.poll(async () => await guestIntroOpacity(page, 'guest-intro-video-shell'), { timeout: 6000 }).toBeGreaterThan(0.7);
+		await expect.poll(async () => await guestIntroOpacity(page, 'guest-intro-copy'), { timeout: 11000 }).toBeGreaterThan(0.7);
 	});
 });

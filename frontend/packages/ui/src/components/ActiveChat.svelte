@@ -12,7 +12,7 @@
     import { isMobileView, loginInterfaceOpen } from '../stores/uiStateStore';
     import Login from './Login.svelte';
     import { text } from '@repo/ui';
-    import { fade, fly } from 'svelte/transition';
+    import { fade, fly, slide } from 'svelte/transition';
     import { createEventDispatcher, tick, onMount, onDestroy, untrack } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { demoMode } from '../stores/demoModeStore';
@@ -4663,6 +4663,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let selectedGuestInterestTagIds = $state<InterestTagId[]>([]);
     let guestInterestContinueConfirmed = $state(false);
     let guestInterestSelectorVisible = $state(true);
+    let guestInterestShuffleToken = $state(0);
+    let lastGuestInspirationShuffleId = $state('');
     let lastGuestPersonalizationKey = '';
 
     function applyGuestInterestPersonalization(selectedTagIds: InterestTagId[]) {
@@ -4716,6 +4718,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     function handleGuestInterestSelectInterests() {
         guestInterestContinueConfirmed = false;
         guestInterestSelectorVisible = true;
+    }
+
+    function handleVisibleInspirationChange(inspiration: DailyInspiration) {
+        if ($authStore.isAuthenticated) return;
+        const nextId = inspiration.inspiration_id;
+        if (!lastGuestInspirationShuffleId) {
+            lastGuestInspirationShuffleId = nextId;
+            return;
+        }
+        if (nextId === lastGuestInspirationShuffleId) return;
+        lastGuestInspirationShuffleId = nextId;
+        guestInterestShuffleToken += 1;
     }
 
     $effect(() => {
@@ -10686,6 +10700,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             <DailyInspirationBanner
                                 onStartChat={handleStartChatFromInspiration}
                                 onEmbedFullscreen={handleInspirationEmbedFullscreen}
+                                onVisibleInspirationChange={handleVisibleInspirationChange}
                                 containerWidth={effectiveChatWidth}
                                 variant={$authStore.isAuthenticated ? 'default' : 'guest-intro'}
                             />
@@ -10855,8 +10870,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             </div>
 
                             {#if !$authStore.isAuthenticated && guestInterestSelectorVisible}
-                                <div transition:fade={fadeParams}>
+                                <div transition:slide={{ duration: 320 }}>
                                     <GuestInterestTags
+                                        shuffleToken={guestInterestShuffleToken}
                                         onSelectionChange={handleGuestInterestSelectionChange}
                                         onContinue={handleGuestInterestContinue}
                                         onSkip={handleGuestInterestSkip}
@@ -11226,6 +11242,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     class="recent-chats-scroll-container"
                                     data-testid="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
+                                    transition:slide={{ duration: 360 }}
                                 >
                                     {#each nonAuthRecentChats as meta, i (meta.chat.chat_id)}
                                         {@const tilt = nonAuthChatTiltStates[i]}

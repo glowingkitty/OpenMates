@@ -26,10 +26,12 @@
   const TAG_RAIL_CENTER_ITEM_WIDTH = 150;
 
   let {
+    shuffleToken = 0,
     onSelectionChange,
     onContinue,
     onSkip,
   }: {
+    shuffleToken?: number;
     onSelectionChange: (selectedTagIds: InterestTagId[]) => void;
     onContinue: (selectedTagIds: InterestTagId[]) => void;
     onSkip: () => void;
@@ -45,9 +47,19 @@
       .map((id) => tagById.get(id))
       .filter((tag): tag is (typeof INTEREST_TAGS)[number] => Boolean(tag));
     const availableTags = rankedTags.filter((tag) => !selectedSet.has(tag.id));
+    if (selectedTags.length === 0 && shuffleToken > 0) {
+      return shuffleTags(availableTags.slice(0, AVAILABLE_TAG_LIMIT), shuffleToken);
+    }
     return [...selectedTags, ...availableTags.slice(0, AVAILABLE_TAG_LIMIT)];
   });
   let canContinue = $derived(selectedTagIds.length >= MIN_TAGS_TO_CONTINUE);
+
+  $effect(() => {
+    if (shuffleToken <= 0 || selectedTagIds.length > 0) return;
+    tick().then(() => {
+      if (railEl) railEl.scrollLeft = 0;
+    });
+  });
 
   onMount(() => {
     const payload = topicPreferencesStore.loadGuest();
@@ -65,6 +77,19 @@
       || getCategoryGradientColors(category)
       || { start: '#6366f1', end: '#4f46e5' };
     return `var(--color-app-${appId}, linear-gradient(135deg, ${gradient.start}, ${gradient.end}))`;
+  }
+
+  function shuffleScore(tagId: string, seed: number): number {
+    let hash = seed * 16777619;
+    for (let index = 0; index < tagId.length; index += 1) {
+      hash ^= tagId.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+
+  function shuffleTags<T extends { id: string }>(tags: T[], seed: number): T[] {
+    return [...tags].sort((a, b) => shuffleScore(a.id, seed) - shuffleScore(b.id, seed));
   }
 
   function toggleTag(tagId: InterestTagId) {
