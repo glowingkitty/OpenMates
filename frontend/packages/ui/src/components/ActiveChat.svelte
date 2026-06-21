@@ -11213,6 +11213,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             {:else if !$authStore.isAuthenticated && selectedGuestInterestTagIds.length > 0 && nonAuthRecentChats.length > 0}
                                 <div
                                     class="recent-chats-scroll-container"
+                                    data-testid="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
                                 >
                                     {#each nonAuthRecentChats as meta, i (meta.chat.chat_id)}
