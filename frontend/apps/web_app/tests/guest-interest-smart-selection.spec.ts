@@ -65,7 +65,7 @@ test.describe('Guest interest smart selection', () => {
 		expect(guestIntroMetrics.bannerHeight).toBeGreaterThanOrEqual(440);
 		expect(guestIntroMetrics.copyTop).toBeGreaterThanOrEqual(guestIntroMetrics.bannerTop);
 		expect(guestIntroMetrics.copyBottom).toBeLessThanOrEqual(guestIntroMetrics.bannerBottom);
-		expect(guestIntroMetrics.copyFontSize).toBeGreaterThanOrEqual(48);
+		expect(guestIntroMetrics.copyFontSize).toBeGreaterThanOrEqual(38);
 		expect(guestIntroMetrics.videoHeight).toBeGreaterThanOrEqual(70);
 		expect(guestIntroMetrics.videoHeight).toBeLessThanOrEqual(130);
 		expect(guestIntroMetrics.videoHeight).toBeLessThan(guestIntroMetrics.bannerHeight * 0.35);
