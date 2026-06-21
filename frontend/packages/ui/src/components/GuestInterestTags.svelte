@@ -149,7 +149,7 @@
     scroll-behavior: smooth;
     overscroll-behavior-x: contain;
     touch-action: pan-x;
-    padding: 4px max(6px, calc(50% - var(--first-tag-width, 160px) / 2)) 8px;
+    padding: 4px max(6px, calc(50% - (var(--first-tag-width, 160px) * 0.5))) 8px;
     box-sizing: border-box;
     justify-content: flex-start;
     scrollbar-width: none;
