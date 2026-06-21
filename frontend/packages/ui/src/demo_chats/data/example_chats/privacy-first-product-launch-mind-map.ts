@@ -44,5 +44,6 @@ export const privacyFirstProductLaunchMindMapChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 105,
+    content_embed_examples: ["mindmaps.mindmap"],
   },
 };
