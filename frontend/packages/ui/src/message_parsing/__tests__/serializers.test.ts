@@ -137,6 +137,26 @@ describe("tipTapToCanonicalMarkdown", () => {
     expect(result).toBe('```json\n{\n  "type": "mail-email",\n  "embed_id": "mail-id"\n}\n```');
   });
 
+  it("should preserve stored mind map embeds as JSON references", () => {
+    const doc = {
+      type: "doc",
+      content: [
+        {
+          type: "embed",
+          attrs: {
+            id: "mindmap-id",
+            type: "mindmaps-mindmap",
+            status: "finished",
+            contentRef: "embed:mindmap-id",
+          },
+        },
+      ],
+    };
+
+    const result = tipTapToCanonicalMarkdown(doc);
+    expect(result).toBe('```json\n{\n  "type": "mindmap",\n  "embed_id": "mindmap-id"\n}\n```');
+  });
+
     it("should convert web embed to json_embed markdown", () => {
     // Uses current embed type name 'web-website' (not legacy 'web').
     // Without contentRef starting with 'embed:', serializes as json_embed block.

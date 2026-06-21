@@ -635,6 +635,17 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       return "";
 
       }
+    case "mindmaps-mindmap":
+      {
+      if (attrs.contentRef?.startsWith("embed:")) {
+        const embed_id = attrs.contentRef.replace("embed:", "");
+        const embedRef = JSON.stringify(createEmbedReference("mindmap", embed_id), null, 2);
+        return `\`\`\`json\n${embedRef}\n\`\`\``;
+      }
+
+      return "";
+
+      }
     case "image":
       // User-uploaded images: serialized as embed references when contentRef is set
       // (contentRef is set by handleSend after storing TOON content in EmbedStore)
