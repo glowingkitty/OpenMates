@@ -15,7 +15,12 @@ export type InterestTagId =
   | "summarize_documents"
   | "find_apartments"
   | "local_life"
-  | "learn_anything";
+  | "learn_anything"
+  | "plan_trips"
+  | "create_images"
+  | "follow_news"
+  | "stay_healthy"
+  | "write_better";
 
 export interface InterestTag {
   id: InterestTagId;
@@ -221,6 +226,76 @@ export const INTEREST_TAGS: InterestTag[] = [
       "chat.new_chat_suggestions.learn_spanish",
       "chat.new_chat_suggestions.photosynthesis",
     ],
+  },
+  {
+    id: "plan_trips",
+    labelKey: "chat.interests.plan_trips",
+    fallbackLabel: "plan trips",
+    icon: "plane",
+    appId: "travel",
+    gradientCategory: "general_knowledge",
+    defaultOrder: 55,
+    related: ["local_life", "find_apartments", "learn_anything"],
+    dailyInspirations: ["example-chats", "apps-skills-tools"],
+    introChats: ["demo-for-everyone"],
+    exampleChats: ["example-furnished-apartments-berlin", "example-berlin-weather-bike-commute"],
+    suggestions: ["chat.new_chat_suggestions.plan_trip_japan"],
+  },
+  {
+    id: "create_images",
+    labelKey: "chat.interests.create_images",
+    fallbackLabel: "create images",
+    icon: "image",
+    appId: "images",
+    gradientCategory: "creative_writing",
+    defaultOrder: 65,
+    related: ["learn_anything", "write_better"],
+    dailyInspirations: ["apps-skills-tools"],
+    introChats: ["demo-for-everyone"],
+    exampleChats: ["example-privacy-website-hero-background"],
+    suggestions: ["chat.new_chat_suggestions.discover_image_generate"],
+  },
+  {
+    id: "follow_news",
+    labelKey: "chat.interests.follow_news",
+    fallbackLabel: "follow news",
+    icon: "newspaper",
+    appId: "news",
+    gradientCategory: "general_knowledge",
+    defaultOrder: 75,
+    related: ["learn_anything", "protect_my_privacy"],
+    dailyInspirations: ["example-chats"],
+    introChats: ["demo-for-everyone"],
+    exampleChats: ["example-rag-explained-videos"],
+    suggestions: ["chat.new_chat_suggestions.discover_news_search", "chat.new_chat_suggestions.ai_news"],
+  },
+  {
+    id: "stay_healthy",
+    labelKey: "chat.interests.stay_healthy",
+    fallbackLabel: "stay healthy",
+    icon: "heart-pulse",
+    appId: "health",
+    gradientCategory: "general_knowledge",
+    defaultOrder: 85,
+    related: ["learn_anything", "local_life"],
+    dailyInspirations: ["apps-skills-tools"],
+    introChats: ["demo-for-everyone"],
+    exampleChats: ["example-berlin-weather-bike-commute"],
+    suggestions: ["chat.new_chat_suggestions.healthy_breakfast", "chat.new_chat_suggestions.workout_plan"],
+  },
+  {
+    id: "write_better",
+    labelKey: "chat.interests.write_better",
+    fallbackLabel: "write better",
+    icon: "pen-line",
+    appId: "mail",
+    gradientCategory: "creative_writing",
+    defaultOrder: 95,
+    related: ["summarize_documents", "create_images", "learn_anything"],
+    dailyInspirations: ["memory-personalization", "apps-skills-tools"],
+    introChats: ["demo-for-everyone"],
+    exampleChats: ["example-ted-talk-transcript-summary"],
+    suggestions: ["chat.new_chat_suggestions.professional_email", "chat.new_chat_suggestions.writing_prompts"],
   },
 ];
 

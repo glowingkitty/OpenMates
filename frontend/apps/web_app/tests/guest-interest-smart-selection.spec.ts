@@ -134,15 +134,21 @@ test.describe('Guest interest smart selection', () => {
 		);
 		expect(tagOrder).toContain('find_apartments');
 
-		const storageState = await page.evaluate((key: string) => ({
+		const storageStateBeforeContinue = await page.evaluate((key: string) => ({
 			sessionValue: sessionStorage.getItem(key),
 			localValue: localStorage.getItem(key)
 		}), GUEST_TOPIC_PREFERENCES_STORAGE_KEY);
-		expect(storageState.localValue).toBeNull();
-		expect(storageState.sessionValue).toContain('software_development');
+		expect(storageStateBeforeContinue.localValue).toBeNull();
+		expect(storageStateBeforeContinue.sessionValue).toBeNull();
 
 		await page.getByTestId('guest-interest-continue').click();
 		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0);
+		const storageStateAfterContinue = await page.evaluate((key: string) => ({
+			sessionValue: sessionStorage.getItem(key),
+			localValue: localStorage.getItem(key)
+		}), GUEST_TOPIC_PREFERENCES_STORAGE_KEY);
+		expect(storageStateAfterContinue.localValue).toBeNull();
+		expect(storageStateAfterContinue.sessionValue).toContain('software_development');
 		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('resume-chat-large-card').first()).toHaveAttribute(
 			'data-chat-id',

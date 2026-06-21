@@ -122,7 +122,12 @@
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
     import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
-    import { rankDailyInspirationsByInterests } from '../demo_chats/guestSmartSelection';
+    import {
+        getInterestSurfaceIds,
+        rankDailyInspirationsByInterests,
+        rankExampleChatIdsByInterests,
+        rankIntroChatIdsByInterests,
+    } from '../demo_chats/guestSmartSelection';
     import type { InterestTagId } from '../demo_chats/interestTags';
     import { OPENMATES_EVENTS, type OpenMatesEvent } from '../data/openmatesEvents';
     import {
@@ -2939,7 +2944,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      * example chats (static, always available), in that order.
      * Returns Chat[] ready for rendering with the standard card components.
      */
-    function loadNonAuthRecentChats(): RecentChatMeta[] {
+    function loadNonAuthRecentChats(selectedTagIds: InterestTagId[] = []): RecentChatMeta[] {
         // 1. Static intro chats (DEMO_CHATS = INTRO_CHATS, already excludes LEGAL_CHATS)
         const introMetas: RecentChatMeta[] = DEMO_CHATS.map((demoChat) => {
             const translated = translateDemoChat(demoChat);
@@ -2992,7 +2997,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             draftPreview: null,
         }));
 
-        return [...introMetas, ...eventMetas, ...communityMetas];
+        if (selectedTagIds.length === 0) {
+            return [...introMetas, ...eventMetas, ...communityMetas];
+        }
+
+        const introIds = getInterestSurfaceIds(selectedTagIds, 'introChats');
+        const exampleIds = getInterestSurfaceIds(selectedTagIds, 'exampleChats');
+        const rankedIntroIds = rankIntroChatIdsByInterests(
+            introMetas.map((meta) => meta.chat.chat_id),
+            selectedTagIds
+        );
+        const rankedExampleIds = rankExampleChatIdsByInterests(
+            communityMetas.map((meta) => meta.chat.chat_id),
+            selectedTagIds
+        );
+        const metaById = new Map([...introMetas, ...communityMetas].map((meta) => [meta.chat.chat_id, meta]));
+        const rankedIntroMetas = rankedIntroIds
+            .filter((id) => introIds.has(id))
+            .map((id) => metaById.get(id))
+            .filter((meta): meta is RecentChatMeta => Boolean(meta));
+        const rankedCommunityMetas = rankedExampleIds
+            .filter((id) => exampleIds.has(id))
+            .map((id) => metaById.get(id))
+            .filter((meta): meta is RecentChatMeta => Boolean(meta));
+
+        return [...rankedIntroMetas, ...eventMetas, ...rankedCommunityMetas];
     }
 
     // State for non-authenticated users' intro + example chats scroll list
@@ -3022,6 +3051,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         void $userProfile.last_opened;
         void $userProfile.total_chat_count;
         void $appSettingsMemoriesStore.entriesByApp;
+        const guestTags = selectedGuestInterestTagIds;
+        const guestTagsConfirmed = guestInterestContinueConfirmed;
         // Re-run when carousel is invalidated by cross-device events
         void carouselInvalidationCounter;
         if (!isWelcome) {
@@ -3043,7 +3074,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             recentChats = [];
             priorityContinueItems = [];
             recentChatsScrolledByUser = false;
-            const metas = loadNonAuthRecentChats();
+            const metas = loadNonAuthRecentChats(guestTagsConfirmed ? guestTags : []);
             nonAuthChatTiltStates = reconcileRecentChatTiltStates(nonAuthChatTiltStates, metas.length);
             nonAuthRecentChats = metas;
             centerFirstRecentChat();
@@ -4666,25 +4697,36 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let selectedGuestInterestTagIds = $state<InterestTagId[]>([]);
     let guestInterestContinueConfirmed = $state(false);
 
+    function applyGuestInterestPersonalization(selectedTagIds: InterestTagId[]) {
+        const state = get(dailyInspirationStore);
+        if (state.isPersonalized || state.inspirations.length === 0) {
+            return;
+        }
+        const dailyInspirationIds = getInterestSurfaceIds(selectedTagIds, 'dailyInspirations');
+        const filteredInspirations = state.inspirations.filter((inspiration) =>
+            dailyInspirationIds.has(inspiration.inspiration_id)
+        );
+        dailyInspirationStore.setSurfaceInspirations(
+            'chats',
+            rankDailyInspirationsByInterests(
+                filteredInspirations.length > 0 ? filteredInspirations : state.inspirations,
+                selectedTagIds
+            ),
+            { personalized: false }
+        );
+    }
+
     function handleGuestInterestSelectionChange(selectedTagIds: InterestTagId[]) {
         selectedGuestInterestTagIds = selectedTagIds;
         if (selectedTagIds.length === 0) {
             guestInterestContinueConfirmed = false;
         }
-        const state = get(dailyInspirationStore);
-        if (state.isPersonalized || state.inspirations.length === 0) {
-            return;
-        }
-        dailyInspirationStore.setSurfaceInspirations(
-            'chats',
-            rankDailyInspirationsByInterests(state.inspirations, selectedTagIds),
-            { personalized: false }
-        );
     }
 
     function handleGuestInterestContinue(selectedTagIds: InterestTagId[]) {
         handleGuestInterestSelectionChange(selectedTagIds);
         guestInterestContinueConfirmed = selectedTagIds.length > 0;
+        applyGuestInterestPersonalization(selectedTagIds);
         messageInputFieldRef?.focus();
     }
     
@@ -10850,11 +10892,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 </div>
                             </div>
 
-                            {#if !$authStore.isAuthenticated}
-                                <GuestInterestTags
-                                    onSelectionChange={handleGuestInterestSelectionChange}
-                                    onContinue={handleGuestInterestContinue}
-                                />
+                            {#if !$authStore.isAuthenticated && !guestInterestContinueConfirmed}
+                                <div transition:fade={fadeParams}>
+                                    <GuestInterestTags
+                                        onSelectionChange={handleGuestInterestSelectionChange}
+                                        onContinue={handleGuestInterestContinue}
+                                    />
+                                </div>
                             {/if}
 
                             <!-- Resume card + recent chats horizontal scroll (authenticated users) -->

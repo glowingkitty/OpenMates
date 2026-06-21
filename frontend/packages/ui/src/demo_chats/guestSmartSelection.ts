@@ -25,7 +25,7 @@ interface RankedValue<T> {
   priority: number;
 }
 
-type InterestSurfaceKey =
+export type InterestSurfaceKey =
   | "dailyInspirations"
   | "introChats"
   | "exampleChats"
@@ -90,6 +90,17 @@ export function rankSuggestionKeysByInterests(
   selectedTagIds: readonly string[],
 ): string[] {
   return rankValues(suggestionKeys, selectedTagIds, "suggestions", (key) => key);
+}
+
+export function getInterestSurfaceIds(
+  selectedTagIds: readonly string[],
+  surface: InterestSurfaceKey,
+): Set<string> {
+  const selectedTags = normalizeInterestTagIds(selectedTagIds)
+    .map((tagId) => getInterestTagById(tagId))
+    .filter((tag): tag is InterestTag => Boolean(tag));
+
+  return new Set(selectedTags.flatMap((tag) => tag[surface]));
 }
 
 function rankValues<T>(

@@ -21,7 +21,7 @@
   import type { Chat, NewChatSuggestion } from '../types/chat';
   import { authStore } from '../stores/authStore';
   import { DEFAULT_NEW_CHAT_SUGGESTION_KEYS } from '../demo_chats/defaultNewChatSuggestions';
-  import { rankSuggestionKeysByInterests } from '../demo_chats/guestSmartSelection';
+  import { getInterestSurfaceIds, rankSuggestionKeysByInterests } from '../demo_chats/guestSmartSelection';
   import type { InterestTagId } from '../demo_chats/interestTags';
   import { get } from 'svelte/store';
   import { locale } from 'svelte-i18n';
@@ -313,6 +313,7 @@
     const t = get(text);
     const suggestionKeys = selectedInterestTagIds.length > 0
       ? rankSuggestionKeysByInterests(DEFAULT_NEW_CHAT_SUGGESTION_KEYS, selectedInterestTagIds)
+        .filter((key) => getInterestSurfaceIds(selectedInterestTagIds, 'suggestions').has(key))
       : DEFAULT_NEW_CHAT_SUGGESTION_KEYS;
     const suggestions = suggestionKeys.map(key => ({
       text: stripLegacySuggestionPrefix(stripHtmlTags(t(key))),

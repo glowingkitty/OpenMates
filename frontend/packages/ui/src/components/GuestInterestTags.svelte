@@ -7,7 +7,7 @@
   server.
 -->
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { text } from '@repo/ui';
   import {
     rankInterestTagsForSelection,
@@ -21,6 +21,7 @@
   import { getLucideIcon } from '../utils/categoryUtils';
 
   const CheckIcon = getLucideIcon('check');
+  const AVAILABLE_TAG_LIMIT = 10;
 
   let {
     onSelectionChange,
@@ -31,8 +32,14 @@
   } = $props();
 
   let selectedTagIds = $state<InterestTagId[]>([]);
+  let railEl = $state<HTMLDivElement | null>(null);
   let rankedTags = $derived(rankInterestTagsForSelection(selectedTagIds));
   let selectedSet = $derived(new Set(selectedTagIds));
+  let visibleTags = $derived.by(() => {
+    const selectedTags = rankedTags.filter((tag) => selectedSet.has(tag.id));
+    const availableTags = rankedTags.filter((tag) => !selectedSet.has(tag.id));
+    return [...selectedTags, ...availableTags.slice(0, AVAILABLE_TAG_LIMIT)];
+  });
 
   onMount(() => {
     const payload = topicPreferencesStore.loadGuest();
@@ -56,19 +63,33 @@
     const next = selectedSet.has(tagId)
       ? selectedTagIds.filter((id) => id !== tagId)
       : [...selectedTagIds, tagId];
-    const payload = topicPreferencesStore.setGuestSelectedTagIds(next);
-    selectedTagIds = payload.selectedTagIds;
+    selectedTagIds = next;
     onSelectionChange(selectedTagIds);
   }
 
   function handleContinue() {
+    const payload = topicPreferencesStore.setGuestSelectedTagIds(selectedTagIds);
+    selectedTagIds = payload.selectedTagIds;
     onContinue(selectedTagIds);
   }
+
+  function centerFirstTag() {
+    const firstTag = railEl?.querySelector<HTMLElement>('[data-testid^="interest-tag-"]');
+    if (!railEl || !firstTag) return;
+    railEl.style.setProperty('--first-tag-width', `${firstTag.offsetWidth}px`);
+    railEl.scrollTo({ left: 0, behavior: 'auto' });
+  }
+
+  $effect(() => {
+    void visibleTags;
+    void railEl;
+    tick().then(centerFirstTag);
+  });
 </script>
 
 <div class="guest-interest-tags" data-testid="guest-interest-tags">
-  <div class="guest-interest-rail" data-testid="guest-interest-rail">
-    {#each rankedTags as tag (tag.id)}
+  <div class="guest-interest-rail" data-testid="guest-interest-rail" bind:this={railEl}>
+    {#each visibleTags as tag (tag.id)}
       {@const IconComponent = getLucideIcon(tag.icon)}
       {@const isActive = selectedSet.has(tag.id)}
       <button
@@ -128,7 +149,7 @@
     scroll-behavior: smooth;
     overscroll-behavior-x: contain;
     touch-action: pan-x;
-    padding: 4px 6px 8px;
+    padding: 4px max(6px, calc(50% - var(--first-tag-width, 160px) / 2)) 8px;
     box-sizing: border-box;
     justify-content: flex-start;
     scrollbar-width: none;
