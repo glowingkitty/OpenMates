@@ -54,7 +54,7 @@ embed_types:
     preview_component: mindmaps/MindMapEmbedPreview.svelte
     fullscreen_component: mindmaps/MindMapEmbedFullscreen.svelte
     icon: workflow
-    gradient_var: "--color-app-openmates"
+    gradient_var: "--color-app-mindmaps"
     i18n_namespace: embeds.mindmaps.mindmap
     content_catalog:
       enabled: true

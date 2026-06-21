@@ -34,6 +34,7 @@ apps:
   whiteboards:       { start: "#0088ff", end: "#0f40c4" }
   language:          { start: "#4989f2", end: "#2f44bf" }
   diagrams:          { start: "#d49200", end: "#ffd24d" }
+  mindmaps:          { start: "#4c1d95", end: "#14b8a6" }
   events:            { start: "#a20000", end: "#e61b3e" }
   code:              { start: "#155d91", end: "#42abf4", dark_start: "#1b8fe3" }
   calendar:          { start: "#007a6e", end: "#3cc4b6" }

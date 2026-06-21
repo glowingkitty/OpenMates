@@ -60,7 +60,6 @@ context_discovery:
     - docs/specs/code-run-cli-app-skill/spec.yml
     - docs/specs/application-embeds/spec.yml
   code_patterns:
-    - backend/apps/pcb_design/app.yml
     - backend/apps/electronics/app.yml
     - backend/apps/code/app.yml
     - backend/apps/docs/app.yml
