@@ -22,13 +22,16 @@
 
   const CheckIcon = getLucideIcon('check');
   const AVAILABLE_TAG_LIMIT = 10;
+  const MIN_TAGS_TO_CONTINUE = 4;
 
   let {
     onSelectionChange,
     onContinue,
+    onSkip,
   }: {
     onSelectionChange: (selectedTagIds: InterestTagId[]) => void;
     onContinue: (selectedTagIds: InterestTagId[]) => void;
+    onSkip: () => void;
   } = $props();
 
   let selectedTagIds = $state<InterestTagId[]>([]);
@@ -36,11 +39,14 @@
   let rankedTags = $derived(rankInterestTagsForSelection(selectedTagIds));
   let selectedSet = $derived(new Set(selectedTagIds));
   let visibleTags = $derived.by(() => {
-    const selectedTags = INTEREST_TAGS.filter((tag) => selectedSet.has(tag.id));
+    const tagById = new Map(INTEREST_TAGS.map((tag) => [tag.id, tag]));
+    const selectedTags = selectedTagIds
+      .map((id) => tagById.get(id))
+      .filter((tag): tag is (typeof INTEREST_TAGS)[number] => Boolean(tag));
     const availableTags = rankedTags.filter((tag) => !selectedSet.has(tag.id));
-    return [...availableTags.slice(0, AVAILABLE_TAG_LIMIT), ...selectedTags]
-      .sort((a, b) => a.defaultOrder - b.defaultOrder);
+    return [...selectedTags, ...availableTags.slice(0, AVAILABLE_TAG_LIMIT)];
   });
+  let canContinue = $derived(selectedTagIds.length >= MIN_TAGS_TO_CONTINUE);
 
   onMount(() => {
     const payload = topicPreferencesStore.loadGuest();
@@ -50,7 +56,7 @@
 
   function labelFor(labelKey: string, fallbackLabel: string): string {
     const translated = $text(labelKey);
-    return translated && translated !== labelKey ? translated : fallbackLabel;
+    return translated && translated !== labelKey && !translated.startsWith('T:') ? translated : fallbackLabel;
   }
 
   function gradientFor(appId: string, category: string): string {
@@ -61,14 +67,13 @@
   }
 
   function toggleTag(tagId: InterestTagId) {
-    const scrollLeft = railEl?.scrollLeft ?? 0;
     const next = selectedSet.has(tagId)
       ? selectedTagIds.filter((id) => id !== tagId)
       : [...selectedTagIds, tagId];
     selectedTagIds = next;
     onSelectionChange(selectedTagIds);
     tick().then(() => {
-      restoreRailScroll(scrollLeft);
+      restoreRailScroll(0);
     });
   }
 
@@ -89,6 +94,7 @@
   }
 
   function handleContinue() {
+    if (!canContinue) return;
     const payload = topicPreferencesStore.setGuestSelectedTagIds(selectedTagIds);
     selectedTagIds = payload.selectedTagIds;
     onContinue(selectedTagIds);
@@ -121,7 +127,7 @@
       </button>
     {/each}
   </div>
-  {#if selectedTagIds.length > 0}
+  {#if canContinue}
     <button
       type="button"
       class="guest-interest-continue"
@@ -131,6 +137,14 @@
       {$text('chat.interests.continue')}
     </button>
   {/if}
+  <button
+    type="button"
+    class="guest-interest-skip"
+    data-testid="guest-interest-skip"
+    onclick={onSkip}
+  >
+    {$text('chat.interests.skip')}
+  </button>
 </div>
 
 <style>
@@ -231,5 +245,18 @@
     font-weight: 600;
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+  }
+
+  .guest-interest-skip {
+    border: none;
+    background: transparent;
+    color: var(--color-button-primary, #6366f1);
+    padding: 0;
+    font: inherit;
+    font-size: 0.86rem;
+    font-weight: 650;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 </style>

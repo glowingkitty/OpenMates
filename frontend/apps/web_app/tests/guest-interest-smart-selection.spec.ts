@@ -14,6 +14,12 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
 const GUEST_TOPIC_PREFERENCES_STORAGE_KEY = 'openmates.guest_interest_tags.v1';
+const SELECTED_INTEREST_TAGS = [
+	'software_development',
+	'protect_my_privacy',
+	'open_source',
+	'use_the_cli'
+];
 
 async function interestTagOrder(page: any): Promise<string[]> {
 	return page.getByTestId('guest-interest-rail').locator('button[data-testid^="interest-tag-"]').evaluateAll(
@@ -29,6 +35,18 @@ async function visibleSuggestionIds(page: any): Promise<string[]> {
 
 function firstContinueChatCard(page: any) {
 	return page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first();
+}
+
+async function clickInterestTag(page: any, tagId: string): Promise<void> {
+	await page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement, id: string) => {
+		const tag = rail.querySelector<HTMLElement>(`[data-testid="interest-tag-${id}"]`);
+		if (!tag) throw new Error(`${id} tag not found`);
+		const previousScrollBehavior = rail.style.scrollBehavior;
+		rail.style.scrollBehavior = 'auto';
+		rail.scrollLeft = Math.max(0, tag.offsetLeft - rail.clientWidth / 2 + tag.offsetWidth / 2);
+		rail.style.scrollBehavior = previousScrollBehavior;
+	}, tagId);
+	await page.getByTestId(`interest-tag-${tagId}`).click();
 }
 
 async function tagRailMetrics(page: any): Promise<{
@@ -113,6 +131,18 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);
 		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
 		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
+		await expect(page.getByTestId('guest-interest-skip')).toBeVisible({ timeout: 5000 });
+
+		await page.getByTestId('guest-interest-skip').click();
+		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0);
+		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
+		await expect(firstContinueChatCard(page)).toHaveAttribute('data-chat-id', 'demo-for-everyone', { timeout: 15000 });
+
+		await page.getByTestId('guest-interest-select-interests').click();
+		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
+		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);
 
 		const defaultTagOrder = await interestTagOrder(page);
 		const defaultRailMetrics = await tagRailMetrics(page);
@@ -147,15 +177,20 @@ test.describe('Guest interest smart selection', () => {
 			'true'
 		);
 		await expect(page.getByTestId('interest-tag-software_development-check')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByTestId('guest-interest-continue')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
 		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);
 		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
+		await clickInterestTag(page, 'protect_my_privacy');
+		await clickInterestTag(page, 'open_source');
+		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
+		await clickInterestTag(page, 'use_the_cli');
+		await expect(page.getByTestId('guest-interest-continue')).toBeVisible({ timeout: 5000 });
 
 		const tagOrder = await interestTagOrder(page);
-		expect(tagOrder).toContain('software_development');
+		expect(tagOrder.slice(0, 4)).toEqual(SELECTED_INTEREST_TAGS);
 		const selectedRailMetrics = await tagRailMetrics(page);
 		expect(selectedRailMetrics.availableTagCount).toBe(10);
-		expect(selectedRailMetrics.selectedTagCount).toBe(1);
+		expect(selectedRailMetrics.selectedTagCount).toBe(4);
 		expect(await tagRailEndGap(page)).toBeLessThanOrEqual(24);
 		expect(tagOrder).toEqual(
 			expect.arrayContaining(['use_the_cli', 'open_source', 'read_developer_docs', 'run_code'])
@@ -171,6 +206,10 @@ test.describe('Guest interest smart selection', () => {
 
 		await page.getByTestId('guest-interest-continue').click();
 		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0);
+		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('guest-intro-copy')).toContainText('AI team mates.', { timeout: 15000 });
+		expect(await page.getByTestId('message-editor').evaluate((editor: HTMLElement) => editor.contains(document.activeElement))).toBe(false);
 		const storageStateAfterContinue = await page.evaluate((key: string) => ({
 			sessionValue: sessionStorage.getItem(key),
 			localValue: localStorage.getItem(key)
@@ -183,6 +222,7 @@ test.describe('Guest interest smart selection', () => {
 			'demo-for-developers',
 			{ timeout: 15000 }
 		);
+		await expect(page.getByTestId('example-chat-badge').first()).toContainText('Example chat', { timeout: 15000 });
 		await expect(page.getByTestId('suggestions-wrapper')).toBeVisible({ timeout: 15000 });
 
 		const suggestionIds = await visibleSuggestionIds(page);
@@ -194,6 +234,10 @@ test.describe('Guest interest smart selection', () => {
 		);
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0, { timeout: 15000 });
+		await expect(page.getByTestId('guest-interest-select-interests')).toBeVisible({ timeout: 15000 });
+		await expect(firstContinueChatCard(page)).toHaveAttribute('data-chat-id', 'demo-for-developers', { timeout: 15000 });
+		await page.getByTestId('guest-interest-select-interests').click();
 		await expect(page.getByTestId('interest-tag-software_development')).toHaveAttribute(
 			'data-interest-active',
 			'true',

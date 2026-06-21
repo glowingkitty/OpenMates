@@ -129,6 +129,7 @@
         rankIntroChatIdsByInterests,
     } from '../demo_chats/guestSmartSelection';
     import type { InterestTagId } from '../demo_chats/interestTags';
+    import { topicPreferencesStore } from '../stores/topicPreferencesStore';
     import { OPENMATES_EVENTS, type OpenMatesEvent } from '../data/openmatesEvents';
     import {
         AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS,
@@ -141,6 +142,7 @@
         hasOpenMatesEventEnded,
         isOgExampleSharedChatCuttlefish,
     } from './activeChatUtils';
+
     import {
         cloneMessagesForReplay,
         getReplayDelay,
@@ -165,6 +167,8 @@
     import type { EmbedStoreEntry } from '../message_parsing/types';
     import { proxyImage, MAX_WIDTH_VIDEO_FULLSCREEN } from '../utils/imageProxy';
     import { autoStartCreatedApplicationPreview } from '../services/applicationPreviewService';
+
+    const GUEST_DEFAULT_INTRO_INSPIRATION_ID = 'openmates-intro';
 
     function loadWikipediaFullscreenComponent() {
         return import('./embeds/wiki/WikipediaFullscreen.svelte').catch((error) => {
@@ -3002,7 +3006,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         const introIds = getInterestSurfaceIds(selectedTagIds, 'introChats');
-        const exampleIds = getInterestSurfaceIds(selectedTagIds, 'exampleChats');
         const rankedIntroIds = rankIntroChatIdsByInterests(
             introMetas.map((meta) => meta.chat.chat_id),
             selectedTagIds
@@ -3017,7 +3020,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             .map((id) => metaById.get(id))
             .filter((meta): meta is RecentChatMeta => Boolean(meta));
         const rankedCommunityMetas = rankedExampleIds
-            .filter((id) => exampleIds.has(id))
             .map((id) => metaById.get(id))
             .filter((meta): meta is RecentChatMeta => Boolean(meta));
 
@@ -4696,6 +4698,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let activeSuggestionSearchText = $derived(messageInputRecentlyFocused ? liveInputText : '');
     let selectedGuestInterestTagIds = $state<InterestTagId[]>([]);
     let guestInterestContinueConfirmed = $state(false);
+    let guestInterestSelectorVisible = $state(true);
+    let lastGuestPersonalizationKey = '';
 
     function applyGuestInterestPersonalization(selectedTagIds: InterestTagId[]) {
         const state = get(dailyInspirationStore);
@@ -4703,15 +4707,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return;
         }
         const dailyInspirationIds = getInterestSurfaceIds(selectedTagIds, 'dailyInspirations');
+        const introInspiration = state.inspirations.find((inspiration) =>
+            inspiration.inspiration_id === GUEST_DEFAULT_INTRO_INSPIRATION_ID
+        );
         const filteredInspirations = state.inspirations.filter((inspiration) =>
             dailyInspirationIds.has(inspiration.inspiration_id)
         );
+        const rankedInspirations = rankDailyInspirationsByInterests(
+            filteredInspirations.length > 0 ? filteredInspirations : state.inspirations,
+            selectedTagIds
+        );
+        const nextInspirations = introInspiration
+            ? [introInspiration, ...rankedInspirations.filter((inspiration) => inspiration.inspiration_id !== introInspiration.inspiration_id)]
+            : rankedInspirations;
         dailyInspirationStore.setSurfaceInspirations(
             'chats',
-            rankDailyInspirationsByInterests(
-                filteredInspirations.length > 0 ? filteredInspirations : state.inspirations,
-                selectedTagIds
-            ),
+            nextInspirations,
             { personalized: false }
         );
     }
@@ -4725,10 +4736,31 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     function handleGuestInterestContinue(selectedTagIds: InterestTagId[]) {
         handleGuestInterestSelectionChange(selectedTagIds);
-        guestInterestContinueConfirmed = selectedTagIds.length > 0;
+        guestInterestContinueConfirmed = selectedTagIds.length >= 4;
+        guestInterestSelectorVisible = false;
         applyGuestInterestPersonalization(selectedTagIds);
-        messageInputFieldRef?.focus();
     }
+
+    function handleGuestInterestSkip() {
+        guestInterestContinueConfirmed = true;
+        guestInterestSelectorVisible = false;
+        applyGuestInterestPersonalization([]);
+    }
+
+    function handleGuestInterestSelectInterests() {
+        guestInterestContinueConfirmed = false;
+        guestInterestSelectorVisible = true;
+    }
+
+    $effect(() => {
+        const inspirationIds = $dailyInspirationStore.inspirations.map((inspiration) => inspiration.inspiration_id).join('|');
+        const personalizationKey = `${$authStore.isAuthenticated ? 'auth' : 'guest'}:${guestInterestContinueConfirmed}:${selectedGuestInterestTagIds.join(',')}:${inspirationIds}`;
+        if ($authStore.isAuthenticated || !guestInterestContinueConfirmed || inspirationIds.length === 0 || personalizationKey === lastGuestPersonalizationKey) {
+            return;
+        }
+        lastGuestPersonalizationKey = personalizationKey;
+        applyGuestInterestPersonalization(selectedGuestInterestTagIds);
+    });
     
     // Reactive variable to determine when to show follow-up suggestions in ChatHistory.
     // Show whenever there are suggestions and the welcome screen is not active.
@@ -8906,6 +8938,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 temporaryChatId = crypto.randomUUID();
                 console.debug("[ActiveChat] Generated temporary chat ID for draft saving:", temporaryChatId);
             }
+
+            if (!$authStore.isAuthenticated) {
+                const guestTopicPreferences = topicPreferencesStore.loadGuest();
+                if ((guestTopicPreferences?.selectedTagIds.length ?? 0) >= 4) {
+                    selectedGuestInterestTagIds = guestTopicPreferences!.selectedTagIds;
+                    guestInterestContinueConfirmed = true;
+                    guestInterestSelectorVisible = false;
+                    applyGuestInterestPersonalization(guestTopicPreferences!.selectedTagIds);
+                }
+            }
             
             // Check if the user is in the middle of a signup process (based on last_opened)
             // Only rely on explicit signup paths to avoid forcing passkey users back into OTP setup
@@ -9022,7 +9064,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Listen for event to close login interface (e.g., from Demo button)
         const handleCloseLoginInterface = async () => {
-            console.debug("[ActiveChat] Closing login interface, showing demo chat");
+            console.debug("[ActiveChat] Closing login interface, showing new chat screen");
             
             // CRITICAL: Do NOT close login interface if user is in signup process
             // They need to complete signup, so the interface must stay open
@@ -9061,8 +9103,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 console.warn("[ActiveChat] Error clearing pendingDraftAfterSignup:", error);
             }
             
-            // PRIVACY: Clear liveInputText when user leaves login flow
-            // This ensures follow-up suggestions show properly when returning to demo chat
+            // PRIVACY: Clear liveInputText when user leaves login flow.
             liveInputText = '';
             console.debug("[ActiveChat] Cleared liveInputText when closing login interface");
             
@@ -9077,63 +9118,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             
             loginInterfaceOpen.set(false);
-            
-            // CRITICAL FIX: Clear current chat state first to ensure clean reload
-            // This prevents the "new chat" interface from showing when returning to demo
-            currentChat = null;
-            currentMessages = [];
-            showWelcome = false; // Explicitly set to false for public chat
-            activeChatStore.setActiveChat('demo-for-everyone');
-            
-            // Wait a tick to ensure state is cleared before loading new chat
-            await tick();
-            
-            // Load default demo chat (welcome chat)
-            const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
-            if (welcomeChat) {
-                const chat = convertDemoChatToChat(translateDemoChat(welcomeChat));
-                // Await loadChat to ensure chat is fully loaded before dispatching selection event
-                await loadChat(chat);
-                // Ensure showWelcome is false after loading public chat (defensive)
-                showWelcome = false;
-                
-                // CRITICAL: Dispatch globalChatSelected event to mark chat as active in sidebar
-                // This ensures the chat is highlighted in the Chats component
-                // Dispatch immediately - the Chats component listens for this event even when panel is closed
-                const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
-                    detail: { chat },
-                    bubbles: true,
-                    composed: true
-                });
-                window.dispatchEvent(globalChatSelectedEvent);
-                console.debug("[ActiveChat] Dispatched globalChatSelected for demo-for-everyone chat");
-                
-                // Also wait a bit and dispatch again in case Chats component mounts after panel opens
-                // This handles the case where the panel opens and Chats component mounts after our first dispatch
-                setTimeout(() => {
-                    window.dispatchEvent(globalChatSelectedEvent);
-                    console.debug("[ActiveChat] Re-dispatched globalChatSelected for demo-for-everyone chat (after delay)");
-                }, 300); // Longer delay to ensure Chats component is mounted if panel was opened
-                
-                console.debug("[ActiveChat] ✅ Welcome demo chat loaded after closing login interface");
-            } else {
-                console.warn("[ActiveChat] Welcome demo chat not found in DEMO_CHATS");
-            }
-            
-            // Only open chats panel on desktop (not mobile) when closing login interface
-            // On mobile, let the user manually open the panel if they want to see the chat list
-            // Do this AFTER loading the chat so the event is dispatched first
-            if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
-                panelState.toggleChats();
-            }
+            panelState.closeChats();
+            await handleNewChatClick();
+            console.debug("[ActiveChat] Returned to new chat screen after closing login interface");
         };
         
-        // Listen for event to load demo chat after logout from signup
+        // Legacy event name kept for existing callers; it now returns to the new-chat screen.
         const handleLoadDemoChat = () => {
-            console.debug("[ActiveChat] Returning to welcome screen after logout from signup");
+            console.debug("[ActiveChat] Returning to new chat screen after logout from signup");
 
             // Ensure login interface is closed
             loginInterfaceOpen.set(false);
+            panelState.closeChats();
             currentChat = null;
             currentMessages = [];
             showWelcome = true;
@@ -10892,13 +10888,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 </div>
                             </div>
 
-                            {#if !$authStore.isAuthenticated && !guestInterestContinueConfirmed}
+                            {#if !$authStore.isAuthenticated && guestInterestSelectorVisible}
                                 <div transition:fade={fadeParams}>
                                     <GuestInterestTags
                                         onSelectionChange={handleGuestInterestSelectionChange}
                                         onContinue={handleGuestInterestContinue}
+                                        onSkip={handleGuestInterestSkip}
                                     />
                                 </div>
+                            {:else if !$authStore.isAuthenticated && guestInterestContinueConfirmed}
+                                <button
+                                    type="button"
+                                    class="guest-interest-select-link"
+                                    data-testid="guest-interest-select-interests"
+                                    onclick={handleGuestInterestSelectInterests}
+                                >
+                                    {$text('chat.interests.select_interests')}
+                                </button>
                             {/if}
 
                             <!-- Resume card + recent chats horizontal scroll (authenticated users) -->
@@ -11258,7 +11264,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     {/if}
                                 </div>
                             <!-- Non-auth: scrollable list of intro + example chats (same card design as auth recent chats) -->
-                            {:else if !$authStore.isAuthenticated && guestInterestContinueConfirmed && selectedGuestInterestTagIds.length > 0 && nonAuthRecentChats.length > 0}
+                            {:else if !$authStore.isAuthenticated && guestInterestContinueConfirmed && nonAuthRecentChats.length > 0}
                                 <div
                                     class="recent-chats-scroll-container"
                                     data-testid="recent-chats-scroll-container"
@@ -11321,10 +11327,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                          {/each}
                                                      </div>
                                                  {/if}
-                                                 <div class="resume-large-content">
-                                                    {#if IconComponent}
-                                                        <div class="resume-large-icon">
-                                                            <IconComponent size={32} color="white" />
+                                                  <div class="resume-large-content">
+                                                     {#if isExampleChat(meta.chat.chat_id)}
+                                                         <span class="resume-chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+                                                     {/if}
+                                                     {#if IconComponent}
+                                                         <div class="resume-large-icon">
+                                                             <IconComponent size={32} color="white" />
                                                         </div>
                                                     {/if}
                                                     <span class="resume-large-title" data-testid="resume-large-title">{meta.title || $text('common.untitled_chat')}</span>
@@ -11351,9 +11360,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 <div class="resume-chat-compact-icon">
                                                     <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                 </div>
-                                                <div class="resume-chat-content">
-                                                    <span class="resume-chat-title" data-testid="resume-chat-title">{meta.title || $text('common.untitled_chat')}</span>
-                                                </div>
+                                                 <div class="resume-chat-content">
+                                                     {#if isExampleChat(meta.chat.chat_id)}
+                                                         <span class="resume-chat-kind-badge compact" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+                                                     {/if}
+                                                     <span class="resume-chat-title" data-testid="resume-chat-title">{meta.title || $text('common.untitled_chat')}</span>
+                                                 </div>
                                                 <div class="resume-chat-arrow">
                                                     <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
                                                 </div>
@@ -11473,7 +11485,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                       {$text('enter_message.attachments.remove_pending_file')}
                                   </button>
                               </div>
-                          {:else if showWelcome && ($authStore.isAuthenticated || (guestInterestContinueConfirmed && selectedGuestInterestTagIds.length > 0)) && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
+                          {:else if showWelcome && ($authStore.isAuthenticated || guestInterestContinueConfirmed) && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
                                 <NewChatSuggestions
                                    messageInputContent={activeSuggestionSearchText}
                                    selectedInterestTagIds={selectedGuestInterestTagIds}
@@ -12483,6 +12495,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         line-height: 1.25;
     }
 
+    .guest-interest-select-link {
+        border: none;
+        background: transparent;
+        color: var(--color-button-primary);
+        padding: var(--spacing-2) 0 0;
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 650;
+        cursor: pointer;
+        pointer-events: auto;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
     .welcome-text .decrypting-chats-text {
         background: linear-gradient(
             90deg,
@@ -12894,6 +12920,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         text-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
     }
 
+    .resume-chat-kind-badge {
+        align-self: flex-start;
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        border-radius: var(--radius-full);
+        padding: 3px 7px;
+        background: rgba(255, 255, 255, 0.18);
+        color: rgba(255, 255, 255, 0.94);
+        font-size: 0.66rem;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: 0.01em;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+        backdrop-filter: blur(10px);
+    }
+
+    .resume-chat-kind-badge.compact {
+        margin-bottom: 3px;
+    }
+
     .resume-chat-arrow {
         display: flex;
         align-items: center;
@@ -12990,6 +13037,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         width: 100%;
         /* Ensure text is readable over the gradient orbs */
         text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .resume-large-content .resume-chat-kind-badge {
+        align-self: center;
     }
 
     .resume-large-icon {

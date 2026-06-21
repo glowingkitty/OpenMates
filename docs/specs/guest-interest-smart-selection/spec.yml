@@ -123,10 +123,11 @@ scenarios:
     when:
       - The visitor selects `software development`.
     then:
-      - The `software development` tag becomes active without jumping the horizontal tag rail.
+      - The `software development` tag becomes active and selected tags stay at the left of the horizontal rail.
       - Related tags such as `use the CLI`, `open source`, `read developer docs`, `run code`, `protect my privacy`, and `summarize documents` remain available in the rail.
-      - Unrelated tags remain available later in the rail instead of being hidden.
-      - A Continue action appears once at least one tag is selected.
+      - The rail shows all selected tags plus ten additional available tags from the recommendation pool.
+      - A Continue action appears only after at least four tags are selected.
+      - A Skip link lets the visitor bypass selection and show default intro/example sorting.
 
   - id: S-3
     title: Smart selection reorders all guest discovery surfaces
@@ -135,10 +136,11 @@ scenarios:
     when:
       - The visitor presses Continue.
     then:
-      - Daily inspirations prioritize `cli-programmatic-use`, `developer-docs-code`, `privacy-pii-replacement`, and `apps-skills-tools` before generic inspiration content.
+      - Daily inspirations keep `openmates-intro` visible first for logged-out visitors, then prioritize `cli-programmatic-use`, `developer-docs-code`, `privacy-pii-replacement`, and `apps-skills-tools` before generic inspiration content.
       - Intro chats prioritize `demo-for-developers` while keeping `demo-for-everyone` reachable.
-      - Example chats prioritize software-development and privacy examples such as Svelte docs, Python code run, OpenMates app skills/docs, PDF encryption, private workspace, and privacy website examples.
+      - Example chats prioritize software-development and privacy examples such as Svelte docs, Python code run, OpenMates app skills/docs, PDF encryption, private workspace, and privacy website examples, while keeping the broader example pool reachable for mixed recommendations.
       - New-chat suggestions prioritize relevant prompts such as learning to code, using OpenMates from CLI/API, hiding personal data, and finding developer tutorial videos.
+      - The Continue action does not focus or open the message input; the visitor must click the input manually.
       - The same selected tags and registry order always produce the same ranked output.
 
   - id: S-4
@@ -149,6 +151,7 @@ scenarios:
       - The visitor reloads the same tab, then later closes the tab/window and opens OpenMates again.
     then:
       - Same-session reload restores selected tags from sessionStorage.
+      - Same-session reload auto-applies saved tags, hides the selector, and shows the Select interests link with filtered/ranked guest surfaces.
       - Closing the browser session removes the guest selections.
       - No localStorage entry stores guest interest tags.
       - No network request sends cleartext selected tags.
@@ -209,13 +212,13 @@ acceptance_criteria:
     text: The first logged-out default inspiration reuses the `for-everyone` chat header copy/video intent as an OpenMates explainer banner.
   - id: AC-3
     scenario: S-2
-    text: The interest tag rail uses phrase labels, icons, and gradient backgrounds, keeps selected tags visible without scroll jumps, and keeps related/unrelated tags available.
+    text: The interest tag rail uses phrase labels, icons, and gradient backgrounds, shows selected tags plus ten available tags, requires four selections before Continue, and offers Skip/Select interests links.
   - id: AC-4
     scenario: S-3
-    text: Selected tags deterministically rank daily inspirations, intro chats, example chats, and new-chat suggestions from a shared client-side registry.
+    text: Selected tags deterministically rank daily inspirations, intro chats, example chats, and new-chat suggestions from a shared client-side registry while keeping logged-out `openmates-intro` visible first.
   - id: AC-5
     scenario: S-4
-    text: Guest selected tags persist only in sessionStorage and are never sent to the server as cleartext.
+    text: Guest selected tags persist only in sessionStorage, auto-apply on same-session reload, and are never sent to the server as cleartext.
   - id: AC-6
     scenario: S-5
     text: Signup promotes guest interests into encrypted synced account topic preferences without uploading guest cleartext.
