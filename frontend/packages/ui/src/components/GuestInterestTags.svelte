@@ -74,13 +74,19 @@
     selectedTagIds = next;
     onSelectionChange(selectedTagIds);
     tick().then(() => {
-      restoreRailScroll(0);
+      centerFirstAvailableTag();
     });
   }
 
-  function restoreRailScroll(scrollLeft: number) {
+  function centerFirstAvailableTag() {
     const rail = railEl;
     if (!rail) return;
+    const firstAvailableTag = rail.querySelector<HTMLElement>('[data-interest-active="false"]');
+    if (!firstAvailableTag) return;
+    const scrollLeft = Math.max(
+      0,
+      firstAvailableTag.offsetLeft - rail.clientWidth / 2 + firstAvailableTag.offsetWidth / 2,
+    );
 
     const previousScrollBehavior = rail.style.scrollBehavior;
     rail.style.scrollBehavior = 'auto';

@@ -10829,7 +10829,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         {/if}
                                     </h2>
                                     {#if !$authStore.isAuthenticated}
-                                        <p class="guest-interest-prompt">
+                                        <p class="guest-interest-prompt" transition:fade={fadeParams}>
                                             {#each guestInterestHeadingParts as part, index}
                                                 <span>{part}</span>{#if index < guestInterestHeadingParts.length - 1}<br>{/if}
                                             {/each}

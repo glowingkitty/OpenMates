@@ -75,6 +75,20 @@ async function tagRailEndGap(page: any): Promise<number> {
 	});
 }
 
+async function firstAvailableTagCenterDelta(page: any): Promise<number> {
+	return page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => {
+		const firstAvailableTag = rail.querySelector<HTMLElement>('[data-interest-active="false"]');
+		if (!firstAvailableTag) return Number.POSITIVE_INFINITY;
+		const railRect = rail.getBoundingClientRect();
+		const tagRect = firstAvailableTag.getBoundingClientRect();
+		return Math.abs((railRect.left + railRect.width / 2) - (tagRect.left + tagRect.width / 2));
+	});
+}
+
+async function guestIntroOpacity(page: any, testId: string): Promise<number> {
+	return page.getByTestId(testId).evaluate((element: HTMLElement) => Number.parseFloat(getComputedStyle(element).opacity));
+}
+
 test.describe('Guest interest smart selection', () => {
 	test('fresh guest welcome uses session-only tags and local smart ranking', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
@@ -85,7 +99,7 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByText('Hey there!')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByText('What are you interested in?')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByText('Explore what you can do:')).toBeVisible({ timeout: 15000 });
 		expect(await page.evaluate(() => window.location.hash)).not.toContain('demo-for-everyone');
 
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
@@ -173,6 +187,7 @@ test.describe('Guest interest smart selection', () => {
 		expect(selectedRailMetrics.availableTagCount).toBe(10);
 		expect(selectedRailMetrics.selectedTagCount).toBe(4);
 		expect(await tagRailEndGap(page)).toBeLessThanOrEqual(24);
+		expect(await firstAvailableTagCenterDelta(page)).toBeLessThanOrEqual(32);
 		expect(tagOrder).toEqual(
 			expect.arrayContaining(['use_the_cli', 'open_source', 'read_developer_docs', 'run_code'])
 		);
@@ -221,5 +236,21 @@ test.describe('Guest interest smart selection', () => {
 			{ timeout: 15000 }
 		);
 		expect(await page.evaluate((key: string) => localStorage.getItem(key), GUEST_TOPIC_PREFERENCES_STORAGE_KEY)).toBeNull();
+	});
+
+	test('mobile guest intro alternates copy and video', async ({ page }: { page: any }) => {
+		test.setTimeout(45000);
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('guest-intro-copy')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('guest-intro-video-shell')).toBeVisible({ timeout: 15000 });
+		expect(await guestIntroOpacity(page, 'guest-intro-copy')).toBeGreaterThan(0.7);
+
+		await expect.poll(async () => await guestIntroOpacity(page, 'guest-intro-video-shell'), { timeout: 7000 }).toBeGreaterThan(0.7);
+		await expect.poll(async () => await guestIntroOpacity(page, 'guest-intro-copy'), { timeout: 1000 }).toBeLessThan(0.4);
+		await expect.poll(async () => await guestIntroOpacity(page, 'guest-intro-copy'), { timeout: 7000 }).toBeGreaterThan(0.7);
 	});
 });

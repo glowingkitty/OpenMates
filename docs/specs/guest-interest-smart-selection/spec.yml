@@ -209,10 +209,10 @@ acceptance_criteria:
     text: Fresh logged-out `/` visits open the new-chat welcome screen instead of auto-opening `demo-for-everyone`.
   - id: AC-2
     scenario: S-1
-    text: The first logged-out default inspiration reuses the `for-everyone` chat header copy/video intent as an OpenMates explainer banner.
+    text: The first logged-out default inspiration reuses the `for-everyone` chat header copy/video intent as an OpenMates explainer banner and alternates copy/video on narrow viewports instead of squeezing both side-by-side.
   - id: AC-3
     scenario: S-2
-    text: The interest tag rail uses phrase labels, icons, and gradient backgrounds, shows selected tags plus ten available tags in a centered horizontal rail without artificial end gaps, requires four selections before Continue, and offers grey Skip/Select interests links.
+    text: The interest tag rail uses phrase labels, icons, and gradient backgrounds, shows selected tags plus ten available tags in a centered horizontal rail without artificial end gaps, centers the first unselected tag after each selection, requires four selections before Continue, and offers grey Skip/Select interests links.
   - id: AC-4
     scenario: S-3
     text: Selected tags deterministically rank daily inspirations, example chats after the fixed `demo-for-everyone` intro card, and new-chat suggestions from a shared client-side registry while keeping logged-out `openmates-intro` visible first.
@@ -348,7 +348,9 @@ tests:
     assertions:
       - fresh logged-out `/` shows the new-chat welcome screen and does not auto-navigate to `#chat-id=demo-for-everyone`
       - first daily inspiration banner is the OpenMates intro explainer with video/fullscreen entry
+      - mobile logged-out intro alternates the explainer copy and video preview every few seconds
       - selecting `software development` activates the tag, shows the active check badge, and reorders related tags next
+      - after selected tags move left, the first unselected tag is centered instead of the rail jumping back to the start
       - Continue reveals/reranks developer/CLI/privacy daily inspirations, intro/example chats, and suggestions
       - reload in same session preserves selected tags while no localStorage cleartext interest key exists
     red_phase:

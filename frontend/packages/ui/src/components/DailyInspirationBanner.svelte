@@ -382,11 +382,6 @@
   /** Whether the banner is rendered in the narrow mobile layout. */
   let isMobileBannerLayout = $derived(containerWidth > 0 && containerWidth <= 730);
 
-  /** Whether mobile should alternate between the assistant message and embed. */
-  let shouldCycleMobileCard = $derived(!isGuestIntroVariant && (hasAttachedVideo || hasInfoContent) && isMobileBannerLayout);
-
-  let hasVideo = $derived(hasAttachedVideo && (containerWidth >= 520 || shouldCycleMobileCard));
-
   /**
    * The embed_id to use for VideoEmbedPreview.
    * Uses embed_id from the inspiration if already stored, otherwise generates a
@@ -426,6 +421,17 @@
         ? proxyImage(current.direct_video.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL)
         : ''),
   );
+
+  /** Whether mobile should alternate between the assistant message and preview. */
+  let shouldCycleMobileCard = $derived(
+    isMobileBannerLayout && (
+      isGuestIntroVariant
+        ? !!directVideoMp4Url || hasInfoContent
+        : hasAttachedVideo || hasInfoContent
+    )
+  );
+
+  let hasVideo = $derived(hasAttachedVideo && (containerWidth >= 520 || shouldCycleMobileCard));
 
   let infoCardTitle = $derived(current?.wiki?.title || current?.feature?.title || current?.title || '');
   let infoCardSubtitle = $derived(current?.wiki?.description || current?.feature?.description || '');
@@ -1766,7 +1772,10 @@
     }
 
     .banner-content.mobile-card-loop .banner-left,
+    .banner-content.mobile-card-loop .guest-intro-copy,
     .banner-content.mobile-card-loop .banner-embed-wrapper,
+    .banner-content.mobile-card-loop .guest-intro-video-box,
+    .banner-content.mobile-card-loop .guest-intro-feature-card,
     .banner-content.mobile-card-loop .banner-info-card {
       position: absolute;
       inset: 0;
@@ -1776,12 +1785,14 @@
         transform 420ms ease;
     }
 
-    .banner-content.mobile-card-loop .banner-left {
+    .banner-content.mobile-card-loop .banner-left,
+    .banner-content.mobile-card-loop .guest-intro-copy {
       opacity: 1;
       transform: translateY(0);
     }
 
-    .banner-content.mobile-card-loop.show-mobile-card .banner-left {
+    .banner-content.mobile-card-loop.show-mobile-card .banner-left,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy {
       opacity: 0;
       pointer-events: none;
       transform: translateY(-6px);
@@ -1808,6 +1819,8 @@
     }
 
     .banner-content.mobile-card-loop .banner-embed-wrapper,
+    .banner-content.mobile-card-loop .guest-intro-video-box,
+    .banner-content.mobile-card-loop .guest-intro-feature-card,
     .banner-content.mobile-card-loop .banner-info-card {
       margin: 0;
       opacity: 0;
@@ -1817,10 +1830,20 @@
     }
 
     .banner-content.mobile-card-loop.show-mobile-card .banner-embed-wrapper,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-video-box,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-feature-card,
     .banner-content.mobile-card-loop.show-mobile-card .banner-info-card {
       opacity: 1;
       pointer-events: auto;
       transform: translateY(0);
+    }
+
+    .banner-content.mobile-card-loop .guest-intro-video-box,
+    .banner-content.mobile-card-loop .guest-intro-feature-card {
+      width: min(100%, 560px);
+      height: 100%;
+      max-height: none;
+      margin: 0 auto;
     }
 
     .banner-content.mobile-card-loop .banner-embed-wrapper :global(.embed-preview-container) {
