@@ -334,7 +334,7 @@ tests:
   - id: T-PLAYWRIGHT-GUEST-LANDING
     type: playwright
     file: frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
-    command: python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts
+    command: python3 scripts/tests.py run -- --spec guest-interest-smart-selection.spec.ts
     target: app.dev.openmates.org
     covers:
       - AC-1
@@ -345,7 +345,7 @@ tests:
     assertions:
       - fresh logged-out `/` shows the new-chat welcome screen and does not auto-navigate to `#chat-id=demo-for-everyone`
       - first daily inspiration banner is the OpenMates intro explainer with video/fullscreen entry
-      - selecting `software development` activates the tag and reorders related tags next
+      - selecting `software development` activates the tag, shows the active check badge, and reorders related tags next
       - Continue reveals/reranks developer/CLI/privacy daily inspirations, intro/example chats, and suggestions
       - reload in same session preserves selected tags while no localStorage cleartext interest key exists
     red_phase:
@@ -359,9 +359,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "27901184384"
+        timestamp: "2026-06-21T10:18:04Z"
 
   - id: T-PLAYWRIGHT-ACCOUNT-INTERESTS
     type: playwright
