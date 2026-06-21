@@ -820,8 +820,13 @@
         >
 
           {#if isGuestIntroVariant}
+            {#if current.inspiration_id === 'openmates-intro'}
+              <div class="deco-icon deco-icon-left guest-intro-ai-deco-icon"></div>
+              <div class="deco-icon deco-icon-right guest-intro-ai-deco-icon"></div>
+            {/if}
             <div class="guest-intro-copy" data-testid="guest-intro-copy">
               {#if current.inspiration_id === 'openmates-intro'}
+                <div class="guest-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
                 <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line1')}</span>
                 <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line2')}</span>
                 <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line3')}</span>
@@ -1180,15 +1185,49 @@
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
-    gap: 2px;
+    gap: 4px;
     color: white;
     text-align: left;
   }
 
+  .guest-intro-ai-icon {
+    width: clamp(54px, 4.2vw, 72px);
+    height: clamp(54px, 4.2vw, 72px);
+    margin-bottom: var(--spacing-3);
+    flex-shrink: 0;
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background-color: rgba(255, 255, 255, 0.92);
+  }
+
+  .guest-intro-ai-deco-icon {
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background-color: rgba(255, 255, 255, 0.15);
+    --deco-target-opacity: 1;
+    --float-rx: 10px;
+    --float-ry: 12px;
+    animation:
+      decoEnter 0.6s ease-out 0.1s both,
+      decoFloat 16s linear 0.7s infinite;
+  }
+
   .guest-intro-copy-line {
     display: block;
-    max-width: 620px;
-    font-size: clamp(1.65rem, 3vw, 3.1rem);
+    max-width: 720px;
+    font-size: clamp(3.1rem, 4.1vw, 4.9rem);
     line-height: 1.08;
     font-weight: 700;
     letter-spacing: -0.035em;
@@ -1208,11 +1247,11 @@
   .guest-intro-video-box,
   .guest-intro-feature-card {
     position: relative;
-    flex: 0 1 min(44vw, 620px);
-    width: min(44vw, 620px);
-    min-width: 320px;
-    aspect-ratio: 16 / 9;
-    border-radius: var(--radius-6);
+    flex: 0 0 min(48vw, 880px);
+    width: min(48vw, 880px);
+    min-width: 420px;
+    height: clamp(76px, 6.6vw, 118px);
+    border-radius: var(--radius-4);
     border: 1px solid rgba(255, 255, 255, 0.16);
     overflow: hidden;
     background: rgba(18, 18, 18, 0.9);
@@ -1230,6 +1269,7 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center;
   }
 
   .guest-intro-play {

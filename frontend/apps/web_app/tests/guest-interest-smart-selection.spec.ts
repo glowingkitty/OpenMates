@@ -43,7 +43,22 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('daily-inspiration-carousel-progress')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('guest-intro-video')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('guest-intro-ai-icon')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('guest-intro-copy')).toContainText('AI team mates.', { timeout: 15000 });
+		const guestIntroMetrics = await page.evaluate(() => {
+			const banner = document.querySelector('[data-testid="daily-inspiration-banner"]');
+			const copyLine = document.querySelector('.guest-intro-copy-line');
+			const videoShell = document.querySelector('[data-testid="guest-intro-video-shell"]');
+			return {
+				bannerHeight: banner?.getBoundingClientRect().height ?? 0,
+				copyFontSize: copyLine ? Number.parseFloat(getComputedStyle(copyLine).fontSize) : 0,
+				videoHeight: videoShell?.getBoundingClientRect().height ?? 0
+			};
+		});
+		expect(guestIntroMetrics.copyFontSize).toBeGreaterThanOrEqual(48);
+		expect(guestIntroMetrics.videoHeight).toBeGreaterThanOrEqual(70);
+		expect(guestIntroMetrics.videoHeight).toBeLessThanOrEqual(130);
+		expect(guestIntroMetrics.videoHeight).toBeLessThan(guestIntroMetrics.bannerHeight * 0.35);
 
 		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('interest-tag-find_apartments')).toHaveAttribute('data-app-id', 'home');
