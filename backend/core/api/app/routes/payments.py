@@ -1345,6 +1345,7 @@ async def create_bank_transfer_order(
 async def create_gift_card_bank_transfer_order(
     request: Request,
     order_data: CreateBankTransferOrderRequest,
+    _official_cloud: None = Depends(_require_official_cloud),
     payment_service: PaymentService = Depends(get_payment_service),
     cache_service: CacheService = Depends(get_cache_service),
     directus_service: DirectusService = Depends(get_directus_service),
@@ -1352,7 +1353,6 @@ async def create_gift_card_bank_transfer_order(
     current_user: User = Depends(get_current_user),
 ):
     """Create a pending bank transfer order for a gift-card purchase."""
-    _require_official_cloud(request)
     gift_card_order_data = order_data.model_copy(update={"is_gift_card": True, "is_signup": False})
     return await create_bank_transfer_order(
         request=request,
@@ -1515,12 +1515,12 @@ async def get_bank_transfer_status(
 async def get_gift_card_purchase_status(
     request: Request,
     order_id: str,
+    _official_cloud: None = Depends(_require_official_cloud),
     cache_service: CacheService = Depends(get_cache_service),
     directus_service: DirectusService = Depends(get_directus_service),
     current_user: User = Depends(get_current_user),
 ):
     """Get status for a gift-card bank-transfer purchase."""
-    _require_official_cloud(request)
     order = await cache_service.get_bank_transfer_by_order_id(order_id)
 
     if not order:
@@ -4152,6 +4152,7 @@ async def update_billing_day_preference(
 async def redeem_gift_card(
     request: Request,
     gift_card_request: RedeemGiftCardRequest,
+    _official_cloud: None = Depends(_require_official_cloud),
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
@@ -4162,7 +4163,6 @@ async def redeem_gift_card(
     Checks cache first, then Directus if not found in cache.
     Gift cards are single-use and are deleted after redemption.
     """
-    _require_official_cloud(request)
     user_id = current_user.id
     code = gift_card_request.code.strip().upper()  # Normalize the code (uppercase, trimmed)
     
@@ -4453,6 +4453,7 @@ def generate_gift_card_code() -> str:
 async def buy_gift_card(
     request: Request,
     gift_card_request: BuyGiftCardRequest,
+    _official_cloud: None = Depends(_require_official_cloud),
     current_user: User = Depends(get_current_user),
     payment_service: PaymentService = Depends(get_payment_service),
     directus_service: DirectusService = Depends(get_directus_service),
@@ -4466,7 +4467,6 @@ async def buy_gift_card(
     Supports Stripe (EU users) and Stripe Managed Payments (non-EU users), mirroring the
     credits purchase flow. Provider is selected via geo-detection or explicit `provider` override.
     """
-    _require_official_cloud(request)
     user_id = current_user.id
 
     # Detect user region for provider selection (same logic as /create-order)
@@ -4613,6 +4613,7 @@ async def buy_gift_card(
 @limiter.limit("30/minute")  # Less sensitive read operation
 async def get_redeemed_gift_cards(
     request: Request,
+    _official_cloud: None = Depends(_require_official_cloud),
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
@@ -4622,7 +4623,6 @@ async def get_redeemed_gift_cards(
     Get all gift cards redeemed by the current user.
     Gift card codes are decrypted using the user's vault key.
     """
-    _require_official_cloud(request)
     user_id = current_user.id
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
     
