@@ -71,6 +71,23 @@ export type SecretRequirement = {
   noApiKey?: boolean;
 };
 
+export type ParsedSecretEnvKey = {
+  envKey: string;
+  vaultPath: string;
+  vaultKey: string;
+};
+
+export type VaultSecretPresence = "present" | "missing" | "unavailable";
+
+export type SecretPreflightSummary = {
+  inlineSecretEnvKeys: string[];
+  importedSecretEnvKeys: string[];
+  emptySecretEnvKeys: string[];
+  importedVaultPresent: string[];
+  importedVaultMissing: string[];
+  importedVaultUnavailable: string[];
+};
+
 export type CaddyPlan = {
   role: ServerRole;
   action: CaddyAction;
@@ -268,6 +285,57 @@ export function findMissingRequiredSecrets(input: {
     .filter((item) => !configured.has(item.envKey))
     .filter((item) => !installedKeys.has(item.envKey) || !configured.has(item.envKey))
     .map((item) => item.envKey);
+}
+
+export function parseSecretEnvKey(envKey: string): ParsedSecretEnvKey | null {
+  if (!envKey.startsWith("SECRET__")) return null;
+  const parts = envKey.slice("SECRET__".length).split("__", 2);
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  return {
+    envKey,
+    vaultPath: `kv/data/providers/${parts[0].toLowerCase()}`,
+    vaultKey: parts[1].toLowerCase(),
+  };
+}
+
+export function summarizeSecretPreflight(input: {
+  env: Record<string, string>;
+  vaultPresence?: Record<string, VaultSecretPresence>;
+}): SecretPreflightSummary {
+  const inlineSecretEnvKeys: string[] = [];
+  const importedSecretEnvKeys: string[] = [];
+  const emptySecretEnvKeys: string[] = [];
+  const importedVaultPresent: string[] = [];
+  const importedVaultMissing: string[] = [];
+  const importedVaultUnavailable: string[] = [];
+
+  for (const [envKey, rawValue] of Object.entries(input.env).sort(([a], [b]) => a.localeCompare(b))) {
+    if (!parseSecretEnvKey(envKey)) continue;
+    const value = rawValue.trim();
+    if (!value) {
+      emptySecretEnvKeys.push(envKey);
+      continue;
+    }
+    if (value !== "IMPORTED_TO_VAULT") {
+      inlineSecretEnvKeys.push(envKey);
+      continue;
+    }
+
+    importedSecretEnvKeys.push(envKey);
+    const presence = input.vaultPresence?.[envKey];
+    if (presence === "present") importedVaultPresent.push(envKey);
+    else if (presence === "missing") importedVaultMissing.push(envKey);
+    else importedVaultUnavailable.push(envKey);
+  }
+
+  return {
+    inlineSecretEnvKeys,
+    importedSecretEnvKeys,
+    emptySecretEnvKeys,
+    importedVaultPresent,
+    importedVaultMissing,
+    importedVaultUnavailable,
+  };
 }
 
 export function planCaddyCommand(input: { role?: ServerRole | string; action: CaddyAction; appliedPath?: string }): CaddyPlan {

@@ -51,9 +51,11 @@ import {
   planRestore,
   planServerRuntime,
   planUpdate,
+  parseSecretEnvKey,
   resolveServiceSelection,
   resolveTemplateSource,
   findMissingRequiredSecrets,
+  summarizeSecretPreflight,
 } from "../src/serverPlanning.ts";
 
 // server.ts imports serverConfig.js which breaks with --experimental-strip-types.
@@ -590,6 +592,38 @@ describe("server preflight and Caddy planning", () => {
     });
 
     assert.deepEqual(missing, ["SECRET__NEW_REQUIRED__API_KEY"]);
+  });
+
+  it("maps SECRET env keys to Vault provider paths", () => {
+    assert.deepEqual(parseSecretEnvKey("SECRET__OPENAI__API_KEY"), {
+      envKey: "SECRET__OPENAI__API_KEY",
+      vaultPath: "kv/data/providers/openai",
+      vaultKey: "api_key",
+    });
+    assert.equal(parseSecretEnvKey("DIRECTUS_TOKEN"), null);
+    assert.equal(parseSecretEnvKey("SECRET__BROKEN"), null);
+  });
+
+  it("summarizes inline, empty, imported, and missing Vault secrets", () => {
+    const summary = summarizeSecretPreflight({
+      env: {
+        SECRET__OPENAI__API_KEY: "IMPORTED_TO_VAULT",
+        SECRET__ANTHROPIC__API_KEY: "sk-ant-inline",
+        SECRET__BRAVE__API_KEY: "",
+        SECRET__FIRECRAWL__API_KEY: "IMPORTED_TO_VAULT",
+        DATABASE_PASSWORD: "kept-in-env",
+      },
+      vaultPresence: {
+        SECRET__OPENAI__API_KEY: "present",
+        SECRET__FIRECRAWL__API_KEY: "missing",
+      },
+    });
+
+    assert.deepEqual(summary.importedSecretEnvKeys, ["SECRET__FIRECRAWL__API_KEY", "SECRET__OPENAI__API_KEY"]);
+    assert.deepEqual(summary.importedVaultPresent, ["SECRET__OPENAI__API_KEY"]);
+    assert.deepEqual(summary.importedVaultMissing, ["SECRET__FIRECRAWL__API_KEY"]);
+    assert.deepEqual(summary.inlineSecretEnvKeys, ["SECRET__ANTHROPIC__API_KEY"]);
+    assert.deepEqual(summary.emptySecretEnvKeys, ["SECRET__BRAVE__API_KEY"]);
   });
 
   it("blocks continuous update plans when required secrets are missing", () => {

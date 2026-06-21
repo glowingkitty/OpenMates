@@ -8,7 +8,7 @@
  * Tests: frontend/packages/openmates-cli/tests/server.test.ts
  */
 
-import { execSync, spawn as nodeSpawn } from "node:child_process";
+import { execFileSync, execSync, spawn as nodeSpawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
@@ -34,7 +34,11 @@ import {
   planRestore,
   planServerRuntime,
   planUpdate as planServerUpdate,
+  parseSecretEnvKey,
   resolveServiceSelection,
+  summarizeSecretPreflight,
+  type SecretPreflightSummary,
+  type VaultSecretPresence,
 } from "./serverPlanning.js";
 
 // ---------------------------------------------------------------------------
@@ -828,6 +832,107 @@ function missingRequiredEnvKeys(installPath: string, role: ServerRole): string[]
   return requiredRuntimeEnvKeys(role).filter((key) => !env[key]);
 }
 
+type RuntimeSecretPreflight = SecretPreflightSummary & {
+  vaultChecked: boolean;
+  vaultUnavailableReason: string | null;
+};
+
+function vaultCheckContainerForRole(role: ServerRole): string | null {
+  if (role === "core") return "api";
+  if (role === "upload") return "app-uploads";
+  return null;
+}
+
+function readImportedVaultSecretPresence(role: ServerRole, importedSecrets: ReturnType<typeof parseSecretEnvKey>[]): {
+  presence: Record<string, VaultSecretPresence>;
+  checked: boolean;
+  unavailableReason: string | null;
+} {
+  const checks = importedSecrets.filter((item): item is NonNullable<typeof item> => item !== null);
+  if (checks.length === 0) return { presence: {}, checked: true, unavailableReason: null };
+  const container = vaultCheckContainerForRole(role);
+  if (!container) {
+    return { presence: {}, checked: false, unavailableReason: `${role} role does not expose a Vault-backed app container for secret verification.` };
+  }
+
+  const script = `
+import json
+import os
+import urllib.error
+import urllib.request
+
+checks = json.loads(os.environ["OPENMATES_SECRET_CHECKS"])
+token_path = "/vault-data/api.token"
+try:
+    with open(token_path, "r", encoding="utf-8") as token_file:
+        token = token_file.read().strip()
+except Exception as exc:
+    print(json.dumps({"ok": False, "reason": f"could not read {token_path}: {exc}", "presence": {}}))
+    raise SystemExit(0)
+
+presence = {}
+for item in checks:
+    request = urllib.request.Request(
+        f"http://vault:8200/v1/{item['vaultPath']}",
+        headers={"X-Vault-Token": token},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=3) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        value = payload.get("data", {}).get("data", {}).get(item["vaultKey"])
+        presence[item["envKey"]] = "present" if value else "missing"
+    except urllib.error.HTTPError as exc:
+        presence[item["envKey"]] = "missing" if exc.code == 404 else "unavailable"
+    except Exception:
+        presence[item["envKey"]] = "unavailable"
+
+print(json.dumps({"ok": True, "presence": presence}))
+`;
+
+  try {
+    const output = execFileSync(
+      "docker",
+      ["exec", "-e", `OPENMATES_SECRET_CHECKS=${JSON.stringify(checks)}`, container, "python", "-c", script],
+      { encoding: "utf-8", timeout: 10_000, stdio: ["pipe", "pipe", "pipe"] },
+    ).trim();
+    const parsed = JSON.parse(output) as { ok?: boolean; reason?: string; presence?: Record<string, VaultSecretPresence> };
+    if (parsed.ok === false) return { presence: {}, checked: false, unavailableReason: parsed.reason ?? "Vault check failed." };
+    return { presence: parsed.presence ?? {}, checked: true, unavailableReason: null };
+  } catch (error) {
+    return {
+      presence: {},
+      checked: false,
+      unavailableReason: `Vault check unavailable. Is the ${container} container running? ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+function runtimeSecretPreflight(installPath: string, role: ServerRole): RuntimeSecretPreflight {
+  const env = readEnvMap(installPath);
+  const importedSecrets = Object.entries(env)
+    .filter(([, value]) => value.trim() === "IMPORTED_TO_VAULT")
+    .map(([envKey]) => parseSecretEnvKey(envKey))
+    .filter((item): item is NonNullable<typeof item> => item !== null);
+  const vault = readImportedVaultSecretPresence(role, importedSecrets);
+  return {
+    ...summarizeSecretPreflight({ env, vaultPresence: vault.presence }),
+    vaultChecked: vault.checked,
+    vaultUnavailableReason: vault.unavailableReason,
+  };
+}
+
+function formatSecretPreflight(preflight: RuntimeSecretPreflight): string {
+  const parts = [
+    `${preflight.importedVaultPresent.length}/${preflight.importedSecretEnvKeys.length} imported verified`,
+  ];
+  if (preflight.importedVaultMissing.length) parts.push(`missing in Vault: ${preflight.importedVaultMissing.join(", ")}`);
+  if (preflight.importedVaultUnavailable.length) parts.push(`unverified: ${preflight.importedVaultUnavailable.join(", ")}`);
+  if (preflight.inlineSecretEnvKeys.length) parts.push(`inline SECRET entries: ${preflight.inlineSecretEnvKeys.length}`);
+  if (preflight.emptySecretEnvKeys.length) parts.push(`empty SECRET entries: ${preflight.emptySecretEnvKeys.length}`);
+  if (preflight.vaultUnavailableReason) parts.push(preflight.vaultUnavailableReason);
+  return parts.join("; ");
+}
+
 function writeChecksums(rootDir: string): void {
   const lines: string[] = [];
   const walk = (dir: string) => {
@@ -1459,6 +1564,12 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
   const filterRequested = hasServiceFilter(flags);
   const selectedServices = filterRequested ? selectedComposeServices(role, flags) : [];
   const missingEnvKeys = missingRequiredEnvKeys(installPath, role);
+  const secretPreflight = runtimeSecretPreflight(installPath, role);
+  const missingOrUnverifiedSecrets = [
+    ...missingEnvKeys,
+    ...secretPreflight.importedVaultMissing,
+    ...secretPreflight.importedVaultUnavailable,
+  ];
 
   if (installMode === "source" && (flags["image-tag"] !== undefined || flags.channel !== undefined)) {
     throw new Error("--image-tag and --channel only apply to image-mode installs. Source-mode installs update from Git.");
@@ -1472,7 +1583,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     const currentTag = getImageTagFromEnv(installPath, config);
     const target = resolveTargetImageTag(flags, currentTag, getPackageVersion());
     const templateRef = templateRefForImageTag(target.tag, getPackageVersion());
-    const safetyPlan = planServerUpdate({ role, selectedServices, dryRun, skipBackup: flags["skip-backup"] === true, continuous: false, missingRequiredSecrets: missingEnvKeys });
+    const safetyPlan = planServerUpdate({ role, selectedServices, dryRun, skipBackup: flags["skip-backup"] === true, continuous: false, missingRequiredSecrets: missingOrUnverifiedSecrets });
     const plan = {
       command: "update",
       role,
@@ -1486,6 +1597,7 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
       steps: safetyPlan.steps,
       backupName: safetyPlan.backupName,
       missingRequiredEnvKeys: missingEnvKeys,
+      secretPreflight,
       blocked: safetyPlan.blocked,
       blockReason: safetyPlan.blockReason,
       dryRun,
@@ -1505,14 +1617,18 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
         console.log(`  Backup:        ${safetyPlan.backupName ?? "none"}`);
         console.log(`  Steps:         ${safetyPlan.steps.join(" -> ")}`);
         console.log(`  Env preflight: ${missingEnvKeys.length ? `missing ${missingEnvKeys.join(", ")}` : "ok"}`);
+        console.log(`  Vault secrets: ${formatSecretPreflight(secretPreflight)}`);
         console.log("  Commands:      refresh compose, docker compose pull, docker compose up -d, health checks");
       }
       return;
     }
 
     if (safetyPlan.blocked) throw new Error(safetyPlan.blockReason ?? "Update blocked by preflight.");
-    if (missingEnvKeys.length && flags.yes !== true) {
-      throw new Error(`Required environment keys are missing: ${missingEnvKeys.join(", ")}. Add them to .env or rerun with --yes after reviewing.`);
+    if (missingOrUnverifiedSecrets.length && flags.yes !== true) {
+      throw new Error(
+        `Required runtime secret checks failed: ${missingOrUnverifiedSecrets.join(", ")}. ` +
+        "Add missing non-SECRET values to .env, ensure IMPORTED_TO_VAULT markers exist in Vault, or rerun with --yes after reviewing.",
+      );
     }
 
     console.error(`Mode: image`);
@@ -2158,8 +2274,14 @@ async function serverPreflight(flags: Record<string, string | boolean>): Promise
   const config = loadConfigForInstallPath(installPath);
   const role = getServerRole(flags, config);
   const services = hasServiceFilter(flags) ? selectedComposeServices(role, flags) : [];
-  const updatePlan = planServerUpdate({ role, selectedServices: services, dryRun: true });
   const missingEnvKeys = missingRequiredEnvKeys(installPath, role);
+  const secretPreflight = runtimeSecretPreflight(installPath, role);
+  const missingOrUnverifiedSecrets = [
+    ...missingEnvKeys,
+    ...secretPreflight.importedVaultMissing,
+    ...secretPreflight.importedVaultUnavailable,
+  ];
+  const updatePlan = planServerUpdate({ role, selectedServices: services, dryRun: true, continuous: true, missingRequiredSecrets: missingOrUnverifiedSecrets });
   const runtimePlan = planServerRuntime({
     role,
     profile: getCoreProfile(flags, config),
@@ -2177,6 +2299,10 @@ async function serverPreflight(flags: Record<string, string | boolean>): Promise
     updateSteps: updatePlan.steps,
     backupName: updatePlan.backupName,
     missingRequiredEnvKeys: missingEnvKeys,
+    secretPreflight,
+    missingOrUnverifiedSecrets,
+    blocked: updatePlan.blocked,
+    blockReason: updatePlan.blockReason,
     caddy: caddyPlan,
   };
 
@@ -2191,6 +2317,8 @@ async function serverPreflight(flags: Record<string, string | boolean>): Promise
   console.log(`  Services:      ${hasServiceFilter(flags) ? services.join(", ") : "all"}`);
   console.log(`  Backup:        ${updatePlan.backupName ?? "none"}`);
   console.log(`  Env preflight: ${missingEnvKeys.length ? `missing ${missingEnvKeys.join(", ")}` : "ok"}`);
+  console.log(`  Vault secrets: ${formatSecretPreflight(secretPreflight)}`);
+  if (updatePlan.blocked) console.log(`  Blocked:       ${updatePlan.blockReason}`);
   console.log(`  Health checks: ${runtimePlan.healthChecks.join(", ")}`);
   console.log(`  Caddy steps:   ${caddyPlan.steps.join(" -> ")}`);
 }
@@ -2247,14 +2375,16 @@ async function serverCaddy(rest: string[], flags: Record<string, string | boolea
       }
     }
     const backupPath = `${appliedPath}.openmates-backup-${nowStamp()}`;
+    const hadExistingCaddyfile = existsSync(appliedPath);
     try {
-      if (existsSync(appliedPath)) copyFileSync(appliedPath, backupPath);
+      mkdirSync(dirname(appliedPath), { recursive: true });
+      if (hadExistingCaddyfile) copyFileSync(appliedPath, backupPath);
       copyFileSync(templatePath, appliedPath);
       execSync("systemctl reload caddy", { stdio: "inherit" });
     } catch (error) {
       throw new Error(`Could not apply Caddyfile. Run with sudo or use --config <writable path>. ${error instanceof Error ? error.message : String(error)}`);
     }
-    console.log(`Applied Caddyfile for ${role}. Backup: ${backupPath}`);
+    console.log(`Applied Caddyfile for ${role}. ${hadExistingCaddyfile ? `Backup: ${backupPath}` : "No previous Caddyfile existed."}`);
     return;
   }
 
