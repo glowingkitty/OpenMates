@@ -13,6 +13,7 @@
     rankInterestTagsForSelection,
   } from '../demo_chats/guestSmartSelection';
   import type { InterestTagId } from '../demo_chats/interestTags';
+  import { appsMetadata } from '../data/appsMetadata';
   import {
     topicPreferencesStore,
   } from '../stores/topicPreferencesStore';
@@ -42,9 +43,11 @@
     return translated && translated !== labelKey ? translated : fallbackLabel;
   }
 
-  function gradientFor(category: string): string {
-    const gradient = getCategoryGradientColors(category) || { start: '#6366f1', end: '#4f46e5' };
-    return `linear-gradient(135deg, ${gradient.start}, ${gradient.end})`;
+  function gradientFor(appId: string, category: string): string {
+    const gradient = appsMetadata[appId]?.icon_colorgradient
+      || getCategoryGradientColors(category)
+      || { start: '#6366f1', end: '#4f46e5' };
+    return `var(--color-app-${appId}, linear-gradient(135deg, ${gradient.start}, ${gradient.end}))`;
   }
 
   function toggleTag(tagId: InterestTagId) {
@@ -71,7 +74,8 @@
         class:active={selectedSet.has(tag.id)}
         data-testid={`interest-tag-${tag.id}`}
         data-interest-active={selectedSet.has(tag.id) ? 'true' : 'false'}
-        style:background={gradientFor(tag.gradientCategory)}
+        data-app-id={tag.appId}
+        style:background={gradientFor(tag.appId, tag.gradientCategory)}
         onclick={() => toggleTag(tag.id)}
       >
         <IconComponent size={15} color="white" />

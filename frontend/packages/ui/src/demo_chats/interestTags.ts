@@ -22,6 +22,7 @@ export interface InterestTag {
   labelKey: string;
   fallbackLabel: string;
   icon: string;
+  appId: string;
   gradientCategory: string;
   defaultOrder: number;
   related: InterestTagId[];
@@ -37,6 +38,7 @@ export const INTEREST_TAGS: InterestTag[] = [
     labelKey: "chat.interests.software_development",
     fallbackLabel: "software development",
     icon: "code",
+    appId: "code",
     gradientCategory: "software_development",
     defaultOrder: 60,
     related: [
@@ -68,6 +70,7 @@ export const INTEREST_TAGS: InterestTag[] = [
     labelKey: "chat.interests.use_the_cli",
     fallbackLabel: "use the CLI",
     icon: "terminal",
+    appId: "code",
     gradientCategory: "software_development",
     defaultOrder: 80,
     related: ["software_development", "run_code", "read_developer_docs"],
@@ -87,6 +90,7 @@ export const INTEREST_TAGS: InterestTag[] = [
     labelKey: "chat.interests.open_source",
     fallbackLabel: "open source",
     icon: "git-branch",
+    appId: "code",
     gradientCategory: "software_development",
     defaultOrder: 70,
     related: ["software_development", "read_developer_docs", "protect_my_privacy"],
@@ -100,6 +104,7 @@ export const INTEREST_TAGS: InterestTag[] = [
     labelKey: "chat.interests.read_developer_docs",
     fallbackLabel: "read developer docs",
     icon: "file-code",
+    appId: "code",
     gradientCategory: "software_development",
     defaultOrder: 90,
     related: ["software_development", "use_the_cli", "run_code", "open_source"],
@@ -116,6 +121,7 @@ export const INTEREST_TAGS: InterestTag[] = [
     labelKey: "chat.interests.run_code",
     fallbackLabel: "run code",
     icon: "play",
+    appId: "code",
     gradientCategory: "software_development",
     defaultOrder: 100,
     related: ["software_development", "use_the_cli", "read_developer_docs"],
@@ -132,6 +138,7 @@ export const INTEREST_TAGS: InterestTag[] = [
     labelKey: "chat.interests.protect_my_privacy",
     fallbackLabel: "protect my privacy",
     icon: "shield-check",
+    appId: "ai",
     gradientCategory: "openmates_official",
     defaultOrder: 10,
     related: ["open_source", "software_development", "summarize_documents"],
@@ -152,6 +159,7 @@ export const INTEREST_TAGS: InterestTag[] = [
     labelKey: "chat.interests.summarize_documents",
     fallbackLabel: "summarize documents",
     icon: "file-text",
+    appId: "pdf",
     gradientCategory: "business_development",
     defaultOrder: 30,
     related: ["protect_my_privacy", "read_developer_docs", "learn_anything"],
@@ -169,6 +177,7 @@ export const INTEREST_TAGS: InterestTag[] = [
     labelKey: "chat.interests.find_apartments",
     fallbackLabel: "find apartments",
     icon: "home",
+    appId: "home",
     gradientCategory: "business_development",
     defaultOrder: 50,
     related: ["local_life"],
@@ -182,6 +191,7 @@ export const INTEREST_TAGS: InterestTag[] = [
     labelKey: "chat.interests.local_life",
     fallbackLabel: "local life",
     icon: "map-pin",
+    appId: "maps",
     gradientCategory: "general_knowledge",
     defaultOrder: 40,
     related: ["find_apartments", "learn_anything"],
@@ -199,6 +209,7 @@ export const INTEREST_TAGS: InterestTag[] = [
     labelKey: "chat.interests.learn_anything",
     fallbackLabel: "learn anything",
     icon: "sparkles",
+    appId: "web",
     gradientCategory: "general_knowledge",
     defaultOrder: 20,
     related: ["summarize_documents", "local_life"],

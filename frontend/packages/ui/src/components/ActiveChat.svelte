@@ -109,7 +109,6 @@
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
     import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
-    import GuestIntroHero from './GuestIntroHero.svelte';
     import GuestInterestTags from './GuestInterestTags.svelte';
     import EventEmbedPreview from './embeds/events/EventEmbedPreview.svelte';
     import SavedEmbedContinuePreview from './SavedEmbedContinuePreview.svelte';
@@ -10675,15 +10674,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             class:welcome-hiding={hideWelcomeForKeyboard}
                             inert={hideWelcomeForKeyboard}
                         >
-                            {#if $authStore.isAuthenticated}
-                                <DailyInspirationBanner
-                                    onStartChat={handleStartChatFromInspiration}
-                                    onEmbedFullscreen={handleInspirationEmbedFullscreen}
-                                    containerWidth={effectiveChatWidth}
-                                />
-                            {:else}
-                                <GuestIntroHero />
-                            {/if}
+                            <DailyInspirationBanner
+                                onStartChat={handleStartChatFromInspiration}
+                                onEmbedFullscreen={handleInspirationEmbedFullscreen}
+                                containerWidth={effectiveChatWidth}
+                                variant={$authStore.isAuthenticated ? 'default' : 'guest-intro'}
+                            />
                         </div>
                     {/if}
 
@@ -10817,16 +10813,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                             {#each welcomeHeadingParts as part, index}
                                                 <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
                                             {/each}
-                                            <br>
-                                            {#each guestInterestHeadingParts as part, index}
-                                                <span>{part}</span>{#if index < guestInterestHeadingParts.length - 1}<br>{/if}
-                                            {/each}
                                         {:else}
                                             {#each welcomeHeadingParts as part, index}
                                                 <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
                                             {/each}
                                         {/if}
                                     </h2>
+                                    {#if !$authStore.isAuthenticated}
+                                        <p class="guest-interest-prompt">
+                                            {#each guestInterestHeadingParts as part, index}
+                                                <span>{part}</span>{#if index < guestInterestHeadingParts.length - 1}<br>{/if}
+                                            {/each}
+                                        </p>
+                                    {/if}
                                     <!-- Subtitle: decrypting indicator while Phase 1 metadata is syncing, then "Continue where you left off" when cards are ready. -->
                                     {#if $authStore.isAuthenticated}
                                         {#if isContinueChatsLoading}
@@ -12426,6 +12425,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         margin: 8px 0 0;
         color: var(--color-grey-60);
         font-size: var(--font-size-p);
+    }
+
+    .welcome-text .guest-interest-prompt {
+        color: var(--color-grey-60);
+        font-size: var(--font-size-p);
+        font-weight: 600;
+        line-height: 1.25;
     }
 
     .welcome-text .decrypting-chats-text {

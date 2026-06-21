@@ -86,9 +86,12 @@
     containerWidth?: number;
     /** Which workspace surface this banner is rendered in. Legacy items default to chats. */
     surface?: DailyInspirationSurface;
+    /** Visual treatment. Guest intro keeps carousel behavior with ChatHeader-like split media. */
+    variant?: 'default' | 'guest-intro';
   }
 
-  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats' }: Props = $props();
+  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default' }: Props = $props();
+  let isGuestIntroVariant = $derived(variant === 'guest-intro');
 
   // ─── Local state (Svelte 5 runes) ──────────────────────────────────────────
 
@@ -380,7 +383,7 @@
   let isMobileBannerLayout = $derived(containerWidth > 0 && containerWidth <= 730);
 
   /** Whether mobile should alternate between the assistant message and embed. */
-  let shouldCycleMobileCard = $derived((hasAttachedVideo || hasInfoContent) && isMobileBannerLayout);
+  let shouldCycleMobileCard = $derived(!isGuestIntroVariant && (hasAttachedVideo || hasInfoContent) && isMobileBannerLayout);
 
   let hasVideo = $derived(hasAttachedVideo && (containerWidth >= 520 || shouldCycleMobileCard));
 
@@ -415,6 +418,14 @@
       : ''
   );
   let directVideoMp4Url = $derived(current?.direct_video?.mp4_url ?? '');
+  let directVideoTeaserUrl = $derived(current?.direct_video?.teaser_url ?? '');
+  let directVideoTeaserMp4Url = $derived(current?.direct_video?.teaser_mp4_url ?? '');
+  let directVideoPosterUrl = $derived(
+    current?.direct_video?.teaser_webp_url
+      || (current?.direct_video?.thumbnail_url
+        ? proxyImage(current.direct_video.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL)
+        : ''),
+  );
 
   let infoCardTitle = $derived(current?.wiki?.title || current?.feature?.title || current?.title || '');
   let infoCardSubtitle = $derived(current?.wiki?.description || current?.feature?.description || '');
@@ -425,7 +436,7 @@
         ? proxyImage(current.direct_video.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL)
         : ''
   );
-  let hasInfoCard = $derived(!hasVideo && hasInfoContent && !hasWikiContent);
+  let hasInfoCard = $derived(!isGuestIntroVariant && !hasVideo && hasInfoContent && !hasWikiContent);
   let mobilePreviewKey = $derived(embedPreviewId || infoCardTitle || current?.inspiration_id || '');
   let progressAnimationKey = $derived(`${current?.inspiration_id ?? 'none'}-${currentIndex}-${progressRestartToken}`);
   let InfoCardIconComponent = $derived.by(() => {
@@ -751,8 +762,9 @@
       since carousel arrow <button> elements live inside the card.
       Fixed height of 240px so the embed is never cut off.
     -->
-    <div
-      class="daily-inspiration-banner"
+      <div
+        class="daily-inspiration-banner"
+      class:guest-intro-variant={isGuestIntroVariant}
       data-testid="daily-inspiration-banner"
       style={gradientStyle}
       onclick={handleStartChat}
@@ -792,11 +804,13 @@
       <!-- ── Centered inner content wrapper (max-width 680px) ── -->
       <div class="banner-inner">
 
-        <!-- ── Top label ── -->
-        <div class="banner-label">
-          <BookOpen size={14} color="rgba(255,255,255,0.85)" />
-          <span data-testid="daily-inspiration-label">{$text('daily_inspiration.label')}</span>
-        </div>
+        {#if !isGuestIntroVariant}
+          <!-- ── Top label ── -->
+          <div class="banner-label">
+            <BookOpen size={14} color="rgba(255,255,255,0.85)" />
+            <span data-testid="daily-inspiration-label">{$text('daily_inspiration.label')}</span>
+          </div>
+        {/if}
 
         <!-- ── Main content row: left (mate + text + CTA) + right (embed) ── -->
         <div
@@ -805,41 +819,99 @@
           class:show-mobile-card={shouldCycleMobileCard && showMobileCard}
         >
 
-          <!-- Left column: mate profile (left) + phrase (right), CTA pinned to bottom -->
-          <div class="banner-left">
-            <!-- Row: mate profile image + inspiration phrase side-by-side, vertically centered -->
-            <div class="banner-phrase-row">
-              <!-- Mate profile image with AI badge (uses global mates.css classes) -->
-              <div class="mate-profile banner-mate-profile {displayCategory}"></div>
-
-              <!-- Inspiration phrase -->
-              <p class="banner-phrase" data-testid="daily-inspiration-phrase">{current.phrase}</p>
-            </div>
-
-            <!-- CTA: plain text + icon — pinned to bottom of banner-left. -->
-            <div class="banner-cta">
-              {#if isFeatureInspiration}
-                <LinkIcon class="banner-cta-svg-icon" size={15} color="rgba(255, 255, 255, 0.85)" />
+          {#if isGuestIntroVariant}
+            <div class="guest-intro-copy" data-testid="guest-intro-copy">
+              {#if current.inspiration_id === 'openmates-intro'}
+                <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line1')}</span>
+                <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line2')}</span>
+                <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line3')}</span>
               {:else}
-                <span class="clickable-icon icon_create banner-cta-icon"></span>
+                <span class="guest-intro-copy-line">{infoCardTitle || current.title || $text('daily_inspiration.label')}</span>
+                <span class="guest-intro-copy-summary" data-testid="daily-inspiration-phrase">{current.phrase}</span>
               {/if}
-              <span class="banner-cta-text">
-                {isFeatureInspiration
-                  ? (prefersTouchCta
-                    ? $text('daily_inspiration.tap_to_open_settings')
-                    : $text('daily_inspiration.click_to_open_settings'))
-                  : current.is_opened && current.opened_chat_id
-                  ? $text('daily_inspiration.open_chat')
-                  : $text('daily_inspiration.click_to_start_chat')}
-              </span>
             </div>
-          </div>
+          {:else}
+            <!-- Left column: mate profile (left) + phrase (right), CTA pinned to bottom -->
+            <div class="banner-left">
+              <!-- Row: mate profile image + inspiration phrase side-by-side, vertically centered -->
+              <div class="banner-phrase-row">
+                <!-- Mate profile image with AI badge (uses global mates.css classes) -->
+                <div class="mate-profile banner-mate-profile {displayCategory}"></div>
+
+                <!-- Inspiration phrase -->
+                <p class="banner-phrase" data-testid="daily-inspiration-phrase">{current.phrase}</p>
+              </div>
+
+              <!-- CTA: plain text + icon — pinned to bottom of banner-left. -->
+              <div class="banner-cta">
+                {#if isFeatureInspiration}
+                  <LinkIcon class="banner-cta-svg-icon" size={15} color="rgba(255, 255, 255, 0.85)" />
+                {:else}
+                  <span class="clickable-icon icon_create banner-cta-icon"></span>
+                {/if}
+                <span class="banner-cta-text">
+                  {isFeatureInspiration
+                    ? (prefersTouchCta
+                      ? $text('daily_inspiration.tap_to_open_settings')
+                      : $text('daily_inspiration.click_to_open_settings'))
+                    : current.is_opened && current.opened_chat_id
+                    ? $text('daily_inspiration.open_chat')
+                    : $text('daily_inspiration.click_to_start_chat')}
+                </span>
+              </div>
+            </div>
+          {/if}
 
           <!-- Right column: VideoEmbedPreview (if video attached).
                Click on this area opens the video fullscreen, NOT a new chat.
                We wrap with a transparent overlay button to capture clicks cleanly
                and prevent the banner's onclick from firing. -->
-          {#if hasVideo && embedPreviewId}
+          {#if isGuestIntroVariant && directVideoMp4Url}
+            <button
+              type="button"
+              class="guest-intro-video-box"
+              data-testid="guest-intro-video-shell"
+              aria-label={$text('daily_inspiration.watch_video')}
+              onclick={handleDirectVideoClick}
+            >
+              {#if directVideoTeaserUrl || directVideoTeaserMp4Url}
+                <video
+                  class="guest-intro-video"
+                  data-testid="guest-intro-video"
+                  poster={directVideoPosterUrl || undefined}
+                  autoplay
+                  muted
+                  loop
+                  playsinline
+                  preload="metadata"
+                >
+                  {#if directVideoTeaserUrl}
+                    <source src={directVideoTeaserUrl} type="video/webm" />
+                  {/if}
+                  {#if directVideoTeaserMp4Url}
+                    <source src={directVideoTeaserMp4Url} type="video/mp4" />
+                  {/if}
+                </video>
+              {:else if directVideoPosterUrl}
+                <img class="guest-intro-video" data-testid="guest-intro-video" src={directVideoPosterUrl} alt="" />
+              {/if}
+              <span class="guest-intro-play" aria-hidden="true"><span></span></span>
+            </button>
+          {:else if isGuestIntroVariant && hasInfoContent}
+            <div class="guest-intro-feature-card" data-testid="daily-inspiration-info-card">
+              {#if InfoCardIconComponent}
+                <div class="guest-intro-feature-icon" aria-hidden="true">
+                  <InfoCardIconComponent size={34} color="white" />
+                </div>
+              {/if}
+              <div class="guest-intro-feature-text">
+                <h3>{infoCardTitle}</h3>
+                {#if infoCardSubtitle}
+                  <p>{infoCardSubtitle}</p>
+                {/if}
+              </div>
+            </div>
+          {:else if hasVideo && embedPreviewId}
             <div
               class="banner-embed-wrapper"
               onclick={handleEmbedClick}
@@ -1041,6 +1113,10 @@
     transform: scale(0.995);
   }
 
+  .daily-inspiration-banner.guest-intro-variant {
+    min-height: 240px;
+  }
+
   /* ── Inner content wrapper: max-width 680px, centered ── */
   .banner-inner {
     width: 100%;
@@ -1056,6 +1132,14 @@
     /* Sit above the decorative deco-icon elements (z-index: 1) */
     position: relative;
     z-index: var(--z-index-dropdown-1);
+  }
+
+  .guest-intro-variant .banner-inner {
+    width: min(calc(100% - 80px), clamp(960px, 72vw, 1080px));
+    max-width: none;
+    padding: 8px 40px;
+    justify-content: center;
+    gap: 0;
   }
 
   /* ── Top label ── */
@@ -1078,6 +1162,138 @@
     gap: 14px;
     flex: 1;
     min-height: 0;
+  }
+
+  .guest-intro-variant .banner-content {
+    align-items: center;
+    justify-content: center;
+    gap: 36px;
+    width: 100%;
+    transform: translateZ(0);
+    contain: layout paint;
+  }
+
+  .guest-intro-copy {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    color: white;
+    text-align: left;
+  }
+
+  .guest-intro-copy-line {
+    display: block;
+    max-width: 620px;
+    font-size: clamp(1.65rem, 3vw, 3.1rem);
+    line-height: 1.08;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.2);
+  }
+
+  .guest-intro-copy-summary {
+    display: block;
+    max-width: 560px;
+    margin-top: var(--spacing-2);
+    font-size: clamp(1rem, 1.35vw, 1.35rem);
+    line-height: 1.35;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .guest-intro-video-box,
+  .guest-intro-feature-card {
+    position: relative;
+    flex: 0 1 min(44vw, 620px);
+    width: min(44vw, 620px);
+    min-width: 320px;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--radius-6);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    overflow: hidden;
+    background: rgba(18, 18, 18, 0.9);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.18);
+  }
+
+  .guest-intro-video-box {
+    display: block;
+    padding: 0 !important;
+    cursor: pointer;
+  }
+
+  .guest-intro-video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .guest-intro-play {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+    display: grid;
+    place-items: center;
+    width: clamp(68px, 7vw, 96px);
+    height: clamp(68px, 7vw, 96px);
+    border-radius: 999px;
+    background: rgba(245, 105, 86, 0.72);
+    border: 2px solid rgba(255, 255, 255, 0.58);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .guest-intro-play span {
+    display: block;
+    width: 0;
+    height: 0;
+    margin-left: 6px;
+    border-top: 17px solid transparent;
+    border-bottom: 17px solid transparent;
+    border-left: 25px solid rgba(255, 255, 255, 0.96);
+  }
+
+  .guest-intro-feature-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-5);
+    padding: var(--spacing-8);
+    box-sizing: border-box;
+    color: white;
+    text-align: center;
+  }
+
+  .guest-intro-feature-icon {
+    display: grid;
+    place-items: center;
+    width: 62px;
+    height: 62px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .guest-intro-feature-text h3,
+  .guest-intro-feature-text p {
+    margin: 0;
+  }
+
+  .guest-intro-feature-text h3 {
+    font-size: var(--font-size-lg);
+    line-height: 1.15;
+  }
+
+  .guest-intro-feature-text p {
+    margin-top: var(--spacing-2);
+    font-size: var(--font-size-small);
+    line-height: 1.35;
+    color: rgba(255, 255, 255, 0.78);
   }
 
   /* ── Left column ──
@@ -1482,6 +1698,39 @@
 
     .banner-inner {
       padding: 12px 48px 10px;
+    }
+
+    .guest-intro-variant .banner-inner {
+      width: 100%;
+      padding: 16px 48px 18px;
+    }
+
+    .guest-intro-variant .banner-content {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 14px;
+    }
+
+    .guest-intro-copy-line {
+      font-size: clamp(1.35rem, 6.8vw, 2.15rem);
+      line-height: 1.06;
+    }
+
+    .guest-intro-copy-summary {
+      font-size: var(--font-size-small);
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .guest-intro-video-box,
+    .guest-intro-feature-card {
+      width: 100%;
+      min-width: 0;
+      flex-basis: auto;
+      max-height: 145px;
     }
 
     .carousel-arrow {
