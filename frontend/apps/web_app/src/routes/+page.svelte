@@ -102,8 +102,6 @@
 	const EDGE_SWIPE_OPEN_DISTANCE_PX = 64;
 	const EDGE_SWIPE_COMPLETE_PROGRESS = 0.35;
 	const EDGE_SWIPE_VERTICAL_CANCEL_PX = 48;
-	const DEFAULT_GUEST_INTRO_CHAT_ID = 'demo-for-everyone';
-	const STAY_LOGGED_IN_FLAG = 'openmates_was_stay_logged_in';
 	const AUTH_DEEP_LINK_LOCAL_FALLBACK_DELAY_MS = 12_000;
 	const PAIR_LOGIN_HASH_PATTERN = /^#pair=[A-Za-z0-9]{6}$/i;
 
@@ -121,25 +119,6 @@
 	let edgeSwipeTouchMoveHandler: ((event: TouchEvent) => void) | null = null;
 	let edgeSwipeTouchEndHandler: ((event: TouchEvent) => void) | null = null;
 
-	function shouldPrimeGuestIntroChatBeforeMount(): boolean {
-		if (!browser || window.location.pathname !== '/') return false;
-		if (window.location.hash) return false;
-
-		const params = new URLSearchParams(window.location.search);
-		if (params.get('og') === '1' || params.get('media') === '1') return false;
-
-		try {
-			if (localStorage.getItem(STAY_LOGGED_IN_FLAG) === 'true') return false;
-			if (sessionStorage.getItem('sessionToken')) return false;
-			if (sessionStorage.getItem('openmates_shared_chat_redirect')) return false;
-		} catch (error) {
-			console.debug('[+page.svelte] Could not inspect auth hints before mount:', error);
-			return false;
-		}
-
-		return true;
-	}
-
 	function isPairLoginPending(): boolean {
 		if (!browser) return false;
 
@@ -153,12 +132,6 @@
 			console.debug('[+page.svelte] Could not inspect pair login state:', error);
 			return false;
 		}
-	}
-
-	// Prime the public intro chat before ActiveChat's first client render. This mirrors
-	// direct #chat-id loads and avoids painting the new-chat screen for guest visitors.
-	if (shouldPrimeGuestIntroChatBeforeMount()) {
-		activeChatStore.setWithoutHashUpdate(DEFAULT_GUEST_INTRO_CHAT_ID);
 	}
 
 	function clampEdgeSwipeProgress(value: number): number {
@@ -962,7 +935,7 @@
 	 * Handler for sync completion - loads chat based on priority:
 	 * 1. URL hash chat (if present)
 	 * 2. Last opened chat (if no hash)
-	 * 3. Default (demo-for-everyone for non-auth, new chat for auth)
+	 * 3. New-chat welcome screen
 	 *
 	 * This implements the "Auto-Open Logic" from sync.md Phase 1 requirements
 	 *
@@ -1121,35 +1094,12 @@
 			return; // ActiveChat $effect will find and display the resume card
 		}
 
-		// PRIORITY 3: Default chat (only if no last opened chat was loaded)
-		// For non-authenticated users: demo-for-everyone
-		// For authenticated users: new chat window
-		// Exception: ?og=1 skips the demo-for-everyone redirect so the welcome screen
-		// (with daily inspiration + for-everyone card) stays visible — used by /dev/og-image iframes.
-		const ogMediaParams = browser ? new URLSearchParams(window.location.search) : null;
-		const isOgMode = ogMediaParams?.get('og') === '1' || ogMediaParams?.get('media') === '1';
-
+		// PRIORITY 3: Default chat (only if no last opened chat was loaded).
+		// Fresh no-hash sessions now stay on the new-chat welcome screen for both
+		// authenticated and guest users; intro/demo chats remain explicit card links.
 		if (!$activeChatStore && activeChat) {
-			if (!$authStore.isAuthenticated && !isOgMode) {
-				// Non-auth: load demo-for-everyone
-				console.debug(
-					'[+page.svelte] No last opened chat, loading demo-for-everyone (default for non-auth)'
-				);
-				const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
-				const welcomeDemo = DEMO_CHATS.find((chat) => chat.chat_id === 'demo-for-everyone');
-				if (welcomeDemo) {
-					const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
-					const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-					activeChatStore.setActiveChat('demo-for-everyone');
-					activeChat.loadChat(welcomeChat);
-				}
-			} else {
-				// Auth: show new chat window (clear active chat)
-				console.debug(
-					'[+page.svelte] No last opened chat, showing new chat window (default for auth)'
-				);
-				activeChatStore.clearActiveChat();
-			}
+			console.debug('[+page.svelte] No last opened chat, showing new chat welcome screen');
+			activeChatStore.clearActiveChat();
 		}
 	}
 
@@ -2747,20 +2697,11 @@
 	});
 
 	/**
-	 * Load demo-for-everyone chat for non-authenticated users
+	 * Keep non-authenticated users on the welcome screen unless a local draft exists.
 	 * CRITICAL: Check for existing sessionStorage drafts first - if user has unsaved work,
-	 * we should restore their most recent draft instead of overwriting with the demo chat.
+	 * we should restore their most recent draft instead of showing an empty new-chat screen.
 	 */
 	async function loadDemoWelcomeChat() {
-		// OG/media mode: skip demo-for-everyone so the welcome screen stays visible
-		// This guards ALL callers (onNoHash, handleChatDeepLink, etc.)
-		if (browser) {
-			const params = new URLSearchParams(window.location.search);
-			if (params.get('og') === '1' || params.get('media') === '1') {
-				console.debug('[+page.svelte] loadDemoWelcomeChat: og/media mode, skipping demo-for-everyone');
-				return;
-			}
-		}
 		console.debug('[+page.svelte] loadDemoWelcomeChat called for non-authenticated user');
 
 		// CRITICAL: Check if user has any sessionStorage drafts (new chat drafts)
@@ -2819,37 +2760,12 @@
 				};
 
 				await waitForActiveChatForDraft();
-				return; // Successfully loaded draft, don't load demo chat
+				return; // Successfully loaded draft, don't show empty welcome screen
 			}
 		}
 
-		// No drafts found, load demo-for-everyone as usual
-		console.debug('[+page.svelte] No sessionStorage drafts found, loading demo-for-everyone');
-
-		// Wait for activeChat component to be ready
-		const waitForActiveChat = async (retries = 20): Promise<void> => {
-			if (activeChat) {
-				const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
-				const welcomeDemo = DEMO_CHATS.find((chat) => chat.chat_id === 'demo-for-everyone');
-				if (welcomeDemo) {
-					const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
-					const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-					activeChatStore.setActiveChat('demo-for-everyone');
-					activeChat.loadChat(welcomeChat);
-					console.debug('[+page.svelte] ✅ demo-for-everyone chat loaded successfully');
-				}
-				return;
-			} else if (retries > 0) {
-				await new Promise((resolve) => setTimeout(resolve, 50));
-				return waitForActiveChat(retries - 1);
-			} else {
-				console.error(
-					'[+page.svelte] ⚠️ activeChat not ready after retries - demo-for-everyone may not load'
-				);
-			}
-		};
-
-		await waitForActiveChat();
+		console.debug('[+page.svelte] No sessionStorage drafts found, showing guest welcome screen');
+		activeChatStore.clearActiveChat();
 	}
 
 	/**
@@ -2906,7 +2822,7 @@
 				const isAuth = $authStore.isAuthenticated;
 				console.debug('[+page.svelte] onNoHash: Determining default chat to load', { isAuth });
 
-				// CRITICAL: Do NOT override a new-chat session with demo-for-everyone.
+				// CRITICAL: Do NOT override a new-chat session with a default guest action.
 				// When the user clicks "new chat", handleNewChatClick() in ActiveChat calls
 				// activeChatStore.clearActiveChat() which sets hash to '' and fires a hashchange.
 				// If the programmatic-guard 100ms window has expired (can happen on slow mobile
@@ -2923,11 +2839,8 @@
 				if (isAuth) {
 					// For authenticated users: try to load last_opened chat, otherwise create new chat
 					await loadLastOpenedChatOrCreateNew();
-				} else if (browser && new URLSearchParams(window.location.search).get('og') === '1') {
-					// OG image mode: skip demo-for-everyone so the welcome screen stays visible
-					console.debug('[+page.svelte] onNoHash: og=1 mode, skipping demo-for-everyone load');
 				} else {
-					// For non-authenticated users: load demo-for-everyone chat
+					// For non-authenticated users: restore draft if present, otherwise show welcome.
 					await loadDemoWelcomeChat();
 				}
 			},
