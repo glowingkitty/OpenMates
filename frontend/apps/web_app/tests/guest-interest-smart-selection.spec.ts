@@ -27,6 +27,27 @@ async function visibleSuggestionIds(page: any): Promise<string[]> {
 	);
 }
 
+async function tagRailMetrics(page: any): Promise<{
+	firstTagCenterOffset: number;
+	availableTagCount: number;
+	selectedTagCount: number;
+}> {
+	return page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => {
+		const tags = Array.from(rail.querySelectorAll<HTMLElement>('[data-testid^="interest-tag-"]'));
+		const firstTag = tags[0];
+		const railRect = rail.getBoundingClientRect();
+		const firstRect = firstTag?.getBoundingClientRect();
+		const selectedTagCount = tags.filter((tag) => tag.getAttribute('data-interest-active') === 'true').length;
+		return {
+			firstTagCenterOffset: firstRect
+				? Math.abs((firstRect.left + firstRect.width / 2) - (railRect.left + railRect.width / 2))
+				: Number.POSITIVE_INFINITY,
+			availableTagCount: tags.length - selectedTagCount,
+			selectedTagCount
+		};
+	});
+}
+
 test.describe('Guest interest smart selection', () => {
 	test('fresh guest welcome uses session-only tags and local smart ranking', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
@@ -77,6 +98,10 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
 
 		const defaultTagOrder = await interestTagOrder(page);
+		const defaultRailMetrics = await tagRailMetrics(page);
+		expect(defaultRailMetrics.availableTagCount).toBe(10);
+		expect(defaultRailMetrics.selectedTagCount).toBe(0);
+		expect(defaultRailMetrics.firstTagCenterOffset).toBeLessThanOrEqual(12);
 		expect(defaultTagOrder.slice(0, 6)).toEqual(
 			expect.arrayContaining([
 				'protect_my_privacy',
@@ -100,6 +125,10 @@ test.describe('Guest interest smart selection', () => {
 
 		const tagOrder = await interestTagOrder(page);
 		expect(tagOrder[0]).toBe('software_development');
+		const selectedRailMetrics = await tagRailMetrics(page);
+		expect(selectedRailMetrics.availableTagCount).toBe(10);
+		expect(selectedRailMetrics.selectedTagCount).toBe(1);
+		expect(selectedRailMetrics.firstTagCenterOffset).toBeLessThanOrEqual(12);
 		expect(tagOrder.slice(1, 7)).toEqual(
 			expect.arrayContaining(['use_the_cli', 'open_source', 'read_developer_docs', 'run_code'])
 		);
@@ -113,7 +142,13 @@ test.describe('Guest interest smart selection', () => {
 		expect(storageState.sessionValue).toContain('software_development');
 
 		await page.getByTestId('guest-interest-continue').click();
+		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0);
 		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('resume-chat-large-card').first()).toHaveAttribute(
+			'data-chat-id',
+			'demo-for-developers',
+			{ timeout: 15000 }
+		);
 		await expect(page.getByTestId('suggestions-wrapper')).toBeVisible({ timeout: 15000 });
 
 		const suggestionIds = await visibleSuggestionIds(page);
