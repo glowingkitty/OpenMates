@@ -309,4 +309,10 @@
     cursor: pointer;
     text-decoration: none;
   }
+
+  @media (max-width: 700px) {
+    .guest-interest-rail {
+      padding-right: max(6px, calc(50% - var(--guest-interest-center-offset, 75px)));
+    }
+  }
 </style>

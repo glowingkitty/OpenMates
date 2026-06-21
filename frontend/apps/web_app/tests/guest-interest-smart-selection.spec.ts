@@ -88,6 +88,24 @@ async function firstAvailableTagCenterDelta(page: any): Promise<number> {
 	});
 }
 
+async function lastTagCenterDeltaAtScrollEnd(page: any): Promise<number> {
+	return page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => {
+		const tags = Array.from(rail.querySelectorAll<HTMLElement>('button[data-testid^="interest-tag-"]'));
+		const lastTag = tags[tags.length - 1];
+		if (!lastTag) return Number.POSITIVE_INFINITY;
+		const previousScrollBehavior = rail.style.scrollBehavior;
+		const previousScrollLeft = rail.scrollLeft;
+		rail.style.scrollBehavior = 'auto';
+		rail.scrollLeft = rail.scrollWidth;
+		const railRect = rail.getBoundingClientRect();
+		const tagRect = lastTag.getBoundingClientRect();
+		const centerDelta = Math.abs((railRect.left + railRect.width / 2) - (tagRect.left + tagRect.width / 2));
+		rail.scrollLeft = previousScrollLeft;
+		rail.style.scrollBehavior = previousScrollBehavior;
+		return centerDelta;
+	});
+}
+
 async function guestIntroOpacity(page: any, testId: string): Promise<number> {
 	return page.getByTestId(testId).evaluate((element: HTMLElement) => Number.parseFloat(getComputedStyle(element).opacity));
 }
@@ -263,6 +281,8 @@ test.describe('Guest interest smart selection', () => {
 		await page.waitForLoadState('networkidle');
 
 		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
+		expect(await lastTagCenterDeltaAtScrollEnd(page)).toBeLessThanOrEqual(32);
 		await expect(page.getByTestId('guest-intro-copy')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('guest-intro-video-shell')).toBeVisible({ timeout: 15000 });
 		expect(await guestIntroOpacity(page, 'guest-intro-copy')).toBeGreaterThan(0.7);
