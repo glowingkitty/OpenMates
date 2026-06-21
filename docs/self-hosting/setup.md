@@ -35,6 +35,8 @@ coverage:
 
 - Use `openmates server` for the default install, start, stop, status, logs, update, reset, and uninstall flow.
 - Default installs use prebuilt GHCR images and do not require Git or a source checkout.
+- Role-aware installs are available for `core`, `upload`, and `preview`; core supports `minimal`, `standard`, and `production` profiles.
+- Before image-mode updates, the CLI creates one rotating latest pre-update backup for data-bearing roles unless explicitly skipped.
 - `openmates server start` brings up the backend and the web app. Open the app at `http://localhost:5173`.
 - Default installs generate an invite-only signup configuration; edit `.env` if you want a domain allowlist or invite-plus-domain mode.
 - The first invite creates a normal user. Promote your account separately with `openmates server make-admin <email>`.
@@ -68,6 +70,7 @@ npm install -g openmates
 
 ```bash
 openmates server install --path ~/openmates
+openmates server install --role core --profile production --path ~/openmates
 ```
 
 The installer prepares a lightweight runtime directory, writes the image-mode Docker Compose file, creates `.env`, generates local secrets, and prints the next command to start the server. It does not clone the OpenMates repository.
@@ -75,6 +78,23 @@ The installer prepares a lightweight runtime directory, writes the image-mode Do
 The installer also stores the self-host API target in `~/.openmates/server.json`. Fresh CLI commands such as `openmates login`, `openmates signup`, and `openmates chats list` will use `http://localhost:8000` instead of the OpenMates cloud API unless you already have a saved login session, set `OPENMATES_API_URL`, or pass `--api-url`.
 
 By default the stack pulls OpenMates images from `ghcr.io/glowingkitty` using the CLI version tag, for example `v0.12.0-alpha.0`. Expect the first start to download several GB of compressed images; later updates reuse Docker's image cache.
+
+For satellite VMs, install only the relevant role:
+
+```bash
+openmates server install --role upload --path /opt/openmates-upload
+openmates server install --role preview --path /opt/openmates-preview
+```
+
+Core profiles control observability scope:
+
+| Profile | Services |
+| --- | --- |
+| `minimal` | Core runtime only, no OpenObserve/Promtail/Prometheus/cAdvisor |
+| `standard` | Core runtime plus OpenObserve and Promtail |
+| `production` | Standard plus Prometheus and cAdvisor |
+
+Use `--with-alerts` to add Alertmanager.
 
 Image-mode install defaults to invite codes only. You can edit `~/openmates/.env` before starting if you want a different signup mode:
 
@@ -213,10 +233,19 @@ openmates server restart --path ~/openmates
 openmates server stop --path ~/openmates
 openmates server update --path ~/openmates --dry-run
 openmates server update --path ~/openmates
+openmates server preflight --path ~/openmates
+openmates server backup --path ~/openmates --role core
+openmates server backup list --path ~/openmates --role core
+openmates server caddy status --role core
 openmates server update --path ~/openmates --image-tag v0.12.0-alpha.1
 openmates server update --path ~/openmates --channel dev
+openmates server update install-service --continuous --channel main --window "02:00-04:00 Europe/Berlin"
 openmates server uninstall --path ~/openmates --yes
 ```
+
+`openmates server update` in image mode uses packaged runtime templates shipped with the npm CLI instead of downloading Compose files from a Git tag. This avoids failures when a published npm/GHCR version exists but no matching Git tag exists yet.
+
+Backups contain secrets and should be treated like production credentials. Store them on encrypted disks or move them to a secure backup location. The default backup includes product-critical state; use `--include-observability` only when you also need OpenObserve logs or Prometheus metrics.
 
 For image-mode installs, `openmates server update` refreshes the runtime Compose template, updates `OPENMATES_IMAGE_TAG`, pulls prebuilt images, restarts the stack, and waits for API and web health checks. If you installed with a version tag, updating the CLI first and then running `openmates server update` moves the server to the CLI's image tag. Use `--image-tag <tag>` for a specific image tag, or `--channel stable|main|dev` for mutable channel tags. `stable` maps to the published `main` image tag.
 

@@ -44,6 +44,8 @@ coverage:
 - `openmates server` commands manage a local Docker Compose installation without requiring a cloud login.
 - Default installs use prebuilt GHCR images, so normal operators do not need Git or a source checkout.
 - The CLI stores the installation path, validates that a path looks like an OpenMates installation, and builds the Docker Compose command for core or override services.
+- Server operations are role-aware: use `--role core`, `--role upload`, or `--role preview` for role-specific installs, service filters, backups, updates, and Caddy checks.
+- Image-mode updates create a rotating latest pre-update backup for data-bearing roles before containers are replaced.
 - Image-mode install defaults to invite-only signup; edit `.env` for email-domain allowlists or invite-plus-domain mode.
 - Starting the server warns when no real LLM API key is configured, but still starts the backend and web app. AI model processing stays unavailable until a real key is added.
 
@@ -71,6 +73,9 @@ openmates server install
 openmates server install --path /opt/openmates
 openmates server install --env-path ~/my-env-file
 openmates server install --image-tag v0.12.0-alpha.0
+openmates server install --role core --profile production
+openmates server install --role upload --path /opt/openmates-upload
+openmates server install --role preview --path /opt/openmates-preview
 openmates server install --from-source --path /opt/openmates-source
 openmates server install --source-path /path/to/OpenMates --path /tmp/openmates-selfhost
 ```
@@ -88,6 +93,9 @@ Image-mode install defaults to `invite_only`. The install output includes the fi
 | `--path <dir>` | `~/openmates` | Installation directory |
 | `--env-path <file>` | None | Copy a pre-existing `.env` file during install |
 | `--image-tag <tag>` | CLI version tag | Use a specific prebuilt image tag |
+| `--role core|upload|preview` | `core` | Install a role-specific runtime |
+| `--profile minimal|standard|production` | `production` for core | Select core observability services |
+| `--with-alerts` | Off | Include Alertmanager in the core production profile |
 | `--from-source` | Off | Clone/build from source instead of using prebuilt GHCR images |
 | `--source-path <dir>` | None | Clone from a local checkout instead of GitHub. Implies source mode and is intended for CI/testing/contributors. |
 
@@ -100,6 +108,8 @@ The GHCR package list is intentionally smaller than the runtime container list. 
 ```
 openmates server start
 openmates server start --with-overrides
+openmates server start --exclude webapp
+openmates server start --services api,task-worker
 ```
 
 Starts all Docker containers for the backend and web app. The web app is available at `http://localhost:5173`, and the backend API is available at `http://localhost:8000`.
@@ -158,6 +168,7 @@ openmates server logs
 openmates server logs --container api
 openmates server logs --container api --follow
 openmates server logs --tail 200
+openmates server logs --services api,task-worker
 ```
 
 | Option | Default | Description |
@@ -174,10 +185,13 @@ openmates server update --dry-run
 openmates server update --image-tag v0.12.0-alpha.1
 openmates server update --channel stable
 openmates server update --channel dev
+openmates server update --services api,task-worker
+openmates server update install-service --continuous --channel main --window "02:00-04:00 Europe/Berlin"
+openmates server update status
 openmates server update --force
 ```
 
-Image-mode installs refresh the runtime Compose template, update `OPENMATES_IMAGE_TAG`, run `docker compose pull`, restart the stack, and wait for API and web health checks. By default, version-pinned installs target the current CLI version tag, so update the CLI first when you want the newest released self-host images. Installs already using a channel tag keep that channel unless you pass a different target.
+Image-mode installs refresh the runtime Compose template from the packaged CLI templates, update `OPENMATES_IMAGE_TAG`, create a rotating latest pre-update backup for data-bearing roles, run `docker compose pull`, restart selected services, and wait for role-specific health checks. By default, version-pinned installs target the current CLI version tag, so update the CLI first when you want the newest released self-host images. Installs already using a channel tag keep that channel unless you pass a different target.
 
 Source-mode installs run `git pull --ff-only`, rebuild containers, restart, and wait for health checks. The `--force` flag only applies to source-mode Git updates.
 
@@ -186,7 +200,35 @@ Source-mode installs run `git pull --ff-only`, rebuild containers, restart, and 
 | `--dry-run` | Both modes | Print the update plan without changing files or containers |
 | `--image-tag <tag>` | Image mode | Update to a specific prebuilt image tag |
 | `--channel stable|main|dev` | Image mode | Update using a mutable channel tag. `stable` maps to the published `main` tag. |
+| `--services <csv>` | Image mode | Update only selected role services |
+| `--exclude <csv>` | Image mode | Update all role services except selected services |
+| `install-service --continuous` | Image mode | Install a host-level systemd timer that runs the CLI update path |
 | `--force` | Source mode | Stash local Git changes before `git pull --ff-only` |
+
+## Backups and Restore
+
+```bash
+openmates server backup --role core
+openmates server backup --role core --include-observability
+openmates server backup list --role core
+openmates server restore --role core --file /path/to/openmates-core-backup.tar.gz
+```
+
+Backups are written under `<install>/backups/<role>/` by default with owner-only permissions. Core backups include a Postgres logical dump, runtime `.env`, runtime config, Directus upload/extension paths when present, a manifest, and checksums. `--include-observability` also includes observability scope in the manifest and is reserved for installs that persist OpenObserve/Prometheus data.
+
+Restore requires confirmation unless `--yes` is passed. It validates the manifest role before restoring runtime files and, for core backups, imports `postgres.sql` into the running `cms-database` container.
+
+## Preflight and Caddy
+
+```bash
+openmates server preflight --role core
+openmates server caddy status --role core
+openmates server caddy check --role upload
+openmates server caddy diff --role preview
+openmates server caddy apply --role core --yes
+```
+
+`preflight` reports selected services, backup plan, health checks, required environment keys, and Caddy drift plan. Caddy commands use packaged role templates and never print secret values. `apply` validates the template, backs up the current Caddyfile, writes the replacement, and reloads Caddy; run it with sufficient host privileges.
 
 ## Granting Admin Privileges
 
