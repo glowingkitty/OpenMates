@@ -62,13 +62,13 @@ test.describe('Guest interest smart selection', () => {
 				videoHeight: videoShell?.getBoundingClientRect().height ?? 0
 			};
 		});
-		expect(guestIntroMetrics.bannerHeight).toBeGreaterThanOrEqual(440);
+		expect(guestIntroMetrics.bannerHeight).toBeGreaterThanOrEqual(230);
+		expect(guestIntroMetrics.bannerHeight).toBeLessThanOrEqual(300);
 		expect(guestIntroMetrics.copyTop).toBeGreaterThanOrEqual(guestIntroMetrics.bannerTop);
 		expect(guestIntroMetrics.copyBottom).toBeLessThanOrEqual(guestIntroMetrics.bannerBottom);
-		expect(guestIntroMetrics.copyFontSize).toBeGreaterThanOrEqual(38);
-		expect(guestIntroMetrics.videoHeight).toBeGreaterThanOrEqual(70);
-		expect(guestIntroMetrics.videoHeight).toBeLessThanOrEqual(130);
-		expect(guestIntroMetrics.videoHeight).toBeLessThan(guestIntroMetrics.bannerHeight * 0.35);
+		expect(guestIntroMetrics.copyFontSize).toBeGreaterThanOrEqual(32);
+		expect(guestIntroMetrics.videoHeight).toBeGreaterThanOrEqual(guestIntroMetrics.bannerHeight * 0.75);
+		expect(guestIntroMetrics.videoHeight).toBeLessThanOrEqual(guestIntroMetrics.bannerHeight);
 
 		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('interest-tag-find_apartments')).toHaveAttribute('data-app-id', 'home');

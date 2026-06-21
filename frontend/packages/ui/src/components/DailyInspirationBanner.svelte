@@ -1118,11 +1118,6 @@
     transform: scale(0.995);
   }
 
-  .daily-inspiration-banner.guest-intro-variant {
-    height: clamp(470px, 48vh, 520px);
-    min-height: 470px;
-  }
-
   /* ── Inner content wrapper: max-width 680px, centered ── */
   .banner-inner {
     width: 100%;
@@ -1192,9 +1187,9 @@
   }
 
   .guest-intro-ai-icon {
-    width: clamp(54px, 4.2vw, 72px);
-    height: clamp(54px, 4.2vw, 72px);
-    margin-bottom: var(--spacing-3);
+    width: clamp(38px, 3.2vw, 72px);
+    height: clamp(38px, 3.2vw, 72px);
+    margin-bottom: var(--spacing-2);
     flex-shrink: 0;
     -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
     mask-image: url('@openmates/ui/static/icons/ai.svg');
@@ -1228,7 +1223,7 @@
   .guest-intro-copy-line {
     display: block;
     max-width: 760px;
-    font-size: clamp(2.3rem, 3.1vw, 4.9rem);
+    font-size: clamp(2rem, 2.6vw, 4.9rem);
     line-height: 1.08;
     font-weight: 700;
     letter-spacing: -0.035em;
@@ -1248,10 +1243,12 @@
   .guest-intro-video-box,
   .guest-intro-feature-card {
     position: relative;
-    flex: 0 0 min(48vw, 880px);
-    width: min(48vw, 880px);
-    min-width: 420px;
-    height: clamp(76px, 6.6vw, 118px);
+    flex: 0 1 auto;
+    height: calc(100% - 20px);
+    width: auto;
+    min-width: 360px;
+    max-width: min(54vw, 920px);
+    aspect-ratio: 16 / 9;
     border-radius: var(--radius-4);
     border: 1px solid rgba(255, 255, 255, 0.16);
     overflow: hidden;
@@ -1731,11 +1728,6 @@
       height: 190px;
     }
 
-    .daily-inspiration-banner.guest-intro-variant {
-      height: 320px;
-      min-height: 320px;
-    }
-
     :global(.menu-open) .daily-inspiration-banner,
     :global(.side-by-side-active) .daily-inspiration-banner {
       height: 190px;
@@ -1776,6 +1768,7 @@
       width: 100%;
       min-width: 0;
       flex-basis: auto;
+      height: auto;
       max-height: 145px;
     }
 
