@@ -33,6 +33,7 @@
 
   let selectedTagIds = $state<InterestTagId[]>([]);
   let railEl = $state<HTMLDivElement | null>(null);
+  let sideSpacerPx = $state(0);
   let rankedTags = $derived(rankInterestTagsForSelection(selectedTagIds));
   let selectedSet = $derived(new Set(selectedTagIds));
   let visibleTags = $derived.by(() => {
@@ -76,9 +77,7 @@
   function centerFirstTag() {
     const firstTag = railEl?.querySelector<HTMLElement>('[data-testid^="interest-tag-"]');
     if (!railEl || !firstTag) return;
-    const sidePadding = Math.max(6, (railEl.clientWidth - firstTag.offsetWidth) / 2);
-    railEl.style.paddingLeft = `${sidePadding}px`;
-    railEl.style.paddingRight = `${sidePadding}px`;
+    sideSpacerPx = Math.max(6, (railEl.clientWidth - firstTag.offsetWidth) / 2);
     railEl.scrollTo({ left: 0, behavior: 'auto' });
   }
 
@@ -91,6 +90,7 @@
 
 <div class="guest-interest-tags" data-testid="guest-interest-tags">
   <div class="guest-interest-rail" data-testid="guest-interest-rail" bind:this={railEl}>
+    <span class="guest-interest-rail-spacer" style:width={`${sideSpacerPx}px`} aria-hidden="true"></span>
     {#each visibleTags as tag (tag.id)}
       {@const IconComponent = getLucideIcon(tag.icon)}
       {@const isActive = selectedSet.has(tag.id)}
@@ -113,6 +113,7 @@
         <span>{labelFor(tag.labelKey, tag.fallbackLabel)}</span>
       </button>
     {/each}
+    <span class="guest-interest-rail-spacer" style:width={`${sideSpacerPx}px`} aria-hidden="true"></span>
   </div>
   {#if selectedTagIds.length > 0}
     <button
@@ -161,6 +162,13 @@
 
   .guest-interest-rail::-webkit-scrollbar {
     display: none;
+  }
+
+  .guest-interest-rail-spacer {
+    display: block;
+    flex: 0 0 auto;
+    min-width: 0;
+    height: 1px;
   }
 
   .guest-interest-tag {
