@@ -1,6 +1,6 @@
 id: mindmap-embeds
 title: Mind Map Embeds
-status: approved
+status: verified
 
 goal: >
   Add a first-class Mind Maps app and direct mindmap embed type so users can ask
@@ -373,8 +373,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: local:python3-m-pytest-backend-tests-test_mindmap_embed_streaming.py
-        timestamp: "2026-06-20"
+        run_id: local:python3-m-pytest-backend-tests-test_mindmap_embed_streaming.py; docker:backend/tests/test_preprocessor.py+test_preprocessor_skill_resolver.py
+        timestamp: "2026-06-21"
 
   - id: T-VITEST-MINDMAP-CONTENT
     type: vitest
@@ -403,9 +403,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: blocked_until_deploy
-        run_id: "remote-vitest-baseline-450-of-451-passed-unrelated-highlightToLines-document-is-not-defined"
-        timestamp: "2026-06-20"
+        status: passed
+        run_id: "remote-vitest-e5a07f6-472-of-474-passed; unrelated guestSmartSelection and highlightToLines document failures"
+        timestamp: "2026-06-21"
 
   - id: T-VITEST-MINDMAP-UPLOAD
     type: vitest
@@ -430,9 +430,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: blocked_until_deploy
-        run_id: "remote-vitest-baseline-450-of-451-passed-unrelated-highlightToLines-document-is-not-defined"
-        timestamp: "2026-06-20"
+        status: passed
+        run_id: "remote-vitest-e5a07f6-472-of-474-passed; unrelated guestSmartSelection and highlightToLines document failures"
+        timestamp: "2026-06-21"
 
   - id: T-VITEST-MINDMAP-REGISTRY-TEXT
     type: vitest
@@ -456,9 +456,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: blocked_until_deploy
-        run_id: "remote-vitest-baseline-450-of-451-passed-unrelated-highlightToLines-document-is-not-defined"
-        timestamp: "2026-06-20"
+        status: passed
+        run_id: "remote-vitest-e5a07f6-472-of-474-passed; unrelated guestSmartSelection and highlightToLines document failures"
+        timestamp: "2026-06-21"
 
   - id: T-CLI-MINDMAP-RENDERING
     type: vitest
@@ -516,9 +516,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed_after_deploy
+        run_id: "github-actions:27901717544; preflight:27901679631; vercel:dpl_5XjJwvbVbcZf8mCHTiCMDTwHAV9Y; commit:2891fd5c9"
+        timestamp: "2026-06-21T10:42:09Z"
 
   - id: T-APPLE-MINDMAP-PARITY
     type: manual
@@ -539,9 +539,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/apple_remote.py build-ios succeeded"
+        timestamp: "2026-06-21"
 
 implementation_plan:
   existing_patterns:
