@@ -407,8 +407,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: npm-run-test-unit-server-green-2026-06-20
-        timestamp: "2026-06-20T23:40:25Z"
+        run_id: npm-run-test-unit-server-green-2026-06-21
+        timestamp: "2026-06-21T07:33:38Z"
 
   - id: T-COMPOSE-ROLE-LINT
     type: lint
@@ -435,9 +435,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: docker-compose-core-selfhost-config-2026-06-21
+        timestamp: "2026-06-21T07:33:38Z"
 
   - id: T-UPLOAD-PREVIEW-COMPOSE-LINT
     type: lint
@@ -457,16 +457,16 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: docker-compose-upload-preview-wrapper-red-2026-06-21
+        timestamp: "2026-06-21T07:29:07Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: docker-compose-upload-preview-selfhost-config-2026-06-21
+        timestamp: "2026-06-21T07:33:38Z"
 
   - id: T-BACKUP-RESTORE-INTEGRATION
     type: manual
@@ -492,9 +492,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: lint-changed-settings-software-update-2026-06-21
+        timestamp: "2026-06-21T07:33:38Z"
 
   - id: T-SELFHOST-SMOKE
     type: manual
@@ -525,9 +525,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: npm-run-test-unit-server-green-2026-06-21
+        timestamp: "2026-06-21T07:33:38Z"
 
   - id: T-SOFTWARE-UPDATE-UI
     type: unit
