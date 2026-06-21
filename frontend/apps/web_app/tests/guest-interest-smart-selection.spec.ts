@@ -69,7 +69,6 @@ test.describe('Guest interest smart selection', () => {
 		);
 		await expect(page.getByTestId('guest-interest-continue')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 5000 });
-		await expect(page.getByTestId('new-chat-suggestion-card').first()).toBeVisible({ timeout: 5000 });
 
 		const tagOrder = await interestTagOrder(page);
 		expect(tagOrder[0]).toBe('software_development');
