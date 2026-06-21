@@ -109,6 +109,7 @@
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
     import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
+    import GuestIntroHero from './GuestIntroHero.svelte';
     import GuestInterestTags from './GuestInterestTags.svelte';
     import EventEmbedPreview from './embeds/events/EventEmbedPreview.svelte';
     import SavedEmbedContinuePreview from './SavedEmbedContinuePreview.svelte';
@@ -10665,21 +10666,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {:else}
                 <!-- Left side container for chat history and buttons -->
                 <div class="chat-side" bind:this={chatSideEl}>
-                    <!-- Daily Inspiration banners – shown above welcome greeting on new chat screen -->
-                    <!-- Faded out via CSS opacity transition when keyboard is open (same rule as welcome greeting) -->
-                    <!-- Shown to ALL users: defaults for guests, personalized for authenticated users -->
-                    <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen -->
+                    <!-- Welcome hero/inspiration banners – shown above greeting on new chat screen. -->
+                    <!-- Guests see the stable intro-video hero; authenticated users keep Daily Inspiration. -->
+                    <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen. -->
                     {#if showWelcome}
                         <div
                             class="daily-inspiration-area"
                             class:welcome-hiding={hideWelcomeForKeyboard}
                             inert={hideWelcomeForKeyboard}
                         >
-                            <DailyInspirationBanner
-                                onStartChat={handleStartChatFromInspiration}
-                                onEmbedFullscreen={handleInspirationEmbedFullscreen}
-                                containerWidth={effectiveChatWidth}
-                            />
+                            {#if $authStore.isAuthenticated}
+                                <DailyInspirationBanner
+                                    onStartChat={handleStartChatFromInspiration}
+                                    onEmbedFullscreen={handleInspirationEmbedFullscreen}
+                                    containerWidth={effectiveChatWidth}
+                                />
+                            {:else}
+                                <GuestIntroHero />
+                            {/if}
                         </div>
                     {/if}
 
@@ -10800,6 +10804,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {#if showWelcome}
                         <div
                             class="center-content"
+                            class:guest-welcome-content={!$authStore.isAuthenticated}
                             class:welcome-hiding={hideWelcomeForKeyboard}
                             inert={hideWelcomeForKeyboard}
                             bind:this={welcomeContentEl}
@@ -10810,8 +10815,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     <h2>
                                         {#if !$authStore.isAuthenticated}
                                             {#each welcomeHeadingParts as part, index}
-                                                <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{:else}{' '}{/if}
+                                                <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
                                             {/each}
+                                            <br>
                                             {#each guestInterestHeadingParts as part, index}
                                                 <span>{part}</span>{#if index < guestInterestHeadingParts.length - 1}<br>{/if}
                                             {/each}
@@ -10822,18 +10828,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                         {/if}
                                     </h2>
                                     <!-- Subtitle: decrypting indicator while Phase 1 metadata is syncing, then "Continue where you left off" when cards are ready. -->
-                                    {#if isContinueChatsLoading}
-                                        <p class="decrypting-chats-text" transition:fade={fadeParams}>
-                                            {$text('chats.resume_last_chat.decrypting')}
-                                        </p>
-                                    {:else if hasContinueItems}
-                                        <p transition:fade={fadeParams}>{$text('chats.resume_last_chat.title')}</p>
-                                    {:else}
-                                        <p>
-                                            {#each welcomePromptParts as part, index}
-                                                <span>{part}</span>{#if index < welcomePromptParts.length - 1}<br>{/if}
-                                            {/each}
-                                        </p>
+                                    {#if $authStore.isAuthenticated}
+                                        {#if isContinueChatsLoading}
+                                            <p class="decrypting-chats-text" transition:fade={fadeParams}>
+                                                {$text('chats.resume_last_chat.decrypting')}
+                                            </p>
+                                        {:else if hasContinueItems}
+                                            <p transition:fade={fadeParams}>{$text('chats.resume_last_chat.title')}</p>
+                                        {:else}
+                                            <p>
+                                                {#each welcomePromptParts as part, index}
+                                                    <span>{part}</span>{#if index < welcomePromptParts.length - 1}<br>{/if}
+                                                {/each}
+                                            </p>
+                                        {/if}
                                     {/if}
                                 </div>
                             </div>
@@ -11416,7 +11424,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                       {$text('enter_message.attachments.remove_pending_file')}
                                   </button>
                               </div>
-                         {:else if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
+                          {:else if showWelcome && ($authStore.isAuthenticated || selectedGuestInterestTagIds.length > 0) && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
                                 <NewChatSuggestions
                                    messageInputContent={activeSuggestionSearchText}
                                    selectedInterestTagIds={selectedGuestInterestTagIds}

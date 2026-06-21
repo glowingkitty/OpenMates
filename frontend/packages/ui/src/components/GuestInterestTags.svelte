@@ -96,21 +96,32 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-2, 8px);
-    width: min(1040px, calc(100vw - 32px));
+    width: 100%;
+    max-width: 1040px;
     margin: 10px auto 0;
     align-items: center;
+    pointer-events: auto;
   }
 
   .guest-interest-rail {
     display: flex;
+    flex-direction: row;
+    align-items: center;
     gap: 8px;
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
     padding: 4px 6px 8px;
     box-sizing: border-box;
     justify-content: flex-start;
     scrollbar-width: none;
+    -ms-overflow-style: none;
+    pointer-events: auto;
   }
 
   .guest-interest-rail::-webkit-scrollbar {
@@ -135,6 +146,8 @@
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
     opacity: 0.78;
     cursor: pointer;
+    pointer-events: auto;
+    touch-action: manipulation;
     transition: opacity 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
   }
 

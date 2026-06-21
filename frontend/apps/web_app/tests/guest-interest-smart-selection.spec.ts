@@ -6,8 +6,8 @@ export {};
  *
  * Verifies the logged-out landing contract from
  * docs/specs/guest-interest-smart-selection/spec.yml: new visitors stay on the
- * welcome screen, see the OpenMates explainer inspiration, select session-only
- * interest tags, and get deterministic developer/privacy suggestions.
+ * welcome screen, see the OpenMates intro hero, select session-only interest
+ * tags, and get deterministic developer/privacy suggestions.
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -27,18 +27,6 @@ async function visibleSuggestionIds(page: any): Promise<string[]> {
 	);
 }
 
-async function showIntroInspiration(page: any): Promise<void> {
-	const phrase = page.getByTestId('daily-inspiration-phrase');
-	for (let attempt = 0; attempt < 8; attempt += 1) {
-		const text = (await phrase.textContent({ timeout: 5000 })) || '';
-		if (text.includes('OpenMates gives you')) return;
-		await page.getByTestId('daily-inspiration-next').evaluate((element: HTMLElement) => element.click());
-		await page.waitForTimeout(100);
-	}
-
-	throw new Error('OpenMates intro inspiration was not visible after cycling the carousel');
-}
-
 test.describe('Guest interest smart selection', () => {
 	test('fresh guest welcome uses session-only tags and local smart ranking', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
@@ -48,19 +36,31 @@ test.describe('Guest interest smart selection', () => {
 
 		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 15000 });
-		await expect(page.getByText('Hey there! What are you interested in?')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByText('Hey there!')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByText('What are you interested in?')).toBeVisible({ timeout: 15000 });
 		expect(await page.evaluate(() => window.location.hash)).not.toContain('demo-for-everyone');
 
-		await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible({ timeout: 15000 });
-		await showIntroInspiration(page);
-		await expect(page.getByTestId('daily-inspiration-phrase')).toContainText('OpenMates gives you', {
-			timeout: 15000
-		});
-		await expect(page.getByTestId('daily-inspiration-info-card')).toHaveAttribute('data-direct-video', 'true');
+		await expect(page.getByTestId('guest-intro-hero')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('guest-intro-video')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('guest-intro-copy')).toContainText('AI team mates.', { timeout: 15000 });
+		await expect(page.getByTestId('daily-inspiration-banner')).toHaveCount(0);
 
 		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);
+		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
 		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
+
+		const defaultTagOrder = await interestTagOrder(page);
+		expect(defaultTagOrder.slice(0, 6)).toEqual(
+			expect.arrayContaining([
+				'protect_my_privacy',
+				'learn_anything',
+				'summarize_documents',
+				'local_life',
+				'find_apartments'
+			])
+		);
+		expect(defaultTagOrder.indexOf('software_development')).toBeGreaterThan(0);
 
 		await page.getByTestId('interest-tag-software_development').click();
 		await expect(page.getByTestId('interest-tag-software_development')).toHaveAttribute(
@@ -69,6 +69,7 @@ test.describe('Guest interest smart selection', () => {
 		);
 		await expect(page.getByTestId('guest-interest-continue')).toBeVisible({ timeout: 5000 });
 		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('new-chat-suggestion-card').first()).toBeVisible({ timeout: 5000 });
 
 		const tagOrder = await interestTagOrder(page);
 		expect(tagOrder[0]).toBe('software_development');
