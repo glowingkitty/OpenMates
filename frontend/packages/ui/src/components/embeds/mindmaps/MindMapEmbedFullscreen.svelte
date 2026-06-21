@@ -204,18 +204,31 @@
     const nodesById = new Map(model.nodes.map((node) => [node.id, node]));
     const collapsed = new Set(collapsedIds);
     const visited = new Set<string>();
+    const hidden = new Set<string>();
     const viewNodes: ViewNode[] = [];
     const edges: Array<{ source: ViewNode; target: ViewNode; label?: string }> = [];
     let nextRow = 0;
 
+    function hideDescendants(nodeId: string) {
+      const node = nodesById.get(nodeId);
+      if (!node) return;
+      for (const childId of node.children ?? []) {
+        if (hidden.has(childId)) continue;
+        hidden.add(childId);
+        hideDescendants(childId);
+      }
+    }
+
     function visit(nodeId: string, depth: number): ViewNode | null {
       const node = nodesById.get(nodeId);
-      if (!node || visited.has(nodeId)) return null;
+      if (!node || visited.has(nodeId) || hidden.has(nodeId)) return null;
       visited.add(nodeId);
 
       const children = (node.children ?? []).filter((childId) => nodesById.has(childId));
       const childViews: ViewNode[] = [];
-      if (!collapsed.has(nodeId)) {
+      if (collapsed.has(nodeId)) {
+        hideDescendants(nodeId);
+      } else {
         for (const childId of children) {
           const child = visit(childId, depth + 1);
           if (child) childViews.push(child);
