@@ -28,24 +28,33 @@ async function visibleSuggestionIds(page: any): Promise<string[]> {
 }
 
 async function tagRailMetrics(page: any): Promise<{
-	firstTagCenterOffset: number;
 	availableTagCount: number;
 	selectedTagCount: number;
 }> {
 	return page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => {
 		const tags = Array.from(rail.querySelectorAll<HTMLElement>('button[data-testid^="interest-tag-"]'));
-		const firstTag = tags[0];
-		const railRect = rail.getBoundingClientRect();
-		const firstRect = firstTag?.getBoundingClientRect();
 		const selectedTagCount = tags.filter((tag) => tag.getAttribute('data-interest-active') === 'true').length;
 		return {
-			firstTagCenterOffset: firstRect
-				? Math.abs((firstRect.left + firstRect.width / 2) - (railRect.left + railRect.width / 2))
-				: Number.POSITIVE_INFINITY,
 			availableTagCount: tags.length - selectedTagCount,
 			selectedTagCount
 		};
 	});
+}
+
+async function tagRailEndGap(page: any): Promise<number> {
+	return page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => {
+		const tags = Array.from(rail.querySelectorAll<HTMLElement>('button[data-testid^="interest-tag-"]'));
+		const lastTag = tags[tags.length - 1];
+		if (!lastTag) return Number.POSITIVE_INFINITY;
+		rail.scrollLeft = rail.scrollWidth;
+		const railRect = rail.getBoundingClientRect();
+		const lastRect = lastTag.getBoundingClientRect();
+		return Math.max(0, railRect.right - lastRect.right);
+	});
+}
+
+async function tagRailScrollLeft(page: any): Promise<number> {
+	return page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => rail.scrollLeft);
 }
 
 test.describe('Guest interest smart selection', () => {
@@ -101,7 +110,7 @@ test.describe('Guest interest smart selection', () => {
 		const defaultRailMetrics = await tagRailMetrics(page);
 		expect(defaultRailMetrics.availableTagCount).toBe(10);
 		expect(defaultRailMetrics.selectedTagCount).toBe(0);
-	expect(defaultRailMetrics.firstTagCenterOffset).toBeLessThanOrEqual(16);
+		expect(await tagRailEndGap(page)).toBeLessThanOrEqual(24);
 		expect(defaultTagOrder.slice(0, 6)).toEqual(
 			expect.arrayContaining([
 				'protect_my_privacy',
@@ -113,7 +122,11 @@ test.describe('Guest interest smart selection', () => {
 		);
 		expect(defaultTagOrder.indexOf('software_development')).toBeGreaterThan(0);
 
+		await page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => { rail.scrollLeft = 120; });
+		const scrollLeftBeforeTagClick = await tagRailScrollLeft(page);
 		await page.getByTestId('interest-tag-software_development').click();
+		await page.waitForTimeout(250);
+		expect(Math.abs((await tagRailScrollLeft(page)) - scrollLeftBeforeTagClick)).toBeLessThanOrEqual(8);
 		await expect(page.getByTestId('interest-tag-software_development')).toHaveAttribute(
 			'data-interest-active',
 			'true'
@@ -128,7 +141,7 @@ test.describe('Guest interest smart selection', () => {
 		const selectedRailMetrics = await tagRailMetrics(page);
 		expect(selectedRailMetrics.availableTagCount).toBe(10);
 		expect(selectedRailMetrics.selectedTagCount).toBe(1);
-	expect(selectedRailMetrics.firstTagCenterOffset).toBeLessThanOrEqual(16);
+		expect(await tagRailEndGap(page)).toBeLessThanOrEqual(24);
 		expect(tagOrder.slice(1, 7)).toEqual(
 			expect.arrayContaining(['use_the_cli', 'open_source', 'read_developer_docs', 'run_code'])
 		);

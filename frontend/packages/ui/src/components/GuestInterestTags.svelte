@@ -45,7 +45,6 @@
     const payload = topicPreferencesStore.loadGuest();
     selectedTagIds = payload?.selectedTagIds ?? [];
     onSelectionChange(selectedTagIds);
-    tick().then(centerFirstTag);
   });
 
   function labelFor(labelKey: string, fallbackLabel: string): string {
@@ -61,14 +60,16 @@
   }
 
   function toggleTag(tagId: InterestTagId) {
+    const scrollLeft = railEl?.scrollLeft ?? 0;
     const next = selectedSet.has(tagId)
       ? selectedTagIds.filter((id) => id !== tagId)
       : [...selectedTagIds, tagId];
     selectedTagIds = next;
     onSelectionChange(selectedTagIds);
     tick().then(() => {
-      centerFirstTag();
-      setTimeout(centerFirstTag, 100);
+      if (railEl) {
+        railEl.scrollLeft = scrollLeft;
+      }
     });
   }
 
@@ -78,22 +79,6 @@
     onContinue(selectedTagIds);
   }
 
-  function centerFirstTag() {
-    const firstTag = railEl?.querySelector<HTMLElement>('[data-testid^="interest-tag-"]');
-    if (!railEl || !firstTag) return;
-    const sideSpacerPx = Math.max(6, (railEl.clientWidth - firstTag.offsetWidth) / 2);
-    railEl.style.setProperty('--rail-side-spacer', `${sideSpacerPx}px`);
-    railEl.scrollTo({ left: 0, behavior: 'auto' });
-  }
-
-  $effect(() => {
-    void visibleTags;
-    void railEl;
-    tick().then(() => {
-      centerFirstTag();
-      setTimeout(centerFirstTag, 50);
-    });
-  });
 </script>
 
 <div class="guest-interest-tags" data-testid="guest-interest-tags">
@@ -168,15 +153,6 @@
 
   .guest-interest-rail::-webkit-scrollbar {
     display: none;
-  }
-
-  .guest-interest-rail::before,
-  .guest-interest-rail::after {
-    content: '';
-    display: block;
-    flex: 0 0 var(--rail-side-spacer, 0px);
-    min-width: 0;
-    height: 1px;
   }
 
   .guest-interest-tag {

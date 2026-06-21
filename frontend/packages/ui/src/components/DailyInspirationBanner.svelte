@@ -820,10 +820,6 @@
         >
 
           {#if isGuestIntroVariant}
-            {#if current.inspiration_id === 'openmates-intro'}
-              <div class="deco-icon deco-icon-left guest-intro-ai-deco-icon"></div>
-              <div class="deco-icon deco-icon-right guest-intro-ai-deco-icon"></div>
-            {/if}
             <div class="guest-intro-copy" data-testid="guest-intro-copy">
               {#if current.inspiration_id === 'openmates-intro'}
                 <div class="guest-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
@@ -1200,24 +1196,6 @@
     -webkit-mask-position: center;
     mask-position: center;
     background-color: rgba(255, 255, 255, 0.92);
-  }
-
-  .guest-intro-ai-deco-icon {
-    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
-    mask-image: url('@openmates/ui/static/icons/ai.svg');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-    background-color: rgba(255, 255, 255, 0.15);
-    --deco-target-opacity: 1;
-    --float-rx: 10px;
-    --float-ry: 12px;
-    animation:
-      decoEnter 0.6s ease-out 0.1s both,
-      decoFloat 16s linear 0.7s infinite;
   }
 
   .guest-intro-copy-line {
