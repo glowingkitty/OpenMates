@@ -2948,7 +2948,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     function loadNonAuthRecentChats(selectedTagIds: InterestTagId[] = []): RecentChatMeta[] {
         // 1. Static intro chats (DEMO_CHATS = INTRO_CHATS, already excludes LEGAL_CHATS)
         const introMetas: RecentChatMeta[] = DEMO_CHATS
-            .filter((demoChat) => demoChat.id === 'demo-for-everyone')
+            .filter((demoChat) => demoChat.chat_id === 'demo-for-everyone')
             .map((demoChat) => {
                 const translated = translateDemoChat(demoChat);
                 const chat = convertDemoChatToChat(translated);
