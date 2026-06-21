@@ -436,15 +436,8 @@
         // Reset signup step to alpha disclaimer for next time
         currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
 
-        // Close the login interface and load demo chat
-        // This dispatches a global event that ActiveChat.svelte listens to
+        // Close the login interface and return to the new-chat screen.
         window.dispatchEvent(new CustomEvent('closeLoginInterface'));
-
-        // Small delay to ensure the interface closes before loading chat
-        setTimeout(() => {
-            // Dispatch event to load demo chat (ActiveChat will handle this)
-            window.dispatchEvent(new CustomEvent('loadDemoChat'));
-        }, 100);
     }
 
     async function handleSwitchToLogin() {
@@ -824,19 +817,10 @@
                 isLoggingOut.set(false);
             }, 300);
             
-            // After logout from signup, close login interface and load demo chat
-            // Instead of switching to login view, we want to close the interface and show demo chats
+            // After logout from signup, close login interface and return to new chat.
             showSignupFooter.set(true); // Ensure footer is shown after logout
             
-            // Close the login interface and load demo chat
-            // This dispatches a global event that ActiveChat.svelte listens to
             window.dispatchEvent(new CustomEvent('closeLoginInterface'));
-            
-            // Small delay to ensure the interface closes before loading chat
-            setTimeout(() => {
-                // Dispatch event to load demo chat (ActiveChat will handle this)
-                window.dispatchEvent(new CustomEvent('loadDemoChat'));
-            }, 100);
         } catch (error) {
             console.error('Error during logout:', error);
             showSignupFooter.set(true); // Ensure footer is shown even on error
@@ -857,11 +841,8 @@
                 isLoggingOut.set(false);
             }, 300);
             
-            // Close the login interface and load demo chat even on error
+            // Close the login interface and return to new chat even on error.
             window.dispatchEvent(new CustomEvent('closeLoginInterface'));
-            setTimeout(() => {
-                window.dispatchEvent(new CustomEvent('loadDemoChat'));
-            }, 100);
         }
     }
 

@@ -2280,7 +2280,7 @@
                         onskip={handleSignupNavSkip}
                         onlogout={handleSignupNavLogout}
                         onDemoClick={() => {
-                            console.log('[Login] Demo back button clicked - closing login interface and returning to demo');
+                            console.log('[Login] Demo back button clicked - closing login interface and returning to new chat');
                             // PRIVACY: Clear signup data (email and username) when returning to demo
                             // This ensures sensitive data is removed if user abandons signup
                             clearSignupData();
@@ -2291,13 +2291,8 @@
                             // This ensures drafts don't persist if user interrupts login/signup
                             clearAllSessionStorageDrafts();
                             console.debug('[Login] Cleared all sessionStorage drafts when returning to demo');
-                            // Dispatch event to close login interface and show demo
+                            // Dispatch event to close login interface and show new chat
                             window.dispatchEvent(new CustomEvent('closeLoginInterface'));
-                            // Also dispatch loadDemoChat event to ensure demo chat is loaded
-                            // Small delay to ensure the interface closes before loading chat
-                            setTimeout(() => {
-                                window.dispatchEvent(new CustomEvent('loadDemoChat'));
-                            }, 100);
                         }}
                         showSkip={signupShowSkip}
                         currentStep={$currentSignupStep}

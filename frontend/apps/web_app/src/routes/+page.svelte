@@ -1700,7 +1700,7 @@
 					}, 500);
 
 				// Check if URL hash points to an encrypted chat (not demo-/legal-)
-				// If so, clear the hash and navigate to demo-for-everyone to prevent loading broken chat
+				// If so, clear the hash and return to new chat to prevent loading broken chat
 				if (originalHash) {
 					let hashChatId: string | null = null;
 					if (originalHash.startsWith('#chat-id=')) {
@@ -1730,14 +1730,11 @@
 						!isSharedChatRedirect
 					) {
 						console.debug(
-							`[+page.svelte] URL hash points to encrypted chat ${hashChatId} - clearing hash and loading demo-for-everyone`
+							`[+page.svelte] URL hash points to encrypted chat ${hashChatId} - clearing hash and returning to new chat`
 						);
 						// Clear the hash to prevent deep link handler from trying to load it
 						window.location.hash = '';
-						// Clear the stored original hash so deep link handler doesn't use it
-						// Note: We can't reassign originalHash (const), but we'll handle this in deep link processing
-						// by setting activeChatStore to demo-for-everyone explicitly
-						activeChatStore.setActiveChat('demo-for-everyone');
+						activeChatStore.clearActiveChat();
 					}
 				}
 			}
@@ -1784,6 +1781,7 @@
 			// CRITICAL: Check if forced logout is in progress (stayLoggedIn=false reload scenario)
 			// If so, skip processing encrypted chat hashes - they can't be decrypted
 			const isForcedLogout = get(forcedLogoutInProgress);
+			let shouldSuppressForcedLogoutHash = false;
 
 			// Extract originalHashChatId for chat hashes (needed for other logic)
 			if (
@@ -1807,10 +1805,11 @@
 				const isSharedRedirect = sharedChatRedirectId === originalHashChatId;
 				if (isForcedLogout && !isPublicChat(originalHashChatId) && !isSharedRedirect) {
 					console.debug(
-						`[+page.svelte] Forced logout in progress - skipping encrypted chat hash ${originalHashChatId}, using demo-for-everyone`
+						`[+page.svelte] Forced logout in progress - skipping encrypted chat hash ${originalHashChatId}, returning to new chat`
 					);
-					originalHashChatId = 'demo-for-everyone';
-					activeChatStore.setActiveChat('demo-for-everyone');
+					originalHashChatId = null;
+					shouldSuppressForcedLogoutHash = true;
+					activeChatStore.clearActiveChat();
 				} else {
 					// Set active chat store immediately to prevent race conditions
 					activeChatStore.setActiveChat(originalHashChatId);
@@ -1821,10 +1820,9 @@
 
 			// Process through unified deep link handler
 			// NOTE: Auth state is now set above, so isAuthenticated() will return correct value
-			// During forced logout, the handler will load demo-for-everyone for empty/null hash
+			// During forced logout, the handler returns to new chat for empty/null hash.
 			const handlers = createDeepLinkHandlers();
-			const hashToProcess =
-				isForcedLogout && originalHashChatId === 'demo-for-everyone' ? '' : originalHash || '';
+			const hashToProcess = shouldSuppressForcedLogoutHash ? '' : originalHash || '';
 			await processDeepLink(hashToProcess, handlers);
 			deepLinkProcessed = true; // Mark that processing was completed
 

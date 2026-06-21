@@ -876,12 +876,12 @@ export async function checkAuth(
           },
         );
 
-        // CRITICAL: If user is in signup flow, close signup interface and return to demo
+        // CRITICAL: If user is in signup flow, close signup interface and return to new chat.
         // This ensures the signup/login interface is closed when logout notification appears during signup
         const wasInSignupProcess = get(isInSignupProcess);
         if (wasInSignupProcess) {
           console.debug(
-            "[AuthSessionActions] User was in signup process - closing signup interface and returning to demo",
+            "[AuthSessionActions] User was in signup process - closing signup interface and returning to new chat",
           );
 
           // Reset signup process state FIRST to ensure Login component switches to login view
@@ -910,15 +910,8 @@ export async function checkAuth(
             "[AuthSessionActions] Cleared all sessionStorage drafts when returning to demo",
           );
 
-          // Close the login interface and load demo chat
-          // This dispatches a global event that ActiveChat.svelte listens to
+          // Close the login interface; ActiveChat returns to the new-chat screen.
           window.dispatchEvent(new CustomEvent("closeLoginInterface"));
-
-          // Small delay to ensure the interface closes before loading chat
-          setTimeout(() => {
-            // Dispatch event to load demo chat (ActiveChat will handle this)
-            window.dispatchEvent(new CustomEvent("loadDemoChat"));
-          }, 100);
         }
 
         // CRITICAL: Clear active chat to hide the previously open chat.
