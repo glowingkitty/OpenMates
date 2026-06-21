@@ -1245,7 +1245,7 @@ export class GroupRenderer implements EmbedRenderer {
       typeof decodedContent?.result_count === "number"
         ? decodedContent.result_count
         : 0;
-    const results = decodedContent?.results || [];
+    const results = decodedContent?.results || decodedContent?.preview_results || [];
     const rawChildEmbedIds = embedData?.embed_ids || decodedContent?.embed_ids;
     const childEmbedIds = typeof rawChildEmbedIds === "string"
       ? rawChildEmbedIds.split("|").filter((id: string) => id.length > 0)
@@ -1349,6 +1349,9 @@ export class GroupRenderer implements EmbedRenderer {
       }
 
       if (appId === "news" && skillId === "search") {
+        const newsResultCount = typeof decodedContent?.result_count === "number"
+          ? decodedContent.result_count
+          : results.length || childEmbedIds.length;
         const component = mount(NewsSearchEmbedPreview, {
           target,
           props: {
@@ -1357,6 +1360,8 @@ export class GroupRenderer implements EmbedRenderer {
             provider: provider || "Brave Search",
             status,
             results,
+            resultCount: newsResultCount,
+            childEmbedIds,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
@@ -1389,6 +1394,9 @@ export class GroupRenderer implements EmbedRenderer {
       }
 
       if (appId === "videos" && skillId === "search") {
+        const videosResultCount = typeof decodedContent?.result_count === "number"
+          ? decodedContent.result_count
+          : results.length || childEmbedIds.length;
         const component = mount(VideosSearchEmbedPreview, {
           target,
           props: {
@@ -1397,6 +1405,8 @@ export class GroupRenderer implements EmbedRenderer {
             provider: provider || "Brave Search",
             status,
             results,
+            resultCount: videosResultCount,
+            childEmbedIds,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,

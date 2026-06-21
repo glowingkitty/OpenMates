@@ -74,6 +74,9 @@ struct AppSkillUseRenderer: View {
             .sorted { $0.id < $1.id }
         if !parented.isEmpty { return uniqueEmbeds(parented) }
 
+        let preview = previewChildEmbeds
+        if !preview.isEmpty { return preview }
+
         return uniqueEmbeds(allEmbedRecords.values
             .filter { child in
                 guard child.id != embed.id else { return false }
@@ -92,6 +95,39 @@ struct AppSkillUseRenderer: View {
                 }
             }
             .sorted { ($0.createdAt ?? $0.id) < ($1.createdAt ?? $1.id) })
+    }
+
+    private var parentResultCount: Int {
+        EmbedFieldReader.int(data, keys: ["result_count"]) ?? childEmbeds.count
+    }
+
+    private var previewChildEmbeds: [EmbedRecord] {
+        let previewResults = EmbedFieldReader.dictionaryArray(data, key: "preview_results")
+        guard !previewResults.isEmpty else { return [] }
+
+        return previewResults.enumerated().map { index, result in
+            var recordData = result.mapValues { AnyCodable($0) }
+            recordData["app_id"] = recordData["app_id"] ?? AnyCodable(appId)
+            return EmbedRecord(
+                id: "\(embed.id)-preview-\(index)",
+                type: previewChildType,
+                status: .finished,
+                data: .raw(recordData),
+                parentEmbedId: embed.id,
+                appId: appId,
+                skillId: nil,
+                embedIds: nil,
+                createdAt: embed.createdAt
+            )
+        }
+    }
+
+    private var previewChildType: String {
+        switch appId {
+        case "images", "photos": return EmbedType.imagesImageResult.rawValue
+        case "videos": return EmbedType.videosVideo.rawValue
+        default: return EmbedType.webWebsite.rawValue
+        }
     }
 
     var body: some View {
@@ -268,7 +304,7 @@ struct AppSkillUseRenderer: View {
     private var webSearchResultsInfo: some View {
         HStack(spacing: .spacing3) {
             if faviconEmbeds.isEmpty {
-                Text(childEmbeds.isEmpty ? "" : "\(childEmbeds.count) results")
+                Text(parentResultCount > 0 ? "\(parentResultCount) results" : "")
                     .font(.omXs)
                     .fontWeight(.medium)
                     .foregroundStyle(Color.grey60)
@@ -281,7 +317,7 @@ struct AppSkillUseRenderer: View {
                 }
                 .frame(height: 19)
 
-                let remaining = max(0, childEmbeds.count - min(3, faviconEmbeds.count))
+                let remaining = max(0, parentResultCount - min(3, faviconEmbeds.count))
                 if remaining > 0 {
                     Text("+ \(remaining) more")
                         .font(.omXs)

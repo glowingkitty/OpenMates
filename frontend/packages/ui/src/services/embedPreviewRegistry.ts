@@ -72,6 +72,41 @@ function normalizeStatus(
   return "finished";
 }
 
+function normalizeEmbedIds(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+  }
+  if (typeof value !== "string") return [];
+  return value.split("|").map((id) => id.trim()).filter(Boolean);
+}
+
+function parentPreviewProps(
+  decodedContent: Record<string, unknown>,
+  embedData: Record<string, unknown>,
+): {
+  results: unknown[];
+  resultCount: number | undefined;
+  childEmbedIds: string[];
+  previewResultsJson: string;
+} {
+  const results = decodedContent.results || decodedContent.preview_results || decodedContent.preview_thumbnails;
+  const childEmbedIds = normalizeEmbedIds(decodedContent.embed_ids || embedData.embed_ids);
+  const resultCount = typeof decodedContent.result_count === "number"
+    ? decodedContent.result_count
+    : Array.isArray(results)
+      ? results.length || childEmbedIds.length
+      : childEmbedIds.length || undefined;
+  const previewResultsJson = typeof decodedContent.preview_results_json === "string"
+    ? decodedContent.preview_results_json
+    : "";
+  return {
+    results: Array.isArray(results) ? results : [],
+    resultCount,
+    childEmbedIds,
+    previewResultsJson,
+  };
+}
+
 // ── Registry ──────────────────────────────────────────────────────────────────
 
 /**
@@ -94,6 +129,7 @@ resolvers.set(
   async ({ embedId, decodedContent, embedData, onFullscreen }) => {
     const { default: component } =
       await import("../components/embeds/web/WebSearchEmbedPreview.svelte");
+    const metadata = parentPreviewProps(decodedContent, embedData);
     return {
       component,
       props: {
@@ -101,7 +137,9 @@ resolvers.set(
         query: decodedContent.query || "",
         provider: decodedContent.provider || "Brave Search",
         status: normalizeStatus(embedData.status),
-        results: decodedContent.results || [],
+        results: metadata.results,
+        resultCount: metadata.resultCount,
+        childEmbedIds: metadata.childEmbedIds,
         isMobile: false,
         onFullscreen,
       },
@@ -116,6 +154,7 @@ resolvers.set(
   async ({ embedId, decodedContent, embedData, onFullscreen }) => {
     const { default: component } =
       await import("../components/embeds/images/ImagesSearchEmbedPreview.svelte");
+    const metadata = parentPreviewProps(decodedContent, embedData);
     return {
       component,
       props: {
@@ -123,7 +162,10 @@ resolvers.set(
         query: decodedContent.query || "",
         provider: decodedContent.provider || "Brave Search",
         status: normalizeStatus(embedData.status),
-        results: decodedContent.results || [],
+        results: metadata.results,
+        resultCount: metadata.resultCount,
+        childEmbedIds: metadata.childEmbedIds,
+        previewResultsJson: metadata.previewResultsJson,
         isMobile: false,
         onFullscreen,
       },
@@ -138,6 +180,7 @@ resolvers.set(
   async ({ embedId, decodedContent, embedData, onFullscreen }) => {
     const { default: component } =
       await import("../components/embeds/news/NewsSearchEmbedPreview.svelte");
+    const metadata = parentPreviewProps(decodedContent, embedData);
     return {
       component,
       props: {
@@ -145,7 +188,9 @@ resolvers.set(
         query: decodedContent.query || "",
         provider: decodedContent.provider || "Brave Search",
         status: normalizeStatus(embedData.status),
-        results: decodedContent.results || [],
+        results: metadata.results,
+        resultCount: metadata.resultCount,
+        childEmbedIds: metadata.childEmbedIds,
         isMobile: false,
         onFullscreen,
       },
@@ -160,6 +205,7 @@ resolvers.set(
   async ({ embedId, decodedContent, embedData, onFullscreen }) => {
     const { default: component } =
       await import("../components/embeds/videos/VideosSearchEmbedPreview.svelte");
+    const metadata = parentPreviewProps(decodedContent, embedData);
     return {
       component,
       props: {
@@ -167,7 +213,9 @@ resolvers.set(
         query: decodedContent.query || "",
         provider: decodedContent.provider || "Brave Search",
         status: normalizeStatus(embedData.status),
-        results: decodedContent.results || [],
+        results: metadata.results,
+        resultCount: metadata.resultCount,
+        childEmbedIds: metadata.childEmbedIds,
         isMobile: false,
         onFullscreen,
       },

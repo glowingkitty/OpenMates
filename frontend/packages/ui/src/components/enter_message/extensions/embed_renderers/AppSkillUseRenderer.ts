@@ -1043,7 +1043,7 @@ export class AppSkillUseRenderer implements EmbedRenderer {
 
     // Create placeholder results with favicon URLs from the results data
     // These will be populated from the decoded content if available
-    const results = decodedContent?.results || [];
+    const results = decodedContent?.results || decodedContent?.preview_results || [];
     const resultCount = typeof decodedContent?.result_count === "number"
       ? decodedContent.result_count
       : results.length || childEmbedIds.length;
@@ -1132,7 +1132,17 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       "processing";
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || ""; // For individual skill cancellation
-    const results = decodedContent?.results || [];
+    const results = decodedContent?.results || decodedContent?.preview_results || [];
+    const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids || [];
+    const childEmbedIds: string[] =
+      typeof rawEmbedIds === "string"
+        ? rawEmbedIds.split("|").filter((id: string) => id.length > 0)
+        : Array.isArray(rawEmbedIds)
+          ? rawEmbedIds
+          : [];
+    const resultCount = typeof decodedContent?.result_count === "number"
+      ? decodedContent.result_count
+      : results.length || childEmbedIds.length;
 
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -1163,6 +1173,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           provider,
           status: status as "processing" | "finished" | "error",
           results,
+          resultCount,
+          childEmbedIds,
           taskId,
           skillTaskId, // For individual skill cancellation
           isMobile: false,
@@ -1202,7 +1214,17 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       "processing";
     const taskId = decodedContent?.task_id || "";
     const skillTaskId = decodedContent?.skill_task_id || ""; // For individual skill cancellation
-    const results = decodedContent?.results || [];
+    const results = decodedContent?.results || decodedContent?.preview_results || [];
+    const rawEmbedIds = decodedContent?.embed_ids || embedData?.embed_ids || [];
+    const childEmbedIds: string[] =
+      typeof rawEmbedIds === "string"
+        ? rawEmbedIds.split("|").filter((id: string) => id.length > 0)
+        : Array.isArray(rawEmbedIds)
+          ? rawEmbedIds
+          : [];
+    const resultCount = typeof decodedContent?.result_count === "number"
+      ? decodedContent.result_count
+      : results.length || childEmbedIds.length;
 
     // Cleanup any existing mounted component
     const existingComponent = mountedComponents.get(content);
@@ -1233,6 +1255,8 @@ export class AppSkillUseRenderer implements EmbedRenderer {
           provider,
           status: status as "processing" | "finished" | "error",
           results,
+          resultCount,
+          childEmbedIds,
           taskId,
           skillTaskId, // For individual skill cancellation
           isMobile: false,

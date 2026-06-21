@@ -248,6 +248,7 @@ class EmbedService:
             "image_url",
             "preview_image_url",
             "date",
+            "published_date",
             "start_date",
             "end_date",
             "time",

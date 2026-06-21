@@ -77,7 +77,7 @@ struct ImagesSearchEmbedPreviewDetails: View {
 
             SearchResultSourceSummary(
                 favicons: model.imageResults.compactMap(\.faviconURL),
-                totalCount: model.imageResults.count
+                totalCount: model.previewResultCount
             )
             .padding(.top, .spacing1)
         }

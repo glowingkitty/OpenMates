@@ -7,6 +7,10 @@
   Details content structure:
   - Processing: query text + "via {provider}"
   - Finished: query text + "via {provider}" + favicons (first 3) + "+ N more"
+
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+  - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
   
   NOTE: Real-time updates are handled by UnifiedEmbedPreview via embedUpdated events.
   This component implements onEmbedDataUpdated to update its specific data.
@@ -23,6 +27,7 @@
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
   import { chatSyncService } from '../../../services/chatSyncService';
   import { handleImageError } from '../../../utils/offlineImageHandler';
+  import { getParentPreviewResultState, normalizeEmbedIdList } from '../embedPreviewHydration';
   
   /**
    * News search result interface for favicon display
@@ -78,6 +83,10 @@
     status: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Search results (for finished state) */
     results?: NewsSearchResult[];
+    /** Parent-level result_count for metadata-only previews */
+    resultCount?: number;
+    /** Child IDs indicate legacy results exist even when preview metadata is absent */
+    childEmbedIds?: string[] | string;
     /** Task ID for cancellation of entire AI response */
     taskId?: string;
     /** Skill task ID for cancellation of just this skill (allows AI to continue) */
@@ -94,6 +103,8 @@
     provider: providerProp,
     status: statusProp,
     results: resultsProp = [],
+    resultCount: resultCountProp,
+    childEmbedIds: childEmbedIdsProp,
     taskId: taskIdProp,
     skillTaskId: skillTaskIdProp,
     isMobile = false,
@@ -129,6 +140,7 @@
   let provider = $derived(localProvider);
   let status = $derived(localStatus);
   let results = $derived(localResults);
+  let childEmbedIds = $derived(normalizeEmbedIdList(childEmbedIdsProp));
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
   
@@ -156,8 +168,9 @@
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
       if (typeof content.provider === 'string') localProvider = content.provider;
-      if (content.results && Array.isArray(content.results)) {
-        localResults = content.results as NewsSearchResult[];
+      const previewResults = content.results || content.preview_results;
+      if (previewResults && Array.isArray(previewResults)) {
+        localResults = previewResults as NewsSearchResult[];
         console.debug(`[NewsSearchEmbedPreview] Updated results from callback:`, localResults.length);
       }
       // Extract skill_task_id for individual skill cancellation
@@ -280,6 +293,13 @@
   let remainingCount = $derived(
     Math.max(0, (flatResults?.length || 0) - faviconResults.length)
   );
+
+  let resultState = $derived(getParentPreviewResultState({
+    status,
+    previewResultCount: flatResults.length,
+    resultCount: resultCountProp,
+    childEmbedIds,
+  }));
   
   // DEBUG: Log results data to understand what we're receiving
   $effect(() => {
@@ -354,10 +374,19 @@
       <!-- Provider subtitle -->
       <div class="ds-search-provider">{viaProvider}</div>
       
-      <!-- Finished state: show favicons and remaining count -->
       {#if status === 'finished'}
         <div class="ds-search-results-info">
-          {#if faviconResults.length > 0}
+          {#if resultState === 'known_zero_results'}
+            <span class="no-results-text" data-testid="news-search-no-results-message">
+              {query
+                ? $text('embeds.search_no_results_for_query').replace('{query}', query)
+                : $text('embeds.search_no_results')}
+            </span>
+          {:else if resultState === 'missing_preview_metadata'}
+            <span class="no-results-text" data-testid="news-search-preview-metadata-missing-message">
+              {$text('embeds.search_preview_open_to_view_results')}
+            </span>
+          {:else if faviconResults.length > 0}
             <div class="favicon-row">
               {#each faviconResults as result, index}
                 {@const rawFaviconUrl = getFaviconUrl(result)}
@@ -377,8 +406,7 @@
             </div>
           {/if}
           
-          <!-- Remaining count - uses embeds.more_results translation with {count} placeholder -->
-          {#if remainingCount > 0}
+          {#if resultState === 'has_preview_metadata' && remainingCount > 0}
             <span class="remaining-count">
               {$text('embeds.more_results').replace('{count}', String(remainingCount))}
             </span>
@@ -462,6 +490,13 @@
     font-size: var(--font-size-small);
     color: var(--color-grey-70);
     font-weight: 500;
+  }
+
+  .no-results-text {
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--color-grey-60);
+    font-style: italic;
   }
   
   .news-search-details.mobile .remaining-count {

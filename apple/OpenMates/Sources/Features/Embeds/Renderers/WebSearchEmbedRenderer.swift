@@ -48,7 +48,7 @@ struct WebSearchEmbedPreviewDetails: View {
             if model.status == .finished {
                 SearchResultSourceSummary(
                     favicons: model.websiteResults.compactMap(\.faviconURL),
-                    totalCount: model.websiteResults.count
+                    totalCount: model.previewResultCount
                 )
                 .padding(.top, .spacing1)
             }
