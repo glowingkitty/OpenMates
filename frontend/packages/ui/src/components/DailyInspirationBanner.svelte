@@ -1119,8 +1119,8 @@
   }
 
   .daily-inspiration-banner.guest-intro-variant {
-    height: clamp(360px, 44vh, 470px);
-    min-height: 360px;
+    height: clamp(470px, 48vh, 520px);
+    min-height: 470px;
   }
 
   /* ── Inner content wrapper: max-width 680px, centered ── */
@@ -1729,6 +1729,11 @@
   @media (max-width: 730px) {
     .daily-inspiration-banner {
       height: 190px;
+    }
+
+    .daily-inspiration-banner.guest-intro-variant {
+      height: 320px;
+      min-height: 320px;
     }
 
     :global(.menu-open) .daily-inspiration-banner,

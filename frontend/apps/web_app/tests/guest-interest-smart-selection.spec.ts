@@ -62,7 +62,7 @@ test.describe('Guest interest smart selection', () => {
 				videoHeight: videoShell?.getBoundingClientRect().height ?? 0
 			};
 		});
-		expect(guestIntroMetrics.bannerHeight).toBeGreaterThanOrEqual(340);
+		expect(guestIntroMetrics.bannerHeight).toBeGreaterThanOrEqual(440);
 		expect(guestIntroMetrics.copyTop).toBeGreaterThanOrEqual(guestIntroMetrics.bannerTop);
 		expect(guestIntroMetrics.copyBottom).toBeLessThanOrEqual(guestIntroMetrics.bannerBottom);
 		expect(guestIntroMetrics.copyFontSize).toBeGreaterThanOrEqual(48);
