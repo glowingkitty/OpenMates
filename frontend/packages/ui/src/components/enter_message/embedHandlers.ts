@@ -9,10 +9,12 @@ import {
   createCodeEmbed,
   createDocEmbed,
   createMailEmbed,
+  createMindMapEmbed,
   detectLanguageFromContent,
   redactEmbedContent,
   createSheetEmbed,
 } from "./services/codeEmbedService";
+import { classifyMindMapUploadSource } from "./services/mindMapUploadDetection";
 import { delimitedTextToMarkdownTable, docxArrayBufferToHtml, parseEmlText, xlsxArrayBufferToMarkdownTable } from "./utils/fileContentParsers";
 import { encode as toonEncode } from "@toon-format/toon";
 import { getApiUrl } from "../../config/api";
@@ -969,6 +971,60 @@ export async function insertCodeFile(
   setTimeout(() => {
     editor.commands.focus("end");
   }, 50);
+}
+
+export async function insertMindMapFile(
+  editor: Editor,
+  file: File,
+): Promise<void> {
+  ensureLeadingParagraph(editor);
+
+  let fileContent: string;
+  try {
+    fileContent = await file.text();
+  } catch (error) {
+    console.error("[EmbedHandlers] Failed to read mind map file content:", error);
+    alert("Could not read mind map file");
+    return;
+  }
+
+  const classification = classifyMindMapUploadSource(file.name, fileContent, file.size);
+  if (!classification.accepted) {
+    console.warn("[EmbedHandlers] Rejected mind map upload:", {
+      filename: file.name,
+      reason: classification.reason,
+    });
+    alert(`Could not import mind map: ${classification.reason.replace(/_/g, " ")}`);
+    return;
+  }
+
+  let result;
+  try {
+    result = await createMindMapEmbed(fileContent, file.name);
+  } catch (error) {
+    console.error("[EmbedHandlers] Failed to create mind map embed:", error);
+    alert("Could not import mind map: invalid content");
+    return;
+  }
+
+  editor
+    .chain()
+    .focus()
+    .insertContent({
+      type: "embed",
+      attrs: {
+        id: result.embed_id,
+        type: "mindmaps-mindmap",
+        status: "finished",
+        contentRef: `embed:${result.embed_id}`,
+        title: result.normalization.title,
+        filename: file.name,
+      },
+    })
+    .insertContent(" ")
+    .run();
+
+  setTimeout(() => editor.commands.focus("end"), 50);
 }
 
 export async function insertDelimitedTableFile(

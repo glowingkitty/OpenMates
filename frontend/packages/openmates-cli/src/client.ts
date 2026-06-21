@@ -162,6 +162,80 @@ export interface LearningModeContext {
   source?: "anonymous_session";
 }
 
+export type InterestTagId =
+  | "software_development"
+  | "use_the_cli"
+  | "open_source"
+  | "read_developer_docs"
+  | "run_code"
+  | "protect_my_privacy"
+  | "summarize_documents"
+  | "find_apartments"
+  | "local_life"
+  | "learn_anything";
+
+export interface TopicPreferencesPayload {
+  version: 1;
+  selectedTagIds: InterestTagId[];
+  updatedAt: string;
+}
+
+export const INTEREST_TAG_IDS: InterestTagId[] = [
+  "software_development",
+  "use_the_cli",
+  "open_source",
+  "read_developer_docs",
+  "run_code",
+  "protect_my_privacy",
+  "summarize_documents",
+  "find_apartments",
+  "local_life",
+  "learn_anything",
+];
+
+const TOPIC_PREFERENCES_SETTINGS_KEY = "topic_preferences";
+
+export function normalizeInterestTagIds(values: readonly string[]): InterestTagId[] {
+  const validIds = new Set<InterestTagId>(INTEREST_TAG_IDS);
+  const normalized: InterestTagId[] = [];
+  for (const value of values) {
+    if (!validIds.has(value as InterestTagId)) {
+      throw new Error(
+        `Unknown interest tag '${value}'. Use one of: ${INTEREST_TAG_IDS.join(", ")}`,
+      );
+    }
+    if (!normalized.includes(value as InterestTagId)) {
+      normalized.push(value as InterestTagId);
+    }
+  }
+  return normalized;
+}
+
+function normalizeTopicPreferencesPayload(value: unknown): TopicPreferencesPayload | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const candidate = value as Partial<TopicPreferencesPayload>;
+  if (candidate.version !== 1 || !Array.isArray(candidate.selectedTagIds)) {
+    return null;
+  }
+  const validIds = new Set<InterestTagId>(INTEREST_TAG_IDS);
+  const selectedTagIds: InterestTagId[] = [];
+  for (const value of candidate.selectedTagIds) {
+    if (validIds.has(value as InterestTagId) && !selectedTagIds.includes(value as InterestTagId)) {
+      selectedTagIds.push(value as InterestTagId);
+    }
+  }
+  return {
+    version: 1,
+    selectedTagIds,
+    updatedAt:
+      typeof candidate.updatedAt === "string"
+        ? candidate.updatedAt
+        : new Date(0).toISOString(),
+  };
+}
+
 export interface AppSettingsMemorySystemMessage {
   message_id: string;
   role: "system";
@@ -1618,6 +1692,37 @@ export class OpenMatesClient {
     session.cookies = this.http.getCookieMap();
     saveSession(session);
     return response.data.user ?? {};
+  }
+
+  async getTopicPreferences(): Promise<TopicPreferencesPayload | null> {
+    const user = await this.whoAmI();
+    return await this.decryptTopicPreferences(user.encrypted_settings);
+  }
+
+  async setTopicPreferences(
+    selectedTagIds: readonly string[],
+  ): Promise<TopicPreferencesPayload> {
+    const user = await this.whoAmI();
+    const settings = await this.decryptSettingsRecord(user.encrypted_settings);
+    const payload: TopicPreferencesPayload = {
+      version: 1,
+      selectedTagIds: normalizeInterestTagIds(selectedTagIds),
+      updatedAt: new Date().toISOString(),
+    };
+
+    settings[TOPIC_PREFERENCES_SETTINGS_KEY] = payload;
+    const encryptedSettings = await encryptWithAesGcmCombined(
+      JSON.stringify(settings),
+      this.getMasterKeyBytes(),
+    );
+    await this.settingsPost("topic-preferences", {
+      encrypted_settings: encryptedSettings,
+    });
+    return payload;
+  }
+
+  async clearTopicPreferences(): Promise<TopicPreferencesPayload> {
+    return await this.setTopicPreferences([]);
   }
 
   async getLearningModeStatus(): Promise<LearningModeStatus> {
@@ -5113,6 +5218,33 @@ export class OpenMatesClient {
   private getMasterKeyBytes(): Uint8Array {
     const session = this.requireSession();
     return base64ToBytes(session.masterKeyExportedB64);
+  }
+
+  private async decryptTopicPreferences(
+    encryptedSettings: unknown,
+  ): Promise<TopicPreferencesPayload | null> {
+    const settings = await this.decryptSettingsRecord(encryptedSettings);
+    return normalizeTopicPreferencesPayload(settings[TOPIC_PREFERENCES_SETTINGS_KEY]);
+  }
+
+  private async decryptSettingsRecord(
+    encryptedSettings: unknown,
+  ): Promise<Record<string, unknown>> {
+    if (typeof encryptedSettings !== "string" || encryptedSettings.length === 0) {
+      return {};
+    }
+    const decrypted = await decryptWithAesGcmCombined(
+      encryptedSettings,
+      this.getMasterKeyBytes(),
+    );
+    if (!decrypted) {
+      throw new Error("Failed to decrypt encrypted account settings.");
+    }
+    const parsed = JSON.parse(decrypted) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    return parsed as Record<string, unknown>;
   }
 
   private getValidSessionFromDisk(): OpenMatesSession | null {

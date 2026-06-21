@@ -109,6 +109,7 @@
     import PushNotificationBanner from './PushNotificationBanner.svelte'; // Import push notification banner component
     import { shouldShowPushBanner } from '../stores/pushNotificationStore'; // Import push notification store for banner visibility
     import DailyInspirationBanner from './DailyInspirationBanner.svelte'; // Daily inspiration carousel above welcome screen
+    import GuestInterestTags from './GuestInterestTags.svelte';
     import EventEmbedPreview from './embeds/events/EventEmbedPreview.svelte';
     import SavedEmbedContinuePreview from './SavedEmbedContinuePreview.svelte';
     import Not404Screen from './Not404Screen.svelte'; // 404 not-found screen shown when user lands on an unknown URL
@@ -121,6 +122,8 @@
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
     import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
+    import { rankDailyInspirationsByInterests } from '../demo_chats/guestSmartSelection';
+    import type { InterestTagId } from '../demo_chats/interestTags';
     import { OPENMATES_EVENTS, type OpenMatesEvent } from '../data/openmatesEvents';
     import {
         AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS,
@@ -699,35 +702,18 @@
             logout(); // Call the imported logout action directly
         }
         
-        // After logout, load default welcome chat (even if user previously deleted/hid it)
-        // This ensures users see the welcome chat after logging out
+        // After logout, return to the logged-out new-chat welcome screen.
         setTimeout(() => {
-            console.debug("[ActiveChat] After logout - loading default welcome chat");
-            const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
-            if (welcomeDemo) {
-                // Translate the demo chat to the user's locale
-                const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
-                const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-                
-                // Check if deep link processing is happening
-                if (get(deepLinkProcessing)) {
-                    console.debug("[ActiveChat] Skipping welcome chat after logout - deep link processing in progress");
-                    return;
-                }
-
-                // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
-                if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
-                    console.debug('[ActiveChat] Skipping handleLogout demo load - og=1 mode');
-                    return;
-                }
-
-                // Clear current chat and load welcome chat
-                currentChat = null;
-                currentMessages = [];
-                activeChatStore.setActiveChat('demo-for-everyone');
-                loadChat(welcomeChat);
-                console.debug("[ActiveChat] ✅ Default welcome chat loaded after logout");
+            if (get(deepLinkProcessing)) {
+                console.debug("[ActiveChat] Skipping welcome reset after logout - deep link processing in progress");
+                return;
             }
+            currentChat = null;
+            currentMessages = [];
+            followUpSuggestions = [];
+            showWelcome = true;
+            activeChatStore.clearActiveChat();
+            console.debug("[ActiveChat] Returned to logged-out welcome screen after logout");
         }, 100);
         
         // Keep the flags active for a moment to prevent UI flash
@@ -796,7 +782,7 @@
                 }
 
                 if (isSharedChat && $isLoggingOut) {
-                    console.debug('[ActiveChat] Auth state changed during logout - clearing shared chat and loading demo-for-everyone:', currentChat.chat_id);
+                    console.debug('[ActiveChat] Auth state changed during logout - clearing shared chat and returning to welcome:', currentChat.chat_id);
                     // Continue with clearing logic below
                 }
                 
@@ -813,34 +799,7 @@
                 // Clear the persistent store
                 activeChatStore.clearActiveChat();
                 
-                // Load demo welcome chat (async operation)
-                (async () => {
-                    try {
-                        // Check if deep link processing is happening
-                        if (get(deepLinkProcessing)) {
-                            console.debug('[ActiveChat] Skipping welcome chat backup - deep link processing in progress');
-                            return;
-                        }
-
-                        // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
-                        if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
-                            console.debug('[ActiveChat] Skipping backup auth handler demo load - og=1 mode');
-                            return;
-                        }
-
-                        const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
-                        if (welcomeDemo) {
-                            const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
-                            const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-                            activeChatStore.setActiveChat('demo-for-everyone');
-                            await tick();
-                            await loadChat(welcomeChat);
-                            console.debug('[ActiveChat] ✅ Demo welcome chat loaded after auth state change (backup)');
-                        }
-                    } catch (error) {
-                        console.error('[ActiveChat] Error loading demo chat in backup handler:', error);
-                    }
-                })();
+                console.debug('[ActiveChat] Auth state backup handler returned to logged-out welcome screen');
             }
         } else {
             // Close login interface when user successfully logs in
@@ -4700,6 +4659,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         messageInputFocused
     );
     let activeSuggestionSearchText = $derived(messageInputRecentlyFocused ? liveInputText : '');
+    let selectedGuestInterestTagIds = $state<InterestTagId[]>([]);
+
+    function handleGuestInterestSelectionChange(selectedTagIds: InterestTagId[]) {
+        selectedGuestInterestTagIds = selectedTagIds;
+        const state = get(dailyInspirationStore);
+        if (state.isPersonalized || state.inspirations.length === 0) {
+            return;
+        }
+        dailyInspirationStore.setSurfaceInspirations(
+            'chats',
+            rankDailyInspirationsByInterests(state.inspirations, selectedTagIds),
+            { personalized: false }
+        );
+    }
+
+    function handleGuestInterestContinue(selectedTagIds: InterestTagId[]) {
+        handleGuestInterestSelectionChange(selectedTagIds);
+        messageInputFieldRef?.focus();
+    }
     
     // Reactive variable to determine when to show follow-up suggestions in ChatHistory.
     // Show whenever there are suggestions and the welcome screen is not active.
@@ -8897,8 +8875,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 currentSignupStep.set(step);
             }
             
-            // CRITICAL FALLBACK: Load welcome demo chat for non-authenticated users if no chat is loaded
-            // This ensures the welcome chat loads on mobile where Chats.svelte doesn't mount
+            // CRITICAL FALLBACK: Keep logged-out users on the new-chat welcome screen
+            // if no chat is loaded. Intro/demo chats remain reachable from cards/sidebar.
             // Only load if:
             // 1. User is not authenticated
             // 2. No current chat is loaded
@@ -8910,41 +8888,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const hasSessionStorageDrafts = getAllDraftChatIdsWithDrafts().length > 0;
             
             if (!$authStore.isAuthenticated && !currentChat?.chat_id && !$activeChatStore && !$isInSignupProcess && !isInNewChatMode && !hasSessionStorageDrafts) {
-                console.debug("[ActiveChat] [NON-AUTH] Fallback: Loading welcome demo chat (mobile fallback)");
-                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
-                if (welcomeDemo) {
-                    // Translate the demo chat to the user's locale
-                    const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
-                    const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-                    
-                    // Use a small delay to ensure component is fully initialized
-                    setTimeout(() => {
-                        // Check if deep link processing is happening
-                        if (get(deepLinkProcessing)) {
-                            console.debug("[ActiveChat] [NON-AUTH] Skipping welcome chat - deep link processing in progress");
-                            return;
-                        }
-                        
-                        // Re-check new chat mode and drafts after delay (user might have started typing)
-                        const isStillInNewChatMode = get(phasedSyncState).currentActiveChatId === NEW_CHAT_SENTINEL;
-                        const stillHasSessionStorageDrafts = getAllDraftChatIdsWithDrafts().length > 0;
-                        if (isStillInNewChatMode || stillHasSessionStorageDrafts) {
-                            console.debug("[ActiveChat] [NON-AUTH] Fallback: Skipping - user is in new chat mode or has drafts", { isStillInNewChatMode, stillHasSessionStorageDrafts });
-                            return;
-                        }
-
-                        // Double-check that chat still isn't loaded (might have been loaded by +page.svelte)
-                        // CRITICAL: Check if ANY chat is selected in activeChatStore, not just demo-for-everyone
-                        // This prevents overwriting draft chats or other non-demo chats that are being loaded
-                        if (!currentChat?.chat_id && !$activeChatStore) {
-                            activeChatStore.setActiveChat('demo-for-everyone');
-                            loadChat(welcomeChat);
-                            console.info("[ActiveChat] [NON-AUTH] ✅ Fallback: Welcome chat loaded successfully");
-                        } else {
-                            console.info("[ActiveChat] [NON-AUTH] Fallback: Chat already selected, skipping", { currentChatId: currentChat?.chat_id, storeValue: $activeChatStore });
-                        }
-                    }, 100);
-                }
+                console.debug("[ActiveChat] [NON-AUTH] Fallback: Showing logged-out welcome screen");
+                showWelcome = true;
+                currentChat = null;
+                currentMessages = [];
+                activeChatStore.clearActiveChat();
             } else if (!$authStore.isAuthenticated && !currentChat?.chat_id && !$activeChatStore && !$isInSignupProcess && hasSessionStorageDrafts && !isInNewChatMode) {
                 // CRITICAL: User has sessionStorage drafts but no chat is loaded (mobile fallback path)
                 // On mobile, Chats.svelte doesn't mount, so the draft chat is never auto-selected.
@@ -9131,26 +9079,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // Listen for event to load demo chat after logout from signup
         const handleLoadDemoChat = () => {
-            // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
-            if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
-                console.debug('[ActiveChat] Skipping loadDemoChat event - og=1 mode');
-                return;
-            }
-            console.debug("[ActiveChat] Loading demo chat after logout from signup");
+            console.debug("[ActiveChat] Returning to welcome screen after logout from signup");
 
             // Ensure login interface is closed
             loginInterfaceOpen.set(false);
-            // Load default demo chat
-            const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
-            if (welcomeChat) {
-                const chat = convertDemoChatToChat(translateDemoChat(welcomeChat));
-                // Clear current chat first
-                currentChat = null;
-                currentMessages = [];
-                activeChatStore.setActiveChat('demo-for-everyone');
-                loadChat(chat);
-                console.debug("[ActiveChat] ✅ Demo chat loaded after logout from signup");
-            }
+            currentChat = null;
+            currentMessages = [];
+            showWelcome = true;
+            activeChatStore.clearActiveChat();
         };
         
         window.addEventListener('openLoginInterface', handleOpenLoginInterface);
@@ -9395,15 +9331,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         };
         window.addEventListener('localChatListChanged', handlePreprocessingChatRefresh);
         
-        // Listen for logout event to clear user chat and load demo chat
+        // Listen for logout event to clear user chat and return to the logged-out welcome screen.
         // CRITICAL: This handler must work reliably on mobile, even if component isn't fully initialized
         handleLogoutEvent = async () => {
-            // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
+            // OG image mode (?og=1): leave the capture state untouched.
             if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
                 console.debug('[ActiveChat] Skipping userLoggingOut handler - og=1 mode');
                 return;
             }
-            console.debug('[ActiveChat] Logout event received - clearing user chat and loading demo chat');
+            console.debug('[ActiveChat] Logout event received - clearing user chat and showing welcome screen');
             
             try {
                 // Clear current chat state immediately (before database deletion)
@@ -9411,7 +9347,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 currentChat = null;
                 currentMessages = [];
                 followUpSuggestions = []; // Clear follow-up suggestions to prevent showing user responses
-                showWelcome = true; // Show welcome screen for new demo chat
+                showWelcome = true;
                 isAtBottom = false;
                 
                 // Clear the persistent store
@@ -9428,58 +9364,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                 }
                 
-                // Load default demo chat (welcome chat) - use static bundle, not database
-                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-for-everyone');
-                if (welcomeDemo) {
-                    // Translate the demo chat to the user's locale
-                    const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
-                    const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-                    
-                    // Set active chat and load welcome chat
-                    activeChatStore.setActiveChat('demo-for-everyone');
-                    
-                    // Use a small delay to ensure state is cleared and component is ready
-                    // This is especially important on mobile where component initialization might be slower
-                    await tick();
-                    
-                    // CRITICAL: Mark phased sync as completed for non-authenticated users
-                    // This prevents "Loading chats..." from showing after logout
-                    phasedSyncState.markSyncCompleted();
-                    console.debug('[ActiveChat] Marked phased sync as completed after logout (non-auth user)');
-                    
-                    // CRITICAL: Ensure loadChat is called even if there are errors
-                    // Wrap in try-catch to handle any potential errors gracefully
-                    try {
-                        await loadChat(welcomeChat);
-                        console.debug('[ActiveChat] ✅ Demo welcome chat loaded after logout');
-                    } catch (loadError) {
-                        console.error('[ActiveChat] Error loading demo chat after logout:', loadError);
-                        // Even if loadChat fails, ensure UI shows welcome state
-                        // CRITICAL: Close any open fullscreen views in fallback path too
-                        if (showCodeFullscreen) {
-                            console.debug('[ActiveChat] Closing code fullscreen view in fallback path');
-                            showCodeFullscreen = false;
-                        }
-                        if (showEmbedFullscreen) {
-                            console.debug('[ActiveChat] Closing embed fullscreen view in fallback path');
-                            showEmbedFullscreen = false;
-                            embedFullscreenData = null;
-                        }
-                        showWelcome = true;
-                        currentChat = welcomeChat; // Set chat object directly as fallback
-                        currentMessages = getDemoMessages('demo-for-everyone', DEMO_CHATS, LEGAL_CHATS);
-                        if (chatHistoryRef) {
-                            chatHistoryRef.updateMessages(currentMessages);
-                        }
-                    }
-                } else {
-                    console.warn('[ActiveChat] Welcome demo chat not found in DEMO_CHATS');
-                    // Fallback: ensure welcome screen is shown even if demo chat not found
-                    showWelcome = true;
-                    // Mark phased sync as completed even if demo chat not found
-                    phasedSyncState.markSyncCompleted();
-                    console.debug('[ActiveChat] Marked phased sync as completed after logout (fallback path)');
+                if (showCodeFullscreen) {
+                    showCodeFullscreen = false;
                 }
+                if (showEmbedFullscreen) {
+                    showEmbedFullscreen = false;
+                    embedFullscreenData = null;
+                }
+                await tick();
+                phasedSyncState.markSyncCompleted();
+                console.debug('[ActiveChat] Marked phased sync as completed after logout (non-auth user)');
             } catch (error) {
                 console.error('[ActiveChat] Error in logout event handler:', error);
                 // Fallback: ensure UI is cleared even if handler fails
@@ -10933,6 +10827,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 </div>
                             </div>
 
+                            {#if !$authStore.isAuthenticated}
+                                <GuestInterestTags
+                                    onSelectionChange={handleGuestInterestSelectionChange}
+                                    onContinue={handleGuestInterestContinue}
+                                />
+                            {/if}
+
                             <!-- Resume card + recent chats horizontal scroll (authenticated users) -->
                             {#if hasContinueItems}
                                 <div
@@ -11505,12 +11406,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                   </button>
                               </div>
                          {:else if showWelcome && !messageInputMapsOpen && (!suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
-                               <NewChatSuggestions
-                                  messageInputContent={activeSuggestionSearchText}
-                                  onSuggestionClick={handleSuggestionClick}
-                                  onChatNavigate={handleChatNavigate}
-                                  onFileSelect={handleFileSuggestionClick}
-                              />
+                                <NewChatSuggestions
+                                   messageInputContent={activeSuggestionSearchText}
+                                   selectedInterestTagIds={selectedGuestInterestTagIds}
+                                   onSuggestionClick={handleSuggestionClick}
+                                   onChatNavigate={handleChatNavigate}
+                                   onFileSelect={handleFileSuggestionClick}
+                               />
                          {/if}
 
 

@@ -606,6 +606,15 @@ async def install_update(
     """Trigger software update installation on all servers."""
     now = datetime.now(timezone.utc).isoformat()
 
+    if _detect_deployment_mode() == DeploymentMode.DOCKER:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This server is managed by prebuilt Docker images. "
+                "Run 'openmates server update' on the host instead."
+            ),
+        )
+
     # Check if an update is already in progress
     current_status = await cache_service.get(CACHE_KEY_UPDATE_STATUS)
     if current_status and isinstance(current_status, dict):

@@ -2319,25 +2319,17 @@ changes to the documentation (to keep the documentation up to date).
                     // Dispatching userLoggingOut event to clear chats and load demo
                     window.dispatchEvent(new CustomEvent('userLoggingOut'));
 
-                     // CRITICAL: Force ActiveChat to load demo-for-everyone by setting activeChatStore directly
-                     // This ensures demo-for-everyone loads even if event handlers have timing issues
+                     // CRITICAL: Force ActiveChat back to the welcome screen by clearing activeChatStore directly.
                      // Small delay to ensure auth state changes are processed first
                      // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
                      const isOgMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1';
                      if (!isOgMode) {
-                         await new Promise(resolve => setTimeout(resolve, 50));
-                         const { activeChatStore } = await import('@repo/ui');
-                         activeChatStore.setActiveChat('demo-for-everyone');
-                         // Directly set activeChatStore to demo-for-everyone during logout
-
-                         // CRITICAL: Ensure URL hash is set to demo-for-everyone
-                         if (typeof window !== 'undefined') {
-                             window.location.hash = 'chat-id=demo-for-everyone';
-                             // Set URL hash to demo-for-everyone during logout
-                         }
-                     } else {
-                         // Skipping demo-for-everyone redirect during logout - og=1 mode
-                     }
+                          await new Promise(resolve => setTimeout(resolve, 50));
+                          const { activeChatStore } = await import('@repo/ui');
+                          activeChatStore.clearActiveChat();
+                      } else {
+                          // Skipping welcome reset during logout - og=1 mode
+                      }
                     
                     // CRITICAL: Mark phased sync as completed for non-authenticated users
                     // This prevents "Loading chats..." from showing after logout
@@ -2363,13 +2355,7 @@ changes to the documentation (to keep the documentation up to date).
                     // Only close settings menu
                  	isMenuOpen.set(false);
 
-                     // CRITICAL: Ensure URL hash is set to demo-for-everyone after logout
-                     // This ensures consistent behavior where logout always redirects to demo-for-everyone
-                     // OG image mode (?og=1): skip so the welcome screen stays visible
-                     if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') !== '1') {
-                         window.location.hash = 'chat-id=demo-for-everyone';
-                         // Set URL hash to demo-for-everyone after logout
-                     }
+                     // Active chat was already cleared before cleanup; leave the logged-out welcome screen visible.
 
                     // Small delay to allow sidebar animation if needed
                  	await new Promise(resolve => setTimeout(resolve, 100));

@@ -33,6 +33,7 @@ from backend.core.api.app.utils.text_sanitization import (
     sanitize_text_payload_for_ascii_smuggling,
     sanitize_text_simple,
 )
+from backend.apps.ai.utils.mindmap_fences import normalize_mindmap_source
 
 logger = logging.getLogger(__name__)
 
@@ -313,6 +314,7 @@ class EmbedService:
             "mail": ("mail", "email"),
             "math-plot": ("math", "plot"),
             "mermaid": ("diagrams", "mermaid"),
+            "mindmap": ("mindmaps", "mindmap"),
         }
         return mapping.get(embed_type, (embed_type, embed_type))
 
@@ -2277,6 +2279,217 @@ class EmbedService:
             return True
         except Exception as e:
             logger.error(f"{log_prefix} Error updating Mermaid embed content: {e}", exc_info=True)
+            return False
+
+    # =========================================================================
+    # Mind map embed methods (for ```openmates_mindmap ... ``` fenced blocks)
+    # Source-first direct embeds owned by the Mind Maps app.
+    # =========================================================================
+
+    async def create_mindmap_embed_placeholder(
+        self,
+        chat_id: str,
+        message_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        task_id: Optional[str] = None,
+        title: Optional[str] = None,
+        log_prefix: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """Create a processing Mind Maps direct embed placeholder."""
+        try:
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
+            hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
+
+            embed_id = str(uuid.uuid4())
+            next_title = title or "Mind Map"
+            embed_ref = self._generate_direct_embed_ref(
+                "mindmap",
+                embed_id,
+                {"title": next_title},
+            )
+            now = int(datetime.now().timestamp())
+            placeholder_content = {
+                "type": "mindmap",
+                "app_id": "mindmaps",
+                "skill_id": "mindmap",
+                "title": next_title,
+                "source_json": "",
+                "model": None,
+                "embed_ref": embed_ref,
+                "status": "processing",
+                "node_count": 0,
+                "edge_count": 0,
+                "validation": {"status": "processing", "warnings": []},
+                "version_number": 1,
+            }
+            placeholder_toon = encode(placeholder_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                placeholder_toon,
+                user_vault_key_id,
+            )
+            embed_data = {
+                "embed_id": embed_id,
+                "type": "mindmap",
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "hashed_chat_id": hashed_chat_id,
+                "hashed_message_id": hashed_message_id,
+                "hashed_task_id": hashed_task_id,
+                "status": "processing",
+                "hashed_user_id": user_id_hash,
+                "is_private": False,
+                "is_shared": False,
+                "encryption_mode": "client",
+                "embed_ids": None,
+                "encrypted_content": encrypted_content,
+                "version_number": 1,
+                "created_at": now,
+                "updated_at": now,
+            }
+
+            await self._cache_embed(embed_id, embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            await self.send_embed_data_to_client(
+                embed_id=embed_id,
+                embed_type="mindmap",
+                content_toon=placeholder_toon,
+                chat_id=chat_id,
+                message_id=message_id,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+                status="processing",
+                task_id=task_id,
+                is_private=False,
+                is_shared=False,
+                version_number=1,
+                created_at=now,
+                updated_at=now,
+                log_prefix=log_prefix,
+            )
+
+            logger.info(f"{log_prefix} Created processing mind map embed {embed_id}")
+            return {
+                "embed_id": embed_id,
+                "embed_reference": json.dumps({"type": "mindmap", "embed_id": embed_id}),
+            }
+        except Exception as e:
+            logger.error(f"{log_prefix} Error creating mind map embed placeholder: {e}", exc_info=True)
+            return None
+
+    async def update_mindmap_embed_content(
+        self,
+        embed_id: str,
+        source_json: str,
+        chat_id: str,
+        user_id: str,
+        user_id_hash: str,
+        user_vault_key_id: str,
+        status: str = "finished",
+        title: Optional[str] = None,
+        version_number: Optional[int] = None,
+        content_hash: Optional[str] = None,
+        version_history_rows: Optional[List[Dict[str, Any]]] = None,
+        log_prefix: str = "",
+    ) -> bool:
+        """Update Mind Maps source JSON and derived render metadata."""
+        try:
+            cached_embed = await self._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
+            if not cached_embed:
+                logger.warning(f"{log_prefix} Mind map embed {embed_id} not found in cache, cannot update")
+                return False
+
+            existing_content: Dict[str, Any] = {}
+            existing_toon = await self._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
+            if existing_toon:
+                try:
+                    decoded = decode(existing_toon)
+                    if isinstance(decoded, dict):
+                        existing_content = decoded
+                except Exception as e:
+                    logger.warning(f"{log_prefix} Failed to decode existing mind map content: {e}")
+
+            normalized = normalize_mindmap_source(source_json)
+            next_title = title or normalized.title or existing_content.get("title") or "Mind Map"
+            next_version_number = version_number or int(cached_embed.get("version_number") or existing_content.get("version_number") or 1)
+            next_content_hash = content_hash
+            if next_content_hash is None and status == "finished":
+                next_content_hash = hashlib.sha256(normalized.source_json.encode("utf-8")).hexdigest()
+
+            updated_content = {
+                **existing_content,
+                "type": "mindmap",
+                "app_id": "mindmaps",
+                "skill_id": "mindmap",
+                "title": next_title,
+                "source_json": normalized.source_json,
+                "model": normalized.model,
+                "embed_ref": existing_content.get("embed_ref") or self._generate_direct_embed_ref(
+                    "mindmap",
+                    embed_id,
+                    {"title": next_title},
+                ),
+                "status": status,
+                "node_count": normalized.node_count,
+                "edge_count": normalized.edge_count,
+                "validation": {
+                    "status": normalized.status,
+                    "warnings": normalized.warnings,
+                    "parse_error": normalized.parse_error,
+                },
+                "version_number": next_version_number,
+            }
+            updated_toon = encode(updated_content)
+            encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
+                updated_toon,
+                user_vault_key_id,
+            )
+            updated_embed_data = {
+                **cached_embed,
+                "type": "mindmap",
+                "encrypted_content": encrypted_content,
+                "status": status,
+                "version_number": next_version_number,
+                "updated_at": int(datetime.now().timestamp()),
+            }
+            if next_content_hash is not None:
+                updated_embed_data["content_hash"] = next_content_hash
+
+            current_status = cached_embed.get("status", "processing")
+            should_send_event = not (status == "finished" and current_status == "finished" and version_number is None)
+            await self._cache_embed(embed_id, updated_embed_data, chat_id, user_id_hash, user_vault_key_id, user_id)
+            if should_send_event:
+                await self.send_embed_data_to_client(
+                    embed_id=embed_id,
+                    embed_type="mindmap",
+                    content_toon=updated_toon,
+                    chat_id=chat_id,
+                    message_id=cached_embed.get("message_id", ""),
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    status=status,
+                    task_id=cached_embed.get("hashed_task_id"),
+                    is_private=cached_embed.get("is_private", False),
+                    is_shared=cached_embed.get("is_shared", False),
+                    version_number=next_version_number,
+                    content_hash=next_content_hash,
+                    version_history_rows=version_history_rows,
+                    created_at=cached_embed.get("created_at"),
+                    updated_at=updated_embed_data["updated_at"],
+                    log_prefix=log_prefix,
+                    check_cache_status=False,
+                )
+
+            logger.info(
+                f"{log_prefix} Updated mind map embed {embed_id} "
+                f"(nodes={normalized.node_count}, edges={normalized.edge_count}, status={status})"
+            )
+            if status == "finished":
+                self._schedule_embed_persistence_fallback(embed_id)
+            return True
+        except Exception as e:
+            logger.error(f"{log_prefix} Error updating mind map embed content: {e}", exc_info=True)
             return False
 
     # =========================================================================

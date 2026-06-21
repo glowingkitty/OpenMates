@@ -21,6 +21,8 @@
   import type { Chat, NewChatSuggestion } from '../types/chat';
   import { authStore } from '../stores/authStore';
   import { DEFAULT_NEW_CHAT_SUGGESTION_KEYS } from '../demo_chats/defaultNewChatSuggestions';
+  import { rankSuggestionKeysByInterests } from '../demo_chats/guestSmartSelection';
+  import type { InterestTagId } from '../demo_chats/interestTags';
   import { get } from 'svelte/store';
   import { locale } from 'svelte-i18n';
   import NewChatSuggestionContextMenu from './NewChatSuggestionContextMenu.svelte';
@@ -63,12 +65,14 @@
     onSuggestionClick,
     onChatNavigate,
     onFileSelect,
-    messageInputContent = ''
+    messageInputContent = '',
+    selectedInterestTagIds = []
   }: {
     onSuggestionClick: (suggestion: string) => void;
     onChatNavigate: (chatId: string) => void;
     onFileSelect: (file: UploadedFileSearchResult) => void;
     messageInputContent?: string;
+    selectedInterestTagIds?: InterestTagId[];
   } = $props();
 
   /**
@@ -307,13 +311,15 @@
    */
   function buildDefaultSuggestions(): Array<{ text: string; encrypted: string; id: string }> {
     const t = get(text);
-    const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
-    const plainTextSuggestions = translatedSuggestions.map(s => stripLegacySuggestionPrefix(stripHtmlTags(s)));
-    return shuffleArray(plainTextSuggestions.map(text => ({
-      text,
+    const suggestionKeys = selectedInterestTagIds.length > 0
+      ? rankSuggestionKeysByInterests(DEFAULT_NEW_CHAT_SUGGESTION_KEYS, selectedInterestTagIds)
+      : DEFAULT_NEW_CHAT_SUGGESTION_KEYS;
+    const suggestions = suggestionKeys.map(key => ({
+      text: stripLegacySuggestionPrefix(stripHtmlTags(t(key))),
       encrypted: '',
-      id: ''
-    })));
+      id: key
+    }));
+    return selectedInterestTagIds.length > 0 ? suggestions : shuffleArray(suggestions);
   }
 
   /**
@@ -405,11 +411,15 @@
 
   // React to auth state changes — reload suggestions when auth state transitions
   $effect(() => {
+    void selectedInterestTagIds;
     const isAuthenticated = $authStore.isAuthenticated;
     if (previousAuthState !== isAuthenticated) {
       previousAuthState = isAuthenticated;
       hiddenSuggestionTexts = new Set();
       loadSuggestions();
+    } else if (!isAuthenticated) {
+      applyDefaultSuggestions();
+      loading = false;
     }
   });
 
@@ -689,6 +699,8 @@
         {/if}
         <button
           class="suggestion-card"
+          data-testid="new-chat-suggestion-card"
+          data-suggestion-id={suggestion.id}
           style="background: {getSuggestionGradient()};"
           onclick={() => handleSuggestionClick(suggestion.text, suggestion.body, suggestion.id, suggestion.encrypted)}
           oncontextmenu={(event) => handleContextMenu(event, suggestion.text, suggestion.id)}

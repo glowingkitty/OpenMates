@@ -17,6 +17,9 @@ import {
 } from "./cryptoService";
 import { embedStore } from "./embedStore";
 import { uploadFileToServer, type UploadFileResponse } from "../components/enter_message/services/uploadService";
+import { classifyMindMapUploadSource } from "../components/enter_message/services/mindMapUploadDetection";
+import { normalizeMindMapSource } from "../components/embeds/mindmaps/mindMapContent";
+import { generateDirectEmbedRef } from "../utils/embedFragmentUtils";
 
 export type ProjectItemType = "embed" | "chat" | "upload" | "workflow";
 
@@ -260,7 +263,121 @@ function embedTypeForUpload(upload: UploadFileResponse): string {
   return "file";
 }
 
+function isMindMapUploadFilename(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return lower.endsWith(".ommindmap") || lower.endsWith(".openmates-mindmap.json");
+}
+
+async function uploadMindMapToProject(project: ProjectViewModel, file: File, source: string): Promise<void> {
+  const normalization = normalizeMindMapSource(source);
+  if (normalization.status === "invalid_source" || !normalization.model) {
+    throw new Error(normalization.parseError || "Invalid mind map JSON");
+  }
+
+  const timestampMs = Date.now();
+  const timestamp = Math.floor(timestampMs / 1000);
+  const embedId = crypto.randomUUID();
+  const embedType = "mindmaps-mindmap";
+  const embedKey = generateEmbedKey();
+  const embedRef = generateDirectEmbedRef("mindmap", embedId, { filename: file.name });
+  const embedContent = JSON.stringify({
+    type: "mindmap",
+    app_id: "mindmaps",
+    skill_id: "mindmap",
+    title: normalization.title,
+    source_json: normalization.sourceJson,
+    model: normalization.model,
+    validation: {
+      status: normalization.status,
+      warnings: normalization.warnings,
+    },
+    embed_ref: embedRef,
+    status: "finished",
+    version_number: 1,
+    node_count: normalization.nodeCount,
+    edge_count: normalization.edgeCount,
+    filename: file.name,
+  });
+  const contentHash = await computeSHA256(normalization.sourceJson);
+  const hashedEmbedId = await computeSHA256(embedId);
+  const hashedProjectId = await computeSHA256(project.project_id);
+  const wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKey);
+  const wrappedProjectKey = await wrapEmbedKeyWithChatKey(embedKey, project.projectKey);
+  if (!wrappedMasterKey || !wrappedProjectKey) throw new Error("Could not wrap mind map embed keys");
+
+  await requestJson(`/v1/projects/${project.project_id}/upload-embed`, {
+    method: "POST",
+    body: JSON.stringify({
+      embed: {
+        embed_id: embedId,
+        encrypted_type: await encryptWithEmbedKey(embedType, embedKey),
+        status: "finished",
+        encrypted_content: await encryptWithEmbedKey(embedContent, embedKey),
+        encrypted_text_preview: await encryptWithEmbedKey(normalization.title, embedKey),
+        content_hash: contentHash,
+        created_at: timestamp,
+        updated_at: timestamp,
+        encryption_mode: "client",
+        is_private: true,
+        is_shared: false,
+      },
+      embed_keys: [
+        {
+          hashed_embed_id: hashedEmbedId,
+          key_type: "master",
+          encrypted_embed_key: wrappedMasterKey,
+          created_at: timestamp,
+        },
+        {
+          hashed_embed_id: hashedEmbedId,
+          key_type: "project",
+          hashed_project_id: hashedProjectId,
+          encrypted_embed_key: wrappedProjectKey,
+          created_at: timestamp,
+        },
+      ],
+      item: {
+        project_item_id: crypto.randomUUID(),
+        item_type: "embed",
+        target_id: embedId,
+        target_id_encrypted: await encryptWithEmbedKey(embedId, project.projectKey),
+        encrypted_display_name: await encryptWithEmbedKey(normalization.title || file.name, project.projectKey),
+        encrypted_note: await encryptWithEmbedKey("", project.projectKey),
+        encrypted_metadata: await encryptWithEmbedKey(JSON.stringify({ embed_type: embedType }), project.projectKey),
+        created_at: timestamp,
+        updated_at: timestamp,
+        position: timestamp,
+      },
+    }),
+  });
+
+  await embedStore.put(
+    `embed:${embedId}`,
+    {
+      embed_id: embedId,
+      type: embedType as never,
+      status: "finished",
+      content: embedContent,
+      text_preview: normalization.title,
+      createdAt: timestampMs,
+      updatedAt: timestampMs,
+    },
+    embedType as never,
+  );
+  embedStore.registerEmbedRef(embedRef, embedId, "mindmap");
+}
+
 export async function uploadFileToProject(project: ProjectViewModel, file: File): Promise<void> {
+  if (isMindMapUploadFilename(file.name)) {
+    const source = await file.text();
+    const classification = classifyMindMapUploadSource(file.name, source, file.size);
+    if (!classification.accepted) {
+      throw new Error(`Could not import mind map: ${classification.reason.replace(/_/g, " ")}`);
+    }
+    await uploadMindMapToProject(project, file, source);
+    return;
+  }
+
   const upload = await uploadFileToServer(file);
   const timestampMs = Date.now();
   const timestamp = Math.floor(timestampMs / 1000);

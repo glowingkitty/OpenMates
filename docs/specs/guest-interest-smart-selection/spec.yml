@@ -1,0 +1,590 @@
+id: guest-interest-smart-selection
+title: Guest Interest Smart Selection
+status: implementing
+
+goal: >
+  Let new visitors land directly on the new-chat screen and get a privacy-preserving,
+  locally steered OpenMates experience by selecting interest tags that deterministically
+  personalize logged-out default daily inspirations, intro/example chats, and new-chat
+  suggestions. Preserve the selected interests as encrypted synced account data after
+  signup so web, CLI, and Apple clients can edit and use the same topic preferences.
+
+scope:
+  in:
+    - Fresh logged-out web visitors open the new-chat welcome screen by default instead of auto-opening `demo-for-everyone`.
+    - Logged-out default daily inspirations become the first OpenMates explainer surface, starting with the existing `for-everyone` chat header/video content moved into the first default inspiration.
+    - Additional logged-out default inspirations explain OpenMates features such as personal data replacement, app skills, memories/settings, examples, CLI/programmatic use, and privacy until the user signs up or has authenticated personalized inspirations.
+    - A phrase-style interest tag rail on the web new-chat welcome screen, with icons and category/app gradient backgrounds.
+    - Adaptive tag ordering where selected tags stay first and related unselected tags move next without hiding unrelated tags.
+    - Deterministic client-side smart selection for daily inspirations, intro chats, example chats, and new-chat suggestions from selected tags.
+    - Guest topic selections stored only in sessionStorage before signup.
+    - Signup promotion of guest selections into encrypted synced account data named `encrypted_topic_preferences` or an equivalent explicit encrypted field.
+    - Settings > Account > Interests editing on web, with CLI and Apple parity for reading/updating the same encrypted preferences.
+    - Tests and docs for the privacy-preserving behavior and new default landing flow.
+  out:
+    - Server-side profiling, analytics-based personalization, or cleartext interest storage.
+    - ML/LLM-based ranking for v1; all selection is deterministic client-side.
+    - Hiding unrelated tags after a selection.
+    - Persisting guest interests beyond sessionStorage before signup.
+    - Replacing logged-in personalized daily inspiration generation with the guest rules.
+    - Creating all future OpenMates explainer videos; v1 wires the first explainer and provides the registry for later additions.
+    - Changing anonymous free usage budget or anonymous chat encryption rules already covered by separate specs.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 bad credentials. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"landing onboarding personalization daily inspirations example chats new chat\" --state all --limit 20 --json number,title,state,labels,updatedAt,url` returned `[]`."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/frontend/web-app.md
+    - docs/user-guide/daily-inspiration.md
+    - docs/specs/anonymous-free-usage-budget/spec.yml
+    - docs/specs/anonymous-streaming-ui/spec.yml
+    - docs/specs/example-chat-public-quality/spec.yml
+    - docs/specs/apple-reminders-public-content-parity/spec.yml
+    - docs/architecture/apple/parity-matrix.md
+  code_patterns:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+    - frontend/packages/ui/src/demo_chats/defaultNewChatSuggestions.ts
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+    - frontend/packages/ui/src/demo_chats/data/for_everyone.ts
+    - frontend/packages/ui/src/demo_chats/data/for_developers.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAccountChatsView.swift
+  tests:
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/apps/web_app/tests/example-chats-load.spec.ts
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/ui/src/stores/__tests__/dailyInspirationStore.test.ts
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsAccountChatsView.swift
+    - apple/OpenMates/Sources/Features/Chat/**
+    - apple/OpenMates/Sources/Core/**
+  parity_expectations:
+    - Apple exposes equivalent Account > Interests editing using the same tag registry semantics, icons, and generated design tokens where native UI renders the tags.
+    - Apple uses the same encrypted synced `encrypted_topic_preferences` data and never uploads cleartext interests.
+    - Apple new-chat public/onboarding fallback uses the same deterministic topic preferences when no authenticated user chats exist.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios or targeted test-ios after CLI and web evidence are green
+  intentional_native_differences:
+    - Apple may use native horizontal scrolling and settings primitives, but visual styling must follow the generated token/color/icon system and avoid hardcoded user-visible strings.
+
+clarification:
+  rounds:
+    - question: Should this spec replace the current logged-out default of auto-opening `demo-for-everyone` on `/`, or only show smart selection after clicking New Chat?
+      answer: Replace it. Fresh logged-out users should open the new-chat screen instead of the intro chat.
+    - question: Should selected interest tags persist only in sessionStorage until the tab/window session ends, or persist longer in localStorage for returning logged-out visitors?
+      answer: Session storage only for privacy before signup. If the user signs up, the preferences should be stored client-side encrypted and used only for local filtering.
+    - question: When a user signs up after selecting tags, should the selected tags become encrypted synced account data across devices, or remain encrypted local-only IndexedDB state?
+      answer: They should become encrypted synced account data, likely named `encrypted_topic_preferences`.
+    - question: For the first version, should users be able to edit topic preferences later in Settings?
+      answer: Yes. Add editing under Settings / Account / Interests.
+    - question: Should v1 be web-only with future-compatible data, or require CLI and Apple parity in the first implementation?
+      answer: CLI and Apple app parity as always, with CLI parity focused on settings/account management.
+    - question: Should logged-out default daily inspirations become the first explainer header introducing OpenMates?
+      answer: Yes. Move the `for-everyone` chat header content, including the intro/autoplay video behavior, into the first logged-out default daily inspiration, and later add more default inspirations explaining OpenMates while the user is not signed up.
+  vision_summary: >
+    New visitors should land directly on a new-chat welcome screen that feels usable and personalized without sacrificing privacy. They select a few icon-and-gradient phrase tags; the client deterministically reorders daily inspirations, intro/example chats, and starter suggestions without sending interests to the server. Guest interests live only in sessionStorage, then become encrypted synced topic preferences after signup and can be edited from web, CLI, and Apple account settings.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Fresh guest lands on new-chat welcome with OpenMates explainer inspiration
+    given:
+      - A fresh logged-out visitor opens `/` on the official web app.
+      - The browser has no active chat hash and no authenticated session.
+    when:
+      - The app finishes initial unauthenticated loading.
+    then:
+      - The active surface is the new-chat welcome screen, not `demo-for-everyone`.
+      - The daily inspiration area is visible above the welcome content.
+      - The first logged-out default inspiration introduces OpenMates using the existing `for-everyone` chat header title, summary, gradient/header visual language, and intro video preview/fullscreen behavior.
+      - Intro and example chats remain reachable from the welcome screen and sidebar.
+
+  - id: S-2
+    title: Guest selects adaptive interest tags
+    given:
+      - A logged-out visitor is on the new-chat welcome screen.
+      - No interest tags are selected yet.
+    when:
+      - The visitor selects `software development`.
+    then:
+      - The `software development` tag becomes active and moves to the front of the tag rail.
+      - Related tags such as `use the CLI`, `open source`, `read developer docs`, `run code`, `protect my privacy`, and `summarize documents` move after the active tag.
+      - Unrelated tags remain available later in the rail instead of being hidden.
+      - A Continue action appears once at least one tag is selected.
+
+  - id: S-3
+    title: Smart selection reorders all guest discovery surfaces
+    given:
+      - A logged-out visitor selected `software development` and `protect my privacy`.
+    when:
+      - The visitor presses Continue.
+    then:
+      - Daily inspirations prioritize `cli-programmatic-use`, `developer-docs-code`, `privacy-pii-replacement`, and `apps-skills-tools` before generic inspiration content.
+      - Intro chats prioritize `demo-for-developers` while keeping `demo-for-everyone` reachable.
+      - Example chats prioritize software-development and privacy examples such as Svelte docs, Python code run, OpenMates app skills/docs, PDF encryption, private workspace, and privacy website examples.
+      - New-chat suggestions prioritize relevant prompts such as learning to code, using OpenMates from CLI/API, hiding personal data, and finding developer tutorial videos.
+      - The same selected tags and registry order always produce the same ranked output.
+
+  - id: S-4
+    title: Guest interests are session-only before signup
+    given:
+      - A logged-out visitor selected `find apartments` and `local life`.
+    when:
+      - The visitor reloads the same tab, then later closes the tab/window and opens OpenMates again.
+    then:
+      - Same-session reload restores selected tags from sessionStorage.
+      - Closing the browser session removes the guest selections.
+      - No localStorage entry stores guest interest tags.
+      - No network request sends cleartext selected tags.
+
+  - id: S-5
+    title: Signup promotes session interests into encrypted synced account data
+    given:
+      - A logged-out visitor selected `software development`, `use the CLI`, and `open source`.
+      - The visitor starts signup and successfully creates an account.
+    when:
+      - The authenticated account sync completes.
+    then:
+      - The selected interests are encrypted client-side into `encrypted_topic_preferences` or an equivalent explicit encrypted synced field.
+      - The server receives only ciphertext and metadata needed to sync it.
+      - The account can use the decrypted preferences for local smart selection on new-chat and public fallback surfaces.
+      - The signup flow does not upload the previous guest sessionStorage cleartext value.
+
+  - id: S-6
+    title: Account interests are editable on web, CLI, and Apple
+    given:
+      - An authenticated user has encrypted topic preferences synced to their account.
+    when:
+      - The user opens Settings > Account > Interests on web, the equivalent CLI account/settings command, or the Apple account settings screen.
+    then:
+      - The user can view, add, remove, and save topic preferences after client-side decryption.
+      - Saving re-encrypts the full preferences payload before sync.
+      - A second authenticated client receives the encrypted update through normal sync and can decrypt it locally.
+      - User-visible labels are localized on web and Apple, and CLI output is clear text in the active terminal language where supported.
+
+  - id: S-7
+    title: Authenticated chat ownership takes precedence over public onboarding
+    given:
+      - An authenticated user has encrypted topic preferences.
+    when:
+      - The user opens the web, CLI, or Apple chat list/new-chat screen.
+    then:
+      - If the user has real user chats, those chats are shown as the primary experience.
+      - If the user has no user chats, the public intro/example/suggestion fallback is ranked with the decrypted topic preferences.
+      - Logged-in personalized daily inspirations, when present, take precedence over logged-out default OpenMates explainers.
+
+  - id: S-8
+    title: Product explainer inspirations stay separate from logged-in personalization
+    given:
+      - A logged-out visitor has not signed up.
+    when:
+      - The app loads default inspirations.
+    then:
+      - The default inspiration registry includes product explainer inspirations for OpenMates intro, privacy/personal-data replacement, app skills, memories/settings, example chats, and CLI/programmatic use.
+      - These logged-out defaults are filterable by selected tags.
+      - After signup, personalized encrypted daily inspirations replace or outrank logged-out defaults according to the existing daily inspiration source rules.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Fresh logged-out `/` visits open the new-chat welcome screen instead of auto-opening `demo-for-everyone`.
+  - id: AC-2
+    scenario: S-1
+    text: The first logged-out default inspiration reuses the `for-everyone` chat header copy/video intent as an OpenMates explainer banner.
+  - id: AC-3
+    scenario: S-2
+    text: The interest tag rail uses phrase labels, icons, and gradient backgrounds, and adaptively reorders selected and related tags without hiding unrelated tags.
+  - id: AC-4
+    scenario: S-3
+    text: Selected tags deterministically rank daily inspirations, intro chats, example chats, and new-chat suggestions from a shared client-side registry.
+  - id: AC-5
+    scenario: S-4
+    text: Guest selected tags persist only in sessionStorage and are never sent to the server as cleartext.
+  - id: AC-6
+    scenario: S-5
+    text: Signup promotes guest interests into encrypted synced account topic preferences without uploading guest cleartext.
+  - id: AC-7
+    scenario: S-6
+    text: Web Settings > Account > Interests can edit encrypted topic preferences.
+  - id: AC-8
+    scenario: S-6
+    text: CLI account/settings commands can view and update encrypted topic preferences after local decryption.
+  - id: AC-9
+    scenario: S-6
+    text: Apple account settings can view and update encrypted topic preferences with web-equivalent semantics.
+  - id: AC-10
+    scenario: S-7
+    text: Authenticated user chats take precedence over public onboarding, while no-chat fallback uses decrypted topic preferences.
+  - id: AC-11
+    scenario: S-8
+    text: Logged-out product explainer inspirations are used only as guest/default content and do not replace authenticated personalized inspirations.
+
+contracts:
+  data:
+    - name: InterestTag
+      shape: "{ id: string, labelKey: string, fallbackLabel: string, icon: string, gradientCategory: string, defaultOrder: number, related: string[], dailyInspirations: string[], introChats: string[], exampleChats: string[], suggestions: string[] }"
+      rules:
+        - Tag IDs are stable lowercase snake_case identifiers.
+        - Labels are phrase-style, e.g. `find apartments`, `protect my privacy`, `software development`, `open source`, `use the CLI`.
+        - Gradient categories reuse existing app/category gradient mapping rather than introducing arbitrary colors.
+    - name: TopicPreferencesPayload
+      shape: "{ version: 1, selectedTagIds: string[], updatedAt: string }"
+      storage:
+        - Guest web state uses sessionStorage key `openmates.guest_interest_tags.v1`.
+        - Authenticated state syncs as client-encrypted `encrypted_topic_preferences` or an equivalently explicit encrypted field.
+        - Server-side storage must never contain cleartext tag IDs.
+    - name: GuestProductInspiration
+      shape: "{ id: string, titleKey: string, phraseKey: string, assistantResponseKey?: string, category: string, videoKey?: string, featurePath?: string, tags: string[], order: number }"
+      rules:
+        - "`openmates-intro` is the first default logged-out inspiration and is derived from the `for-everyone` chat header/video content."
+        - Additional default inspiration IDs include `privacy-pii-replacement`, `apps-skills-tools`, `memory-personalization`, `example-chats`, and `cli-programmatic-use`.
+  ui_states:
+    - Fresh logged-out new-chat welcome with no selected tags.
+    - Interest tag rail with active and related resorted tags.
+    - Continue hidden before selection and visible after one or more selections.
+    - Smart-selected daily inspirations, intro/example chat cards, and suggestions after Continue.
+    - Web Settings > Account > Interests with loading, saved, validation error, and sync error states.
+    - CLI account interests list/set/clear output and error states.
+    - Apple Account > Interests loading, edit, save, and sync error states.
+  privacy_security:
+    - Guest topic selections are session-only before signup.
+    - No cleartext selected tag IDs are sent in HTTP, WebSocket, logs, analytics, issue reports, or sync payloads.
+    - Authenticated topic preferences are encrypted client-side before sync and decrypted only locally.
+    - Topic preferences affect local filtering/ranking only; they are not used for server-side targeting or model personalization in v1.
+  ranking:
+    - Active tags render first in selection order.
+    - Unselected tags are scored by relation to selected tags, shared surfaces, shared category, and stable default order.
+    - Content scoring uses explicit registry matches first, then metadata tags/app-skill/category matches, then featured/default fallback order.
+    - Dedupe by content ID and apply variety penalties to avoid showing too many cards from one category when multiple tags are selected.
+
+tests:
+  - id: T-VITEST-SMART-SELECTION
+    type: vitest
+    file: frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
+    command: python3 scripts/tests.py run -- --suite vitest
+    covers:
+      - AC-3
+      - AC-4
+      - AC-10
+      - AC-11
+    assertions:
+      - selected tags stay first and related tags move next without hiding unrelated tags
+      - software_development plus privacy ranks developer, CLI, and PII inspirations before generic defaults
+      - selected tag ranking dedupes example chats and remains deterministic across repeated runs
+      - authenticated personalized inspirations outrank logged-out product explainer defaults when present
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-VITEST-TOPIC-PREFERENCES
+    type: vitest
+    file: frontend/packages/ui/src/stores/__tests__/topicPreferencesStore.test.ts
+    command: python3 scripts/tests.py run -- --suite vitest
+    covers:
+      - AC-5
+      - AC-6
+      - AC-7
+    assertions:
+      - logged-out selections write only to sessionStorage
+      - logout/new session clears guest selections without touching authenticated encrypted preferences
+      - signup promotion encrypts the topic preferences payload before sync
+      - web settings updates re-encrypt and save the full preferences payload
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PLAYWRIGHT-GUEST-LANDING
+    type: playwright
+    file: frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    command: python3 scripts/tests.py run --spec guest-interest-smart-selection.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+    assertions:
+      - fresh logged-out `/` shows the new-chat welcome screen and does not auto-navigate to `#chat-id=demo-for-everyone`
+      - first daily inspiration banner is the OpenMates intro explainer with video/fullscreen entry
+      - selecting `software development` activates the tag and reorders related tags next
+      - Continue reveals/reranks developer/CLI/privacy daily inspirations, intro/example chats, and suggestions
+      - reload in same session preserves selected tags while no localStorage cleartext interest key exists
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PLAYWRIGHT-ACCOUNT-INTERESTS
+    type: playwright
+    file: frontend/apps/web_app/tests/account-interests-settings.spec.ts
+    command: python3 scripts/tests.py run --spec account-interests-settings.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-6
+      - AC-7
+      - AC-10
+    assertions:
+      - signup after guest tag selection stores encrypted account topic preferences
+      - Settings > Account > Interests can add and remove tags
+      - saved preferences affect no-chat public fallback ordering after reload
+      - cleartext selected tag IDs are not visible in sync/network payloads captured by the test harness
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-CLI-INTERESTS
+    type: vitest
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: python3 scripts/tests.py run -- --suite cli
+    covers:
+      - AC-6
+      - AC-8
+    assertions:
+      - CLI can list decrypted account interests for an authenticated test session
+      - CLI can set and clear interests by stable tag ID or localized label alias
+      - CLI sends only encrypted topic preferences to the API/sync layer
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:npm-run-test-unit-cli"
+        timestamp: "2026-06-21"
+
+  - id: T-APPLE-INTERESTS
+    type: manual
+    covers:
+      - AC-6
+      - AC-9
+      - AC-10
+    assertions:
+      - Apple account settings can display, edit, encrypt, and sync topic preferences
+      - Apple new-chat/no-chat fallback uses decrypted preferences for local ranking
+      - Apple does not expose cleartext interests in network payloads or logs
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "remote:apple_remote_build_ios"
+        timestamp: "2026-06-21"
+
+implementation_plan:
+  existing_patterns:
+    - DailyInspirationBanner already renders video/fullscreen and supports guest default inspirations.
+    - NewChatSuggestions already renders horizontal gradient prompt cards and falls back to default i18n suggestion keys.
+    - Example chats already expose stable IDs, categories, app-skill links, and settings-memory links.
+    - Existing encrypted app settings/memories and user profile sync patterns show how to persist client-encrypted account data.
+  architecture: >
+    Add a shared interest registry and deterministic ranking utility in the frontend UI package, then consume it from web welcome surfaces, CLI account settings, and Apple settings/new-chat equivalents. Guest state remains web sessionStorage-only; authenticated state is an encrypted synced payload. Logged-out default daily inspirations gain OpenMates product explainer entries, with the `for-everyone` header/video becoming the first explainer banner.
+  data_flow:
+    - Guest opens `/`; app stays on new-chat welcome and loads logged-out product explainer inspirations.
+    - Guest selects tags; sessionStorage stores tag IDs and the local smart-selection utility reranks all discovery surfaces.
+    - Guest signs up; client encrypts `{ version, selectedTagIds, updatedAt }` into account topic preferences and syncs ciphertext.
+    - Authenticated clients decrypt topic preferences locally and use them for settings display plus no-chat/public fallback ranking.
+  affected_files:
+    - path: frontend/packages/ui/src/demo_chats/interestTags.ts
+      reason: Canonical tag registry and relationships.
+    - path: frontend/packages/ui/src/demo_chats/guestSmartSelection.ts
+      reason: Deterministic ranking across inspirations, intros, examples, and suggestions.
+    - path: frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+      reason: Logged-out OpenMates explainer inspiration registry.
+    - path: frontend/packages/ui/src/components/ActiveChat.svelte
+      reason: Default logged-out landing and new-chat welcome composition.
+    - path: frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+      reason: Render/rank guest product inspiration content and first explainer video.
+    - path: frontend/packages/ui/src/components/NewChatSuggestions.svelte
+      reason: Use smart-selected suggestions.
+    - path: frontend/packages/ui/src/services/userDB.ts
+      reason: Persist/decrypt encrypted topic preferences.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Add account interests commands.
+    - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsAccountChatsView.swift
+      reason: Add Account > Interests settings parity or equivalent account settings placement.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/guest-interest-smart-selection/spec.yml
+    - python3 scripts/spec_verify.py docs/specs/guest-interest-smart-selection/spec.yml --phase red
+    - python3 scripts/spec_verify.py docs/specs/guest-interest-smart-selection/spec.yml --phase green
+  verification_order:
+    - Unit/vitest smart-selection and encrypted preference tests first.
+    - CLI account/settings parity tests second.
+    - Deploy to dev, wait for Vercel Ready, then run Playwright specs.
+    - Apple remote status/build or targeted test-ios after web and CLI evidence.
+
+tasks:
+  - id: TASK-1
+    title: Add deterministic interest registry and ranking tests
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-8
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-11
+    expected_files:
+      - frontend/packages/ui/src/demo_chats/interestTags.ts
+      - frontend/packages/ui/src/demo_chats/guestSmartSelection.ts
+      - frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
+    verification:
+      - T-VITEST-SMART-SELECTION
+    independently_deployable: false
+  - id: TASK-2
+    title: Implement web guest landing, explainer inspirations, and session-only tag UI
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-8
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-11
+    expected_files:
+      - frontend/packages/ui/src/components/ActiveChat.svelte
+      - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+      - frontend/packages/ui/src/components/NewChatSuggestions.svelte
+      - frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+      - frontend/apps/web_app/tests/guest-interest-smart-selection.spec.ts
+    verification:
+      - T-PLAYWRIGHT-GUEST-LANDING
+    independently_deployable: true
+  - id: TASK-3
+    title: Add encrypted synced topic preferences and web settings editing
+    covers:
+      scenarios:
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-6
+        - AC-7
+        - AC-10
+    expected_files:
+      - frontend/packages/ui/src/stores/topicPreferencesStore.ts
+      - frontend/packages/ui/src/stores/__tests__/topicPreferencesStore.test.ts
+      - frontend/packages/ui/src/services/userDB.ts
+      - frontend/packages/ui/src/components/settings/**
+      - frontend/apps/web_app/tests/account-interests-settings.spec.ts
+    verification:
+      - T-VITEST-TOPIC-PREFERENCES
+      - T-PLAYWRIGHT-ACCOUNT-INTERESTS
+    independently_deployable: false
+  - id: TASK-4
+    title: Add CLI account interests parity
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-8
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+    verification:
+      - T-CLI-INTERESTS
+    independently_deployable: false
+  - id: TASK-5
+    title: Add Apple Account Interests parity
+    covers:
+      scenarios:
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-9
+        - AC-10
+    expected_files:
+      - apple/OpenMates/Sources/Features/Settings/Views/SettingsAccountChatsView.swift
+      - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+      - apple/OpenMates/Sources/Core/**
+    verification:
+      - T-APPLE-INTERESTS
+    independently_deployable: false
+
+risks:
+  - Existing Playwright specs currently expect logged-out `/` to auto-navigate to `demo-for-everyone`; these must be intentionally updated with the product change.
+  - Cross-client encrypted preference sync may touch account/profile data contracts; implementation must avoid cleartext logging and avoid broad schema changes where an existing encrypted settings pattern can be reused.
+  - Too many tags could still feel overwhelming if initial ordering is poor; v1 should keep a small broad default order and rely on adaptive resorting.
+  - Moving the intro video/header into daily inspirations must preserve existing deep links and `demo-for-everyone` as an accessible intro chat.
+open_questions:
+  - Whether the synced ciphertext field should live on the user profile, app settings/memories infrastructure, or a dedicated account preferences collection should be decided during implementation by the smallest compatible encrypted-sync path.

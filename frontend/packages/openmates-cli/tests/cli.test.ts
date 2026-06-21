@@ -26,6 +26,8 @@ import {
   getExtForLang,
   defaultCloneBranchForVersion,
   buildAssistantFeedbackDecision,
+  INTEREST_TAG_IDS,
+  normalizeInterestTagIds,
 } from "../dist/index.js";
 
 const execFileAsync = promisify(execFile);
@@ -238,6 +240,27 @@ describe("benchmark command", () => {
     ]);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /--confirm-spend-credits/);
+  });
+});
+
+describe("account interest commands", () => {
+  it("lists account interest commands in settings help", () => {
+    const output = runCliWithoutSession(["settings", "account", "interests", "help"]);
+    assert.match(output, /account interests list/);
+    assert.match(output, /account interests set/);
+    assert.match(output, /account interests clear/);
+  });
+
+  it("normalizes interest tag IDs and rejects unknown values", () => {
+    assert.deepEqual(
+      normalizeInterestTagIds(["software_development", "use_the_cli", "software_development"]),
+      ["software_development", "use_the_cli"],
+    );
+    assert.ok(INTEREST_TAG_IDS.includes("protect_my_privacy"));
+    assert.throws(
+      () => normalizeInterestTagIds(["unknown_topic"]),
+      /Unknown interest tag 'unknown_topic'/,
+    );
   });
 });
 

@@ -35,6 +35,7 @@
   import { authStore } from '../stores/authStore';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../utils/imageProxy';
   import VideoEmbedPreview from './embeds/videos/VideoEmbedPreview.svelte';
+  import DirectVideoEmbedFullscreen from './embeds/videos/DirectVideoEmbedFullscreen.svelte';
   import WikipediaEmbedPreview from './embeds/wiki/WikipediaEmbedPreview.svelte';
 
   // ─── Lucide icons ────────────────────────────────────────────────────────────
@@ -119,6 +120,7 @@
   let prefersTouchCta = $state(false);
   let isUserInteracting = $state(false);
   let isOpeningInspiration = $state(false);
+  let directVideoFullscreenOpen = $state(false);
   let progressRestartToken = $state(0);
   // Temporarily disabled with the visit-cycling effect below.
   // let visitCycleTargetIndexes = $state(new Map<string, number>());
@@ -412,10 +414,17 @@
       ? `https://www.youtube.com/watch?v=${current.video.youtube_id}`
       : ''
   );
+  let directVideoMp4Url = $derived(current?.direct_video?.mp4_url ?? '');
 
   let infoCardTitle = $derived(current?.wiki?.title || current?.feature?.title || current?.title || '');
   let infoCardSubtitle = $derived(current?.wiki?.description || current?.feature?.description || '');
-  let infoCardImage = $derived(current?.wiki?.thumbnail_url ? proxyImage(current.wiki.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL) : '');
+  let infoCardImage = $derived(
+    current?.wiki?.thumbnail_url
+      ? proxyImage(current.wiki.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL)
+      : current?.direct_video?.thumbnail_url
+        ? proxyImage(current.direct_video.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL)
+        : ''
+  );
   let hasInfoCard = $derived(!hasVideo && hasInfoContent && !hasWikiContent);
   let mobilePreviewKey = $derived(embedPreviewId || infoCardTitle || current?.inspiration_id || '');
   let progressAnimationKey = $derived(`${current?.inspiration_id ?? 'none'}-${currentIndex}-${progressRestartToken}`);
@@ -604,6 +613,13 @@
       // Fallback: synthesise a mouse event so handleStartChat receives a MouseEvent
       handleStartChat(new MouseEvent('click'));
     }
+  }
+
+  function handleDirectVideoClick(e: MouseEvent | KeyboardEvent) {
+    if (!directVideoMp4Url) return;
+    e.stopPropagation();
+    e.preventDefault();
+    directVideoFullscreenOpen = true;
   }
 
   function handleInfoCardClick(e: MouseEvent | KeyboardEvent) {
@@ -861,21 +877,49 @@
               />
             </div>
           {:else if hasInfoCard}
-            <div class="banner-info-card" data-testid="daily-inspiration-info-card">
-              {#if infoCardImage}
-                <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
-              {:else if InfoCardIconComponent}
-                <div class="banner-info-icon" aria-hidden="true">
-                  <InfoCardIconComponent size={42} color="white" />
-                </div>
-              {/if}
-              <div class="banner-info-text">
-                <h3>{infoCardTitle}</h3>
-                {#if infoCardSubtitle}
-                  <p>{infoCardSubtitle}</p>
+            {#if directVideoMp4Url}
+              <button
+                type="button"
+                class="banner-info-card"
+                data-testid="daily-inspiration-info-card"
+                data-direct-video="true"
+                onclick={handleDirectVideoClick}
+              >
+                {#if infoCardImage}
+                  <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
+                {:else if InfoCardIconComponent}
+                  <div class="banner-info-icon" aria-hidden="true">
+                    <InfoCardIconComponent size={42} color="white" />
+                  </div>
                 {/if}
+                <div class="banner-info-text">
+                  <h3>{infoCardTitle}</h3>
+                  {#if infoCardSubtitle}
+                    <p>{infoCardSubtitle}</p>
+                  {/if}
+                </div>
+              </button>
+            {:else}
+              <div
+                class="banner-info-card"
+                data-testid="daily-inspiration-info-card"
+                data-direct-video="false"
+              >
+                {#if infoCardImage}
+                  <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
+                {:else if InfoCardIconComponent}
+                  <div class="banner-info-icon" aria-hidden="true">
+                    <InfoCardIconComponent size={42} color="white" />
+                  </div>
+                {/if}
+                <div class="banner-info-text">
+                  <h3>{infoCardTitle}</h3>
+                  {#if infoCardSubtitle}
+                    <p>{infoCardSubtitle}</p>
+                  {/if}
+                </div>
               </div>
-            </div>
+            {/if}
           {/if}
         </div>
       </div><!-- /.banner-inner -->
@@ -921,6 +965,14 @@
       {/if}
     </div><!-- /.daily-inspiration-banner -->
   </div>
+{/if}
+
+{#if directVideoFullscreenOpen && current?.direct_video?.mp4_url}
+  <DirectVideoEmbedFullscreen
+    mp4Url={current.direct_video.mp4_url}
+    title={current.direct_video.title}
+    onClose={() => { directVideoFullscreenOpen = false; }}
+  />
 {/if}
 
 <style>

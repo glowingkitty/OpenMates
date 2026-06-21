@@ -11,27 +11,15 @@ import {
   currentSignupStep,
   isInSignupProcess,
   getStepFromPath,
-  isResettingTFA,
   isSignupPath,
 } from "./signupState";
 import { userDB } from "../services/userDB";
-import {
-  userProfile,
-  defaultProfile,
-  updateProfile,
-  type UserProfile,
-} from "./userProfile";
-import { resetTwoFAData } from "./twoFAState";
-import { processedImageUrl } from "./profileImage";
+import { defaultProfile, updateProfile, type UserProfile } from "./userProfile";
 import { locale } from "svelte-i18n";
+import { promoteGuestTopicPreferencesIfNeeded } from "../services/topicPreferencesSync";
 
 // Import core auth state and related flags
-import {
-  authStore,
-  needsDeviceVerification,
-  deviceVerificationType,
-  deviceVerificationReason,
-} from "./authState";
+import { authStore } from "./authState";
 
 /**
  * Sets up the 2FA provider name via API and updates local DB.
@@ -155,6 +143,13 @@ export function completeSignup(userData: UserProfile): boolean {
         language: userLanguage, // Apply default if needed
         darkmode: userDarkMode, // Apply default if needed
       });
+
+      promoteGuestTopicPreferencesIfNeeded().catch((error) => {
+        console.warn(
+          "[AuthMiscActions] Failed to sync topic preferences after signup:",
+          error,
+        );
+      });
       // Save to DB as well
       userDB.saveUserData(userData).catch((dbError) => {
         console.error(
@@ -174,60 +169,4 @@ export function completeSignup(userData: UserProfile): boolean {
   }
   console.warn("completeSignup called with invalid userData:", userData);
   return false;
-}
-
-/**
- * Directly updates the user profile store with partial data.
- * Also persists the changes to IndexedDB.
- * @param userData Partial user profile data to update.
- */
-function updateUser(userData: Partial<UserProfile>) {
-  updateProfile(userData);
-  // Persist changes to DB
-  userDB.updateUserData(userData).catch((dbError) => {
-    console.error("Failed to update user data in database:", dbError);
-  });
-}
-
-/**
- * Directly sets the authentication state. Useful for scenarios where auth is confirmed externally.
- * Handles clearing related state if setting to unauthenticated.
- * @param value The desired authentication state (true or false).
- */
-function setAuthenticated(value: boolean) {
-  authStore.update((state) => ({
-    ...state,
-    isAuthenticated: value,
-    isInitialized: true, // Setting manually implies initialization is complete
-  }));
-
-  // If setting to false, clear profile and related states (similar to logout)
-  if (!value) {
-    // Use undefined for potentially string fields when clearing
-    updateProfile({
-      username: undefined,
-      profile_image_url: undefined,
-      credits: defaultProfile.credits,
-      is_admin: defaultProfile.is_admin,
-      last_opened: undefined,
-      tfa_app_name: undefined,
-      tfa_enabled: defaultProfile.tfa_enabled,
-      consent_privacy_and_apps_default_settings:
-        defaultProfile.consent_privacy_and_apps_default_settings,
-      consent_mates_default_settings:
-        defaultProfile.consent_mates_default_settings,
-      // Keep language and darkmode from current profile if possible, otherwise use default
-      language: get(userProfile)?.language || defaultProfile.language,
-      darkmode: get(userProfile)?.darkmode ?? defaultProfile.darkmode,
-    });
-    // Also reset related states
-    processedImageUrl.set(null);
-    resetTwoFAData();
-    currentSignupStep.set("basics");
-    isResettingTFA.set(false);
-    needsDeviceVerification.set(false);
-    deviceVerificationType.set(null);
-    deviceVerificationReason.set(null);
-    isInSignupProcess.set(false); // Ensure signup process is reset
-  }
 }

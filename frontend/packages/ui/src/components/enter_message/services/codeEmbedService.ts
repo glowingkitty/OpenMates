@@ -45,6 +45,10 @@ import {
 import { get } from "svelte/store";
 import type { EmbedType } from "../../../message_parsing/types";
 import { generateDirectEmbedRef } from "../../../utils/embedFragmentUtils";
+import {
+  normalizeMindMapSource,
+  type MindMapNormalizationResult,
+} from "../../embeds/mindmaps/mindMapContent";
 
 /**
  * Result of creating a code embed
@@ -58,6 +62,13 @@ export interface CodeEmbedCreationResult {
   embedReference: string;
   /** Number of PII items that were redacted (0 if none) */
   piiRedactedCount: number;
+}
+
+export interface MindMapEmbedCreationResult {
+  embed_id: string;
+  type: "mindmaps-mindmap";
+  embedReference: string;
+  normalization: MindMapNormalizationResult;
 }
 
 export interface EmbedRedactionResult {
@@ -452,6 +463,67 @@ export async function createCodeEmbed(
     type: "code",
     embedReference,
     piiRedactedCount: piiMappingsForStorage.length,
+  };
+}
+
+export async function createMindMapEmbed(
+  source: string,
+  filename?: string,
+): Promise<MindMapEmbedCreationResult> {
+  const normalization = normalizeMindMapSource(source);
+  if (normalization.status === "invalid_source" || !normalization.model) {
+    throw new Error(normalization.parseError || "Invalid mind map JSON");
+  }
+
+  const embed_id = generateUUID();
+  const embedRef = generateDirectEmbedRef("mindmap", embed_id, { filename });
+  const embedContent = {
+    type: "mindmap",
+    app_id: "mindmaps",
+    skill_id: "mindmap",
+    title: normalization.title,
+    source_json: normalization.sourceJson,
+    model: normalization.model,
+    validation: {
+      status: normalization.status,
+      warnings: normalization.warnings,
+    },
+    embed_ref: embedRef,
+    status: "finished",
+    version_number: 1,
+    node_count: normalization.nodeCount,
+    edge_count: normalization.edgeCount,
+    filename: filename || null,
+  };
+
+  let toonContent: string;
+  try {
+    toonContent = toonEncode(embedContent);
+  } catch {
+    toonContent = JSON.stringify(embedContent);
+  }
+
+  const now = Date.now();
+  await embedStore.put(
+    `embed:${embed_id}`,
+    {
+      embed_id,
+      type: "mindmaps-mindmap",
+      status: "finished",
+      content: toonContent,
+      text_preview: normalization.title,
+      createdAt: now,
+      updatedAt: now,
+    },
+    "mindmaps-mindmap" as EmbedType,
+  );
+  embedStore.registerEmbedRef(embedRef, embed_id, "mindmap");
+
+  return {
+    embed_id,
+    type: "mindmaps-mindmap",
+    embedReference: createEmbedReferenceBlock("mindmap", embed_id),
+    normalization,
   };
 }
 

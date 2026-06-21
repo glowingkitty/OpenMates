@@ -30,6 +30,7 @@ export const DEFAULT_NEW_CHAT_SUGGESTION_KEYS = [
   "chat.new_chat_suggestions.workout_plan",
   "chat.new_chat_suggestions.cybersecurity",
   "chat.new_chat_suggestions.learn_coding",
+  "chat.new_chat_suggestions.use_openmates_cli_api",
   "chat.new_chat_suggestions.stock_market",
   "chat.new_chat_suggestions.cover_letter",
   "chat.new_chat_suggestions.writing_prompts",

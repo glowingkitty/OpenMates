@@ -114,6 +114,16 @@ Account Settings - Main menu for account-related settings including Security, Ex
         });
     }
 
+    /** Navigate to encrypted topic preferences submenu. */
+    function navigateToInterests() {
+        dispatch('openSettings', {
+            settingsPath: 'account/interests',
+            direction: 'forward',
+            icon: 'settings',
+            title: $text('settings.account.interests')
+        });
+    }
+
     /**
      * Navigate to Security submenu.
      * Dispatches navigation event to parent Settings component.
@@ -240,6 +250,13 @@ Account Settings - Main menu for account-related settings including Security, Ex
     icon="mail"
     title={$text('settings.account.email')}
     onClick={navigateToEmail}
+/>
+
+<SettingsItem
+    type="submenu"
+    icon="settings"
+    title={$text('settings.account.interests')}
+    onClick={navigateToInterests}
 />
 
 <SettingsItem

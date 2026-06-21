@@ -10,7 +10,8 @@
   },
   "files": [
     "dist",
-    "fixtures"
+    "fixtures",
+    "templates"
   ],
   "scripts": {
     "build": "tsup src/index.ts src/cli.ts --format esm --dts --clean",

@@ -11,8 +11,10 @@
 export {
   OpenMatesClient,
   deriveAppUrl,
+  INTEREST_TAG_IDS,
   MEMORY_TYPE_REGISTRY,
   MATE_NAMES,
+  normalizeInterestTagIds,
 } from "./client.js";
 export { serializeToYaml, getExtForLang } from "./cli.js";
 export { defaultCloneBranchForVersion } from "./server.js";
@@ -34,6 +36,8 @@ export type {
   BankTransferOrderDetails,
   BankTransferStatus,
   GiftCardBankTransferStatus,
+  InterestTagId,
+  TopicPreferencesPayload,
   AuthMethodsStatus,
   CliSignupResult,
   TotpSetupStartResult,

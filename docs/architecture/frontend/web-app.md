@@ -61,9 +61,17 @@ A single web app reduces development effort and gives visitors immediate exposur
 
 When a visitor loads `openmates.org` without being logged in:
 
-1. **Demo chats** appear in the sidebar with fixed chat IDs (for deep-linkable URLs like `/chat/stay-up-to-date-contribute`). These are precompiled into the static bundle for SEO and fast load times.
-2. **Legal chats** (Privacy Policy, Terms of Use, Imprint) are always shown alongside demo chats using the same static-bundle infrastructure.
-3. The message input shows a **"Signup to send"** button instead of "Send", which opens the signup flow and saves the draft message.
+1. The main surface opens on the **new-chat welcome screen** rather than auto-opening a demo chat.
+2. **Demo chats** remain available in the sidebar and from welcome cards with fixed chat IDs (for deep-linkable URLs like `/chat/stay-up-to-date-contribute`). These are precompiled into the static bundle for SEO and fast load times.
+3. **Legal chats** (Privacy Policy, Terms of Use, Imprint) are always shown alongside demo chats using the same static-bundle infrastructure.
+4. Logged-out visitors see OpenMates product explainer daily inspirations and a local interest tag rail. Selected guest tags are stored only in `sessionStorage` under `openmates.guest_interest_tags.v1` and locally reorder inspirations, demo/example chats, and new-chat suggestions.
+5. The message input shows a **"Signup to send"** button instead of "Send", which opens the signup flow and saves the draft message.
+
+### Topic Preferences
+
+Guest topic preferences are privacy-preserving by default. Before signup, cleartext selected tags never leave the browser session and are not written to `localStorage`.
+
+After login or signup, the web client promotes selected guest tags into encrypted account settings. The API route `POST /v1/settings/topic-preferences` accepts only encrypted settings ciphertext, and the server does not inspect selected tag IDs. Authenticated web, CLI, and Apple clients decrypt the topic preference payload locally to display Settings > Account > Interests and to rank public fallback surfaces when the account has no personal chats yet.
 
 ### Demo Chat Content
 

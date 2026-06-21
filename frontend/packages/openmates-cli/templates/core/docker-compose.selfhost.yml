@@ -1,0 +1,269 @@
+name: openmates-core
+
+services:
+  api:
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-dev}
+    container_name: api
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: /app
+      REST_API_PORT: 8000
+      CMS_URL: http://cms:8055
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: cache:6379
+      DRAGONFLY_PASSWORD: ${DRAGONFLY_PASSWORD}
+      VAULT_URL: http://vault:8200
+      INTERNAL_API_SHARED_TOKEN: ${INTERNAL_API_SHARED_TOKEN}
+      PROVIDER_CONFIG_DIR: /app_config/providers
+      BACKEND_CONFIG_FILE: /app_config/backend_config.yml
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ../../config:/app_config
+      - vault-setup-data:/vault-data
+      - api-logs:/app/logs
+    networks: [openmates]
+    depends_on:
+      cache:
+        condition: service_healthy
+      cms:
+        condition: service_healthy
+      vault-setup:
+        condition: service_completed_successfully
+      cms-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  cms:
+    image: directus/directus:11.5
+    container_name: cms
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      KEY: ${DIRECTUS_SECRET}
+      SECRET: ${DIRECTUS_SECRET}
+      ADMIN_EMAIL: ${DATABASE_ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${DATABASE_ADMIN_PASSWORD}
+      DB_CLIENT: pg
+      DB_HOST: cms-database
+      DB_PORT: 5432
+      DB_DATABASE: ${DATABASE_NAME}
+      DB_USER: ${DATABASE_USERNAME}
+      DB_PASSWORD: ${DATABASE_PASSWORD}
+      CACHE_ENABLED: "true"
+      CACHE_STORE: redis
+      REDIS_HOST: cache
+      REDIS_PASSWORD: ${DRAGONFLY_PASSWORD}
+    volumes:
+      - directus-uploads:/directus/uploads
+      - directus-extensions:/directus/extensions
+    networks: [openmates]
+    depends_on:
+      cms-database:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8055/server/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cms-database:
+    image: postgres:13-alpine
+    container_name: cms-database
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    volumes:
+      - openmates-postgres-data:/var/lib/postgresql/data
+    networks: [openmates]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"${DATABASE_USERNAME}\" -d \"${DATABASE_NAME}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cms-setup:
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-cms-setup:${OPENMATES_IMAGE_TAG:-dev}
+    container_name: cms-setup
+    env_file: ../../.env
+    environment:
+      ADMIN_EMAIL: ${DATABASE_ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${DATABASE_ADMIN_PASSWORD}
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+    networks: [openmates]
+    depends_on: [cms]
+    restart: "no"
+
+  cache:
+    image: docker.dragonflydb.io/dragonflydb/dragonfly
+    container_name: cache
+    restart: unless-stopped
+    command: ["--requirepass", "${DRAGONFLY_PASSWORD}"]
+    volumes:
+      - cache-data:/data
+    networks: [openmates]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${DRAGONFLY_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  vault:
+    image: hashicorp/vault:1.19
+    container_name: vault
+    restart: unless-stopped
+    cap_add: [IPC_LOCK]
+    command: vault server -config=/vault/config/vault.hcl
+    volumes:
+      - ./vault/config:/vault/config:ro
+      - vault-data:/vault/file
+    networks: [openmates]
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget -q --spider http://127.0.0.1:8200/v1/sys/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  vault-setup:
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-vault-setup:${OPENMATES_IMAGE_TAG:-dev}
+    container_name: vault-setup
+    env_file: ../../.env
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_AUTO_UNSEAL: "true"
+    volumes:
+      - vault-setup-data:/app/data
+      - ../../.env:/app/dotenv:rw
+    networks: [openmates]
+    depends_on: [vault]
+    restart: on-failure
+
+  task-worker:
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-dev}
+    container_name: task-worker
+    restart: unless-stopped
+    env_file: ../../.env
+    command: python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email,user_init,persistence,health_check,server_stats,demo,reminder,push --concurrency=3
+    networks: [openmates]
+    depends_on: [api]
+
+  task-scheduler:
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-dev}
+    container_name: task-scheduler
+    restart: unless-stopped
+    env_file: ../../.env
+    command: python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule
+    volumes:
+      - celerybeat-schedule-data:/celerybeat-data
+    networks: [openmates]
+    depends_on: [api]
+
+  admin-sidecar:
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-dev}
+    container_name: core-admin-sidecar
+    restart: unless-stopped
+    environment:
+      ADMIN_LOG_API_KEY: ${SECRET__CORE_SERVER__ADMIN_LOG_API_KEY:-}
+      COMPOSE_PROJECT: openmates-core
+      COMPOSE_FILE: backend/core/docker-compose.selfhost.yml
+      SERVICE_UPDATE_ALL: "true"
+      GIT_WORK_DIR: ${GIT_WORK_DIR}
+      PORT: 8001
+    ports:
+      - "127.0.0.1:8001:8001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [openmates]
+
+  webapp:
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-webapp:${OPENMATES_IMAGE_TAG:-dev}
+    container_name: webapp
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    networks: [openmates]
+    depends_on:
+      api:
+        condition: service_healthy
+
+  openobserve:
+    image: public.ecr.aws/zinclabs/openobserve:v0.70.0-rc3
+    container_name: openobserve
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      ZO_ROOT_USER_EMAIL: ${OPENOBSERVE_ROOT_EMAIL}
+      ZO_ROOT_USER_PASSWORD: ${OPENOBSERVE_ROOT_PASSWORD}
+      ZO_DATA_DIR: /data
+    volumes:
+      - openobserve-data:/data
+    networks: [openmates]
+
+  promtail:
+    image: grafana/promtail:3.2.1
+    container_name: promtail
+    restart: unless-stopped
+    command: -config.file=/etc/promtail/config.yml
+    networks: [openmates]
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - prometheus-data:/prometheus
+    networks: [openmates]
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks: [openmates]
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    restart: unless-stopped
+    networks: [openmates]
+
+networks:
+  openmates:
+    external: true
+    name: openmates
+
+volumes:
+  openmates-postgres-data:
+    name: openmates-postgres-data
+  directus-uploads:
+    name: openmates-directus-uploads
+  directus-extensions:
+    name: openmates-directus-extensions
+  cache-data:
+    name: openmates-cache-data
+  openobserve-data:
+    name: openmates-openobserve-data
+  prometheus-data:
+    name: openmates-prometheus-data
+  vault-data:
+    name: openmates-vault-data
+  vault-setup-data:
+    name: openmates-vault-setup-data
+  celerybeat-schedule-data:
+    name: openmates-celerybeat-schedule-data
+  api-logs:
+    name: openmates-api-logs

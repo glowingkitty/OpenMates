@@ -118,6 +118,7 @@ component:
     let currentCommit = $derived(checkResult?.current_version ?? null);
     let latestCommit = $derived(checkResult?.latest_version ?? null);
     let commitsBehind = $derived(checkResult?.commits_behind ?? 0);
+    let isCliManagedImageMode = $derived(checkResult?.deployment_mode === 'docker' || versions?.deployment_mode === 'docker');
 
     // ===========================================================================
     // Constants
@@ -484,14 +485,20 @@ component:
                 {/if}
             </div>
 
-            <div class="install-button-container">
-                <button onclick={handleInstallUpdate}>
-                    {$text('settings.install')}
-                </button>
-            </div>
+            {#if isCliManagedImageMode}
+                <div class="cli-managed-notice">
+                    <p>{$text('settings.cli_managed_update_notice').replace(/<\/?code>/g, '')}</p>
+                </div>
+            {:else}
+                <div class="install-button-container">
+                    <button onclick={handleInstallUpdate}>
+                        {$text('settings.install')}
+                    </button>
+                </div>
 
-            <!-- eslint-disable-next-line svelte/no-at-html-tags -- translation contains line breaks -->
-            <p class="restart-notice">{@html $text('settings.server_will_be_restarted')}</p>
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -- translation contains line breaks -->
+                <p class="restart-notice">{@html $text('settings.server_will_be_restarted')}</p>
+            {/if}
         {:else}
             <!-- Up to date -->
             <div class="up-to-date-container">
@@ -539,15 +546,17 @@ component:
                         </select>
                     </div>
 
-                    <div class="setting-row">
-                        <span class="setting-label">{$text('settings.auto_install_updates')}</span>
-                        <input
-                            type="checkbox"
-                            class="toggle-checkbox"
-                            bind:checked={config.auto_update_enabled}
-                            onchange={handleAutoUpdateChange}
-                        />
-                    </div>
+                    {#if !isCliManagedImageMode}
+                        <div class="setting-row">
+                            <span class="setting-label">{$text('settings.auto_install_updates')}</span>
+                            <input
+                                type="checkbox"
+                                class="toggle-checkbox"
+                                bind:checked={config.auto_update_enabled}
+                                onchange={handleAutoUpdateChange}
+                            />
+                        </div>
+                    {/if}
                 {/if}
 
                 <div class="setting-row">
@@ -842,6 +851,20 @@ component:
         font-size: var(--font-size-small);
         text-align: center;
         margin-top: var(--spacing-5);
+    }
+
+    .cli-managed-notice {
+        color: var(--color-grey-70);
+        background: var(--color-grey-10);
+        border: 1px solid var(--color-grey-30);
+        border-radius: var(--radius-3);
+        padding: var(--spacing-6) var(--spacing-8);
+        margin-top: var(--spacing-8);
+        text-align: center;
+    }
+
+    .cli-managed-notice p {
+        margin: 0;
     }
 
     .retry-button,

@@ -1,0 +1,85 @@
+# backend/apps/mindmaps/app.yml
+#
+# Mind Maps app — structured brainstorming and topic maps.
+#
+# Mind map embeds are source-first direct embeds generated from
+# ```openmates_mindmap JSON fences. The canonical interchange format is
+# OpenMates JSON and native downloads use the .ommindmap extension.
+
+app_id: mindmaps
+name_translation_key: mindmaps
+description_translation_key: mindmaps.description
+icon_image: |
+  workflow.svg
+category: productivity
+last_updated: "2026-06-20"
+settings_and_memories: []
+instructions:
+  - instruction: |
+      **Mind Map Generation (Mind Maps App)**
+      When the user asks for a mind map, brainstorm map, topic map, concept map,
+      or hierarchical idea map, create a Mind Maps embed by outputting exactly one
+      fenced JSON block using the `openmates_mindmap` language.
+
+      Format:
+      ```openmates_mindmap
+      {
+        "openmatesType": "mindmap",
+        "schemaVersion": 1,
+        "title": "Short descriptive title",
+        "rootId": "root",
+        "nodes": [
+          { "id": "root", "label": "Central idea", "children": ["child-1"] },
+          { "id": "child-1", "label": "Branch label" }
+        ],
+        "edges": [],
+        "view": { "layout": "radial-tree", "collapsedNodeIds": [] }
+      }
+      ```
+
+      Requirements:
+      - Emit valid JSON only inside the fence; no Markdown comments inside JSON.
+      - Use stable, unique node IDs and never invent relationships not represented
+        by a node's `children` list or an explicit edge.
+      - Every node must have a human-authored label. Do not use empty labels.
+      - Use `edges` only for cross-links or dependencies that are not parent-child
+        relationships.
+embed_types:
+  - id: mindmap
+    category: direct
+    frontend_type: mindmaps-mindmap
+    backend_type: mindmap
+    has_children: false
+    groupable: true
+    preview_component: mindmaps/MindMapEmbedPreview.svelte
+    fullscreen_component: mindmaps/MindMapEmbedFullscreen.svelte
+    icon: workflow
+    gradient_var: "--color-app-openmates"
+    i18n_namespace: embeds.mindmaps.mindmap
+    content_catalog:
+      enabled: true
+      diff_editable: true
+      content_type_id: mindmap
+      name: Mind Map
+      description: Structured idea maps generated as canonical OpenMates JSON.
+      icon: workflow
+      example_key: mindmaps.mindmap
+      order: 10
+    content_fields:
+      - name: model
+        type: object
+        required: false
+      - name: source_json
+        type: string
+        required: true
+      - name: title
+        type: string
+        required: false
+      - name: node_count
+        type: number
+        required: true
+      - name: edge_count
+        type: number
+        required: true
+skills: []
+focus_modes: []

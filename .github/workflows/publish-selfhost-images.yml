@@ -15,6 +15,8 @@ on:
       - 'frontend/packages/ui/**'
       - 'shared/**'
       - 'backend/core/docker-compose.selfhost.yml'
+      - 'backend/upload/docker-compose.selfhost.yml'
+      - 'backend/preview/docker-compose.selfhost.yml'
       - '.github/workflows/publish-selfhost-images.yml'
       - 'shared/config/product_version.json'
       - 'scripts/prepare_cli_publish_version.mjs'
@@ -102,6 +104,9 @@ jobs:
             "openmates-cms-setup backend/core/directus/Dockerfile.setup.selfhost backend/core/directus"
             "openmates-vault-setup backend/core/vault/setup/Dockerfile backend/core/vault/setup"
             "openmates-admin-sidecar backend/admin_sidecar/Dockerfile ."
+            "openmates-uploads backend/upload/Dockerfile ."
+            "openmates-upload-vault-setup backend/upload/vault/Dockerfile ."
+            "openmates-preview backend/preview/Dockerfile ."
             "openmates-webapp frontend/apps/web_app/Dockerfile ."
           )
           for item in "${images[@]}"; do

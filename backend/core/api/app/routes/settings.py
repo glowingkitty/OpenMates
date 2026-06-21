@@ -26,7 +26,7 @@ from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.utils.config_manager import config_manager
-from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, UiFontUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
+from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, UiFontUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, TopicPreferencesEncryptedRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
@@ -5200,6 +5200,46 @@ async def update_ai_model_defaults(
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail="An error occurred while saving default model setting")
+
+
+@router.post("/topic-preferences", response_model=SimpleSuccessResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def update_topic_preferences(
+    request: Request,
+    request_data: TopicPreferencesEncryptedRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> SimpleSuccessResponse:
+    """Persist client-encrypted topic preferences without exposing cleartext tags."""
+
+    user_id = current_user.id
+    update_data = {"encrypted_settings": request_data.encrypted_settings}
+
+    try:
+        success = await directus_service.update_user(user_id, update_data)
+        if not success:
+            logger.error(f"[TopicPreferences] Failed to update Directus for user {user_id}.")
+            raise HTTPException(status_code=500, detail="Failed to save topic preferences")
+
+        cache_ok = await cache_service.update_user(user_id, update_data)
+        if not cache_ok:
+            logger.warning(
+                f"[TopicPreferences] Cache update failed for user {user_id} after Directus update."
+            )
+
+        return SimpleSuccessResponse(
+            success=True,
+            message="Topic preferences saved successfully",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[TopicPreferences] Unexpected error updating topic preferences for user {user_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="An error occurred while saving topic preferences")
 
 
 # ─── Storage Overview ─────────────────────────────────────────────────────────

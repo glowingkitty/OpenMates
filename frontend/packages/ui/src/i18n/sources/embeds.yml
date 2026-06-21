@@ -6495,6 +6495,54 @@ math.plot:
   he: שרטוט
   verified_by_human: []
 
+mindmaps.mindmap:
+  context: Mind Maps embed label shown in BasicInfosBar
+  en: Mind Map
+  de: Mindmap
+  verified_by_human: [en, de]
+
+mindmaps.counts:
+  context: "Compact count label for Mind Maps embeds. Replacements: {nodes}, {edges}"
+  en: "{nodes} nodes · {edges} edges"
+  de: "{nodes} Knoten · {edges} Kanten"
+  verified_by_human: [en, de]
+
+mindmaps.invalid_json:
+  context: Error heading for invalid Mind Maps JSON content
+  en: Invalid mind map JSON
+  de: Ungueltiges Mindmap-JSON
+  verified_by_human: [en]
+
+mindmaps.invalid_content:
+  context: Placeholder label shown for a recoverable invalid Mind Maps node
+  en: Invalid content
+  de: Ungueltiger Inhalt
+  verified_by_human: [en]
+
+mindmaps.validation_warnings:
+  context: Heading for recoverable Mind Maps validation warnings
+  en: Validation warnings
+  de: Validierungswarnungen
+  verified_by_human: [en, de]
+
+mindmaps.source:
+  context: Heading for the canonical JSON source shown in Mind Maps fullscreen
+  en: Source
+  de: Quelle
+  verified_by_human: [en, de]
+
+mindmaps.expand:
+  context: "Accessibility label for expanding a collapsed Mind Maps node. Replacement: {label}"
+  en: "Expand {label}"
+  de: "{label} erweitern"
+  verified_by_human: [en, de]
+
+mindmaps.collapse:
+  context: "Accessibility label for collapsing a Mind Maps node. Replacement: {label}"
+  en: "Collapse {label}"
+  de: "{label} einklappen"
+  verified_by_human: [en, de]
+
 diagrams.mermaid:
   context: Mermaid diagram embed label shown in BasicInfosBar
   en: Mermaid Diagram

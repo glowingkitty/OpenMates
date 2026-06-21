@@ -5000,6 +5000,30 @@ server_will_be_restarted:
     יהיה לא זמין לזמן קצר לאחר
     התקנת העדכון.
   verified_by_human: []
+cli_managed_update_notice:
+  context: Notice shown on Docker image-mode servers where updates must be installed from the host CLI
+  en: Install updates from the server host with <code>openmates server update</code>.
+  de: Install updates from the server host with <code>openmates server update</code>.
+  zh: Install updates from the server host with <code>openmates server update</code>.
+  es: Install updates from the server host with <code>openmates server update</code>.
+  fr: Install updates from the server host with <code>openmates server update</code>.
+  pt: Install updates from the server host with <code>openmates server update</code>.
+  ru: Install updates from the server host with <code>openmates server update</code>.
+  ja: Install updates from the server host with <code>openmates server update</code>.
+  ko: Install updates from the server host with <code>openmates server update</code>.
+  it: Install updates from the server host with <code>openmates server update</code>.
+  tr: Install updates from the server host with <code>openmates server update</code>.
+  vi: Install updates from the server host with <code>openmates server update</code>.
+  id: Install updates from the server host with <code>openmates server update</code>.
+  pl: Install updates from the server host with <code>openmates server update</code>.
+  nl: Install updates from the server host with <code>openmates server update</code>.
+  ar: Install updates from the server host with <code>openmates server update</code>.
+  hi: Install updates from the server host with <code>openmates server update</code>.
+  th: Install updates from the server host with <code>openmates server update</code>.
+  cs: Install updates from the server host with <code>openmates server update</code>.
+  sv: Install updates from the server host with <code>openmates server update</code>.
+  he: Install updates from the server host with <code>openmates server update</code>.
+  verified_by_human: []
 installing_update:
   context: Message shown while installing software update
   en: Installing update...

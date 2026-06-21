@@ -2216,6 +2216,16 @@ pdf.description:
   sv: "Ladda upp PDF och l\u00e4s eller s\u00f6k i inneh\u00e5llet."
   he: העלאת קובצי PDF וקריאה או חיפוש בתוכן שלהם.
   verified_by_human: [en, de]
+mindmaps:
+  context: App name for the Mind Maps app
+  en: Mind Maps
+  de: Mindmaps
+  verified_by_human: [en, de]
+mindmaps.description:
+  context: Description for the Mind Maps app
+  en: Create structured idea maps and brainstorm topic trees.
+  de: Erstelle strukturierte Ideen-Karten und Brainstorming-Bäume.
+  verified_by_human: [en, de]
 math:
   context: App name for the Math app
   en: Math

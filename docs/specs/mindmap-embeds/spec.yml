@@ -1,0 +1,720 @@
+id: mindmap-embeds
+title: Mind Map Embeds
+status: approved
+
+goal: >
+  Add a first-class Mind Maps app and direct mindmap embed type so users can ask
+  OpenMates to generate structured, encrypted, shareable, downloadable, and
+  re-uploadable mind maps from natural language. The assistant writes a strict
+  OpenMates JSON mindmap structure, the web app renders a zoomed-out overview in
+  preview plus a touch-friendly pan/zoom fullscreen, and invalid or partially
+  hallucinated structures are handled visibly without silently inventing content.
+
+scope:
+  in:
+    - Add a separate Mind Maps app metadata entry, distinct from the Diagrams/Mermaid app.
+    - Add a direct `mindmap` embed type with backend type `mindmap` and frontend type `mindmaps-mindmap`.
+    - Define the canonical OpenMates mindmap JSON schema and native download format `.ommindmap`.
+    - Add assistant instructions for emitting `openmates_mindmap` fenced JSON blocks only when the user asks for a mind map, concept map, brainstorm map, topic map, or structured visual outline.
+    - Convert valid streamed assistant `openmates_mindmap` fences into encrypted direct embeds.
+    - Render web preview cards as a zoomed-out whole-map overview inside `UnifiedEmbedPreview`.
+    - Render web fullscreen mind maps with pan, zoom in/out, fit/reset controls using the shared `EmbedZoomControls` pattern, mouse/pointer drag, wheel/trackpad zoom where appropriate, and touch pinch/pan on mobile/tablet.
+    - Support expand/collapse and hidden-node view state in the mindmap data model, with selected collapsed branches visible as nodes whose descendants are not rendered.
+    - Let users download the canonical `.ommindmap` JSON file and upload it back into OpenMates, where it is detected and recreated as a mindmap embed.
+    - Show a download action in the mindmap fullscreen that exports the canonical `.ommindmap` file.
+    - Preserve original source JSON and a normalized validated model so assistant repair/diff editing can inspect what changed.
+    - Render valid portions of partially invalid maps while surfacing validation warnings and `Invalid content` placeholder nodes for recoverable invalid nodes.
+    - Add CLI text rendering and Apple embed parity for preview/fullscreen semantics.
+    - Create a real natural-language OpenMates chat through the CLI that triggers mindmap creation without an `@` app mention and publish it as the canonical Mind Maps example chat after verification.
+    - Add deterministic backend, frontend, CLI, upload, Playwright, and Apple verification following the CLI -> web -> Apple ladder.
+  out:
+    - Using Mermaid as the durable or LLM authoring format for mind maps.
+    - A drag-and-drop graphical mind map editor in v1.
+    - Real-time collaborative mind map editing.
+    - Import/export support for XMind `.xmind`, MindManager `.mmap`, SimpleMind `.smmx`, OPML, or FreeMind `.mm` in v1.
+    - Server-side profiling, analytics, or model personalization based on mind map content.
+    - Rendering arbitrary HTML, script, images, or remote resources from mindmap JSON.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 bad credentials. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"mind map mindmap diagram embed\" --state all --limit 20 --json number,title,state,labels,updatedAt,url` returned `[]`."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/add-embed-type.md
+    - docs/contributing/guides/testing.md
+    - docs/architecture/messaging/embeds.md
+    - docs/architecture/frontend/data-driven-embed-fullscreen-routing.md
+    - docs/specs/diagrams-mermaid-embeds/spec.yml
+    - docs/specs/content-embed-example-chats/spec.yml
+    - docs/specs/embed-diff-editing-parity/spec.yml
+  code_patterns:
+    - backend/apps/diagrams/app.yml
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/upload/routes/upload_route.py
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/shared/EmbedZoomControls.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/mermaidDiagramContent.ts
+    - frontend/packages/ui/src/data/embedRegistry.generated.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+  tests:
+    - backend/tests/test_mermaid_embed_streaming.py
+    - frontend/packages/ui/src/components/embeds/diagrams/__tests__/mermaidDiagramContent.test.ts
+    - frontend/packages/ui/src/data/__tests__/embedTextRenderers.test.ts
+    - frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - frontend/apps/web_app/tests/diagrams-mermaid-embed.spec.ts
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Sources/Core/Models/EmbedModels.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedPreviewCard.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MindMapEmbedRenderer.swift
+    - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+    - apple/OpenMatesTests/SkillApplicationParityTests.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+  parity_expectations:
+    - Apple recognizes the `mindmaps-mindmap` embed type and renders Mind Maps app chrome with generated tokens and icons.
+    - Apple preview renders a zoomed-out whole-map overview, not raw JSON, while preserving an accessible text/source fallback.
+    - Apple fullscreen supports equivalent fit/reset, zoom in/out, pan, touch gestures, collapsed branches, invalid-content warnings, copy, download/share where native surfaces support those actions.
+    - Apple must not execute untrusted mindmap content or load remote resources declared inside the JSON.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios or targeted test-ios after CLI and web evidence are green
+  intentional_native_differences:
+    - Native gesture physics, text rasterization, and exact auto-layout positions may differ if the overview, labels, controls, and invalid-content states remain materially equivalent.
+
+clarification:
+  rounds:
+    - question: Should v1 mind maps be assistant-created artifacts only, or should users also be able to upload existing mindmap files?
+      answer: Users should be able to download a mindmap from the web app and upload it again in OpenMates, where it is auto-detected as a mindmap embed.
+    - question: Should invalid nodes be hidden entirely, or rendered as visible placeholders when recoverable?
+      answer: Render what worked, show recoverable invalid nodes as `Invalid content` placeholders, and surface invalid parts visibly instead of silently hiding everything.
+  vision_summary: >
+    Mind maps should be their own OpenMates app, not a sub-feature of Diagrams,
+    because users understand brainstorming and topic maps as a separate product
+    intent. The canonical format is OpenMates JSON emitted in an
+    `openmates_mindmap` fence and exported as `.ommindmap`; the renderer is
+    strict enough to reject broken maps at creation/import boundaries but
+    tolerant enough to render valid portions with visible validation warnings.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Assistant creates a mind map embed from natural language
+    given:
+      - Alice asks OpenMates to create a mind map for planning a product launch.
+      - The Mind Maps app is available in app metadata.
+    when:
+      - The assistant emits a fenced `openmates_mindmap` JSON block that follows the canonical schema.
+    then:
+      - "The backend stream consumer creates a direct mindmap embed with `type: mindmap`, `app_id: mindmaps`, and `skill_id: mindmap`."
+      - The message markdown contains only the JSON embed reference, not the raw fenced JSON block.
+      - The encrypted embed content stores the original source JSON, normalized validated model, title, node/edge counts, validation warnings, status, version number, and stable `embed_ref`.
+
+  - id: S-2
+    title: LLM instructions constrain mindmap JSON generation
+    given:
+      - The main processor is preparing assistant instructions for a user request that asks for a mind map.
+    when:
+      - The mindmap instruction is included.
+    then:
+      - The instruction requires valid JSON only inside an `openmates_mindmap` fence.
+      - The instruction defines required fields, stable lowercase IDs, no Markdown inside JSON strings, maximum depth, maximum children, maximum node/edge counts, and no remote resources.
+      - The instruction tells the assistant to use `collapsedNodeIds` for secondary detail and not to use Mermaid, OPML, FreeMind XML, or prose outlines as the mindmap source.
+
+  - id: S-3
+    title: Partially invalid generated maps render valid content with warnings
+    given:
+      - Alice receives a mindmap embed whose JSON parses but includes one node without a label, one duplicate node ID, and one edge pointing to a missing node.
+    when:
+      - The embed is normalized and rendered.
+    then:
+      - Valid nodes and valid edges render normally.
+      - The missing-label node renders as an `Invalid content` placeholder if it can still be connected by ID.
+      - The duplicate ID is deterministically renamed or dropped according to the validation contract and reported as a warning.
+      - The missing-target edge is dropped and reported as a warning.
+      - No label, ID, relationship, or semantic branch is invented by the renderer.
+
+  - id: S-4
+    title: Entirely invalid maps show a source/error fallback instead of a broken preview
+    given:
+      - Alice receives or uploads a mindmap source that cannot be parsed as JSON after one deterministic repair attempt.
+    when:
+      - OpenMates tries to create or render the mindmap embed.
+    then:
+      - A finished visual mindmap is not created from unparseable source.
+      - The user sees an explicit `Invalid mind map JSON` state with a copyable source panel and non-sensitive error details.
+      - Logs record only error class, size, embed id, and validation counts, not the full private source content.
+
+  - id: S-5
+    title: Web preview shows a zoomed-out overview
+    given:
+      - Alice opens a chat containing a finished mindmap embed with at least 30 nodes.
+    when:
+      - The inline embed preview renders in the message stream.
+    then:
+      - The preview uses `UnifiedEmbedPreview` and shows the whole mind map zoomed out to fit the card.
+      - Labels remain legible where possible, with large maps allowed to simplify tiny secondary labels while preserving visible structure.
+      - Collapsed branches show their parent node and an affordance/count for hidden descendants.
+      - The preview never overflows outside the card and clicking opens fullscreen.
+
+  - id: S-6
+    title: Web fullscreen supports pan, zoom, fit, collapse, and touch navigation
+    given:
+      - Alice opens a finished mindmap embed fullscreen on desktop or a touch device.
+    when:
+      - Alice drags the canvas, pinches, uses the mouse wheel/trackpad where supported, taps zoom in/out/reset buttons, and expands or collapses a branch.
+    then:
+      - The mind map pans without selecting text or scrolling the surrounding chat.
+      - Zoom in, zoom out, and fit/reset controls use the shared `EmbedZoomControls` visual pattern.
+      - Touch pinch zooms around the gesture midpoint and one-finger drag pans on touch devices.
+      - Expanding/collapsing a branch updates only view state and does not mutate the canonical nodes/edges.
+      - The current zoom level and invalid-content warning count are accessible to screen readers.
+
+  - id: S-7
+    title: Users download and re-upload native mindmap files
+    given:
+      - Alice opens a valid mindmap embed in fullscreen.
+    when:
+      - Alice downloads the mind map, then uploads the downloaded file into OpenMates later.
+    then:
+      - The fullscreen exposes a visible download button that exports the canonical file.
+      - The downloaded file has extension `.ommindmap` and contains canonical OpenMates mindmap JSON.
+      - Upload accepts `.ommindmap` and `.openmates-mindmap.json` only when the JSON includes `openmatesType: mindmap` and a supported `schemaVersion`.
+      - The uploaded file is auto-detected as a `mindmaps-mindmap` embed instead of a generic code/file embed.
+      - Generic `.json` files without the OpenMates mindmap marker remain generic code/file uploads.
+
+  - id: S-8
+    title: CLI renders useful text for mindmap embeds
+    given:
+      - Alice uses the OpenMates CLI and receives a mindmap embed.
+    when:
+      - The inline preview or `openmates embeds show <id>` renders the embed.
+    then:
+      - The preview prints a Mind Maps label, title, node count, edge count, validation warning count, and a compact indented outline from the root.
+      - Fullscreen CLI output prints the canonical JSON in an `openmates_mindmap` fenced block and includes validation warnings.
+      - CLI output does not expose encrypted content or attempt graphical rendering.
+
+  - id: S-9
+    title: Apple renders mind maps with material web parity
+    given:
+      - Alice opens a chat containing a mindmap embed on iOS or macOS.
+    when:
+      - The preview and fullscreen render.
+    then:
+      - The preview uses Mind Maps app chrome and shows a zoomed-out overview.
+      - Fullscreen supports pan, zoom in/out, fit/reset, collapsed branches, invalid-content warnings, and source fallback.
+      - User-visible labels are localized through the Apple i18n pipeline.
+
+  - id: S-10
+    title: Natural-language CLI run becomes the canonical example chat
+    given:
+      - The Mind Maps implementation is deployed to dev and the CLI can send authenticated chat messages.
+    when:
+      - Alice runs a natural-language CLI prompt such as `Create a mind map for planning a privacy-first product launch` without mentioning `@Mind Maps` or any app ID.
+    then:
+      - The assistant chooses the Mind Maps app behavior and creates a `mindmaps-mindmap` embed.
+      - The created chat is verified through the CLI output and web rendering.
+      - The verified chat is published as the canonical Mind Maps example chat.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Assistant-emitted `openmates_mindmap` fences are converted into encrypted direct `mindmap` embeds with Mind Maps app metadata.
+  - id: AC-2
+    scenario: S-2
+    text: The assistant instruction defines the canonical JSON schema, size limits, ID rules, view-state rules, and explicitly forbids Mermaid or prose outlines as the durable source.
+  - id: AC-3
+    scenario: S-3
+    text: Parsed but partially invalid maps render valid content with visible validation warnings and `Invalid content` placeholders for recoverable invalid nodes.
+  - id: AC-4
+    scenario: S-4
+    text: Unparseable maps show an explicit invalid-source fallback and do not silently create a fake finished mindmap.
+  - id: AC-5
+    scenario: S-5
+    text: Web previews render a zoomed-out whole-map overview inside `UnifiedEmbedPreview`.
+  - id: AC-6
+    scenario: S-6
+    text: Web fullscreen supports pan, zoom controls, fit/reset, touch pinch/drag, and branch collapse/expand without mutating canonical content.
+  - id: AC-7
+    scenario: S-7
+    text: Users can download `.ommindmap` files and upload them back into OpenMates as mindmap embeds; unmarked generic JSON is not misclassified.
+  - id: AC-8
+    scenario: S-8
+    text: CLI preview/fullscreen output provides readable text and canonical JSON for mindmap embeds.
+  - id: AC-9
+    scenario: S-9
+    text: Apple preview/fullscreen renders mindmap embeds with material web parity and localized strings.
+  - id: AC-10
+    scenario: S-3
+    text: Mindmap normalization is deterministic, bounded, and never invents semantic content not present in source JSON.
+  - id: AC-11
+    scenario: S-10
+    text: A natural-language CLI chat without an app mention triggers mindmap creation and is published as the canonical Mind Maps example chat.
+
+contracts:
+  data:
+    - name: MindMapDocument
+      shape: >
+        { openmatesType: "mindmap", schemaVersion: 1, title: string, rootId:
+        string, nodes: MindMapNode[], edges?: MindMapEdge[], view?:
+        MindMapViewState, metadata?: MindMapMetadata }
+      rules:
+        - "`openmatesType` must equal `mindmap`."
+        - "`schemaVersion` must equal `1` for v1."
+        - "`title` is required, trimmed, and capped at 120 characters."
+        - "`rootId` must reference a valid node after normalization or the map is invalid."
+        - "`nodes` must contain at least one node and at most 250 nodes."
+        - "`edges` are optional and capped at 400 edges; v1 layout treats `parent-child` edges as hierarchy and other edge types as cross-links."
+        - Unknown top-level fields are preserved under normalized metadata only if they are plain JSON primitives/objects below size caps.
+    - name: MindMapNode
+      shape: >
+        { id: string, label: string, summary?: string, icon?: string, color?:
+        string, tags?: string[], children?: string[], data?: object }
+      rules:
+        - Node IDs are stable lowercase kebab-case or snake_case strings capped at 80 characters.
+        - "`label` is required and capped at 120 characters for valid nodes."
+        - Missing or non-string labels on connected nodes become visible `Invalid content` placeholders.
+        - "`summary` is optional, plain text only, capped at 500 characters."
+        - "`children` may define hierarchy by child IDs; `edges` may also define parent-child links, but the normalized model must dedupe conflicts deterministically."
+        - "`icon` may reference approved OpenMates icon names only; unknown icons fall back to the Mind Maps icon and produce a warning."
+        - "`color` may reference approved token/category names only; raw CSS colors are ignored and reported as warnings."
+    - name: MindMapEdge
+      shape: "{ id?: string, source: string, target: string, type?: parent-child | related | dependency | reference, label?: string }"
+      rules:
+        - Edges with missing source or target nodes are dropped and reported as warnings.
+        - Duplicate edges are deduped by source, target, and type.
+        - Cycles in parent-child hierarchy are broken deterministically and reported as warnings.
+    - name: MindMapViewState
+      shape: "{ layout?: radial-tree | tree | graph, collapsedNodeIds?: string[], hiddenNodeIds?: string[], focusNodeId?: string }"
+      rules:
+        - View state must never remove canonical nodes from the normalized model.
+        - "`collapsedNodeIds` hide descendants while keeping the collapsed node visible."
+        - "`hiddenNodeIds` hide listed nodes and incident edges from the rendered view only."
+        - Unknown node IDs in view state are ignored and reported as warnings.
+    - name: MindMapEmbedContent
+      shape: >
+        { type: "mindmap", app_id: "mindmaps", skill_id: "mindmap", title:
+        string, source_json: string, model: MindMapDocument, validation:
+        MindMapValidationResult, embed_ref: string, status: string,
+        version_number: number, node_count: number, edge_count: number }
+      rules:
+        - "`source_json` preserves the original assistant/upload source after size caps for repair/diff editing."
+        - "`model` is the normalized validated model used for rendering."
+        - Validation results are visible in UI and CLI, not just logs.
+  llm_instruction:
+    - Include the Mind Maps instruction only when the user asks for a mind map, concept map, brainstorm map, topic map, study map, knowledge map, or structured visual outline.
+    - Require exactly one fenced block using language `openmates_mindmap` for the artifact source.
+    - Require valid JSON with double-quoted keys/strings, no trailing commas, no comments, no Markdown outside JSON values, and no remote URLs or HTML.
+    - Tell the assistant to prefer 8-60 nodes, maximum depth 5, maximum children per node 8, and to use collapsed branches for secondary details.
+    - Tell the assistant to use stable semantic IDs, e.g. `launch-plan`, `audience-research`, not random UUIDs unless the concept has no stable name.
+    - Tell the assistant to use `summary` for optional detail and keep `label` short.
+    - Tell the assistant to create `children` hierarchy for tree mind maps and use `edges` only for cross-links or when a graph layout is explicitly requested.
+    - Tell the assistant not to output Mermaid, OPML, FreeMind XML, Graphviz, Markdown headings, or prose lists as the durable mindmap source.
+  validation:
+    - Try one deterministic repair pass for common JSON syntax mistakes such as BOM, surrounding prose, smart quotes, and trailing commas before declaring parse failure.
+    - If parsing still fails, create or update an error/source fallback state, not a fake normalized mind map.
+    - If parsing succeeds, normalize IDs, trim strings, cap lengths, dedupe duplicates, break hierarchy cycles, drop invalid edges, and record warnings.
+    - Recoverable connected nodes missing a valid label render as `Invalid content` placeholders.
+    - Do not call an LLM from the renderer to repair invalid content in v1.
+  ui_states:
+    - Processing mindmap preview placeholder.
+    - Finished preview zoomed to show the full rendered map.
+    - Finished fullscreen with canvas, controls, collapsed branch affordances, warning badge, source panel, copy, download, and share actions.
+    - Partially invalid fullscreen with valid map content plus validation warning panel.
+    - Entirely invalid source fallback with copyable source and error message.
+    - Upload rejected as not a mindmap because marker/schema is missing.
+  privacy_security:
+    - Mindmap content is encrypted like other direct embeds and must not be logged in full.
+    - Validation logs may include error class, size, node count, edge count, warning count, and embed id only.
+    - Renderer must treat every label, summary, icon, color, and metadata field as untrusted text/data.
+    - Mindmap JSON must not trigger network requests, script execution, inline HTML rendering, or external resource loading.
+    - Downloaded `.ommindmap` files contain user-visible mindmap content and must be treated as private user data.
+
+tests:
+  - id: T-PYTEST-MINDMAP-STREAMING
+    type: pytest
+    file: backend/tests/test_mindmap_embed_streaming.py
+    command: python3 -m pytest backend/tests/test_mindmap_embed_streaming.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+      - AC-10
+    assertions:
+      - "stream consumer converts complete `openmates_mindmap` fences into `type: mindmap` embed references"
+      - malformed JSON creates an invalid-source fallback/error state without raw source logs
+      - embed service stores source_json, normalized model, validation warnings, counts, app_id, skill_id, and embed_ref
+      - assistant instructions include schema and anti-Mermaid/anti-prose requirements
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: "2026-06-20"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local:python3-m-pytest-backend-tests-test_mindmap_embed_streaming.py
+        timestamp: "2026-06-20"
+
+  - id: T-VITEST-MINDMAP-CONTENT
+    type: vitest
+    file: frontend/packages/ui/src/components/embeds/mindmaps/__tests__/mindMapContent.test.ts
+    command: python3 scripts/tests.py run --suite vitest --filter mindMapContent
+    covers:
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-10
+    assertions:
+      - valid canonical JSON normalizes into a renderable model
+      - duplicate IDs, missing labels, invalid icons/colors, missing edge targets, and cycles produce deterministic warnings
+      - recoverable invalid nodes become `Invalid content` placeholders
+      - unparseable JSON returns invalid-source fallback data after one repair attempt
+      - preview fit helpers calculate a whole-map overview transform for large maps
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: "2026-06-20"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: blocked_until_deploy
+        run_id: "remote-vitest-baseline-450-of-451-passed-unrelated-highlightToLines-document-is-not-defined"
+        timestamp: "2026-06-20"
+
+  - id: T-VITEST-MINDMAP-UPLOAD
+    type: vitest
+    file: frontend/packages/ui/src/components/enter_message/services/__tests__/mindMapUploadDetection.test.ts
+    command: python3 scripts/tests.py run --suite vitest --filter mindMapUploadDetection
+    covers:
+      - AC-7
+      - AC-11
+    assertions:
+      - "`.ommindmap` with marker and supported schema is classified as `mindmaps-mindmap`"
+      - "`.openmates-mindmap.json` with marker and supported schema is classified as `mindmaps-mindmap`"
+      - generic `.json` without marker is not classified as a mindmap
+      - oversized or unsupported schema files are rejected with visible errors
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: "2026-06-20"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: blocked_until_deploy
+        run_id: "remote-vitest-baseline-450-of-451-passed-unrelated-highlightToLines-document-is-not-defined"
+        timestamp: "2026-06-20"
+
+  - id: T-VITEST-MINDMAP-REGISTRY-TEXT
+    type: vitest
+    file: frontend/packages/ui/src/data/__tests__/embedTextRenderers.test.ts
+    command: python3 scripts/tests.py run --suite vitest --filter mindmap
+    covers:
+      - AC-7
+      - AC-8
+    assertions:
+      - generated embed registry includes `mindmaps-mindmap` and backend alias `mindmap`
+      - text renderer prints title, counts, warning count, and compact root outline
+      - fullscreen text renderer prints canonical `openmates_mindmap` fenced JSON
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: "2026-06-20"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: blocked_until_deploy
+        run_id: "remote-vitest-baseline-450-of-451-passed-unrelated-highlightToLines-document-is-not-defined"
+        timestamp: "2026-06-20"
+
+  - id: T-CLI-MINDMAP-RENDERING
+    type: vitest
+    file: frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    command: python3 scripts/tests.py run --suite vitest --filter mindmap
+    covers:
+      - AC-8
+    assertions:
+      - CLI preview recognizes `mindmap` and `mindmaps-mindmap`
+      - CLI preview prints compact outline and validation warning count
+      - CLI fullscreen prints full canonical JSON in an `openmates_mindmap` fence
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: "2026-06-20"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local:npm-run-test-unit-embed-renderers
+        timestamp: "2026-06-20"
+
+  - id: T-PLAYWRIGHT-MINDMAP-EMBED
+    type: playwright
+    file: frontend/apps/web_app/tests/mindmap-embed.spec.ts
+    command: python3 scripts/tests.py run --spec mindmap-embed.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+    assertions:
+      - asking for a mind map creates a `mindmaps-mindmap` embed preview
+      - preview shows a zoomed-out whole-map overview inside UnifiedEmbedPreview chrome
+      - fullscreen opens and zoom in/out/reset controls change the viewport state
+      - pointer drag and mobile touch emulation pan the map without scrolling chat
+      - invalid-node fixture shows valid content plus `Invalid content` placeholder and warnings
+      - downloaded `.ommindmap` can be uploaded and renders again as a mindmap embed
+      - the canonical Mind Maps example chat renders a mindmap embed in the public example-chat flow
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: "2026-06-20"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-MINDMAP-PARITY
+    type: manual
+    covers:
+      - AC-9
+    assertions:
+      - Apple build recognizes `mindmaps-mindmap` and Mind Maps app metadata
+      - Apple preview shows a zoomed-out overview with app chrome
+      - Apple fullscreen supports pan, zoom, fit/reset, collapsed branches, invalid warnings, and source fallback
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: "2026-06-20"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - Diagrams/Mermaid direct embeds already define an app metadata pattern, stream fence conversion, safe rendering, source fallback, text rendering, and pan/zoom fullscreen behavior.
+    - "`UnifiedEmbedPreview` and `UnifiedEmbedFullscreen` provide mandatory embed chrome, update subscription, sharing, and fullscreen shell behavior."
+    - "`EmbedZoomControls` provides the shared zoom button visual pattern from document embeds."
+    - Upload currently accepts images, PDFs, and audio only, so `.ommindmap` upload requires an explicit safe JSON upload/classification path.
+  architecture: >
+    Add Mind Maps as a separate metadata app with a direct `mindmap` embed type.
+    The backend detects `openmates_mindmap` fences, validates and normalizes the
+    JSON, and stores both source and normalized model in encrypted embed content.
+    The web renderer uses pure deterministic layout/validation helpers, renders a
+    fit-to-preview overview, and provides a canvas-like fullscreen with shared
+    zoom controls and pointer/touch interactions. Upload/download uses the native
+    `.ommindmap` format and validates explicit OpenMates markers before creating
+    embeds.
+  data_flow:
+    - User asks for a mind map.
+    - Assistant emits one `openmates_mindmap` fenced JSON block according to the instruction.
+    - Stream consumer parses, repairs once if needed, validates, normalizes, and creates a direct encrypted mindmap embed.
+    - Web preview renders the normalized model fit to the card.
+    - Fullscreen renders the same model with view-state controls, source panel, warnings, download, and share actions.
+    - Download writes canonical `.ommindmap` JSON.
+    - Upload validates `.ommindmap` or `.openmates-mindmap.json` marker/schema and creates the same direct embed type.
+  affected_files:
+    - path: backend/apps/mindmaps/app.yml
+      reason: New Mind Maps app metadata, direct embed type, icon, i18n, and assistant instruction hooks.
+    - path: backend/apps/ai/instructions/base_mindmap_instruction.md
+      reason: LLM instructions for canonical `openmates_mindmap` JSON output.
+    - path: backend/apps/ai/tasks/stream_consumer.py
+      reason: Detect `openmates_mindmap` fences and convert them to embeds.
+    - path: backend/core/api/app/services/embed_service.py
+      reason: Create/update mindmap direct embed content, validation metadata, content hashes, and update events.
+    - path: backend/upload/routes/upload_route.py
+      reason: Accept and safely classify native `.ommindmap` uploads without broad generic JSON upload behavior.
+    - path: frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedPreview.svelte
+      reason: Zoomed-out preview renderer.
+    - path: frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedFullscreen.svelte
+      reason: Pan/zoom/collapse/source/warning fullscreen renderer.
+    - path: frontend/packages/ui/src/components/embeds/mindmaps/mindMapContent.ts
+      reason: Pure schema validation, normalization, deterministic repair, layout, text rendering, and export helpers.
+    - path: frontend/packages/ui/src/components/enter_message/services/uploadService.ts
+      reason: Client-side upload response and classification support for `.ommindmap`.
+    - path: frontend/packages/ui/src/data/embedTextRenderers.ts
+      reason: Text output for CLI/search/export surfaces.
+    - path: frontend/packages/openmates-cli/src/embedRenderers.ts
+      reason: CLI preview/fullscreen support.
+    - path: frontend/packages/ui/src/i18n/sources/**/*.yml
+      reason: Mind Maps labels, errors, controls, and app metadata translations.
+    - path: apple/OpenMates/Sources/Features/Embeds/Renderers/MindMapEmbedRenderer.swift
+      reason: Apple parity renderer.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/mindmap-embeds/spec.yml
+    - python3 scripts/spec_verify.py docs/specs/mindmap-embeds/spec.yml --phase red
+    - python3 scripts/spec_verify.py docs/specs/mindmap-embeds/spec.yml --phase green
+  verification_order:
+    - Backend pytest and Vitest content/upload/registry tests first.
+    - CLI rendering tests second.
+    - Deploy to dev, wait for Vercel Ready, then run Playwright.
+    - Apple remote status/build or targeted test-ios after CLI and web evidence.
+
+tasks:
+  - id: TASK-1
+    title: Add Mind Maps app metadata and assistant/backend fence conversion
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-4
+        - AC-10
+    expected_files:
+      - backend/apps/mindmaps/app.yml
+      - backend/apps/ai/instructions/base_mindmap_instruction.md
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/core/api/app/services/embed_service.py
+      - backend/tests/test_mindmap_embed_streaming.py
+    verification:
+      - T-PYTEST-MINDMAP-STREAMING
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add mindmap schema, normalization, preview, and fullscreen web rendering
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-10
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/mindmaps/mindMapContent.ts
+      - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/mindmaps/MindMapEmbedFullscreen.svelte
+      - frontend/packages/ui/src/components/embeds/mindmaps/__tests__/mindMapContent.test.ts
+    verification:
+      - T-VITEST-MINDMAP-CONTENT
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Add native mindmap download/upload detection
+    covers:
+      scenarios:
+        - S-7
+      acceptance_criteria:
+        - AC-7
+    expected_files:
+      - backend/upload/routes/upload_route.py
+      - frontend/packages/ui/src/components/enter_message/services/uploadService.ts
+      - frontend/packages/ui/src/components/enter_message/services/__tests__/mindMapUploadDetection.test.ts
+    verification:
+      - T-VITEST-MINDMAP-UPLOAD
+      - T-PLAYWRIGHT-MINDMAP-EMBED
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Add registry, text renderer, CLI, i18n, and example coverage
+    covers:
+      scenarios:
+        - S-8
+      acceptance_criteria:
+        - AC-8
+        - AC-11
+    expected_files:
+      - frontend/packages/ui/src/data/embedTextRenderers.ts
+      - frontend/packages/openmates-cli/src/embedRenderers.ts
+      - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+      - frontend/packages/ui/src/i18n/sources/**/*.yml
+      - frontend/packages/ui/src/demo_chats/data/example_chats/**
+    verification:
+      - T-VITEST-MINDMAP-REGISTRY-TEXT
+      - T-CLI-MINDMAP-RENDERING
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Add web Playwright coverage and Apple parity
+    covers:
+      scenarios:
+        - S-5
+        - S-6
+        - S-7
+        - S-9
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-9
+    expected_files:
+      - frontend/apps/web_app/tests/mindmap-embed.spec.ts
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/MindMapEmbedRenderer.swift
+      - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewFixtures.swift
+      - apple/OpenMatesTests/SkillApplicationParityTests.swift
+      - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    verification:
+      - T-PLAYWRIGHT-MINDMAP-EMBED
+      - T-APPLE-MINDMAP-PARITY
+    independently_deployable: false
+
+risks:
+  - Mind maps could become unreadable in the preview if layout tries to render every label at full size; v1 needs fit-to-overview plus label simplification for large maps.
+  - Uploading JSON broadens the upload attack surface; v1 should only accept explicit `.ommindmap` or `.openmates-mindmap.json` files that pass marker/schema validation and size caps.
+  - LLMs may produce malformed JSON or prose around artifacts; one deterministic repair pass and explicit invalid-source fallback avoids silent corruption.
+  - Cross-platform native parity may be non-trivial because Apple needs a layout/gesture renderer, not just text output.
+  - Separating Mind Maps from Diagrams means new app metadata, icons, examples, and i18n must be kept in sync with generated registries.
+
+open_questions:
+  - Should v1 include OPML or FreeMind import/export if implementation turns out cheap, or keep those explicitly deferred until after native `.ommindmap` is stable?
+  - Should mind maps support cross-link edge labels visually in v1 fullscreen, or preserve them in data/source and show them only in details/accessibility until a graph layout is added?

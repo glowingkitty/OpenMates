@@ -129,6 +129,11 @@ enum AppStrings {
     static var username: String { L("settings.account.username") }
     static var timezone: String { L("settings.account.timezone") }
     static var email: String { L("settings.account.email") }
+    static var interests: String { L("settings.account.interests") }
+    static var interestsDescription: String { L("settings.account.interests_description") }
+    static var interestsPrivacyNote: String { L("settings.account.interests_privacy_note") }
+    static var interestsSaved: String { L("settings.account.interests_saved") }
+    static var interestsSaveError: String { L("settings.account.interests_save_error") }
     static var profilePicture: String { L("settings.account.profile_picture") }
     static var usage: String { L("settings.usage") }
     static var storage: String { L("settings.storage") }
@@ -397,6 +402,24 @@ enum AppStrings {
     static var viewOnGoogleHotels: String { L("embeds.view_on_google_hotels") }
     static var zoomIn: String { L("sketchview.zoom_in") }
     static var zoomOut: String { L("sketchview.zoom_out") }
+    static var resetZoom: String { L("sketchview.reset_zoom") }
+    static var mindMap: String { L("embeds.mindmaps.mindmap") }
+    static var mindMapInvalidJSON: String { L("embeds.mindmaps.invalid_json") }
+    static var mindMapInvalidContent: String { L("embeds.mindmaps.invalid_content") }
+    static var mindMapValidationWarnings: String { L("embeds.mindmaps.validation_warnings") }
+    static var mindMapSource: String { L("embeds.mindmaps.source") }
+
+    static func mindMapCounts(nodes: Int, edges: Int) -> String {
+        LocalizationManager.shared.text("embeds.mindmaps.counts", replacements: ["nodes": "\(nodes)", "edges": "\(edges)"])
+    }
+
+    static func mindMapExpand(_ label: String) -> String {
+        LocalizationManager.shared.text("embeds.mindmaps.expand", replacements: ["label": label])
+    }
+
+    static func mindMapCollapse(_ label: String) -> String {
+        LocalizationManager.shared.text("embeds.mindmaps.collapse", replacements: ["label": label])
+    }
 
     static func dataFrom(_ date: String) -> String {
         LocalizationManager.shared.text("embeds.data_from", replacements: ["date": date])

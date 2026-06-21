@@ -23,6 +23,14 @@ export interface ServerConfig {
   installedAt: number;
   /** Whether the override compose file is used (Directus, Grafana) */
   composeProfile: "core" | "full";
+  /** Server role managed by this install. Defaults to core for older configs. */
+  serverRole?: "core" | "upload" | "preview";
+  /** Core server profile for observability/runtime services. */
+  serverProfile?: "minimal" | "standard" | "production";
+  /** Role-specific default Docker Compose services. */
+  defaultServices?: string[];
+  /** Role-specific compose files relative to the install path. */
+  composeFiles?: string[];
   /** Distribution mode: prebuilt images by default, source builds for contributors/forks. */
   installMode?: "image" | "source";
   /** OpenMates image tag used by image-mode installs, e.g. v0.12.0-alpha.0. */
@@ -83,9 +91,16 @@ export function removeServerConfig(): void {
 /** Marker file that confirms a directory is an OpenMates installation. */
 const SOURCE_COMPOSE_MARKER = join("backend", "core", "docker-compose.yml");
 const IMAGE_COMPOSE_MARKER = join("backend", "core", "docker-compose.selfhost.yml");
+const UPLOAD_COMPOSE_MARKER = join("backend", "upload", "docker-compose.yml");
+const PREVIEW_COMPOSE_MARKER = join("backend", "preview", "docker-compose.preview.yml");
 
 function isOpenMatesDir(dir: string): boolean {
-  return existsSync(join(dir, SOURCE_COMPOSE_MARKER)) || existsSync(join(dir, IMAGE_COMPOSE_MARKER));
+  return [
+    SOURCE_COMPOSE_MARKER,
+    IMAGE_COMPOSE_MARKER,
+    UPLOAD_COMPOSE_MARKER,
+    PREVIEW_COMPOSE_MARKER,
+  ].some((marker) => existsSync(join(dir, marker)));
 }
 
 /**

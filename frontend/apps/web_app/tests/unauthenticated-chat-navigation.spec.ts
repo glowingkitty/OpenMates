@@ -19,10 +19,11 @@ export {};
  *      (RecentChatTiltState) could produce a Svelte 5 reactive cascade when
  *      the source array is rapidly cleared and repopulated.
  *
- * Test strategy: cycle through new-chat ↔ intro-chat navigation 5 times as an
- * unauthenticated user, then verify the settings panel can still be opened and
- * closed. If the UI freezes at any point, the corresponding waitForSelector /
- * visibility assertions will time out and fail the spec.
+ * Test strategy: start on the logged-out welcome screen, cycle through
+ * intro/example chat cards ↔ new-chat navigation 5 times, then verify the
+ * settings panel can still be opened and closed. If the UI freezes at any
+ * point, the corresponding waitForSelector / visibility assertions will time
+ * out and fail the spec.
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -49,16 +50,11 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		// The app auto-navigates to the for-everyone intro chat for new visitors.
-		await page.waitForFunction(
-			() => window.location.hash.includes('demo-for-everyone'),
-			null,
-			{ timeout: 15000 }
-		);
-		console.log('[chat-nav] Initial for-everyone chat loaded');
-
 		const activeChatContainer = page.getByTestId('active-chat-container');
 		await expect(activeChatContainer).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 10000 });
+		expect(await page.evaluate(() => window.location.hash)).not.toContain('demo-for-everyone');
+		console.log('[chat-nav] Initial logged-out welcome screen loaded');
 
 		// ─── 2. Cycle: new chat → intro/example chat card, CYCLES times ──────
 		for (let cycle = 1; cycle <= CYCLES; cycle++) {

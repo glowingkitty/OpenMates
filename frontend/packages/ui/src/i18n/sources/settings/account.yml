@@ -4151,3 +4151,123 @@ import_importing:
   sv: Importerar…
   he: מייבא…
   verified_by_human: []
+interests:
+  context: Account settings submenu and page title for encrypted topic preferences
+  en: Interests
+  de: Interessen
+  zh: 兴趣
+  es: Intereses
+  fr: Centres d’intérêt
+  pt: Interesses
+  ru: Интересы
+  ja: 興味
+  ko: 관심사
+  it: Interessi
+  tr: İlgi alanları
+  vi: Sở thích
+  id: Minat
+  pl: Zainteresowania
+  nl: Interesses
+  ar: الاهتمامات
+  hi: रुचियाँ
+  th: ความสนใจ
+  cs: Zájmy
+  sv: Intressen
+  he: תחומי עניין
+  verified_by_human: []
+interests_description:
+  context: Description for the account interests settings page
+  en: Choose the topics OpenMates should prioritize when it suggests chats, examples, and product tips.
+  de: Wähle die Themen, die OpenMates bei Chats, Beispielen und Produkttipps priorisieren soll.
+  zh: 选择 OpenMates 在推荐聊天、示例和产品提示时应优先考虑的主题。
+  es: Elige los temas que OpenMates debe priorizar al sugerir chats, ejemplos y consejos del producto.
+  fr: Choisissez les sujets qu’OpenMates doit privilégier lorsqu’il suggère des chats, des exemples et des conseils produit.
+  pt: Escolha os tópicos que o OpenMates deve priorizar ao sugerir chats, exemplos e dicas do produto.
+  ru: Выберите темы, которым OpenMates должен отдавать приоритет в чатах, примерах и советах по продукту.
+  ja: OpenMates がチャット、例、製品ヒントを提案するときに優先するトピックを選びます。
+  ko: OpenMates가 채팅, 예시, 제품 팁을 제안할 때 우선할 주제를 선택하세요.
+  it: Scegli gli argomenti che OpenMates deve dare priorità quando suggerisce chat, esempi e consigli sul prodotto.
+  tr: OpenMates’in sohbetler, örnekler ve ürün ipuçları önerirken öncelik vereceği konuları seçin.
+  vi: Chọn các chủ đề OpenMates nên ưu tiên khi gợi ý cuộc trò chuyện, ví dụ và mẹo sản phẩm.
+  id: Pilih topik yang harus diprioritaskan OpenMates saat menyarankan chat, contoh, dan tips produk.
+  pl: Wybierz tematy, które OpenMates ma traktować priorytetowo przy sugestiach czatów, przykładów i porad produktowych.
+  nl: Kies de onderwerpen die OpenMates prioriteit moet geven bij chats, voorbeelden en producttips.
+  ar: اختر الموضوعات التي يجب أن يعطيها OpenMates أولوية عند اقتراح المحادثات والأمثلة ونصائح المنتج.
+  hi: वे विषय चुनें जिन्हें OpenMates चैट, उदाहरण और उत्पाद सुझाव सुझाते समय प्राथमिकता दे।
+  th: เลือกหัวข้อที่ OpenMates ควรให้ความสำคัญเมื่อแนะนำแชท ตัวอย่าง และเคล็ดลับผลิตภัณฑ์
+  cs: Vyberte témata, která má OpenMates upřednostnit při doporučování chatů, příkladů a produktových tipů.
+  sv: Välj de ämnen som OpenMates ska prioritera när det föreslår chattar, exempel och produkttips.
+  he: בחר את הנושאים ש-OpenMates יתעדף כשהוא מציע צ׳אטים, דוגמאות וטיפים למוצר.
+  verified_by_human: []
+interests_privacy_note:
+  context: Privacy note on the account interests settings page
+  en: These preferences are encrypted on your device before syncing. The server stores only ciphertext.
+  de: Diese Einstellungen werden vor der Synchronisierung auf deinem Gerät verschlüsselt. Der Server speichert nur Chiffretext.
+  zh: 这些偏好会在同步前在你的设备上加密。服务器只存储密文。
+  es: Estas preferencias se cifran en tu dispositivo antes de sincronizarse. El servidor solo almacena texto cifrado.
+  fr: Ces préférences sont chiffrées sur votre appareil avant la synchronisation. Le serveur ne stocke que du texte chiffré.
+  pt: Essas preferências são criptografadas no seu dispositivo antes da sincronização. O servidor armazena apenas texto cifrado.
+  ru: Эти настройки шифруются на вашем устройстве перед синхронизацией. Сервер хранит только шифртекст.
+  ja: これらの設定は同期前にデバイス上で暗号化されます。サーバーには暗号文だけが保存されます。
+  ko: 이 환경설정은 동기화 전에 기기에서 암호화됩니다. 서버에는 암호문만 저장됩니다.
+  it: Queste preferenze vengono crittografate sul tuo dispositivo prima della sincronizzazione. Il server conserva solo testo cifrato.
+  tr: Bu tercihler eşitlemeden önce cihazınızda şifrelenir. Sunucu yalnızca şifreli metni saklar.
+  vi: Các tùy chọn này được mã hóa trên thiết bị của bạn trước khi đồng bộ. Máy chủ chỉ lưu bản mã.
+  id: Preferensi ini dienkripsi di perangkat Anda sebelum disinkronkan. Server hanya menyimpan ciphertext.
+  pl: Te preferencje są szyfrowane na urządzeniu przed synchronizacją. Serwer przechowuje tylko szyfrogram.
+  nl: Deze voorkeuren worden op je apparaat versleuteld voordat ze synchroniseren. De server bewaart alleen versleutelde tekst.
+  ar: تُشفّر هذه التفضيلات على جهازك قبل المزامنة. لا يخزن الخادم سوى النص المشفّر.
+  hi: ये प्राथमिकताएँ सिंक होने से पहले आपके डिवाइस पर एन्क्रिप्ट होती हैं। सर्वर केवल सिफरटेक्स्ट संग्रहीत करता है।
+  th: การตั้งค่าเหล่านี้จะถูกเข้ารหัสบนอุปกรณ์ของคุณก่อนซิงก์ เซิร์ฟเวอร์เก็บเฉพาะข้อความเข้ารหัสเท่านั้น
+  cs: Tyto preference se před synchronizací šifrují na vašem zařízení. Server ukládá pouze šifrovaný text.
+  sv: De här inställningarna krypteras på din enhet innan de synkas. Servern lagrar bara chiffertext.
+  he: ההעדפות האלה מוצפנות במכשיר שלך לפני הסנכרון. השרת שומר רק טקסט מוצפן.
+  verified_by_human: []
+interests_saved:
+  context: Success message after saving account interests
+  en: Interests saved
+  de: Interessen gespeichert
+  zh: 兴趣已保存
+  es: Intereses guardados
+  fr: Centres d’intérêt enregistrés
+  pt: Interesses salvos
+  ru: Интересы сохранены
+  ja: 興味を保存しました
+  ko: 관심사가 저장되었습니다
+  it: Interessi salvati
+  tr: İlgi alanları kaydedildi
+  vi: Đã lưu sở thích
+  id: Minat disimpan
+  pl: Zainteresowania zapisane
+  nl: Interesses opgeslagen
+  ar: تم حفظ الاهتمامات
+  hi: रुचियाँ सहेजी गईं
+  th: บันทึกความสนใจแล้ว
+  cs: Zájmy uloženy
+  sv: Intressen sparade
+  he: תחומי העניין נשמרו
+  verified_by_human: []
+interests_save_error:
+  context: Error message when encrypted account interests cannot be saved
+  en: Could not save interests. Please try again.
+  de: Interessen konnten nicht gespeichert werden. Bitte versuche es erneut.
+  zh: 无法保存兴趣。请重试。
+  es: No se pudieron guardar los intereses. Inténtalo de nuevo.
+  fr: Impossible d’enregistrer les centres d’intérêt. Veuillez réessayer.
+  pt: Não foi possível salvar os interesses. Tente novamente.
+  ru: Не удалось сохранить интересы. Попробуйте ещё раз.
+  ja: 興味を保存できませんでした。もう一度お試しください。
+  ko: 관심사를 저장할 수 없습니다. 다시 시도하세요.
+  it: Impossibile salvare gli interessi. Riprova.
+  tr: İlgi alanları kaydedilemedi. Lütfen tekrar deneyin.
+  vi: Không thể lưu sở thích. Vui lòng thử lại.
+  id: Tidak dapat menyimpan minat. Coba lagi.
+  pl: Nie udało się zapisać zainteresowań. Spróbuj ponownie.
+  nl: Kan interesses niet opslaan. Probeer het opnieuw.
+  ar: تعذر حفظ الاهتمامات. يرجى المحاولة مرة أخرى.
+  hi: रुचियाँ सहेजी नहीं जा सकीं। कृपया फिर से प्रयास करें।
+  th: ไม่สามารถบันทึกความสนใจได้ โปรดลองอีกครั้ง
+  cs: Zájmy se nepodařilo uložit. Zkuste to prosím znovu.
+  sv: Det gick inte att spara intressen. Försök igen.
+  he: לא ניתן היה לשמור את תחומי העניין. נסה שוב.
+  verified_by_human: []

@@ -1,0 +1,78 @@
+name: openmates-uploads
+
+services:
+  vault:
+    image: hashicorp/vault:1.19
+    container_name: uploads-vault
+    restart: unless-stopped
+    cap_add: [IPC_LOCK]
+    command: ["vault", "server", "-config=/vault/config/vault.hcl"]
+    volumes:
+      - ./vault/config:/vault/config:ro
+      - vault-data:/vault/file
+    networks: [uploads]
+
+  vault-setup:
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-upload-vault-setup:${OPENMATES_IMAGE_TAG:-dev}
+    container_name: uploads-vault-setup
+    env_file: ../../.env
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_AUTO_UNSEAL: "true"
+    volumes:
+      - vault-setup-data:/app/data
+    networks: [uploads]
+    depends_on: [vault]
+    restart: on-failure
+
+  clamav:
+    image: clamav/clamav:stable
+    container_name: clamav
+    restart: unless-stopped
+    networks: [uploads]
+
+  app-uploads:
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-uploads:${OPENMATES_IMAGE_TAG:-dev}
+    container_name: app-uploads
+    restart: unless-stopped
+    env_file: ../../.env
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      PYTHONPATH: /app
+      UPLOADS_APP_INTERNAL_PORT: 8000
+      VAULT_URL: http://vault:8200
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: 3310
+    volumes:
+      - vault-setup-data:/vault-data:ro
+    networks: [uploads]
+    depends_on: [clamav, vault-setup]
+
+  admin-sidecar:
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-dev}
+    container_name: uploads-admin-sidecar
+    restart: unless-stopped
+    environment:
+      ADMIN_LOG_API_KEY: ${ADMIN_LOG_API_KEY:-}
+      COMPOSE_PROJECT: openmates-uploads
+      COMPOSE_FILE: backend/upload/docker-compose.selfhost.yml
+      SERVICES_ALLOWED: app-uploads,clamav,vault,admin-sidecar
+      SERVICE_UPDATE_TARGET: app-uploads
+      GIT_WORK_DIR: ${GIT_WORK_DIR}
+      PORT: 8001
+    ports:
+      - "127.0.0.1:8001:8001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [uploads]
+
+networks:
+  uploads:
+    name: openmates-uploads
+
+volumes:
+  vault-data:
+    name: openmates-uploads-vault-data
+  vault-setup-data:
+    name: openmates-uploads-vault-setup-data

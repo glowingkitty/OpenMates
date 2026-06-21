@@ -1,0 +1,777 @@
+id: unified-server-cli-management
+title: Unified Server CLI Management
+status: implementing
+
+goal: >
+  Make the OpenMates CLI the single supported host-level tool for installing,
+  starting, stopping, updating, backing up, restoring, and continuously updating
+  all OpenMates server roles: core production, upload, and preview. Updates must
+  use prebuilt Docker images by default, minimize downtime, and create a verified
+  latest pre-update backup before any data-bearing service is replaced.
+
+scope:
+  in:
+    - Add first-class server roles for core, upload, and preview server installs.
+    - Add profile-aware runtime templates for minimal, standard, and production core deployments.
+    - Add service selection and exclusion flags for start, stop, restart, update, logs, and status commands.
+    - Package runtime compose templates with the npm CLI so installs do not depend on missing Git tags.
+    - Add image-mode upload and preview server templates and image publishing for their OpenMates-built containers.
+    - Add backup and restore commands for product-critical user data and optional observability data.
+    - Add automatic latest pre-update backup creation before update operations that touch data-bearing roles.
+    - Add continuous update mode and systemd installation for unattended host-level image updates.
+    - Add update preflight checks that detect newly required environment/API keys before production updates.
+    - Add host-level Caddyfile check/apply/status commands so reverse proxy changes are handled by the CLI.
+    - Remove or disable web UI initiated server updates, keeping read-only version/update status where useful.
+    - Document and test a migration path from the current production source-based compose stacks.
+  out:
+    - Replacing Vercel-hosted official web app deployment with a Docker webapp container for openmates.org.
+    - Building custom OpenMates images locally by default; source mode remains explicit contributor/fork behavior.
+    - Automatic rollback of database migrations after a failed update.
+    - Restoring arbitrary historical backup retention beyond the latest pre-update backup and user-created backup files.
+    - Moving secrets out of Vault or weakening existing upload/preview VM isolation.
+    - Apple app changes; this is host/CLI/server infrastructure only.
+
+context_discovery:
+  github_issues:
+    - none found for "server cli update backup restore image mode" using gh issue search on glowingkitty/OpenMates.
+  docs:
+    - docs/specs/self-host-ghcr-images/spec.yml
+    - docs/specs/self-host-signup-mode/spec.yml
+    - docs/specs/simplified-feature-availability/spec.yml
+    - docs/self-hosting/setup.md
+    - docs/user-guide/cli/server-management.md
+    - docs/architecture/core/servers.md
+    - docs/architecture/infrastructure/auto-deploy.md
+    - docs/architecture/infrastructure/file-upload-pipeline.md
+  code_patterns:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.no-webapp.yml
+    - backend/upload/docker-compose.yml
+    - backend/preview/docker-compose.preview.yml
+    - backend/admin_sidecar/main.py
+    - backend/core/api/app/routes/settings_software_update.py
+    - deployment/apply-caddy-config.sh
+    - deployment/prod_server/Caddyfile
+    - deployment/dev_server/Caddyfile
+    - scripts/contract_audits.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - .github/workflows/publish-selfhost-images.yml
+    - .github/workflows/publish-cli.yml
+    - scripts/prepare_cli_publish_version.mjs
+  tests:
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - .github/workflows/selfhost-smoke.yml
+    - scripts/tests/test_architecture_behavioral_claims.py
+    - backend/tests/test_software_update_docker_mode.py
+  production_discovery:
+    - Current production core backend runs source-mode compose from /home/superdev/OpenMates/backend/core using docker-compose.yml plus docker-compose.no-webapp.yml.
+    - Current production has no webapp container; official web app is outside the backend compose stack.
+    - Current production persistent user data is mostly openmates-postgres-data, openmates-vault-data, openmates-vault-setup-data, and tiny Directus upload/extension bind mounts.
+    - Current production has OpenObserve, Promtail, Prometheus, cAdvisor, and Alertmanager containers; image-mode selfhost template currently keeps only OpenObserve.
+    - Published GHCR image tags can exist without matching Git tags, while the current CLI downloads compose templates from GitHub refs derived from package version.
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - The Apple app is not affected because this work changes host-level CLI and server deployment behavior only.
+  verification:
+    - Apple not affected.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: For server backup and restore v1, should user data mean only product-critical state, or include operational data by default?
+      answer: By default only Postgres, Directus uploads/extensions, Vault data/setup token files, runtime .env, and config. Optionally include OpenObserve logs and Prometheus metrics.
+    - question: For update preflight backups, should the CLI keep exactly one rotating latest pre-update backup per role or retain several?
+      answer: Keep one rotating latest pre-update backup per server role by default.
+    - question: Which observability services should production include by default?
+      answer: Use core minimal with no observability, core standard with OpenObserve and Promtail, core production with OpenObserve, Promtail, Prometheus, and cAdvisor, and make Alertmanager opt-in with --with-alerts.
+    - question: How should the migration handle newly required API keys and Caddyfile changes that are easy to forget during production deploys?
+      answer: Add CLI-managed deployment preflight reminders for new required env/API keys, and add host-level CLI Caddyfile check/apply/status commands because Caddy is not part of Docker images.
+  vision_summary: >
+    OpenMates server operations should move from hand-run git pulls and per-VM
+    sidecar updates to a unified host-level CLI that understands core, upload,
+    and preview roles. Image updates should be fast and safe: pre-pull images,
+    create one rotating latest pre-update backup of user data, restart only the
+    required services, verify required host/env/Caddy configuration, and verify
+    health before declaring success. Browser UI may display version information,
+    but actual updates should happen through the CLI or a CLI-installed systemd
+    continuous updater.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Operator installs each server role without source builds
+    given:
+      - A Linux host has Docker, Docker Compose, Node.js, and npm installed.
+      - The operator installs the public OpenMates CLI package.
+    when:
+      - The operator runs openmates server install --role core --profile production.
+      - The operator runs openmates server install --role upload on the upload VM.
+      - The operator runs openmates server install --role preview on the preview VM.
+    then:
+      - Each role writes only the runtime files, compose templates, env/config scaffolding, and server metadata needed for that role.
+      - No default install requires git, a source checkout, or local Docker builds.
+      - The saved server config records role, profile, install mode, image tag/channel, compose files, and default services.
+
+  - id: S-2
+    title: Operator targets specific services safely
+    given:
+      - A role-based image-mode install exists.
+      - The role has service groups such as api, workers, observability, upload, preview, and setup.
+    when:
+      - The operator runs openmates server restart --services api,task-worker.
+      - The operator runs openmates server start --exclude webapp.
+      - The operator runs openmates server logs --services preview,admin-sidecar.
+    then:
+      - The CLI passes only valid service names to Docker Compose.
+      - Invalid or cross-role service names fail before Docker is called.
+      - Setup/dependency services are included only when required by the selected operation.
+
+  - id: S-3
+    title: Image update minimizes downtime and creates a latest pre-update backup
+    given:
+      - A core production image-mode install is running.
+      - A newer image tag or channel digest is available.
+    when:
+      - The operator runs openmates server update.
+    then:
+      - The CLI writes or replaces one latest pre-update backup for the core role before replacing containers.
+      - The CLI pulls images before stopping or recreating running services.
+      - The CLI recreates only services affected by the selected role/service filter.
+      - The CLI waits for configured health checks and reports success only after healthy services are reachable.
+      - The CLI never runs git pull in image mode.
+
+  - id: S-4
+    title: Operator creates and restores user data backups on demand
+    given:
+      - A role-based install has persisted product data.
+    when:
+      - The operator runs openmates server backup --role core.
+      - The operator runs openmates server backup --role core --include-observability.
+      - The operator runs openmates server restore --role core --file <BACKUP_FILE>.
+    then:
+      - The default backup contains Postgres, Directus uploads/extensions, Vault data, Vault setup token files, runtime .env, and runtime config.
+      - Optional observability backup includes OpenObserve logs and Prometheus metrics.
+      - Restore requires explicit confirmation unless --yes is passed.
+      - Restore stops affected services, restores data, starts services, and verifies health.
+
+  - id: S-5
+    title: Continuous updater runs as a host-level systemd service
+    given:
+      - A production server has a role-based image-mode install.
+    when:
+      - The operator runs openmates server update install-service --continuous --channel main --window "02:00-04:00 Europe/Berlin".
+    then:
+      - The CLI writes a systemd unit and timer or long-running service outside Docker Compose.
+      - The updater checks for new image digests on the configured interval/channel.
+      - The updater runs the same backup, pull, restart, and health-check flow as manual update.
+      - The updater records status locally for openmates server update status.
+
+  - id: S-6
+    title: Published CLI installs do not depend on missing Git tags
+    given:
+      - A stable CLI package and matching GHCR image tags are published.
+      - No matching Git tag exists for the version.
+    when:
+      - The operator runs openmates server install or openmates server update.
+    then:
+      - The CLI uses packaged runtime templates by default.
+      - The CLI can still use --template-ref or --template-url for advanced testing.
+      - Missing Git tags do not break normal installs or updates.
+
+  - id: S-7
+    title: Production observability is profile controlled
+    given:
+      - The operator installs a core server role.
+    when:
+      - The operator chooses --profile minimal, --profile standard, or --profile production.
+    then:
+      - Minimal excludes OpenObserve, Promtail, Prometheus, cAdvisor, and Alertmanager.
+      - Standard includes OpenObserve and Promtail.
+      - Production includes OpenObserve, Promtail, Prometheus, and cAdvisor.
+      - Alertmanager is included only when --with-alerts is passed.
+
+  - id: S-8
+    title: Web admin settings no longer triggers host updates
+    given:
+      - An admin opens Settings > Server > Software Updates.
+    when:
+      - The server is managed by image-mode CLI.
+    then:
+      - The UI may show current version and update availability.
+      - The UI does not expose an Install Update action that calls sidecar git/build update endpoints.
+      - The UI points admins to openmates server update for host-level updates.
+
+  - id: S-9
+    title: Update preflight warns about newly required API keys
+    given:
+      - A new provider-backed feature or server integration has been added since the installed image digest.
+      - The role runtime .env and Vault do not contain the required provider key or secret.
+    when:
+      - The operator runs openmates server update --dry-run.
+      - The continuous updater checks a new target image digest.
+    then:
+      - The CLI reports newly required environment variables and provider API keys before updating containers.
+      - The CLI distinguishes required keys from optional integrations and providers marked no_api_key.
+      - Manual update requires confirmation or a documented flag to continue when required keys are missing.
+      - Continuous update skips the update and records an actionable blocked status when required keys are missing.
+
+  - id: S-10
+    title: Caddyfile changes are applied through host-level CLI commands
+    given:
+      - A production, upload, or preview server uses host Caddy outside Docker Compose.
+      - A new release includes an updated server-specific Caddyfile template.
+    when:
+      - The operator runs openmates server caddy check --role core.
+      - The operator runs openmates server caddy apply --role core.
+      - The operator runs openmates server update.
+    then:
+      - The CLI validates the role-appropriate Caddyfile before applying it.
+      - The CLI backs up the existing system Caddyfile before replacing it.
+      - The CLI reloads Caddy only after validation succeeds.
+      - Update preflight reports when the packaged Caddyfile differs from the host-applied Caddyfile.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The CLI supports --role core, --role upload, and --role preview for install, start, stop, restart, status, logs, update, backup, and restore where applicable.
+  - id: AC-2
+    scenario: S-1
+    text: Role-based image installs create role-specific runtime directories and persist role/profile metadata in server config.
+  - id: AC-3
+    scenario: S-2
+    text: The CLI supports --services and --exclude for service-scoped operations and validates requested services against the selected role before calling Docker.
+  - id: AC-4
+    scenario: S-2
+    text: Backend-only production core operation can exclude webapp without custom manual compose commands.
+  - id: AC-5
+    scenario: S-3
+    text: Image-mode update creates or replaces one latest pre-update backup for the affected role before container replacement.
+  - id: AC-6
+    scenario: S-3
+    text: Image-mode update pulls images before downtime and recreates only affected services plus required setup/dependency services.
+  - id: AC-7
+    scenario: S-3
+    text: Image-mode update waits for role-specific health checks and never runs git pull.
+  - id: AC-8
+    scenario: S-4
+    text: openmates server backup creates a default archive containing Postgres, Directus uploads/extensions, Vault data/setup files, runtime .env, and runtime config.
+  - id: AC-9
+    scenario: S-4
+    text: openmates server backup --include-observability adds OpenObserve logs and Prometheus metrics when those volumes exist.
+  - id: AC-10
+    scenario: S-4
+    text: openmates server restore restores a selected backup with confirmation, service stop/start, and post-restore health checks.
+  - id: AC-11
+    scenario: S-5
+    text: Continuous update can be installed as a host-level systemd service/timer and uses the same safe update path as manual CLI update.
+  - id: AC-12
+    scenario: S-6
+    text: Published CLI packages include runtime templates and do not require a matching Git tag for normal install/update.
+  - id: AC-13
+    scenario: S-7
+    text: Core observability profiles resolve to the documented minimal, standard, production, and --with-alerts service sets.
+  - id: AC-14
+    scenario: S-8
+    text: Web admin settings cannot trigger the legacy sidecar git/build update flow for CLI-managed image-mode servers.
+  - id: AC-15
+    scenario: S-9
+    text: Update dry-run and continuous update preflight detect missing newly required env/API keys and block unattended updates until resolved.
+  - id: AC-16
+    scenario: S-10
+    text: The CLI provides caddy check, caddy diff/status, and caddy apply commands for host-level reverse proxy configuration.
+
+contracts:
+  cli:
+    - openmates server install --role core|upload|preview [--profile minimal|standard|production] [--with-alerts] [--image-tag <tag>|--channel main|dev|stable]
+    - openmates server start|stop|restart|status|logs [--role <role>] [--services <csv>] [--exclude <csv>]
+    - openmates server update [--role <role>] [--services <csv>] [--exclude <csv>] [--skip-backup] [--dry-run] [--image-tag <tag>|--channel main|dev|stable]
+    - openmates server update --continuous runs in the foreground for manual screen/tmux use.
+    - openmates server update install-service --continuous installs host-level systemd automation.
+    - openmates server update status reports latest manual or continuous update status.
+    - openmates server backup [--role <role>] [--output <path>] [--include-observability]
+    - openmates server restore [--role <role>] --file <path> [--yes]
+    - openmates server backup list [--role <role>] lists on-host backup archives created by the CLI.
+    - openmates server preflight [--role <role>] [--target-image-tag <tag>|--channel <channel>] checks required env/API keys, host prerequisites, role templates, Caddyfile drift, disk space, and backup writeability.
+    - openmates server caddy check|status|diff|apply [--role core|upload|preview] manages host Caddy configuration outside Docker images.
+  roles:
+    core:
+      data_bearing: true
+      required_services: [api, cms, cms-database, cache, vault, vault-setup, cms-setup]
+      optional_groups: [workers, webapp, observability, metrics, alerts]
+      health_checks: [http://localhost:8000/health]
+    upload:
+      data_bearing: true
+      required_services: [app-uploads, clamav, vault, vault-setup, admin-sidecar]
+      optional_groups: []
+      health_checks: [http://localhost:8000/health]
+    preview:
+      data_bearing: false
+      required_services: [preview, admin-sidecar]
+      optional_groups: [cache]
+      health_checks: [http://localhost:8080/health]
+  backup:
+    default_contents:
+      - Postgres logical dump for core role.
+      - Directus uploads and extensions from bind mounts or named volumes.
+      - Vault file storage volumes for core and upload roles.
+      - Vault setup data/token volumes for core and upload roles.
+      - Runtime .env and non-secret config files required to restore the role.
+      - Backup manifest with role, CLI version, image tag/digest, created_at, service list, and checksums.
+    optional_contents:
+      - OpenObserve data when --include-observability is set.
+      - Prometheus metrics when --include-observability is set.
+    pre_update_retention:
+      - Exactly one rotating latest pre-update backup per role by default.
+      - User-created backups are not pruned automatically unless a future retention flag is added.
+  compose_templates:
+    - Runtime templates are shipped inside the npm package under a versioned templates directory.
+    - Templates use GHCR image references for OpenMates-built services in image mode.
+    - Third-party services keep upstream images and are not rebuilt by OpenMates.
+    - Role/profile selection resolves to deterministic compose file order.
+  update_safety:
+    - Dry run prints image pull plan, selected services, backup target, expected health checks, and downtime-affecting steps.
+    - Dry run prints required env/API key additions introduced by the target image compared with the installed image metadata.
+    - Dry run prints Caddyfile drift when packaged role Caddyfile differs from the currently applied host Caddyfile.
+    - Update pulls images before stopping services.
+    - Update refuses to continue if backup fails, unless --skip-backup is explicitly passed.
+    - Update refuses unattended continuous execution when required env/API keys are missing or Caddyfile drift is marked required.
+    - Update records update state before and after each step so interrupted runs can be diagnosed.
+  config_preflight:
+    - Required provider/API keys are derived from app/provider metadata and explicit server-role metadata, not from a hardcoded ad hoc checklist.
+    - Providers marked no_api_key are not reported as missing.
+    - Optional providers are shown as warnings only when the target release newly introduces them.
+    - The CLI can compare installed image metadata with target image metadata, or fall back to packaged metadata for dry runs.
+    - Missing secrets are reported by variable/provider name only; secret values are never printed.
+  caddy:
+    - Caddy is host-level infrastructure and is not part of OpenMates Docker images.
+    - Caddyfile templates for core, upload, preview, dev, and prod roles are packaged with the CLI or copied from the installed runtime template set.
+    - Caddy apply uses the existing validation/back-up/reload behavior from deployment/apply-caddy-config.sh or an equivalent TypeScript implementation.
+    - Caddy apply requires root privileges or sudo guidance when writing /etc/caddy/Caddyfile.
+    - Caddy status reports template hash, applied hash, last applied timestamp where known, and validation status.
+  web_ui:
+    - Image-mode CLI-managed servers expose read-only update metadata to admins.
+    - Web UI install/update action is hidden or disabled with CLI guidance.
+  privacy_security:
+    - Backup archives contain secrets and must be written with owner-only permissions where supported.
+    - Backup commands never print secret values.
+    - Restore commands require explicit confirmation and display the target role and backup manifest before modifying data.
+    - Upload server remains isolated from core Directus and core Vault; role templates must not add those connections.
+
+tests:
+  - id: T-CLI-SERVER-UNIT
+    type: unit
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test:unit:server
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-8
+      - AC-9
+      - AC-10
+      - AC-11
+      - AC-12
+      - AC-13
+    assertions:
+      - role parsing accepts core, upload, and preview and rejects unknown roles
+      - service filters resolve valid role-specific services and reject invalid services before Docker is called
+      - backend-only core operations add the no-webapp profile or equivalent compose override
+      - image update plans include backup before pull/up and never include git pull
+      - backup manifests include default and optional observability content sets
+      - restore plans require confirmation and include stop, restore, start, health-check phases
+      - continuous update systemd plans render unit/timer content without secrets
+      - packaged templates are selected before GitHub raw template fallback
+      - observability profiles resolve to expected service sets
+      - config preflight reports newly required API keys without printing secret values
+      - caddy command plans validate, diff, backup, and reload host Caddy configuration
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected_missing_serverPlanning_module
+        run_id: npm-run-test-unit-server-red-2026-06-20
+        timestamp: "2026-06-20T23:40:25Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: npm-run-test-unit-server-green-2026-06-20
+        timestamp: "2026-06-20T23:40:25Z"
+
+  - id: T-COMPOSE-ROLE-LINT
+    type: lint
+    file: backend/core/docker-compose.selfhost.yml
+    command: docker compose --env-file .env -f backend/core/docker-compose.selfhost.yml config --quiet
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+      - AC-13
+    assertions:
+      - core image-mode compose renders without build sections for OpenMates-built services
+      - production profile includes OpenObserve, Promtail, Prometheus, and cAdvisor
+      - Alertmanager is excluded unless the alerts profile or override is selected
+      - runtime config is mounted where BACKEND_CONFIG_FILE and PROVIDER_CONFIG_DIR point
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-UPLOAD-PREVIEW-COMPOSE-LINT
+    type: lint
+    file: backend/upload/docker-compose.yml
+    command: docker compose --env-file backend/upload/.env.example -f backend/upload/docker-compose.yml config --quiet
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-6
+    assertions:
+      - upload image-mode template renders with image references for OpenMates-built upload and sidecar services
+      - preview image-mode template renders with image references for OpenMates-built preview and sidecar services
+      - upload role keeps ClamAV and local Vault dependencies
+      - preview role keeps preview cache persistence and no core data mounts
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-BACKUP-RESTORE-INTEGRATION
+    type: manual
+    covers:
+      - AC-5
+      - AC-8
+      - AC-9
+      - AC-10
+    assertions:
+      - backup creates an owner-readable archive with manifest and checksums
+      - default backup excludes OpenObserve and Prometheus data
+      - include-observability backup includes OpenObserve and Prometheus data when present
+      - restore into a disposable image-mode install recovers database, Vault-backed provider availability, and Directus upload files
+      - latest pre-update backup is replaced on the second update and old latest file is not retained by default
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-SELFHOST-SMOKE
+    type: manual
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-6
+      - AC-7
+      - AC-11
+      - AC-12
+      - AC-13
+    assertions:
+      - smoke installs core image-mode role using packaged templates from the npm CLI
+      - smoke starts core with --exclude webapp and reaches API health
+      - smoke runs update --dry-run and update with service selection
+      - smoke installs continuous updater in a disposable systemd-capable environment or validates generated unit/timer files when systemd is unavailable
+      - smoke verifies upload and preview role dry-run plans
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-SOFTWARE-UPDATE-UI
+    type: unit
+    file: frontend/packages/ui/src/components/settings/server/SettingsSoftwareUpdate.svelte
+    command: bash scripts/lint_changed.sh --path frontend/packages/ui/src/components/settings/server/SettingsSoftwareUpdate.svelte --path backend/core/api/app/routes/settings_software_update.py
+    covers:
+      - AC-14
+      - AC-15
+    assertions:
+      - image-mode server update install action is hidden or disabled in settings UI
+      - backend install endpoint rejects CLI-managed image-mode update attempts with actionable CLI guidance
+      - read-only version and update availability information can still render
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-CONFIG-CADDY-PREFLIGHT
+    type: unit
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test:unit:server
+    covers:
+      - AC-15
+      - AC-16
+    assertions:
+      - preflight compares installed and target required secret metadata and reports newly missing keys
+      - preflight treats no_api_key providers as satisfied
+      - continuous update plan blocks when required keys are missing
+      - caddy check validates the role-specific Caddyfile without applying it
+      - caddy diff/status detects drift between packaged and applied Caddyfile hashes
+      - caddy apply plan backs up current Caddyfile before replacement and reload
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - frontend/packages/openmates-cli/src/server.ts command router and Docker helpers
+    - frontend/packages/openmates-cli/src/serverConfig.ts persisted install path metadata
+    - frontend/packages/openmates-cli/tests/server.test.ts CLI contract unit coverage
+    - backend/admin_sidecar/main.py role-specific log/status conventions for satellite servers
+    - backend/upload/docker-compose.yml upload VM isolation and local Vault pattern
+    - backend/preview/docker-compose.preview.yml preview VM isolation and cache pattern
+    - .github/workflows/publish-selfhost-images.yml GHCR image publishing
+  architecture: >
+    Move server lifecycle ownership to the host-level OpenMates CLI. The CLI
+    ships runtime templates, resolves a role/profile/service plan, writes a
+    small install directory, and shells out to Docker Compose. Image updates are
+    preflighted, backed up, pulled before downtime, applied to selected services,
+    and health checked. Continuous updates are installed as host-level systemd
+    automation that calls the same CLI update path.
+  data_flow:
+    - Operator installs or migrates a role-based runtime directory.
+    - CLI saves role/profile/image/channel/service metadata in ~/.openmates/server.json or a role-aware config file.
+    - CLI backup creates a manifest, dumps/copies product-critical data, writes checksums, and sets restrictive file permissions.
+    - CLI update resolves target images, creates the rotating latest pre-update backup, pulls images, applies Docker Compose up for selected services, and waits for health checks.
+    - Continuous updater checks image digests and delegates to the same update function during the configured window.
+    - Restore reads the manifest, confirms target role, stops affected services, restores data, starts services, and verifies health.
+  affected_files:
+    - path: frontend/packages/openmates-cli/src/server.ts
+      reason: Add role/profile/service selection, backup/restore, and continuous update behavior.
+    - path: frontend/packages/openmates-cli/src/serverConfig.ts
+      reason: Persist role-aware server configuration and update/backup metadata.
+    - path: frontend/packages/openmates-cli/tests/server.test.ts
+      reason: Cover CLI planning, backup, restore, service filters, and packaged templates.
+    - path: frontend/packages/openmates-cli/package.json
+      reason: Include packaged runtime templates in npm package files.
+    - path: frontend/packages/openmates-cli/templates/**
+      reason: Store role/profile compose templates and systemd templates shipped with the CLI.
+    - path: backend/core/docker-compose.selfhost.yml
+      reason: Align core image-mode compose with runtime config mounts and observability profiles.
+    - path: backend/upload/docker-compose.selfhost.yml
+      reason: Add upload image-mode role template if the existing source compose remains source-only.
+    - path: backend/preview/docker-compose.selfhost.yml
+      reason: Add preview image-mode role template if the existing source compose remains source-only.
+    - path: .github/workflows/publish-selfhost-images.yml
+      reason: Publish upload and preview images and/or ensure version/tag/template alignment.
+    - path: deployment/apply-caddy-config.sh
+      reason: Reuse or expose host-level Caddy validation/apply behavior through the CLI.
+    - path: deployment/prod_server/Caddyfile
+      reason: Package and compare production Caddyfile templates for drift.
+    - path: deployment/upload_server/Caddyfile
+      reason: Package and compare upload server Caddyfile templates for drift.
+    - path: deployment/preview_server/Caddyfile
+      reason: Package and compare preview server Caddyfile templates for drift if present or add one.
+    - path: .github/workflows/selfhost-smoke.yml
+      reason: Verify role/profile/service image-mode install and update flows.
+    - path: backend/core/api/app/routes/settings_software_update.py
+      reason: Reject image-mode update installs and keep read-only status/version behavior.
+    - path: frontend/packages/ui/src/components/settings/server/SettingsSoftwareUpdate.svelte
+      reason: Remove or disable web-triggered install update actions.
+    - path: docs/self-hosting/setup.md
+      reason: Document backup, restore, roles, profiles, and continuous updates.
+    - path: docs/user-guide/cli/server-management.md
+      reason: Document new CLI commands and operational runbooks.
+    - path: docs/architecture/core/servers.md
+      reason: Update server role/profile and observability architecture.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/unified-server-cli-management/spec.yml
+    - cd frontend/packages/openmates-cli && npm run test:unit:server
+    - docker compose config lint for core/upload/preview role templates
+    - backup/restore rehearsal against disposable image-mode install
+    - self-host smoke workflow for packaged templates, role selection, service selection, and continuous updater planning
+    - lint_changed for settings UI/backend route changes
+  verification_order:
+    - CLI unit contracts first
+    - Compose lint second
+    - Backup/restore rehearsal third
+    - Self-host smoke fourth
+    - Settings UI/backend route lint fifth
+    - Apple not affected
+  migration_notes:
+    - Production migration should first install CLI and create a parallel runtime directory; do not overwrite /home/superdev/OpenMates in place.
+    - Use core production profile without webapp for openmates.org backend until official webapp hosting changes.
+    - Run backup before first cutover and verify restore into a disposable install before stopping the current source stack.
+    - Keep the old source checkout and local images until image-mode production has run cleanly.
+  risks:
+    - Backup archives contain secrets and must be protected on disk.
+    - Logical Postgres dump plus Vault file copy must be coordinated to avoid inconsistent restore state.
+    - Continuous updates need conservative default windows to avoid active-user disruption.
+    - API key metadata can drift if providers are added without declaring required keys; deterministic audits should enforce metadata.
+    - Caddy apply requires host privileges and must fail safe when Caddy or required DNS modules are missing.
+    - Systemd behavior differs across Linux distributions; generated unit/timer validation may be easier than full execution in CI.
+    - Upload/preview role image publishing may uncover Dockerfile assumptions currently hidden by source bind mounts.
+
+tasks:
+  - id: TASK-1
+    title: Add role/profile/service planning contracts
+    covers:
+      scenarios: [S-1, S-2, S-7]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-13]
+    expected_files:
+      - frontend/packages/openmates-cli/src/server.ts
+      - frontend/packages/openmates-cli/src/serverConfig.ts
+      - frontend/packages/openmates-cli/tests/server.test.ts
+    verification: [T-CLI-SERVER-UNIT]
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Package and lint role templates
+    covers:
+      scenarios: [S-1, S-6, S-7]
+      acceptance_criteria: [AC-1, AC-2, AC-4, AC-12, AC-13]
+    expected_files:
+      - frontend/packages/openmates-cli/templates/**
+      - frontend/packages/openmates-cli/package.json
+      - backend/core/docker-compose.selfhost.yml
+      - backend/upload/docker-compose.selfhost.yml
+      - backend/preview/docker-compose.selfhost.yml
+    verification: [T-CLI-SERVER-UNIT, T-COMPOSE-ROLE-LINT, T-UPLOAD-PREVIEW-COMPOSE-LINT]
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Implement backup and restore commands
+    covers:
+      scenarios: [S-3, S-4]
+      acceptance_criteria: [AC-5, AC-8, AC-9, AC-10]
+    expected_files:
+      - frontend/packages/openmates-cli/src/server.ts
+      - frontend/packages/openmates-cli/tests/server.test.ts
+      - docs/user-guide/cli/server-management.md
+    verification: [T-CLI-SERVER-UNIT, T-BACKUP-RESTORE-INTEGRATION]
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Optimize image updates and continuous updater
+    covers:
+      scenarios: [S-3, S-5]
+      acceptance_criteria: [AC-5, AC-6, AC-7, AC-11]
+    expected_files:
+      - frontend/packages/openmates-cli/src/server.ts
+      - frontend/packages/openmates-cli/templates/systemd/**
+      - frontend/packages/openmates-cli/tests/server.test.ts
+    verification: [T-CLI-SERVER-UNIT, T-SELFHOST-SMOKE]
+    independently_deployable: false
+
+  - id: TASK-4A
+    title: Add update preflight for required keys and host config drift
+    covers:
+      scenarios: [S-9, S-10]
+      acceptance_criteria: [AC-15, AC-16]
+    expected_files:
+      - frontend/packages/openmates-cli/src/server.ts
+      - frontend/packages/openmates-cli/templates/**
+      - frontend/packages/openmates-cli/tests/server.test.ts
+      - scripts/contract_audits.py
+      - deployment/apply-caddy-config.sh
+    verification: [T-CONFIG-CADDY-PREFLIGHT]
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Publish upload and preview image-mode artifacts
+    covers:
+      scenarios: [S-1, S-6]
+      acceptance_criteria: [AC-1, AC-2, AC-12]
+    expected_files:
+      - .github/workflows/publish-selfhost-images.yml
+      - backend/upload/Dockerfile
+      - backend/preview/Dockerfile
+      - backend/admin_sidecar/Dockerfile
+    verification: [T-UPLOAD-PREVIEW-COMPOSE-LINT, T-SELFHOST-SMOKE]
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Make web software update read-only for image mode
+    covers:
+      scenarios: [S-8]
+      acceptance_criteria: [AC-14]
+    expected_files:
+      - backend/core/api/app/routes/settings_software_update.py
+      - frontend/packages/ui/src/components/settings/server/SettingsSoftwareUpdate.svelte
+    verification: [T-SOFTWARE-UPDATE-UI]
+    independently_deployable: true
+
+  - id: TASK-7
+    title: Update docs and migration runbook
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14]
+    expected_files:
+      - docs/self-hosting/setup.md
+      - docs/user-guide/cli/server-management.md
+      - docs/architecture/core/servers.md
+      - docs/specs/unified-server-cli-management/spec.yml
+    verification: [T-SELFHOST-SMOKE]
+    independently_deployable: false

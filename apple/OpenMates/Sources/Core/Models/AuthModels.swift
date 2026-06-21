@@ -139,6 +139,7 @@ struct UserProfile: Codable, Identifiable {
     let userEmailSalt: String?  // Salt for email encryption key derivation
 
     // Settings fields synced from server
+    let encryptedSettings: String?
     let autoDeleteChatsAfterDays: Int?
     let pushNotificationEnabled: Bool?
 }

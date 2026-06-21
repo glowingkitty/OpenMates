@@ -47,6 +47,8 @@ import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchE
 import ShoppingResultEmbedPreview from "../../../embeds/shopping/ShoppingResultEmbedPreview.svelte";
 import PcbSchematicEmbedPreview from "../../../embeds/electronics/PcbSchematicEmbedPreview.svelte";
 import MermaidDiagramEmbedPreview from "../../../embeds/diagrams/MermaidDiagramEmbedPreview.svelte";
+import MindMapEmbedPreview from "../../../embeds/mindmaps/MindMapEmbedPreview.svelte";
+import { normalizeMindMapSource, toMindMapOutline } from "../../../embeds/mindmaps/mindMapContent";
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
 import ElectronicsComponentEmbedPreview from "../../../embeds/electronics/ElectronicsComponentEmbedPreview.svelte";
 import NutritionSearchEmbedPreview from "../../../embeds/nutrition/NutritionSearchEmbedPreview.svelte";
@@ -374,6 +376,11 @@ export class GroupRenderer implements EmbedRenderer {
         "diagrams-mermaid",
         (item, embedData, decodedContent, content) =>
           this.renderMermaidDiagramComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "mindmaps-mindmap",
+        (item, embedData, decodedContent, content) =>
+          this.renderMindMapComponent(item, embedData, decodedContent, content),
       ],
       [
         "electronics-component",
@@ -720,6 +727,8 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderPcbSchematicItem(item, embedData, decodedContent);
       case "diagrams-mermaid":
         return this.renderMermaidDiagramItem(item, embedData, decodedContent);
+      case "mindmaps-mindmap":
+        return this.renderMindMapItem(item, embedData, decodedContent);
       case "electronics-component":
         return this.renderElectronicsComponentItem(item, embedData, decodedContent);
       case "nutrition-recipe":
@@ -5271,6 +5280,73 @@ export class GroupRenderer implements EmbedRenderer {
   }
 
   /**
+   * Render a Mind Maps embed using MindMapEmbedPreview.
+   */
+  private async renderMindMapComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const status = (embedData?.status || decodedContent?.status || item.status || "finished") as
+      | "processing"
+      | "finished"
+      | "error"
+      | "cancelled";
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping MindMapEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(MindMapEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          title: decodedContent?.title as string | undefined,
+          sourceJson: decodedContent?.source_json as string | undefined,
+          model: decodedContent?.model as Record<string, unknown> | null | undefined,
+          status,
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+
+      mountedComponents.set(content, component);
+      console.debug("[GroupRenderer] Mounted MindMapEmbedPreview:", {
+        embedId,
+        title: decodedContent?.title,
+      });
+    } catch (err) {
+      console.error(
+        "[GroupRenderer] Failed to mount MindMapEmbedPreview:",
+        err,
+      );
+      const fallbackHtml = await this.renderMindMapItem(
+        item,
+        embedData,
+        decodedContent,
+      );
+      content.innerHTML = fallbackHtml;
+    }
+  }
+
+  /**
    * Render an electronics component child embed using ElectronicsComponentEmbedPreview.
    */
   private async renderElectronicsComponentComponent(
@@ -5449,6 +5525,38 @@ export class GroupRenderer implements EmbedRenderer {
         <div class="embed-text-line">${esc(String(title))}</div>
         <div class="embed-text-line">${esc(String(diagramKind))}</div>
         ${code ? `<div class="embed-text-subline">${esc(String(code)).slice(0, 120)}</div>` : ""}
+      </div>
+    `;
+  }
+
+  /**
+   * HTML fallback renderer for mindmaps-mindmap embeds.
+   */
+  private async renderMindMapItem(
+    item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const esc = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const normalized = normalizeMindMapSource(
+      typeof decodedContent?.source_json === "string"
+        ? decodedContent.source_json
+        : decodedContent?.model,
+    );
+    const title = decodedContent?.title || item.title || normalized.title || "Mind Map";
+    const outline = normalized.model ? toMindMapOutline(normalized.model, 8) : "Invalid mind map JSON";
+    const isProcessing = item.status === "processing";
+
+    return `
+      <div class="embed-app-icon mindmaps">
+        <span class="icon icon_workflow"></span>
+      </div>
+      <div class="embed-text-content">
+        ${isProcessing ? '<div class="embed-modify-icon"><span class="icon icon_edit"></span></div>' : ""}
+        <div class="embed-text-line">${esc(String(title))}</div>
+        <div class="embed-text-line">${esc(String(normalized.nodeCount))} nodes</div>
+        ${outline ? `<div class="embed-text-subline">${esc(outline).slice(0, 160)}</div>` : ""}
       </div>
     `;
   }

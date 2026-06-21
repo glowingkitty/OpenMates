@@ -21,6 +21,7 @@ describe('EMBED_TEXT_RENDERERS registry', () => {
 			'app:health:search_appointments', 'health-appointment',
 			'app:mail:search', 'mail-email',
 			'app:math:calculate', 'math-plot',
+			'mindmaps-mindmap', 'mindmap',
 			'code-code', 'app:code:get_docs',
 			'docs-doc', 'sheets-sheet', 'pdf', 'recording',
 			'app:reminder:set-reminder',
@@ -199,6 +200,27 @@ describe('renderEmbedAsText', () => {
 		});
 		expect(result).toContain('Budget');
 		expect(result).toContain('50 rows × 8 columns');
+	});
+
+	it('mind map renders title and outline', () => {
+		const result = renderEmbedAsText('mindmaps-mindmap', {
+			title: 'Launch Plan',
+			model: {
+				openmatesType: 'mindmap',
+				schemaVersion: 1,
+				title: 'Launch Plan',
+				rootId: 'root',
+				nodes: [
+					{ id: 'root', label: 'Launch Plan', children: ['research'] },
+					{ id: 'research', label: 'Audience Research' }
+				]
+			}
+		});
+
+		expect(result).toContain('**Mind Map** - Launch Plan');
+		expect(result).toContain('2 nodes');
+		expect(result).toContain('- Launch Plan');
+		expect(result).toContain('  - Audience Research');
 	});
 
 	// ── Fallback ────────────────────────────────────────────────────

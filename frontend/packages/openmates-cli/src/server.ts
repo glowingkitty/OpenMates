@@ -9,8 +9,8 @@
  */
 
 import { execSync, spawn as nodeSpawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createHash, randomBytes } from "node:crypto";
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { createInterface as createPromptInterface } from "node:readline/promises";
 import { homedir } from "node:os";
@@ -23,13 +23,35 @@ import {
   resolveServerPath,
   saveServerConfig,
 } from "./serverConfig.js";
+import {
+  type CaddyAction,
+  type CoreProfile,
+  type ServerRole,
+  parseServerRole,
+  planBackup,
+  planCaddyCommand,
+  planContinuousUpdateService,
+  planRestore,
+  planServerRuntime,
+  planUpdate as planServerUpdate,
+  resolveServiceSelection,
+} from "./serverPlanning.js";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
 const SOURCE_COMPOSE_FILE = join("backend", "core", "docker-compose.yml");
-const IMAGE_COMPOSE_FILE = join("backend", "core", "docker-compose.selfhost.yml");
+const ROLE_IMAGE_COMPOSE_FILES: Record<ServerRole, string> = {
+  core: join("backend", "core", "docker-compose.selfhost.yml"),
+  upload: join("backend", "upload", "docker-compose.yml"),
+  preview: join("backend", "preview", "docker-compose.preview.yml"),
+};
+const ROLE_TEMPLATE_FILES: Record<ServerRole, string> = {
+  core: join("core", "docker-compose.selfhost.yml"),
+  upload: join("upload", "docker-compose.yml"),
+  preview: join("preview", "docker-compose.preview.yml"),
+};
 const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
 const DEFAULT_INSTALL_PATH = join(homedir(), "openmates");
 const REPO_URL = "https://github.com/glowingkitty/OpenMates.git";
@@ -116,6 +138,12 @@ SELF_HOST_SIGNUP_MODE=invite_only
 SELF_HOST_SIGNUP_ALLOWED_DOMAINS=
 SELF_HOST_FIRST_INVITE_CODE=
 APPLICATION_PREVIEW_ORIGIN=
+PROD_CORE_API_URL=
+PROD_INTERNAL_API_SHARED_TOKEN=
+DEV_CORE_API_URL=
+DEV_INTERNAL_API_SHARED_TOKEN=
+PREVIEW_CORS_ORIGINS=https://openmates.org
+PREVIEW_ALLOWED_REFERERS=https://openmates.org/*
 OPENMATES_IMAGE_REGISTRY=${DEFAULT_IMAGE_REGISTRY}
 OPENMATES_IMAGE_TAG=
 GIT_WORK_DIR=
@@ -175,8 +203,29 @@ function getInstallMode(
   config: ServerConfig | null = loadConfigForInstallPath(installPath),
 ): NonNullable<ServerConfig["installMode"]> {
   if (config?.installMode) return config.installMode;
-  if (existsSync(join(installPath, IMAGE_COMPOSE_FILE))) return "image";
+  if (Object.values(ROLE_IMAGE_COMPOSE_FILES).some((composeFile) => existsSync(join(installPath, composeFile)))) return "image";
   return "source";
+}
+
+function getServerRole(flags: Record<string, string | boolean>, config: ServerConfig | null): ServerRole {
+  return parseServerRole(typeof flags.role === "string" ? flags.role : config?.serverRole);
+}
+
+function getCoreProfile(flags: Record<string, string | boolean>, config: ServerConfig | null): CoreProfile {
+  const value = typeof flags.profile === "string" ? flags.profile : config?.serverProfile;
+  if (value === "minimal" || value === "standard" || value === "production") return value;
+  return "production";
+}
+
+function hasServiceFilter(flags: Record<string, string | boolean>): boolean {
+  return typeof flags.services === "string" || typeof flags.exclude === "string";
+}
+
+function selectedComposeServices(role: ServerRole, flags: Record<string, string | boolean>): string[] {
+  return resolveServiceSelection(role, {
+    services: typeof flags.services === "string" ? flags.services : undefined,
+    exclude: typeof flags.exclude === "string" ? flags.exclude : undefined,
+  });
 }
 
 function shouldPullImages(): boolean {
@@ -258,8 +307,9 @@ export function composeArgs(
   installPath: string,
   withOverrides: boolean,
   installMode: ServerConfig["installMode"] = getInstallMode(installPath),
+  role: ServerRole = "core",
 ): string[] {
-  const composeFile = installMode === "image" ? IMAGE_COMPOSE_FILE : SOURCE_COMPOSE_FILE;
+  const composeFile = installMode === "image" ? ROLE_IMAGE_COMPOSE_FILES[role] : SOURCE_COMPOSE_FILE;
   const args = ["compose", "--env-file", ".env", "-f", composeFile];
   if (withOverrides && existsSync(join(installPath, COMPOSE_OVERRIDE))) {
     args.push("-f", COMPOSE_OVERRIDE);
@@ -422,10 +472,23 @@ async function fetchText(url: string): Promise<string> {
   return response.text();
 }
 
-async function loadSelfHostComposeTemplate(templateRef: string): Promise<string> {
+function packagedTemplatePath(role: ServerRole): string {
+  return join(dirname(new URL(import.meta.url).pathname), "..", "templates", ROLE_TEMPLATE_FILES[role]);
+}
+
+function packagedCaddyTemplatePath(role: ServerRole): string {
+  return join(dirname(new URL(import.meta.url).pathname), "..", "templates", "caddy", role, "Caddyfile");
+}
+
+function fileHash(path: string): string | null {
+  if (!existsSync(path)) return null;
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+async function loadSelfHostComposeTemplate(templateRef: string, role: ServerRole): Promise<string> {
   const templateDir = process.env.OPENMATES_SELFHOST_TEMPLATE_DIR;
   if (templateDir) {
-    return readFileSync(join(resolve(templateDir), IMAGE_COMPOSE_FILE), "utf-8");
+    return readFileSync(join(resolve(templateDir), ROLE_TEMPLATE_FILES[role]), "utf-8");
   }
 
   const overrideUrl = process.env.OPENMATES_SELFHOST_COMPOSE_URL;
@@ -433,17 +496,18 @@ async function loadSelfHostComposeTemplate(templateRef: string): Promise<string>
     return fetchText(overrideUrl);
   }
 
-  return fetchText(
-    `https://raw.githubusercontent.com/glowingkitty/OpenMates/${templateRef}/backend/core/docker-compose.selfhost.yml`,
-  );
+  const packaged = packagedTemplatePath(role);
+  if (existsSync(packaged)) return readFileSync(packaged, "utf-8");
+
+  return fetchText(`https://raw.githubusercontent.com/glowingkitty/OpenMates/${templateRef}/${ROLE_IMAGE_COMPOSE_FILES[role]}`);
 }
 
-async function writeImageModeRuntimeFiles(installPath: string, imageTag: string): Promise<void> {
-  const coreDir = join(installPath, "backend", "core");
-  const vaultConfigDir = join(coreDir, "vault", "config");
+async function writeImageModeRuntimeFiles(installPath: string, imageTag: string, role: ServerRole): Promise<void> {
+  const roleDir = join(installPath, "backend", role === "core" ? "core" : role);
+  const vaultConfigDir = join(roleDir, "vault", "config");
   mkdirSync(vaultConfigDir, { recursive: true });
   mkdirSync(join(installPath, "config", "providers"), { recursive: true });
-  writeFileSync(join(coreDir, "docker-compose.selfhost.yml"), await loadSelfHostComposeTemplate(templateRefForImageTag(imageTag, getPackageVersion())));
+  writeFileSync(join(installPath, ROLE_IMAGE_COMPOSE_FILES[role]), await loadSelfHostComposeTemplate(templateRefForImageTag(imageTag, getPackageVersion()), role));
   writeFileSync(join(vaultConfigDir, "vault.hcl"), VAULT_CONFIG_TEMPLATE);
   ensureImageRuntimeConfig(installPath);
 
@@ -493,7 +557,17 @@ async function checkUrl(url: string): Promise<boolean> {
   }
 }
 
-async function waitForServerHealth(installPath: string): Promise<void> {
+async function waitForServerHealth(installPath: string, role: ServerRole = "core"): Promise<void> {
+  if (role === "upload" || role === "preview") {
+    const healthUrl = role === "upload" ? "http://localhost:8000/health" : "http://localhost:8080/health";
+    const deadline = Date.now() + UPDATE_HEALTH_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+      if (await checkUrl(healthUrl)) return;
+      await sleep(UPDATE_HEALTH_INTERVAL_MS);
+    }
+    throw new Error(`Updated ${role} server did not pass health checks in time. Tried ${healthUrl}.`);
+  }
+
   const envPath = join(installPath, ".env");
   const envContent = existsSync(envPath) ? readFileSync(envPath, "utf-8") : "";
   const urls = deriveSelfHostCliUrls(envContent);
@@ -683,6 +757,177 @@ function boolFromFlag(value: string | boolean | undefined, defaultValue = false)
   return ["1", "true", "yes", "y", "on"].includes(normalized);
 }
 
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
+
+function nowStamp(): string {
+  return new Date().toISOString().replace(/[:.]/g, "-");
+}
+
+function backupRoot(installPath: string): string {
+  return join(installPath, "backups");
+}
+
+function roleBackupDir(installPath: string, role: ServerRole): string {
+  return join(backupRoot(installPath), role);
+}
+
+function updateStatusFile(installPath: string, role: ServerRole): string {
+  return join(installPath, ".openmates", `${role}-update-status.json`);
+}
+
+function writeUpdateStatus(installPath: string, role: ServerRole, status: Record<string, unknown>): void {
+  const filePath = updateStatusFile(installPath, role);
+  mkdirSync(dirname(filePath), { recursive: true, mode: 0o700 });
+  writeFileSync(filePath, `${JSON.stringify({ role, updated_at: new Date().toISOString(), ...status }, null, 2)}\n`, { mode: 0o600 });
+}
+
+function copyIfExists(source: string, destination: string): void {
+  if (!existsSync(source)) return;
+  mkdirSync(dirname(destination), { recursive: true });
+  cpSync(source, destination, { recursive: true, force: true });
+}
+
+function readEnvMap(installPath: string): Record<string, string> {
+  const envPath = join(installPath, ".env");
+  if (!existsSync(envPath)) return {};
+  const values: Record<string, string> = {};
+  for (const line of readFileSync(envPath, "utf-8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) continue;
+    values[trimmed.slice(0, eqIdx)] = trimmed.slice(eqIdx + 1).replace(/^"|"$/g, "");
+  }
+  return values;
+}
+
+function requiredRuntimeEnvKeys(role: ServerRole): string[] {
+  if (role === "core") {
+    return [
+      "DATABASE_ADMIN_EMAIL",
+      "DATABASE_ADMIN_PASSWORD",
+      "DATABASE_NAME",
+      "DATABASE_USERNAME",
+      "DATABASE_PASSWORD",
+      "DIRECTUS_TOKEN",
+      "DIRECTUS_SECRET",
+      "DRAGONFLY_PASSWORD",
+      "INTERNAL_API_SHARED_TOKEN",
+    ];
+  }
+  if (role === "upload") {
+    return ["PROD_CORE_API_URL", "PROD_INTERNAL_API_SHARED_TOKEN", "DEV_CORE_API_URL", "DEV_INTERNAL_API_SHARED_TOKEN"];
+  }
+  return ["PREVIEW_CORS_ORIGINS", "PREVIEW_ALLOWED_REFERERS"];
+}
+
+function missingRequiredEnvKeys(installPath: string, role: ServerRole): string[] {
+  const env = readEnvMap(installPath);
+  return requiredRuntimeEnvKeys(role).filter((key) => !env[key]);
+}
+
+function writeChecksums(rootDir: string): void {
+  const lines: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(path);
+        continue;
+      }
+      if (entry.name === "checksums.sha256") continue;
+      const relative = path.slice(rootDir.length + 1);
+      const hash = createHash("sha256").update(readFileSync(path)).digest("hex");
+      lines.push(`${hash}  ${relative}`);
+    }
+  };
+  walk(rootDir);
+  writeFileSync(join(rootDir, "checksums.sha256"), `${lines.sort().join("\n")}\n`);
+}
+
+function createServerBackup(installPath: string, role: ServerRole, options: { output?: string; includeObservability?: boolean; preUpdate?: boolean } = {}): string {
+  const plan = planBackup({ role, includeObservability: options.includeObservability });
+  const backupDir = roleBackupDir(installPath, role);
+  mkdirSync(backupDir, { recursive: true, mode: 0o700 });
+  const archivePath = options.output
+    ? resolve(options.output)
+    : join(backupDir, options.preUpdate ? `latest-pre-update-${role}.tar.gz` : `openmates-${role}-${nowStamp()}.tar.gz`);
+  const tempDir = mkdtempSync(join(backupDir, ".tmp-"));
+  const env = readEnvMap(installPath);
+  const manifest = {
+    role,
+    created_at: new Date().toISOString(),
+    cli_version: getPackageVersion(),
+    image_tag: getEnvVar(existsSync(join(installPath, ".env")) ? readFileSync(join(installPath, ".env"), "utf-8") : "", "OPENMATES_IMAGE_TAG"),
+    include_observability: options.includeObservability === true,
+    contents: plan.contents,
+  };
+
+  try {
+    writeFileSync(join(tempDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+    copyIfExists(join(installPath, ".env"), join(tempDir, "runtime", ".env"));
+    copyIfExists(join(installPath, "config"), join(tempDir, "runtime", "config"));
+
+    if (role === "core") {
+      const databaseUser = env.DATABASE_USERNAME || "directus";
+      const databaseName = env.DATABASE_NAME || "directus";
+      try {
+        const dump = execSync(`docker exec cms-database pg_dump -U ${shellQuote(databaseUser)} ${shellQuote(databaseName)}`, { encoding: "utf-8" });
+        writeFileSync(join(tempDir, "postgres.sql"), dump);
+      } catch (error) {
+        throw new Error(`Postgres backup failed. Is cms-database running? ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    for (const item of [
+      [join(installPath, "backend", "core", "uploads"), join(tempDir, "directus-uploads")],
+      [join(installPath, "backend", "core", "extensions"), join(tempDir, "directus-extensions")],
+      [join(installPath, "backend", role, "vault"), join(tempDir, `${role}-vault-config`)],
+    ] as Array<[string, string]>) {
+      copyIfExists(item[0], item[1]);
+    }
+
+    writeChecksums(tempDir);
+    execSync(`tar -czf ${shellQuote(archivePath)} -C ${shellQuote(tempDir)} .`, { stdio: "pipe" });
+    chmodSync(archivePath, plan.fileMode);
+    return archivePath;
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function restoreServerBackup(installPath: string, role: ServerRole, file: string): void {
+  const archivePath = resolve(file);
+  if (!existsSync(archivePath)) throw new Error(`Backup file not found: ${archivePath}`);
+  mkdirSync(roleBackupDir(installPath, role), { recursive: true, mode: 0o700 });
+  const tempDir = mkdtempSync(join(roleBackupDir(installPath, role), ".restore-"));
+  const env = readEnvMap(installPath);
+  try {
+    execSync(`tar -xzf ${shellQuote(archivePath)} -C ${shellQuote(tempDir)}`, { stdio: "pipe" });
+    const manifestPath = join(tempDir, "manifest.json");
+    if (!existsSync(manifestPath)) throw new Error("Backup archive is missing manifest.json.");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as { role?: string };
+    if (manifest.role !== role) throw new Error(`Backup role '${manifest.role}' does not match requested role '${role}'.`);
+
+    copyIfExists(join(tempDir, "runtime", ".env"), join(installPath, ".env"));
+    copyIfExists(join(tempDir, "runtime", "config"), join(installPath, "config"));
+
+    const postgresDump = join(tempDir, "postgres.sql");
+    if (role === "core" && existsSync(postgresDump)) {
+      const databaseUser = env.DATABASE_USERNAME || "directus";
+      const databaseName = env.DATABASE_NAME || "directus";
+      execSync(`docker exec -i cms-database psql -U ${shellQuote(databaseUser)} ${shellQuote(databaseName)}`, {
+        input: readFileSync(postgresDump),
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+    }
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 async function promptText(question: string, defaultValue = ""): Promise<string> {
   const rl = createPromptInterface({ input: process.stdin, output: process.stderr });
   try {
@@ -790,12 +1035,14 @@ async function serverStatus(flags: Record<string, string | boolean>): Promise<vo
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
   const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
-  const args = [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config)), "ps"];
+  const args = [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config), role), "ps"];
 
   if (flags.json === true) {
     args.push("--format", "json");
   }
+  if (hasServiceFilter(flags)) args.push(...selectedComposeServices(role, flags));
 
   const code = await runInteractive("docker", args, installPath);
   if (code !== 0) process.exit(code);
@@ -809,9 +1056,15 @@ async function serverStart(flags: Record<string, string | boolean>): Promise<voi
 
   const withOverrides = flags["with-overrides"] === true;
   const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
   const installMode = getInstallMode(installPath, config);
-  const pullArgs = [...composeArgs(installPath, withOverrides, installMode), "pull"];
-  const args = [...composeArgs(installPath, withOverrides, installMode), "up", "-d"];
+  const pullArgs = [...composeArgs(installPath, withOverrides, installMode, role), "pull"];
+  const args = [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"];
+  if (hasServiceFilter(flags)) {
+    const services = selectedComposeServices(role, flags);
+    pullArgs.push(...services);
+    args.push(...services);
+  }
 
   // Update saved profile if starting with overrides
   if (config && withOverrides && config.composeProfile !== "full") {
@@ -845,8 +1098,11 @@ async function serverStop(flags: Record<string, string | boolean>): Promise<void
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
   const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
-  const args = [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config)), "down"];
+  const args = hasServiceFilter(flags)
+    ? [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config), role), "stop", ...selectedComposeServices(role, flags)]
+    : [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config), role), "down"];
 
   console.error("Stopping OpenMates server...");
   const code = await runInteractive("docker", args, installPath);
@@ -864,10 +1120,14 @@ async function serverRestart(flags: Record<string, string | boolean>): Promise<v
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
   const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
   const installMode = getInstallMode(installPath, config);
 
   if (flags.rebuild === true) {
+    if (hasServiceFilter(flags)) {
+      throw new Error("--services/--exclude cannot be combined with --rebuild. Use graceful restart for service-scoped restarts.");
+    }
     if (installMode === "image") {
       throw new Error(
         "Image-mode installs use prebuilt images and cannot rebuild locally. " +
@@ -876,7 +1136,7 @@ async function serverRestart(flags: Record<string, string | boolean>): Promise<v
     }
     // Full rebuild: down → rm cache → build → up
     console.error("Rebuilding OpenMates server (this may take a few minutes)...");
-    const downArgs = [...composeArgs(installPath, withOverrides, installMode), "down"];
+    const downArgs = [...composeArgs(installPath, withOverrides, installMode, role), "down"];
     let code = await runInteractive("docker", downArgs, installPath);
     if (code !== 0) process.exit(code);
 
@@ -887,17 +1147,18 @@ async function serverRestart(flags: Record<string, string | boolean>): Promise<v
       // Volume may not exist — that's fine
     }
 
-    const buildArgs = [...composeArgs(installPath, withOverrides, installMode), "build"];
+    const buildArgs = [...composeArgs(installPath, withOverrides, installMode, role), "build"];
     code = await runInteractive("docker", buildArgs, installPath);
     if (code !== 0) process.exit(code);
 
-    const upArgs = [...composeArgs(installPath, withOverrides, installMode), "up", "-d"];
+    const upArgs = [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"];
     code = await runInteractive("docker", upArgs, installPath);
     if (code !== 0) process.exit(code);
   } else {
     // Graceful restart (no rebuild)
     console.error("Restarting OpenMates server...");
-    const args = [...composeArgs(installPath, withOverrides, installMode), "restart"];
+    const args = [...composeArgs(installPath, withOverrides, installMode, role), "restart"];
+    if (hasServiceFilter(flags)) args.push(...selectedComposeServices(role, flags));
     const code = await runInteractive("docker", args, installPath);
     if (code !== 0) process.exit(code);
   }
@@ -914,8 +1175,9 @@ async function serverLogs(flags: Record<string, string | boolean>): Promise<void
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
   const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
-  const args = [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config)), "logs"];
+  const args = [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config), role), "logs"];
 
   if (flags.follow === true || flags.f === true) {
     args.push("--follow");
@@ -928,9 +1190,13 @@ async function serverLogs(flags: Record<string, string | boolean>): Promise<void
     args.push("--tail", "100");
   }
 
-  const container = flags.container;
-  if (typeof container === "string") {
-    args.push(container);
+  if (hasServiceFilter(flags)) {
+    args.push(...selectedComposeServices(role, flags));
+  } else {
+    const container = flags.container;
+    if (typeof container === "string") {
+      args.push(container);
+    }
   }
 
   const code = await runInteractive("docker", args, installPath);
@@ -941,9 +1207,12 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
   const installPath = typeof flags.path === "string" ? resolve(flags.path) : DEFAULT_INSTALL_PATH;
   const sourcePath = typeof flags["source-path"] === "string" ? resolve(flags["source-path"]) : null;
   const fromSource = flags["from-source"] === true || sourcePath !== null;
+  const role = getServerRole(flags, null);
+  const profile = getCoreProfile(flags, null);
+  const runtimePlan = planServerRuntime({ role, profile, withAlerts: flags["with-alerts"] === true });
 
   // Check if already installed
-  if (existsSync(join(installPath, SOURCE_COMPOSE_FILE)) || existsSync(join(installPath, IMAGE_COMPOSE_FILE))) {
+  if (existsSync(join(installPath, SOURCE_COMPOSE_FILE)) || Object.values(ROLE_IMAGE_COMPOSE_FILES).some((composeFile) => existsSync(join(installPath, composeFile)))) {
     console.error(`OpenMates already exists at ${installPath}.`);
     console.error("Use 'openmates server update' to update, or choose a different --path.");
     process.exit(1);
@@ -965,7 +1234,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
 
     const imageTag = typeof flags["image-tag"] === "string" ? flags["image-tag"] : getDefaultImageTag();
     console.error(`Preparing OpenMates image-mode install at ${installPath}...`);
-    await writeImageModeRuntimeFiles(installPath, imageTag);
+    await writeImageModeRuntimeFiles(installPath, imageTag, role);
     const cliUrls = deriveSelfHostCliUrls(readFileSync(join(installPath, ".env"), "utf-8"));
     try {
       exec("docker network create openmates", installPath);
@@ -976,7 +1245,11 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     saveServerConfig({
       installPath,
       installedAt: Date.now(),
-      composeProfile: "core",
+      composeProfile: role === "core" ? "core" : "core",
+      serverRole: role,
+      serverProfile: profile,
+      defaultServices: runtimePlan.defaultServices,
+      composeFiles: runtimePlan.composeFiles,
       installMode: "image",
       imageTag,
       ...cliUrls,
@@ -1052,6 +1325,10 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     installPath,
     installedAt: Date.now(),
     composeProfile: "core",
+    serverRole: role,
+    serverProfile: profile,
+    defaultServices: runtimePlan.defaultServices,
+    composeFiles: runtimePlan.composeFiles,
     installMode: "source",
     ...cliUrls,
   });
@@ -1069,14 +1346,79 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
   }
 }
 
-async function serverUpdate(flags: Record<string, string | boolean>): Promise<void> {
+async function installContinuousUpdateService(flags: Record<string, string | boolean>): Promise<void> {
+  const config = loadServerConfig();
+  const role = getServerRole(flags, config);
+  const channel = typeof flags.channel === "string" ? flags.channel : config?.imageChannel ?? "main";
+  const window = typeof flags.window === "string" ? flags.window : "02:00-04:00 UTC";
+  const plan = planContinuousUpdateService({ role, channel, window });
+  const servicePath = join("/etc", "systemd", "system", plan.serviceName);
+  const timerPath = join("/etc", "systemd", "system", plan.timerName);
+
+  if (flags["dry-run"] === true || flags.json === true) {
+    printJson({ command: "update install-service", status: "planned", role, servicePath, timerPath, unit: plan.unit, timer: plan.timer });
+    return;
+  }
+
+  try {
+    writeFileSync(servicePath, plan.unit, { mode: 0o644 });
+    writeFileSync(timerPath, plan.timer, { mode: 0o644 });
+    execSync("systemctl daemon-reload", { stdio: "pipe" });
+    execSync(`systemctl enable --now ${shellQuote(plan.timerName)}`, { stdio: "pipe" });
+  } catch (error) {
+    throw new Error(
+      `Could not install systemd updater. Run with sudo or use --dry-run to inspect generated units. ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  console.log(`Installed ${plan.timerName}.`);
+}
+
+async function serverUpdate(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  if (rest[0] === "status") {
+    const installPath = resolveServerPath(flags);
+    const config = loadConfigForInstallPath(installPath);
+    const role = getServerRole(flags, config);
+    const filePath = updateStatusFile(installPath, role);
+    if (flags.json === true) {
+      printJson(existsSync(filePath) ? JSON.parse(readFileSync(filePath, "utf-8")) : { role, status: "unknown" });
+      return;
+    }
+    if (!existsSync(filePath)) {
+      console.log(`No update status recorded for ${role}.`);
+      return;
+    }
+    console.log(readFileSync(filePath, "utf-8").trim());
+    return;
+  }
+
+  if (rest[0] === "install-service") {
+    if (flags.continuous !== true) throw new Error("Usage: openmates server update install-service --continuous [--channel main|dev|stable]");
+    await installContinuousUpdateService(flags);
+    return;
+  }
+
+  if (flags.continuous === true) {
+    const intervalMinutes = typeof flags.interval === "string" ? Number.parseInt(flags.interval, 10) : 30;
+    if (!Number.isFinite(intervalMinutes) || intervalMinutes < 5) throw new Error("--interval must be at least 5 minutes.");
+    console.error(`Running continuous updater every ${intervalMinutes} minutes. Use Ctrl+C to stop.`);
+    while (true) {
+      await serverUpdate([], { ...flags, continuous: false });
+      await sleep(intervalMinutes * 60_000);
+    }
+  }
+
   const installPath = resolveServerPath(flags);
   const dryRun = flags["dry-run"] === true;
   if (!dryRun) ensureGitWorkDirEnv(installPath);
 
   const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
   const installMode = getInstallMode(installPath, config);
+  const filterRequested = hasServiceFilter(flags);
+  const selectedServices = filterRequested ? selectedComposeServices(role, flags) : [];
+  const missingEnvKeys = missingRequiredEnvKeys(installPath, role);
 
   if (installMode === "source" && (flags["image-tag"] !== undefined || flags.channel !== undefined)) {
     throw new Error("--image-tag and --channel only apply to image-mode installs. Source-mode installs update from Git.");
@@ -1090,14 +1432,22 @@ async function serverUpdate(flags: Record<string, string | boolean>): Promise<vo
     const currentTag = getImageTagFromEnv(installPath, config);
     const target = resolveTargetImageTag(flags, currentTag, getPackageVersion());
     const templateRef = templateRefForImageTag(target.tag, getPackageVersion());
+    const safetyPlan = planServerUpdate({ role, selectedServices, dryRun, skipBackup: flags["skip-backup"] === true, continuous: false, missingRequiredSecrets: missingEnvKeys });
     const plan = {
       command: "update",
+      role,
       path: installPath,
       mode: "image",
       currentImageTag: currentTag || null,
       targetImageTag: target.tag,
       channel: target.channel ?? null,
       templateRef,
+      selectedServices: filterRequested ? selectedServices : "all",
+      steps: safetyPlan.steps,
+      backupName: safetyPlan.backupName,
+      missingRequiredEnvKeys: missingEnvKeys,
+      blocked: safetyPlan.blocked,
+      blockReason: safetyPlan.blockReason,
       dryRun,
     };
 
@@ -1110,20 +1460,39 @@ async function serverUpdate(flags: Record<string, string | boolean>): Promise<vo
         console.log(`  Current tag:   ${currentTag || "unknown"}`);
         console.log(`  Target tag:    ${target.tag}`);
         console.log(`  Template ref:  ${templateRef}`);
+        console.log(`  Role:          ${role}`);
+        console.log(`  Services:      ${filterRequested ? selectedServices.join(", ") : "all"}`);
+        console.log(`  Backup:        ${safetyPlan.backupName ?? "none"}`);
+        console.log(`  Steps:         ${safetyPlan.steps.join(" -> ")}`);
+        console.log(`  Env preflight: ${missingEnvKeys.length ? `missing ${missingEnvKeys.join(", ")}` : "ok"}`);
         console.log("  Commands:      refresh compose, docker compose pull, docker compose up -d, health checks");
       }
       return;
     }
 
+    if (safetyPlan.blocked) throw new Error(safetyPlan.blockReason ?? "Update blocked by preflight.");
+    if (missingEnvKeys.length && flags.yes !== true) {
+      throw new Error(`Required environment keys are missing: ${missingEnvKeys.join(", ")}. Add them to .env or rerun with --yes after reviewing.`);
+    }
+
     console.error(`Mode: image`);
     console.error(`Current image tag: ${currentTag || "unknown"}`);
     console.error(`Target image tag: ${target.tag}`);
+    writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, step: "backup" });
+    if (safetyPlan.backupName) {
+      console.error(`Creating rotating pre-update backup: ${safetyPlan.backupName}`);
+      createServerBackup(installPath, role, { preUpdate: true });
+    } else {
+      console.error("Skipping pre-update backup for this role or because --skip-backup was passed.");
+    }
     console.error(`Refreshing self-host runtime files from ${templateRef}...`);
-    await writeImageModeRuntimeFiles(installPath, target.tag);
+    await writeImageModeRuntimeFiles(installPath, target.tag, role);
 
-    const pullArgs = [...composeArgs(installPath, withOverrides, installMode), "pull"];
+    const pullArgs = [...composeArgs(installPath, withOverrides, installMode, role), "pull"];
+    if (filterRequested) pullArgs.push(...selectedServices);
     let code = 0;
     if (shouldPullImages()) {
+      writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, step: "pull" });
       console.error("Pulling prebuilt images...");
       code = await runInteractive("docker", pullArgs, installPath);
       if (code !== 0) process.exit(code);
@@ -1131,21 +1500,25 @@ async function serverUpdate(flags: Record<string, string | boolean>): Promise<vo
       console.error("Skipping image pull because OPENMATES_SKIP_IMAGE_PULL=1.");
     }
 
-    const upArgs = [...composeArgs(installPath, withOverrides, installMode), "up", "-d"];
+    writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, step: "up" });
+    const upArgs = [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"];
+    if (filterRequested) upArgs.push(...selectedServices);
     code = await runInteractive("docker", upArgs, installPath);
     if (code !== 0) process.exit(code);
 
-    console.error("Waiting for API and web health checks...");
+    console.error("Waiting for role health checks...");
     try {
-      await waitForServerHealth(installPath);
+      writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, step: "health-check" });
+      await waitForServerHealth(installPath, role);
     } catch (error) {
-      await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode), "ps"], installPath);
+      await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode, role), "ps"], installPath);
       throw error;
     }
 
     if (config) {
       saveServerConfig({ ...config, imageTag: target.tag, imageChannel: target.channel });
     }
+    writeUpdateStatus(installPath, role, { status: "success", targetImageTag: target.tag, step: "complete" });
 
     if (flags.json === true) {
       printJson({ ...plan, status: "success", dryRun: false });
@@ -1193,20 +1566,20 @@ async function serverUpdate(flags: Record<string, string | boolean>): Promise<vo
   }
 
   // Rebuild and restart
-  const buildArgs = [...composeArgs(installPath, withOverrides, installMode), "build"];
+  const buildArgs = [...composeArgs(installPath, withOverrides, installMode, role), "build"];
   console.error("Rebuilding containers...");
   let code = await runInteractive("docker", buildArgs, installPath);
   if (code !== 0) process.exit(code);
 
-  const upArgs = [...composeArgs(installPath, withOverrides, installMode), "up", "-d"];
+  const upArgs = [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"];
   code = await runInteractive("docker", upArgs, installPath);
   if (code !== 0) process.exit(code);
 
   console.error("Waiting for API and web health checks...");
   try {
-    await waitForServerHealth(installPath);
+    await waitForServerHealth(installPath, role);
   } catch (error) {
-    await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode), "ps"], installPath);
+    await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode, role), "ps"], installPath);
     throw error;
   }
 
@@ -1222,6 +1595,7 @@ async function serverReset(flags: Record<string, string | boolean>): Promise<voi
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
   const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
   const installMode = getInstallMode(installPath, config);
 
@@ -1249,7 +1623,7 @@ async function serverReset(flags: Record<string, string | boolean>): Promise<voi
 
   if (userDataOnly) {
     // Stop, remove specific volumes, restart
-    const downArgs = [...composeArgs(installPath, withOverrides, installMode), "down"];
+    const downArgs = [...composeArgs(installPath, withOverrides, installMode, role), "down"];
     let code = await runInteractive("docker", downArgs, installPath);
     if (code !== 0) process.exit(code);
 
@@ -1265,17 +1639,17 @@ async function serverReset(flags: Record<string, string | boolean>): Promise<voi
 
     // Source installs rebuild after clearing data. Image installs restart from pulled images.
     if (installMode === "source") {
-      const buildArgs = [...composeArgs(installPath, withOverrides, installMode), "build"];
+      const buildArgs = [...composeArgs(installPath, withOverrides, installMode, role), "build"];
       code = await runInteractive("docker", buildArgs, installPath);
       if (code !== 0) process.exit(code);
     }
 
-    const upArgs = [...composeArgs(installPath, withOverrides, installMode), "up", "-d"];
+    const upArgs = [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"];
     code = await runInteractive("docker", upArgs, installPath);
     if (code !== 0) process.exit(code);
   } else {
     // Full reset: remove everything
-    const args = [...composeArgs(installPath, withOverrides, installMode), "down", "-v"];
+    const args = [...composeArgs(installPath, withOverrides, installMode, role), "down", "-v"];
     const code = await runInteractive("docker", args, installPath);
     if (code !== 0) process.exit(code);
   }
@@ -1601,11 +1975,82 @@ async function serverAi(rest: string[], flags: Record<string, string | boolean>)
   }
 }
 
+async function serverBackup(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const action = rest[0];
+  const installPath = resolveServerPath(flags);
+  const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
+
+  if (action === "list") {
+    const dir = roleBackupDir(installPath, role);
+    const files = existsSync(dir) ? readdirSync(dir).filter((item) => item.endsWith(".tar.gz")).sort() : [];
+    if (flags.json === true) {
+      printJson({ role, backupDir: dir, files });
+      return;
+    }
+    console.log(`Backups for ${role}:`);
+    if (!files.length) {
+      console.log("  none");
+      return;
+    }
+    for (const file of files) console.log(`  ${join(dir, file)}`);
+    return;
+  }
+
+  requireDocker();
+  const output = typeof flags.output === "string" ? flags.output : undefined;
+  const archivePath = createServerBackup(installPath, role, {
+    output,
+    includeObservability: flags["include-observability"] === true,
+  });
+
+  if (flags.json === true) {
+    printJson({ command: "backup", status: "success", role, file: archivePath });
+  } else {
+    console.log(`Backup created: ${archivePath}`);
+  }
+}
+
+async function serverRestore(flags: Record<string, string | boolean>): Promise<void> {
+  requireDocker();
+  const installPath = resolveServerPath(flags);
+  const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
+  const file = typeof flags.file === "string" ? flags.file : "";
+  if (!file) throw new Error("Usage: openmates server restore --file <backup.tar.gz> [--role core|upload|preview] [--yes]");
+  const restorePlan = planRestore({ role, file, yes: flags.yes === true });
+
+  if (restorePlan.requiresConfirmation) {
+    console.error(`\nWARNING: This will restore ${role} data from ${file}.`);
+    const confirmed = await confirmDestructive("RESTORE OPENMATES BACKUP");
+    if (!confirmed) {
+      console.error("Restore cancelled.");
+      return;
+    }
+  }
+
+  const withOverrides = config?.composeProfile === "full";
+  const installMode = getInstallMode(installPath, config);
+  let code = await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode, role), "stop"], installPath);
+  if (code !== 0) process.exit(code);
+  restoreServerBackup(installPath, role, file);
+  code = await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"], installPath);
+  if (code !== 0) process.exit(code);
+  await waitForServerHealth(installPath, role);
+
+  if (flags.json === true) {
+    printJson({ command: "restore", status: "success", role, file });
+  } else {
+    console.log(`Restore completed for ${role}.`);
+  }
+}
+
 async function serverUninstall(flags: Record<string, string | boolean>): Promise<void> {
   requireDocker();
   const installPath = resolveServerPath(flags);
   ensureGitWorkDirEnv(installPath);
   const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
   const withOverrides = config?.composeProfile === "full";
   const keepData = flags["keep-data"] === true;
 
@@ -1632,7 +2077,7 @@ async function serverUninstall(flags: Record<string, string | boolean>): Promise
   console.error("Uninstalling OpenMates...");
 
   // 1. Stop containers and remove volumes + locally built images
-  const downArgs = [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config)), "down", "--rmi", "local"];
+  const downArgs = [...composeArgs(installPath, withOverrides, getInstallMode(installPath, config), role), "down", "--rmi", "local"];
   if (!keepData) {
     downArgs.push("-v");
   }
@@ -1667,6 +2112,121 @@ async function serverUninstall(flags: Record<string, string | boolean>): Promise
   }
 }
 
+async function serverPreflight(flags: Record<string, string | boolean>): Promise<void> {
+  const installPath = resolveServerPath(flags);
+  const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
+  const services = hasServiceFilter(flags) ? selectedComposeServices(role, flags) : [];
+  const updatePlan = planServerUpdate({ role, selectedServices: services, dryRun: true });
+  const missingEnvKeys = missingRequiredEnvKeys(installPath, role);
+  const runtimePlan = planServerRuntime({
+    role,
+    profile: getCoreProfile(flags, config),
+    withAlerts: flags["with-alerts"] === true,
+  });
+  const caddyPlan = planCaddyCommand({ role, action: "status" });
+  const preflight = {
+    command: "preflight",
+    status: updatePlan.blocked ? "blocked" : "ok",
+    path: installPath,
+    role,
+    profile: runtimePlan.profile,
+    services: hasServiceFilter(flags) ? services : "all",
+    healthChecks: runtimePlan.healthChecks,
+    updateSteps: updatePlan.steps,
+    backupName: updatePlan.backupName,
+    missingRequiredEnvKeys: missingEnvKeys,
+    caddy: caddyPlan,
+  };
+
+  if (flags.json === true) {
+    printJson(preflight);
+    return;
+  }
+
+  console.log("Server preflight plan:");
+  console.log(`  Role:          ${role}`);
+  console.log(`  Profile:       ${runtimePlan.profile ?? "n/a"}`);
+  console.log(`  Services:      ${hasServiceFilter(flags) ? services.join(", ") : "all"}`);
+  console.log(`  Backup:        ${updatePlan.backupName ?? "none"}`);
+  console.log(`  Env preflight: ${missingEnvKeys.length ? `missing ${missingEnvKeys.join(", ")}` : "ok"}`);
+  console.log(`  Health checks: ${runtimePlan.healthChecks.join(", ")}`);
+  console.log(`  Caddy steps:   ${caddyPlan.steps.join(" -> ")}`);
+}
+
+async function serverCaddy(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const action = (rest[0] ?? "status") as CaddyAction;
+  if (!["check", "status", "diff", "apply"].includes(action)) {
+    throw new Error("Usage: openmates server caddy check|status|diff|apply [--role core|upload|preview]");
+  }
+  const config = loadServerConfig();
+  const role = getServerRole(flags, config);
+  const appliedPath = typeof flags.config === "string" ? flags.config : "/etc/caddy/Caddyfile";
+  const templatePath = packagedCaddyTemplatePath(role);
+  if (!existsSync(templatePath)) throw new Error(`Packaged Caddy template not found: ${templatePath}`);
+  const plan = planCaddyCommand({ role, action, appliedPath });
+  const payload = {
+    ...plan,
+    templatePath,
+    templateHash: fileHash(templatePath),
+    appliedHash: fileHash(appliedPath),
+    drift: fileHash(templatePath) !== fileHash(appliedPath),
+  };
+
+  if (flags.json === true) {
+    printJson(payload);
+    return;
+  }
+
+  if (action === "check") {
+    execSync(`caddy validate --config ${shellQuote(templatePath)}`, { stdio: "inherit" });
+    console.log(`Caddy template is valid for ${role}.`);
+    return;
+  }
+
+  if (action === "diff") {
+    if (!existsSync(appliedPath)) throw new Error(`Applied Caddyfile not found: ${appliedPath}`);
+    try {
+      execSync(`diff -u ${shellQuote(appliedPath)} ${shellQuote(templatePath)}`, { stdio: "inherit" });
+    } catch (error) {
+      const status = typeof error === "object" && error !== null && "status" in error ? (error as { status?: number }).status : undefined;
+      if (status !== 1) throw error;
+    }
+    return;
+  }
+
+  if (action === "apply") {
+    execSync(`caddy validate --config ${shellQuote(templatePath)}`, { stdio: "inherit" });
+    if (flags.yes !== true) {
+      console.error(`\nWARNING: This will replace ${appliedPath} with the packaged ${role} Caddyfile.`);
+      const confirmed = await confirmDestructive("APPLY CADDYFILE");
+      if (!confirmed) {
+        console.error("Caddy apply cancelled.");
+        return;
+      }
+    }
+    const backupPath = `${appliedPath}.openmates-backup-${nowStamp()}`;
+    try {
+      if (existsSync(appliedPath)) copyFileSync(appliedPath, backupPath);
+      copyFileSync(templatePath, appliedPath);
+      execSync("systemctl reload caddy", { stdio: "inherit" });
+    } catch (error) {
+      throw new Error(`Could not apply Caddyfile. Run with sudo or use --config <writable path>. ${error instanceof Error ? error.message : String(error)}`);
+    }
+    console.log(`Applied Caddyfile for ${role}. Backup: ${backupPath}`);
+    return;
+  }
+
+  console.log(`Caddy ${action} plan:`);
+  console.log(`  Role:          ${payload.role}`);
+  console.log(`  Template:      ${payload.templatePath}`);
+  console.log(`  Applied:       ${payload.appliedPath}`);
+  console.log(`  Template hash: ${payload.templateHash ?? "missing"}`);
+  console.log(`  Applied hash:  ${payload.appliedHash ?? "missing"}`);
+  console.log(`  Drift:         ${payload.drift ? "yes" : "no"}`);
+  console.log(`  Steps:         ${payload.steps.join(" -> ")}`);
+}
+
 // ---------------------------------------------------------------------------
 // Help
 // ---------------------------------------------------------------------------
@@ -1685,6 +2245,10 @@ Commands:
   status          Show server status (container health)
   logs            Display server logs
   update          Update to latest version (pull images, or git pull + rebuild for source installs)
+  preflight       Show role/update/Caddy preflight plan
+  caddy           Plan host-level Caddyfile check/status/diff/apply operations
+  backup          Create or list backups
+  restore         Restore a backup archive
   make-admin      Grant admin privileges to a user
   ai              Manage self-hosted local AI models
   reset           Reset server data (requires confirmation)
@@ -1693,32 +2257,56 @@ Commands:
 Global Options:
   --path <dir>    Override the server installation directory
   --json          Output machine-readable JSON
+  --role <role>   Server role: core, upload, or preview (default: core)
   --help          Show this help message
 
 Command Options:
   install:
     --path <dir>        Install directory (default: ~/openmates)
     --env-path <file>   Copy a pre-existing .env file during install
+    --profile <name>    Core profile: minimal, standard, or production
+    --with-alerts       Include alertmanager in production profile planning
     --image-tag <tag>   Prebuilt image tag (default: CLI version tag)
     --from-source       Clone/build from source instead of using prebuilt GHCR images
     --source-path <dir> Clone from a local checkout instead of GitHub (implies --from-source)
 
   start:
     --with-overrides    Include admin UIs (Directus CMS, Grafana)
+    --services <csv>    Start only selected role services
+    --exclude <csv>     Start all role services except selected services
 
   restart:
     --rebuild           Full rebuild (down + build + up) instead of graceful restart
+    --services <csv>    Restart only selected role services
+    --exclude <csv>     Restart all role services except selected services
 
   logs:
     --container <name>  Filter logs to a specific service (e.g. api, cms)
+    --services <csv>    Filter logs to selected role services
+    --exclude <csv>     Filter logs to all role services except selected services
     --follow, -f        Stream logs in real time
     --tail <n>          Number of lines to show (default: 100)
 
   update:
     --dry-run           Show update plan without changing files or containers
+    --services <csv>    Update only selected role services
+    --exclude <csv>     Update all role services except selected services
     --image-tag <tag>   Image mode: update to a specific prebuilt image tag
     --channel <name>    Image mode: update using stable/main or dev channel tags
+    --continuous        Run continuously in foreground, or use with install-service
+    --interval <min>    Foreground continuous update interval (default: 30)
+    install-service --continuous --channel <name> --window <window>
     --force             Source mode: stash local changes before pulling
+
+  backup:
+    openmates server backup [--role core|upload|preview] [--output <file>] [--include-observability]
+    openmates server backup list [--role core|upload|preview]
+
+  restore:
+    openmates server restore --file <backup.tar.gz> [--role core|upload|preview] [--yes]
+
+  caddy:
+    openmates server caddy check|status|diff|apply [--role core|upload|preview] [--config /etc/caddy/Caddyfile]
 
   reset:
     --delete-user-data-only   Only delete database and cache (preserve config)
@@ -1781,7 +2369,11 @@ export async function handleServer(
     case "restart":    return serverRestart(flags);
     case "logs":       return serverLogs(flags);
     case "install":    return serverInstall(flags);
-    case "update":     return serverUpdate(flags);
+    case "update":     return serverUpdate(rest, flags);
+    case "preflight":  return serverPreflight(flags);
+    case "caddy":      return serverCaddy(rest, flags);
+    case "backup":     return serverBackup(rest, flags);
+    case "restore":    return serverRestore(flags);
     case "reset":      return serverReset(flags);
     case "make-admin": return serverMakeAdmin(rest, flags);
     case "ai":         return serverAi(rest, flags);

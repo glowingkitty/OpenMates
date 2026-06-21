@@ -560,7 +560,7 @@ private extension EmbedData {
     }
 }
 
-// MARK: - Embed type enum (33 types)
+// MARK: - Embed type enum
 
 enum EmbedType: String, CaseIterable {
     // Direct embeds
@@ -570,6 +570,7 @@ enum EmbedType: String, CaseIterable {
     case codeApplication = "code-application"
     case docsDoc = "docs-doc"
     case diagramsMermaid = "diagrams-mermaid"
+    case mindmapsMindmap = "mindmaps-mindmap"
     case electronicsComponent = "electronics-component"
     case image
     case mailEmail = "mail-email"
@@ -672,6 +673,7 @@ enum EmbedType: String, CaseIterable {
             case .codeRepo, .codeCode, .codeApplication: return "code"
             case .docsDoc: return "docs"
             case .diagramsMermaid: return "diagrams"
+            case .mindmapsMindmap: return "mindmaps"
             case .electronicsComponent: return "electronics"
             case .recording: return "audio"
             case .image, .imagesImageResult: return "images"
@@ -711,6 +713,7 @@ enum EmbedType: String, CaseIterable {
         case .codeGetDocs: return "Docs"
         case .docsDoc: return "Document"
         case .diagramsMermaid: return "Diagram"
+        case .mindmapsMindmap: return "Mind Map"
         case .electronicsSearch: return "Component Search"
         case .electronicsComponent: return "Component"
         case .image: return "Image"

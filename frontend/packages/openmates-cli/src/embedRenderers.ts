@@ -52,6 +52,8 @@ const DIRECT_TYPES = new Set([
   "recording",
   "mail-email",
   "math-plot",
+  "mindmap",
+  "mindmaps-mindmap",
   "events-event",
   "health-appointment",
   "shopping-product",
@@ -81,6 +83,8 @@ const DIRECT_TYPE_LABELS: Record<string, string> = {
   "recording": "recording",
   "mail-email": "email",
   "math-plot": "plot",
+  "mindmap": "Mind Map",
+  "mindmaps-mindmap": "Mind Map",
   "events-event": "event",
   "health-appointment": "appointment",
   "shopping-product": "product",
@@ -1284,6 +1288,21 @@ function renderByDirectType(
       break;
     }
 
+    case "mindmap":
+    case "mindmaps-mindmap": {
+      const document = mindMapDocumentFromContent(c);
+      const title = str(c.title) ?? str(document?.title) ?? "Mind Map";
+      const nodeCount = typeof c.node_count === "number" ? c.node_count : document?.nodes.length;
+      const edgeCount = typeof c.edge_count === "number" ? c.edge_count : document?.edges?.length ?? 0;
+      ln(title);
+      if (nodeCount !== undefined) ln(`\x1b[2m${nodeCount} nodes · ${edgeCount} edges\x1b[0m`);
+      const outline = document ? mindMapOutline(document, 8) : "";
+      if (outline) {
+        for (const line of outline.split("\n")) ln(line);
+      }
+      break;
+    }
+
     case "images-image-result": {
       const title = str(c.title) ?? "";
       const source = str(c.source) ?? str(c.url) ?? "";
@@ -1459,6 +1478,23 @@ function renderDirectTypeFullscreen(
       break;
     }
 
+    case "mindmap":
+    case "mindmaps-mindmap": {
+      const document = mindMapDocumentFromContent(c);
+      const title = str(c.title) ?? str(document?.title) ?? "Mind Map";
+      process.stdout.write(`\x1b[1m${title}\x1b[0m\n`);
+      if (!document) {
+        console.log("Invalid mind map JSON");
+        break;
+      }
+      console.log(`${document.nodes.length} nodes · ${document.edges?.length ?? 0} edges\n`);
+      console.log(mindMapOutline(document));
+      console.log("\n```openmates_mindmap");
+      console.log(JSON.stringify(document, null, 2));
+      console.log("```");
+      break;
+    }
+
     default: {
       // Generic: show all non-null fields (fullscreen — no truncation)
       for (const [k, v] of Object.entries(c)) {
@@ -1489,6 +1525,77 @@ function resolveResultCount(c: Record<string, unknown>): number | null {
   const ids = parseEmbedIds(c.embed_ids);
   if (ids.length > 0) return ids.length;
   return null;
+}
+
+interface CliMindMapNode {
+  id: string;
+  label: string;
+  children?: string[];
+}
+
+interface CliMindMapDocument {
+  openmatesType: "mindmap";
+  schemaVersion: number;
+  title: string;
+  rootId: string;
+  nodes: CliMindMapNode[];
+  edges?: Array<Record<string, unknown>>;
+  view?: Record<string, unknown>;
+}
+
+function mindMapDocumentFromContent(c: Record<string, unknown>): CliMindMapDocument | null {
+  const model = c.model;
+  if (isMindMapDocument(model)) return model;
+  const source = str(c.source_json);
+  if (!source) return null;
+  try {
+    const parsed = JSON.parse(source);
+    return isMindMapDocument(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function isMindMapDocument(value: unknown): value is CliMindMapDocument {
+  if (!isRecord(value)) return false;
+  return (
+    value.openmatesType === "mindmap" &&
+    typeof value.schemaVersion === "number" &&
+    typeof value.title === "string" &&
+    typeof value.rootId === "string" &&
+    Array.isArray(value.nodes)
+  );
+}
+
+function mindMapOutline(document: CliMindMapDocument, maxNodes = 100): string {
+  const nodesById = new Map<string, CliMindMapNode>();
+  for (const node of document.nodes) {
+    if (typeof node.id === "string" && typeof node.label === "string") {
+      nodesById.set(node.id, node);
+    }
+  }
+  const lines: string[] = [];
+  const visited = new Set<string>();
+
+  const visit = (nodeId: string, depth: number) => {
+    if (visited.size >= maxNodes || visited.has(nodeId)) return;
+    const node = nodesById.get(nodeId);
+    if (!node) return;
+    visited.add(nodeId);
+    lines.push(`${"  ".repeat(depth)}- ${node.label}`);
+    for (const childId of node.children ?? []) visit(childId, depth + 1);
+  };
+
+  visit(document.rootId, 0);
+  for (const node of document.nodes) {
+    if (visited.size >= maxNodes) break;
+    if (!visited.has(node.id)) visit(node.id, 0);
+  }
+  return lines.join("\n");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** Load child embeds from embed_ids or inline results */

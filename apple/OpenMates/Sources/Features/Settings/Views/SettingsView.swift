@@ -1185,6 +1185,10 @@ struct SettingsAccountSubPage: View {
                             destination = .email
                         }
                         .accessibilityIdentifier("settings-account-email-row")
+                        OMSettingsRow(title: AppStrings.interests, icon: "settings", iconGradient: .primary) {
+                            destination = .interests
+                        }
+                        .accessibilityIdentifier("settings-account-interests-row")
                         OMSettingsRow(title: AppStrings.profilePicture, icon: "image", iconGradient: .appPhotos) {
                             destination = .profilePicture
                         }
@@ -1277,7 +1281,7 @@ struct SettingsAccountSubPage: View {
 
     @MainActor
     enum AccountDestination: Hashable {
-        case username, email, profilePicture, usage, storage, chats
+        case username, email, interests, profilePicture, usage, storage, chats
         case importChats, exportData, deleteAccount
         case passkeys, password, twoFactor, recoveryKey, sessions, pairDevice
 
@@ -1292,6 +1296,7 @@ struct SettingsAccountSubPage: View {
             switch self {
             case .username: return AppStrings.username
             case .email: return AppStrings.email
+            case .interests: return AppStrings.interests
             case .profilePicture: return AppStrings.profilePicture
             case .usage: return AppStrings.usage
             case .storage: return AppStrings.storage
@@ -1312,6 +1317,7 @@ struct SettingsAccountSubPage: View {
             switch self {
             case .username: return "settings-account-username-page"
             case .email: return "settings-account-email-page"
+            case .interests: return "settings-account-interests-page"
             case .profilePicture: return "settings-account-profile-picture-page"
             case .usage: return "settings-account-usage-page"
             case .storage: return "settings-account-storage-page"
@@ -1333,6 +1339,7 @@ struct SettingsAccountSubPage: View {
             switch self {
             case .username: SettingsAccountDetailView()
             case .email: SettingsEmailView()
+            case .interests: SettingsInterestsView()
             case .profilePicture: SettingsProfilePictureView()
             case .usage: SettingsUsageView()
             case .storage: SettingsStorageFullView()
@@ -1348,6 +1355,231 @@ struct SettingsAccountSubPage: View {
             case .pairDevice: SettingsPairInitiateView()
             }
         }
+    }
+}
+
+private enum InterestTagId: String, CaseIterable, Codable, Hashable {
+    case softwareDevelopment = "software_development"
+    case useTheCli = "use_the_cli"
+    case openSource = "open_source"
+    case readDeveloperDocs = "read_developer_docs"
+    case runCode = "run_code"
+    case protectMyPrivacy = "protect_my_privacy"
+    case summarizeDocuments = "summarize_documents"
+    case findApartments = "find_apartments"
+    case localLife = "local_life"
+    case learnAnything = "learn_anything"
+
+    var label: String {
+        LocalizationManager.shared.text("chat.interests.\(rawValue)")
+    }
+
+    var icon: String {
+        switch self {
+        case .softwareDevelopment, .runCode: return "code"
+        case .useTheCli: return "terminal"
+        case .openSource, .readDeveloperDocs: return "docs"
+        case .protectMyPrivacy: return "privacy"
+        case .summarizeDocuments: return "document"
+        case .findApartments: return "home"
+        case .localLife: return "maps"
+        case .learnAnything: return "study"
+        }
+    }
+}
+
+private struct TopicPreferencesPayload: Codable {
+    let version: Int
+    let selectedTagIds: [InterestTagId]
+    let updatedAt: String
+}
+
+private struct TopicPreferencesSaveRequest: Encodable {
+    let encryptedSettings: String
+}
+
+private struct TopicPreferencesSaveResponse: Decodable {
+    let success: Bool
+    let message: String?
+}
+
+private enum TopicPreferencesSettingsStore {
+    private static let settingsKey = "topic_preferences"
+
+    static func decrypt(encryptedSettings: String?, masterKey: SymmetricKey) async throws -> TopicPreferencesPayload? {
+        guard let encryptedSettings, !encryptedSettings.isEmpty else { return nil }
+        let plaintext = try await CryptoManager.shared.decryptContent(base64String: encryptedSettings, key: masterKey)
+        guard let data = plaintext.data(using: .utf8),
+              let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let topicPreferences = object[settingsKey] else {
+            return nil
+        }
+        let topicData = try JSONSerialization.data(withJSONObject: topicPreferences)
+        return try JSONDecoder().decode(TopicPreferencesPayload.self, from: topicData)
+    }
+
+    static func encrypt(
+        selected: Set<InterestTagId>,
+        existingEncryptedSettings: String?,
+        masterKey: SymmetricKey
+    ) async throws -> (encryptedSettings: String, payload: TopicPreferencesPayload) {
+        var settings: [String: Any] = [:]
+        if let existingEncryptedSettings, !existingEncryptedSettings.isEmpty {
+            let plaintext = try await CryptoManager.shared.decryptContent(base64String: existingEncryptedSettings, key: masterKey)
+            if let data = plaintext.data(using: .utf8),
+               let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                settings = object
+            }
+        }
+
+        let payload = TopicPreferencesPayload(
+            version: 1,
+            selectedTagIds: InterestTagId.allCases.filter { selected.contains($0) },
+            updatedAt: ISO8601DateFormatter().string(from: Date())
+        )
+        let payloadData = try JSONEncoder().encode(payload)
+        settings[settingsKey] = try JSONSerialization.jsonObject(with: payloadData)
+        let settingsData = try JSONSerialization.data(withJSONObject: settings)
+        guard let plaintext = String(data: settingsData, encoding: .utf8) else {
+            throw CryptoManager.CryptoError.invalidUTF8
+        }
+        let encrypted = try await CryptoManager.shared.encryptWithMasterKey(plaintext, masterKey: masterKey)
+        return (encrypted, payload)
+    }
+}
+
+struct SettingsInterestsView: View {
+    @EnvironmentObject var authManager: AuthManager
+
+    @State private var selected: Set<InterestTagId> = []
+    @State private var initialSelected: Set<InterestTagId> = []
+    @State private var isSaving = false
+    @State private var statusMessage: String?
+    @State private var errorMessage: String?
+
+    private var hasChanges: Bool { selected != initialSelected }
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: .spacing8) {
+                OMSettingsSection {
+                    Text(AppStrings.interestsDescription)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                        .padding(.horizontal, .spacing5)
+                        .padding(.vertical, .spacing4)
+                    Text(AppStrings.interestsPrivacyNote)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontTertiary)
+                        .padding(.horizontal, .spacing5)
+                        .padding(.bottom, .spacing4)
+                }
+
+                OMSettingsSection {
+                    ForEach(InterestTagId.allCases, id: \.self) { tag in
+                        OMSettingsRow(
+                            title: tag.label,
+                            icon: tag.icon,
+                            iconGradient: .primary,
+                            value: selected.contains(tag) ? "✓" : nil,
+                            showsChevron: false,
+                            accessibilityIdentifier: "settings-account-interests-option-\(tag.rawValue)"
+                        ) {
+                            toggle(tag)
+                        }
+                    }
+                }
+
+                if let statusMessage {
+                    Text(statusMessage)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.buttonPrimary)
+                        .padding(.horizontal, .spacing5)
+                }
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.error)
+                        .padding(.horizontal, .spacing5)
+                }
+
+                Button {
+                    Task { await save() }
+                } label: {
+                    Text(AppStrings.save)
+                }
+                .buttonStyle(OMPrimaryButtonStyle())
+                .disabled(!hasChanges || isSaving)
+                .accessibilityIdentifier("settings-account-interests-save")
+                .padding(.horizontal, .spacing5)
+            }
+            .padding(.horizontal, .spacing8)
+            .padding(.bottom, .spacing16)
+        }
+        .scrollContentBackground(.hidden)
+        .background(Color.grey0)
+        .task { await load() }
+    }
+
+    private func toggle(_ tag: InterestTagId) {
+        statusMessage = nil
+        errorMessage = nil
+        if selected.contains(tag) {
+            selected.remove(tag)
+        } else {
+            selected.insert(tag)
+        }
+    }
+
+    private func load() async {
+        guard let user = authManager.currentUser,
+              let masterKey = try? await CryptoManager.shared.loadMasterKey(for: user.id) else {
+            return
+        }
+        do {
+            let payload = try await TopicPreferencesSettingsStore.decrypt(
+                encryptedSettings: user.encryptedSettings,
+                masterKey: masterKey
+            )
+            let loaded = Set(payload?.selectedTagIds ?? [])
+            selected = loaded
+            initialSelected = loaded
+        } catch {
+            errorMessage = AppStrings.interestsSaveError
+        }
+    }
+
+    private func save() async {
+        guard let user = authManager.currentUser,
+              let masterKey = try? await CryptoManager.shared.loadMasterKey(for: user.id) else {
+            errorMessage = AppStrings.interestsSaveError
+            return
+        }
+
+        isSaving = true
+        statusMessage = nil
+        errorMessage = nil
+
+        do {
+            let result = try await TopicPreferencesSettingsStore.encrypt(
+                selected: selected,
+                existingEncryptedSettings: user.encryptedSettings,
+                masterKey: masterKey
+            )
+            let response: TopicPreferencesSaveResponse = try await APIClient.shared.request(
+                .post,
+                path: "/v1/settings/topic-preferences",
+                body: TopicPreferencesSaveRequest(encryptedSettings: result.encryptedSettings)
+            )
+            guard response.success else { throw APIError.invalidResponse }
+            initialSelected = Set(result.payload.selectedTagIds)
+            statusMessage = AppStrings.interestsSaved
+        } catch {
+            errorMessage = AppStrings.interestsSaveError
+        }
+
+        isSaving = false
     }
 }
 

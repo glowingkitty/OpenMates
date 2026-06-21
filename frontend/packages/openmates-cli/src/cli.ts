@@ -11,6 +11,7 @@
 
 import {
   OpenMatesClient,
+  INTEREST_TAG_IDS,
   MEMORY_TYPE_REGISTRY,
   MATE_NAMES,
   deriveAppUrl,
@@ -26,6 +27,7 @@ import {
   type BankTransferOrderDetails,
   type BankTransferStatus,
   type GiftCardBankTransferStatus,
+  type TopicPreferencesPayload,
 } from "./client.js";
 import type { StreamEvent, SubChatEvent } from "./ws.js";
 import { createInterface } from "node:readline/promises";
@@ -1906,6 +1908,9 @@ type SettingsInfoCommand = {
 const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "info"], description: "Show account info", examples: ["openmates settings account info --json"] },
   { path: ["account", "timezone", "set"], description: "Set account timezone", examples: ["openmates settings account timezone set Europe/Berlin"] },
+  { path: ["account", "interests", "list"], description: "Show encrypted account topic interests", examples: ["openmates settings account interests list --json"] },
+  { path: ["account", "interests", "set"], description: "Set encrypted account topic interests", examples: ["openmates settings account interests set software_development use_the_cli"] },
+  { path: ["account", "interests", "clear"], description: "Clear encrypted account topic interests", examples: ["openmates settings account interests clear --yes"] },
   { path: ["account", "export", "manifest"], description: "Show account export manifest", examples: ["openmates settings account export manifest --json"] },
   { path: ["account", "export", "data"], description: "Fetch account export data", examples: ["openmates settings account export data --json"] },
   { path: ["account", "import-chat"], description: "Import a CLI chat export file", examples: ["openmates settings account import-chat ./chat.yml", "openmates settings account import-chat ./payload.json"] },
@@ -2019,6 +2024,36 @@ async function printSettingsMutationResult(
   }
   process.stdout.write("\x1b[32m✓\x1b[0m Settings updated\n");
   if (result && typeof result === "object") printGenericObject(result);
+}
+
+function printTopicPreferences(
+  preferences: TopicPreferencesPayload | null,
+  flags: Record<string, string | boolean>,
+  successLabel?: string,
+): void {
+  const payload = preferences ?? {
+    version: 1,
+    selectedTagIds: [],
+    updatedAt: null,
+  };
+  const result = {
+    ...payload,
+    availableTagIds: INTEREST_TAG_IDS,
+  };
+
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+
+  if (successLabel) {
+    process.stdout.write(`\x1b[32m✓\x1b[0m ${successLabel}\n`);
+  }
+  const selected = result.selectedTagIds.length > 0
+    ? result.selectedTagIds.join(", ")
+    : "none";
+  process.stdout.write(`Selected interests: ${selected}\n`);
+  process.stdout.write(`Available interests: ${INTEREST_TAG_IDS.join(", ")}\n`);
 }
 
 function printReportIssueCreateResult(result: unknown, flags: Record<string, string | boolean>): void {
@@ -2649,6 +2684,33 @@ async function handleSettings(
       client.settingsPost("user/timezone", { timezone }),
       flags,
     );
+    return;
+  }
+
+  if (matches(tokens, ["account", "interests", "list"])) {
+    const preferences = await client.getTopicPreferences();
+    printTopicPreferences(preferences, flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "interests", "set"])) {
+    const selectedTagIds = rest.slice(2);
+    if (selectedTagIds.length === 0) {
+      throw new Error(
+        `Missing interest tag IDs. Use one or more of: ${INTEREST_TAG_IDS.join(", ")}`,
+      );
+    }
+    const preferences = await client.setTopicPreferences(selectedTagIds);
+    printTopicPreferences(preferences, flags, "Interests updated");
+    return;
+  }
+
+  if (matches(tokens, ["account", "interests", "clear"])) {
+    if (flags.yes !== true) {
+      await confirmOrExit("Clear account interests? [y/N] ");
+    }
+    const preferences = await client.clearTopicPreferences();
+    printTopicPreferences(preferences, flags, "Interests cleared");
     return;
   }
 

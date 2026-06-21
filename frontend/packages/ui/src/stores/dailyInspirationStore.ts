@@ -54,6 +54,15 @@ export interface DailyInspirationFeature {
   requires_authentication?: boolean;
 }
 
+export interface DailyInspirationDirectVideo {
+  title: string;
+  mp4_url: string;
+  thumbnail_url: string;
+  teaser_url?: string | null;
+  teaser_mp4_url?: string | null;
+  teaser_webp_url?: string | null;
+}
+
 export interface DailyInspiration {
   inspiration_id: string;
   phrase: string;
@@ -63,6 +72,7 @@ export interface DailyInspiration {
   /** Type of inspiration content rendered by the banner. */
   content_type: string;
   video: DailyInspirationVideo | null;
+  direct_video?: DailyInspirationDirectVideo | null;
   wiki?: DailyInspirationWiki | null;
   feature?: DailyInspirationFeature | null;
   generated_at: number;

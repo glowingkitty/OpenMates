@@ -43,6 +43,18 @@ import {
   removeServerConfig,
   resolveServerPath,
 } from "../src/serverConfig.ts";
+import {
+  parseServerRole,
+  planBackup,
+  planCaddyCommand,
+  planContinuousUpdateService,
+  planRestore,
+  planServerRuntime,
+  planUpdate,
+  resolveServiceSelection,
+  resolveTemplateSource,
+  findMissingRequiredSecrets,
+} from "../src/serverPlanning.ts";
 
 // server.ts imports serverConfig.js which breaks with --experimental-strip-types.
 // Re-implement the pure functions we want to test inline, or import them
@@ -510,6 +522,97 @@ describe("image-mode update planning", () => {
     assert.equal(templateRefForImageTag("v0.12.0"), "v0.12.0");
     assert.equal(templateRefForImageTag("main"), "main");
     assert.equal(templateRefForImageTag("stable"), "main");
+  });
+});
+
+describe("role-based server planning", () => {
+  it("parses supported roles and rejects unknown roles", () => {
+    assert.equal(parseServerRole(undefined), "core");
+    assert.equal(parseServerRole("core"), "core");
+    assert.equal(parseServerRole("upload"), "upload");
+    assert.equal(parseServerRole("preview"), "preview");
+    assert.throws(() => parseServerRole("worker"), /Unsupported server role/);
+  });
+
+  it("resolves core observability profiles and alert opt-in", () => {
+    assert.deepEqual(planServerRuntime({ role: "core", profile: "minimal" }).profileServices, []);
+    assert.deepEqual(planServerRuntime({ role: "core", profile: "standard" }).profileServices, ["openobserve", "promtail"]);
+    assert.deepEqual(planServerRuntime({ role: "core", profile: "production" }).profileServices, ["openobserve", "promtail", "prometheus", "cadvisor"]);
+    assert.ok(planServerRuntime({ role: "core", profile: "production", withAlerts: true }).profileServices.includes("alertmanager"));
+  });
+
+  it("validates role-specific service selections before Docker is called", () => {
+    assert.deepEqual(resolveServiceSelection("core", { services: "api,task-worker" }), ["api", "task-worker"]);
+    assert.deepEqual(resolveServiceSelection("core", { exclude: "webapp" }).includes("webapp"), false);
+    assert.deepEqual(resolveServiceSelection("upload", { services: "app-uploads,admin-sidecar" }), ["app-uploads", "admin-sidecar"]);
+    assert.throws(() => resolveServiceSelection("preview", { services: "app-uploads" }), /Invalid service/);
+  });
+
+  it("plans image updates with backup before pull/up and without git", () => {
+    const plan = planUpdate({ role: "core", selectedServices: ["api"], dryRun: true });
+    assert.deepEqual(plan.steps, ["preflight", "backup:latest-pre-update", "pull", "up", "health-check"]);
+    assert.equal(plan.commands.some((command) => command.includes("git pull")), false);
+    assert.equal(plan.backupName, "latest-pre-update-core.tar.zst");
+  });
+
+  it("plans backup and restore content safely", () => {
+    const backup = planBackup({ role: "core", includeObservability: true });
+    assert.ok(backup.contents.includes("postgres-dump"));
+    assert.ok(backup.contents.includes("vault-data"));
+    assert.ok(backup.contents.includes("openobserve-data"));
+
+    const restore = planRestore({ role: "core", file: "/tmp/backup.tar.zst", yes: false });
+    assert.equal(restore.requiresConfirmation, true);
+    assert.deepEqual(restore.steps, ["confirm", "stop", "restore", "start", "health-check"]);
+  });
+
+  it("prefers packaged templates before GitHub raw fallback", () => {
+    assert.deepEqual(resolveTemplateSource({ role: "core", packagedTemplateExists: true }), {
+      type: "packaged",
+      path: "templates/core/docker-compose.selfhost.yml",
+    });
+    assert.equal(resolveTemplateSource({ role: "core", packagedTemplateExists: false, templateRef: "dev" }).type, "github-raw");
+  });
+});
+
+describe("server preflight and Caddy planning", () => {
+  it("reports newly required secrets and ignores no_api_key providers", () => {
+    const missing = findMissingRequiredSecrets({
+      installed: [
+        { id: "legacy", envKey: "SECRET__LEGACY__API_KEY", required: true },
+      ],
+      target: [
+        { id: "legacy", envKey: "SECRET__LEGACY__API_KEY", required: true },
+        { id: "new-required", envKey: "SECRET__NEW_REQUIRED__API_KEY", required: true },
+        { id: "free-local", envKey: "SECRET__FREE_LOCAL__API_KEY", required: true, noApiKey: true },
+      ],
+      configuredEnvKeys: ["SECRET__LEGACY__API_KEY"],
+    });
+
+    assert.deepEqual(missing, ["SECRET__NEW_REQUIRED__API_KEY"]);
+  });
+
+  it("blocks continuous update plans when required secrets are missing", () => {
+    const plan = planUpdate({ role: "core", selectedServices: ["api"], continuous: true, missingRequiredSecrets: ["SECRET__OPENAI__API_KEY"] });
+    assert.equal(plan.blocked, true);
+    assert.match(plan.blockReason ?? "", /missing required secrets/i);
+  });
+
+  it("plans host-level Caddy check, status, diff, and apply safely", () => {
+    assert.deepEqual(planCaddyCommand({ role: "core", action: "check" }).steps, ["render-template", "validate"]);
+    assert.deepEqual(planCaddyCommand({ role: "upload", action: "status" }).steps, ["hash-template", "hash-applied", "validate"]);
+    assert.deepEqual(planCaddyCommand({ role: "preview", action: "diff" }).steps, ["hash-template", "hash-applied", "diff"]);
+    assert.deepEqual(planCaddyCommand({ role: "core", action: "apply" }).steps, ["render-template", "validate", "backup-applied", "write", "reload"]);
+  });
+
+  it("renders continuous updater systemd plans without secrets", () => {
+    const plan = planContinuousUpdateService({ role: "core", channel: "main", window: "02:00-04:00 Europe/Berlin" });
+
+    assert.equal(plan.serviceName, "openmates-core-continuous-update.service");
+    assert.equal(plan.timerName, "openmates-core-continuous-update.timer");
+    assert.match(plan.unit, /openmates server update --role core --channel main --continuous/);
+    assert.match(plan.unit, /OPENMATES_UPDATE_WINDOW=02:00-04:00 Europe\/Berlin/);
+    assert.doesNotMatch(plan.unit + plan.timer, /SECRET__|API_KEY|TOKEN=/);
   });
 });
 

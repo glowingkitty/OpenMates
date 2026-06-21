@@ -54,6 +54,37 @@ function remotionEmbed(): DecryptedEmbed {
   };
 }
 
+function mindMapEmbed(): DecryptedEmbed {
+  return {
+    id: "embed-mindmap-1",
+    embedId: "42345678-1234-4234-9234-123456789abc",
+    type: "mindmap",
+    textPreview: "Launch Plan",
+    appId: "mindmaps",
+    skillId: "mindmap",
+    createdAt: 1_700_000_000,
+    content: {
+      type: "mindmap",
+      app_id: "mindmaps",
+      skill_id: "mindmap",
+      title: "Launch Plan",
+      node_count: 2,
+      edge_count: 0,
+      validation: { status: "valid", warnings: [] },
+      model: {
+        openmatesType: "mindmap",
+        schemaVersion: 1,
+        title: "Launch Plan",
+        rootId: "root",
+        nodes: [
+          { id: "root", label: "Launch Plan", children: ["research"] },
+          { id: "research", label: "Audience Research" },
+        ],
+      },
+    },
+  };
+}
+
 function mockClient(): { createEmbedShareLink: (embedId: string) => Promise<string> } {
   return {
     async createEmbedShareLink(embedId: string): Promise<string> {
@@ -142,5 +173,26 @@ describe("Direct content embed CLI renderers", () => {
     assert.match(output, /application/);
     assert.match(output, /Habit Garden/);
     assert.match(output, /Vite/);
+  });
+
+  it("renders mind map previews as a compact outline", async () => {
+    const output = await captureStdout(async () => {
+      await renderEmbedPreview(mindMapEmbed(), mockClient() as never);
+    });
+
+    assert.match(output, /Mind Map/);
+    assert.match(output, /Launch Plan/);
+    assert.match(output, /2 nodes/);
+    assert.match(output, /Audience Research/);
+  });
+
+  it("renders mind map fullscreen as canonical fenced JSON", async () => {
+    const output = await captureStdout(async () => {
+      await renderEmbedFullscreen(mindMapEmbed(), mockClient() as never);
+    });
+
+    assert.match(output, /```openmates_mindmap/);
+    assert.match(output, /"openmatesType": "mindmap"/);
+    assert.match(output, /"rootId": "root"/);
   });
 });
