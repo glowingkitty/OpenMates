@@ -11447,12 +11447,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          <!-- No longer gated behind initialSyncCompleted - NewChatSuggestions handles fallback to defaults -->
                          <!-- Hidden while the map location selector is open (messageInputMapsOpen) —
                               restored automatically when the map is closed and the input is still empty. -->
-                         <!-- Height-based overlap guard: when the suggestions panel would visually
-                              overlap the welcome greeting / resume-chat card below it, hide the
-                              suggestions by default.  They are revealed only when the message input
-                              is focused — at which point the welcome content is also hidden
-                              (hideWelcomeForKeyboard), giving the suggestions room to breathe.
-                              Legacy fallback: also hide on very short screens (≤670px viewport). -->
+                         <!-- New-chat suggestions are tied to the active message input. The short
+                              recently-focused grace lets suggestion clicks land without keeping the
+                              rail visible on the inactive welcome screen. -->
                          {#if showAnonymousUploadSignupPrompt}
                               <div class="anonymous-upload-signup-banner" data-testid="anonymous-upload-signup-banner" transition:fade={{ duration: 200 }}>
                                   <div class="anonymous-upload-signup-copy">
@@ -11468,7 +11465,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                       {$text('enter_message.attachments.remove_pending_file')}
                                   </button>
                               </div>
-                          {:else if showWelcome && ($authStore.isAuthenticated || guestInterestContinueConfirmed) && !messageInputMapsOpen && (guestInterestContinueConfirmed || !suggestionsWouldOverlapWelcome || messageInputRecentlyFocused) && (viewportHeight > 670 || messageInputRecentlyFocused)}
+                          {:else if showWelcome && ($authStore.isAuthenticated || guestInterestContinueConfirmed) && !messageInputMapsOpen && messageInputRecentlyFocused}
                                 <NewChatSuggestions
                                    messageInputContent={activeSuggestionSearchText}
                                    selectedInterestTagIds={selectedGuestInterestTagIds}

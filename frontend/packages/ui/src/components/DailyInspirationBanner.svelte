@@ -848,11 +848,8 @@
                 <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line3')}</span>
               {:else}
                 {#if InfoCardIconComponent}
-                  <span class="guest-feature-bg-icon guest-feature-bg-icon-left" aria-hidden="true">
-                    <InfoCardIconComponent size={118} color="white" />
-                  </span>
-                  <span class="guest-feature-bg-icon guest-feature-bg-icon-right" aria-hidden="true">
-                    <InfoCardIconComponent size={150} color="white" />
+                  <span class="guest-feature-inline-icon" aria-hidden="true">
+                    <InfoCardIconComponent size={44} color="white" />
                   </span>
                 {/if}
                 <span class="guest-feature-headline" data-testid="daily-inspiration-phrase">{current.phrase}</span>
@@ -1268,27 +1265,20 @@
     text-shadow: 0 2px 18px rgba(0, 0, 0, 0.2);
   }
 
-  .guest-feature-bg-icon {
-    position: absolute;
-    z-index: 0;
+  .guest-feature-inline-icon {
     display: grid;
     place-items: center;
-    color: rgba(255, 255, 255, 0.16);
-    opacity: 0.42;
-    pointer-events: none;
-    filter: drop-shadow(0 12px 34px rgba(0, 0, 0, 0.2));
+    width: clamp(38px, 3.2vw, 72px);
+    height: clamp(38px, 3.2vw, 72px);
+    margin-bottom: var(--spacing-2);
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.92);
+    filter: drop-shadow(0 2px 18px rgba(0, 0, 0, 0.18));
   }
 
-  .guest-feature-bg-icon-left {
-    left: clamp(-34px, -1.8vw, -12px);
-    bottom: clamp(-28px, -1.5vw, -10px);
-    transform: rotate(-8deg);
-  }
-
-  .guest-feature-bg-icon-right {
-    right: clamp(-48px, -2.4vw, -18px);
-    top: clamp(-42px, -2vw, -16px);
-    transform: rotate(10deg);
+  .guest-feature-inline-icon :global(svg) {
+    width: 100%;
+    height: 100%;
   }
 
   .guest-intro-video-box,
@@ -1838,16 +1828,6 @@
       display: -webkit-box;
       -webkit-box-orient: vertical;
       overflow: hidden;
-    }
-
-    .guest-feature-bg-icon-left {
-      left: -28px;
-      bottom: -26px;
-    }
-
-    .guest-feature-bg-icon-right {
-      right: -44px;
-      top: -36px;
     }
 
     .guest-intro-video-box,
