@@ -47,14 +47,24 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('guest-intro-copy')).toContainText('AI team mates.', { timeout: 15000 });
 		const guestIntroMetrics = await page.evaluate(() => {
 			const banner = document.querySelector('[data-testid="daily-inspiration-banner"]');
+			const copy = document.querySelector('[data-testid="guest-intro-copy"]');
 			const copyLine = document.querySelector('.guest-intro-copy-line');
 			const videoShell = document.querySelector('[data-testid="guest-intro-video-shell"]');
+			const bannerRect = banner?.getBoundingClientRect();
+			const copyRect = copy?.getBoundingClientRect();
 			return {
-				bannerHeight: banner?.getBoundingClientRect().height ?? 0,
+				bannerHeight: bannerRect?.height ?? 0,
+				copyTop: copyRect?.top ?? 0,
+				copyBottom: copyRect?.bottom ?? 0,
+				bannerTop: bannerRect?.top ?? 0,
+				bannerBottom: bannerRect?.bottom ?? 0,
 				copyFontSize: copyLine ? Number.parseFloat(getComputedStyle(copyLine).fontSize) : 0,
 				videoHeight: videoShell?.getBoundingClientRect().height ?? 0
 			};
 		});
+		expect(guestIntroMetrics.bannerHeight).toBeGreaterThanOrEqual(340);
+		expect(guestIntroMetrics.copyTop).toBeGreaterThanOrEqual(guestIntroMetrics.bannerTop);
+		expect(guestIntroMetrics.copyBottom).toBeLessThanOrEqual(guestIntroMetrics.bannerBottom);
 		expect(guestIntroMetrics.copyFontSize).toBeGreaterThanOrEqual(48);
 		expect(guestIntroMetrics.videoHeight).toBeGreaterThanOrEqual(70);
 		expect(guestIntroMetrics.videoHeight).toBeLessThanOrEqual(130);
