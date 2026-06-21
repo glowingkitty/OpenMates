@@ -33,7 +33,6 @@
 
   let selectedTagIds = $state<InterestTagId[]>([]);
   let railEl = $state<HTMLDivElement | null>(null);
-  let sideSpacerPx = $state(0);
   let rankedTags = $derived(rankInterestTagsForSelection(selectedTagIds));
   let selectedSet = $derived(new Set(selectedTagIds));
   let visibleTags = $derived.by(() => {
@@ -77,20 +76,23 @@
   function centerFirstTag() {
     const firstTag = railEl?.querySelector<HTMLElement>('[data-testid^="interest-tag-"]');
     if (!railEl || !firstTag) return;
-    sideSpacerPx = Math.max(6, (railEl.clientWidth - firstTag.offsetWidth) / 2);
+    const sideSpacerPx = Math.max(6, (railEl.clientWidth - firstTag.offsetWidth) / 2);
+    railEl.style.setProperty('--rail-side-spacer', `${sideSpacerPx}px`);
     railEl.scrollTo({ left: 0, behavior: 'auto' });
   }
 
   $effect(() => {
     void visibleTags;
     void railEl;
-    tick().then(() => requestAnimationFrame(centerFirstTag));
+    tick().then(() => {
+      centerFirstTag();
+      setTimeout(centerFirstTag, 50);
+    });
   });
 </script>
 
 <div class="guest-interest-tags" data-testid="guest-interest-tags">
   <div class="guest-interest-rail" data-testid="guest-interest-rail" bind:this={railEl}>
-    <span class="guest-interest-rail-spacer" style:width={`${sideSpacerPx}px`} aria-hidden="true"></span>
     {#each visibleTags as tag (tag.id)}
       {@const IconComponent = getLucideIcon(tag.icon)}
       {@const isActive = selectedSet.has(tag.id)}
@@ -113,7 +115,6 @@
         <span>{labelFor(tag.labelKey, tag.fallbackLabel)}</span>
       </button>
     {/each}
-    <span class="guest-interest-rail-spacer" style:width={`${sideSpacerPx}px`} aria-hidden="true"></span>
   </div>
   {#if selectedTagIds.length > 0}
     <button
@@ -164,9 +165,11 @@
     display: none;
   }
 
-  .guest-interest-rail-spacer {
+  .guest-interest-rail::before,
+  .guest-interest-rail::after {
+    content: '';
     display: block;
-    flex: 0 0 auto;
+    flex: 0 0 var(--rail-side-spacer, 0px);
     min-width: 0;
     height: 1px;
   }
