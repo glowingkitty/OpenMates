@@ -234,27 +234,6 @@ test('self-hosted install starts, signs up a user, and promotes admin', async ({
 	expect(adminSession.json.success).toBe(true);
 	expect(adminSession.json.user?.is_admin).toBe(true);
 
- const userId = adminSession.json.user?.id;
- expect(userId, 'admin session should expose restored user id').toBeTruthy();
-
- const repoRoot = process.env.GITHUB_WORKSPACE || path.resolve(process.cwd(), '../../..');
- const backupPath = path.join(repoRoot, 'test-results', 'selfhost-user-data-backup.tar.gz');
- fs.mkdirSync(path.dirname(backupPath), { recursive: true });
- const backup = JSON.parse(runOpenMatesServer(['backup', '--output', backupPath, '--json']));
- expect(backup.status).toBe('success');
- expect(backup.file).toBe(backupPath);
- expect(fs.existsSync(backupPath), 'server backup should write an archive').toBe(true);
- expect(fs.statSync(backupPath).mode & 0o777, 'backup archive should be owner-readable only').toBe(0o600);
-
- runDatabaseSql(`UPDATE directus_users SET is_admin = false WHERE id = ${sqlString(userId)}`);
- expect(runDatabaseSql(`SELECT is_admin::text FROM directus_users WHERE id = ${sqlString(userId)}`)).toBe('false');
-
- runOpenMatesServer(['restore', '--file', backupPath, '--yes'], { stdio: 'inherit' });
- expect(runDatabaseSql(`SELECT is_admin::text FROM directus_users WHERE id = ${sqlString(userId)}`)).toBe('true');
- await page.goto(getE2EDebugUrl('/'));
- const restoredSession = await waitForAdminStatus(page, true);
- expect(restoredSession.json.user?.id).toBe(userId);
-
 	const selfHostedCloudOnlyStatuses = await page.evaluate(async (apiUrl: string) => {
 		const requests = [
 			{ method: 'GET', path: '/v1/admin/free-testing-credits-budget' },
@@ -304,4 +283,25 @@ test('self-hosted install starts, signs up a user, and promotes admin', async ({
 	for (const endpointStatus of selfHostedCloudOnlyStatuses) {
 		expect(endpointStatus.status, `${endpointStatus.path} should be hidden on self-hosted`).toBe(404);
 	}
+
+ const userId = adminSession.json.user?.id;
+ expect(userId, 'admin session should expose restored user id').toBeTruthy();
+
+ const repoRoot = process.env.GITHUB_WORKSPACE || path.resolve(process.cwd(), '../../..');
+ const backupPath = path.join(repoRoot, 'test-results', 'selfhost-user-data-backup.tar.gz');
+ fs.mkdirSync(path.dirname(backupPath), { recursive: true });
+ const backup = JSON.parse(runOpenMatesServer(['backup', '--output', backupPath, '--json']));
+ expect(backup.status).toBe('success');
+ expect(backup.file).toBe(backupPath);
+ expect(fs.existsSync(backupPath), 'server backup should write an archive').toBe(true);
+ expect(fs.statSync(backupPath).mode & 0o777, 'backup archive should be owner-readable only').toBe(0o600);
+
+ runDatabaseSql(`UPDATE directus_users SET is_admin = false WHERE id = ${sqlString(userId)}`);
+ expect(runDatabaseSql(`SELECT is_admin::text FROM directus_users WHERE id = ${sqlString(userId)}`)).toBe('false');
+
+ runOpenMatesServer(['restore', '--file', backupPath, '--yes'], { stdio: 'inherit' });
+ expect(runDatabaseSql(`SELECT is_admin::text FROM directus_users WHERE id = ${sqlString(userId)}`)).toBe('true');
+ await page.goto(getE2EDebugUrl('/'));
+ const restoredSession = await waitForAdminStatus(page, true);
+ expect(restoredSession.json.user?.id).toBe(userId);
 });
