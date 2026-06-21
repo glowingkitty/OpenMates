@@ -68,9 +68,23 @@
     selectedTagIds = next;
     onSelectionChange(selectedTagIds);
     tick().then(() => {
-      if (railEl) {
-        railEl.scrollLeft = scrollLeft;
-      }
+      restoreRailScroll(scrollLeft);
+    });
+  }
+
+  function restoreRailScroll(scrollLeft: number) {
+    const rail = railEl;
+    if (!rail) return;
+
+    const previousScrollBehavior = rail.style.scrollBehavior;
+    rail.style.scrollBehavior = 'auto';
+    rail.scrollLeft = scrollLeft;
+    requestAnimationFrame(() => {
+      rail.scrollLeft = scrollLeft;
+      requestAnimationFrame(() => {
+        rail.scrollLeft = scrollLeft;
+        rail.style.scrollBehavior = previousScrollBehavior;
+      });
     });
   }
 
