@@ -140,7 +140,13 @@
       ? undefined
       : normalizeEmbedIds(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids)
   );
-  let resultsProp = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
+  let resultsProp = $derived(
+    Array.isArray(data.decodedContent?.results)
+      ? data.decodedContent.results as unknown[]
+      : Array.isArray(data.decodedContent?.preview_results)
+        ? data.decodedContent.preview_results as unknown[]
+        : []
+  );
 
   // Local reactive state for streaming updates
   let localQuery = $state("");

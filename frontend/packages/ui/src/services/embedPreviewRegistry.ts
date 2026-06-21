@@ -80,7 +80,7 @@ function normalizeEmbedIds(value: unknown): string[] {
   return value.split("|").map((id) => id.trim()).filter(Boolean);
 }
 
-function parentPreviewProps(
+export function parentPreviewProps(
   decodedContent: Record<string, unknown>,
   embedData: Record<string, unknown>,
 ): {
