@@ -12,7 +12,7 @@
   import {
     rankInterestTagsForSelection,
   } from '../demo_chats/guestSmartSelection';
-  import type { InterestTagId } from '../demo_chats/interestTags';
+  import { INTEREST_TAGS, type InterestTagId } from '../demo_chats/interestTags';
   import { appsMetadata } from '../data/appsMetadata';
   import {
     topicPreferencesStore,
@@ -36,9 +36,10 @@
   let rankedTags = $derived(rankInterestTagsForSelection(selectedTagIds));
   let selectedSet = $derived(new Set(selectedTagIds));
   let visibleTags = $derived.by(() => {
-    const selectedTags = rankedTags.filter((tag) => selectedSet.has(tag.id));
+    const selectedTags = INTEREST_TAGS.filter((tag) => selectedSet.has(tag.id));
     const availableTags = rankedTags.filter((tag) => !selectedSet.has(tag.id));
-    return [...selectedTags, ...availableTags.slice(0, AVAILABLE_TAG_LIMIT)];
+    return [...availableTags.slice(0, AVAILABLE_TAG_LIMIT), ...selectedTags]
+      .sort((a, b) => a.defaultOrder - b.defaultOrder);
   });
 
   onMount(() => {

@@ -15,7 +15,7 @@ scope:
     - Logged-out default daily inspirations become the first OpenMates explainer surface, starting with the existing `for-everyone` chat header/video content moved into the first default inspiration.
     - Additional logged-out default inspirations explain OpenMates features such as personal data replacement, app skills, memories/settings, examples, CLI/programmatic use, and privacy until the user signs up or has authenticated personalized inspirations.
     - A phrase-style interest tag rail on the web new-chat welcome screen, with icons and category/app gradient backgrounds.
-    - Adaptive tag ordering where selected tags stay first and related unselected tags move next without hiding unrelated tags.
+    - Adaptive tag ordering where selected tags stay visible in stable scroll order and related unselected tags stay available without hiding unrelated tags.
     - Deterministic client-side smart selection for daily inspirations, intro chats, example chats, and new-chat suggestions from selected tags.
     - Guest topic selections stored only in sessionStorage before signup.
     - Signup promotion of guest selections into encrypted synced account data named `encrypted_topic_preferences` or an equivalent explicit encrypted field.
@@ -123,8 +123,8 @@ scenarios:
     when:
       - The visitor selects `software development`.
     then:
-      - The `software development` tag becomes active and moves to the front of the tag rail.
-      - Related tags such as `use the CLI`, `open source`, `read developer docs`, `run code`, `protect my privacy`, and `summarize documents` move after the active tag.
+      - The `software development` tag becomes active without jumping the horizontal tag rail.
+      - Related tags such as `use the CLI`, `open source`, `read developer docs`, `run code`, `protect my privacy`, and `summarize documents` remain available in the rail.
       - Unrelated tags remain available later in the rail instead of being hidden.
       - A Continue action appears once at least one tag is selected.
 
@@ -209,7 +209,7 @@ acceptance_criteria:
     text: The first logged-out default inspiration reuses the `for-everyone` chat header copy/video intent as an OpenMates explainer banner.
   - id: AC-3
     scenario: S-2
-    text: The interest tag rail uses phrase labels, icons, and gradient backgrounds, and adaptively reorders selected and related tags without hiding unrelated tags.
+    text: The interest tag rail uses phrase labels, icons, and gradient backgrounds, keeps selected tags visible without scroll jumps, and keeps related/unrelated tags available.
   - id: AC-4
     scenario: S-3
     text: Selected tags deterministically rank daily inspirations, intro chats, example chats, and new-chat suggestions from a shared client-side registry.
