@@ -68,10 +68,13 @@ async function tagRailEndGap(page: any): Promise<number> {
 		const tags = Array.from(rail.querySelectorAll<HTMLElement>('button[data-testid^="interest-tag-"]'));
 		const lastTag = tags[tags.length - 1];
 		if (!lastTag) return Number.POSITIVE_INFINITY;
+		const previousScrollLeft = rail.scrollLeft;
 		rail.scrollLeft = rail.scrollWidth;
 		const railRect = rail.getBoundingClientRect();
 		const lastRect = lastTag.getBoundingClientRect();
-		return Math.max(0, railRect.right - lastRect.right);
+		const endGap = Math.max(0, railRect.right - lastRect.right);
+		rail.scrollLeft = previousScrollLeft;
+		return endGap;
 	});
 }
 
