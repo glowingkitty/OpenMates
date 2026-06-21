@@ -53,8 +53,12 @@ async function tagRailEndGap(page: any): Promise<number> {
 	});
 }
 
-async function tagRailScrollLeft(page: any): Promise<number> {
-	return page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => rail.scrollLeft);
+async function tagOffsetFromRail(page: any, tagId: string): Promise<number> {
+	return page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement, id: string) => {
+		const tag = rail.querySelector<HTMLElement>(`[data-testid="interest-tag-${id}"]`);
+		if (!tag) throw new Error(`${id} tag not found`);
+		return tag.getBoundingClientRect().left - rail.getBoundingClientRect().left;
+	}, tagId);
 }
 
 test.describe('Guest interest smart selection', () => {
@@ -127,10 +131,10 @@ test.describe('Guest interest smart selection', () => {
 			if (!tag) throw new Error('software_development tag not found');
 			rail.scrollLeft = Math.max(0, tag.offsetLeft - rail.clientWidth / 2 + tag.offsetWidth / 2);
 		});
-		const scrollLeftBeforeTagClick = await tagRailScrollLeft(page);
+		const tagOffsetBeforeTagClick = await tagOffsetFromRail(page, 'software_development');
 		await page.getByTestId('interest-tag-software_development').click();
 		await page.waitForTimeout(250);
-		expect(Math.abs((await tagRailScrollLeft(page)) - scrollLeftBeforeTagClick)).toBeLessThanOrEqual(8);
+		expect(Math.abs((await tagOffsetFromRail(page, 'software_development')) - tagOffsetBeforeTagClick)).toBeLessThanOrEqual(8);
 		await expect(page.getByTestId('interest-tag-software_development')).toHaveAttribute(
 			'data-interest-active',
 			'true'
