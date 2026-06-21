@@ -63,6 +63,12 @@ import {
   buildEmbedShareUrl,
   type ShareDuration,
 } from "./shareEncryption.js";
+import {
+  buildEncryptedConnectedAccountImportRow,
+  decryptConnectedAccountCliTransferPayload,
+  type ConnectedAccountCliTransferPayload,
+  type EncryptedConnectedAccountImportRow,
+} from "./connectedAccountImport.js";
 
 function normalizeUnixSeconds(value: unknown, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
@@ -145,6 +151,21 @@ export interface ConnectedAccountTurnTokenRef {
   allowed_actions: string[];
   action_scope?: Record<string, unknown>;
   expires_at: number;
+}
+
+export interface ConnectedAccountImportValidationResult {
+  valid: boolean;
+  provider_id: string;
+  app_id: string;
+  checked_at: number;
+}
+
+export interface ConnectedAccountImportResult {
+  id: string;
+  providerId: string;
+  appId: string;
+  label: string;
+  validation: ConnectedAccountImportValidationResult;
 }
 
 export type LearningModeAgeGroup = "under_10" | "10_12" | "13_15" | "16_18" | "adult";
@@ -1526,6 +1547,73 @@ export class OpenMatesClient {
         action_scope: input?.action_scope,
       };
     });
+  }
+
+  async importConnectedAccountFromCliPayload(params: {
+    encryptedPayload: string;
+    passcode: string;
+  }): Promise<ConnectedAccountImportResult> {
+    this.requireSession();
+    const payload = await decryptConnectedAccountCliTransferPayload(params.encryptedPayload, params.passcode);
+    const validation = await this.validateConnectedAccountImportPayload(payload);
+    const user = await this.whoAmI();
+    const userId = typeof user.id === "string"
+      ? user.id
+      : typeof user.user_id === "string"
+        ? user.user_id
+        : "";
+    if (!userId) {
+      throw new Error("Could not resolve current user id for connected account import.");
+    }
+    const row = await buildEncryptedConnectedAccountImportRow({
+      payload,
+      userId,
+      masterKey: this.getMasterKeyBytes(),
+    });
+    const stored = await this.createConnectedAccountImportRow(row);
+    return {
+      id: stored.id,
+      providerId: payload.provider_id,
+      appId: payload.app_id,
+      label: payload.label,
+      validation,
+    };
+  }
+
+  async validateConnectedAccountImportPayload(
+    payload: ConnectedAccountCliTransferPayload,
+  ): Promise<ConnectedAccountImportValidationResult> {
+    this.requireSession();
+    const response = await this.http.post<ConnectedAccountImportValidationResult>(
+      "/v1/connected-accounts/validate-import",
+      {
+        provider_id: payload.provider_id,
+        app_id: payload.app_id,
+        capabilities: payload.capabilities,
+        refresh_token_envelope: payload.refresh_token_bundle,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || response.data.valid !== true) {
+      throw new Error(`Connected account validation failed (HTTP ${response.status})`);
+    }
+    assertNoConnectedAccountSecretLeak(response.data);
+    return response.data;
+  }
+
+  private async createConnectedAccountImportRow(
+    row: EncryptedConnectedAccountImportRow,
+  ): Promise<{ id: string; sync_version: number }> {
+    assertNoConnectedAccountSecretLeak(row);
+    const response = await this.http.post<{ id: string; sync_version: number }>(
+      "/v1/connected-accounts",
+      row,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.id) {
+      throw new Error(`Failed to store connected account import (HTTP ${response.status})`);
+    }
+    return response.data;
   }
 
   async cancelConnectedAccountAction(params: {

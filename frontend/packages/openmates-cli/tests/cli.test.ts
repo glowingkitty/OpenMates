@@ -119,6 +119,45 @@ function readRepoText(path: string): string {
   return readFileSync(join(REPO_ROOT, path), "utf-8");
 }
 
+describe("connected account import command", () => {
+  it("is listed in global help and prints contextual help", () => {
+    assert.match(runCli(["help"]), /openmates connected-accounts \[--help\]/);
+    const output = runCli(["connected-accounts", "--help"]);
+    assert.match(output, /openmates connected-accounts import --payload <OMCA1\.\.\.>/);
+    assert.match(output, /hidden prompt/);
+  });
+
+  it("rejects passcodes passed as flags", () => {
+    const result = runCliWithoutSessionResult([
+      "connected-accounts",
+      "import",
+      "--payload",
+      "OMCA1.placeholder",
+      "--passcode",
+      "secret",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /passcodes must be entered through the hidden prompt/);
+  });
+
+  it("requires a logged-in CLI session before prompting for import passcode", () => {
+    const result = runCliWithoutSessionResult([
+      "connected-accounts",
+      "import",
+      "--payload",
+      "OMCA1.placeholder",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Not logged in/);
+  });
+
+  it("does not print imported account labels because labels may contain provider emails", () => {
+    const source = readRepoText("frontend/packages/openmates-cli/src/cli.ts");
+    assert.doesNotMatch(source, /label: result\.label/);
+    assert.doesNotMatch(source, /Connected account imported: \$\{result\.label\}/);
+  });
+});
+
 describe("benchmark command", () => {
   it("is listed in global help", () => {
     const output = runCli(["help"]);
