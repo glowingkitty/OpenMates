@@ -952,9 +952,20 @@ function restoreServerBackup(installPath: string, role: ServerRole, file: string
   }
 }
 
-function restoreStopServices(role: ServerRole): string[] {
+function restoreStopServices(
+  installPath: string,
+  withOverrides: boolean,
+  installMode: ServerConfig["installMode"],
+  role: ServerRole,
+): string[] {
   if (role !== "core") return [];
-  return resolveServiceSelection("core", { exclude: "cms-database" });
+  const command = ["docker", ...composeArgs(installPath, withOverrides, installMode, role), "config", "--services"]
+    .map(shellQuote)
+    .join(" ");
+  return execSync(command, { cwd: installPath, encoding: "utf-8" })
+    .split("\n")
+    .map((service) => service.trim())
+    .filter((service) => service && service !== "cms-database");
 }
 
 async function promptText(question: string, defaultValue = ""): Promise<string> {
@@ -2060,7 +2071,7 @@ async function serverRestore(flags: Record<string, string | boolean>): Promise<v
 
   const withOverrides = config?.composeProfile === "full";
   const installMode = getInstallMode(installPath, config);
-  const stopArgs = [...composeArgs(installPath, withOverrides, installMode, role), "stop", ...restoreStopServices(role)];
+  const stopArgs = [...composeArgs(installPath, withOverrides, installMode, role), "stop", ...restoreStopServices(installPath, withOverrides, installMode, role)];
   let code = await runInteractive("docker", stopArgs, installPath);
   if (code !== 0) process.exit(code);
   restoreServerBackup(installPath, role, file);
