@@ -122,11 +122,11 @@ test.describe('Guest interest smart selection', () => {
 		);
 		expect(defaultTagOrder.indexOf('software_development')).toBeGreaterThan(0);
 
-		await page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => { rail.scrollLeft = 120; });
-		await page.getByTestId('interest-tag-software_development').evaluate((tag: HTMLElement) => {
-			tag.scrollIntoView({ block: 'nearest', inline: 'center' });
+		await page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => {
+			const tag = rail.querySelector<HTMLElement>('[data-testid="interest-tag-software_development"]');
+			if (!tag) throw new Error('software_development tag not found');
+			rail.scrollLeft = Math.max(0, tag.offsetLeft - rail.clientWidth / 2 + tag.offsetWidth / 2);
 		});
-		await page.waitForTimeout(100);
 		const scrollLeftBeforeTagClick = await tagRailScrollLeft(page);
 		await page.getByTestId('interest-tag-software_development').click();
 		await page.waitForTimeout(250);
