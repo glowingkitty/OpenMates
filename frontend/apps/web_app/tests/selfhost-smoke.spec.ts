@@ -21,6 +21,7 @@ const { getE2EDebugUrl, setToggleChecked } = require('./signup-flow-helpers');
 const SELFHOST_API_URL = process.env.SELFHOST_API_URL || 'http://localhost:8000';
 const SELFHOST_APP_URL = process.env.SELFHOST_APP_URL || 'http://localhost:5173';
 const SELFHOST_INSTALL_PATH = process.env.SELFHOST_INSTALL_PATH || '/tmp/openmates-selfhost';
+const OPENMATES_CLI_PATH = process.env.OPENMATES_CLI_PATH || '';
 
 test.describe.configure({ retries: 0 });
 
@@ -29,6 +30,34 @@ function readInstallEnv(name: string): string {
  const content = fs.readFileSync(envPath, 'utf-8');
  const line = content.split('\n').find((entry: string) => entry.startsWith(`${name}=`));
  return line ? line.slice(name.length + 1).trim() : '';
+}
+
+function runOpenMatesServer(args: string[], options: any = {}): string {
+ const serverArgs = ['server', ...args, '--path', SELFHOST_INSTALL_PATH];
+ if (OPENMATES_CLI_PATH) {
+  return execFileSync(process.execPath, [OPENMATES_CLI_PATH, ...serverArgs], {
+   encoding: options.stdio ? undefined : 'utf-8',
+   ...options
+  });
+ }
+ return execFileSync('openmates', serverArgs, {
+  encoding: options.stdio ? undefined : 'utf-8',
+  ...options
+ });
+}
+
+function sqlString(value: string): string {
+ return `'${value.replace(/'/g, "''")}'`;
+}
+
+function runDatabaseSql(sql: string): string {
+ const databaseUser = readInstallEnv('DATABASE_USERNAME') || 'directus';
+ const databaseName = readInstallEnv('DATABASE_NAME') || 'directus';
+ return execFileSync(
+  'docker',
+  ['exec', 'cms-database', 'psql', '-U', databaseUser, '-d', databaseName, '-tAc', sql],
+  { encoding: 'utf-8' }
+ ).trim();
 }
 
 function assertCliDefaultsToInstalledSelfHost(): void {
@@ -196,14 +225,33 @@ test('self-hosted install starts, signs up a user, and promotes admin', async ({
 	expect(signedUpSession.json.success).toBe(true);
 	expect(signedUpSession.json.user?.is_admin).toBe(false);
 
- execFileSync('openmates', ['server', 'make-admin', signupEmail, '--path', SELFHOST_INSTALL_PATH], {
-  stdio: 'inherit'
- });
+ runOpenMatesServer(['make-admin', signupEmail], { stdio: 'inherit' });
 
 	const adminSession = await waitForAdminStatus(page, true);
 	// docAssert('openmates server make-admin promotes a self-hosted signup user to admin')
 	expect(adminSession.json.success).toBe(true);
 	expect(adminSession.json.user?.is_admin).toBe(true);
+
+ const userId = adminSession.json.user?.id;
+ expect(userId, 'admin session should expose restored user id').toBeTruthy();
+
+ const repoRoot = process.env.GITHUB_WORKSPACE || path.resolve(process.cwd(), '../../..');
+ const backupPath = path.join(repoRoot, 'test-results', 'selfhost-user-data-backup.tar.gz');
+ fs.mkdirSync(path.dirname(backupPath), { recursive: true });
+ const backup = JSON.parse(runOpenMatesServer(['backup', '--output', backupPath, '--json']));
+ expect(backup.status).toBe('success');
+ expect(backup.file).toBe(backupPath);
+ expect(fs.existsSync(backupPath), 'server backup should write an archive').toBe(true);
+ expect(fs.statSync(backupPath).mode & 0o777, 'backup archive should be owner-readable only').toBe(0o600);
+
+ runDatabaseSql(`UPDATE directus_users SET is_admin = false WHERE id = ${sqlString(userId)}`);
+ expect(runDatabaseSql(`SELECT is_admin::text FROM directus_users WHERE id = ${sqlString(userId)}`)).toBe('false');
+
+ runOpenMatesServer(['restore', '--file', backupPath, '--yes'], { stdio: 'inherit' });
+ expect(runDatabaseSql(`SELECT is_admin::text FROM directus_users WHERE id = ${sqlString(userId)}`)).toBe('true');
+ await page.goto(getE2EDebugUrl('/'));
+ const restoredSession = await waitForAdminStatus(page, true);
+ expect(restoredSession.json.user?.id).toBe(userId);
 
 	const selfHostedCloudOnlyStatuses = await page.evaluate(async (apiUrl: string) => {
 		const requests = [

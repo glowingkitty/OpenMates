@@ -163,7 +163,7 @@ jobs:
       - name: Image-mode self-hosted install and timing
         # docAssert('self-host install smoke passes without provider API keys')
         env:
-          OPENMATES_SELFHOST_TEMPLATE_DIR: ${{ github.workspace }}
+          OPENMATES_SELFHOST_TEMPLATE_DIR: ${{ github.workspace }}/frontend/packages/openmates-cli/templates
           OPENMATES_SKIP_IMAGE_PULL: "1"
         run: |
           CLI="node $GITHUB_WORKSPACE/frontend/packages/openmates-cli/dist/cli.js"
@@ -246,6 +246,7 @@ jobs:
         working-directory: frontend/apps/web_app
         env:
           SELFHOST_INSTALL_PATH: ${{ env.IMAGE_INSTALL_PATH }}
+          OPENMATES_CLI_PATH: ${{ github.workspace }}/frontend/packages/openmates-cli/dist/cli.js
         run: |
           mkdir -p "$GITHUB_WORKSPACE/test-results"
           npx playwright test tests/selfhost-smoke.spec.ts --reporter=json > "$GITHUB_WORKSPACE/test-results/selfhost-smoke-playwright.json"
@@ -267,6 +268,7 @@ jobs:
             test-results/selfhost-source-timing.json
             test-results/selfhost-image-timing.json
             test-results/selfhost-image-update-plan.json
+            test-results/selfhost-user-data-backup.tar.gz
             frontend/apps/web_app/test-results/
           if-no-files-found: ignore
           retention-days: 7

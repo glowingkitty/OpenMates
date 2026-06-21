@@ -847,6 +847,26 @@ function writeChecksums(rootDir: string): void {
   writeFileSync(join(rootDir, "checksums.sha256"), `${lines.sort().join("\n")}\n`);
 }
 
+function verifyChecksums(rootDir: string): void {
+  const checksumsPath = join(rootDir, "checksums.sha256");
+  if (!existsSync(checksumsPath)) throw new Error("Backup archive is missing checksums.sha256.");
+
+  for (const line of readFileSync(checksumsPath, "utf-8").split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const match = trimmed.match(/^([a-f0-9]{64}) {2}(.+)$/);
+    if (!match) throw new Error(`Invalid checksum entry: ${trimmed}`);
+    const relative = match[2];
+    if (relative.startsWith("/") || relative.split(/[\\/]/).includes("..")) {
+      throw new Error(`Unsafe checksum path in backup archive: ${relative}`);
+    }
+    const filePath = join(rootDir, relative);
+    if (!existsSync(filePath)) throw new Error(`Backup archive is missing checksummed file: ${relative}`);
+    const actual = createHash("sha256").update(readFileSync(filePath)).digest("hex");
+    if (actual !== match[1]) throw new Error(`Backup checksum mismatch for ${relative}.`);
+  }
+}
+
 function createServerBackup(installPath: string, role: ServerRole, options: { output?: string; includeObservability?: boolean; preUpdate?: boolean } = {}): string {
   const plan = planBackup({ role, includeObservability: options.includeObservability });
   const backupDir = roleBackupDir(installPath, role);
@@ -874,7 +894,10 @@ function createServerBackup(installPath: string, role: ServerRole, options: { ou
       const databaseUser = env.DATABASE_USERNAME || "directus";
       const databaseName = env.DATABASE_NAME || "directus";
       try {
-        const dump = execSync(`docker exec cms-database pg_dump -U ${shellQuote(databaseUser)} ${shellQuote(databaseName)}`, { encoding: "utf-8" });
+        const dump = execSync(
+          `docker exec cms-database pg_dump --clean --if-exists --no-owner --no-privileges -U ${shellQuote(databaseUser)} ${shellQuote(databaseName)}`,
+          { encoding: "utf-8" },
+        );
         writeFileSync(join(tempDir, "postgres.sql"), dump);
       } catch (error) {
         throw new Error(`Postgres backup failed. Is cms-database running? ${error instanceof Error ? error.message : String(error)}`);
@@ -906,6 +929,7 @@ function restoreServerBackup(installPath: string, role: ServerRole, file: string
   const env = readEnvMap(installPath);
   try {
     execSync(`tar -xzf ${shellQuote(archivePath)} -C ${shellQuote(tempDir)}`, { stdio: "pipe" });
+    verifyChecksums(tempDir);
     const manifestPath = join(tempDir, "manifest.json");
     if (!existsSync(manifestPath)) throw new Error("Backup archive is missing manifest.json.");
     const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as { role?: string };
@@ -918,7 +942,7 @@ function restoreServerBackup(installPath: string, role: ServerRole, file: string
     if (role === "core" && existsSync(postgresDump)) {
       const databaseUser = env.DATABASE_USERNAME || "directus";
       const databaseName = env.DATABASE_NAME || "directus";
-      execSync(`docker exec -i cms-database psql -U ${shellQuote(databaseUser)} ${shellQuote(databaseName)}`, {
+      execSync(`docker exec -i cms-database psql -v ON_ERROR_STOP=1 -U ${shellQuote(databaseUser)} ${shellQuote(databaseName)}`, {
         input: readFileSync(postgresDump),
         stdio: ["pipe", "pipe", "pipe"],
       });
@@ -926,6 +950,11 @@ function restoreServerBackup(installPath: string, role: ServerRole, file: string
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
+}
+
+function restoreStopServices(role: ServerRole): string[] {
+  if (role !== "core") return [];
+  return resolveServiceSelection("core", { exclude: "cms-database" });
 }
 
 async function promptText(question: string, defaultValue = ""): Promise<string> {
@@ -2031,7 +2060,8 @@ async function serverRestore(flags: Record<string, string | boolean>): Promise<v
 
   const withOverrides = config?.composeProfile === "full";
   const installMode = getInstallMode(installPath, config);
-  let code = await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode, role), "stop"], installPath);
+  const stopArgs = [...composeArgs(installPath, withOverrides, installMode, role), "stop", ...restoreStopServices(role)];
+  let code = await runInteractive("docker", stopArgs, installPath);
   if (code !== 0) process.exit(code);
   restoreServerBackup(installPath, role, file);
   code = await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"], installPath);
