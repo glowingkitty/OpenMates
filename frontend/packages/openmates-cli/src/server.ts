@@ -896,7 +896,7 @@ function createServerBackup(installPath: string, role: ServerRole, options: { ou
       try {
         const dump = execSync(
           `docker exec cms-database pg_dump --clean --if-exists --no-owner --no-privileges -U ${shellQuote(databaseUser)} ${shellQuote(databaseName)}`,
-          { encoding: "utf-8" },
+          { encoding: "utf-8", maxBuffer: 256 * 1024 * 1024 },
         );
         writeFileSync(join(tempDir, "postgres.sql"), dump);
       } catch (error) {

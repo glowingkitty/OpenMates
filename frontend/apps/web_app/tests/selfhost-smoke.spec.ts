@@ -37,11 +37,13 @@ function runOpenMatesServer(args: string[], options: any = {}): string {
  if (OPENMATES_CLI_PATH) {
   return execFileSync(process.execPath, [OPENMATES_CLI_PATH, ...serverArgs], {
    encoding: options.stdio ? undefined : 'utf-8',
+   maxBuffer: 64 * 1024 * 1024,
    ...options
   });
  }
  return execFileSync('openmates', serverArgs, {
   encoding: options.stdio ? undefined : 'utf-8',
+  maxBuffer: 64 * 1024 * 1024,
   ...options
  });
 }
