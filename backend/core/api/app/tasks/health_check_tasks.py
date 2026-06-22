@@ -282,6 +282,13 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
         Model ID string in format "provider/model-id" (e.g., "alibaba/qwen3-235b-a22b-2507") or None if no models found
     """
     try:
+        # Cerebras health checks must not depend on app model metadata. Preview
+        # models can be valid globally but unavailable to this account.
+        if server_id == "cerebras":
+            model_id = _get_cerebras_health_check_model_id()
+            logger.debug("Using '%s' for Cerebras health check", model_id)
+            return f"cerebras/{model_id}"
+
         all_provider_configs = config_manager.get_provider_configs()
         if not all_provider_configs:
             logger.warning(f"No provider configs loaded. Cannot find model for server '{server_id}'")
@@ -369,14 +376,6 @@ def _get_cheapest_model_for_server(server_id: str) -> Optional[str]:
         if server_id == "openrouter":
             logger.debug("Using 'mistralai/mistral-small-3.2-24b-instruct' for OpenRouter health check")
             return "mistral/mistral-small-3.2-24b-instruct"
-
-        # For Cerebras, use a production catalog model instead of the cheapest
-        # configured app model. Preview models can be valid globally but not enabled
-        # for this account, which made provider health flap every check cycle.
-        if server_id == "cerebras":
-            model_id = _get_cerebras_health_check_model_id()
-            logger.debug("Using '%s' for Cerebras health check", model_id)
-            return f"cerebras/{model_id}"
 
         # For other servers, find the cheapest model by comparing input costs
         cheapest_candidate = None
