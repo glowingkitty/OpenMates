@@ -3999,6 +3999,7 @@ private struct GuestInterestTagsView: View {
                 .padding(.horizontal, .spacing8)
                 .padding(.vertical, .spacing4)
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("guest-interest-rail")
 
             HStack(spacing: .spacing8) {
@@ -4028,6 +4029,7 @@ private struct GuestInterestTagsView: View {
             .frame(minHeight: 40)
         }
         .frame(maxWidth: 1040)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("guest-interest-tags")
     }
 
