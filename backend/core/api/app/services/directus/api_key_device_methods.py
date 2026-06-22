@@ -51,6 +51,37 @@ async def get_api_key_device_by_hash(
         return None
 
 
+async def get_api_key_device_by_id(
+    self,
+    device_id: str
+) -> Optional[Dict[str, Any]]:
+    """
+    Get an API key device record by device ID.
+
+    Args:
+        self: The DirectusService instance
+        device_id: The ID of the device record
+
+    Returns:
+        Device record if found, None otherwise
+    """
+    try:
+        url = f"{self.base_url}/items/api_key_devices/{device_id}"
+        response = await self._make_api_request(
+            "GET",
+            url,
+            params={"fields": "id,api_key_id,hashed_user_id,device_hash"}
+        )
+
+        if response.status_code == 200:
+            return response.json().get("data")
+        return None
+
+    except Exception as e:
+        logger.error(f"Error getting API key device by ID: {e}", exc_info=True)
+        return None
+
+
 async def create_api_key_device(
     self,
     api_key_id: str,

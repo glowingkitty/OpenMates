@@ -49,6 +49,7 @@ from backend.core.api.app.services.directus.user.device_management import add_us
 # Import API key device management methods
 from backend.core.api.app.services.directus.api_key_device_methods import (
     get_api_key_device_by_hash,
+    get_api_key_device_by_id,
     create_api_key_device,
     update_api_key_device_last_access,
     get_api_key_devices,
@@ -1314,6 +1315,7 @@ class DirectusService:
     
     # API key device management methods
     get_api_key_device_by_hash = get_api_key_device_by_hash
+    get_api_key_device_by_id = get_api_key_device_by_id
     create_api_key_device = create_api_key_device
     update_api_key_device_last_access = update_api_key_device_last_access
     get_api_key_devices = get_api_key_devices

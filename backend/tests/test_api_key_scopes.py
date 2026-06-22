@@ -6,6 +6,8 @@ Security: tests assert deny-by-scope and deny-by-budget behavior server-side.
 Run: python3 -m pytest backend/tests/test_api_key_scopes.py
 """
 
+import hashlib
+
 import pytest
 
 from backend.core.api.app.services.api_key_authorization import (
@@ -13,6 +15,7 @@ from backend.core.api.app.services.api_key_authorization import (
     ApiKeyScopeError,
     ApiKeyAuthorizationService,
 )
+from backend.core.api.app.utils.api_key_device_ownership import api_key_device_belongs_to_user
 
 
 def test_full_access_default_allows_chat_and_any_skill():
@@ -96,3 +99,26 @@ def test_multiple_credit_periods_are_rejected():
                 }
             }
         )
+
+
+def test_owned_api_key_device_verification_uses_device_owner_hash():
+    user_id = "user-123"
+    device = {
+        "id": "device-123",
+        "api_key_id": "api-key-123",
+        "hashed_user_id": hashlib.sha256(user_id.encode()).hexdigest(),
+        "device_hash": "device-hash-123",
+    }
+
+    assert api_key_device_belongs_to_user(device, user_id)
+
+
+def test_owned_api_key_device_verification_rejects_other_users():
+    device = {
+        "id": "device-123",
+        "api_key_id": "api-key-123",
+        "hashed_user_id": hashlib.sha256(b"other-user").hexdigest(),
+        "device_hash": "device-hash-123",
+    }
+
+    assert not api_key_device_belongs_to_user(device, "user-123")

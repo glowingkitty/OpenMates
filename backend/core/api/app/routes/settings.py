@@ -31,6 +31,7 @@ from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
+from backend.core.api.app.utils.api_key_device_ownership import api_key_device_belongs_to_user
 from backend.core.api.app.utils.report_issue_ids import (
     create_issue_record_with_short_id,
     issue_identifier_filter,
@@ -1412,6 +1413,20 @@ async def get_api_key_devices(
         raise HTTPException(status_code=500, detail="Failed to retrieve API key devices")
 
 
+async def _get_owned_api_key_device(
+    directus_service: DirectusService,
+    device_id: str,
+    user_id: str,
+    action: str
+) -> dict:
+    user_device = await directus_service.get_api_key_device_by_id(device_id)
+
+    if not api_key_device_belongs_to_user(user_device, user_id):
+        raise HTTPException(status_code=404, detail=f"Device not found or you don't have permission to {action} it")
+
+    return user_device
+
+
 @router.post("/api-key-devices/{device_id}/approve", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist, web app only
 @limiter.limit("30/minute")
 async def approve_api_key_device(
@@ -1425,26 +1440,7 @@ async def approve_api_key_device(
     Only the owner of the API key can approve devices.
     """
     try:
-        # Verify the device belongs to one of the user's API keys
-        # First, get all user's API keys
-        api_keys_data = await directus_service.get_user_api_keys_by_user_id(current_user.id)
-        api_key_ids = [key.get('id') for key in api_keys_data if key.get('id')]
-        
-        # Get the device to verify ownership
-        # We need to check if the device belongs to one of the user's API keys
-        # Since we don't have a direct lookup by device_id, we'll get all devices and filter
-        user_device = None
-        for api_key_id in api_key_ids:
-            devices = await directus_service.get_api_key_devices(api_key_id)
-            for device in devices:
-                if device.get('id') == device_id:
-                    user_device = device
-                    break
-            if user_device:
-                break
-        
-        if not user_device:
-            raise HTTPException(status_code=404, detail="Device not found or you don't have permission to approve it")
+        user_device = await _get_owned_api_key_device(directus_service, device_id, current_user.id, "approve")
         
         # Approve the device
         success, message = await directus_service.approve_api_key_device(device_id)
@@ -1484,23 +1480,7 @@ async def revoke_api_key_device(
     Only the owner of the API key can revoke devices.
     """
     try:
-        # Verify the device belongs to one of the user's API keys
-        api_keys_data = await directus_service.get_user_api_keys_by_user_id(current_user.id)
-        api_key_ids = [key.get('id') for key in api_keys_data if key.get('id')]
-        
-        # Get the device to verify ownership and get device_hash for cache invalidation
-        user_device = None
-        for api_key_id in api_key_ids:
-            devices = await directus_service.get_api_key_devices(api_key_id)
-            for device in devices:
-                if device.get('id') == device_id:
-                    user_device = device
-                    break
-            if user_device:
-                break
-        
-        if not user_device:
-            raise HTTPException(status_code=404, detail="Device not found or you don't have permission to revoke it")
+        user_device = await _get_owned_api_key_device(directus_service, device_id, current_user.id, "revoke")
         
         # Get device_hash for cache invalidation before deletion
         api_key_id = user_device.get('api_key_id')
@@ -1553,23 +1533,7 @@ async def rename_api_key_device(
     Only the owner of the API key can rename devices.
     """
     try:
-        # Verify the device belongs to one of the user's API keys
-        api_keys_data = await directus_service.get_user_api_keys_by_user_id(current_user.id)
-        api_key_ids = [key.get('id') for key in api_keys_data if key.get('id')]
-        
-        # Get the device to verify ownership
-        user_device = None
-        for api_key_id in api_key_ids:
-            devices = await directus_service.get_api_key_devices(api_key_id)
-            for device in devices:
-                if device.get('id') == device_id:
-                    user_device = device
-                    break
-            if user_device:
-                break
-        
-        if not user_device:
-            raise HTTPException(status_code=404, detail="Device not found or you don't have permission to rename it")
+        await _get_owned_api_key_device(directus_service, device_id, current_user.id, "rename")
         
         # Device name is already encrypted client-side with master key
         # Just store it as-is (zero-knowledge: server never sees plaintext)
