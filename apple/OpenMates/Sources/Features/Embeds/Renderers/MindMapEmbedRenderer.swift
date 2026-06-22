@@ -14,7 +14,7 @@
 import Foundation
 import SwiftUI
 
-struct MindMapEmbedRenderer: View {
+@MainActor struct MindMapEmbedRenderer: View {
     fileprivate enum Constants {
         static let nodeWidth: CGFloat = 180
         static let nodeHeight: CGFloat = 54
@@ -218,7 +218,8 @@ struct MindMapEmbedRenderer: View {
         .padding(.leading, .spacing6)
         .padding(.trailing, node.hasChildren ? .spacing16 : .spacing6)
         .padding(.vertical, .spacing5)
-        .frame(width: Constants.nodeWidth, minHeight: Constants.nodeHeight, alignment: .leading)
+        .frame(width: Constants.nodeWidth, alignment: .leading)
+        .frame(minHeight: Constants.nodeHeight)
         .background(Color.grey0)
         .clipShape(RoundedRectangle(cornerRadius: .radius5))
         .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey20, lineWidth: 1))
@@ -374,7 +375,7 @@ private struct NativeMindMapDocument {
     let collapsedNodeIds: [String]
 }
 
-private struct NativeMindMapNormalization {
+@MainActor private struct NativeMindMapNormalization {
     let status: NativeMindMapStatus
     let model: NativeMindMapDocument?
     let sourceJSON: String
@@ -407,7 +408,7 @@ private struct NativeMindMapNormalization {
     }
 }
 
-private enum NativeMindMapNormalizer {
+@MainActor private enum NativeMindMapNormalizer {
     static func normalize(data: [String: AnyCodable]?) -> NativeMindMapNormalization {
         let sourceValue = data?["source_json"]?.value ?? data?["model"]?.value
         let parsed = parse(sourceValue)

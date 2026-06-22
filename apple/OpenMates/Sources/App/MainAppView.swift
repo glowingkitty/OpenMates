@@ -3580,7 +3580,7 @@ struct NewChatWelcomeView: View {
 
     private var shownChatCards: [WelcomeChatCardData] {
         if shouldShowGuestInterestTags { return [] }
-        isAuthenticated ? recentChatCards : nonAuthChatCards
+        return isAuthenticated ? recentChatCards : nonAuthChatCards
     }
 
     private var shouldShowGuestInterestTags: Bool {
