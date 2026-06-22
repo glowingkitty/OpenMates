@@ -35,6 +35,7 @@ from backend.core.api.app.utils.report_issue_ids import (
     create_issue_record_with_short_id,
     issue_identifier_filter,
 )
+from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
 optional_api_key_scheme = HTTPBearer(
@@ -1057,6 +1058,9 @@ class ApiKeyCreateRequest(BaseModel):
     encrypted_master_key: str  # Master key encrypted with key derived from API key (for CLI/npm/pip access)
     salt: str  # Salt used for deriving key from API key
     key_iv: Optional[str] = None  # IV for AES-GCM encryption of master key
+    full_access: bool = True
+    scopes: Dict[str, Any] = Field(default_factory=dict)
+    credit_limit: Optional[Dict[str, Any]] = None
     expires_at: Optional[str] = None  # Optional expiration timestamp (ISO format)
 
 class ApiKeyResponse(BaseModel):
@@ -1067,6 +1071,9 @@ class ApiKeyResponse(BaseModel):
     last_used_at: Optional[str] = None
     encrypted_name: Optional[str] = None
     encrypted_key_prefix: Optional[str] = None
+    full_access: bool = True
+    scopes: Dict[str, Any] = Field(default_factory=dict)
+    credit_limit: Optional[Dict[str, Any]] = None
 
 class ApiKeyListResponse(BaseModel):
     api_keys: list[ApiKeyResponse]
@@ -1130,7 +1137,10 @@ async def get_api_keys(
                         expires_at=expires_at,
                         last_used_at=last_used_at,
                         encrypted_name=key.get('encrypted_name'),
-                        encrypted_key_prefix=key.get('encrypted_key_prefix')
+                        encrypted_key_prefix=key.get('encrypted_key_prefix'),
+                        full_access=key.get('full_access', True),
+                        scopes=key.get('scopes') or {},
+                        credit_limit=key.get('credit_limit')
                     )
                     api_keys.append(api_key_response)
                 except Exception as key_error:
@@ -1174,6 +1184,15 @@ async def create_api_key(
         if not request_data.salt or len(request_data.salt.strip()) == 0:
             raise HTTPException(status_code=400, detail="Salt is required")
 
+        try:
+            normalized_metadata = ApiKeyAuthorizationService().normalize_metadata({
+                "full_access": request_data.full_access,
+                "scopes": request_data.scopes,
+                "credit_limit": request_data.credit_limit,
+            })
+        except ValueError as metadata_error:
+            raise HTTPException(status_code=400, detail=str(metadata_error))
+
         # Check existing API keys count (max 5 per user)
         existing_keys = await directus_service.get_user_api_keys_by_user_id(current_user.id)
         if len(existing_keys) >= 5:
@@ -1194,6 +1213,9 @@ async def create_api_key(
             key_hash=request_data.api_key_hash,
             encrypted_key_prefix=request_data.encrypted_key_prefix,
             encrypted_name=request_data.encrypted_name,
+            full_access=normalized_metadata["full_access"],
+            scopes=normalized_metadata["scopes"],
+            credit_limit=normalized_metadata.get("credit_limit"),
             expires_at=request_data.expires_at
         )
 
@@ -1246,7 +1268,10 @@ async def create_api_key(
             expires_at=expires_at,
             last_used_at=last_used_at,
             encrypted_name=created_key.get('encrypted_name'),
-            encrypted_key_prefix=created_key.get('encrypted_key_prefix')
+            encrypted_key_prefix=created_key.get('encrypted_key_prefix'),
+            full_access=created_key.get('full_access', True),
+            scopes=created_key.get('scopes') or {},
+            credit_limit=created_key.get('credit_limit')
         )
 
     except HTTPException as e:

@@ -34,9 +34,6 @@ struct SettingsDeveloperView: View {
 struct SettingsAPIKeysView: View {
     @State private var apiKeys: [APIKeyItem] = []
     @State private var isLoading = true
-    @State private var newKeyName = ""
-    @State private var showNewKey = false
-    @State private var generatedKey: String?
 
     struct APIKeyItem: Identifiable, Decodable {
         let id: String
@@ -77,33 +74,11 @@ struct SettingsAPIKeysView: View {
                 }
 
                 Section("Create New Key") {
-                    TextField("Key name", text: $newKeyName)
-                        .accessibleInput("Key name", hint: LocalizationManager.shared.text("settings.developer.key_name_hint"))
-                    Button("Generate API Key") { createKey() }
-                        .disabled(newKeyName.isEmpty)
-                        .accessibleButton("Generate API Key")
-                }
-
-                if let generatedKey {
-                    Section("New Key (copy now — shown only once)") {
-                        HStack {
-                            Text(generatedKey)
-                                .font(.system(.caption, design: .monospaced))
-                                .textSelection(.enabled)
-                                .accessibilityLabel(LocalizationManager.shared.text("settings.developer.new_api_key"))
-                                .accessibilityHint(LocalizationManager.shared.text("settings.developer.key_shown_once_hint"))
-                            Button {
-                                #if os(iOS)
-                                UIPasteboard.general.string = generatedKey
-                                #endif
-                                ToastManager.shared.show("Copied!", type: .success)
-                                AccessibilityAnnouncement.announce(AppStrings.copied)
-                            } label: {
-                                Image(systemName: "doc.on.doc")
-                            }
-                            .accessibleButton(AppStrings.copy, hint: LocalizationManager.shared.text("settings.developer.copy_key_hint"))
-                        }
-                    }
+                    Text("API keys now use a guided security flow with scope selection, one credit limit, expiration, and one-time reveal warnings.")
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                    Button("Open Guided API Key Flow") { openWebApiKeyFlow() }
+                        .accessibleButton("Open Guided API Key Flow")
                 }
             }
         }
@@ -120,19 +95,14 @@ struct SettingsAPIKeysView: View {
         isLoading = false
     }
 
-    private func createKey() {
+    private func openWebApiKeyFlow() {
         Task {
-            do {
-                let response: [String: AnyCodable] = try await APIClient.shared.request(
-                    .post, path: "/v1/settings/api-keys",
-                    body: ["name": newKeyName]
-                )
-                generatedKey = response["key"]?.value as? String
-                newKeyName = ""
-                await loadKeys()
-            } catch {
-                ToastManager.shared.show("Failed to create key", type: .error)
-            }
+            let url = await APIClient.shared.webAppURL.appendingPathComponent("settings/developers/api-keys")
+            #if os(iOS)
+            await UIApplication.shared.open(url)
+            #elseif os(macOS)
+            NSWorkspace.shared.open(url)
+            #endif
         }
     }
 

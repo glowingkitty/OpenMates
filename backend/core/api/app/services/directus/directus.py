@@ -735,13 +735,14 @@ class DirectusService:
             - key_hash (for validation)
             - encrypted_key_prefix (client decrypts for display)
             - encrypted_name (client decrypts for display)
+            - full_access, scopes, credit_limit (authorization metadata)
             - expires_at (expiration timestamp)
             - last_used_at (last usage timestamp)
             - created_at (creation timestamp)
         """
         params = {
             "filter[user_id][_eq]": user_id,
-            "fields": "id,key_hash,encrypted_key_prefix,encrypted_name,expires_at,last_used_at,created_at",
+            "fields": "id,key_hash,encrypted_key_prefix,encrypted_name,full_access,scopes,credit_limit,expires_at,last_used_at,created_at",
             "sort": "-created_at"  # Most recently created first
         }
         try:
@@ -763,7 +764,7 @@ class DirectusService:
         """
         params = {
             "filter[key_hash][_eq]": key_hash,
-            "fields": "id,user_id,hashed_user_id,key_hash,encrypted_name,expires_at,last_used_at",
+            "fields": "id,user_id,hashed_user_id,key_hash,encrypted_name,full_access,scopes,credit_limit,expires_at,last_used_at",
             "limit": 1
         }
         try:
@@ -782,6 +783,9 @@ class DirectusService:
         key_hash: str,
         encrypted_key_prefix: str,
         encrypted_name: str,
+        full_access: bool = True,
+        scopes: Optional[Dict[str, Any]] = None,
+        credit_limit: Optional[Dict[str, Any]] = None,
         expires_at: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
@@ -793,6 +797,9 @@ class DirectusService:
             key_hash: SHA-256 hash of the full API key
             encrypted_key_prefix: Client-side encrypted key prefix
             encrypted_name: Client-side encrypted API key name
+            full_access: Whether the key can use all supported API-key scopes
+            scopes: Optional server-readable scope metadata
+            credit_limit: Optional single-period credit cap metadata
             expires_at: Optional expiration timestamp (ISO format)
             
         Returns:
@@ -808,6 +815,9 @@ class DirectusService:
             "key_hash": key_hash,
             "encrypted_key_prefix": encrypted_key_prefix,
             "encrypted_name": encrypted_name,
+            "full_access": full_access,
+            "scopes": scopes or {},
+            "credit_limit": credit_limit,
             "created_at": current_timestamp,
             "updated_at": current_timestamp,
         }

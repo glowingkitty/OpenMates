@@ -24,7 +24,12 @@
         last_used: string | null;
         encrypted_name?: string;
         encrypted_key_prefix?: string;
+        full_access?: boolean;
+        scopes?: Record<string, unknown>;
+        credit_limit?: { period: string; credits: number } | null;
     }
+
+    type CreateStep = 'scope' | 'credit' | 'expiration';
 
     // State using Svelte 5 $state() runes
     let apiKeys = $state<ApiKey[]>([]);
@@ -35,6 +40,20 @@
     let createdKey = $state('');
     let showCreatedKey = $state(false);
     let creatingKey = $state(false);
+    let createStep = $state<CreateStep>('scope');
+    let fullAccess = $state(true);
+    let chatCreateIncognito = $state(true);
+    let chatCreateSaved = $state(true);
+    let chatReadExisting = $state(true);
+    let chatAppendExisting = $state(true);
+    let chatDelete = $state(true);
+    let chatShare = $state(true);
+    let memoryRead = $state(true);
+    let appsMode = $state<'all' | 'selected'>('all');
+    let allowedSkillText = $state('web:search');
+    let creditPeriod = $state<'unlimited' | 'daily' | 'weekly' | 'monthly' | 'lifetime'>('unlimited');
+    let creditAmount = $state('1000');
+    let expirationPreset = $state<'7d' | '30d' | '90d' | '1y' | 'never'>('never');
 
     // Load API keys on mount
     onMount(() => {
@@ -99,7 +118,10 @@
                         created_at: (key.created_at as string) || null,
                         name: decryptedName,
                         key_prefix: decryptedPrefix,
-                        last_used: lastUsed
+                        last_used: lastUsed,
+                        full_access: (key.full_access as boolean | undefined) ?? true,
+                        scopes: (key.scopes as Record<string, unknown>) || {},
+                        credit_limit: (key.credit_limit as ApiKey['credit_limit']) || null,
                     } satisfies ApiKey;
                 })
             );
@@ -115,10 +137,55 @@
         // Generate a secure API key: sk-api-[32 random chars]
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
         let result = 'sk-api-';
-        for (let i = 0; i < 32; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        const maxUnbiasedValue = Math.floor(256 / chars.length) * chars.length;
+        while (result.length < 'sk-api-'.length + 32) {
+            const randomValues = crypto.getRandomValues(new Uint8Array(32));
+            for (const value of randomValues) {
+                if (value >= maxUnbiasedValue) continue;
+                result += chars.charAt(value % chars.length);
+                if (result.length >= 'sk-api-'.length + 32) break;
+            }
         }
         return result;
+    }
+
+    function buildScopes() {
+        return {
+            chat: [
+                chatCreateIncognito ? 'chat:create_incognito' : null,
+                chatCreateSaved ? 'chat:create_saved' : null,
+                chatReadExisting ? 'chat:read_existing' : null,
+                chatAppendExisting ? 'chat:append_existing' : null,
+                chatDelete ? 'chat:delete' : null,
+                chatShare ? 'chat:share' : null,
+            ].filter(Boolean),
+            memories: memoryRead ? ['memory:read'] : [],
+            apps: {
+                mode: appsMode,
+                allowed_skills: appsMode === 'selected'
+                    ? allowedSkillText.split(',').map((item) => item.trim()).filter(Boolean)
+                    : [],
+                allowed_apps: [],
+            },
+        };
+    }
+
+    function buildCreditLimit() {
+        if (creditPeriod === 'unlimited') return null;
+        return { period: creditPeriod, credits: Math.max(1, Math.floor(Number(creditAmount) || 1)) };
+    }
+
+    function buildExpiresAt() {
+        if (expirationPreset === 'never') return null;
+        const daysByPreset = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 } as const;
+        const expires = new Date();
+        expires.setDate(expires.getDate() + daysByPreset[expirationPreset]);
+        return expires.toISOString();
+    }
+
+    function closeCreateForm() {
+        showCreateForm = false;
+        createStep = 'scope';
     }
 
     async function hashApiKey(key: string): Promise<string> {
@@ -180,7 +247,11 @@
                     encrypted_key_prefix: encryptedKeyPrefix,
                     encrypted_master_key: encryptedMasterKey,
                     salt: uint8ArrayToBase64(salt),
-                    key_iv: keyIv
+                    key_iv: keyIv,
+                    full_access: fullAccess,
+                    scopes: buildScopes(),
+                    credit_limit: buildCreditLimit(),
+                    expires_at: buildExpiresAt(),
                 })
             });
 
@@ -198,7 +269,7 @@
 
             // Reset form
             newKeyName = '';
-            showCreateForm = false;
+            closeCreateForm();
         } catch (err: unknown) {
             error = (err instanceof Error ? err.message : null) || 'Failed to create API key';
         } finally {
@@ -244,6 +315,11 @@
         if (!dateString) return 'Unknown';
         return new Date(dateString).toLocaleDateString();
     }
+
+    function describeCreditLimit(key: ApiKey) {
+        if (!key.credit_limit) return 'Unlimited credits';
+        return `${key.credit_limit.credits} credits / ${key.credit_limit.period}`;
+    }
 </script>
 
 <div class="api-keys-container" data-testid="api-keys-container">
@@ -282,6 +358,8 @@
                         <p class="key-prefix">{key.key_prefix}</p>
                         <div class="key-meta">
                             <span>Created: {formatDate(key.created_at)}</span>
+                            <span>{key.full_access ? 'Full access' : 'Restricted'}</span>
+                            <span>{describeCreditLimit(key)}</span>
                             {#if key.last_used}
                                 <span>Last used: {formatDate(key.last_used)}</span>
                             {:else}
@@ -323,36 +401,127 @@
             aria-modal="true"
             aria-labelledby="apikey-create-title"
             tabindex="-1"
-            use:focusTrap={{ onEscape: () => showCreateForm = false }}
+            use:focusTrap={{ onEscape: closeCreateForm }}
             onmousedown={(e) => e.stopPropagation()}
         >
             <h3 id="apikey-create-title">Create New API Key</h3>
-            <p>Choose a name for your API key to help you remember what it's for.</p>
 
-            <SettingsInput
-                type="text"
-                placeholder="e.g., My App Integration"
-                bind:value={newKeyName}
-                maxlength={100}
-                dataTestid="api-key-name-input"
-            />
+            {#if createStep === 'scope'}
+                <p>Scope controls what this key can do. Full access is convenient but can read and create account data.</p>
+                <SettingsInput
+                    type="text"
+                    placeholder="e.g., My App Integration"
+                    bind:value={newKeyName}
+                    maxlength={100}
+                    dataTestid="api-key-name-input"
+                />
+
+                <label class="scope-toggle">
+                    <input type="checkbox" bind:checked={fullAccess} data-testid="api-key-full-access-toggle" />
+                    <span>Full access to supported API-key actions</span>
+                </label>
+                {#if fullAccess}
+                    <div class="warning-box" data-testid="api-key-full-access-warning">
+                        Full access can read encrypted account metadata, create chats, run app skills, and spend account credits.
+                    </div>
+                {:else}
+                    <div class="scope-grid" data-testid="api-key-scope-options">
+                        <label><input type="checkbox" bind:checked={chatCreateIncognito} /> Create non-persistent chats</label>
+                        <label><input type="checkbox" bind:checked={chatCreateSaved} /> Create saved chats</label>
+                        <label><input type="checkbox" bind:checked={chatReadExisting} /> Read existing chats</label>
+                        <label><input type="checkbox" bind:checked={chatAppendExisting} /> Append existing chats</label>
+                        <label><input type="checkbox" bind:checked={chatDelete} /> Delete chats</label>
+                        <label><input type="checkbox" bind:checked={chatShare} /> Share chats</label>
+                        <label><input type="checkbox" bind:checked={memoryRead} /> Read selected memories</label>
+                    </div>
+                    <details class="scope-details" open>
+                        <summary>App skill access</summary>
+                        <label class="scope-toggle">
+                            <input type="radio" bind:group={appsMode} value="all" />
+                            <span>All app skills</span>
+                        </label>
+                        <label class="scope-toggle">
+                            <input type="radio" bind:group={appsMode} value="selected" />
+                            <span>Selected app skills</span>
+                        </label>
+                        {#if appsMode === 'selected'}
+                            <SettingsInput
+                                type="text"
+                                placeholder="web:search, images:generate"
+                                bind:value={allowedSkillText}
+                                dataTestid="api-key-allowed-skills-input"
+                            />
+                        {/if}
+                    </details>
+                {/if}
+            {:else if createStep === 'credit'}
+                <p>Set one optional credit cap for this key. Unlimited is the default.</p>
+                <div class="radio-list" data-testid="api-key-credit-step">
+                    <label><input type="radio" bind:group={creditPeriod} value="unlimited" /> Unlimited</label>
+                    <label><input type="radio" bind:group={creditPeriod} value="daily" /> Daily</label>
+                    <label><input type="radio" bind:group={creditPeriod} value="weekly" /> Weekly</label>
+                    <label><input type="radio" bind:group={creditPeriod} value="monthly" /> Monthly</label>
+                    <label><input type="radio" bind:group={creditPeriod} value="lifetime" /> Lifetime</label>
+                </div>
+                {#if creditPeriod === 'unlimited'}
+                    <div class="warning-box" data-testid="api-key-credit-warning">
+                        This key can spend account credits without a per-key cap.
+                    </div>
+                {:else}
+                    <SettingsInput
+                        type="number"
+                        placeholder="Credit cap"
+                        bind:value={creditAmount}
+                        min="1"
+                        dataTestid="api-key-credit-amount-input"
+                    />
+                {/if}
+            {:else}
+                <p>Choose when this key expires. Never is the default, but rotating keys is safer.</p>
+                <div class="radio-list" data-testid="api-key-expiration-step">
+                    <label><input type="radio" bind:group={expirationPreset} value="7d" /> 7 days</label>
+                    <label><input type="radio" bind:group={expirationPreset} value="30d" /> 30 days</label>
+                    <label><input type="radio" bind:group={expirationPreset} value="90d" /> 90 days</label>
+                    <label><input type="radio" bind:group={expirationPreset} value="1y" /> 1 year</label>
+                    <label><input type="radio" bind:group={expirationPreset} value="never" /> Never</label>
+                </div>
+                {#if expirationPreset === 'never'}
+                    <div class="warning-box" data-testid="api-key-expiration-warning">
+                        This key never expires. Delete it immediately if it is leaked.
+                    </div>
+                {/if}
+            {/if}
 
             <div class="modal-actions">
                 <button
                     class="btn-cancel"
                     data-testid="api-key-cancel-button"
-                    onclick={() => showCreateForm = false}
+                    onclick={closeCreateForm}
                     disabled={creatingKey}
                 >
                     Cancel
                 </button>
+                {#if createStep !== 'scope'}
+                    <button
+                        class="btn-cancel"
+                        data-testid="api-key-back-button"
+                        onclick={() => createStep = createStep === 'expiration' ? 'credit' : 'scope'}
+                        disabled={creatingKey}
+                    >
+                        Back
+                    </button>
+                {/if}
                 <button
                     class="btn-create-confirm"
                     data-testid="api-key-create-confirm"
-                    onclick={createApiKey}
+                    onclick={() => {
+                        if (createStep === 'scope') createStep = 'credit';
+                        else if (createStep === 'credit') createStep = 'expiration';
+                        else createApiKey();
+                    }}
                     disabled={creatingKey || !newKeyName.trim()}
                 >
-                    {creatingKey ? 'Creating...' : 'Create API Key'}
+                    {creatingKey ? 'Creating...' : createStep === 'expiration' ? 'Create API Key' : 'Continue'}
                 </button>
             </div>
         </div>
@@ -561,8 +730,10 @@
         background: var(--bg-primary);
         border-radius: var(--radius-3);
         padding: var(--spacing-12);
-        max-width: 500px;
+        max-width: 620px;
         width: 90%;
+        max-height: 90vh;
+        overflow: auto;
         box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
     }
 
@@ -582,6 +753,53 @@
         display: flex;
         gap: var(--spacing-6);
         justify-content: flex-end;
+        margin-top: var(--spacing-8);
+    }
+
+    .scope-toggle,
+    .scope-grid label,
+    .radio-list label {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-4);
+        color: var(--text-primary);
+        font-size: var(--font-size-small);
+    }
+
+    .scope-toggle {
+        margin: var(--spacing-6) 0;
+    }
+
+    .scope-grid,
+    .radio-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: var(--spacing-4);
+        margin: var(--spacing-6) 0;
+    }
+
+    .scope-details {
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-2);
+        padding: var(--spacing-6);
+        margin-top: var(--spacing-6);
+    }
+
+    .scope-details summary {
+        cursor: pointer;
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+
+    .warning-box {
+        background: #fef3cd;
+        border: 1px solid #f59e0b;
+        color: #92400e;
+        padding: var(--spacing-6);
+        border-radius: var(--radius-2);
+        margin: var(--spacing-6) 0;
+        font-size: var(--font-size-small);
+        line-height: 1.4;
     }
 
     .btn-cancel, .btn-create-confirm, .btn-done {

@@ -14,10 +14,13 @@ import logging
 from datetime import datetime, timezone
 from fastapi import Request, HTTPException, status, Depends, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import Optional, Dict, Any
-from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.services.cache import CacheService
+from typing import Optional, Dict, Any, TYPE_CHECKING
 from backend.core.api.app.utils.device_fingerprint import _extract_client_ip
+from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.cache import CacheService
+    from backend.core.api.app.services.directus import DirectusService
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +37,8 @@ class ApiKeyAuthService:
 
     def __init__(
         self,
-        directus_service: DirectusService,
-        cache_service: CacheService,
+        directus_service: "DirectusService",
+        cache_service: "CacheService",
         app=None,
     ):
         self.directus_service = directus_service
@@ -137,6 +140,11 @@ class ApiKeyAuthService:
                 'api_key_hash': api_key_hash,  # SHA-256 hash of the API key for usage tracking
                 'device_hash': device_hash,  # SHA-256 hash of the device (IP:user_id) for usage tracking
                 'api_key_encrypted_name': api_key_record.get('encrypted_name'),  # Encrypted name (client decrypts)
+                'api_key_metadata': ApiKeyAuthorizationService().normalize_metadata({
+                    "full_access": api_key_record.get('full_access', True),
+                    "scopes": api_key_record.get('scopes') or {},
+                    "credit_limit": api_key_record.get('credit_limit'),
+                }),
                 # Note: encrypted_name is not decrypted here (client decrypts it)
             }
 
@@ -195,9 +203,16 @@ class ApiKeyAuthService:
                 request.client.host if request.client else None
             )
             
-            # Generate device hash: SHA256(IP_address:user_id)
-            # This is the same format as documented in developer_settings.md
-            device_hash_string = f"{client_ip}:{user_id}"
+            access_type = request.headers.get("X-OpenMates-SDK", "rest_api").strip().lower() or "rest_api"
+            if access_type not in {"rest_api", "cli", "npm", "pip"}:
+                access_type = "rest_api"
+            machine_identifier = request.headers.get("X-OpenMates-Device-Identity")
+
+            # REST clients are IP-scoped. SDK clients can provide a stable local
+            # identity so approval survives network/IP changes without trusting it
+            # for anything beyond a per-key device hash.
+            device_identity = machine_identifier if machine_identifier and access_type in {"cli", "npm", "pip"} else client_ip
+            device_hash_string = f"{access_type}:{device_identity}:{user_id}"
             device_hash = hashlib.sha256(device_hash_string.encode()).hexdigest()
             
             # Check cache first for device approval status
@@ -275,7 +290,8 @@ class ApiKeyAuthService:
                     user_id=user_id,
                     device_hash=device_hash,
                     client_ip=client_ip,
-                    access_type="rest_api"
+                    access_type=access_type,
+                    machine_identifier=machine_identifier,
                 )
                 
                 if success and device_record:

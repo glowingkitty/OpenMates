@@ -26,6 +26,17 @@ api_keys:
       length: 512
       note: "[Encrypted] Client-side encrypted API key name (e.g., 'My App Integration'), encrypted with user's master key"
       required: true
+    full_access:
+      type: boolean
+      note: "When true, the key is allowed to use all API-key-supported scopes. Defaults to true for existing keys."
+      required: true
+      default: true
+    scopes:
+      type: json
+      note: "Server-readable API-key scope metadata for chats, apps, skills, settings, memories, embeds, and sharing."
+    credit_limit:
+      type: json
+      note: "Optional single-period credit cap metadata: {period: daily|weekly|monthly|lifetime, credits: number}. Null means unlimited."
     expires_at:
       type: timestamp
       note: "Timestamp when the API key expires (null for keys that never expire)"
@@ -40,4 +51,3 @@ api_keys:
       type: timestamp
       note: "Timestamp when the record was last updated"
       required: true
-

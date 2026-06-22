@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openmates"
+version = "0.13.0"
+description = "OpenMates Python SDK"
+requires-python = ">=3.10"
+dependencies = ["requests>=2.31"]
+license = { text = "MIT" }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["openmates*"]

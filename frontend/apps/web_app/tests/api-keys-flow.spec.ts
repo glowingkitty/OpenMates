@@ -220,11 +220,22 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	log(`Entered key name: "${keyName}"`);
 	await screenshot(page, 'key-name-entered');
 
-	// Click "Create API Key" to confirm
+	// Guided flow: Scope -> Credit limit -> Expiration -> Reveal
 	const createConfirmButton = page.getByTestId('api-key-create-confirm');
+	await expect(page.getByTestId('api-key-full-access-warning')).toBeVisible({ timeout: 3000 });
 	await expect(createConfirmButton).toBeEnabled({ timeout: 3000 });
 	await createConfirmButton.click();
-	log('Clicked Create API Key confirm.');
+	log('Continued past scope warning.');
+
+	await expect(page.getByTestId('api-key-credit-step')).toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('api-key-credit-warning')).toBeVisible({ timeout: 3000 });
+	await createConfirmButton.click();
+	log('Continued past credit warning.');
+
+	await expect(page.getByTestId('api-key-expiration-step')).toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('api-key-expiration-warning')).toBeVisible({ timeout: 3000 });
+	await createConfirmButton.click();
+	log('Clicked Create API Key confirm after guided warnings.');
 
 	// Wait for "API Key Created" modal with the actual key value
 	const createdKeyEl = page.getByTestId('api-key-created-value');
