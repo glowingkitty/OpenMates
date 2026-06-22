@@ -147,8 +147,8 @@ async function ensureDevelopersSettingsOpen(
 	}
 
 	const developersItem = settingsMenu
-		.getByRole('menuitem')
-		.filter({ hasText: /^developers$/i })
+		.getByTestId('menu-item')
+		.filter({ hasText: /developers/i })
 		.first();
 	await developersItem.scrollIntoViewIfNeeded({ timeout: 8000 });
 	await expect(developersItem).toBeVisible({ timeout: 8000 });
