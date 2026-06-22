@@ -56,11 +56,31 @@ Predefined settings commands are supported; raw `settings get/post/patch/delete`
 
 ## SDK
 
-```ts
-import { OpenMatesClient } from "openmates";
+The package also exports a lazy API-key SDK. Create an API key in OpenMates under Settings > Developers > API Keys, then set `OPENMATES_API_KEY` or pass `apiKey` explicitly. New SDK devices must be approved in Settings > Developers > Devices before API-key calls are allowed.
 
-const client = OpenMatesClient.load();
-const chats = await client.listChats();
+```ts
+import { OpenMates } from "openmates";
+
+const om = new OpenMates({ apiKey: process.env.OPENMATES_API_KEY });
+
+const search = await om.apps.run("web", "search", {
+  requests: [{ query: "OpenMates SDK examples" }],
+});
 ```
 
-Source docs: `docs/user-guide/cli/` in the OpenMates repository.
+SDK methods authenticate lazily; there is no `connect()` call.
+
+```ts
+const latestChats = await om.chats.list(); // defaults to 10
+const allChats = await om.chats.list({ limit: 0 });
+
+const privateChat = await om.chats.create();
+await privateChat.send("Summarize this release note draft.");
+
+const savedChat = await om.chats.create({ saveToAccount: true });
+await savedChat.send("Create a project kickoff checklist.");
+```
+
+New SDK chats are non-persistent by default. Use `saveToAccount: true` only when you intentionally want the chat saved to the OpenMates account.
+
+Source docs: `docs/user-guide/developers/sdk.md` in the OpenMates repository.

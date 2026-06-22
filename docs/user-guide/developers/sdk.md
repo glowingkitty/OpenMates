@@ -21,6 +21,12 @@ Each default shows a warning before the key is created. New SDK devices are bloc
 
 ## JavaScript
 
+Install the npm package:
+
+```bash
+npm install openmates
+```
+
 ```ts
 import { OpenMates } from "openmates";
 
@@ -55,6 +61,12 @@ await chat.send("Create a project kickoff checklist.");
 ```
 
 ## Python
+
+Install the Python package:
+
+```bash
+pip install openmates
+```
 
 ```python
 from openmates import OpenMates
