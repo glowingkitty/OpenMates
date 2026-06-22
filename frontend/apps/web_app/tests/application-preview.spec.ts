@@ -28,6 +28,18 @@ const {
 } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
+const API_BASE_URL = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates.org';
+
+async function skipWhenApplicationPreviewDisabled(page: any) {
+	const response = await page.request.get(`${API_BASE_URL}/v1/features/availability`);
+	if (!response.ok()) return;
+	const availability = await response.json();
+	test.skip(
+		availability?.disabled?.includes('embed:code:application'),
+		'application preview embed is disabled on this environment'
+	);
+}
+
 test('generated application embed starts explicit isolated live preview', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(420_000);
@@ -37,6 +49,7 @@ test('generated application embed starts explicit isolated live preview', async 
 
 	const { email, password, otpKey } = getTestAccount();
 	skipWithoutCredentials(test, email, password, otpKey);
+	await skipWhenApplicationPreviewDisabled(page);
 
 	const logCheckpoint = createSignupLogger('application-preview');
 	await archiveExistingScreenshots(logCheckpoint);
