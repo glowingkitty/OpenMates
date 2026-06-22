@@ -623,9 +623,10 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed_after_deploy
+        run_id: github-actions-27990843586
+        timestamp: "2026-06-22T23:25:39Z"
+        note: "Passed after deploying 9f35db7 and b0a2073, applying the dev Caddyfile, and restarting api so platform:workflows config loaded. Test orchestrator run 2026-06-22T23:21:36Z on dev commit e9cd8fc3b."
 
   - id: T-APPLE-001
     type: unit
