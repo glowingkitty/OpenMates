@@ -112,24 +112,62 @@ async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void
 	logCheckpoint('API Keys page loaded.');
 }
 
-async function navigateToDevices(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
-	const settingsMenu = await ensureSettingsMenuOpen(page, logCheckpoint);
+async function ensureDevelopersSettingsOpen(
+	page: any,
+	logCheckpoint: (msg: string) => void
+): Promise<any> {
+	const settingsMenu = page.getByTestId('settings-menu');
+	if (!(await settingsMenu.isVisible({ timeout: 1000 }).catch(() => false))) {
+		const openSettingsButton = page.getByRole('button', { name: /open settings menu/i }).first();
+		await expect(openSettingsButton).toBeVisible({ timeout: 10000 });
+		await openSettingsButton.click();
+		logCheckpoint('Opened settings menu.');
+	}
+	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+
+	for (let i = 0; i < 5; i++) {
+		const activeView = await settingsMenu.getAttribute('data-active-view');
+		if (activeView === 'developers') {
+			return settingsMenu;
+		}
+		if (!activeView || activeView === 'main') {
+			break;
+		}
+
+		const bannerBackButton = page.getByTestId('banner-back-button').first();
+		const backButton = (await bannerBackButton.isVisible({ timeout: 1000 }).catch(() => false))
+			? bannerBackButton
+			: page.locator('#settings-back-button');
+		await expect(backButton).toBeVisible({ timeout: 5000 });
+		await backButton.click();
+		logCheckpoint('Returned toward Developers settings menu.');
+		await expect(settingsMenu).toHaveAttribute('data-active-view', /^(main|developers)$/i, {
+			timeout: 5000
+		});
+	}
 
 	const developersItem = settingsMenu
 		.getByRole('menuitem')
 		.filter({ hasText: /^developers$/i })
 		.first();
-	await developersItem.scrollIntoViewIfNeeded();
+	await developersItem.scrollIntoViewIfNeeded({ timeout: 8000 });
 	await expect(developersItem).toBeVisible({ timeout: 8000 });
-	await developersItem.click();
+	await developersItem.click({ timeout: 8000 });
+	logCheckpoint('Navigated to Developers.');
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'developers', { timeout: 8000 });
+	return settingsMenu;
+}
+
+async function navigateToDevices(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
+	const settingsMenu = await ensureDevelopersSettingsOpen(page, logCheckpoint);
 
 	const devicesItem = settingsMenu
 		.getByRole('menuitem')
 		.filter({ hasText: /^devices$/i })
 		.first();
-	await devicesItem.scrollIntoViewIfNeeded();
+	await devicesItem.scrollIntoViewIfNeeded({ timeout: 8000 });
 	await expect(devicesItem).toBeVisible({ timeout: 8000 });
-	await devicesItem.click();
+	await devicesItem.click({ timeout: 8000 });
 	logCheckpoint('Navigated to Devices page.');
 
 	await expect(page.getByTestId('devices-container')).toBeVisible({ timeout: 8000 });
