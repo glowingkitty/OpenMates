@@ -328,8 +328,8 @@ async def test_sdk_dispatch_new_chat_suggestions_falls_back_to_database():
 
 @pytest.mark.asyncio
 async def test_sdk_dispatch_memory_types_uses_apps_api_route(monkeypatch):
-    async def fake_list_apps(lang, request):
-        assert lang == "en"
+    async def fake_list_apps(request, user_info):
+        assert user_info == {"user_id": "user-1"}
         return [{"id": "calendar", "memory": True}]
 
     fake_apps_api = SimpleNamespace(list_apps=fake_list_apps)

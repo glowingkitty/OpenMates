@@ -457,7 +457,7 @@ async def _dispatch_sdk_surface(
         if parts == ["types"] and request.method == "GET":
             from backend.core.api.app.routes import apps_api as apps_routes
 
-            apps = await apps_routes.list_apps(lang=request.query_params.get("lang", "en"), request=request)
+            apps = await apps_routes.list_apps(request=request, user_info={"user_id": user.id})
             return {"apps": _jsonable(apps)}
         if not parts and request.method == "POST":
             entry = (body or {}).get("entry") or body or {}
