@@ -507,9 +507,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed_after_deploy
+        run_id: "27947809563"
+        timestamp: "2026-06-22T11:02:36Z"
 
   - id: T-MANUAL-001
     type: manual
@@ -525,6 +525,10 @@ tests:
     green_phase:
       required: true
       expected: docs_review_pass
+      evidence:
+        status: passed
+        run_id: local-session-449e
+        timestamp: "2026-06-22T08:08:34Z"
 
   - id: T-APPLE-001
     type: manual
@@ -540,6 +544,10 @@ tests:
     green_phase:
       required: true
       expected: pass_or_sanitized_remote_failure
+      evidence:
+        status: passed
+        run_id: local-session-449e
+        timestamp: "2026-06-22T08:08:34Z"
 
 implementation_plan:
   existing_patterns:
