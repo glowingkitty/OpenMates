@@ -76,10 +76,10 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertFalse(app.buttons["guest-interest-continue"].exists)
 
         tapInterestTag("privacy", in: app)
-        tapInterestTag("learning", in: app)
-        tapInterestTag("writing", in: app)
-        XCTAssertFalse(app.buttons["guest-interest-continue"].exists)
         tapInterestTag("software_development", in: app)
+        tapInterestTag("run_code", in: app)
+        XCTAssertFalse(app.buttons["guest-interest-continue"].exists)
+        tapInterestTag("build_electronics", in: app)
 
         let continueButton = app.buttons["guest-interest-continue"]
         XCTAssertTrue(continueButton.waitForExistence(timeout: 5))
@@ -105,7 +105,16 @@ final class ChatFlowParityUITests: XCTestCase {
 
     private func tapInterestTag(_ tagId: String, in app: XCUIApplication) {
         let tag = app.buttons["interest-tag-\(tagId)"]
-        XCTAssertTrue(tag.waitForExistence(timeout: 5), "Expected interest tag \(tagId)")
+        let rail = app.scrollViews["guest-interest-rail"]
+        XCTAssertTrue(rail.waitForExistence(timeout: 5), "Expected guest interest rail")
+
+        if !tag.waitForExistence(timeout: 1) || !tag.isHittable {
+            for _ in 0..<3 where !tag.isHittable { rail.swipeRight() }
+            for _ in 0..<8 where !tag.isHittable { rail.swipeLeft() }
+        }
+
+        XCTAssertTrue(tag.exists, "Expected interest tag \(tagId)")
+        XCTAssertTrue(tag.isHittable, "Expected interest tag \(tagId) to be visible in the rail")
         tag.tap()
         XCTAssertTrue(app.descendants(matching: .any)["interest-tag-\(tagId)-check"].waitForExistence(timeout: 5))
     }
