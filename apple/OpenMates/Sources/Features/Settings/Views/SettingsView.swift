@@ -1358,40 +1358,423 @@ struct SettingsAccountSubPage: View {
     }
 }
 
-private enum InterestTagId: String, CaseIterable, Codable, Hashable {
+enum InterestTagId: String, CaseIterable, Codable, Hashable {
+    case privacy
+    case learning
+    case writing
     case softwareDevelopment = "software_development"
-    case useTheCli = "use_the_cli"
-    case openSource = "open_source"
-    case readDeveloperDocs = "read_developer_docs"
-    case runCode = "run_code"
-    case protectMyPrivacy = "protect_my_privacy"
-    case summarizeDocuments = "summarize_documents"
+    case findEvents = "find_events"
+    case findRestaurant = "find_restaurant"
+    case findDoctorAppointments = "find_doctor_appointments"
+    case plotCharts = "plot_charts"
+    case videoTutorials = "video_tutorials"
     case findApartments = "find_apartments"
-    case localLife = "local_life"
-    case learnAnything = "learn_anything"
+    case businessDevelopment = "business_development"
+    case lifeCoachPsychology = "life_coach_psychology"
+    case medicalHealth = "medical_health"
+    case legalLaw = "legal_law"
+    case finance
+    case design
+    case marketingSales = "marketing_sales"
+    case science
+    case history
+    case cookingFood = "cooking_food"
+    case electricalEngineering = "electrical_engineering"
+    case makerPrototyping = "maker_prototyping"
+    case moviesTv = "movies_tv"
+    case activism
+    case generalKnowledge = "general_knowledge"
+    case buildElectronics = "build_electronics"
+    case diyProjects = "diy_projects"
+    case createVideos = "create_videos"
+    case findTravelConnections = "find_travel_connections"
+    case planTrips = "plan_trips"
+    case discussNews = "discuss_news"
+    case discussVideos = "discuss_videos"
+    case runCode = "run_code"
+
+    private static let legacyAliases: [String: InterestTagId] = [
+        "use_the_cli": .softwareDevelopment,
+        "open_source": .softwareDevelopment,
+        "read_developer_docs": .softwareDevelopment,
+        "protect_my_privacy": .privacy,
+        "summarize_documents": .writing,
+        "local_life": .findRestaurant,
+        "learn_anything": .learning,
+    ]
+
+    static func normalized(_ rawIds: [String]) -> [InterestTagId] {
+        var seen = Set<InterestTagId>()
+        var normalized: [InterestTagId] = []
+        for rawId in rawIds {
+            let tag = InterestTagId(rawValue: rawId) ?? legacyAliases[rawId]
+            guard let tag, seen.insert(tag).inserted else { continue }
+            normalized.append(tag)
+        }
+        return normalized
+    }
 
     var label: String {
-        LocalizationManager.shared.text("chat.interests.\(rawValue)")
+        LocalizationManager.shared.text(labelKey)
+    }
+
+    var labelKey: String {
+        switch self {
+        case .privacy, .learning, .writing, .findEvents, .findRestaurant, .findDoctorAppointments,
+             .plotCharts, .videoTutorials, .findApartments, .buildElectronics, .diyProjects,
+             .createVideos, .findTravelConnections, .planTrips, .discussNews, .discussVideos, .runCode:
+            return "chat.interests.\(rawValue)"
+        case .softwareDevelopment: return "mates.software_development"
+        case .businessDevelopment: return "mates.business_development"
+        case .lifeCoachPsychology: return "mates.life_coach_psychology"
+        case .medicalHealth: return "mates.medical_health"
+        case .legalLaw: return "mates.legal_law"
+        case .finance: return "mates.finance"
+        case .design: return "mates.design"
+        case .marketingSales: return "mates.marketing_sales"
+        case .science: return "mates.science"
+        case .history: return "mates.history"
+        case .cookingFood: return "mates.cooking_food"
+        case .electricalEngineering: return "mates.electrical_engineering"
+        case .makerPrototyping: return "mates.maker_prototyping"
+        case .moviesTv: return "mates.movies_tv"
+        case .activism: return "mates.activism"
+        case .generalKnowledge: return "mates.general_knowledge"
+        }
     }
 
     var icon: String {
         switch self {
+        case .privacy: return "shield-check"
+        case .learning: return "graduation-cap"
+        case .writing: return "pen-line"
         case .softwareDevelopment, .runCode: return "code"
-        case .useTheCli: return "terminal"
-        case .openSource, .readDeveloperDocs: return "docs"
-        case .protectMyPrivacy: return "privacy"
-        case .summarizeDocuments: return "document"
+        case .findEvents: return "calendar-search"
+        case .findRestaurant, .cookingFood: return "utensils"
+        case .findDoctorAppointments: return "calendar-heart"
+        case .plotCharts: return "chart-line"
+        case .videoTutorials: return "circle-play"
         case .findApartments: return "home"
-        case .localLife: return "maps"
-        case .learnAnything: return "study"
+        case .businessDevelopment: return "briefcase-business"
+        case .lifeCoachPsychology: return "heart-handshake"
+        case .medicalHealth: return "heart-pulse"
+        case .legalLaw: return "gavel"
+        case .finance: return "dollar-sign"
+        case .design: return "palette"
+        case .marketingSales, .activism: return "megaphone"
+        case .science: return "microscope"
+        case .history: return "landmark"
+        case .electricalEngineering: return "zap"
+        case .makerPrototyping: return "wrench"
+        case .moviesTv: return "tv"
+        case .generalKnowledge: return "help-circle"
+        case .buildElectronics: return "cpu"
+        case .diyProjects: return "hammer"
+        case .createVideos: return "video"
+        case .findTravelConnections: return "train-front"
+        case .planTrips: return "plane"
+        case .discussNews: return "newspaper"
+        case .discussVideos: return "message-square-play"
+        }
+    }
+
+    var appId: String {
+        switch self {
+        case .privacy: return "ai"
+        case .learning, .science, .history, .generalKnowledge: return "web"
+        case .writing: return "mail"
+        case .softwareDevelopment, .runCode: return "code"
+        case .findEvents: return "events"
+        case .findRestaurant: return "maps"
+        case .findDoctorAppointments, .medicalHealth: return "health"
+        case .plotCharts: return "math"
+        case .videoTutorials, .moviesTv, .createVideos, .discussVideos: return "videos"
+        case .findApartments: return "home"
+        case .businessDevelopment, .lifeCoachPsychology, .legalLaw, .finance, .marketingSales: return "ai"
+        case .design: return "images"
+        case .cookingFood: return "maps"
+        case .electricalEngineering, .makerPrototyping, .buildElectronics, .diyProjects: return "electronics"
+        case .activism, .discussNews: return "news"
+        case .findTravelConnections, .planTrips: return "travel"
+        }
+    }
+
+    var gradientCategory: String {
+        switch self {
+        case .privacy: return "openmates_official"
+        case .learning, .findEvents, .planTrips, .findTravelConnections, .discussNews, .generalKnowledge: return "general_knowledge"
+        case .writing: return "creative_writing"
+        case .softwareDevelopment, .runCode: return "software_development"
+        case .findRestaurant, .cookingFood: return "cooking_food"
+        case .findDoctorAppointments, .medicalHealth: return "medical_health"
+        case .plotCharts, .science: return "science"
+        case .videoTutorials, .moviesTv, .createVideos, .discussVideos: return "movies_tv"
+        case .findApartments, .businessDevelopment: return "business_development"
+        case .lifeCoachPsychology: return "life_coach_psychology"
+        case .legalLaw: return "legal_law"
+        case .finance: return "finance"
+        case .design: return "design"
+        case .marketingSales: return "marketing_sales"
+        case .history: return "history"
+        case .electricalEngineering, .buildElectronics: return "electrical_engineering"
+        case .makerPrototyping, .diyProjects: return "maker_prototyping"
+        case .activism: return "activism"
+        }
+    }
+
+    var defaultOrder: Int {
+        switch self {
+        case .privacy: return 10
+        case .learning: return 20
+        case .writing: return 30
+        case .softwareDevelopment: return 40
+        case .findEvents: return 50
+        case .findRestaurant: return 60
+        case .findDoctorAppointments: return 70
+        case .plotCharts: return 80
+        case .videoTutorials: return 90
+        case .findApartments: return 100
+        case .businessDevelopment: return 110
+        case .lifeCoachPsychology: return 120
+        case .medicalHealth: return 130
+        case .legalLaw: return 140
+        case .finance: return 150
+        case .design: return 160
+        case .marketingSales: return 170
+        case .science: return 180
+        case .history: return 190
+        case .cookingFood: return 200
+        case .electricalEngineering: return 210
+        case .makerPrototyping: return 220
+        case .moviesTv: return 230
+        case .activism: return 240
+        case .generalKnowledge: return 250
+        case .buildElectronics: return 260
+        case .diyProjects: return 270
+        case .createVideos: return 280
+        case .findTravelConnections: return 290
+        case .planTrips: return 300
+        case .discussNews: return 310
+        case .discussVideos: return 320
+        case .runCode: return 330
+        }
+    }
+
+    var related: [InterestTagId] {
+        switch self {
+        case .privacy: return [.legalLaw, .softwareDevelopment, .writing]
+        case .learning: return [.science, .history, .softwareDevelopment, .videoTutorials, .writing]
+        case .writing: return [.marketingSales, .businessDevelopment, .learning, .privacy]
+        case .softwareDevelopment: return [.runCode, .buildElectronics, .diyProjects, .learning, .privacy]
+        case .findEvents: return [.planTrips, .findRestaurant, .marketingSales, .generalKnowledge]
+        case .findRestaurant: return [.cookingFood, .findEvents, .planTrips, .findApartments]
+        case .findDoctorAppointments: return [.medicalHealth, .privacy, .learning]
+        case .plotCharts: return [.science, .finance, .businessDevelopment, .runCode]
+        case .videoTutorials: return [.learning, .discussVideos, .moviesTv, .softwareDevelopment]
+        case .findApartments: return [.findRestaurant, .planTrips, .businessDevelopment]
+        case .businessDevelopment: return [.marketingSales, .finance, .writing, .plotCharts]
+        case .lifeCoachPsychology: return [.learning, .writing, .medicalHealth]
+        case .medicalHealth: return [.findDoctorAppointments, .privacy, .learning]
+        case .legalLaw: return [.privacy, .writing, .activism]
+        case .finance: return [.businessDevelopment, .plotCharts, .privacy]
+        case .design: return [.createVideos, .writing, .marketingSales]
+        case .marketingSales: return [.businessDevelopment, .writing, .createVideos, .findEvents]
+        case .science: return [.learning, .plotCharts, .generalKnowledge]
+        case .history: return [.learning, .discussNews, .generalKnowledge]
+        case .cookingFood: return [.findRestaurant, .learning, .writing]
+        case .electricalEngineering: return [.buildElectronics, .softwareDevelopment, .makerPrototyping]
+        case .makerPrototyping: return [.diyProjects, .buildElectronics, .electricalEngineering]
+        case .moviesTv: return [.discussVideos, .videoTutorials, .createVideos]
+        case .activism: return [.discussNews, .legalLaw, .privacy, .writing]
+        case .generalKnowledge: return [.learning, .science, .history, .discussNews]
+        case .buildElectronics: return [.electricalEngineering, .makerPrototyping, .softwareDevelopment, .runCode]
+        case .diyProjects: return [.makerPrototyping, .buildElectronics, .learning]
+        case .createVideos: return [.design, .marketingSales, .discussVideos, .writing]
+        case .findTravelConnections: return [.planTrips, .findApartments, .findEvents]
+        case .planTrips: return [.findTravelConnections, .findApartments, .findEvents, .findRestaurant]
+        case .discussNews: return [.activism, .history, .generalKnowledge, .privacy]
+        case .discussVideos: return [.moviesTv, .videoTutorials, .createVideos, .learning]
+        case .runCode: return [.softwareDevelopment, .plotCharts, .buildElectronics, .learning]
+        }
+    }
+
+    var suggestions: [String] {
+        switch self {
+        case .privacy: return ["chat.new_chat_suggestions.cybersecurity", "chat.new_chat_suggestions.professional_email"]
+        case .learning: return ["chat.new_chat_suggestions.quantum_computing", "chat.new_chat_suggestions.learn_spanish", "chat.new_chat_suggestions.photosynthesis"]
+        case .writing: return ["chat.new_chat_suggestions.professional_email", "chat.new_chat_suggestions.writing_prompts", "chat.new_chat_suggestions.cover_letter"]
+        case .softwareDevelopment: return ["chat.new_chat_suggestions.learn_coding", "chat.new_chat_suggestions.use_openmates_cli_api", "chat.new_chat_suggestions.cybersecurity", "chat.new_chat_suggestions.discover_math_calculate"]
+        case .findEvents, .findApartments, .findTravelConnections, .planTrips: return ["chat.new_chat_suggestions.plan_trip_japan"]
+        case .findRestaurant: return ["chat.new_chat_suggestions.meal_prep", "chat.new_chat_suggestions.plan_trip_japan"]
+        case .findDoctorAppointments, .medicalHealth: return ["chat.new_chat_suggestions.healthy_breakfast", "chat.new_chat_suggestions.workout_plan"]
+        case .plotCharts: return ["chat.new_chat_suggestions.discover_math_calculate", "chat.new_chat_suggestions.stock_market"]
+        case .videoTutorials: return ["chat.new_chat_suggestions.discover_video_search", "chat.new_chat_suggestions.learn_coding"]
+        case .businessDevelopment: return ["chat.new_chat_suggestions.improve_productivity", "chat.new_chat_suggestions.professional_email"]
+        case .lifeCoachPsychology: return ["chat.new_chat_suggestions.improve_productivity", "chat.new_chat_suggestions.workout_plan"]
+        case .legalLaw: return ["chat.new_chat_suggestions.cybersecurity"]
+        case .finance: return ["chat.new_chat_suggestions.stock_market"]
+        case .design: return ["chat.new_chat_suggestions.discover_image_generate", "chat.new_chat_suggestions.writing_prompts"]
+        case .marketingSales: return ["chat.new_chat_suggestions.professional_email", "chat.new_chat_suggestions.writing_prompts"]
+        case .science: return ["chat.new_chat_suggestions.quantum_computing", "chat.new_chat_suggestions.photosynthesis"]
+        case .history: return ["chat.new_chat_suggestions.internet_history", "chat.new_chat_suggestions.theory_relativity"]
+        case .cookingFood: return ["chat.new_chat_suggestions.healthy_breakfast", "chat.new_chat_suggestions.meal_prep"]
+        case .electricalEngineering, .buildElectronics: return ["chat.new_chat_suggestions.learn_coding", "chat.new_chat_suggestions.discover_math_calculate"]
+        case .makerPrototyping, .diyProjects: return ["chat.new_chat_suggestions.learn_coding"]
+        case .moviesTv, .discussVideos: return ["chat.new_chat_suggestions.discover_video_search"]
+        case .activism: return ["chat.new_chat_suggestions.carbon_footprint", "chat.new_chat_suggestions.cybersecurity"]
+        case .generalKnowledge: return ["chat.new_chat_suggestions.quantum_computing", "chat.new_chat_suggestions.ml_vs_ai"]
+        case .createVideos: return ["chat.new_chat_suggestions.discover_video_search", "chat.new_chat_suggestions.writing_prompts"]
+        case .discussNews: return ["chat.new_chat_suggestions.discover_news_search", "chat.new_chat_suggestions.ai_news"]
+        case .runCode: return ["chat.new_chat_suggestions.learn_coding", "chat.new_chat_suggestions.discover_math_calculate", "chat.new_chat_suggestions.use_openmates_cli_api"]
+        }
+    }
+
+    var introChats: [String] {
+        switch self {
+        case .softwareDevelopment, .videoTutorials, .plotCharts, .electricalEngineering, .makerPrototyping, .buildElectronics, .diyProjects:
+            return ["demo-for-developers", "demo-for-everyone"]
+        case .runCode:
+            return ["demo-for-developers"]
+        case .privacy:
+            return ["demo-for-everyone", "demo-who-develops-openmates"]
+        default:
+            return ["demo-for-everyone"]
+        }
+    }
+
+    var exampleChats: [String] {
+        switch self {
+        case .privacy: return ["example-pdf-search-encryption", "example-privacy-website-hero-background", "example-private-workspace-demo-video"]
+        case .learning: return ["example-rag-explained-videos", "example-ted-talk-transcript-summary", "example-memory-study-learning-goals"]
+        case .writing: return ["example-ted-talk-transcript-summary", "example-building-maintenance-email", "example-memory-docs-writing-style"]
+        case .softwareDevelopment: return ["example-svelte-runes-docs", "example-python-squares-code-run", "example-openmates-app-skills-embeds-docs", "example-openmates-add-app-skill-doc", "example-frontend-developer-career-pivot"]
+        case .findEvents: return ["example-ai-workshops-meetups-berlin", "example-creativity-drawing-meetups-berlin", "example-memory-events-saved-events"]
+        case .findRestaurant: return ["example-quiet-cafes-tempelhofer-feld", "example-organic-groceries-berlin"]
+        case .findDoctorAppointments: return ["example-berlin-dermatology-appointments", "example-memory-health-appointments"]
+        case .plotCharts: return ["example-damped-sine-wave-plot", "example-mortgage-payment-calculation"]
+        case .videoTutorials, .moviesTv, .discussVideos: return ["example-rag-explained-videos", "example-ted-talk-transcript-summary"]
+        case .findApartments: return ["example-furnished-apartments-berlin", "example-memory-home-saved-listings"]
+        case .businessDevelopment: return ["example-launch-readiness-checklist-doc", "example-privacy-first-product-launch-mind-map"]
+        case .lifeCoachPsychology: return ["example-habit-tracker-onboarding-draft", "example-memory-ai-learning-preferences"]
+        case .medicalHealth: return ["example-berlin-dermatology-appointments", "example-memory-health-medical-history"]
+        case .legalLaw: return ["example-eu-chat-control-law-criticisms", "example-right-to-repair-laws-eu-us"]
+        case .finance: return ["example-mortgage-payment-calculation", "example-us-egg-prices-deep-research"]
+        case .design: return ["example-privacy-website-hero-background", "example-northstar-metrics-svg-logo"]
+        case .marketingSales: return ["example-product-teaser-remotion-video", "example-nonprofit-event-planning-use-case"]
+        case .science: return ["example-artemis-ii-mission", "example-sqlite-strict-tables-summary"]
+        case .history: return ["example-germany-historic-film-industry", "example-gigantic-airplanes"]
+        case .cookingFood: return ["example-chickpea-spinach-protein-dinners", "example-organic-groceries-berlin"]
+        case .electricalEngineering, .buildElectronics: return ["example-buck-converters-24v-5v", "example-usb-c-3v3-ldo-pcb-schematic"]
+        case .makerPrototyping, .diyProjects: return ["example-usb-c-3v3-ldo-pcb-schematic", "example-right-to-repair-laws-eu-us"]
+        case .activism, .discussNews: return ["example-eu-chat-control-law-criticisms", "example-fediverse-activitypub-social-search"]
+        case .generalKnowledge: return ["example-gigantic-airplanes", "example-artemis-ii-mission"]
+        case .createVideos: return ["example-product-teaser-remotion-video", "example-private-workspace-demo-video"]
+        case .findTravelConnections: return ["example-flights-berlin-to-bangkok", "example-memory-travel-saved-connections"]
+        case .planTrips: return ["example-family-stays-kyoto", "example-furnished-apartments-berlin", "example-berlin-weather-bike-commute"]
+        case .runCode: return ["example-python-squares-code-run", "example-damped-sine-wave-plot"]
         }
     }
 }
 
-private struct TopicPreferencesPayload: Codable {
+enum InterestTagRanking {
+    private static let matchScore = 1000
+    private static let relatedScore = 80
+    private static let sharedCategoryScore = 20
+
+    static func rankTags(selected: [InterestTagId]) -> [InterestTagId] {
+        let selectedSet = Set(selected)
+        let selectedOrder = Dictionary(uniqueKeysWithValues: selected.enumerated().map { ($0.element, $0.offset) })
+        return InterestTagId.allCases.sorted { lhs, rhs in
+            if selectedSet.contains(lhs) || selectedSet.contains(rhs) {
+                return (selectedOrder[lhs] ?? Int.max) < (selectedOrder[rhs] ?? Int.max)
+            }
+            let lhsScore = scoreTagRelation(lhs, selected: selected)
+            let rhsScore = scoreTagRelation(rhs, selected: selected)
+            if lhsScore != rhsScore { return lhsScore > rhsScore }
+            return lhs.defaultOrder < rhs.defaultOrder
+        }
+    }
+
+    static func surfaceIds(selected: [InterestTagId], keyPath: KeyPath<InterestTagId, [String]>) -> Set<String> {
+        Set(selected.flatMap { $0[keyPath: keyPath] })
+    }
+
+    static func rankIds(_ ids: [String], selected: [InterestTagId], keyPath: KeyPath<InterestTagId, [String]>) -> [String] {
+        var seen = Set<String>()
+        let deduped = ids.filter { seen.insert($0).inserted }
+        return deduped.enumerated().sorted { lhs, rhs in
+            let lhsScore = scoreContent(lhs.element, selected: selected, keyPath: keyPath)
+            let rhsScore = scoreContent(rhs.element, selected: selected, keyPath: keyPath)
+            if lhsScore != rhsScore { return lhsScore > rhsScore }
+            return lhs.offset < rhs.offset
+        }.map(\.element)
+    }
+
+    private static func scoreTagRelation(_ tag: InterestTagId, selected: [InterestTagId]) -> Int {
+        selected.enumerated().reduce(0) { total, item in
+            let selectedTag = item.element
+            var score = total
+            if selectedTag.related.contains(tag) || tag.related.contains(selectedTag) {
+                score += relatedScore - item.offset
+            }
+            if tag.gradientCategory == selectedTag.gradientCategory {
+                score += sharedCategoryScore
+            }
+            score += sharedSurfaceCount(tag, selectedTag: selectedTag)
+            return score
+        }
+    }
+
+    private static func sharedSurfaceCount(_ tag: InterestTagId, selectedTag: InterestTagId) -> Int {
+        sharedCount(tag.suggestions, selectedTag.suggestions) +
+        sharedCount(tag.introChats, selectedTag.introChats) +
+        sharedCount(tag.exampleChats, selectedTag.exampleChats)
+    }
+
+    private static func sharedCount(_ lhs: [String], _ rhs: [String]) -> Int {
+        let rhsSet = Set(rhs)
+        return lhs.filter { rhsSet.contains($0) }.count
+    }
+
+    private static func scoreContent(_ id: String, selected: [InterestTagId], keyPath: KeyPath<InterestTagId, [String]>) -> Int {
+        selected.enumerated().reduce(0) { total, item in
+            guard let contentIndex = item.element[keyPath: keyPath].firstIndex(of: id) else { return total }
+            return total + matchScore - item.offset * 100 - contentIndex
+        }
+    }
+}
+
+struct TopicPreferencesPayload: Codable {
     let version: Int
     let selectedTagIds: [InterestTagId]
     let updatedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case version
+        case selectedTagIds
+        case updatedAt
+    }
+
+    init(version: Int, selectedTagIds: [InterestTagId], updatedAt: String) {
+        self.version = version
+        self.selectedTagIds = selectedTagIds
+        self.updatedAt = updatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
+        let rawTagIds = try container.decodeIfPresent([String].self, forKey: .selectedTagIds) ?? []
+        selectedTagIds = InterestTagId.normalized(rawTagIds)
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt) ?? ""
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(version, forKey: .version)
+        try container.encode(selectedTagIds.map(\.rawValue), forKey: .selectedTagIds)
+        try container.encode(updatedAt, forKey: .updatedAt)
+    }
 }
 
 private struct TopicPreferencesSaveRequest: Encodable {
@@ -1403,7 +1786,7 @@ private struct TopicPreferencesSaveResponse: Decodable {
     let message: String?
 }
 
-private enum TopicPreferencesSettingsStore {
+enum TopicPreferencesSettingsStore {
     private static let settingsKey = "topic_preferences"
 
     static func decrypt(encryptedSettings: String?, masterKey: SymmetricKey) async throws -> TopicPreferencesPayload? {

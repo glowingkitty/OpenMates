@@ -134,6 +134,10 @@ enum AppStrings {
     static var interestsPrivacyNote: String { L("settings.account.interests_privacy_note") }
     static var interestsSaved: String { L("settings.account.interests_saved") }
     static var interestsSaveError: String { L("settings.account.interests_save_error") }
+    static var interestsActiveTitle: String { L("chat.interests.active_title") }
+    static var interestsExploreTitle: String { L("chat.interests.title") }
+    static var interestsContinue: String { L("chat.interests.continue") }
+    static var interestsSelect: String { L("chat.interests.select_interests") }
     static var profilePicture: String { L("settings.account.profile_picture") }
     static var usage: String { L("settings.usage") }
     static var storage: String { L("settings.storage") }
