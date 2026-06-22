@@ -2,8 +2,8 @@
 // Canonical interest tag registry for guest smart selection and encrypted
 // account topic preferences. Keep this module pure and browser-free so web,
 // CLI, tests, and future native parity can consume the same stable IDs.
-// Labels are translation keys with English fallbacks until UI wiring adds the
-// localized tag rail.
+// Labels are loaded from chat.interests.* translations; fallbacks are only for
+// missing-key resilience and must not be the normal UI path.
 
 export type InterestTagType = "mate" | "skill" | "context";
 
@@ -130,7 +130,7 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "software_development",
     type: "mate",
-    labelKey: "mates.software_development",
+    labelKey: "chat.interests.software_development",
     fallbackLabel: "software development",
     icon: "code",
     appId: "code",
@@ -250,7 +250,7 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "business_development",
     type: "mate",
-    labelKey: "mates.business_development",
+    labelKey: "chat.interests.business_development",
     fallbackLabel: "business development",
     icon: "briefcase-business",
     appId: "ai",
@@ -265,7 +265,7 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "life_coach_psychology",
     type: "mate",
-    labelKey: "mates.life_coach_psychology",
+    labelKey: "chat.interests.life_coach_psychology",
     fallbackLabel: "life coach psychology",
     icon: "heart-handshake",
     appId: "ai",
@@ -280,7 +280,7 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "medical_health",
     type: "mate",
-    labelKey: "mates.medical_health",
+    labelKey: "chat.interests.medical_health",
     fallbackLabel: "medical health",
     icon: "heart-pulse",
     appId: "health",
@@ -295,7 +295,7 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "legal_law",
     type: "mate",
-    labelKey: "mates.legal_law",
+    labelKey: "chat.interests.legal_law",
     fallbackLabel: "legal law",
     icon: "gavel",
     appId: "ai",
@@ -310,7 +310,7 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "finance",
     type: "mate",
-    labelKey: "mates.finance",
+    labelKey: "chat.interests.finance",
     fallbackLabel: "finance",
     icon: "dollar-sign",
     appId: "ai",
@@ -325,7 +325,7 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "design",
     type: "mate",
-    labelKey: "mates.design",
+    labelKey: "chat.interests.design",
     fallbackLabel: "design",
     icon: "palette",
     appId: "images",
@@ -340,7 +340,7 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "marketing_sales",
     type: "mate",
-    labelKey: "mates.marketing_sales",
+    labelKey: "chat.interests.marketing_sales",
     fallbackLabel: "marketing sales",
     icon: "megaphone",
     appId: "ai",
@@ -355,7 +355,7 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "science",
     type: "mate",
-    labelKey: "mates.science",
+    labelKey: "chat.interests.science",
     fallbackLabel: "science",
     icon: "microscope",
     appId: "web",
@@ -370,7 +370,7 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "history",
     type: "mate",
-    labelKey: "mates.history",
+    labelKey: "chat.interests.history",
     fallbackLabel: "history",
     icon: "landmark",
     appId: "web",
@@ -385,7 +385,7 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "cooking_food",
     type: "mate",
-    labelKey: "mates.cooking_food",
+    labelKey: "chat.interests.cooking_food",
     fallbackLabel: "cooking food",
     icon: "utensils",
     appId: "maps",
@@ -400,8 +400,8 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "electrical_engineering",
     type: "mate",
-    labelKey: "mates.electrical_engineering",
-    fallbackLabel: "electrical engineering",
+    labelKey: "chat.interests.electrical_engineering",
+    fallbackLabel: "electronics",
     icon: "zap",
     appId: "electronics",
     gradientCategory: "electrical_engineering",
@@ -415,7 +415,7 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "maker_prototyping",
     type: "mate",
-    labelKey: "mates.maker_prototyping",
+    labelKey: "chat.interests.maker_prototyping",
     fallbackLabel: "maker prototyping",
     icon: "wrench",
     appId: "electronics",
@@ -430,7 +430,7 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "movies_tv",
     type: "mate",
-    labelKey: "mates.movies_tv",
+    labelKey: "chat.interests.movies_tv",
     fallbackLabel: "movies tv",
     icon: "tv",
     appId: "videos",
@@ -445,7 +445,7 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "activism",
     type: "mate",
-    labelKey: "mates.activism",
+    labelKey: "chat.interests.activism",
     fallbackLabel: "activism",
     icon: "megaphone",
     appId: "news",
@@ -460,7 +460,7 @@ export const INTEREST_TAGS: InterestTag[] = [
   {
     id: "general_knowledge",
     type: "mate",
-    labelKey: "mates.general_knowledge",
+    labelKey: "chat.interests.general_knowledge",
     fallbackLabel: "general knowledge",
     icon: "help-circle",
     appId: "web",

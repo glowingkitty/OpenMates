@@ -166,6 +166,66 @@ software_development:
   sv: "mjukvaruutveckling"
   he: "פיתוח תוכנה"
   verified_by_human: []
+business_development:
+  context: Guest interest topic tag label
+  en: "business development"
+  verified_by_human: []
+life_coach_psychology:
+  context: Guest interest topic tag label
+  en: "life coaching"
+  verified_by_human: []
+medical_health:
+  context: Guest interest topic tag label
+  en: "health"
+  verified_by_human: []
+legal_law:
+  context: Guest interest topic tag label
+  en: "law"
+  verified_by_human: []
+finance:
+  context: Guest interest topic tag label
+  en: "finance"
+  verified_by_human: []
+design:
+  context: Guest interest topic tag label
+  en: "design"
+  verified_by_human: []
+marketing_sales:
+  context: Guest interest topic tag label
+  en: "marketing"
+  verified_by_human: []
+science:
+  context: Guest interest topic tag label
+  en: "science"
+  verified_by_human: []
+history:
+  context: Guest interest topic tag label
+  en: "history"
+  verified_by_human: []
+cooking_food:
+  context: Guest interest topic tag label
+  en: "cooking"
+  verified_by_human: []
+electrical_engineering:
+  context: Guest interest topic tag label
+  en: "electronics"
+  verified_by_human: []
+maker_prototyping:
+  context: Guest interest topic tag label
+  en: "maker projects"
+  verified_by_human: []
+movies_tv:
+  context: Guest interest topic tag label
+  en: "movies & TV"
+  verified_by_human: []
+activism:
+  context: Guest interest topic tag label
+  en: "activism"
+  verified_by_human: []
+general_knowledge:
+  context: Guest interest topic tag label
+  en: "general knowledge"
+  verified_by_human: []
 use_the_cli:
   context: Guest interest tag label
   en: "use the CLI"

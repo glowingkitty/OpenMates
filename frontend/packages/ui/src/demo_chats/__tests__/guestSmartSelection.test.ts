@@ -3,6 +3,8 @@
 // These tests guard the deterministic, local-only ranking rules before the
 // Svelte welcome screen consumes them.
 
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -18,6 +20,24 @@ import {
 } from "../guestSmartSelection";
 
 describe("guestSmartSelection", () => {
+  it("uses interest translation keys for every guest-selectable tag", () => {
+    const source = readFileSync(
+      new URL("../../i18n/sources/chat/interests.yml", import.meta.url),
+      "utf-8",
+    );
+
+    expect(
+      INTEREST_TAGS.filter((tag) => !tag.labelKey.startsWith("chat.interests."))
+        .map((tag) => `${tag.id}:${tag.labelKey}`),
+    ).toEqual([]);
+    expect(
+      INTEREST_TAGS.filter((tag) => {
+        const sourceKey = tag.labelKey.replace("chat.interests.", "");
+        return !source.includes(`${sourceKey}:`);
+      }).map((tag) => `${tag.id}:${tag.labelKey}`),
+    ).toEqual([]);
+  });
+
   it("keeps selected tags first and moves related tags next without hiding unrelated tags", () => {
     const ranked = rankInterestTagsForSelection(["software_development"]);
     const rankedIds = ranked.map((tag) => tag.id);
