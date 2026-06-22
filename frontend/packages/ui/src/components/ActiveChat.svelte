@@ -10951,11 +10951,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                          {/each}
                                                      </div>
                                                  {/if}
-                                                 <div class="resume-large-content">
-                                                    {#if PriorityIconComponent}
-                                                        <div class="resume-large-icon">
-                                                            <PriorityIconComponent size={32} color="white" />
-                                                        </div>
+                                                  <div class="resume-large-content">
+                                                     {#if priorityChat.is_shared_by_others}
+                                                         <span class="resume-chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
+                                                     {/if}
+                                                     {#if PriorityIconComponent}
+                                                         <div class="resume-large-icon">
+                                                             <PriorityIconComponent size={32} color="white" />
+                                                         </div>
                                                     {/if}
                                                     <span class="resume-large-title" data-testid="resume-large-title">{item.title || $text('common.untitled_chat')}</span>
                                                     {#if item.summary}
@@ -10983,6 +10986,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <PriorityIconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                 </div>
                                                 <div class="resume-chat-content continue-priority-content">
+                                                    {#if item.kind === 'chat' && item.chat.is_shared_by_others}
+                                                        <span class="resume-chat-kind-badge compact" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
+                                                    {/if}
                                                     <span class="continue-priority-pill compact" data-testid="continue-priority-pill">{item.priority.label}</span>
                                                     <span class="resume-chat-title" data-testid="resume-chat-title">{item.title || $text('common.untitled_chat')}</span>
                                                 </div>
@@ -11045,11 +11051,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                      </div>
                                                  {/if}
                                                  <div class="resume-large-content">
-                                                    {#if IconComponent}
-                                                        <div class="resume-large-icon">
-                                                            <IconComponent size={32} color="white" />
-                                                        </div>
+                                                    {#if resumeChatData.is_shared_by_others}
+                                                        <span class="resume-chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
                                                     {/if}
+                                                    {#if IconComponent}
+                                                         <div class="resume-large-icon">
+                                                             <IconComponent size={32} color="white" />
+                                                         </div>
+                                                     {/if}
                                                     <span class="resume-large-title" data-testid="resume-large-title">{resumeChatTitle || $text('common.untitled_chat')}</span>
                                                     {#if resumeChatSummary}
                                                         <p class="resume-large-summary">{resumeChatSummary}</p>
@@ -11092,6 +11101,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                         <CompactIconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                     </div>
                                                     <div class="resume-chat-content">
+                                                        {#if resumeChatData.is_shared_by_others}
+                                                            <span class="resume-chat-kind-badge compact" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
+                                                        {/if}
                                                         <span class="resume-chat-title" data-testid="resume-chat-title">{resumeChatTitle || $text('common.untitled_chat')}</span>
                                                     </div>
                                                 {/if}
@@ -11180,6 +11192,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                      </div>
                                                  {/if}
                                                  <div class="resume-large-content">
+                                                    {#if meta.chat.is_shared_by_others}
+                                                        <span class="resume-chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
+                                                    {/if}
                                                     {#if IconComponent}
                                                         <div class="resume-large-icon">
                                                             <IconComponent size={32} color="white" />
@@ -11216,6 +11231,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                     <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                 </div>
                                                 <div class="resume-chat-content">
+                                                    {#if meta.chat.is_shared_by_others}
+                                                        <span class="resume-chat-kind-badge compact" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
+                                                    {/if}
                                                     <span class="resume-chat-title" data-testid="resume-chat-title">{meta.title || $text('common.untitled_chat')}</span>
                                                 </div>
                                                 <div class="resume-chat-arrow">
@@ -11302,12 +11320,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                          {/each}
                                                      </div>
                                                  {/if}
-                                                  <div class="resume-large-content">
-                                                     {#if isExampleChat(meta.chat.chat_id)}
-                                                         <span class="resume-chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
-                                                     {/if}
-                                                     {#if IconComponent}
-                                                         <div class="resume-large-icon">
+                                                   <div class="resume-large-content">
+                                                      {#if isExampleChat(meta.chat.chat_id)}
+                                                          <span class="resume-chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+                                                      {:else if meta.chat.is_shared_by_others}
+                                                          <span class="resume-chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
+                                                      {/if}
+                                                      {#if IconComponent}
+                                                          <div class="resume-large-icon">
                                                              <IconComponent size={32} color="white" />
                                                         </div>
                                                     {/if}
@@ -11335,12 +11355,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                                 <div class="resume-chat-compact-icon">
                                                     <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
                                                 </div>
-                                                 <div class="resume-chat-content">
-                                                     {#if isExampleChat(meta.chat.chat_id)}
-                                                         <span class="resume-chat-kind-badge compact" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
-                                                     {/if}
-                                                     <span class="resume-chat-title" data-testid="resume-chat-title">{meta.title || $text('common.untitled_chat')}</span>
-                                                 </div>
+                                                  <div class="resume-chat-content">
+                                                      {#if isExampleChat(meta.chat.chat_id)}
+                                                          <span class="resume-chat-kind-badge compact" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
+                                                      {:else if meta.chat.is_shared_by_others}
+                                                          <span class="resume-chat-kind-badge compact" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
+                                                      {/if}
+                                                      <span class="resume-chat-title" data-testid="resume-chat-title">{meta.title || $text('common.untitled_chat')}</span>
+                                                  </div>
                                                 <div class="resume-chat-arrow">
                                                     <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
                                                 </div>
