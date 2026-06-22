@@ -254,6 +254,7 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
 		await expect(firstContinueChatCard(page)).toHaveAttribute('data-chat-id', 'demo-for-everyone', { timeout: 15000 });
 		await expect(page.getByTestId('example-chat-badge').first()).toContainText('Example chat', { timeout: 15000 });
+		await page.getByTestId('message-editor').click();
 		await expect(page.getByTestId('suggestions-wrapper')).toBeVisible({ timeout: 15000 });
 
 		const suggestionIds = await visibleSuggestionIds(page);
@@ -263,7 +264,6 @@ test.describe('Guest interest smart selection', () => {
 				'chat.new_chat_suggestions.use_openmates_cli_api'
 			])
 		);
-		await page.getByTestId('message-editor').click();
 		await page.keyboard.type('coding');
 		await expect.poll(async () => await visibleSuggestionIds(page), { timeout: 5000 }).toContain(
 			'chat.new_chat_suggestions.learn_coding'
