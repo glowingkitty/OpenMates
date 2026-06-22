@@ -34,7 +34,6 @@ def test_videos_create_dispatches_remotion_render_task_with_placeholder_id() -> 
         skill_id="create",
         skill_name="Create video",
         skill_description="Create deterministic Remotion video",
-        stage="production",
         celery_producer=celery,
     )
 

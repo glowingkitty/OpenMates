@@ -7,6 +7,7 @@
 
 import sys
 import types
+import importlib
 
 googleapiclient_stub = types.ModuleType("googleapiclient")
 googleapiclient_discovery_stub = types.ModuleType("googleapiclient.discovery")
@@ -19,9 +20,13 @@ sys.modules.setdefault("googleapiclient.errors", googleapiclient_errors_stub)
 
 
 def _extract_youtube_id_from_url(url: str) -> str | None:
-    from backend.shared.providers.youtube.youtube_metadata import extract_youtube_id_from_url
+    sys.modules.pop("backend.shared.providers.youtube.youtube_metadata", None)
+    youtube_package = importlib.import_module("backend.shared.providers.youtube")
+    if hasattr(youtube_package, "youtube_metadata"):
+        delattr(youtube_package, "youtube_metadata")
+    youtube_metadata = importlib.import_module("backend.shared.providers.youtube.youtube_metadata")
 
-    return extract_youtube_id_from_url(url)
+    return youtube_metadata.extract_youtube_id_from_url(url)
 
 
 def test_extract_youtube_id_from_watch_url_with_query_params_before_v() -> None:

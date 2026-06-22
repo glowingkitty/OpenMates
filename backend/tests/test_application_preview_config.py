@@ -73,6 +73,11 @@ class FakeCache:
         return self.embed_metadata.get(embed_id)
 
 
+class FakeConfigManager:
+    def get_backend_config(self) -> dict:
+        return {"feature_overrides": {"enabled": ["embed:code:application"], "disabled": []}}
+
+
 def _user(user_id: str = "alice-user", credits: int = 50):
     return SimpleNamespace(id=user_id, credits=credits, vault_key_id=f"vault-{user_id}")
 
@@ -478,6 +483,7 @@ async def test_start_application_preview_route_resolves_payload_and_dispatches_w
                 allowed_origins=["https://app.openmates.org"],
                 application_preview_payload_resolver=fake_resolver,
                 application_preview_task_sender=fake_sender,
+                config_manager=FakeConfigManager(),
             )
         )
     )
@@ -509,7 +515,7 @@ async def test_start_application_preview_route_resolves_payload_and_dispatches_w
 
 @pytest.mark.anyio
 async def test_auto_started_preview_rejects_client_shared_context() -> None:
-    fake_request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace()))
+    fake_request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(config_manager=FakeConfigManager())))
 
     with pytest.raises(HTTPException) as exc_info:
         await start_application_preview(

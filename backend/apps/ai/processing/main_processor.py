@@ -105,6 +105,8 @@ _FALLBACK_DIFF_EDITABLE_EMBED_TYPES = frozenset({
     "mail-email",
     "mermaid",
     "diagrams-mermaid",
+    "mindmap",
+    "mindmaps-mindmap",
     "pcb_schematic",
     "schematic",
     "electronics-pcb-schematic",

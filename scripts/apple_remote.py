@@ -101,7 +101,7 @@ import tempfile
 configuration = sys.argv[1]
 allow_provisioning_updates = sys.argv[2] == "1"
 with_associated_domains = sys.argv[3] == "1"
-device_index = int(sys.argv[4]) if sys.argv[4] else None
+device_index = int(sys.argv[4]) if len(sys.argv) > 4 and sys.argv[4] else None
 
 
 def print_tail(label, text, device_id, app_path=None, limit=160):
@@ -490,17 +490,19 @@ def install_ios_device_command(
     configuration: str,
     allow_provisioning_updates: bool,
     with_associated_domains: bool,
-    device_index: int | None,
+    device_index: int | None = None,
 ) -> str:
-    return shell_join([
+    parts = [
         "python3",
         "-c",
         INSTALL_IOS_DEVICE_SCRIPT,
         configuration,
         "1" if allow_provisioning_updates else "0",
         "1" if with_associated_domains else "0",
-        str(device_index or ""),
-    ])
+    ]
+    if device_index is not None:
+        parts.append(str(device_index))
+    return shell_join(parts)
 
 
 def xcode_cache_report_command() -> str:

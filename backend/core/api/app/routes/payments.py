@@ -1353,6 +1353,7 @@ async def create_gift_card_bank_transfer_order(
     current_user: User = Depends(get_current_user),
 ):
     """Create a pending bank transfer order for a gift-card purchase."""
+    _require_official_cloud(request)
     gift_card_order_data = order_data.model_copy(update={"is_gift_card": True, "is_signup": False})
     return await create_bank_transfer_order(
         request=request,
@@ -1521,6 +1522,7 @@ async def get_gift_card_purchase_status(
     current_user: User = Depends(get_current_user),
 ):
     """Get status for a gift-card bank-transfer purchase."""
+    _require_official_cloud(request)
     order = await cache_service.get_bank_transfer_by_order_id(order_id)
 
     if not order:

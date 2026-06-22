@@ -44,6 +44,5 @@ export const emailVerificationSequenceDiagramChat: ExampleChat = {
   metadata: {
     featured: true,
     order: 105,
-    content_embed_examples: ["diagrams.mermaid"],
   },
 };
