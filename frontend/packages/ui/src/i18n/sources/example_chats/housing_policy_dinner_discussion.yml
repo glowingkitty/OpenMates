@@ -1,0 +1,1181 @@
+title:
+  context: "Title of example chat: Prepare for a housing policy dinner discussion"
+  en: "Prepare for a housing policy dinner discussion"
+  de: "Vorbereitung auf ein Abendessen-Gespräch über Wohnungspolitik"
+  zh: "Prepare for a housing policy dinner discussion"
+  es: "Prepare for a housing policy dinner discussion"
+  fr: "Prepare for a housing policy dinner discussion"
+  pt: "Prepare for a housing policy dinner discussion"
+  ru: "Prepare for a housing policy dinner discussion"
+  ja: "Prepare for a housing policy dinner discussion"
+  ko: "Prepare for a housing policy dinner discussion"
+  it: "Prepare for a housing policy dinner discussion"
+  tr: "Prepare for a housing policy dinner discussion"
+  vi: "Prepare for a housing policy dinner discussion"
+  id: "Prepare for a housing policy dinner discussion"
+  pl: "Prepare for a housing policy dinner discussion"
+  nl: "Prepare for a housing policy dinner discussion"
+  ar: "Prepare for a housing policy dinner discussion"
+  hi: "Prepare for a housing policy dinner discussion"
+  th: "Prepare for a housing policy dinner discussion"
+  cs: "Prepare for a housing policy dinner discussion"
+  sv: "Prepare for a housing policy dinner discussion"
+  he: "Prepare for a housing policy dinner discussion"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Prepare for a housing policy dinner discussion"
+  en: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  de: "Ein zweirundiger Politik-Fokusmodus-Chat, der hilft, ruhige und ausgewogene Fragen für ein Familiengespräch über Mietregulierung und Wohnungspolitik vorzubereiten."
+  zh: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  es: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  fr: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  pt: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  ru: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  ja: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  ko: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  it: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  tr: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  vi: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  id: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  pl: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  nl: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  ar: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  hi: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  th: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  cs: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  sv: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  he: "A two-turn politics focus-mode chat that helps prepare calm, balanced questions for a family discussion about rent control and housing policy."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Prepare for a housing policy dinner discussion. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  de: "Ich esse mit meinem Vater zu Abend, und er will über Wohnungspolitik und Mietregulierung streiten. Hilf mir bei der Vorbereitung, damit ich gute Fragen stellen, wichtige Fakten prüfen, die stärksten Argumente beider Seiten verstehen und das Gespräch ruhig halten kann."
+  zh: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  es: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  fr: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  pt: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  ru: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  ja: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  ko: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  it: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  tr: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  vi: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  id: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  pl: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  nl: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  ar: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  hi: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  th: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  cs: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  sv: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  he: "I'm having dinner with my dad and he wants to argue about housing policy and rent controls. Help me prepare so I can ask good questions, check key facts, understand the strongest arguments on both sides, and keep the conversation calm."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Prepare for a housing policy dinner discussion. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Focus mode activated: Prepare a political discussion."
+  de: "Fokusmodus aktiviert: Politisches Gespräch vorbereiten."
+  zh: "Focus mode activated: Prepare a political discussion."
+  es: "Focus mode activated: Prepare a political discussion."
+  fr: "Focus mode activated: Prepare a political discussion."
+  pt: "Focus mode activated: Prepare a political discussion."
+  ru: "Focus mode activated: Prepare a political discussion."
+  ja: "Focus mode activated: Prepare a political discussion."
+  ko: "Focus mode activated: Prepare a political discussion."
+  it: "Focus mode activated: Prepare a political discussion."
+  tr: "Focus mode activated: Prepare a political discussion."
+  vi: "Focus mode activated: Prepare a political discussion."
+  id: "Focus mode activated: Prepare a political discussion."
+  pl: "Focus mode activated: Prepare a political discussion."
+  nl: "Focus mode activated: Prepare a political discussion."
+  ar: "Focus mode activated: Prepare a political discussion."
+  hi: "Focus mode activated: Prepare a political discussion."
+  th: "Focus mode activated: Prepare a political discussion."
+  cs: "Focus mode activated: Prepare a political discussion."
+  sv: "Focus mode activated: Prepare a political discussion."
+  he: "Focus mode activated: Prepare a political discussion."
+  verified_by_human: []
+
+message_3:
+  context: "user message 3 in example chat: Prepare for a housing policy dinner discussion. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  de: "Super. Bitte erstelle mir einen praktischen Vorbereitungszettel: Welche Fakten sollte ich vor dem Abendessen prüfen, was sind die stärksten fairen Argumente auf beiden Seiten, und welche konkreten Fragen kann ich stellen, wenn das Gespräch angespannt wird?"
+  zh: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  es: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  fr: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  pt: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  ru: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  ja: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  ko: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  it: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  tr: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  vi: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  id: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  pl: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  nl: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  ar: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  hi: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  th: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  cs: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  sv: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  he: "Great. Please make me a practical prep sheet: what facts should I verify before dinner, what are the strongest good-faith arguments on each side, and what exact questions can I ask if the conversation starts getting tense?"
+  verified_by_human: []
+
+message_4:
+  context: "assistant message 4 in example chat: Prepare for a housing policy dinner discussion. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  de: |
+    Es ist sehr umsichtig, dass du dich darauf vorbereitest. Familiengespräche über Politik können schnell zu Debatten werden, in denen beide Seiten nur darauf warten, selbst zu sprechen, statt wirklich zuzuhören.
+    
+    Wohnen berührt grundlegende menschliche Bedürfnisse, Eigentumsrechte und den Zusammenhalt von Gemeinschaften, deshalb ist das Thema emotional. Der beste Weg, das Gespräch ruhig zu halten, ist ein Wechsel von einer **konkurrierenden Debatte** ("Wer hat recht?") zu einer **gemeinsamen Erkundung** ("Wie lösen wir dieses komplexe Problem zusammen?").
+    
+    Hier ist eine Übersicht der stärksten Argumente auf beiden Seiten, der wichtigsten Fakten für ein geerdetes Gespräch und strategischer Fragen, mit denen du das Abendessen konstruktiv halten kannst.
+    
+    ### 1. Der Kern der Debatte: Mietkontrolle und Mietstabilisierung
+    
+    Für ein produktives Gespräch hilft es, zwischen **strenger Mietkontrolle** (Mieten komplett einfrieren, heute selten) und **Mietstabilisierung** (jährliche Mieterhöhungen auf einen Prozentsatz begrenzen, oft an Inflation gekoppelt) zu unterscheiden.
+    
+    **Die stärksten Argumente GEGEN Mietkontrolle (Markt- und Angebotsseite)**
+    *   **Sie entmutigt Neubau:** Wenn Entwickler und Investoren erwarten, dass künftige Einnahmen staatlich begrenzt werden, bauen sie möglicherweise weniger neue Wohnungen. Das verschärft den Wohnungsmangel.
+    *   **Sie kann die Wohnqualität senken:** Wenn Vermieter steigende Instandhaltungs- und Steuerkosten nicht durch höhere Mieten decken können, verschieben sie Reparaturen häufiger. Der Wohnungsbestand kann sich verschlechtern.
+    *   **Sie schafft Fehlverteilung:** Mieter in regulierten Wohnungen ziehen selten um, selbst wenn die Wohnung nicht mehr zu ihrer Lebenssituation passt. Dadurch kommen jüngere oder wachsende Familien schwerer an passenden Wohnraum.
+    *   **Sie hilft Bestandsmietern, nicht unbedingt den Ärmsten:** Mietkontrolle schützt vor allem Menschen, die bereits eine Wohnung haben. Neuankömmlinge oder junge Menschen treffen auf einen noch engeren und teureren Markt, weil die Fluktuation niedrig ist.
+    
+    **Die stärksten Argumente FÜR Mietkontrolle (Gemeinschafts- und Gerechtigkeitssicht)**
+    *   **Sie verhindert unmittelbare Verdrängung:** Neubau dauert Jahre. In der Zwischenzeit können massive Mietsteigerungen Familien verdrängen, Menschen in Wohnungslosigkeit treiben und Nachbarschaften zerreißen. Mietregulierung wirkt als kurzfristige Notbremse.
+    *   **Nachbarschaften sind Gemeinschaften, nicht nur Märkte:** Wer Wohnen nur als Finanzprodukt betrachtet, übersieht die menschlichen Kosten von Verdrängung: Schulwechsel für Kinder, verlorene Stammkunden für lokale Geschäfte und lange Pendelwege für Beschäftigte.
+    *   **Machtungleichgewicht:** Bei starkem Wohnungsmangel haben Vermieter faktisch viel Marktmacht. Mieter können bei 1 % Leerstand nicht einfach "woanders einkaufen". Mietstabilisierung gleicht dieses Machtgefälle etwas aus.
+    *   **Moderne Stabilisierung ist moderat:** Viele moderne Regeln erlauben Inflation plus einen Prozentsatz und nehmen Neubau aus. Das schützt vor *räuberischen* Sprüngen, ohne Entwicklern jede faire Rendite zu nehmen.
+    
+    ### 2. Fakten, die du im Hinterkopf behalten solltest
+    *   **Der Konsens:** Traditionell sind viele Ökonomen der Ansicht, dass *strenge* Preisobergrenzen Menge und Qualität des Wohnraums senken. Neuere Studien zu *moderater* Mietstabilisierung sind gemischter: Sie halten aktuelle Mieter sehr wirksam in ihren Wohnungen, können aber das verfügbare Mietangebot leicht verringern.
+    *   **Die Wurzel ist Angebot:** In den USA fehlen seit der Finanzkrise 2008 Millionen Wohneinheiten. Es wurde nicht genug gebaut, um mit dem Bevölkerungswachstum Schritt zu halten.
+    *   **Zoning-Regeln:** In vielen nordamerikanischen Großstädten ist ein großer Teil der Wohnflächen ausschließlich für Einfamilienhäuser vorgesehen. Das macht Duplexe, Reihenhäuser oder kleinere Mehrfamilienhäuser illegal und verknappt das Angebot künstlich.
+    
+    ### 3. Strategien, um ruhig zu bleiben
+    *   **Finde früh den gemeinsamen Wert:** Geht es deinem Vater vor allem um Fairness, wirtschaftliche Effizienz, Schutz vor Wohnungslosigkeit oder Eigentumsrechte? Wenn du seinen Kernwert erkennst, bestätige ihn. *(z. B. "Ich stimme dir zu, dass Eigentümer nicht gezwungen werden sollten, mit Verlust zu wirtschaften.")*
+    *   **Frage nach seinem Prozess, nicht nur nach dem Ergebnis:** Greife seine Position nicht direkt an, sondern bitte ihn zu erklären, wie sein ideales System schwierige Grenzfälle lösen würde.
+    *   **Erweitere den Blick:** Mietkontrolle ist nur ein Werkzeug. Wenn ihr feststeckt, zoomt auf die größere Wohnungskrise heraus: Zoning, öffentlicher Wohnungsbau, institutionelle Käufer von Einfamilienhäusern.
+    
+    ### 4. Gute Fragen an deinen Vater
+    
+    Diese Fragen sollen ihn zum aktiven Nachdenken bringen, statt nur bekannte Argumente zu wiederholen, und laden zu gemeinsamer Problemlösung ein:
+    
+    1.  **Wenn er GEGEN Mietkontrolle ist:** *"Ich verstehe das wirtschaftliche Argument, dass Mietdeckel Neubau bremsen können. Aber Neubau dauert 3 bis 5 Jahre. Wenn die Miete einer alleinerziehenden Mutter morgen um 40 % steigt, welche Politik schützt sie und ihre Kinder sofort vor Verdrängung?"*
+    2.  **Wenn er FÜR Mietkontrolle ist:** *"Wenn wir Mieten begrenzen, wie stellen wir sicher, dass Vermieter trotzdem genug Geld und Anreiz haben, Dächer zu reparieren und Leitungen zu erneuern? Wie verhindern wir, dass Gebäude verfallen?"*
+    3.  **Auf das größere Bild zoomen:** *"Viele Experten sagen, das eigentliche Problem sei, dass in großen Teilen unserer Städte fast nur Einfamilienhäuser erlaubt sind. Sollten wir solche Zoning-Regeln abschaffen, damit mehr Wohnungen gebaut werden können?"*
+    4.  **Balance finden:** *"Wie balancieren wir das Recht eines Eigentümers auf Rendite mit dem Bedürfnis einer Gemeinschaft nach stabilen Nachbarschaften, in denen Menschen nicht ständig wegziehen müssen?"*
+    
+    Wie stehst du selbst vor dem Abendessen zu dem Thema? Möchtest du eine bestimmte Seite vertreten, oder willst du eher kritisch nachfragen und lernen?
+  zh: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  es: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  fr: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  pt: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  ru: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  ja: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  ko: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  it: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  tr: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  vi: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  id: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  pl: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  nl: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  ar: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  hi: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  th: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  cs: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  sv: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  he: |
+    It is incredibly thoughtful of you to prepare for this. Family conversations about policy can quickly turn into debates where both sides are just waiting for their turn to speak, rather than actually listening. 
+    
+    Since housing touches on fundamental human needs, property rights, and community survival, it’s a deeply emotional topic. The best way to keep the conversation calm is to shift the dynamic from a **competitive debate** ("Who is right?") to a **collaborative exploration** ("How do we solve this complex problem together?").
+    
+    Here is a breakdown of the strongest arguments on both sides, key facts to ground the conversation, and strategic questions you can ask to keep the dinner constructive.
+    
+    ### 1. The Core Debate: Rent Control & Stabilization
+    
+    To have a productive conversation, it helps to distinguish between **strict rent control** (freezing rents completely, which is rare today) and **rent stabilization** (capping annual rent increases at a certain percentage, often tied to inflation). 
+    
+    **The Strongest Arguments AGAINST Rent Control (The Market & Supply View)**
+    *   **It discourages new housing construction:** If developers and investors believe their future revenue will be capped by the government, they may choose not to build new housing, which worsens the overall housing shortage.
+    *   **It reduces housing quality:** If landlords cannot raise rents to cover the rising costs of maintenance and property taxes, they often defer repairs, leading to the deterioration of the housing stock.
+    *   **It creates "misallocation":** Renters in rent-controlled units rarely move, even if their family size shrinks (e.g., empty nesters staying in a 3-bedroom apartment). This prevents younger, growing families from accessing that space.
+    *   **It helps incumbents, not necessarily the poorest:** Rent control benefits those who already have an apartment. Newcomers to a city, or young people trying to move out of their parents' homes, face an even tighter, more expensive market because turnover is so low.
+    
+    **The Strongest Arguments FOR Rent Control (The Community & Equity View)**
+    *   **It prevents immediate displacement:** Building new housing takes years. In the meantime, massive rent spikes can evict families, push people into homelessness, and destroy the social fabric of neighborhoods. Rent control acts as an immediate emergency brake.
+    *   **Neighborhoods are communities, not just markets:** Treating housing purely as a financial commodity ignores the human cost of displacement. Kids having to switch schools, local businesses losing regular customers, and workers being pushed hours away from their jobs damages the whole community.
+    *   **Power imbalance:** In a severe housing shortage, landlords have a functional monopoly. Renters cannot simply "shop elsewhere" if there is a 1% vacancy rate. Rent stabilization levels the playing field so tenants aren't exploited by a captive market.
+    *   **Modern stabilization is moderate:** Most modern policies (like Oregon's or California's state-wide caps) allow for inflation plus a percentage (e.g., 7-10% a year) and exempt brand-new construction. This protects tenants from *predatory* spikes (like a sudden $500 increase) without stopping developers from making a fair profit.
+    
+    ### 2. Facts to Keep in Your Back Pocket
+    *   **The Consensus:** Historically, the vast majority of traditional economists have agreed that *strict* price ceilings reduce the quantity and quality of housing. However, recent economic studies on *moderate* rent stabilization show mixed results—they are highly effective at keeping current tenants housed, but can still marginally reduce the supply of available rental units.
+    *   **The Root Cause is Supply:** The US has a deficit of millions of housing units following the 2008 financial crash. We simply haven't built enough homes to keep up with population growth. 
+    *   **Zoning Laws:** In many major North American cities, 70% or more of residential land is zoned *exclusively* for single-family homes. This makes it illegal to build duplexes, townhomes, or small apartment buildings, artificially choking the housing supply.
+    
+    ### 3. Strategies to Keep It Calm
+    *   **Find the shared value early:** Does your dad care most about fairness? Economic efficiency? People not being homeless? Property rights? Once you identify his core value, validate it. *(e.g., "I agree with you that property owners shouldn't be forced to operate at a loss.")*
+    *   **Ask for his process, not just his conclusion:** Instead of attacking his stance, ask him to walk you through how his ideal system would handle edge cases.
+    *   **Expand the scope:** Rent control is just one tool. If you get stuck, zoom out to the broader housing crisis (zoning, public housing, corporate buying of single-family homes).
+    
+    ### 4. Great Questions to Ask Your Dad
+    
+    These questions are designed to make him think actively rather than just recite talking points, and they invite collaborative problem-solving:
+    
+    1.  **If he is AGAINST rent control:** *"I understand the economic argument that rent caps limit new construction. But building new housing takes 3 to 5 years. If a single mom's rent goes up by 40% tomorrow, what policy should we use to keep her and her kids from being displaced right now?"*
+    2.  **If he is FOR rent control:** *"If we cap what landlords can charge, how do we make sure they still have enough money and incentive to fix the roof and replace the plumbing? How do we prevent buildings from falling apart?"*
+    3.  **Zooming out to the bigger picture:** *"A lot of experts say the real issue is that it's illegal to build anything other than single-family homes in most parts of our cities. Do you think we should abolish those zoning laws to let developers build more apartments?"*
+    4.  **Finding balance:** *"How do we balance a property owner's right to make a return on their investment with a community's need to have stable neighbors who aren't constantly forced to move?"*
+    
+    How are you leaning personally on this issue heading into the dinner? Are you hoping to advocate for a specific side, or are you mostly looking to play devil's advocate and learn?
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Find recent studies on rent control policies"
+  de: "Finde aktuelle Studien zu Mietregulierung"
+  zh: "Find recent studies on rent control policies"
+  es: "Find recent studies on rent control policies"
+  fr: "Find recent studies on rent control policies"
+  pt: "Find recent studies on rent control policies"
+  ru: "Find recent studies on rent control policies"
+  ja: "Find recent studies on rent control policies"
+  ko: "Find recent studies on rent control policies"
+  it: "Find recent studies on rent control policies"
+  tr: "Find recent studies on rent control policies"
+  vi: "Find recent studies on rent control policies"
+  id: "Find recent studies on rent control policies"
+  pl: "Find recent studies on rent control policies"
+  nl: "Find recent studies on rent control policies"
+  ar: "Find recent studies on rent control policies"
+  hi: "Find recent studies on rent control policies"
+  th: "Find recent studies on rent control policies"
+  cs: "Find recent studies on rent control policies"
+  sv: "Find recent studies on rent control policies"
+  he: "Find recent studies on rent control policies"
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain the economic impact of rent control"
+  de: "Erkläre die wirtschaftlichen Auswirkungen von Mietkontrolle"
+  zh: "Explain the economic impact of rent control"
+  es: "Explain the economic impact of rent control"
+  fr: "Explain the economic impact of rent control"
+  pt: "Explain the economic impact of rent control"
+  ru: "Explain the economic impact of rent control"
+  ja: "Explain the economic impact of rent control"
+  ko: "Explain the economic impact of rent control"
+  it: "Explain the economic impact of rent control"
+  tr: "Explain the economic impact of rent control"
+  vi: "Explain the economic impact of rent control"
+  id: "Explain the economic impact of rent control"
+  pl: "Explain the economic impact of rent control"
+  nl: "Explain the economic impact of rent control"
+  ar: "Explain the economic impact of rent control"
+  hi: "Explain the economic impact of rent control"
+  th: "Explain the economic impact of rent control"
+  cs: "Explain the economic impact of rent control"
+  sv: "Explain the economic impact of rent control"
+  he: "Explain the economic impact of rent control"
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Search for housing policy debates in our city"
+  de: "Suche nach wohnungspolitischen Debatten in unserer Stadt"
+  zh: "Search for housing policy debates in our city"
+  es: "Search for housing policy debates in our city"
+  fr: "Search for housing policy debates in our city"
+  pt: "Search for housing policy debates in our city"
+  ru: "Search for housing policy debates in our city"
+  ja: "Search for housing policy debates in our city"
+  ko: "Search for housing policy debates in our city"
+  it: "Search for housing policy debates in our city"
+  tr: "Search for housing policy debates in our city"
+  vi: "Search for housing policy debates in our city"
+  id: "Search for housing policy debates in our city"
+  pl: "Search for housing policy debates in our city"
+  nl: "Search for housing policy debates in our city"
+  ar: "Search for housing policy debates in our city"
+  hi: "Search for housing policy debates in our city"
+  th: "Search for housing policy debates in our city"
+  cs: "Search for housing policy debates in our city"
+  sv: "Search for housing policy debates in our city"
+  he: "Search for housing policy debates in our city"
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Describe how zoning laws affect housing supply"
+  de: "Beschreibe, wie Zoning-Regeln das Wohnungsangebot beeinflussen"
+  zh: "Describe how zoning laws affect housing supply"
+  es: "Describe how zoning laws affect housing supply"
+  fr: "Describe how zoning laws affect housing supply"
+  pt: "Describe how zoning laws affect housing supply"
+  ru: "Describe how zoning laws affect housing supply"
+  ja: "Describe how zoning laws affect housing supply"
+  ko: "Describe how zoning laws affect housing supply"
+  it: "Describe how zoning laws affect housing supply"
+  tr: "Describe how zoning laws affect housing supply"
+  vi: "Describe how zoning laws affect housing supply"
+  id: "Describe how zoning laws affect housing supply"
+  pl: "Describe how zoning laws affect housing supply"
+  nl: "Describe how zoning laws affect housing supply"
+  ar: "Describe how zoning laws affect housing supply"
+  hi: "Describe how zoning laws affect housing supply"
+  th: "Describe how zoning laws affect housing supply"
+  cs: "Describe how zoning laws affect housing supply"
+  sv: "Describe how zoning laws affect housing supply"
+  he: "Describe how zoning laws affect housing supply"
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Show me zoning laws in our area"
+  de: "Zeig mir Zoning-Regeln in unserer Gegend"
+  zh: "Show me zoning laws in our area"
+  es: "Show me zoning laws in our area"
+  fr: "Show me zoning laws in our area"
+  pt: "Show me zoning laws in our area"
+  ru: "Show me zoning laws in our area"
+  ja: "Show me zoning laws in our area"
+  ko: "Show me zoning laws in our area"
+  it: "Show me zoning laws in our area"
+  tr: "Show me zoning laws in our area"
+  vi: "Show me zoning laws in our area"
+  id: "Show me zoning laws in our area"
+  pl: "Show me zoning laws in our area"
+  nl: "Show me zoning laws in our area"
+  ar: "Show me zoning laws in our area"
+  hi: "Show me zoning laws in our area"
+  th: "Show me zoning laws in our area"
+  cs: "Show me zoning laws in our area"
+  sv: "Show me zoning laws in our area"
+  he: "Show me zoning laws in our area"
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Summarize the key arguments for rent control"
+  de: "Fasse die wichtigsten Argumente für Mietkontrolle zusammen"
+  zh: "Summarize the key arguments for rent control"
+  es: "Summarize the key arguments for rent control"
+  fr: "Summarize the key arguments for rent control"
+  pt: "Summarize the key arguments for rent control"
+  ru: "Summarize the key arguments for rent control"
+  ja: "Summarize the key arguments for rent control"
+  ko: "Summarize the key arguments for rent control"
+  it: "Summarize the key arguments for rent control"
+  tr: "Summarize the key arguments for rent control"
+  vi: "Summarize the key arguments for rent control"
+  id: "Summarize the key arguments for rent control"
+  pl: "Summarize the key arguments for rent control"
+  nl: "Summarize the key arguments for rent control"
+  ar: "Summarize the key arguments for rent control"
+  hi: "Summarize the key arguments for rent control"
+  th: "Summarize the key arguments for rent control"
+  cs: "Summarize the key arguments for rent control"
+  sv: "Summarize the key arguments for rent control"
+  he: "Summarize the key arguments for rent control"
+  verified_by_human: []
