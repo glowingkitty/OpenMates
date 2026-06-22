@@ -76,6 +76,8 @@
 		214C04C2DC12B83485E4C1C1 /* ReportIssueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F5C1DCEC899C0A6F6DC2139 /* ReportIssueView.swift */; };
 		217FAE36C93971A51738758B /* AccessibilityModifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03D3A7D2378D0282470FB1BD /* AccessibilityModifiers.swift */; };
 		21899DCD5EA905B6A180A122 /* ImagesSearchEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10E4F0D8583B6A6B1E504AEB /* ImagesSearchEmbedRenderer.swift */; };
+		C0FFEE000000000000035002 /* MindMapEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000035001 /* MindMapEmbedRenderer.swift */; };
+		C0FFEE000000000000035003 /* MindMapEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000035001 /* MindMapEmbedRenderer.swift */; };
 		229D1B63B0A6EB41BD4F7C90 /* RecoveryKeyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6741A45B494755343B591447 /* RecoveryKeyView.swift */; };
 		22E7991F2249003E9DFE35DD /* example_chats in Resources */ = {isa = PBXBuildFile; fileRef = A7C149B9E023EE3F336DB41A /* example_chats */; };
 		23B666E453D592CEE9783215 /* SettingsServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0C1FF9CFB126B5BAA62F06 /* SettingsServerView.swift */; };
@@ -559,6 +561,7 @@
 		07628DCDF09C5AFAC4686CCE /* DevEmbedPreviewFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevEmbedPreviewFixtures.swift; sourceTree = "<group>"; };
 		0DE92EBE49EBADF171CDC2D6 /* ChatStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStore.swift; sourceTree = "<group>"; };
 		10E4F0D8583B6A6B1E504AEB /* ImagesSearchEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesSearchEmbedRenderer.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000035001 /* MindMapEmbedRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindMapEmbedRenderer.swift; sourceTree = "<group>"; };
 		13ABD68DF91C20D76F75ABD8 /* CryptoManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CryptoManager.swift; sourceTree = "<group>"; };
 		151F47FC0A1C13A3A3FC3ABF /* PasswordLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordLoginView.swift; sourceTree = "<group>"; };
 		1590D8670281FDF56C8F2860 /* SettingsLogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLogsView.swift; sourceTree = "<group>"; };
@@ -897,6 +900,7 @@
 				47327F0B9A1BA1DE4EB995B4 /* ImageResultEmbedRenderer.swift */,
 				10E4F0D8583B6A6B1E504AEB /* ImagesSearchEmbedRenderer.swift */,
 				2D5D3E1DC3573B54A3F90F73 /* MediaRenderers.swift */,
+				C0FFEE000000000000035001 /* MindMapEmbedRenderer.swift */,
 				5F57B730049713E7560BD28C /* MiscRenderers.swift */,
 				C39A911BB9208FA2A0BF4682 /* PlaceRenderers.swift */,
 				C0FFEE000000000000031001 /* RemotionVideoCreateRenderer.swift */,
@@ -1919,6 +1923,7 @@
 				1CB52290D2BF6A2AE255CBCE /* ImageResultEmbedRenderer.swift in Sources */,
 				490F85BB6D0BEA5796A0F7F1 /* ImageSearchIntent.swift in Sources */,
 				21899DCD5EA905B6A180A122 /* ImagesSearchEmbedRenderer.swift in Sources */,
+				C0FFEE000000000000035002 /* MindMapEmbedRenderer.swift in Sources */,
 				3394683B9EBA91F9DB394E3B /* IncognitoMode.swift in Sources */,
 				CB279DDE6C1147584FF8C9A4 /* InlinePreviewView.swift in Sources */,
 				658D774FB8809076F5ED74B0 /* InputActionButtons.swift in Sources */,
@@ -2125,6 +2130,7 @@
 				F1FB274BA48557CF718FFB52 /* ImageResultEmbedRenderer.swift in Sources */,
 				AD8301D0CB0A1C0D3F65FD42 /* ImageSearchIntent.swift in Sources */,
 				A32FB27F04898E04963DB3D7 /* ImagesSearchEmbedRenderer.swift in Sources */,
+				C0FFEE000000000000035003 /* MindMapEmbedRenderer.swift in Sources */,
 				D0E0495C44536598CB9913CA /* IncognitoMode.swift in Sources */,
 				C07608A8E292490B387B3D7B /* InlinePreviewView.swift in Sources */,
 				79B03A03EFA486DBEBC34E7E /* InputActionButtons.swift in Sources */,
