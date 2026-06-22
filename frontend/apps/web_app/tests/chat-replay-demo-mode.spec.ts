@@ -15,7 +15,7 @@ test.describe('Chat replay demo mode', () => {
 	test('replays an example chat and hides example-chat chrome in demo mode', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
 
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.goto(getE2EDebugUrl('/#chat-id=demo-for-everyone'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
 		await page.waitForFunction(
