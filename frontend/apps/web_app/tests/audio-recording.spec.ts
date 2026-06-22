@@ -56,13 +56,12 @@ test.afterEach(async ({}, testInfo) => {
 async function setupAndFocusMessageField(page: any) {
 	await page.goto(getE2EDebugUrl('/'));
 
-	// Wait for the page to fully load — demo chats need time to initialize
+	// Wait for the page to fully load. Logged-out users now land on the guest
+	// welcome composer instead of an auto-opened demo chat hash.
 	await page.waitForTimeout(3000);
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 15000
-	});
 
-	// Public demo chats show a CTA instead of the editable composer.
+	// Public demo chats show a CTA instead of the editable composer; the current
+	// guest welcome screen can be opened by clicking the message field directly.
 	const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
 	if (await newChatButton.isVisible({ timeout: 10000 }).catch(() => false)) {
 		await newChatButton.click();
@@ -76,15 +75,12 @@ async function setupAndFocusMessageField(page: any) {
 	// and makes ActionButtons visible via shouldShowActionButtons.
 	// Use `.editor-content.prose` to target the main message input field specifically,
 	// since demo chat messages also have `.editor-content` elements on the page.
+	await messageField.click();
 	const editorContent = page.getByTestId('message-editor');
-	if (await editorContent.isVisible()) {
-		await editorContent.click();
-		await page.keyboard.type(' ');
-		await page.keyboard.press('Backspace');
-	} else {
-		// Fallback: click the message field itself
-		await messageField.click();
-	}
+	await expect(editorContent).toBeVisible({ timeout: 10000 });
+	await editorContent.click();
+	await page.keyboard.type(' ');
+	await page.keyboard.press('Backspace');
 
 	// Give time for focus state to propagate and action buttons to render
 	await page.waitForTimeout(1000);
