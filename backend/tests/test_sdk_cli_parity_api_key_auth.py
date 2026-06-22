@@ -14,7 +14,11 @@ import pytest
 from fastapi import HTTPException
 
 from backend.core.api.app.routes import sdk as sdk_routes
-from backend.core.api.app.routes.sdk import _dispatch_sdk_surface, _require_sdk_scope_for_surface
+from backend.core.api.app.routes.sdk import (
+    _dispatch_sdk_surface,
+    _extract_chat_response_content,
+    _require_sdk_scope_for_surface,
+)
 
 
 class _FakeDirectusService:
@@ -216,6 +220,21 @@ def test_chat_parity_surface_uses_existing_chat_scope_names():
         )
         == "chat:export"
     )
+
+
+def test_sdk_chat_response_normalizes_openai_completion_shape():
+    result = {
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "SDK live npm smoke ok",
+                }
+            }
+        ]
+    }
+
+    assert _extract_chat_response_content(result) == "SDK live npm smoke ok"
 
 
 @pytest.mark.asyncio

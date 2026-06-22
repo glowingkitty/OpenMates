@@ -195,6 +195,25 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
+def _extract_chat_response_content(result: Any) -> str | None:
+    if not isinstance(result, dict):
+        return None
+    if isinstance(result.get("content"), str):
+        return result["content"]
+    choices = result.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return None
+    first_choice = choices[0]
+    if not isinstance(first_choice, dict):
+        return None
+    message = first_choice.get("message")
+    if isinstance(message, dict) and isinstance(message.get("content"), str):
+        return message["content"]
+    if isinstance(first_choice.get("text"), str):
+        return first_choice["text"]
+    return None
+
+
 async def _sdk_user_from_api_key(
     request: Request,
     api_key_info: dict[str, Any],
@@ -788,10 +807,12 @@ async def create_sdk_chat(
     result = await get_global_registry().dispatch_skill("ai", "ask", payload)
     if hasattr(result, "body_iterator"):
         return {"persistent": request_body.save_to_account, "stream": True}
+    raw_result = _jsonable(result)
+    content = _extract_chat_response_content(raw_result)
     return {
         "persistent": request_body.save_to_account,
         "chat_id": None,
-        "response": result,
+        "response": {"content": content, "raw": raw_result},
     }
 
 

@@ -79,7 +79,13 @@ def test_new_chat_defaults_to_non_persistent(monkeypatch):
         status_code = 200
 
         def json(self):
-            return {"persistent": False, "response": {"content": "hi"}}
+            return {
+                "persistent": False,
+                "response": {
+                    "content": "hi",
+                    "raw": {"choices": [{"message": {"role": "assistant", "content": "hi"}}]},
+                },
+            }
 
     def fake_post(url, *, json, headers, timeout):
         requests.append({"url": url, "json": json, "headers": headers, "timeout": timeout})
@@ -102,7 +108,12 @@ def test_new_chat_can_include_focus_mode(monkeypatch):
         status_code = 200
 
         def json(self):
-            return {"response": {"content": "focused"}}
+            return {
+                "response": {
+                    "content": "focused",
+                    "raw": {"choices": [{"message": {"role": "assistant", "content": "focused"}}]},
+                }
+            }
 
     def fake_post(url, *, json, headers, timeout):
         requests.append({"url": url, "json": json, "headers": headers, "timeout": timeout})

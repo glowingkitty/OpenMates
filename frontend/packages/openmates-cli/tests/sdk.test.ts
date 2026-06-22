@@ -82,7 +82,13 @@ describe("OpenMates SDK", () => {
       request.on("end", () => {
         assert.equal(JSON.parse(body).save_to_account, false);
         response.writeHead(200, { "content-type": "application/json" });
-        response.end(JSON.stringify({ persistent: false, response: { content: "hi" } }));
+        response.end(JSON.stringify({
+          persistent: false,
+          response: {
+            content: "hi",
+            raw: { choices: [{ message: { role: "assistant", content: "hi" } }] },
+          },
+        }));
       });
     }, async (apiUrl) => {
       const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
@@ -102,7 +108,12 @@ describe("OpenMates SDK", () => {
           focus_mode_id: "research",
         });
         response.writeHead(200, { "content-type": "application/json" });
-        response.end(JSON.stringify({ response: { content: "focused" } }));
+        response.end(JSON.stringify({
+          response: {
+            content: "focused",
+            raw: { choices: [{ message: { role: "assistant", content: "focused" } }] },
+          },
+        }));
       });
     }, async (apiUrl) => {
       const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
