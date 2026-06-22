@@ -61,6 +61,7 @@ apps:
   messages:          { start: "#5861e5", end: "#62b3e0" }
   books:             { start: "#c06a18", end: "#f0aa4a" }
   plants:            { start: "#34a853", end: "#15780d" }
+  politics:          { start: "#1e293b", end: "#64748b" }
   beauty:            { start: "#ff5c39", end: "#ff808b" }
   hosting:           { start: "#c50003", end: "#ff763b" }
   fashion:           { start: "#fbbc04", end: "#ea4335" }
