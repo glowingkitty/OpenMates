@@ -96,8 +96,8 @@ test.describe('Example chats loading for new users', () => {
 			consoleLogs.push(`[${message.type()}] ${text}`);
 		});
 
-		// ─── Navigate as a fresh user (clean browser context) ───────────────
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		// ─── Navigate directly to the for-everyone intro chat ───────────────
+		await page.goto(getE2EDebugUrl('/#chat-id=demo-for-everyone'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
 		// Allow time for the example chats component to render
