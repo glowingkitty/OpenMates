@@ -16,6 +16,18 @@ const {
 const consoleLogs: string[] = [];
 const networkActivities: string[] = [];
 
+async function ensureSidebarVisible(page: any): Promise<void> {
+	const history = page.getByTestId('activity-history-wrapper');
+	if (await history.isVisible().catch(() => false)) {
+		return;
+	}
+
+	const toggle = page.getByTestId('sidebar-toggle');
+	await expect(toggle).toBeVisible({ timeout: 10000 });
+	await toggle.click();
+	await expect(history).toBeVisible({ timeout: 10000 });
+}
+
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
 	networkActivities.length = 0;
@@ -129,6 +141,8 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 	const sharedChatUrl = 'https://app.dev.openmates.org/s/zuygP79v#BUw56h';
 
 	await page.goto(sharedChatUrl);
+	await expect(page).toHaveURL(/#chat-id=/, { timeout: 45000 });
+	await expect(page.getByTestId('shared-chat-badge')).toHaveText('Shared chat', { timeout: 45000 });
 
 	const audioEmbed = page.locator(
 		'[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="transcribe"]'
@@ -144,6 +158,14 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 		expect(previewText).not.toMatch(/signup to upload|signup to see transcript|no transcript/i);
 		expect(previewText.length).toBeGreaterThan(40);
 	}).toPass({ timeout: 10000 });
+
+	const activeChatId = new URL(page.url()).hash.match(/chat-id=([^&]+)/)?.[1];
+	expect(activeChatId).toBeTruthy();
+	await ensureSidebarVisible(page);
+	const sharedChatItem = page.locator(
+		`[data-testid="chat-item-wrapper"][data-chat-id="${activeChatId}"]`
+	);
+	await expect(sharedChatItem.getByTestId('shared-chat-public-icon')).toBeVisible({ timeout: 15000 });
 
 	await assertNoMissingTranslations(page);
 });

@@ -805,7 +805,7 @@
           {#if isExampleChat}
             <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
           {:else if isSharedChat}
-            <span class="chat-kind-badge" data-testid="shared-chat-badge">Shared chat</span>
+            <span class="chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
           {/if}
 
           {#if !isIntroTeaserChat && showSummary}
@@ -953,7 +953,7 @@
               {#if isExampleChat}
                 <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
               {:else if isSharedChat}
-                <span class="chat-kind-badge" data-testid="shared-chat-badge">Shared chat</span>
+                <span class="chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
               {/if}
             </div>
           {/if}
@@ -1064,7 +1064,7 @@
           {#if isExampleChat}
             <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
           {:else if isSharedChat}
-            <span class="chat-kind-badge" data-testid="shared-chat-badge">Shared chat</span>
+            <span class="chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
           {/if}
 
           <!-- Summary: fades in with max-height expand when available -->

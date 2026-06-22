@@ -1069,6 +1069,8 @@
   }
 
   let isActive = $derived(activeChatId === chat?.chat_id);
+  let isSharedByOthers = $derived(!!chat?.is_shared_by_others);
+  let isOwnerShared = $derived(!!chat?.is_shared && !isSharedByOthers);
   
   // Get unread count from store for this chat
   let unreadCount = $derived($unreadMessagesStore.unreadCounts.get(chat?.chat_id || '') || 0);
@@ -2096,11 +2098,19 @@
                       <IconComponent size={16} color="white" />
                     {/if}
                   </div>
-                    {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
-                      <div class="unread-badge" data-testid="unread-badge">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                      </div>
-                    {:else if chat.is_shared}
+                  {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
+                    <div class="unread-badge" data-testid="unread-badge">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </div>
+                  {:else if isSharedByOthers}
+                    <div
+                      class="share-badge public-share-badge"
+                      title={$text('chat.header.shared_chat')}
+                      data-testid="shared-chat-public-icon"
+                    >
+                      <LucideIcons.Globe size={10} color="white" />
+                    </div>
+                  {:else if isOwnerShared}
                     <!-- Share indicator badge: shown when chat is shared (has active share link) -->
                     <div class="share-badge" title="This chat is shared">
                       <LucideIcons.Share2 size={10} color="white" />
@@ -2127,7 +2137,15 @@
                       <div class="unread-badge" data-testid="unread-badge">
                         {unreadCount > 9 ? '9+' : unreadCount}
                       </div>
-                    {:else if chat.is_shared}
+                    {:else if isSharedByOthers}
+                      <div
+                        class="share-badge public-share-badge"
+                        title={$text('chat.header.shared_chat')}
+                        data-testid="shared-chat-public-icon"
+                      >
+                        <LucideIcons.Globe size={10} color="white" />
+                      </div>
+                    {:else if isOwnerShared}
                       <!-- Share indicator badge: shown when chat is shared (has active share link) -->
                       <div class="share-badge" title="This chat is shared">
                         <LucideIcons.Share2 size={10} color="white" />
@@ -2163,7 +2181,15 @@
                       <div class="unread-badge" data-testid="unread-badge">
                         {unreadCount > 9 ? '9+' : unreadCount}
                       </div>
-                    {:else if chat.is_shared}
+                    {:else if isSharedByOthers}
+                      <div
+                        class="share-badge public-share-badge"
+                        title={$text('chat.header.shared_chat')}
+                        data-testid="shared-chat-public-icon"
+                      >
+                        <LucideIcons.Globe size={10} color="white" />
+                      </div>
+                    {:else if isOwnerShared}
                       <!-- Share indicator badge: shown when chat is shared (has active share link) -->
                       <div class="share-badge" title="This chat is shared">
                         <LucideIcons.Share2 size={10} color="white" />
@@ -2507,6 +2533,10 @@
     justify-content: center;
     border: 2px solid var(--color-background);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  }
+
+  .public-share-badge {
+    background: var(--color-button-primary);
   }
 
   /* Category circle styles */

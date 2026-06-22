@@ -1495,6 +1495,31 @@ header.example_chat:
   he: "צ'אט לדוגמה"
   verified_by_human: []
 
+header.shared_chat:
+  context: Label shown as a badge/pill in the chat header banner and as an accessible label in the chat list when the user is viewing a public shared chat owned by someone else.
+  en: Shared chat
+  de: Geteilter Chat
+  zh: 共享聊天
+  es: Chat compartido
+  fr: Chat partagé
+  pt: Chat compartilhado
+  ru: Общий чат
+  ja: 共有チャット
+  ko: 공유 채팅
+  it: Chat condivisa
+  tr: Paylaşılan sohbet
+  vi: Trò chuyện được chia sẻ
+  id: Chat bersama
+  pl: Udostępniony czat
+  nl: Gedeelde chat
+  ar: دردشة مشتركة
+  hi: साझा चैट
+  th: แชทที่แชร์
+  cs: Sdílený chat
+  sv: Delad chatt
+  he: "צ'אט משותף"
+  verified_by_human: []
+
 header.set_reminder:
   context: Accessible label for the bell button in the top-right of the chat header banner that opens the reminder setter panel
   en: Set reminder
