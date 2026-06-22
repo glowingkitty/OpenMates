@@ -736,7 +736,8 @@ async def call_app_skill(
     skill_id: str,
     input_data: Dict[str, Any],
     parameters: Dict[str, Any],
-    user_info: Dict[str, Any]
+    user_info: Dict[str, Any],
+    enforce_rest_exposure_policy: bool = True,
 ) -> Dict[str, Any]:
     """
     Dispatch a REST-API skill call via the in-process SkillRegistry.
@@ -749,11 +750,16 @@ async def call_app_skill(
     processing. ASCII smuggling uses invisible Unicode characters to embed
     hidden instructions that bypass prompt injection detection but are
     processed by LLMs. See: docs/architecture/prompt_injection_protection.md
+
+    ``enforce_rest_exposure_policy`` must stay enabled for generic REST/API-key
+    handlers. Custom session-mediated routes may disable it when app.yml already
+    hides the generic POST endpoint and the route performs its own auth checks.
     """
     from backend.core.api.app.services.skill_registry import get_global_registry
 
     registry = get_global_registry()
-    assert_rest_skill_execution_allowed(registry, app_id, skill_id)
+    if enforce_rest_exposure_policy:
+        assert_rest_skill_execution_allowed(registry, app_id, skill_id)
     api_key_hash = user_info.get("api_key_hash")
     if api_key_hash:
         try:
@@ -1906,6 +1912,9 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
                 input_data=request_body,
                 parameters={},
                 user_info=user_info,
+                # Keep generic REST POST hidden while allowing this authenticated
+                # custom route to reach the transcription skill.
+                enforce_rest_exposure_policy=False,
             )
 
             return SkillResponse(
