@@ -15,7 +15,7 @@ function deriveApiUrl(baseUrl: string): string {
 }
 
 test.describe('Feature availability', () => {
-	test('default-disabled platform features are hidden and direct projects route is blocked', async ({ page }) => {
+	test('platform feature overrides expose workflows while unfinished sections stay hidden', async ({ page }) => {
 		test.setTimeout(120000);
 
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
@@ -25,7 +25,7 @@ test.describe('Feature availability', () => {
 		const disabled = availability.disabled ?? [];
 
 		expect(disabled).toContain('platform:projects');
-		expect(disabled).toContain('platform:workflows');
+		expect(disabled).not.toContain('platform:workflows');
 		expect(disabled).toContain('platform:tasks');
 		expect(disabled).not.toContain('app:web');
 
@@ -34,7 +34,7 @@ test.describe('Feature availability', () => {
 
 		await expect(page.getByTestId('chats-nav-link')).toHaveCount(0);
 		await expect(page.getByTestId('projects-nav-link')).toHaveCount(0);
-		await expect(page.getByTestId('workflows-nav-link')).toHaveCount(0);
+		await expect(page.getByTestId('workflows-nav-link')).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('tasks-nav-link')).toHaveCount(0);
 
 		await page.goto('/projects', { waitUntil: 'domcontentloaded' });
@@ -42,7 +42,10 @@ test.describe('Feature availability', () => {
 		await expect(page.getByTestId('projects-feature-disabled')).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('projects-page')).toHaveCount(0);
 		await expect(page.getByTestId('projects-nav-link')).toHaveCount(0);
-		await expect(page.getByTestId('workflows-nav-link')).toHaveCount(0);
+		await expect(page.getByTestId('workflows-nav-link')).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('tasks-nav-link')).toHaveCount(0);
+
+		await page.goto('/workflows', { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
 	});
 });

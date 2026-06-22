@@ -28,6 +28,12 @@ import {
   type BankTransferStatus,
   type GiftCardBankTransferStatus,
   type TopicPreferencesPayload,
+  type WorkflowCapability,
+  type WorkflowDetail,
+  type WorkflowGraph,
+  type WorkflowRunDetail,
+  type WorkflowRunContentRetention,
+  type WorkflowSummary,
 } from "./client.js";
 import type { StreamEvent, SubChatEvent } from "./ws.js";
 import { createInterface } from "node:readline/promises";
@@ -140,6 +146,10 @@ async function main(): Promise<void> {
     }
     if (command === "settings") {
       printSettingsHelp(client);
+      return;
+    }
+    if (command === "workflows") {
+      printWorkflowsHelp();
       return;
     }
     if (command === "connected-accounts") {
@@ -259,6 +269,11 @@ async function main(): Promise<void> {
 
   if (command === "settings") {
     await handleSettings(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "workflows") {
+    await handleWorkflows(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -1135,6 +1150,199 @@ async function openUrl(url: string): Promise<void> {
       console.log(url);
     }
   });
+}
+
+// ---------------------------------------------------------------------------
+// Workflows
+// ---------------------------------------------------------------------------
+
+async function handleWorkflows(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printWorkflowsHelp();
+    return;
+  }
+
+  if (subcommand === "capabilities") {
+    const capabilities = await client.listWorkflowCapabilities();
+    if (flags.json === true) {
+      printJson(capabilities);
+    } else {
+      printWorkflowCapabilities(capabilities);
+    }
+    return;
+  }
+
+  if (subcommand === "list") {
+    const workflows = await client.listWorkflows();
+    if (flags.json === true) {
+      printJson(workflows);
+    } else {
+      printWorkflowList(workflows);
+    }
+    return;
+  }
+
+  if (subcommand === "create") {
+    const title = typeof flags.title === "string" ? flags.title.trim() : "";
+    const graphJson = typeof flags.graph === "string" ? flags.graph : "";
+    if (!title) throw new Error("Missing --title for workflow create.");
+    if (!graphJson) throw new Error("Missing --graph JSON for workflow create.");
+    const workflow = await client.createWorkflow({
+      title,
+      graph: parseJsonFlag<WorkflowGraph>(graphJson, "--graph"),
+      enabled: flags.enabled === true,
+      runContentRetention: parseWorkflowRunContentRetention(flags["run-content-retention"]),
+    });
+    if (flags.json === true) {
+      printJson(workflow);
+    } else {
+      printWorkflowDetail(workflow);
+    }
+    return;
+  }
+
+  if (subcommand === "show") {
+    const workflowId = rest[0];
+    if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows show <id>");
+    const workflow = await client.getWorkflow(workflowId);
+    if (flags.json === true) {
+      printJson(workflow);
+    } else {
+      printWorkflowDetail(workflow);
+    }
+    return;
+  }
+
+  if (subcommand === "enable" || subcommand === "disable") {
+    const workflowId = rest[0];
+    if (!workflowId) throw new Error(`Missing workflow ID. Example: openmates workflows ${subcommand} <id>`);
+    const workflow = subcommand === "enable"
+      ? await client.enableWorkflow(workflowId)
+      : await client.disableWorkflow(workflowId);
+    if (flags.json === true) {
+      printJson(workflow);
+    } else {
+      printWorkflowDetail(workflow);
+    }
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const workflowId = rest[0];
+    if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows delete <id> --yes");
+    if (flags.yes !== true) throw new Error("Refusing to delete workflow without --yes.");
+    const result = await client.deleteWorkflow(workflowId);
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      console.log("Workflow deleted.");
+    }
+    return;
+  }
+
+  if (subcommand === "run") {
+    const workflowId = rest[0];
+    if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows run <id>");
+    const mode = flags.mode === "test" ? "test" : "manual";
+    const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
+    const run = await client.runWorkflow(workflowId, { mode, input });
+    if (flags.json === true) {
+      printJson(run);
+    } else {
+      printWorkflowRun(run);
+    }
+    return;
+  }
+
+  if (subcommand === "runs") {
+    const workflowId = rest[0];
+    if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows runs <id>");
+    const runs = await client.listWorkflowRuns(workflowId);
+    if (flags.json === true) {
+      printJson(runs);
+    } else {
+      printWorkflowRuns(runs);
+    }
+    return;
+  }
+
+  if (subcommand === "run-show") {
+    const workflowId = rest[0];
+    const runId = rest[1];
+    if (!workflowId || !runId) throw new Error("Missing workflow/run ID. Example: openmates workflows run-show <workflow-id> <run-id>");
+    const run = await client.getWorkflowRun(workflowId, runId);
+    if (flags.json === true) {
+      printJson(run);
+    } else {
+      printWorkflowRun(run);
+    }
+    return;
+  }
+
+  throw new Error(`Unknown workflows command '${subcommand}'. Run 'openmates workflows --help'.`);
+}
+
+function printWorkflowList(workflows: WorkflowSummary[]): void {
+  if (workflows.length === 0) {
+    console.log("No workflows yet.");
+    console.log("Create one: openmates workflows create --title \"Morning brief\" --graph '<json>'");
+    return;
+  }
+  header(`Workflows  \x1b[2m(${workflows.length})\x1b[0m\n`);
+  for (const workflow of workflows) {
+    kv(workflow.id.slice(0, 8), `${workflow.title} · ${workflow.status}${workflow.trigger_summary ? ` · ${workflow.trigger_summary}` : ""}`, 10);
+  }
+}
+
+function printWorkflowDetail(workflow: WorkflowDetail): void {
+  header(`${workflow.title}\n`);
+  kv("ID", workflow.id);
+  kv("Status", workflow.status);
+  kv("Enabled", String(workflow.enabled));
+  kv("Run content", workflow.run_content_retention ?? "last_5");
+  if (workflow.trigger_summary) kv("Trigger", workflow.trigger_summary);
+  kv("Nodes", String(workflow.graph.nodes.length));
+  console.log(`\n\x1b[2mRun: openmates workflows run ${workflow.id}\x1b[0m`);
+}
+
+function printWorkflowRun(run: WorkflowRunDetail): void {
+  header(`Workflow Run ${run.id}\n`);
+  kv("Status", run.status);
+  kv("Trigger", run.trigger_type);
+  kv("Content", run.content_available === false ? "unavailable" : `${run.content_storage ?? "unknown"} (${run.content_retention_mode ?? "last_5"})`);
+  if (run.content_expires_at) kv("Content expires", new Date(run.content_expires_at * 1000).toISOString());
+  kv("Nodes", String(run.node_runs?.length ?? 0));
+  if (run.error_summary) kv("Error", run.error_summary);
+}
+
+function parseWorkflowRunContentRetention(value: string | boolean | undefined): WorkflowRunContentRetention | undefined {
+  if (value === undefined || value === false) return undefined;
+  if (value === "last_5" || value === "none") return value;
+  throw new Error("Invalid --run-content-retention. Expected last_5 or none.");
+}
+
+function printWorkflowRuns(runs: WorkflowRunDetail[]): void {
+  if (runs.length === 0) {
+    console.log("No workflow runs yet.");
+    return;
+  }
+  header(`Workflow Runs  \x1b[2m(${runs.length})\x1b[0m\n`);
+  for (const run of runs) {
+    kv(run.id.slice(0, 8), `${run.status} · ${run.trigger_type}`, 10);
+  }
+}
+
+function printWorkflowCapabilities(capabilities: WorkflowCapability[]): void {
+  header("Workflow Capabilities\n");
+  for (const capability of capabilities) {
+    const state = capability.enabled ? "enabled" : `disabled${capability.reason ? `: ${capability.reason}` : ""}`;
+    kv(capability.id, `${capability.title} · ${state}`, 24);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -5946,6 +6154,7 @@ Commands:
   openmates whoami [--json]                  Show account info
   openmates chats [--help]                   Chat commands (list, search, show, ...)
   openmates apps [--help]                    App skill commands (list, run, ...)
+  openmates workflows [--help]               Server-side workflow commands
   openmates mentions [--help]                List available @mentions
   openmates embeds [--help]                  Embed commands (show)
   openmates settings [--help]                Predefined settings commands
@@ -6184,6 +6393,29 @@ Examples:
   openmates apps travel search_connections --input '{"requests":[{"legs":[{"origin":"BER","destination":"LHR","date":"2026-04-15"}]}]}'
   openmates apps travel booking-link --token "<booking_token from search result>"
   openmates apps skill-info web search`);
+}
+
+function printWorkflowsHelp(): void {
+  console.log(`Workflows commands:
+  openmates workflows list [--json]
+  openmates workflows capabilities [--json]
+  openmates workflows create --title <title> --graph '<json>' [--enabled] [--run-content-retention last_5|none] [--json]
+  openmates workflows show <workflow-id> [--json]
+  openmates workflows enable <workflow-id> [--json]
+  openmates workflows disable <workflow-id> [--json]
+  openmates workflows run <workflow-id> [--mode manual|test] [--input '<json>'] [--json]
+  openmates workflows runs <workflow-id> [--json]
+  openmates workflows run-show <workflow-id> <run-id> [--json]
+  openmates workflows delete <workflow-id> --yes [--json]
+
+Workflows run on the OpenMates server, not in this terminal process. The CLI
+uses your paired session and shows the same workflow/run records as web, SDKs,
+and Apple clients.
+
+Examples:
+  openmates workflows list
+  openmates workflows capabilities --json
+  openmates workflows run wf_123 --mode test --json`);
 }
 
 function printEmbedsHelp(): void {

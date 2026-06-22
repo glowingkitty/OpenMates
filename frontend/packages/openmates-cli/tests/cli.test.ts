@@ -282,6 +282,15 @@ describe("benchmark command", () => {
   });
 });
 
+describe("workflows command", () => {
+  it("is listed in global help and prints contextual help", () => {
+    assert.match(runCli(["help"]), /openmates workflows \[--help\]/);
+    const output = runCli(["workflows", "--help"]);
+    assert.match(output, /openmates workflows list \[--json\]/);
+    assert.match(output, /openmates workflows run <workflow-id>/);
+  });
+});
+
 describe("account interest commands", () => {
   it("lists account interest commands in settings help", () => {
     const output = runCliWithoutSession(["settings", "account", "interests", "help"]);

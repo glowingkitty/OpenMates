@@ -28,6 +28,14 @@ import {
   generateEmbedShareBlob,
   type ShareDuration,
 } from "./shareEncryption.js";
+import type {
+  WorkflowCapability,
+  WorkflowDetail,
+  WorkflowGraph,
+  WorkflowRunContentRetention,
+  WorkflowRunDetail,
+  WorkflowSummary,
+} from "./client.js";
 
 const DEFAULT_API_URL = "https://api.openmates.org";
 
@@ -147,6 +155,7 @@ export class OpenMates {
   readonly notifications: OpenMatesNotifications;
   readonly reminders: OpenMatesReminders;
   readonly settings: OpenMatesSettings;
+  readonly workflows: OpenMatesWorkflows;
   private readonly apiKey?: string;
   private readonly apiUrl: string;
   private masterKeyPromise?: Promise<Uint8Array>;
@@ -170,6 +179,7 @@ export class OpenMates {
     this.notifications = new OpenMatesNotifications(this);
     this.reminders = new OpenMatesReminders(this);
     this.settings = new OpenMatesSettings(this);
+    this.workflows = new OpenMatesWorkflows(this);
   }
 
   async runAppSkill<T = unknown>(appId: string, skillId: string, input: unknown): Promise<T> {
@@ -775,6 +785,100 @@ export class OpenMatesReminders {
   async list(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/reminders"); }
   async update(id: string, input: Record<string, unknown>): Promise<Record<string, unknown>> { return this.client.patch<Record<string, unknown>>(`/v1/sdk/reminders/${encodeURIComponent(id)}`, input); }
   async delete(id: string, options: ConfirmedMutationOptions): Promise<Record<string, unknown>> { requireConfirmed(options, "Deleting a reminder"); return this.client.delete<Record<string, unknown>>(`/v1/sdk/reminders/${encodeURIComponent(id)}`); }
+}
+
+export class OpenMatesWorkflows {
+  private readonly client: OpenMates;
+
+  constructor(client: OpenMates) {
+    this.client = client;
+  }
+
+  async list(): Promise<WorkflowSummary[]> {
+    const response = await this.client.get<{ workflows?: WorkflowSummary[] }>("/v1/workflows");
+    return response.workflows ?? [];
+  }
+
+  async capabilities(): Promise<WorkflowCapability[]> {
+    const response = await this.client.get<{ capabilities?: WorkflowCapability[] }>("/v1/workflows/capabilities");
+    return response.capabilities ?? [];
+  }
+
+  async get(workflowId: string): Promise<WorkflowDetail> {
+    const response = await this.client.get<{ workflow?: WorkflowDetail }>(`/v1/workflows/${encodeURIComponent(workflowId)}`);
+    if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow response missing workflow" });
+    return response.workflow;
+  }
+
+  async create(params: {
+    title: string;
+    graph: WorkflowGraph;
+    enabled?: boolean;
+    runContentRetention?: WorkflowRunContentRetention;
+  }): Promise<WorkflowDetail> {
+    const response = await this.client.request<{ workflow?: WorkflowDetail }>("/v1/workflows", {
+      title: params.title,
+      graph: params.graph,
+      enabled: params.enabled ?? false,
+      run_content_retention: params.runContentRetention ?? "last_5",
+    });
+    if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow response missing workflow" });
+    return response.workflow;
+  }
+
+  async update(
+    workflowId: string,
+    params: { title?: string; graph?: WorkflowGraph; enabled?: boolean; runContentRetention?: WorkflowRunContentRetention },
+  ): Promise<WorkflowDetail> {
+    const payload: Record<string, unknown> = {};
+    if (params.title !== undefined) payload.title = params.title;
+    if (params.graph !== undefined) payload.graph = params.graph;
+    if (params.enabled !== undefined) payload.enabled = params.enabled;
+    if (params.runContentRetention !== undefined) payload.run_content_retention = params.runContentRetention;
+    const response = await this.client.patch<{ workflow?: WorkflowDetail }>(`/v1/workflows/${encodeURIComponent(workflowId)}`, payload);
+    if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow response missing workflow" });
+    return response.workflow;
+  }
+
+  async enable(workflowId: string): Promise<WorkflowDetail> {
+    const response = await this.client.request<{ workflow?: WorkflowDetail }>(`/v1/workflows/${encodeURIComponent(workflowId)}/enable`, {});
+    if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow response missing workflow" });
+    return response.workflow;
+  }
+
+  async disable(workflowId: string): Promise<WorkflowDetail> {
+    const response = await this.client.request<{ workflow?: WorkflowDetail }>(`/v1/workflows/${encodeURIComponent(workflowId)}/disable`, {});
+    if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow response missing workflow" });
+    return response.workflow;
+  }
+
+  async delete(workflowId: string, options: ConfirmedMutationOptions = {}): Promise<{ deleted: boolean }> {
+    requireConfirmed(options, "Deleting a workflow");
+    return this.client.delete<{ deleted: boolean }>(`/v1/workflows/${encodeURIComponent(workflowId)}`);
+  }
+
+  async run(
+    workflowId: string,
+    params: { mode?: "manual" | "test"; input?: Record<string, unknown> } = {},
+  ): Promise<WorkflowRunDetail> {
+    const response = await this.client.request<{ run?: WorkflowRunDetail }>(`/v1/workflows/${encodeURIComponent(workflowId)}/run`, {
+      mode: params.mode ?? "manual",
+      input: params.input ?? {},
+    });
+    if (!response.run) throw new OpenMatesApiError(500, { detail: "Workflow response missing run" });
+    return response.run;
+  }
+
+  async runs(workflowId: string): Promise<WorkflowRunDetail[]> {
+    const response = await this.client.get<{ runs?: WorkflowRunDetail[] }>(`/v1/workflows/${encodeURIComponent(workflowId)}/runs`);
+    return response.runs ?? [];
+  }
+
+  async runDetail(workflowId: string, runId: string): Promise<WorkflowRunDetail> {
+    const response = await this.client.get<{ run?: WorkflowRunDetail }>(`/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`);
+    if (!response.run) throw new OpenMatesApiError(500, { detail: "Workflow response missing run" });
+    return response.run;
+  }
 }
 
 export class OpenMatesDocs {

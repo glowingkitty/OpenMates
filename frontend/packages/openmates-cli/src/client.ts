@@ -185,6 +185,112 @@ export interface LearningModeContext {
   source?: "anonymous_session";
 }
 
+export type WorkflowNodeType =
+  | "schedule_trigger"
+  | "manual_trigger"
+  | "webhook_trigger"
+  | "app_skill_action"
+  | "decision"
+  | "repeat"
+  | "create_chat_report"
+  | "send_notification"
+  | "send_email_notification"
+  | "ask_user"
+  | "custom_code"
+  | "end";
+
+export interface WorkflowNode {
+  id: string;
+  type: WorkflowNodeType;
+  title?: string | null;
+  config?: Record<string, unknown>;
+  input_mapping?: Record<string, unknown>;
+  ui?: Record<string, unknown>;
+}
+
+export interface WorkflowEdge {
+  from: string;
+  to: string;
+  branch?: string | null;
+}
+
+export interface WorkflowGraph {
+  version: number;
+  trigger_node_id: string;
+  nodes: WorkflowNode[];
+  edges?: WorkflowEdge[];
+  variables?: Record<string, unknown>;
+  limits?: Record<string, unknown>;
+  ui_layout?: Record<string, unknown>;
+}
+
+export type WorkflowRunContentRetention = "last_5" | "none";
+export type WorkflowRunContentStorage = "durable" | "ephemeral" | "deleted";
+
+export interface WorkflowSummary {
+  id: string;
+  title: string;
+  status: "draft" | "active" | "disabled" | "error" | "deleted";
+  enabled: boolean;
+  trigger_summary?: string | null;
+  next_run_at?: number | null;
+  last_run_status?: "queued" | "running" | "waiting" | "completed" | "failed" | "cancelled" | null;
+  run_content_retention?: WorkflowRunContentRetention;
+  current_version_id: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface WorkflowDetail extends WorkflowSummary {
+  graph: WorkflowGraph;
+}
+
+export interface WorkflowNodeRun {
+  id: string;
+  run_id: string;
+  workflow_id: string;
+  node_id: string;
+  node_type: WorkflowNodeType;
+  status: "queued" | "running" | "completed" | "skipped" | "failed";
+  started_at?: number | null;
+  finished_at?: number | null;
+  skipped_reason?: string | null;
+  error_code?: string | null;
+  error_summary?: string | null;
+  input_summary?: Record<string, unknown>;
+  output_summary?: Record<string, unknown>;
+  credit_cost?: number;
+}
+
+export interface WorkflowRunDetail {
+  id: string;
+  workflow_id: string;
+  version_id: string;
+  trigger_type: string;
+  status: "queued" | "running" | "waiting" | "completed" | "failed" | "cancelled";
+  started_at?: number | null;
+  finished_at?: number | null;
+  error_summary?: string | null;
+  cost_summary?: Record<string, unknown>;
+  content_retention_mode?: WorkflowRunContentRetention;
+  content_available?: boolean;
+  content_storage?: WorkflowRunContentStorage | null;
+  content_expires_at?: number | null;
+  encrypted_content_ref?: string | null;
+  encrypted_content_checksum?: string | null;
+  node_runs?: WorkflowNodeRun[];
+  output_summary?: Record<string, unknown>;
+}
+
+export interface WorkflowCapability {
+  type: "node" | "app_skill";
+  id: string;
+  title: string;
+  enabled: boolean;
+  reason?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
 export type InterestTagId =
   | "software_development"
   | "business_development"
@@ -4063,6 +4169,165 @@ export class OpenMatesClient {
       credits_charged?: number;
       error?: string;
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // Workflows
+  // -------------------------------------------------------------------------
+
+  async listWorkflows(): Promise<WorkflowSummary[]> {
+    this.requireSession();
+    const response = await this.http.get<{ workflows?: WorkflowSummary[] }>(
+      "/v1/workflows",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow list failed with HTTP ${response.status}`);
+    }
+    return response.data.workflows ?? [];
+  }
+
+  async createWorkflow(params: {
+    title: string;
+    graph: WorkflowGraph;
+    enabled?: boolean;
+    runContentRetention?: WorkflowRunContentRetention;
+  }): Promise<WorkflowDetail> {
+    this.requireSession();
+    const response = await this.http.post<{ workflow?: WorkflowDetail }>(
+      "/v1/workflows",
+      {
+        title: params.title,
+        graph: params.graph,
+        enabled: params.enabled ?? false,
+        ...(params.runContentRetention ? { run_content_retention: params.runContentRetention } : {}),
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.workflow) {
+      throw new Error(`Workflow create failed with HTTP ${response.status}`);
+    }
+    return response.data.workflow;
+  }
+
+  async getWorkflow(workflowId: string): Promise<WorkflowDetail> {
+    this.requireSession();
+    const response = await this.http.get<{ workflow?: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.workflow) {
+      throw new Error(`Workflow get failed with HTTP ${response.status}`);
+    }
+    return response.data.workflow;
+  }
+
+  async updateWorkflow(
+    workflowId: string,
+    params: { title?: string; graph?: WorkflowGraph; enabled?: boolean; runContentRetention?: WorkflowRunContentRetention },
+  ): Promise<WorkflowDetail> {
+    this.requireSession();
+    const payload = {
+      ...params,
+      ...(params.runContentRetention ? { run_content_retention: params.runContentRetention } : {}),
+    };
+    delete payload.runContentRetention;
+    const response = await this.http.patch<{ workflow?: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}`,
+      payload,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.workflow) {
+      throw new Error(`Workflow update failed with HTTP ${response.status}`);
+    }
+    return response.data.workflow;
+  }
+
+  async deleteWorkflow(workflowId: string): Promise<{ deleted: boolean }> {
+    this.requireSession();
+    const response = await this.http.delete<{ deleted?: boolean }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}`,
+      undefined,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow delete failed with HTTP ${response.status}`);
+    }
+    return { deleted: response.data.deleted === true };
+  }
+
+  async enableWorkflow(workflowId: string): Promise<WorkflowDetail> {
+    return this.setWorkflowEnabled(workflowId, true);
+  }
+
+  async disableWorkflow(workflowId: string): Promise<WorkflowDetail> {
+    return this.setWorkflowEnabled(workflowId, false);
+  }
+
+  async runWorkflow(
+    workflowId: string,
+    params: { mode?: "manual" | "test"; input?: Record<string, unknown> } = {},
+  ): Promise<WorkflowRunDetail> {
+    this.requireSession();
+    const response = await this.http.post<{ run?: WorkflowRunDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/run`,
+      { mode: params.mode ?? "manual", input: params.input ?? {} },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.run) {
+      throw new Error(`Workflow run failed with HTTP ${response.status}`);
+    }
+    return response.data.run;
+  }
+
+  async listWorkflowRuns(workflowId: string): Promise<WorkflowRunDetail[]> {
+    this.requireSession();
+    const response = await this.http.get<{ runs?: WorkflowRunDetail[] }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/runs`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow runs list failed with HTTP ${response.status}`);
+    }
+    return response.data.runs ?? [];
+  }
+
+  async getWorkflowRun(workflowId: string, runId: string): Promise<WorkflowRunDetail> {
+    this.requireSession();
+    const response = await this.http.get<{ run?: WorkflowRunDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.run) {
+      throw new Error(`Workflow run get failed with HTTP ${response.status}`);
+    }
+    return response.data.run;
+  }
+
+  async listWorkflowCapabilities(): Promise<WorkflowCapability[]> {
+    this.requireSession();
+    const response = await this.http.get<{ capabilities?: WorkflowCapability[] }>(
+      "/v1/workflows/capabilities",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow capabilities failed with HTTP ${response.status}`);
+    }
+    return response.data.capabilities ?? [];
+  }
+
+  private async setWorkflowEnabled(workflowId: string, enabled: boolean): Promise<WorkflowDetail> {
+    this.requireSession();
+    const action = enabled ? "enable" : "disable";
+    const response = await this.http.post<{ workflow?: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/${action}`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.workflow) {
+      throw new Error(`Workflow ${action} failed with HTTP ${response.status}`);
+    }
+    return response.data.workflow;
   }
 
   // -------------------------------------------------------------------------

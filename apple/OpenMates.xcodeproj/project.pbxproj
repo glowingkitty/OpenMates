@@ -140,6 +140,10 @@
 		C0FFEE000000000000032003 /* AppStrings+RemotionVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000032001 /* AppStrings+RemotionVideo.swift */; };
 		C0FFEE000000000000033004 /* InteractiveQuestionsParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000033001 /* InteractiveQuestionsParityTests.swift */; };
 		C0FFEE000000000000034004 /* EmbedDiffEditingParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000034001 /* EmbedDiffEditingParityTests.swift */; };
+		C0FFEE000000000000036003 /* WorkflowModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036001 /* WorkflowModels.swift */; };
+		C0FFEE000000000000036004 /* WorkflowAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036002 /* WorkflowAPI.swift */; };
+		C0FFEE000000000000036012 /* WorkflowsParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036011 /* WorkflowsParityTests.swift */; };
+		C0FFEE000000000000036014 /* WorkflowsParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036013 /* WorkflowsParityUITests.swift */; };
 		300707B1BAC8B4FE232B4215 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF95252DD3548D54E1FCF816 /* KeyboardShortcuts.swift */; };
 		30B0859F19D08233DE184B42 /* TravelPriceCalendarEmbedRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85945164CEE92FF9FAEA451C /* TravelPriceCalendarEmbedRenderer.swift */; };
 		31751A097DDB781066268A99 /* BackgroundChatSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224ACCD58377D1F4497661CC /* BackgroundChatSender.swift */; };
@@ -756,6 +760,10 @@
 		C0FFEE000000000000032001 /* AppStrings+RemotionVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppStrings+RemotionVideo.swift"; sourceTree = "<group>"; };
 		C0FFEE000000000000034001 /* EmbedDiffEditingParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedDiffEditingParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000033001 /* InteractiveQuestionsParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveQuestionsParityTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000036001 /* WorkflowModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowModels.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000036002 /* WorkflowAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowAPI.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000036011 /* WorkflowsParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowsParityTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000036013 /* WorkflowsParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowsParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000002002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C0FFEE000000000000002003 /* OpenMatesTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenMatesTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C204366C8F557707BFA41C6D /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
@@ -929,8 +937,18 @@
 				089E38D1ACCFC7CE29FE5CD8 /* Embeds */,
 				AE4B6E4BA8ECA48C237F2B9A /* PublicChats */,
 				56D546DA53A7A7E0E93D0579 /* Settings */,
+				C0FFEE000000000000036010 /* Workflows */,
 			);
 			path = Features;
+			sourceTree = "<group>";
+		};
+		C0FFEE000000000000036010 /* Workflows */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE000000000000036002 /* WorkflowAPI.swift */,
+				C0FFEE000000000000036001 /* WorkflowModels.swift */,
+			);
+			path = Workflows;
 			sourceTree = "<group>";
 		};
 		18D6176BD737B8E261C829A7 /* Persistence */ = {
@@ -1291,6 +1309,7 @@
 				C0FFEE000000000000028001 /* SettingsBillingStoreKitParityUITests.swift */,
 				C0FFEE000000000000029001 /* SettingsSensitiveActionsParityUITests.swift */,
 				C0FFEE000000000000030001 /* SettingsInterfaceLanguageParityUITests.swift */,
+				C0FFEE000000000000036013 /* WorkflowsParityUITests.swift */,
 				C0FFEE000000000000004001 /* ChatFlowRealAccountUITests.swift */,
 				C0FFEE000000000000003001 /* ChatFlowParityUITests.swift */,
 				C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */,
@@ -1313,6 +1332,7 @@
 				C0FFEE000000000000024001 /* SettingsFullParityTests.swift */,
 				C0FFEE000000000000033001 /* InteractiveQuestionsParityTests.swift */,
 				C0FFEE000000000000034001 /* EmbedDiffEditingParityTests.swift */,
+				C0FFEE000000000000036011 /* WorkflowsParityTests.swift */,
 				C0FFEE000000000000002002 /* Info.plist */,
 			);
 			path = OpenMatesTests;
@@ -2244,6 +2264,8 @@
 				1288B44B6FF2F4694B82DC8B /* UnreadMessagesStore.swift in Sources */,
 				2E18776FCE989380BE85F46B /* VideoSearchIntent.swift in Sources */,
 				D3A477A6406FCE23703E6B45 /* VoiceRecordingView.swift in Sources */,
+				C0FFEE000000000000036004 /* WorkflowAPI.swift in Sources */,
+				C0FFEE000000000000036003 /* WorkflowModels.swift in Sources */,
 				E2B960DAD0E7CBE03D8E3A15 /* WebReadEmbedRenderer.swift in Sources */,
 				3B6412DCFB407F1FD95C8D21 /* WebSearchEmbedRenderer.swift in Sources */,
 				5FA4A9B8A99A3D148F2B7FD4 /* WebSearchIntent.swift in Sources */,
@@ -2300,6 +2322,7 @@
 				C0FFEE000000000000028004 /* SettingsBillingStoreKitParityUITests.swift in Sources */,
 				C0FFEE000000000000029004 /* SettingsSensitiveActionsParityUITests.swift in Sources */,
 				C0FFEE000000000000030004 /* SettingsInterfaceLanguageParityUITests.swift in Sources */,
+				C0FFEE000000000000036014 /* WorkflowsParityUITests.swift in Sources */,
 				C0FFEE000000000000004004 /* ChatFlowRealAccountUITests.swift in Sources */,
 				C0FFEE000000000000003004 /* ChatFlowParityUITests.swift in Sources */,
 				C0FFEE000000000000001004 /* ChatOpeningScalabilityUITests.swift in Sources */,
@@ -2321,6 +2344,7 @@
 				C0FFEE000000000000024004 /* SettingsFullParityTests.swift in Sources */,
 				C0FFEE000000000000033004 /* InteractiveQuestionsParityTests.swift in Sources */,
 				C0FFEE000000000000034004 /* EmbedDiffEditingParityTests.swift in Sources */,
+				C0FFEE000000000000036012 /* WorkflowsParityTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

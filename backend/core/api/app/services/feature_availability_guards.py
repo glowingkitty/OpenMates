@@ -37,3 +37,12 @@ def ensure_projects_enabled(request: Request) -> None:
     )
     if not availability.is_enabled("platform:projects"):
         raise HTTPException(status_code=404, detail="FEATURE_DISABLED")
+
+
+def ensure_workflows_enabled(request: Request) -> None:
+    availability = FeatureAvailabilityService(
+        definitions=[FeatureDefinition(id="platform:workflows", kind="platform", default_enabled=False)],
+        config=_backend_config_from_request(request),
+    )
+    if not availability.is_enabled("platform:workflows"):
+        raise HTTPException(status_code=404, detail="FEATURE_DISABLED")

@@ -579,8 +579,18 @@ class OpenMatesWorkflows:
     def get(self, workflow_id: str) -> dict[str, Any]:
         return self._client._get(f"/v1/workflows/{_quote(workflow_id)}").get("workflow", {})
 
-    def create(self, *, title: str, graph: dict[str, Any], enabled: bool = False) -> dict[str, Any]:
-        return self._client._post("/v1/workflows", {"title": title, "graph": graph, "enabled": enabled}).get("workflow", {})
+    def create(
+        self,
+        *,
+        title: str,
+        graph: dict[str, Any],
+        enabled: bool = False,
+        run_content_retention: str = "last_5",
+    ) -> dict[str, Any]:
+        return self._client._post(
+            "/v1/workflows",
+            {"title": title, "graph": graph, "enabled": enabled, "run_content_retention": run_content_retention},
+        ).get("workflow", {})
 
     def update(
         self,
@@ -589,8 +599,18 @@ class OpenMatesWorkflows:
         title: str | None = None,
         graph: dict[str, Any] | None = None,
         enabled: bool | None = None,
+        run_content_retention: str | None = None,
     ) -> dict[str, Any]:
-        payload = {key: value for key, value in {"title": title, "graph": graph, "enabled": enabled}.items() if value is not None}
+        payload = {
+            key: value
+            for key, value in {
+                "title": title,
+                "graph": graph,
+                "enabled": enabled,
+                "run_content_retention": run_content_retention,
+            }.items()
+            if value is not None
+        }
         return self._client._patch(f"/v1/workflows/{_quote(workflow_id)}", payload).get("workflow", {})
 
     def enable(self, workflow_id: str) -> dict[str, Any]:
