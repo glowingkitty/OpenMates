@@ -754,7 +754,7 @@ class DirectusService:
             "sort": "-created_at"  # Most recently created first
         }
         try:
-            items = await self.get_items("api_keys", params)
+            items = await self.get_items("api_keys", params, admin_required=True)
             return items if items else []
         except Exception as e:
             logger.error(f"Exception getting user API keys for user_id {user_id[:8]}...: {e}", exc_info=True)
@@ -776,7 +776,7 @@ class DirectusService:
             "limit": 1
         }
         try:
-            items = await self.get_items("api_keys", params)
+            items = await self.get_items("api_keys", params, admin_required=True)
             if items:
                 return items[0]
             return None
@@ -833,7 +833,7 @@ class DirectusService:
             payload["expires_at"] = expires_at
         
         try:
-            success, created_item = await self.create_item("api_keys", payload)
+            success, created_item = await self.create_item("api_keys", payload, admin_required=True)
             if success and created_item:
                 logger.info(f"Successfully created API key for user {user_id}")
                 return created_item
@@ -855,7 +855,7 @@ class DirectusService:
             True if deleted successfully, False otherwise
         """
         try:
-            success = await self.delete_item("api_keys", api_key_id)
+            success = await self.delete_item("api_keys", api_key_id, admin_required=True)
             if success:
                 logger.info(f"Successfully deleted API key {api_key_id}")
             return success
@@ -889,7 +889,7 @@ class DirectusService:
             # Use provided timestamp or generate current UTC time
             timestamp = last_used_at or datetime.now(timezone.utc).isoformat()
             update_data = {"last_used_at": timestamp}
-            updated = await self._update_item("api_keys", api_key_id, update_data)
+            updated = await self._update_item("api_keys", api_key_id, update_data, admin_required=True)
             if updated:
                 logger.debug(f"Updated api_key {api_key_id} last_used_at -> {timestamp}")
             else:
