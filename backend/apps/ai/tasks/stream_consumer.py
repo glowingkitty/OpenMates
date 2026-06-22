@@ -2730,6 +2730,9 @@ EMBED_REFERENCE_FENCE_PATTERN = re.compile(
     r'```(?:json|json_embed)\s*\n\s*(\{[^`]*?"embed_id"\s*:\s*"([^"]+)"[^`]*?\})\s*\n```',
     re.DOTALL,
 )
+EMBED_ID_UUID_PATTERN = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
 
 
 def _has_valid_embed_ids(value: Any) -> bool:
@@ -2882,6 +2885,17 @@ def _extract_standalone_embed_ids(text: str) -> list[str]:
     return embed_ids
 
 
+def _has_uuid_embed_ids(value: Any) -> bool:
+    return (
+        isinstance(value, list)
+        and len(value) > 0
+        and all(
+            isinstance(embed_id, str) and EMBED_ID_UUID_PATTERN.match(embed_id)
+            for embed_id in value
+        )
+    )
+
+
 def _attach_preceding_embed_ids_to_interactive_question(
     payload: Dict[str, Any],
     preceding_text: str,
@@ -2893,6 +2907,8 @@ def _attach_preceding_embed_ids_to_interactive_question(
     embed_ids = _extract_standalone_embed_ids(preceding_text)
     if not embed_ids:
         return payload, False
+    if not all(EMBED_ID_UUID_PATTERN.match(embed_id) for embed_id in embed_ids):
+        return payload, False
 
     item_key = "options" if question_type == "choice" else "cards"
     items = payload.get(item_key)
@@ -2900,18 +2916,30 @@ def _attach_preceding_embed_ids_to_interactive_question(
         return payload, False
 
     custom_option_id = payload.get("custom_option_id") if question_type == "choice" else None
-    attachable_items = [
+    repairable_items = [
         item
         for item in items
         if isinstance(item, dict)
-        and not item.get("embed_ids")
         and item.get("id") != custom_option_id
     ]
-    if len(attachable_items) != len(embed_ids):
+    if len(repairable_items) != len(embed_ids):
         return payload, False
 
-    for item, embed_id in zip(attachable_items, embed_ids):
-        item["embed_ids"] = [embed_id]
+    needs_repair = False
+    for item, embed_id in zip(repairable_items, embed_ids):
+        current_embed_ids = item.get("embed_ids")
+        if current_embed_ids == [embed_id]:
+            continue
+        if _has_uuid_embed_ids(current_embed_ids):
+            return payload, False
+        needs_repair = True
+
+    if not needs_repair:
+        return payload, False
+
+    for item, embed_id in zip(repairable_items, embed_ids):
+        if item.get("embed_ids") != [embed_id]:
+            item["embed_ids"] = [embed_id]
     return payload, True
 
 
