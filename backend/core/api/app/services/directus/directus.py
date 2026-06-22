@@ -744,8 +744,12 @@ class DirectusService:
 
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         params = {
-            "filter[_or][0][hashed_user_id][_eq]": hashed_user_id,
-            "filter[_or][1][user_id][_eq]": user_id,
+            "filter": {
+                "_or": [
+                    {"hashed_user_id": {"_eq": hashed_user_id}},
+                    {"user_id": {"_eq": user_id}},
+                ]
+            },
             "fields": "id,key_hash,encrypted_key_prefix,encrypted_name,full_access,scopes,credit_limit,expires_at,last_used_at,created_at",
             "sort": "-created_at"  # Most recently created first
         }
