@@ -455,7 +455,7 @@ async def _dispatch_sdk_surface(
             )
             return {"memories": memories or []}
         if parts == ["types"] and request.method == "GET":
-            from backend.core.api.app.routes import apps as apps_routes
+            from backend.core.api.app.routes import apps_api as apps_routes
 
             apps = await apps_routes.list_apps(lang=request.query_params.get("lang", "en"), request=request)
             return {"apps": _jsonable(apps)}

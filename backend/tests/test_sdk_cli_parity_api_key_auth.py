@@ -327,6 +327,26 @@ async def test_sdk_dispatch_new_chat_suggestions_falls_back_to_database():
 
 
 @pytest.mark.asyncio
+async def test_sdk_dispatch_memory_types_uses_apps_api_route(monkeypatch):
+    async def fake_list_apps(lang, request):
+        assert lang == "en"
+        return [{"id": "calendar", "memory": True}]
+
+    fake_apps_api = SimpleNamespace(list_apps=fake_list_apps)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.apps_api", fake_apps_api)
+
+    result = await _dispatch_sdk_surface(
+        _FakeRequest(method="GET", query_params={"lang": "en"}),
+        {"user_id": "user-1"},
+        "memories",
+        "types",
+        None,
+    )
+
+    assert result == {"apps": [{"id": "calendar", "memory": True}]}
+
+
+@pytest.mark.asyncio
 async def test_sdk_dispatch_rejects_unbounded_new_chat_suggestions_limit():
     with pytest.raises(HTTPException) as exc:
         await _dispatch_sdk_surface(

@@ -78,6 +78,7 @@ class OpenMates:
         self.notifications = OpenMatesNotifications(self)
         self.reminders = OpenMatesReminders(self)
         self.settings = OpenMatesSettings(self)
+        self.workflows = OpenMatesWorkflows(self)
 
     def _run_app_skill(self, app_id: str, skill_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
         return self._post(
@@ -561,6 +562,58 @@ class OpenMatesChats:
 
     def incognito(self, message: str) -> ChatResponse:
         return self.send(message, save_to_account=False)
+
+
+class OpenMatesWorkflows:
+    """Server-side workflow SDK namespace."""
+
+    def __init__(self, client: OpenMates):
+        self._client = client
+
+    def list(self) -> list[dict[str, Any]]:
+        return self._client._get("/v1/workflows").get("workflows", [])
+
+    def capabilities(self) -> list[dict[str, Any]]:
+        return self._client._get("/v1/workflows/capabilities").get("capabilities", [])
+
+    def get(self, workflow_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/workflows/{_quote(workflow_id)}").get("workflow", {})
+
+    def create(self, *, title: str, graph: dict[str, Any], enabled: bool = False) -> dict[str, Any]:
+        return self._client._post("/v1/workflows", {"title": title, "graph": graph, "enabled": enabled}).get("workflow", {})
+
+    def update(
+        self,
+        workflow_id: str,
+        *,
+        title: str | None = None,
+        graph: dict[str, Any] | None = None,
+        enabled: bool | None = None,
+    ) -> dict[str, Any]:
+        payload = {key: value for key, value in {"title": title, "graph": graph, "enabled": enabled}.items() if value is not None}
+        return self._client._patch(f"/v1/workflows/{_quote(workflow_id)}", payload).get("workflow", {})
+
+    def enable(self, workflow_id: str) -> dict[str, Any]:
+        return self._client._post(f"/v1/workflows/{_quote(workflow_id)}/enable", {}).get("workflow", {})
+
+    def disable(self, workflow_id: str) -> dict[str, Any]:
+        return self._client._post(f"/v1/workflows/{_quote(workflow_id)}/disable", {}).get("workflow", {})
+
+    def delete(self, workflow_id: str, *, confirmed: bool = False) -> dict[str, Any]:
+        _require_confirmed(confirmed, "Deleting a workflow")
+        return self._client._delete(f"/v1/workflows/{_quote(workflow_id)}")
+
+    def run(self, workflow_id: str, *, mode: str = "manual", input_data: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._client._post(
+            f"/v1/workflows/{_quote(workflow_id)}/run",
+            {"mode": mode, "input": input_data or {}},
+        ).get("run", {})
+
+    def runs(self, workflow_id: str) -> list[dict[str, Any]]:
+        return self._client._get(f"/v1/workflows/{_quote(workflow_id)}/runs").get("runs", [])
+
+    def run_detail(self, workflow_id: str, run_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/workflows/{_quote(workflow_id)}/runs/{_quote(run_id)}").get("run", {})
 
 
 class OpenMatesAccount:
