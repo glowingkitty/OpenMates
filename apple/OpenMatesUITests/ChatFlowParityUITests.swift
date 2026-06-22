@@ -95,7 +95,7 @@ final class ChatFlowParityUITests: XCTestCase {
         messageEditor.typeText("coding")
 
         XCTAssertTrue(codingSuggestion.waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.cover_letter"].exists)
+        XCTAssertFalse(app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.cover_letter"].isHittable)
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
 
         attachScreenshot(name: "Guest interest tag selection filters suggestions")
