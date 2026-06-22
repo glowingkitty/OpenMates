@@ -63,3 +63,9 @@ om.docs.search("api keys")
 The SDK raises `OpenMatesConfigError` for missing configuration and `OpenMatesApiError` for API responses such as expired keys, unapproved devices, missing scopes, or exceeded credit limits.
 
 Full source docs: `docs/user-guide/developers/sdk.md` in the OpenMates repository.
+
+## Publishing
+
+Maintainers publish this package through PyPI Trusted Publishing from GitHub
+Actions. See `docs/contributing/guides/publish-python-sdk.md` for first-time
+PyPI setup, versioning rules, and the automated `dev`/`main` release flow.

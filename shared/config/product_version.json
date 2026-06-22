@@ -4,5 +4,10 @@
     "stableBase": "0.13.0",
     "prereleaseBase": "0.13.0-alpha",
     "prereleaseSeed": "0.13.0-alpha.0"
+  },
+  "python": {
+    "stableBase": "0.13.0",
+    "prereleaseBase": "0.13.0a",
+    "prereleaseSeed": "0.13.0a0"
   }
 }

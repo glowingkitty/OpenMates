@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,7 +9,7 @@ description = "OpenMates Python SDK"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["requests>=2.31", "cryptography>=41"]
-license = { text = "MIT" }
+license = "MIT"
 
 [tool.setuptools.packages.find]
 where = ["."]
