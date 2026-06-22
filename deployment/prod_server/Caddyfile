@@ -121,7 +121,7 @@ api.openmates.org {
 	# origin including unauthenticated visitors. No PII collected; aggregate-only counters.
 	# /v1/default-inspirations is public (no auth required) — returns daily inspiration previews
 	# for the DailyInspirationBanner shown to unauthenticated users on the home page.
-	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/features/availability /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/anonymous/* /v1/docs /v1/docs/* /v1/skills /v1/skills/* /v1/creators /v1/creators/* /v1/users/* /v1/wikipedia/* /v1/electronics/pcb-schematic/* /e2e/* /v1/webhooks /v1/webhooks/* # Public API endpoints (authentication enforced by FastAPI). /v1/features/availability exposes effective feature availability without secrets. /v1/anonymous/* is official-cloud free usage with backend budget/rate limits; no cookies required. /v1/wikipedia/* requires session cookie OR API key (never anonymous); API-key callers are charged 1 credit per request. /v1/electronics/pcb-schematic/* requires auth; direct clients should reach FastAPI 401/404 instead of Caddy abort. /e2e/* uses HMAC token auth; /v1/webhooks/* uses webhook key auth (Bearer wh-...).
+	@public_api_paths path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/features/availability /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/anonymous/* /v1/docs /v1/docs/* /v1/skills /v1/skills/* /v1/creators /v1/creators/* /v1/users/* /v1/wikipedia/* /v1/electronics/pcb-schematic/* /v1/sdk /v1/sdk/* /e2e/* /v1/webhooks /v1/webhooks/* # Public API endpoints (authentication enforced by FastAPI). /v1/features/availability exposes effective feature availability without secrets. /v1/anonymous/* is official-cloud free usage with backend budget/rate limits; no cookies required. /v1/wikipedia/* requires session cookie OR API key (never anonymous); API-key callers are charged 1 credit per request. /v1/electronics/pcb-schematic/* requires auth; direct clients should reach FastAPI 401/404 instead of Caddy abort. /v1/sdk/* requires API key auth and device approval. /e2e/* uses HMAC token auth; /v1/webhooks/* uses webhook key auth (Bearer wh-...).
 
 	# --- PUBLIC SHARE MATCHERS ---
 	# Share endpoints are publicly accessible (no Origin check) for social media and cross-platform sharing
@@ -198,7 +198,7 @@ api.openmates.org {
 	}
 
 	@public_api_options {
-		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/features/availability /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/anonymous/* /v1/docs /v1/docs/* /v1/skills /v1/skills/* /v1/creators /v1/creators/* /v1/users/* /v1/wikipedia/* /v1/electronics/pcb-schematic/* /e2e/*
+		path /v1/apps /v1/apps/* /v1/settings/* /v1/tasks/* /v1/embeds/* /v1/features/availability /v1/geocode/* /v1/analytics/* /v1/default-inspirations /v1/anonymous/* /v1/docs /v1/docs/* /v1/skills /v1/skills/* /v1/creators /v1/creators/* /v1/users/* /v1/wikipedia/* /v1/electronics/pcb-schematic/* /v1/sdk /v1/sdk/* /e2e/*
 		method OPTIONS
 	}
 
@@ -254,7 +254,7 @@ api.openmates.org {
 		handle @public_api_options {
 			header Access-Control-Allow-Origin "*"
 			header Access-Control-Allow-Methods "GET, POST, PATCH, DELETE, PUT, OPTIONS"
-			header Access-Control-Allow-Headers "Accept, Content-Type, Authorization, X-OpenMates-Anonymous-ID, traceparent, tracestate"
+			header Access-Control-Allow-Headers "Accept, Content-Type, Authorization, X-OpenMates-Anonymous-ID, X-OpenMates-SDK, X-OpenMates-Device-Identity, traceparent, tracestate"
 			header Access-Control-Max-Age "86400" # Cache preflight for 1 day
 			respond 204
 		}
