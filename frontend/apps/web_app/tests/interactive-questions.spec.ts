@@ -116,7 +116,7 @@ test.describe('InteractiveQuestions Component Previews (All 5 Types)', () => {
 
 		const sendBtn = page.getByTestId('interactive-question-send');
 		await expect(sendBtn).toBeDisabled();
-		await page.getByTestId('interactive-question-option-robust').click();
+		await page.getByText('More robust implementation').click();
 		await expect(sendBtn).toBeEnabled();
 	});
 
