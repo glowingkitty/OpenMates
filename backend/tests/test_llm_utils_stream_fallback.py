@@ -13,11 +13,14 @@ import pytest
 
 try:
     from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
+    from backend.apps.ai.llm_providers.types import StreamChunkType, UnifiedStreamChunk
     from backend.apps.ai.utils import llm_utils
 except ImportError:
     pytestmark = pytest.mark.skip(reason="Backend AI dependencies not installed (google-genai, tiktoken, etc.)")
     AllServersFailedError = None  # type: ignore[assignment]
     GoogleUsageMetadata = None  # type: ignore[assignment, misc]
+    StreamChunkType = None  # type: ignore[assignment, misc]
+    UnifiedStreamChunk = None  # type: ignore[assignment, misc]
     llm_utils = None  # type: ignore[assignment]
 else:
     AllServersFailedError = llm_utils.AllServersFailedError
@@ -161,6 +164,75 @@ def test_call_main_llm_stream_falls_back_after_bedrock_image_validation_error(mo
 
     assert calls == ["aws_bedrock", "anthropic"]
     assert chunks == ["Recovered via direct Anthropic"]
+
+
+def test_call_main_llm_stream_falls_back_after_gemini_malformed_function_call(monkeypatch):
+    calls = []
+
+    async def google_ai_studio_provider(**_kwargs):
+        async def _stream():
+            yield UnifiedStreamChunk(type=StreamChunkType.THINKING, content="thinking only")
+            raise IOError(
+                "Google API Unexpected Streaming Error: Gemini returned MALFORMED_FUNCTION_CALL "
+                "for model 'gemini-3-flash-preview'. Triggering model fallback."
+            )
+
+        return _stream()
+
+    async def google_vertex_provider(**_kwargs):
+        async def _stream():
+            yield "Recovered via Vertex"
+
+        return _stream()
+
+    def fake_get_provider_client(provider_prefix):
+        calls.append(provider_prefix)
+        if provider_prefix == "google_ai_studio":
+            return google_ai_studio_provider
+        if provider_prefix == "google":
+            return google_vertex_provider
+        raise AssertionError(f"Unexpected provider prefix: {provider_prefix}")
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", fake_get_provider_client)
+    monkeypatch.setattr(
+        llm_utils,
+        "resolve_default_server_from_provider_config",
+        lambda model_id: (
+            ("google_ai_studio", "google_ai_studio/gemini-3-flash-preview")
+            if model_id == "google/gemini-3-flash-preview"
+            else (None, None)
+        ),
+    )
+    monkeypatch.setattr(
+        llm_utils,
+        "resolve_fallback_servers_from_provider_config",
+        lambda model_id: ["google/gemini-3-flash-preview"]
+        if model_id == "google/gemini-3-flash-preview"
+        else [],
+    )
+    monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda message_history: message_history)
+    monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _model_id: True)
+
+    async def consume_stream():
+        chunks = []
+        stream = llm_utils.call_main_llm_stream(
+            task_id="task-gemini-malformed",
+            model_id="google/gemini-3-flash-preview",
+            system_prompt="system",
+            message_history=[{"role": "user", "content": "hello"}],
+            temperature=0.2,
+            tools=[{"type": "function", "function": {"name": "web-search", "parameters": {"type": "object"}}}],
+            tool_choice="auto",
+        )
+        async for chunk in stream:
+            chunks.append(chunk)
+        return chunks
+
+    chunks = asyncio.run(consume_stream())
+
+    assert calls == ["google_ai_studio", "google"]
+    assert chunks[0].type == StreamChunkType.THINKING
+    assert chunks[1] == "Recovered via Vertex"
 
 
 def test_call_main_llm_stream_skips_stripped_signature_retry_on_google_only_servers(monkeypatch):

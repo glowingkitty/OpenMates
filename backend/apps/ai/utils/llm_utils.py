@@ -1416,6 +1416,12 @@ async def call_main_llm_stream(
         # succeed on the configured direct Anthropic fallback server.
         if "validationexception" in error_lower and "could not process image" in error_lower:
             return True
+        # Gemini can finish a thinking stream with MALFORMED_FUNCTION_CALL when it
+        # fails to emit valid tool-call JSON. This is provider/model-specific, so a
+        # fallback server or model can still recover the request.
+        if "malformed_function_call" in error_lower:
+            return True
+
         # Non-retryable errors: 400 (bad request) - the request itself is malformed,
         # sending the same request to another provider won't help.
         # EXCEPTION: "thought signature is not valid" is a special 400 that CAN be fixed by stripping
@@ -1744,8 +1750,8 @@ async def call_main_llm_stream(
 
                         if _chunk_has_substantive_output(chunk):
                             provider_produced_substantive_output = True
+                            _any_content_yielded = True
 
-                        _any_content_yielded = True
                         yield chunk
 
                     if not provider_produced_substantive_output:
