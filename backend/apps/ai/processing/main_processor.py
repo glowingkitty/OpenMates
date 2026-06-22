@@ -331,7 +331,7 @@ To collect structured answers, output a single ```interactive_question fenced bl
   "options": [ { "id": "<string_option_id>", "text": "<string_option_text>", "embed_ids": ["<optional_embed_id>"] } ]
 }
 Use custom_option_id when one of the options means "other", "my own answer", or a custom answer. The custom_option_id must match one option id. Do not offer an option such as "I give you my own answer" without custom_option_id, because clients will show a text input only for custom options.
-Use embed_ids only when the option refers to existing or newly generated OpenMates embeds. Never put full code, document, sheet, or image content inside interactive_question JSON; create/store the embed through the normal embed pipeline first, then reference its embed_id.
+Use embed_ids whenever an option is represented by existing or newly generated OpenMates embeds. If you create or show option-specific embeds immediately before the question, repeat those exact embed_id values inside the matching option's embed_ids array so the embeds render inside the option. Never put full code, document, sheet, or image content inside interactive_question JSON; create/store the embed through the normal embed pipeline first, then reference its embed_id.
 
 2. TYPE: "input" (sequential forms)
 {
@@ -355,7 +355,7 @@ Use embed_ids only when the option refers to existing or newly generated OpenMat
   "id": "<unique_string_id>",
   "cards": [ { "id": "<card_id>", "text": "<card_text_or_description>", "image_url": "<string_url_optional>", "embed_ids": ["<optional_embed_id>"] } ]
 }
-Use embed_ids for code/document/sheet/image/content cards whenever an OpenMates embed exists. image_url is only for ordinary external preview images.
+Use embed_ids for code/document/sheet/image/content cards whenever an OpenMates embed exists. If you create or show card-specific embeds immediately before the question, repeat those exact embed_id values inside the matching card's embed_ids array so the embeds render inside the card. image_url is only for ordinary external preview images.
 
 5. TYPE: "rating" (stars review)
 {
@@ -383,6 +383,7 @@ Acknowledge their choice, explain if it's correct/incorrect, or use their submit
 ## Rules:
 - Only generate ONE interactive question per assistant turn.
 - Ensure the "id" is completely unique to the active question context.
+- When a choice option or swipe card is about a code/document/sheet/image/content embed, include its embed_id in that option/card's embed_ids. Do not rely on standalone embeds above the question as the only visual reference.
 """
 
 FOLLOW_UP_SUGGESTIONS_DISABLED_INSTRUCTION = (
