@@ -67,6 +67,49 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Seeded chat-flow visual snapshot")
     }
 
+    func testGuestInterestTagsSelectAndFilterSuggestions() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
+        app.launch()
+
+        XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
+        XCTAssertFalse(app.buttons["guest-interest-continue"].exists)
+
+        tapInterestTag("privacy", in: app)
+        tapInterestTag("learning", in: app)
+        tapInterestTag("writing", in: app)
+        XCTAssertFalse(app.buttons["guest-interest-continue"].exists)
+        tapInterestTag("software_development", in: app)
+
+        let continueButton = app.buttons["guest-interest-continue"]
+        XCTAssertTrue(continueButton.waitForExistence(timeout: 5))
+        continueButton.tap()
+
+        XCTAssertTrue(app.buttons["guest-interest-select-interests"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["welcome-chat-card-demo-for-everyone"].waitForExistence(timeout: 10))
+
+        let codingSuggestion = app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.learn_coding"]
+        XCTAssertTrue(codingSuggestion.waitForExistence(timeout: 10))
+
+        let messageEditor = app.textFields["message-editor"]
+        XCTAssertTrue(messageEditor.waitForExistence(timeout: 5))
+        messageEditor.tap()
+        messageEditor.typeText("coding")
+
+        XCTAssertTrue(codingSuggestion.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.cover_letter"].exists)
+        XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
+
+        attachScreenshot(name: "Guest interest tag selection filters suggestions")
+    }
+
+    private func tapInterestTag(_ tagId: String, in app: XCUIApplication) {
+        let tag = app.buttons["interest-tag-\(tagId)"]
+        XCTAssertTrue(tag.waitForExistence(timeout: 5), "Expected interest tag \(tagId)")
+        tag.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["interest-tag-\(tagId)-check"].waitForExistence(timeout: 5))
+    }
+
     private func attachScreenshot(name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name

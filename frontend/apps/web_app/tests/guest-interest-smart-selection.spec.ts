@@ -259,6 +259,12 @@ test.describe('Guest interest smart selection', () => {
 				'chat.new_chat_suggestions.use_openmates_cli_api'
 			])
 		);
+		await page.getByTestId('message-editor').click();
+		await page.keyboard.type('coding');
+		await expect.poll(async () => await visibleSuggestionIds(page), { timeout: 5000 }).toContain(
+			'chat.new_chat_suggestions.learn_coding'
+		);
+		expect(await visibleSuggestionIds(page)).not.toContain('chat.new_chat_suggestions.cover_letter');
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('guest-interest-tags')).toHaveCount(0, { timeout: 15000 });

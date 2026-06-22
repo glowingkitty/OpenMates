@@ -4134,6 +4134,7 @@ private struct WelcomeResumeCard: View {
                 .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("welcome-chat-card-\(card.id)")
             .accessibilityLabel(card.title)
         }
     }
