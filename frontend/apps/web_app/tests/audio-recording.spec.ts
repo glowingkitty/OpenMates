@@ -139,6 +139,15 @@ async function holdAndReleaseMicButton(page: any, micButton: any, holdMs = 1500)
 	await expect(overlay).not.toBeVisible({ timeout: 10000 });
 }
 
+async function dispatchHoldAndReleaseMicButton(page: any, micButton: any, holdMs = 2000) {
+	await micButton.dispatchEvent('mousedown', { button: 0 });
+	const overlay = page.getByTestId('record-overlay');
+	await expect(overlay).toBeVisible({ timeout: 5000 });
+	await page.waitForTimeout(holdMs);
+	await page.dispatchEvent('body', 'mouseup');
+	await expect(overlay).not.toBeVisible({ timeout: 10000 });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 1: Single tap shows "Press & hold" hint (no recording overlay)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -285,7 +294,7 @@ test('authenticated press hold release uploads and transcribes audio embed', asy
 		{ timeout: 120000 }
 	);
 
-	await holdAndReleaseMicButton(page, micButton, 2000);
+	await dispatchHoldAndReleaseMicButton(page, micButton);
 
 	const transcribeResponse = await transcribeResponsePromise;
 	const transcribeBody = await transcribeResponse.text().catch(() => '<unreadable response body>');
