@@ -509,17 +509,18 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Dismissed key modal.');
 	await page.waitForTimeout(1000);
 
-	// ── Phase 3: Make REST API call — expect it to be blocked (device pending) ─
-	log(`Making REST API call to ${API_BASE_URL}/v1/settings/api-keys with new key...`);
-	const blockedResponse = await request.get(`${API_BASE_URL}/v1/settings/api-keys`, {
+	// ── Phase 3: Make API-key-authenticated SDK call — expect device-pending block ─
+	const sdkChatsUrl = `${API_BASE_URL}/v1/sdk/chats?limit=1`;
+	log(`Making SDK API call to ${sdkChatsUrl} with new key...`);
+	const blockedResponse = await request.get(sdkChatsUrl, {
 		headers: { Authorization: `Bearer ${rawApiKey}` }
 	});
 	log(`REST API response (before device approval): ${blockedResponse.status()}`);
 	await screenshot(page, 'api-call-before-approval');
 
 	expect(
-		[401, 403].includes(blockedResponse.status()),
-		`Expected 401 or 403 (device not yet approved), got ${blockedResponse.status()}`
+		blockedResponse.status() === 403,
+		`Expected 403 (device not yet approved), got ${blockedResponse.status()}`
 	).toBe(true);
 	log('Confirmed: REST API call correctly blocked before device approval.');
 
@@ -563,9 +564,9 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Confirmed: Approved status badge is visible.');
 	await screenshot(page, 'device-approved');
 
-	// ── Phase 5: Make REST API call again — expect 200 ───────────────────────
-	log(`Making REST API call to ${API_BASE_URL}/v1/settings/api-keys with approved key...`);
-	const approvedResponse = await request.get(`${API_BASE_URL}/v1/settings/api-keys`, {
+	// ── Phase 5: Make SDK API call again — expect 200 ─────────────────────────
+	log(`Making SDK API call to ${sdkChatsUrl} with approved key...`);
+	const approvedResponse = await request.get(sdkChatsUrl, {
 		headers: { Authorization: `Bearer ${rawApiKey}` }
 	});
 	log(`REST API response (after device approval): ${approvedResponse.status()}`);
@@ -573,7 +574,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 
 	expect(approvedResponse.status()).toBe(200);
 	const approvedData = await approvedResponse.json();
-	expect(approvedData).toHaveProperty('api_keys');
+	expect(approvedData).toHaveProperty('chats');
 	log('Confirmed: REST API call succeeded after device approval!');
 
 	// ── Phase 6: Save the working API key to artifacts ───────────────────────
