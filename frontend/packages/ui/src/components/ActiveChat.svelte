@@ -2942,11 +2942,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     /**
      * Build the scrollable intro list for non-authenticated users.
-     * Combines static DEMO_CHATS (intro chats, excluding legal) with
-     * example chats (static, always available), in that order.
+     * Prepends locally imported shared-by-others chats, then adds intro and
+     * example chats after the guest has confirmed/skipped interest selection.
      * Returns Chat[] ready for rendering with the standard card components.
      */
-    function loadNonAuthRecentChats(selectedTagIds: InterestTagId[] = []): RecentChatMeta[] {
+    async function loadSharedByOthersRecentChats(): Promise<RecentChatMeta[]> {
+        try {
+            await chatDB.init();
+            const chats = await chatDB.getAllChats();
+            const sharedChats = sortChats(
+                chats.filter((chat) => chat.is_shared_by_others && !chat.parent_id && !chat.is_sub_chat),
+                []
+            ).slice(0, RECENT_CHATS_TOTAL);
+
+            return Promise.all(sharedChats.map((chat) => buildRecentChatMeta(chat)));
+        } catch (err) {
+            console.warn('[ActiveChat] Failed to load shared-by-others chats for guest carousel:', err);
+            return [];
+        }
+    }
+
+    async function loadNonAuthRecentChats(selectedTagIds: InterestTagId[] = [], includeGuestExamples = false): Promise<RecentChatMeta[]> {
+        const sharedMetas = await loadSharedByOthersRecentChats();
+
+        if (!includeGuestExamples) {
+            return sharedMetas;
+        }
+
         // 1. Static intro chats (DEMO_CHATS = INTRO_CHATS, already excludes LEGAL_CHATS)
         const introMetas: RecentChatMeta[] = DEMO_CHATS
             .filter((demoChat) => demoChat.chat_id === 'demo-for-everyone')
@@ -2976,7 +2998,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }));
 
         if (selectedTagIds.length === 0) {
-            return [...introMetas, ...communityMetas];
+            return [...sharedMetas, ...introMetas, ...communityMetas];
         }
 
         const rankedExampleIds = rankExampleChatIdsByInterests(
@@ -2988,11 +3010,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             .map((id) => metaById.get(id))
             .filter((meta): meta is RecentChatMeta => Boolean(meta));
 
-        return [...introMetas, ...rankedCommunityMetas];
+        return [...sharedMetas, ...introMetas, ...rankedCommunityMetas];
     }
 
     // State for non-authenticated users' intro + example chats scroll list
     let nonAuthRecentChats = $state<RecentChatMeta[]>([]);
+    let nonAuthRecentChatsRequestId = 0;
 
     /**
      * Debounced wrapper for loadRecentChats — coalesces rapid sync events into
@@ -3023,6 +3046,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Re-run when carousel is invalidated by cross-device events
         void carouselInvalidationCounter;
         if (!isWelcome) {
+            nonAuthRecentChatsRequestId++;
             recentChatTiltStates = [];
             nonAuthChatTiltStates = [];
             recentChats = [];
@@ -3031,6 +3055,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return;
         }
         if (isAuth) {
+            nonAuthRecentChatsRequestId++;
             nonAuthChatTiltStates = [];
             nonAuthRecentChats = [];
             recentChatsScrolledByUser = false;
@@ -3041,10 +3066,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             recentChats = [];
             priorityContinueItems = [];
             recentChatsScrolledByUser = false;
-            const metas = loadNonAuthRecentChats(guestTagsConfirmed ? guestTags : []);
-            nonAuthChatTiltStates = reconcileRecentChatTiltStates(nonAuthChatTiltStates, metas.length);
-            nonAuthRecentChats = metas;
-            centerFirstRecentChat();
+            const requestId = ++nonAuthRecentChatsRequestId;
+            loadNonAuthRecentChats(guestTagsConfirmed ? guestTags : [], guestTagsConfirmed).then((metas) => {
+                if (requestId !== nonAuthRecentChatsRequestId) return;
+                nonAuthChatTiltStates = reconcileRecentChatTiltStates(nonAuthChatTiltStates, metas.length);
+                nonAuthRecentChats = metas;
+                centerFirstRecentChat();
+            });
         }
     });
 
@@ -11256,7 +11284,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     {/if}
                                 </div>
                             <!-- Non-auth: scrollable list of intro + example chats (same card design as auth recent chats) -->
-                            {:else if !$authStore.isAuthenticated && guestInterestContinueConfirmed && nonAuthRecentChats.length > 0}
+                            {:else if !$authStore.isAuthenticated && (guestInterestContinueConfirmed || nonAuthRecentChats.some((meta) => meta.chat.is_shared_by_others)) && nonAuthRecentChats.length > 0}
                                 <div
                                     class="recent-chats-scroll-container"
                                     data-testid="recent-chats-scroll-container"
