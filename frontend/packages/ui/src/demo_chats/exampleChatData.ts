@@ -46,7 +46,6 @@ import { upcomingRemindersListChat } from "./data/example_chats/upcoming-reminde
 import { cancelTestReminderChat } from "./data/example_chats/cancel-test-reminder";
 import { fediverseActivitypubSocialSearchChat } from "./data/example_chats/fediverse-activitypub-social-search";
 import { mastodonAccountRecentPostsChat } from "./data/example_chats/mastodon-account-recent-posts";
-import { habitGardenViteAppChat } from "./data/example_chats/habit-garden-vite-app";
 import { pdfReadSecretWordChat } from "./data/example_chats/pdf-read-secret-word";
 import { pdfViewPageLayoutChat } from "./data/example_chats/pdf-view-page-layout";
 import { pdfSearchEncryptionChat } from "./data/example_chats/pdf-search-encryption";
@@ -136,7 +135,6 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   cancelTestReminderChat,
   fediverseActivitypubSocialSearchChat,
   mastodonAccountRecentPostsChat,
-  habitGardenViteAppChat,
   pdfReadSecretWordChat,
   pdfViewPageLayoutChat,
   pdfSearchEncryptionChat,

@@ -132,7 +132,7 @@ export const INTEREST_TAGS: InterestTag[] = [
     related: ["software_development", "use_the_cli", "read_developer_docs"],
     dailyInspirations: ["sandbox-code-execution", "cli-parity"],
     introChats: ["demo-for-developers"],
-    exampleChats: ["example-python-squares-code-run", "example-habit-garden-vite-app"],
+    exampleChats: ["example-python-squares-code-run"],
     suggestions: [
       "chat.new_chat_suggestions.learn_coding",
       "chat.new_chat_suggestions.discover_math_calculate",

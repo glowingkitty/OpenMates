@@ -229,25 +229,25 @@ scenarios:
       - Bob cannot modify Alice's original application embeds unless normal shared-chat editing permissions allow it.
 
   - id: S-11
-    title: Authenticated user runs the Habit Garden example application
+    title: Authenticated user runs a generated application preview
     given:
       - Alice is authenticated and has enough credits for at least one started preview minute.
-      - Alice opens the example chat example-habit-garden-vite-app on app.dev.openmates.org.
+      - Alice has generated a runnable frontend application embed on app.dev.openmates.org.
     when:
-      - Alice opens the Habit Garden application embed fullscreen and clicks Start preview.
+      - Alice opens the generated application embed fullscreen and clicks Start preview.
     then:
       - The API starts a viewer-owned application preview session using the dev user-content origin.
       - The preview URL uses a unique per-session hostname under dev.openmatesusercontent.org rather than a shared path on the base origin.
       - E2B starts the generated Vite application with server.allowedHosts covering the exact E2B sandbox host.
-      - The iframe loads Habit Garden application content through the preview gateway without showing Vite's Blocked request page.
+      - The iframe loads generated application content through the preview gateway without showing Vite's Blocked request page.
       - The iframe preserves same-origin semantics for the user-content origin so Vite module scripts and generated app JavaScript do not execute from origin null.
       - Generated app JavaScript responds to user interaction inside the iframe.
       - The preview URL does not expose the raw E2B host to the client.
 
   - id: S-12
-    title: Unauthenticated user cannot start billable example preview
+    title: Unauthenticated user cannot start billable application preview
     given:
-      - An unauthenticated visitor opens the Habit Garden example chat.
+      - An unauthenticated visitor opens a chat containing an application embed.
     when:
       - The visitor opens the application embed and clicks Start preview.
     then:
@@ -258,7 +258,7 @@ scenarios:
   - id: S-13
     title: Application preview runtime appears in usage and billing history
     given:
-      - Alice is authenticated and starts a Habit Garden preview from the example chat.
+      - Alice is authenticated and starts an application preview from a chat.
     when:
       - The preview reaches a billable running state and then stops or times out.
     then:
@@ -377,10 +377,10 @@ acceptance_criteria:
     text: Parser-based Markdown/code-fence inference remains a fallback only and creates at most one parent application embed after a runnable manifest is detected.
   - id: AC-20
     scenario: S-11
-    text: The Habit Garden example application can be started by an authenticated user and renders live app content through E2B and the preview gateway without Vite allowed-host rejection.
+    text: A generated frontend application can be started by an authenticated user and renders live app content through E2B and the preview gateway without Vite allowed-host rejection.
   - id: AC-21
     scenario: S-12
-    text: Unauthenticated users cannot start application previews from example chats; the Start preview action forwards them to signup/login without creating a preview session or charge.
+    text: Unauthenticated users cannot start application previews; the Start preview action forwards them to signup/login without creating a preview session or charge.
   - id: AC-22
     scenario: S-13
     text: Every billed application preview session creates a user-visible usage entry tied to the authenticated user, chat, application embed, and preview session.
@@ -807,6 +807,7 @@ tests:
       - AC-12
       - AC-13
       - AC-14
+      - AC-21
     assertions:
       - application embed renders project metadata and child file counts
       - application embed renders a screenshot thumbnail or placeholder with a play button overlay
@@ -848,6 +849,7 @@ tests:
       - AC-11
       - AC-13
       - AC-14
+      - AC-20
     assertions:
       - a generated application appears as one application embed with child files
       - the application embed shows a real screenshot thumbnail or preview placeholder with a play overlay
@@ -906,40 +908,6 @@ tests:
         run_id: "python3 scripts/run_tests.py --suite playwright --spec application-preview-share.spec.ts / github-actions:27142440000"
         timestamp: "2026-06-08T13:54:14Z"
         notes: "Playwright-only post-deploy run passed after Vercel Ready gate for commit 534d54a08; summary 1 total, 1 passed, 0 failed."
-
-  - id: T-E2E-HABIT-GARDEN-APP-PREVIEW-001
-    type: playwright
-    file: frontend/apps/web_app/tests/example-application-preview.spec.ts
-    command: python3 scripts/run_tests.py --spec example-application-preview.spec.ts
-    target: app.dev.openmates.org
-    covers:
-      - AC-20
-      - AC-21
-      - AC-22
-    assertions:
-      - unauthenticated visitor opening the Habit Garden example cannot start a preview and is routed to signup/login
-      - authenticated user opening the Habit Garden example can start a live E2B preview
-      - preview iframe URL uses a unique preview-* subdomain under https://dev.openmatesusercontent.org and never exposes e2b.app
-      - iframe content does not show Vite's Blocked request page and renders Habit Garden content
-      - preview iframe sandbox includes allow-same-origin so module scripts do not execute from origin null
-      - Habit Garden's Plant Habit button runs generated JavaScript and renders the new habit
-      - billing usage entries show an application preview charge linked to the example chat after stop
-    red_phase:
-      required: true
-      expected: fail
-      evidence:
-        status: failed_as_expected
-        run_id: "github-actions:27171244941"
-        timestamp: "2026-06-08T22:34:27Z"
-        notes: "Failed before the final spec fixes: first on application embed click interception, then on live preview blocked-host/usage assertion issues. This confirmed the new Habit Garden E2E was exercising the intended auth, preview, and billing path."
-    green_phase:
-      required: true
-      expected: pass_after_deploy
-      evidence:
-        status: passed
-        run_id: "python3 scripts/run_tests.py --spec example-application-preview.spec.ts / github-actions:27173573217"
-        timestamp: "2026-06-08T23:31:27Z"
-        notes: "Vercel was Ready for eb760e7e0 before dispatch. The focused Playwright spec passed after app-code-worker was restarted to load the backend Vite allowed-host config. Orchestrator still reported unrelated pre-existing pytest-unit failures in security/share-chat/temp-image/webhook suites."
 
   - id: T-LINT-APP-EMBED-001
     type: lint

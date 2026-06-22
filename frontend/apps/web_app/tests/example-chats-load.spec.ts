@@ -309,8 +309,8 @@ test.describe('Example chats loading for new users', () => {
 		expect(initialIds.length, 'Examples group should show the initial example batch').toBeGreaterThan(0);
 		expect(
 			initialIds,
-			'Habit Garden should be in the initial newest-first example batch'
-		).toContain('example-habit-garden-vite-app');
+			'Removed Habit Garden example should not appear in the initial example batch'
+		).not.toContain('example-habit-garden-vite-app');
 
 		const showMoreExamples = page.getByTestId('show-more-example-chats');
 		await expect(showMoreExamples).toBeVisible({ timeout: 10000 });
@@ -325,6 +325,9 @@ test.describe('Example chats loading for new users', () => {
 		for (const id of initialIds) {
 			expect(expandedIds, `Show more should keep already-visible example ${id}`).toContain(id);
 		}
+		expect(expandedIds, 'Removed Habit Garden example should not appear after expanding examples').not.toContain(
+			'example-habit-garden-vite-app'
+		);
 		expect(
 			new Set(expandedIds).size,
 			'Show more should not duplicate example chat rows'
