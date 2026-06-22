@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -17,6 +18,7 @@ from typing import Any, Optional
 MINDMAP_FENCE_LANGUAGES = {"openmates_mindmap", "ommindmap"}
 SUPPORTED_SCHEMA_VERSION = 1
 INVALID_CONTENT_LABEL = "Invalid content"
+HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$")
 
 
 @dataclass(frozen=True)
@@ -85,10 +87,15 @@ def normalize_mindmap_source(source: str) -> MindMapNormalizationResult:
             warnings.append({"code": "missing_label", "path": f"nodes[{index}].label"})
 
         normalized_node: dict[str, Any] = {"id": node_id, "label": label}
-        for key in ("description", "color", "icon"):
+        for key in ("description", "icon"):
             value = _string_value(node.get(key))
             if value:
                 normalized_node[key] = value
+        color = _hex_color_value(node.get("color"))
+        if color:
+            normalized_node["color"] = color
+        elif node.get("color") is not None:
+            warnings.append({"code": "invalid_color", "path": f"nodes[{index}].color"})
         children = node.get("children")
         if isinstance(children, list):
             normalized_children = [child for child in children if isinstance(child, str) and child]
@@ -196,3 +203,10 @@ def _string_value(value: Any) -> str | None:
         return None
     stripped = value.strip()
     return stripped or None
+
+
+def _hex_color_value(value: Any) -> str | None:
+    color = _string_value(value)
+    if not color:
+        return None
+    return color if HEX_COLOR_RE.match(color) else None

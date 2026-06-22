@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+	buildMindMapLayout,
 	normalizeMindMapSource,
 	serializeMindMapDocument,
 	toMindMapOutline,
@@ -15,8 +16,8 @@ function validMap(): MindMapDocument {
 		rootId: 'root',
 		nodes: [
 			{ id: 'root', label: 'Launch Plan', children: ['research', 'ship'] },
-			{ id: 'research', label: 'Audience Research' },
-			{ id: 'ship', label: 'Ship', icon: 'task' }
+			{ id: 'research', label: 'Audience Research', color: '#0f766e', icon: 'search' },
+			{ id: 'ship', label: 'Ship', icon: 'circle-check' }
 		],
 		edges: [
 			{ source: 'research', target: 'ship', type: 'dependency' }
@@ -33,7 +34,25 @@ describe('mind map content helpers', () => {
 		expect(result.model?.title).toBe('Launch Plan');
 		expect(result.nodeCount).toBe(3);
 		expect(result.edgeCount).toBe(1);
+		expect(result.model?.nodes.find((node) => node.id === 'research')?.color).toBe('#0f766e');
+		expect(result.model?.nodes.find((node) => node.id === 'ship')?.icon).toBe('circle-check');
 		expect(result.warnings).toEqual([]);
+	});
+
+	it('drops unsafe color values but preserves lucide icon names', () => {
+		const result = normalizeMindMapSource(JSON.stringify({
+			...validMap(),
+			nodes: [
+				{ id: 'root', label: 'Root', children: ['child'], color: 'url(javascript:alert(1))', icon: 'shield-check' },
+				{ id: 'child', label: 'Child', color: '#fff' }
+			]
+		}));
+
+		expect(result.status).toBe('partial');
+		expect(result.model?.nodes.find((node) => node.id === 'root')?.color).toBeUndefined();
+		expect(result.model?.nodes.find((node) => node.id === 'root')?.icon).toBe('shield-check');
+		expect(result.model?.nodes.find((node) => node.id === 'child')?.color).toBe('#fff');
+		expect(result.warnings.some((warning) => warning.code === 'invalid_color')).toBe(true);
 	});
 
 	it('keeps recoverable invalid nodes as visible placeholders and drops broken edges', () => {
@@ -91,5 +110,15 @@ describe('mind map content helpers', () => {
 		expect(outline).toContain('- Launch Plan');
 		expect(outline).toContain('  - Audience Research');
 		expect(outline).toContain('  - Ship');
+	});
+
+	it('lays out hierarchy top-to-bottom', () => {
+		const result = normalizeMindMapSource(JSON.stringify(validMap()));
+		const layout = buildMindMapLayout(result.model!);
+		const root = layout.nodes.find((node) => node.id === 'root')!;
+		const research = layout.nodes.find((node) => node.id === 'research')!;
+
+		expect(research.y).toBeGreaterThan(root.y);
+		expect(research.depth).toBe(root.depth + 1);
 	});
 });

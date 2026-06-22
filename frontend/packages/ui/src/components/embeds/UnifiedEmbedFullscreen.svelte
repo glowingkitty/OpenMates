@@ -146,6 +146,9 @@
      * When empty/undefined, shows the app icon (icon_rounded class).
      */
     skillIconName?: string;
+
+    /** Optional app icon override when appId has no icon_rounded CSS mapping. */
+    appIconName?: string;
     
     /**
      * Whether to show the skill icon (true) or app icon (false) in the header.
@@ -328,6 +331,7 @@
     embedHeaderFaviconUrl,
     embedHeaderFaviconIsCircular = false,
     skillIconName = '',
+    appIconName = '',
     showSkillIcon = true,
     // Child embed loading props
     embedIds,
@@ -1321,6 +1325,7 @@
         <EmbedHeader
           {appId}
           {skillIconName}
+          {appIconName}
           {showSkillIcon}
           onHeaderIconClick={handleEmbedHeaderIconClick}
           title={embedHeaderTitle}

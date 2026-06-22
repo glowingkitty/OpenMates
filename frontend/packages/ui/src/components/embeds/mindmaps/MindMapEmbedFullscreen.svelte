@@ -13,19 +13,14 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedZoomControls from '../shared/EmbedZoomControls.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import MindMapCanvas from './MindMapCanvas.svelte';
   import {
+    buildMindMapLayout,
     normalizeMindMapSource,
     serializeMindMapDocument,
-    type MindMapDocument,
-    type MindMapNode
+    type MindMapDocument
   } from './mindMapContent';
 
-  type ViewNode = MindMapNode & { x: number; y: number; depth: number; collapsed: boolean };
-
-  const NODE_WIDTH = 180;
-  const NODE_HEIGHT = 54;
-  const COLUMN_GAP = 260;
-  const ROW_GAP = 92;
   const MIN_ZOOM = 0.35;
   const MAX_ZOOM = 2.5;
 
@@ -88,7 +83,7 @@
   const activePointers = new Map<number, { x: number; y: number }>();
   let lastPinchDistance = 0;
 
-  let graph = $derived(normalized.model ? buildLayout(normalized.model, collapsedNodeIds) : { nodes: [], edges: [], width: 0, height: 0 });
+  let graph = $derived(normalized.model ? buildMindMapLayout(normalized.model, collapsedNodeIds) : { nodes: [], edges: [], width: 0, height: 0 });
   let zoomLabel = $derived(`${Math.round(scale * 100)}%`);
 
   $effect(() => {
@@ -200,74 +195,6 @@
     return Math.max(min, Math.min(max, value));
   }
 
-  function buildLayout(model: MindMapDocument, collapsedIds: string[]) {
-    const nodesById = new Map(model.nodes.map((node) => [node.id, node]));
-    const collapsed = new Set(collapsedIds);
-    const visited = new Set<string>();
-    const hidden = new Set<string>();
-    const viewNodes: ViewNode[] = [];
-    const edges: Array<{ source: ViewNode; target: ViewNode; label?: string }> = [];
-    let nextRow = 0;
-
-    function hideDescendants(nodeId: string) {
-      const node = nodesById.get(nodeId);
-      if (!node) return;
-      for (const childId of node.children ?? []) {
-        if (hidden.has(childId)) continue;
-        hidden.add(childId);
-        hideDescendants(childId);
-      }
-    }
-
-    function visit(nodeId: string, depth: number): ViewNode | null {
-      const node = nodesById.get(nodeId);
-      if (!node || visited.has(nodeId) || hidden.has(nodeId)) return null;
-      visited.add(nodeId);
-
-      const children = (node.children ?? []).filter((childId) => nodesById.has(childId));
-      const childViews: ViewNode[] = [];
-      if (collapsed.has(nodeId)) {
-        hideDescendants(nodeId);
-      } else {
-        for (const childId of children) {
-          const child = visit(childId, depth + 1);
-          if (child) childViews.push(child);
-        }
-      }
-
-      const row = childViews.length > 0
-        ? childViews.reduce((sum, child) => sum + child.y, 0) / childViews.length / ROW_GAP
-        : nextRow++;
-      const viewNode: ViewNode = {
-        ...node,
-        x: depth * COLUMN_GAP,
-        y: row * ROW_GAP,
-        depth,
-        collapsed: collapsed.has(nodeId),
-      };
-      viewNodes.push(viewNode);
-
-      for (const child of childViews) edges.push({ source: viewNode, target: child });
-      return viewNode;
-    }
-
-    visit(model.rootId, 0);
-    for (const node of model.nodes) visit(node.id, 0);
-
-    const visibleById = new Map(viewNodes.map((node) => [node.id, node]));
-    for (const edge of model.edges ?? []) {
-      const sourceNode = visibleById.get(edge.source);
-      const targetNode = visibleById.get(edge.target);
-      if (sourceNode && targetNode) edges.push({ source: sourceNode, target: targetNode, label: edge.label });
-    }
-
-    return {
-      nodes: viewNodes,
-      edges,
-      width: Math.max(...viewNodes.map((node) => node.x + NODE_WIDTH), NODE_WIDTH),
-      height: Math.max(...viewNodes.map((node) => node.y + NODE_HEIGHT), NODE_HEIGHT),
-    };
-  }
 </script>
 
 <UnifiedEmbedFullscreen
@@ -277,7 +204,8 @@
   onDownload={downloadMindMap}
   embedHeaderTitle={title}
   embedHeaderSubtitle={`${normalized.nodeCount} nodes · ${normalized.edgeCount} edges`}
-  skillIconName="workflow"
+  skillIconName=""
+  appIconName="workflow"
   showSkillIcon={false}
   {embedId}
   {hasPreviousEmbed}
@@ -296,51 +224,25 @@
           {#if normalized.parseError}<p>{normalized.parseError}</p>{/if}
         </section>
       {:else}
-        <section
-          class="mindmap-canvas"
-          aria-label={title}
+        <div
+          class="mindmap-canvas-frame"
           bind:clientWidth={viewportWidth}
           bind:clientHeight={viewportHeight}
-          onwheel={handleWheel}
-          onpointerdown={handlePointerDown}
-          onpointermove={handlePointerMove}
-          onpointerup={handlePointerUp}
-          onpointercancel={handlePointerUp}
-          data-testid="mindmap-fullscreen-canvas"
         >
-          <div
-            class="mindmap-stage"
-            style={`transform: translate(${panX}px, ${panY}px) scale(${scale}); width: ${graph.width}px; height: ${graph.height}px;`}
-            data-testid="mindmap-fullscreen-stage"
-          >
-            <svg class="mindmap-edges" width={graph.width} height={graph.height} aria-hidden="true">
-              {#each graph.edges as edge}
-                <path
-                  d={`M ${edge.source.x + NODE_WIDTH} ${edge.source.y + NODE_HEIGHT / 2} C ${edge.source.x + NODE_WIDTH + 60} ${edge.source.y + NODE_HEIGHT / 2}, ${edge.target.x - 60} ${edge.target.y + NODE_HEIGHT / 2}, ${edge.target.x} ${edge.target.y + NODE_HEIGHT / 2}`}
-                />
-              {/each}
-            </svg>
-
-            {#each graph.nodes as node}
-              <article class="mindmap-node" style={`left: ${node.x}px; top: ${node.y}px;`} data-testid="mindmap-node">
-                <div class="mindmap-node-label">{node.label}</div>
-                {#if node.description}<div class="mindmap-node-description">{node.description}</div>{/if}
-                {#if (node.children?.length ?? 0) > 0}
-                  <button
-                    type="button"
-                    class="mindmap-collapse"
-                    onpointerdown={(event) => event.stopPropagation()}
-                    onclick={(event) => { event.stopPropagation(); toggleCollapsed(node.id); }}
-                    aria-label={node.collapsed ? `Expand ${node.label}` : `Collapse ${node.label}`}
-                    data-testid="mindmap-collapse-toggle"
-                  >
-                    {node.collapsed ? '+' : '−'}
-                  </button>
-                {/if}
-              </article>
-            {/each}
-          </div>
-        </section>
+          <MindMapCanvas
+            {graph}
+            {title}
+            {scale}
+            {panX}
+            {panY}
+            interactive={true}
+            onToggleCollapsed={toggleCollapsed}
+            onWheel={handleWheel}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+          />
+        </div>
         <EmbedZoomControls
           zoomOut={() => zoomBy(0.85)}
           zoomIn={() => zoomBy(1.15)}
@@ -388,82 +290,8 @@
     padding: var(--spacing-8, 16px);
   }
 
-  .mindmap-canvas {
-    position: relative;
-    min-height: min(68vh, 720px);
-    overflow: hidden;
-    border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-8, 20px);
-    background:
-      radial-gradient(circle at 20px 20px, var(--color-grey-20) 1px, transparent 1px),
-      var(--color-grey-5, #fafafa);
-    background-size: 28px 28px;
-    touch-action: none;
-    cursor: grab;
-  }
-
-  .mindmap-canvas:active {
-    cursor: grabbing;
-  }
-
-  .mindmap-stage {
-    position: absolute;
-    left: 0;
-    top: 0;
-    transform-origin: 0 0;
-  }
-
-  .mindmap-edges {
-    position: absolute;
-    inset: 0;
-    overflow: visible;
-  }
-
-  .mindmap-edges path {
-    fill: none;
-    stroke: var(--color-grey-30, #d1d5db);
-    stroke-width: 2;
-  }
-
-  .mindmap-node {
-    position: absolute;
-    width: 180px;
-    min-height: 54px;
-    box-sizing: border-box;
-    padding: 10px 38px 10px 12px;
-    border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-5, 12px);
-    background: var(--color-grey-0, #fff);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-    color: var(--color-font-primary);
-  }
-
-  .mindmap-node-label {
-    font-weight: 700;
-    line-height: 1.2;
-  }
-
-  .mindmap-node-description {
-    margin-top: 4px;
-    color: var(--color-font-secondary, #667085);
-    font-size: 0.78rem;
-    line-height: 1.25;
-  }
-
-  .mindmap-collapse {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    width: 24px;
-    height: 24px;
-    transform: translateY(-50%);
-    border: 1px solid var(--color-grey-20);
-    border-radius: 50%;
-    background: var(--color-grey-5, #fafafa);
-    color: var(--color-font-primary);
-    cursor: pointer;
-    font: inherit;
-    line-height: 1;
+  .mindmap-canvas-frame {
+    width: 100%;
   }
 
   h3 {
@@ -483,9 +311,4 @@
     font-size: 0.85rem;
   }
 
-  @container fullscreen (max-width: 600px) {
-    .mindmap-canvas {
-      min-height: 58vh;
-    }
-  }
 </style>

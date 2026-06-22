@@ -76,6 +76,8 @@ test('native mindmap upload renders preview and fullscreen controls', async ({ p
 	await chatMindMap.scrollIntoViewIfNeeded();
 	const chatMindMapPreview = chatMindMap.getByTestId('embed-preview');
 	await expect(chatMindMapPreview).toBeVisible({ timeout: 10000 });
+	await expect(chatMindMapPreview.getByTestId('mindmap-rendered-preview')).toBeVisible({ timeout: 10000 });
+	await expect(chatMindMapPreview).not.toContainText('- Launch Plan');
 	await chatMindMapPreview.evaluate((element: HTMLElement) => element.click());
 	const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
 	await expect(fullscreenOverlay).toBeVisible({ timeout: 15000 });

@@ -3,7 +3,7 @@
 
   Preview card for Mind Maps direct embeds. Rendering is source-first: the
   canonical OpenMates JSON model is normalized by mindMapContent.ts and shown as
-  a compact outline in the card.
+  a compact rendered map in the card.
 
   Native Swift counterparts:
   - apple/OpenMates/Sources/Features/Embeds/Renderers/MindMapEmbedRenderer.swift
@@ -11,7 +11,8 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  import { normalizeMindMapSource, toMindMapOutline, type MindMapDocument } from './mindMapContent';
+  import MindMapCanvas from './MindMapCanvas.svelte';
+  import { buildMindMapLayout, normalizeMindMapSource, type MindMapDocument } from './mindMapContent';
 
   interface Props {
     id: string;
@@ -47,7 +48,15 @@
 
   let normalized = $derived(normalizeMindMapSource(localSourceJson || localModel));
   let displayTitle = $derived(localTitle || normalized.title || 'Mind Map');
-  let outline = $derived(normalized.model ? toMindMapOutline(normalized.model, 12) : 'Invalid mind map JSON');
+  let graph = $derived(normalized.model ? buildMindMapLayout(normalized.model, normalized.model.view?.collapsedNodeIds ?? []) : { nodes: [], edges: [], width: 0, height: 0 });
+  let viewportWidth = $state(0);
+  let viewportHeight = $state(0);
+  let previewScale = $derived.by(() => {
+    if (graph.width === 0 || graph.height === 0 || viewportWidth === 0 || viewportHeight === 0) return 1;
+    return Math.min(viewportWidth / graph.width, viewportHeight / graph.height, 1.1);
+  });
+  let previewPanX = $derived(Math.round((viewportWidth - graph.width * previewScale) / 2));
+  let previewPanY = $derived(Math.round((viewportHeight - graph.height * previewScale) / 2));
 
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
     if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
@@ -65,6 +74,8 @@
   appId="mindmaps"
   skillId="mindmap"
   skillIconName="workflow"
+  appIconName="workflow"
+  showSkillIcon={false}
   status={localStatus}
   skillName="Mind Map"
   {isMobile}
@@ -72,9 +83,19 @@
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details()}
-    <div class="mindmap-preview" aria-label={displayTitle}>
-      <div class="mindmap-title">{displayTitle}</div>
-      <pre>{outline}</pre>
+    <div class="mindmap-preview" aria-label={displayTitle} bind:clientWidth={viewportWidth} bind:clientHeight={viewportHeight} data-testid="mindmap-rendered-preview">
+      {#if normalized.status === 'invalid_source'}
+        <div class="mindmap-invalid">Invalid mind map JSON</div>
+      {:else}
+        <MindMapCanvas
+          {graph}
+          title={displayTitle}
+          scale={previewScale}
+          panX={previewPanX}
+          panY={previewPanY}
+          compact={true}
+        />
+      {/if}
       {#if normalized.status === 'partial'}
         <div class="mindmap-warning">{normalized.warnings.length} validation warning{normalized.warnings.length === 1 ? '' : 's'}</div>
       {/if}
@@ -84,32 +105,29 @@
 
 <style>
   .mindmap-preview {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-4, 8px);
+    position: relative;
     height: 100%;
     overflow: hidden;
-    padding: var(--spacing-6, 12px);
     color: var(--color-font-primary);
   }
 
-  .mindmap-title {
-    font-weight: 700;
-    font-size: 0.95rem;
-  }
-
-  pre {
-    flex: 1;
-    margin: 0;
-    overflow: hidden;
-    white-space: pre-wrap;
-    font: inherit;
-    font-size: 0.75rem;
-    line-height: 1.35;
+  .mindmap-invalid {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    padding: var(--spacing-6, 12px);
+    color: var(--color-font-secondary);
   }
 
   .mindmap-warning {
+    position: absolute;
+    right: var(--spacing-3, 6px);
+    bottom: var(--spacing-3, 6px);
+    padding: 2px 6px;
+    border-radius: var(--radius-2, 6px);
+    background: var(--color-grey-0, #fff);
     font-size: 0.7rem;
     color: var(--color-warning, #a86b00);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   }
 </style>

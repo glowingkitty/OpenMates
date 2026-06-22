@@ -20,6 +20,20 @@ export interface MindMapNode {
 	children?: string[];
 }
 
+export type MindMapViewNode = MindMapNode & { x: number; y: number; depth: number; collapsed: boolean };
+
+export interface MindMapLayout {
+	nodes: MindMapViewNode[];
+	edges: Array<{ source: MindMapViewNode; target: MindMapViewNode; label?: string }>;
+	width: number;
+	height: number;
+}
+
+export const MIND_MAP_NODE_WIDTH = 220;
+export const MIND_MAP_NODE_HEIGHT = 64;
+export const MIND_MAP_COLUMN_GAP = 260;
+export const MIND_MAP_ROW_GAP = 130;
+
 export interface MindMapEdge {
 	source: string;
 	target: string;
@@ -103,10 +117,13 @@ export function normalizeMindMapSource(source: string | Record<string, unknown> 
 		}
 
 		const normalizedNode: MindMapNode = { id, label };
-		for (const key of ['description', 'color', 'icon'] as const) {
+		for (const key of ['description', 'icon'] as const) {
 			const value = stringValue(node[key]);
 			if (value) normalizedNode[key] = value;
 		}
+		const color = normalizeHexColor(node.color);
+		if (color) normalizedNode.color = color;
+		else if (node.color !== undefined) warnings.push({ code: 'invalid_color', path: `nodes[${index}].color` });
 		if (Array.isArray(node.children)) {
 			const children = node.children.filter((child): child is string => typeof child === 'string' && child.length > 0);
 			if (children.length > 0) normalizedNode.children = children;
@@ -178,6 +195,75 @@ export function toMindMapOutline(document: MindMapDocument, maxNodes = 100): str
 		if (!visited.has(node.id)) visit(node.id, 0);
 	}
 	return lines.join('\n');
+}
+
+export function buildMindMapLayout(model: MindMapDocument, collapsedIds: string[] = []): MindMapLayout {
+	const nodesById = new Map(model.nodes.map((node) => [node.id, node]));
+	const collapsed = new Set(collapsedIds);
+	const visited = new Set<string>();
+	const hidden = new Set<string>();
+	const viewNodes: MindMapViewNode[] = [];
+	const edges: MindMapLayout['edges'] = [];
+	let nextColumn = 0;
+
+	function hideDescendants(nodeId: string) {
+		const node = nodesById.get(nodeId);
+		if (!node) return;
+		for (const childId of node.children ?? []) {
+			if (hidden.has(childId)) continue;
+			hidden.add(childId);
+			hideDescendants(childId);
+		}
+	}
+
+	function visit(nodeId: string, depth: number): MindMapViewNode | null {
+		const node = nodesById.get(nodeId);
+		if (!node || visited.has(nodeId) || hidden.has(nodeId)) return null;
+		visited.add(nodeId);
+
+		const children = (node.children ?? []).filter((childId) => nodesById.has(childId));
+		const childViews: MindMapViewNode[] = [];
+		if (collapsed.has(nodeId)) {
+			hideDescendants(nodeId);
+		} else {
+			for (const childId of children) {
+				const child = visit(childId, depth + 1);
+				if (child) childViews.push(child);
+			}
+		}
+
+		const column = childViews.length > 0
+			? childViews.reduce((sum, child) => sum + child.x, 0) / childViews.length / MIND_MAP_COLUMN_GAP
+			: nextColumn++;
+		const viewNode: MindMapViewNode = {
+			...node,
+			x: column * MIND_MAP_COLUMN_GAP,
+			y: depth * MIND_MAP_ROW_GAP,
+			depth,
+			collapsed: collapsed.has(nodeId),
+		};
+		viewNodes.push(viewNode);
+
+		for (const child of childViews) edges.push({ source: viewNode, target: child });
+		return viewNode;
+	}
+
+	visit(model.rootId, 0);
+	for (const node of model.nodes) visit(node.id, 0);
+
+	const visibleById = new Map(viewNodes.map((node) => [node.id, node]));
+	for (const edge of model.edges ?? []) {
+		const sourceNode = visibleById.get(edge.source);
+		const targetNode = visibleById.get(edge.target);
+		if (sourceNode && targetNode) edges.push({ source: sourceNode, target: targetNode, label: edge.label });
+	}
+
+	return {
+		nodes: viewNodes,
+		edges,
+		width: Math.max(...viewNodes.map((node) => node.x + MIND_MAP_NODE_WIDTH), MIND_MAP_NODE_WIDTH),
+		height: Math.max(...viewNodes.map((node) => node.y + MIND_MAP_NODE_HEIGHT), MIND_MAP_NODE_HEIGHT),
+	};
 }
 
 export function renderMindMapText(content: Record<string, unknown>, full = false): string {
@@ -275,4 +361,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function stringValue(value: unknown): string | null {
 	return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function normalizeHexColor(value: unknown): string | null {
+	const color = stringValue(value);
+	if (!color) return null;
+	return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color) ? color : null;
 }

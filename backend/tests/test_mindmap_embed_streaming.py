@@ -28,8 +28,8 @@ def _valid_source() -> str:
             "title": "Launch Plan",
             "rootId": "root",
             "nodes": [
-                {"id": "root", "label": "Launch Plan", "children": ["research"]},
-                {"id": "research", "label": "Audience Research"},
+                {"id": "root", "label": "Launch Plan", "children": ["research"], "icon": "shield-check"},
+                {"id": "research", "label": "Audience Research", "color": "#0f766e"},
             ],
             "edges": [],
             "view": {"layout": "radial-tree", "collapsedNodeIds": []},
@@ -54,6 +54,23 @@ def test_mindmap_fence_detection_and_validation() -> None:
     assert result.node_count == 2
     assert result.edge_count == 0
     assert result.status == "valid"
+    assert result.model["nodes"][0]["icon"] == "shield-check"
+    assert result.model["nodes"][1]["color"] == "#0f766e"
+
+    unsafe_color = normalize_mindmap_source(
+        json.dumps(
+            {
+                "openmatesType": "mindmap",
+                "schemaVersion": 1,
+                "title": "Unsafe Color",
+                "rootId": "root",
+                "nodes": [{"id": "root", "label": "Root", "color": "url(javascript:alert(1))"}],
+            }
+        )
+    )
+    assert unsafe_color.status == "partial"
+    assert "color" not in unsafe_color.model["nodes"][0]
+    assert any(warning["code"] == "invalid_color" for warning in unsafe_color.warnings)
 
     invalid = normalize_mindmap_source('{"openmatesType":"mindmap","schemaVersion":1')
     assert invalid.status == "invalid_source"

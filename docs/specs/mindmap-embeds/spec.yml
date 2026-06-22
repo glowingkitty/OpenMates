@@ -292,8 +292,8 @@ contracts:
         - Missing or non-string labels on connected nodes become visible `Invalid content` placeholders.
         - "`summary` is optional, plain text only, capped at 500 characters."
         - "`children` may define hierarchy by child IDs; `edges` may also define parent-child links, but the normalized model must dedupe conflicts deterministically."
-        - "`icon` may reference approved OpenMates icon names only; unknown icons fall back to the Mind Maps icon and produce a warning."
-        - "`color` may reference approved token/category names only; raw CSS colors are ignored and reported as warnings."
+        - "`icon` may reference Lucide icon names such as `lightbulb` or `shield-check`; unknown icons fall back to the Mind Maps icon at render time."
+        - "`color` may be a hex background color in `#RGB`, `#RRGGBB`, or `#RRGGBBAA` form; non-hex CSS values are ignored and reported as warnings."
     - name: MindMapEdge
       shape: "{ id?: string, source: string, target: string, type?: parent-child | related | dependency | reference, label?: string }"
       rules:

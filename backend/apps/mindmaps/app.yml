@@ -29,8 +29,8 @@ instructions:
         "title": "Short descriptive title",
         "rootId": "root",
         "nodes": [
-          { "id": "root", "label": "Central idea", "children": ["child-1"] },
-          { "id": "child-1", "label": "Branch label" }
+          { "id": "root", "label": "Central idea", "icon": "lightbulb", "color": "#4c1d95", "children": ["child-1"] },
+          { "id": "child-1", "label": "Branch label", "icon": "list-check", "color": "#14b8a6" }
         ],
         "edges": [],
         "view": { "layout": "radial-tree", "collapsedNodeIds": [] }
@@ -42,6 +42,8 @@ instructions:
       - Use stable, unique node IDs and never invent relationships not represented
         by a node's `children` list or an explicit edge.
       - Every node must have a human-authored label. Do not use empty labels.
+      - Nodes may set `color` to a hex background color such as `#4c1d95` and
+        `icon` to a Lucide icon name such as `lightbulb` or `shield-check`.
       - Use `edges` only for cross-links or dependencies that are not parent-child
         relationships.
 embed_types:
