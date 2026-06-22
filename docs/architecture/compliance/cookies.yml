@@ -38,6 +38,21 @@
 #          docs/architecture/compliance/browser-storage.yml (non-cookie inventory)
 
 cookies:
+- name: WMF-Uniq
+  domain: .upload.wikimedia.org
+  path: /
+  http_only: true
+  secure: true
+  same_site: None
+  value_length: 64
+  first_observed: '2026-06-22'
+  last_observed: '2026-06-22'
+  seen_in_specs:
+  - demo-chat-embeds.spec.ts
+  purpose: null
+  consent_exempt: null
+  exemption_basis: null
+  notes: null
 - name: __cf_bm
   domain: .hcaptcha.com
   path: /
