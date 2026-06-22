@@ -107,6 +107,19 @@ test.describe('InteractiveQuestions Component Previews (All 5 Types)', () => {
 		await expect(sendBtn).toBeDisabled();
 	});
 
+	test('renders embed previews inside choice options', async ({ page }) => {
+		await page.getByRole('button', { name: 'choice_with_embeds' }).click();
+		await page.waitForTimeout(500);
+
+		await expect(page.getByTestId('interactive-question-title')).toContainText('Which implementation should we use?');
+		await expect(page.getByTestId('interactive-question-embed')).toHaveCount(2);
+
+		const sendBtn = page.getByTestId('interactive-question-send');
+		await expect(sendBtn).toBeDisabled();
+		await page.getByTestId('interactive-question-option-robust').click();
+		await expect(sendBtn).toBeEnabled();
+	});
+
 	// --- 3. Input Sequential Form ---
 	test('renders input forms, validates and locks required fields', async ({ page }) => {
 		await page.locator('.variant-btn:has-text("input_form")').click();
@@ -184,6 +197,20 @@ test.describe('InteractiveQuestions Component Previews (All 5 Types)', () => {
 		// Reset/Rewind
 		await page.locator('.btn-rewind').click();
 		await expect(card).toContainText('Minimalist');
+	});
+
+	test('renders embed previews inside swipe cards', async ({ page }) => {
+		await page.getByRole('button', { name: 'swipe_with_embeds' }).click();
+		await page.waitForTimeout(500);
+
+		await expect(page.getByTestId('interactive-question-title')).toContainText('Review these generated assets');
+		await expect(page.getByTestId('interactive-question-embed').first()).toBeVisible();
+
+		const sendBtn = page.getByTestId('interactive-question-send');
+		await expect(sendBtn).toBeDisabled();
+		await page.getByTestId('interactive-question-swipe-like').click();
+		await page.getByTestId('interactive-question-swipe-dislike').click();
+		await expect(sendBtn).toBeEnabled();
 	});
 
 	// --- 6. Star Rating + Comments ---

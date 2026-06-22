@@ -328,9 +328,10 @@ To collect structured answers, output a single ```interactive_question fenced bl
   "question": "<string_question_text>",
   "custom_option_id": "<optional_option_id_that_requires_text_input>",
   "custom_placeholder": "<optional_placeholder_for_custom_answer>",
-  "options": [ { "id": "<string_option_id>", "text": "<string_option_text>" } ]
+  "options": [ { "id": "<string_option_id>", "text": "<string_option_text>", "embed_ids": ["<optional_embed_id>"] } ]
 }
 Use custom_option_id when one of the options means "other", "my own answer", or a custom answer. The custom_option_id must match one option id. Do not offer an option such as "I give you my own answer" without custom_option_id, because clients will show a text input only for custom options.
+Use embed_ids only when the option refers to existing or newly generated OpenMates embeds. Never put full code, document, sheet, or image content inside interactive_question JSON; create/store the embed through the normal embed pipeline first, then reference its embed_id.
 
 2. TYPE: "input" (sequential forms)
 {
@@ -352,8 +353,9 @@ Use custom_option_id when one of the options means "other", "my own answer", or 
 {
   "type": "swipe",
   "id": "<unique_string_id>",
-  "cards": [ { "id": "<card_id>", "text": "<card_text_or_description>", "image_url": "<string_url_optional>" } ]
+  "cards": [ { "id": "<card_id>", "text": "<card_text_or_description>", "image_url": "<string_url_optional>", "embed_ids": ["<optional_embed_id>"] } ]
 }
+Use embed_ids for code/document/sheet/image/content cards whenever an OpenMates embed exists. image_url is only for ordinary external preview images.
 
 5. TYPE: "rating" (stars review)
 {

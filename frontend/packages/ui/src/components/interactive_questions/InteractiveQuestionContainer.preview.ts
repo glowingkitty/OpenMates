@@ -56,6 +56,19 @@ export const variants = {
     } as InteractiveQuestionPayload,
     chatId: "demo-for-everyone"
   },
+  choice_with_embeds: {
+    payload: {
+      id: "choose_snippet",
+      type: "choice",
+      multiple: false,
+      question: "Which implementation should we use?",
+      options: [
+        { id: "minimal", text: "Minimal implementation", embed_ids: ["preview-code-minimal"] },
+        { id: "robust", text: "More robust implementation", embed_ids: ["preview-code-robust"] }
+      ]
+    } as InteractiveQuestionPayload,
+    chatId: "demo-for-everyone"
+  },
   input_form: {
     payload: {
       id: "onboarding_form",
@@ -95,6 +108,18 @@ export const variants = {
         { id: "minimalist", text: "Minimalist: ultra-light borders, 64px line heights, and pastel backgrounds." },
         { id: "brutalist", text: "Brutalist: 4px thick black borders, 90-degree corners, and neon contrast fills." },
         { id: "skeuomorphic", text: "Skeuomorphic: heavy gradients, drop shadows, glass reflections, and physical textures." }
+      ]
+    } as InteractiveQuestionPayload,
+    chatId: "demo-for-everyone"
+  },
+  swipe_with_embeds: {
+    payload: {
+      id: "review_assets",
+      type: "swipe",
+      question: "Review these generated assets",
+      cards: [
+        { id: "asset_1", text: "Approve this generated image?", embed_ids: ["preview-image-1"] },
+        { id: "asset_2", text: "Approve this generated sheet?", embed_ids: ["preview-sheet-1"] }
       ]
     } as InteractiveQuestionPayload,
     chatId: "demo-for-everyone"

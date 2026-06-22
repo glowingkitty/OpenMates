@@ -60,8 +60,9 @@ export function formatInteractiveQuestionUserResponse(
   payload: InteractiveQuestionPayload,
   response: InteractiveQuestionResponse
 ): string {
+  const responseWithEmbedIds = attachReferencedEmbedIds(payload, response);
   const displayText = formatInteractiveQuestionDisplayText(payload, response);
-  const jsonBlock = `\`\`\`interactive_response\n${JSON.stringify(response, null, 2)}\n\`\`\``;
+  const jsonBlock = `\`\`\`interactive_response\n${JSON.stringify(responseWithEmbedIds, null, 2)}\n\`\`\``;
 
   return `${displayText}\n\n${jsonBlock}`;
 }
@@ -70,12 +71,25 @@ export function isInteractiveQuestionPayload(value: unknown): value is Interacti
   if (!value || typeof value !== "object") return false;
   const payload = value as Partial<InteractiveQuestionPayload>;
   if (typeof payload.id !== "string" || payload.id.trim().length === 0) return false;
-  if (payload.type === "choice") return Array.isArray(payload.options) && payload.options.length > 0;
+  if (payload.type === "choice") {
+    return Array.isArray(payload.options)
+      && payload.options.length > 0
+      && payload.options.every((option) => isValidEmbedIds(option.embed_ids ?? (option.embed_id ? [option.embed_id] : undefined)));
+  }
   if (payload.type === "input") return Array.isArray(payload.fields) && payload.fields.length > 0;
   if (payload.type === "slider") return typeof payload.min === "number" && typeof payload.max === "number";
-  if (payload.type === "swipe") return Array.isArray(payload.cards) && payload.cards.length > 0;
+  if (payload.type === "swipe") {
+    return Array.isArray(payload.cards)
+      && payload.cards.length > 0
+      && payload.cards.every((card) => isValidEmbedIds(card.embed_ids));
+  }
   if (payload.type === "rating") return typeof payload.max_stars === "number" || payload.max_stars === undefined;
   return false;
+}
+
+function isValidEmbedIds(embedIds: unknown): boolean {
+  if (embedIds === undefined) return true;
+  return Array.isArray(embedIds) && embedIds.every((embedId) => typeof embedId === "string" && embedId.trim().length > 0);
 }
 
 function findLatestQuestionIndex(chatHistory: Message[], questionId: string): number {
@@ -150,6 +164,44 @@ function formatInteractiveQuestionDisplayText(
   }
 
   return "";
+}
+
+function attachReferencedEmbedIds(
+  payload: InteractiveQuestionPayload,
+  response: InteractiveQuestionResponse
+): InteractiveQuestionResponse {
+  const embedIds = collectResponseEmbedIds(payload, response);
+  if (embedIds.length === 0) return response;
+  return { ...response, embed_ids: embedIds } as InteractiveQuestionResponse;
+}
+
+function collectResponseEmbedIds(
+  payload: InteractiveQuestionPayload,
+  response: InteractiveQuestionResponse
+): string[] {
+  if (payload.type === "choice") {
+    const selectedIds = (response as ChoiceResponse).selection;
+    return uniqueEmbedIds(
+      payload.options
+        .filter((option) => selectedIds.includes(option.id))
+        .flatMap((option) => option.embed_ids ?? (option.embed_id ? [option.embed_id] : []))
+    );
+  }
+
+  if (payload.type === "swipe") {
+    const swipes = (response as SwipeResponse).swipes;
+    return uniqueEmbedIds(
+      payload.cards
+        .filter((card) => swipes[card.id])
+        .flatMap((card) => card.embed_ids ?? [])
+    );
+  }
+
+  return [];
+}
+
+function uniqueEmbedIds(embedIds: string[]): string[] {
+  return [...new Set(embedIds.map((embedId) => embedId.trim()).filter(Boolean))];
 }
 
 function isCustomChoiceOption(

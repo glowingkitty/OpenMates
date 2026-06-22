@@ -77,6 +77,13 @@ struct AppleInteractiveQuestionPayload: Decodable, Equatable {
     struct Option: Decodable, Equatable, Identifiable {
         let id: String
         let text: String
+        let embedIds: [String]?
+
+        private enum CodingKeys: String, CodingKey {
+            case id
+            case text
+            case embedIds = "embed_ids"
+        }
     }
 
     struct Field: Decodable, Equatable, Identifiable {
@@ -132,7 +139,7 @@ struct AppleInteractiveQuestionPayload: Decodable, Equatable {
     @MainActor
     func responseContent(response: [String: Any]) -> String {
         let displayText = displayText(for: response)
-        let json = Self.prettyPrintedJSON(response)
+        let json = Self.prettyPrintedJSON(responseWithReferencedEmbedIds(response))
         return "\(displayText)\n\n```interactive_response\n\(json)\n```"
     }
 
@@ -232,6 +239,43 @@ struct AppleInteractiveQuestionPayload: Decodable, Equatable {
         ].contains(where: { pattern in
             normalizedText == pattern || normalizedText.contains(pattern)
         })
+    }
+
+    private func responseWithReferencedEmbedIds(_ response: [String: Any]) -> [String: Any] {
+        let embedIds: [String]
+        switch type {
+        case "choice":
+            let selection = response["selection"] as? [String] ?? []
+            embedIds = Self.uniqueEmbedIds(
+                (options ?? [])
+                    .filter { selection.contains($0.id) }
+                    .flatMap { $0.embedIds ?? [] }
+            )
+        case "swipe":
+            let swipes = response["swipes"] as? [String: String] ?? [:]
+            embedIds = Self.uniqueEmbedIds(
+                (cards ?? [])
+                    .filter { swipes[$0.id] != nil }
+                    .flatMap { $0.embedIds ?? [] }
+            )
+        default:
+            embedIds = []
+        }
+
+        guard !embedIds.isEmpty else { return response }
+        var enriched = response
+        enriched["embed_ids"] = embedIds
+        return enriched
+    }
+
+    private static func uniqueEmbedIds(_ embedIds: [String]) -> [String] {
+        var seen = Set<String>()
+        return embedIds.compactMap { rawId in
+            let embedId = rawId.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !embedId.isEmpty, !seen.contains(embedId) else { return nil }
+            seen.insert(embedId)
+            return embedId
+        }
     }
 }
 

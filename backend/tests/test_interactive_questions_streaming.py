@@ -68,6 +68,46 @@ def test_valid_custom_choice_question_is_preserved() -> None:
     assert finalized == valid_custom_choice
 
 
+def test_valid_choice_question_with_embed_ids_is_preserved() -> None:
+    valid_embed_choice = """```interactive_question
+{
+  "type": "choice",
+  "id": "choose_snippet",
+  "multiple": false,
+  "question": "Which implementation should we use?",
+  "options": [
+    { "id": "minimal", "text": "Minimal implementation", "embed_ids": ["embed-code-a"] },
+    { "id": "robust", "text": "More robust implementation", "embed_ids": ["embed-code-b"] }
+  ]
+}
+```
+"""
+
+    finalized = _finalize_interactive_question_protocol(valid_embed_choice)
+
+    assert finalized == valid_embed_choice
+
+
+def test_invalid_choice_question_embed_ids_are_rejected() -> None:
+    invalid_embed_choice = """```interactive_question
+{
+  "type": "choice",
+  "id": "choose_snippet",
+  "multiple": false,
+  "question": "Which implementation should we use?",
+  "options": [
+    { "id": "minimal", "text": "Minimal implementation", "embed_ids": [""] }
+  ]
+}
+```
+"""
+
+    finalized = _finalize_interactive_question_protocol(invalid_embed_choice)
+
+    assert "```interactive_question" not in finalized
+    assert "Failed to display question." in finalized
+
+
 def test_custom_choice_requires_matching_option() -> None:
     invalid_custom_choice = """```interactive_question
 {

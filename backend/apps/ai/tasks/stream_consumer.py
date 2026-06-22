@@ -2728,6 +2728,14 @@ INTERACTIVE_QUESTION_FALLBACK_TEXT = "Failed to display question."
 INTERACTIVE_QUESTION_TYPES = {"choice", "input", "slider", "swipe", "rating"}
 
 
+def _has_valid_embed_ids(value: Any) -> bool:
+    if value is None:
+        return True
+    if not isinstance(value, list):
+        return False
+    return all(isinstance(embed_id, str) and bool(embed_id.strip()) for embed_id in value)
+
+
 def _learning_mode_context(request_data: AskSkillRequest) -> Dict[str, Any]:
     context = getattr(request_data, "learning_mode", None)
     return context if isinstance(context, dict) else {"enabled": False}
@@ -2822,6 +2830,11 @@ def _is_valid_interactive_question_payload(payload: Any) -> bool:
         options = payload.get("options")
         if not isinstance(options, list) or len(options) == 0:
             return False
+        for option in options:
+            if not isinstance(option, dict):
+                return False
+            if not _has_valid_embed_ids(option.get("embed_ids")):
+                return False
         custom_option_id = payload.get("custom_option_id")
         if custom_option_id is not None:
             if not isinstance(custom_option_id, str) or not custom_option_id.strip():
@@ -2842,7 +2855,9 @@ def _is_valid_interactive_question_payload(payload: Any) -> bool:
         return payload.get("min") is not None and payload.get("max") is not None
     if question_type == "swipe":
         cards = payload.get("cards")
-        return isinstance(cards, list) and len(cards) > 0
+        if not isinstance(cards, list) or len(cards) == 0:
+            return False
+        return all(isinstance(card, dict) and _has_valid_embed_ids(card.get("embed_ids")) for card in cards)
     if question_type == "rating":
         if not isinstance(payload.get("question"), str) or not payload["question"].strip():
             return False

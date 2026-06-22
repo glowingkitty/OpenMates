@@ -173,6 +173,27 @@ describe("InteractiveQuestions state management", () => {
       expect(content).not.toContain("I selected");
       expect(content).toContain('"id": "q1"');
     });
+
+    it("formats choice answers with referenced embed IDs only", () => {
+      const content = formatInteractiveQuestionUserResponse(
+        {
+          id: "choose_snippet",
+          type: "choice",
+          multiple: false,
+          question: "Which implementation should we use?",
+          options: [
+            { id: "minimal", text: "Minimal implementation", embed_ids: ["embed-code-a"] },
+            { id: "robust", text: "More robust implementation", embed_ids: ["embed-code-b"] },
+          ],
+        },
+        { id: "choose_snippet", selection: ["robust"] }
+      );
+
+      expect(content).toMatch(/^More robust implementation\n\n```interactive_response/);
+      expect(content).toContain('"embed_ids": [');
+      expect(content).toContain('"embed-code-b"');
+      expect(content).not.toContain("function robustImplementation");
+    });
   });
 
   describe("submitResponse", () => {

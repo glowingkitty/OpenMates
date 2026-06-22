@@ -11,6 +11,8 @@ export type InteractiveQuestionType = "choice" | "input" | "slider" | "swipe" | 
 export interface InteractiveQuestionOption {
   id: string;
   text: string;
+  embed_id?: string;
+  embed_ids?: string[];
 }
 
 export interface InteractiveQuestionField {
@@ -72,6 +74,9 @@ export function isInteractiveQuestionPayload(value: unknown): value is Interacti
   if (payload.type === "choice") {
     if (typeof payload.question !== "string" || payload.question.trim().length === 0) return false;
     if (!Array.isArray(payload.options) || payload.options.length === 0) return false;
+    if (!payload.options.every((option) => hasValidEmbedIds(option.embed_ids ?? (option.embed_id ? [option.embed_id] : undefined)))) {
+      return false;
+    }
     if (payload.custom_option_id !== undefined) {
       return typeof payload.custom_option_id === "string"
         && payload.options.some((option) => option.id === payload.custom_option_id);
@@ -83,7 +88,11 @@ export function isInteractiveQuestionPayload(value: unknown): value is Interacti
     return typeof payload.question === "string" && payload.question.trim().length > 0
       && typeof payload.min === "number" && typeof payload.max === "number";
   }
-  if (payload.type === "swipe") return Array.isArray(payload.cards) && payload.cards.length > 0;
+  if (payload.type === "swipe") {
+    return Array.isArray(payload.cards)
+      && payload.cards.length > 0
+      && payload.cards.every((card) => hasValidEmbedIds(card.embed_ids ?? (card.embed_id ? [card.embed_id] : undefined)));
+  }
   if (payload.type === "rating") {
     return typeof payload.question === "string" && payload.question.trim().length > 0
       && (typeof payload.max_stars === "number" || typeof payload.max === "number" || typeof payload.scale === "number");
@@ -95,12 +104,17 @@ function isQuestionType(value: unknown): value is InteractiveQuestionType {
   return value === "choice" || value === "input" || value === "slider" || value === "swipe" || value === "rating";
 }
 
+function hasValidEmbedIds(embedIds: unknown): boolean {
+  if (embedIds === undefined) return true;
+  return Array.isArray(embedIds) && embedIds.every((embedId) => typeof embedId === "string" && embedId.trim().length > 0);
+}
+
 export function formatInteractiveQuestionAnswer(
   question: InteractiveQuestionPayload,
   answer: InteractiveQuestionAnswer,
 ): FormattedInteractiveAnswer {
-  const responsePayload = buildResponsePayload(question, answer);
   const displayText = buildDisplayText(question, answer);
+  const responsePayload = buildResponsePayload(question, answer);
   const protocol = JSON.stringify(responsePayload, null, 2);
   return {
     displayText,
@@ -141,10 +155,15 @@ function buildDisplayText(
   if (question.type === "choice") {
     const selection = Array.isArray(answer.selection) ? answer.selection.map(String) : [];
     const optionsById = new Map((question.options ?? []).map((option) => [option.id, option.text]));
+    const embedIds = collectChoiceEmbedIds(question, selection);
     const customAnswer = answer.custom_answer == null ? "" : String(answer.custom_answer).trim();
-    return selection
+    const displayText = selection
       .map((id) => customAnswer && isCustomChoiceOption(question, id) ? customAnswer : optionsById.get(id) ?? id)
       .join(", ");
+    if (embedIds.length > 0) {
+      answer.embed_ids = embedIds;
+    }
+    return displayText;
   }
   if (question.type === "input") {
     const values = answer.inputs && typeof answer.inputs === "object"
@@ -164,6 +183,15 @@ function buildDisplayText(
   if (question.type === "swipe") {
     const liked = Array.isArray(answer.liked) ? answer.liked.map(String) : [];
     const cardsById = new Map((question.cards ?? []).map((card) => [card.id, card.text]));
+    const swipedIds = Array.isArray(answer.liked) || Array.isArray(answer.disliked)
+      ? [...liked, ...(Array.isArray(answer.disliked) ? answer.disliked.map(String) : [])]
+      : answer.swipes && typeof answer.swipes === "object"
+        ? Object.keys(answer.swipes)
+        : liked;
+    const embedIds = collectChoiceEmbedIds({ ...question, options: question.cards }, swipedIds);
+    if (embedIds.length > 0) {
+      answer.embed_ids = embedIds;
+    }
     return liked.map((id) => cardsById.get(id) ?? id).join(", ");
   }
   if (question.type === "rating") {
@@ -185,4 +213,17 @@ function isCustomChoiceOption(question: InteractiveQuestionPayload, optionId: st
     "something else",
     "other",
   ].some((pattern) => optionText === pattern || optionText.includes(pattern));
+}
+
+function collectChoiceEmbedIds(
+  question: Pick<InteractiveQuestionPayload, "options">,
+  selectedIds: string[],
+): string[] {
+  const selected = new Set(selectedIds);
+  const embedIds = (question.options ?? [])
+    .filter((option) => selected.has(option.id))
+    .flatMap((option) => option.embed_ids ?? (option.embed_id ? [option.embed_id] : []))
+    .map((embedId) => embedId.trim())
+    .filter(Boolean);
+  return [...new Set(embedIds)];
 }

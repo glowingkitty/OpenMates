@@ -36,6 +36,24 @@ describe("CLI interactive question helpers", () => {
     assert.equal(parsed?.type, "choice");
   });
 
+  it("parses choice option embed references", () => {
+    const parsed = parseInteractiveQuestionBlock(`\`\`\`interactive_question
+{
+  "type": "choice",
+  "id": "choose_snippet",
+  "multiple": false,
+  "question": "Which implementation should we use?",
+  "options": [
+    { "id": "minimal", "text": "Minimal implementation", "embed_ids": ["embed-code-a"] }
+  ]
+}
+\`\`\`
+`);
+
+    assert.equal(parsed?.id, "choose_snippet");
+    assert.deepEqual(parsed?.options?.[0]?.embed_ids, ["embed-code-a"]);
+  });
+
   it("parses valid input questions without a top-level question", () => {
     const parsed = parseInteractiveQuestionBlock(`\`\`\`interactive_question
 {
@@ -85,6 +103,27 @@ describe("CLI interactive question helpers", () => {
     assert.ok(result.messageContent.startsWith("items[::2]"));
     assert.match(result.messageContent, /```interactive_response/);
     assert.match(result.messageContent, /"id": "python_slicing"/);
+  });
+
+  it("formats choice answers with selected embed IDs without duplicating embed content", () => {
+    const result = formatInteractiveQuestionAnswer(
+      {
+        type: "choice",
+        id: "choose_snippet",
+        multiple: false,
+        question: "Which implementation should we use?",
+        options: [
+          { id: "minimal", text: "Minimal implementation", embed_ids: ["embed-code-a"] },
+          { id: "robust", text: "More robust implementation", embed_ids: ["embed-code-b"] },
+        ],
+      },
+      { selection: ["robust"] },
+    );
+
+    assert.equal(result.displayText, "More robust implementation");
+    assert.deepEqual(result.responsePayload.embed_ids, ["embed-code-b"]);
+    assert.match(result.messageContent, /"embed_ids": \[/);
+    assert.doesNotMatch(result.messageContent, /function robustImplementation/);
   });
 
   it("formats input answers from the web-compatible inputs object", () => {
