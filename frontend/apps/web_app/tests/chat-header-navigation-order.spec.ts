@@ -11,7 +11,7 @@ export {};
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
-const { getE2EDebugUrl } = require('./signup-flow-helpers');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
 const INTRO_CHAT_TITLES = new Set([
 	'OpenMates | For everyone',
@@ -75,11 +75,7 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 	}) => {
 		test.setTimeout(90000);
 		await page.setViewportSize({ width: 1280, height: 900 });
-		await page.goto(getE2EDebugUrl('/?lang=en'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-		await page.waitForFunction(() => window.location.hash.includes('chat-id='), null, {
-			timeout: 15000
-		});
+		await loginToTestAccount(page, () => undefined, async () => undefined, { waitForEditor: true });
 
 		await ensureSidebarOpen(page);
 
