@@ -94,7 +94,7 @@ async function setupAndFocusMessageField(page: any) {
  * Falls back to class selector if aria-label not found.
  */
 function getMicButton(page: any) {
-	return page.getByTestId('record-audio-button');
+	return page.locator('[data-testid="message-field"]').last().getByTestId('record-audio-button');
 }
 
 /**
@@ -104,14 +104,15 @@ async function waitForMicButton(page: any) {
 	const micButton = getMicButton(page);
 
 	// Check if action buttons wrapper exists at all
-	const actionButtonsWrapper = page.getByTestId('action-buttons');
+	const actionButtonsWrapper = page.locator('[data-testid="action-buttons"]').last();
 	const actionButtonsVisible = await actionButtonsWrapper.isVisible().catch(() => false);
 	if (!actionButtonsVisible) {
 		// Take screenshot for debugging
 		await page.screenshot({ path: '/tmp/pw-results/debug-no-action-buttons.png' });
 		console.log('[DEBUG] action-buttons not visible. Dumping relevant DOM...');
 		const html = await page
-			.getByTestId('message-field')
+			.locator('[data-testid="message-field"]')
+			.last()
 			.innerHTML()
 			.catch(() => 'NOT FOUND');
 		console.log('[DEBUG] message-field innerHTML (first 500 chars):', html.substring(0, 500));
@@ -135,15 +136,6 @@ async function holdAndReleaseMicButton(page: any, micButton: any, holdMs = 1500)
 	await expect(overlay).toBeVisible({ timeout: 5000 });
 	await page.waitForTimeout(holdMs);
 	await page.mouse.up();
-	await expect(overlay).not.toBeVisible({ timeout: 10000 });
-}
-
-async function holdSpaceToRecord(page: any, holdMs = 2000) {
-	await page.keyboard.down('Space');
-	const overlay = page.getByTestId('record-overlay');
-	await expect(overlay).toBeVisible({ timeout: 5000 });
-	await page.waitForTimeout(holdMs);
-	await page.keyboard.up('Space');
 	await expect(overlay).not.toBeVisible({ timeout: 10000 });
 }
 
@@ -285,6 +277,7 @@ test('authenticated press hold release uploads and transcribes audio embed', asy
 	await page.keyboard.type(' ');
 	await page.keyboard.press('Backspace');
 
+	const micButton = await waitForMicButton(page);
 	const transcribeResponsePromise = page.waitForResponse(
 		(response: any) =>
 			response.url().includes('/v1/apps/audio/skills/transcribe') &&
@@ -292,7 +285,7 @@ test('authenticated press hold release uploads and transcribes audio embed', asy
 		{ timeout: 120000 }
 	);
 
-	await holdSpaceToRecord(page);
+	await holdAndReleaseMicButton(page, micButton, 2000);
 
 	const transcribeResponse = await transcribeResponsePromise;
 	const transcribeBody = await transcribeResponse.text().catch(() => '<unreadable response body>');
