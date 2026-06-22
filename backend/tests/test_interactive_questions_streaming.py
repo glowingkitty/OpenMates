@@ -88,6 +88,93 @@ def test_valid_choice_question_with_embed_ids_is_preserved() -> None:
     assert finalized == valid_embed_choice
 
 
+def test_choice_question_attaches_preceding_embed_ids_to_non_custom_options() -> None:
+    text = """Here are the snippets.
+
+```json
+{"type": "code", "embed_id": "embed-code-a"}
+```
+
+```json
+{"type": "code", "embed_id": "embed-code-b"}
+```
+
+```interactive_question
+{
+  "type": "choice",
+  "id": "choose_snippet",
+  "multiple": false,
+  "question": "Which implementation should we use?",
+  "custom_option_id": "custom",
+  "custom_placeholder": "Describe what you need",
+  "options": [
+    { "id": "minimal", "text": "Minimal implementation" },
+    { "id": "robust", "text": "More robust implementation" },
+    { "id": "custom", "text": "Something else" }
+  ]
+}
+```
+"""
+
+    finalized = _finalize_interactive_question_protocol(text)
+
+    assert '"embed_ids": [\n        "embed-code-a"\n      ]' in finalized
+    assert '"embed_ids": [\n        "embed-code-b"\n      ]' in finalized
+    assert '"id": "custom",\n      "text": "Something else"' in finalized
+    assert '"id": "custom",\n      "text": "Something else",\n      "embed_ids"' not in finalized
+
+
+def test_choice_question_does_not_guess_when_embed_count_mismatches_options() -> None:
+    text = """```json
+{"type": "code", "embed_id": "embed-code-a"}
+```
+
+```interactive_question
+{
+  "type": "choice",
+  "id": "choose_snippet",
+  "multiple": false,
+  "question": "Which implementation should we use?",
+  "options": [
+    { "id": "minimal", "text": "Minimal implementation" },
+    { "id": "robust", "text": "More robust implementation" }
+  ]
+}
+```
+"""
+
+    finalized = _finalize_interactive_question_protocol(text)
+
+    assert finalized == text
+
+
+def test_swipe_question_attaches_preceding_embed_ids_to_cards() -> None:
+    text = """```json
+{"type": "code", "embed_id": "embed-code-a"}
+```
+
+```json
+{"type": "code", "embed_id": "embed-code-b"}
+```
+
+```interactive_question
+{
+  "type": "swipe",
+  "id": "choose_snippet",
+  "cards": [
+    { "id": "minimal", "text": "Minimal implementation" },
+    { "id": "robust", "text": "More robust implementation" }
+  ]
+}
+```
+"""
+
+    finalized = _finalize_interactive_question_protocol(text)
+
+    assert '"embed_ids": [\n        "embed-code-a"\n      ]' in finalized
+    assert '"embed_ids": [\n        "embed-code-b"\n      ]' in finalized
+
+
 def test_invalid_choice_question_embed_ids_are_rejected() -> None:
     invalid_embed_choice = """```interactive_question
 {

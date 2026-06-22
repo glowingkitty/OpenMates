@@ -2726,6 +2726,10 @@ APPLICATION_PREVIEW_DEFAULT_VITE_CONFIG = (
 
 INTERACTIVE_QUESTION_FALLBACK_TEXT = "Failed to display question."
 INTERACTIVE_QUESTION_TYPES = {"choice", "input", "slider", "swipe", "rating"}
+EMBED_REFERENCE_FENCE_PATTERN = re.compile(
+    r'```(?:json|json_embed)\s*\n\s*(\{[^`]*?"embed_id"\s*:\s*"([^"]+)"[^`]*?\})\s*\n```',
+    re.DOTALL,
+)
 
 
 def _has_valid_embed_ids(value: Any) -> bool:
@@ -2865,6 +2869,52 @@ def _is_valid_interactive_question_payload(payload: Any) -> bool:
     return False
 
 
+def _extract_standalone_embed_ids(text: str) -> list[str]:
+    embed_ids: list[str] = []
+    for match in EMBED_REFERENCE_FENCE_PATTERN.finditer(text):
+        try:
+            reference = json.loads(match.group(1))
+        except json.JSONDecodeError:
+            continue
+        embed_id = reference.get("embed_id")
+        if isinstance(embed_id, str) and embed_id.strip():
+            embed_ids.append(embed_id)
+    return embed_ids
+
+
+def _attach_preceding_embed_ids_to_interactive_question(
+    payload: Dict[str, Any],
+    preceding_text: str,
+) -> tuple[Dict[str, Any], bool]:
+    question_type = payload.get("type")
+    if question_type not in {"choice", "swipe"}:
+        return payload, False
+
+    embed_ids = _extract_standalone_embed_ids(preceding_text)
+    if not embed_ids:
+        return payload, False
+
+    item_key = "options" if question_type == "choice" else "cards"
+    items = payload.get(item_key)
+    if not isinstance(items, list):
+        return payload, False
+
+    custom_option_id = payload.get("custom_option_id") if question_type == "choice" else None
+    attachable_items = [
+        item
+        for item in items
+        if isinstance(item, dict)
+        and not item.get("embed_ids")
+        and item.get("id") != custom_option_id
+    ]
+    if len(attachable_items) != len(embed_ids):
+        return payload, False
+
+    for item, embed_id in zip(attachable_items, embed_ids):
+        item["embed_ids"] = [embed_id]
+    return payload, True
+
+
 def _is_inside_open_interactive_question(text: str) -> bool:
     """Return True when text currently ends inside an unclosed interactive question fence."""
     if not text:
@@ -2932,7 +2982,17 @@ def _finalize_interactive_question_protocol(text: str) -> str:
                 is_valid = False
 
         if is_valid:
-            output.extend(lines[start:index + 1])
+            payload, repaired = _attach_preceding_embed_ids_to_interactive_question(
+                payload,
+                "".join(output),
+            )
+            if repaired and _is_valid_interactive_question_payload(payload):
+                output.append("```interactive_question\n")
+                output.append(json.dumps(payload, indent=2, ensure_ascii=False))
+                output.append("\n```\n")
+                changed = True
+            else:
+                output.extend(lines[start:index + 1])
             index += 1
             continue
 
