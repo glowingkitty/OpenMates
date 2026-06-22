@@ -13,6 +13,7 @@
 //          TypographyTokens.generated.swift, GradientTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+import CryptoKit
 import SwiftUI
 
 enum SettingsRouteInventory {
@@ -1414,7 +1415,7 @@ enum InterestTagId: String, CaseIterable, Codable, Hashable {
         return normalized
     }
 
-    var label: String {
+    @MainActor var label: String {
         LocalizationManager.shared.text(labelKey)
     }
 
@@ -1925,7 +1926,7 @@ struct SettingsInterestsView: View {
                 encryptedSettings: user.encryptedSettings,
                 masterKey: masterKey
             )
-            let loaded = Set(payload?.selectedTagIds ?? [])
+            let loaded = Set(payload?.selectedTagIds ?? [InterestTagId]())
             selected = loaded
             initialSelected = loaded
         } catch {
