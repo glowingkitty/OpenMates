@@ -105,7 +105,7 @@ final class ChatFlowParityUITests: XCTestCase {
 
     private func tapInterestTag(_ tagId: String, in app: XCUIApplication) {
         let tag = app.buttons["interest-tag-\(tagId)"]
-        let rail = app.scrollViews["guest-interest-rail"]
+        let rail = app.descendants(matching: .any)["guest-interest-rail"]
         XCTAssertTrue(rail.waitForExistence(timeout: 5), "Expected guest interest rail")
 
         if !tag.waitForExistence(timeout: 1) || !tag.isHittable {
