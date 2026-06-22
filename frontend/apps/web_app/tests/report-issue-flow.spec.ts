@@ -291,6 +291,7 @@ test.describe('Report Issue Flow', () => {
 		expect(responseBody?.short_issue_id).toMatch(/^[A-HJ-NP-Z2-9]{5}$/);
 		expect(responseBody?.screenshot_uploaded).toBe(true);
 		const submittedPayload = apiResponse.request().postDataJSON?.();
+		expect(submittedPayload?.contact_email).toBe(TEST_EMAIL);
 		expect(submittedPayload?.add_to_linear).toBe(adminControlsVisible ? false : true);
 		expect(submittedPayload?.send_email_notification).toBe(adminControlsVisible ? false : true);
 		logCheckpoint(
