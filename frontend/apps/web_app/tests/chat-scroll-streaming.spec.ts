@@ -55,6 +55,16 @@ const { submitPasswordAndHandleOtp, sendMessage } = require('./helpers/chat-test
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+async function waitForNewChatScrollSettled(chatContainer: any): Promise<void> {
+	await expect(async () => {
+		const first = await chatContainer.evaluate((el: HTMLElement) => el.scrollTop);
+		await new Promise((resolve) => setTimeout(resolve, 700));
+		const second = await chatContainer.evaluate((el: HTMLElement) => el.scrollTop);
+		expect(second).toBeGreaterThan(100);
+		expect(Math.abs(second - first)).toBeLessThan(5);
+	}).toPass({ timeout: 12000 });
+}
+
 test('scroll and streaming behavior after sending a message', async ({ page }: { page: any }) => {
 	// Listen for console logs
 	page.on('console', (msg: any) => {
@@ -232,6 +242,7 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 
 	const assistantMessage = page.getByTestId('message-assistant').last();
 	await expect(assistantMessage).toBeVisible({ timeout: 45000 });
+	await waitForNewChatScrollSettled(chatContainer);
 
 	// Record scroll position when streaming starts
 	const scrollAtStreamStart = await chatContainer.evaluate((el: HTMLElement) => el.scrollTop);
