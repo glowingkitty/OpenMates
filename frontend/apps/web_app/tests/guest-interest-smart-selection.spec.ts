@@ -204,6 +204,8 @@ test.describe('Guest interest smart selection', () => {
 			'true'
 		);
 		await expect(page.getByTestId('interest-tag-software_development-check')).toBeVisible({ timeout: 5000 });
+		await expect(page.getByTestId('interest-tag-software_development')).toContainText('software development');
+		await expect(page.getByText('Sophia')).toHaveCount(0);
 		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
 		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);
 		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
@@ -223,7 +225,9 @@ test.describe('Guest interest smart selection', () => {
 		expect(tagOrder).toEqual(
 			expect.arrayContaining(['privacy', 'run_code', 'build_electronics', 'diy_projects'])
 		);
-		expect(tagOrder).toContain('find_apartments');
+		expect(tagOrder).toContain('electrical_engineering');
+		await expect(page.getByTestId('interest-tag-electrical_engineering')).toContainText('electronics');
+		await expect(page.getByText('Elton')).toHaveCount(0);
 
 		const storageStateBeforeContinue = await page.evaluate((key: string) => ({
 			sessionValue: sessionStorage.getItem(key),
