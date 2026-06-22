@@ -74,11 +74,9 @@ SDK methods authenticate lazily; there is no `connect()` call.
 const latestChats = await om.chats.list(); // defaults to 10
 const allChats = await om.chats.list({ limit: 0 });
 
-const privateChat = await om.chats.create();
-await privateChat.send("Summarize this release note draft.");
+await om.chats.send("Summarize this release note draft.");
 
-const savedChat = await om.chats.create({ saveToAccount: true });
-await savedChat.send("Create a project kickoff checklist.");
+await om.chats.send("Create a project kickoff checklist.", { saveToAccount: true });
 
 await om.billing.overview();
 await om.billing.invoices();

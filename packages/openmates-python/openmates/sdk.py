@@ -13,8 +13,10 @@ from dataclasses import dataclass
 import hashlib
 import json
 import os
+import time
 from typing import Any
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlparse, urlunparse
+import uuid
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import requests
@@ -28,6 +30,8 @@ SDK_KDF_ITERATIONS = 100_000
 AES_GCM_IV_LENGTH = 12
 CIPHERTEXT_HEADER_LENGTH = 6
 CIPHERTEXT_MAGIC = b"OM"
+SHARE_FIXED_SALT = b"openmates-share-v1"
+CONNECTED_ACCOUNT_TRANSFER_PREFIX = "OMCA1."
 
 
 class OpenMatesConfigError(RuntimeError):
@@ -119,6 +123,23 @@ class OpenMates:
             timeout=DEFAULT_TIMEOUT_SECONDS,
         )
         return self._parse_response(response)
+
+    def _get_raw(self, path: str) -> dict[str, Any]:
+        if not self._api_key:
+            raise OpenMatesConfigError("OpenMates API key is required")
+
+        response = requests.get(
+            f"{self._api_url}{path}",
+            headers=self._headers(has_body=False),
+            timeout=DEFAULT_TIMEOUT_SECONDS,
+        )
+        if response.status_code >= 400:
+            return self._parse_response(response)
+        return {
+            "content_type": response.headers.get("content-type", "application/octet-stream"),
+            "filename": _extract_filename(response.headers.get("content-disposition")),
+            "data": response.content,
+        }
 
     def _headers(self, *, has_body: bool = True) -> dict[str, str]:
         headers = {
@@ -234,6 +255,23 @@ class OpenMates:
             decrypted_embeds.append(embed)
         return decrypted_embeds
 
+    def _resolve_embed_key_for_share(self, embed_keys: list[dict[str, Any]], embed_id: str) -> bytes | None:
+        hashed_embed_id = hashlib.sha256(embed_id.encode("utf-8")).hexdigest()
+        master_key = self._get_master_key()
+        return _resolve_loaded_embed_key(embed_keys, hashed_embed_id, master_key, master_key)
+
+    def _web_origin(self) -> str:
+        parsed = urlparse(self._api_url)
+        if parsed.hostname == "api.dev.openmates.org":
+            hostname = "app.dev.openmates.org"
+        elif parsed.hostname == "api.openmates.org":
+            hostname = "openmates.org"
+        else:
+            hostname = (parsed.hostname or "openmates.org").removeprefix("api.")
+            if parsed.hostname and parsed.hostname.startswith("api."):
+                hostname = f"app.{hostname}"
+        return urlunparse((parsed.scheme or "https", hostname, "", "", "", ""))
+
 
 def _quote(value: str) -> str:
     return quote(value, safe="")
@@ -253,6 +291,26 @@ def _require_confirmed(confirmed: bool, action: str) -> None:
 
 def _unsupported_sdk_feature(feature: str) -> Any:
     raise OpenMatesConfigError(f"{feature} is not available through the API-key SDK yet")
+
+
+def _extract_filename(content_disposition: str | None) -> str | None:
+    if not content_disposition:
+        return None
+    for part in content_disposition.split(";"):
+        part = part.strip()
+        if part.startswith("filename="):
+            return part.removeprefix("filename=").strip('"')
+    return None
+
+
+def _normalize_history(history: Any) -> list[dict[str, Any]]:
+    if history is None:
+        return []
+    if isinstance(history, list):
+        return [item for item in history if isinstance(item, dict)]
+    if isinstance(history, dict) and isinstance(history.get("messages"), list):
+        return [item for item in history["messages"] if isinstance(item, dict)]
+    return []
 
 
 def _b64decode(value: str) -> bytes:
@@ -301,6 +359,99 @@ def _decrypt_aes_gcm_text(encrypted_b64: str, key: bytes) -> str | None:
     return decrypted.decode("utf-8")
 
 
+def _encrypt_aes_gcm_text(plaintext: str, key: bytes) -> str:
+    iv = os.urandom(AES_GCM_IV_LENGTH)
+    encrypted = AESGCM(key).encrypt(iv, plaintext.encode("utf-8"), None)
+    return base64.b64encode(CIPHERTEXT_MAGIC + b"\x01\x00\x00\x00" + iv + encrypted).decode("utf-8")
+
+
+def _base64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
+
+
+def _base64url_decode(value: str) -> bytes:
+    padded = value + "=" * (-len(value) % 4)
+    return base64.urlsafe_b64decode(padded.encode("utf-8"))
+
+
+def _derive_share_key(value: str, salt: bytes = SHARE_FIXED_SALT) -> bytes:
+    return hashlib.pbkdf2_hmac("sha256", value.encode("utf-8"), salt, SDK_KDF_ITERATIONS, dklen=32)
+
+
+def _encrypt_share_blob(data: bytes, key: bytes) -> str:
+    iv = os.urandom(AES_GCM_IV_LENGTH)
+    encrypted = AESGCM(key).encrypt(iv, data, None)
+    return _base64url_encode(iv + encrypted)
+
+
+def _generate_share_blob(kind: str, item_id: str, item_key: bytes, *, expires: int | None = None, password: str | None = None) -> str:
+    key_for_blob = base64.b64encode(item_key).decode("utf-8")
+    pwd_flag = 0
+    if password:
+        key_for_blob = _encrypt_share_blob(key_for_blob.encode("utf-8"), _derive_share_key(password, f"openmates-pwd-{item_id}".encode("utf-8")))
+        pwd_flag = 1
+    serialized = urlencode({
+        f"{kind}_encryption_key": key_for_blob,
+        "generated_at": int(time.time()),
+        "duration_seconds": expires or 0,
+        "pwd": pwd_flag,
+    })
+    return _encrypt_share_blob(serialized.encode("utf-8"), _derive_share_key(item_id))
+
+
+def _hash_item_key(app_id: str, item_type: str) -> str:
+    return hashlib.sha256(f"{app_id}-{item_type}-{int(time.time() * 1000)}".encode("utf-8")).hexdigest()[:32]
+
+
+def _decrypt_connected_account_payload(encrypted_payload: str, passcode: str) -> dict[str, Any]:
+    if not encrypted_payload.startswith(CONNECTED_ACCOUNT_TRANSFER_PREFIX):
+        raise OpenMatesConfigError("Connected account import payload must start with OMCA1.")
+    if not passcode.strip():
+        raise OpenMatesConfigError("A passcode is required to import a connected account.")
+    envelope = json.loads(_base64url_decode(encrypted_payload.removeprefix(CONNECTED_ACCOUNT_TRANSFER_PREFIX)).decode("utf-8"))
+    if envelope.get("version") != 1 or envelope.get("kdf", {}).get("iterations") != SDK_KDF_ITERATIONS:
+        raise OpenMatesConfigError("Unsupported connected account import payload format.")
+    try:
+        key = hashlib.pbkdf2_hmac("sha256", passcode.encode("utf-8"), _base64url_decode(envelope["kdf"]["salt"]), SDK_KDF_ITERATIONS, dklen=32)
+        plaintext = AESGCM(key).decrypt(_base64url_decode(envelope["cipher"]["iv"]), _base64url_decode(envelope["cipher"]["text"]), None)
+        payload = json.loads(plaintext.decode("utf-8"))
+    except Exception as exc:
+        raise OpenMatesConfigError("Could not decrypt connected account import payload. Check the passcode and payload.") from exc
+    if payload.get("version") != 1 or not payload.get("provider_id") or not payload.get("app_id"):
+        raise OpenMatesConfigError("Connected account import payload is malformed.")
+    return payload
+
+
+def _connected_account_row(payload: dict[str, Any], *, user_id: str, master_key: bytes) -> dict[str, Any]:
+    account_id = str(uuid.uuid4())
+    provider_id = str(payload.get("provider_id") or "")
+    app_id = "calendar" if payload.get("app_id") == "google_calendar" else str(payload.get("app_id") or provider_id)
+    capabilities = [item for item in payload.get("capabilities", []) if isinstance(item, str)] or ["read"]
+    actions = []
+    for capability in capabilities:
+        if capability == "read":
+            actions.append("read")
+        if capability == "write":
+            actions.extend(["write", "update"])
+        if capability == "delete":
+            actions.append("delete")
+    actions = list(dict.fromkeys(actions or ["read"]))
+    refresh_bundle = payload.get("refresh_token_bundle") if isinstance(payload.get("refresh_token_bundle"), dict) else {}
+    scopes = [item for item in refresh_bundle.get("scopes", []) if isinstance(item, str)]
+    label = str(payload.get("label") or ("Google Calendar" if provider_id == "google_calendar" else "Connected account"))
+    return {
+        "id": account_id,
+        "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+        "encrypted_provider_type": _encrypt_aes_gcm_text(provider_id, master_key),
+        "provider_type_hash": hashlib.sha256(provider_id.encode("utf-8")).hexdigest(),
+        "encrypted_account_label": _encrypt_aes_gcm_text(label, master_key),
+        "encrypted_refresh_token_bundle": _encrypt_aes_gcm_text(json.dumps(refresh_bundle), master_key),
+        "encrypted_capabilities": _encrypt_aes_gcm_text(json.dumps(capabilities), master_key),
+        "encrypted_app_permissions": _encrypt_aes_gcm_text(json.dumps({"app_id": app_id, "allowed_actions": actions, "scopes": scopes}), master_key),
+        "encrypted_account_directory_hint": _encrypt_aes_gcm_text(json.dumps({"account_ref": payload.get("account_ref") or account_id, "label": label, "capabilities": capabilities, "runtime_modes": payload.get("runtime_modes") or {action: "allow_automatically" if action == "read" else "always_ask" for action in actions}}), master_key),
+    }
+
+
 def _resolve_loaded_embed_key(
     embed_keys: list[dict[str, Any]],
     hashed_embed_id: str,
@@ -334,18 +485,6 @@ class OpenMatesChats:
     def __init__(self, client: OpenMates):
         self._client = client
 
-    def create(
-        self,
-        *,
-        save_to_account: bool = False,
-        focus_mode: dict[str, str] | None = None,
-    ) -> "OpenMatesChat":
-        return OpenMatesChat(
-            self._client,
-            save_to_account=save_to_account,
-            focus_mode=focus_mode,
-        )
-
     def list(self, *, limit: int = 10, offset: int = 0) -> list[dict[str, Any]]:
         data = self._client._get(f"/v1/sdk/chats?limit={limit}&offset={offset}")
         return [self._client._decrypt_chat_metadata(chat) for chat in data.get("chats", [])]
@@ -367,48 +506,61 @@ class OpenMatesChats:
     def load(self, chat_id: str) -> dict[str, Any]:
         return self._client._decrypt_loaded_chat_payload(self._client._get(f"/v1/sdk/chats/{_quote(chat_id)}"))
 
-    def export(self, chat_id: str, *, format: str | None = None) -> dict[str, Any]:
-        return _unsupported_sdk_feature("Chat export")
-
-    def delete(self, chat_id: str, *, confirmed: bool = False) -> dict[str, Any]:
-        _require_confirmed(confirmed, "Deleting a chat")
-        return _unsupported_sdk_feature("Chat deletion")
-
-    def share(self, chat_id: str, *, expires: int | None = None, password: str | None = None) -> dict[str, Any]:
-        return _unsupported_sdk_feature("Chat sharing")
-
-    def follow_ups(self, chat_id: str) -> list[str]:
-        return _unsupported_sdk_feature("Chat follow-up suggestions")
-
-    def incognito(self, message: str) -> ChatResponse:
-        return self.create(save_to_account=False).send(message)
-
-
-class OpenMatesChat:
-    """Single SDK chat handle."""
-
-    def __init__(
+    def send(
         self,
-        client: OpenMates,
+        message: str,
         *,
-        save_to_account: bool,
+        history: Any = None,
+        save_to_account: bool = False,
         focus_mode: dict[str, str] | None = None,
-    ):
-        self._client = client
-        self._save_to_account = save_to_account
-        self._focus_mode = focus_mode
-
-    def send(self, message: str) -> ChatResponse:
+        memory_ids: list[str] | None = None,
+        model: str | None = None,
+    ) -> ChatResponse:
         data = self._client._post(
             "/v1/sdk/chats",
             {
                 "message": message,
-                "save_to_account": self._save_to_account,
-                "focus_mode": self._focus_mode,
+                "history": _normalize_history(history),
+                "save_to_account": save_to_account,
+                "focus_mode": focus_mode,
+                "memory_ids": memory_ids or [],
+                "model": model,
             },
         )
         response = data.get("response") or {}
         return ChatResponse(content=response.get("content"), raw=data)
+
+    def export(self, chat_id: str, *, format: str | None = None) -> dict[str, Any]:
+        return self._client._post(f"/v1/sdk/chats/{_quote(chat_id)}/export", {"format": format or "json", "payload": self.load(chat_id)})
+
+    def delete(self, chat_id: str, *, confirmed: bool = False) -> dict[str, Any]:
+        _require_confirmed(confirmed, "Deleting a chat")
+        return self._client._delete(f"/v1/sdk/chats/{_quote(chat_id)}")
+
+    def share(self, chat_id: str, *, expires: int | None = None, password: str | None = None) -> dict[str, Any]:
+        loaded = self.load(chat_id)
+        chat = loaded.get("chat") if isinstance(loaded.get("chat"), dict) else {}
+        encrypted_chat_key = chat.get("encrypted_chat_key") if isinstance(chat, dict) else None
+        if not isinstance(encrypted_chat_key, str):
+            raise OpenMatesConfigError("Chat does not include an encrypted chat key")
+        chat_key = _decrypt_aes_gcm_bytes(encrypted_chat_key, self._client._get_master_key())
+        if chat_key is None:
+            raise OpenMatesConfigError("Unable to decrypt chat key for share link")
+        blob = _generate_share_blob("chat", chat_id, chat_key, expires=expires, password=password)
+        return {"url": f"{self._client._web_origin()}/share/chat/{chat_id}#key={blob}"}
+
+    def follow_ups(self, chat_id: str) -> list[str]:
+        loaded = self.load(chat_id)
+        chat = loaded.get("chat") if isinstance(loaded.get("chat"), dict) else {}
+        encrypted = chat.get("encrypted_follow_up_request_suggestions") if isinstance(chat, dict) else None
+        if not isinstance(encrypted, str):
+            return []
+        raw = _decrypt_aes_gcm_text(encrypted, self._client._get_master_key())
+        parsed = _parse_maybe_json(raw)
+        return [item for item in parsed if isinstance(item, str)] if isinstance(parsed, list) else []
+
+    def incognito(self, message: str) -> ChatResponse:
+        return self.send(message, save_to_account=False)
 
 
 class OpenMatesAccount:
@@ -424,13 +576,24 @@ class OpenMatesAccount:
         return self._client._post("/v1/sdk/account/timezone", {"timezone": timezone})
 
     def list_interests(self) -> dict[str, Any]:
-        return _unsupported_sdk_feature("Account interests")
+        data = self._client._get("/v1/sdk/account/topic-preferences")
+        encrypted = data.get("encrypted_settings")
+        if not isinstance(encrypted, str):
+            return {"selected_tag_ids": []}
+        raw = _decrypt_aes_gcm_text(encrypted, self._client._get_master_key())
+        parsed = _parse_maybe_json(raw)
+        selected = parsed.get("selected_tag_ids") if isinstance(parsed, dict) else []
+        return {"selected_tag_ids": [item for item in selected if isinstance(item, str)] if isinstance(selected, list) else []}
 
     def set_interests(self, selected_tag_ids: list[str]) -> dict[str, Any]:
-        return _unsupported_sdk_feature("Account interests")
+        encrypted_settings = _encrypt_aes_gcm_text(
+            json.dumps({"selected_tag_ids": selected_tag_ids}),
+            self._client._get_master_key(),
+        )
+        return self._client._post("/v1/sdk/account/topic-preferences", {"encrypted_settings": encrypted_settings})
 
     def clear_interests(self) -> dict[str, Any]:
-        return _unsupported_sdk_feature("Account interests")
+        return self.set_interests([])
 
     def export_manifest(self) -> dict[str, Any]:
         return self._client._get("/v1/sdk/account/export/manifest")
@@ -485,20 +648,52 @@ class OpenMatesMemories:
         self._client = client
 
     def list(self, **query: Any) -> dict[str, Any]:
-        return _unsupported_sdk_feature("Encrypted memories")
+        data = self._client._get(_with_query("/v1/sdk/memories", **query))
+        memories = []
+        for memory in data.get("memories", []):
+            if not isinstance(memory, dict):
+                continue
+            decrypted = dict(memory)
+            encrypted_item_json = memory.get("encrypted_item_json")
+            if isinstance(encrypted_item_json, str):
+                raw = _decrypt_aes_gcm_text(encrypted_item_json, self._client._get_master_key())
+                decrypted["data"] = _parse_maybe_json(raw)
+            memories.append(decrypted)
+        return {"memories": memories}
 
     def types(self, **query: Any) -> dict[str, Any]:
-        return _unsupported_sdk_feature("Encrypted memories")
+        return self._client._get(_with_query("/v1/sdk/memories/types", **query))
 
     def create(self, input_data: dict[str, Any]) -> dict[str, Any]:
-        return _unsupported_sdk_feature("Encrypted memories")
+        return self._store_memory(input_data)
 
     def update(self, memory_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
-        return _unsupported_sdk_feature("Encrypted memories")
+        return self._store_memory({**input_data, "id": memory_id})
 
     def delete(self, memory_id: str, *, confirmed: bool = False) -> dict[str, Any]:
         _require_confirmed(confirmed, "Deleting a memory")
-        return _unsupported_sdk_feature("Encrypted memories")
+        return self._client._delete(f"/v1/sdk/memories/{_quote(memory_id)}")
+
+    def _store_memory(self, input_data: dict[str, Any]) -> dict[str, Any]:
+        app_id = str(input_data.get("appId") or input_data.get("app_id") or "")
+        item_type = str(input_data.get("itemType") or input_data.get("item_type") or "")
+        raw_item_value = input_data.get("itemValue") or input_data.get("item_value") or input_data.get("data") or {}
+        item_value = raw_item_value if isinstance(raw_item_value, dict) else {"value": raw_item_value}
+        if not app_id or not item_type:
+            raise OpenMatesConfigError("Memory create/update requires appId and itemType")
+        now = int(time.time())
+        entry = {
+            "id": str(input_data.get("id") or uuid.uuid4()),
+            "app_id": app_id,
+            "item_key": _hash_item_key(app_id, item_type),
+            "item_type": item_type,
+            "encrypted_item_json": _encrypt_aes_gcm_text(json.dumps({**item_value, "settings_group": app_id, "_original_item_key": item_type, "added_date": now}), self._client._get_master_key()),
+            "encrypted_app_key": "",
+            "created_at": int(input_data.get("created_at") or now),
+            "updated_at": now,
+            "item_version": int(input_data.get("itemVersion") or input_data.get("item_version") or 1),
+        }
+        return self._client._post("/v1/sdk/memories", {"entry": entry})
 
 
 class OpenMatesBilling:
@@ -508,24 +703,24 @@ class OpenMatesBilling:
         self._client = client
 
     def overview(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing")
-    def usage(self) -> dict[str, Any]: return _unsupported_sdk_feature("Billing usage list")
+    def usage(self, **query: Any) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/billing/usage", **query))
     def usage_summaries(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/summaries")
     def usage_daily(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/daily")
-    def usage_export(self) -> dict[str, Any]: return _unsupported_sdk_feature("Billing usage export")
-    def create_bank_transfer_order(self, credits: int) -> dict[str, Any]: return _unsupported_sdk_feature("Bank-transfer orders")
-    def bank_transfer_status(self, order_id: str) -> dict[str, Any]: return _unsupported_sdk_feature("Bank-transfer orders")
-    def list_bank_transfer_orders(self) -> dict[str, Any]: return _unsupported_sdk_feature("Bank-transfer orders")
+    def usage_export(self, *, months: int | None = None) -> dict[str, Any]: return self._client._get_raw(_with_query("/v1/sdk/billing/usage/export", months=months))
+    def create_bank_transfer_order(self, credits: int) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/bank-transfer-orders", {"credits_amount": credits, "currency": "eur"})
+    def bank_transfer_status(self, order_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/billing/bank-transfer-orders/{_quote(order_id)}")
+    def list_bank_transfer_orders(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/bank-transfer-orders")
     def list_invoices(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/invoices")
-    def download_invoice(self, invoice_id: str) -> dict[str, Any]: return _unsupported_sdk_feature("Invoice downloads")
-    def download_credit_note(self, invoice_id: str) -> dict[str, Any]: return _unsupported_sdk_feature("Credit-note downloads")
+    def download_invoice(self, invoice_id: str) -> dict[str, Any]: return self._client._get_raw(f"/v1/sdk/billing/invoices/{_quote(invoice_id)}/download")
+    def download_credit_note(self, invoice_id: str) -> dict[str, Any]: return self._client._get_raw(f"/v1/sdk/billing/invoices/{_quote(invoice_id)}/credit-note/download")
     def request_refund(self, invoice_id: str, *, confirmed: bool = False) -> dict[str, Any]:
         _require_confirmed(confirmed, "Requesting an invoice refund")
-        return _unsupported_sdk_feature("Invoice refunds")
-    def redeem_gift_card(self, code: str) -> dict[str, Any]: return _unsupported_sdk_feature("Gift cards")
-    def list_redeemed_gift_cards(self) -> dict[str, Any]: return _unsupported_sdk_feature("Gift cards")
-    def create_gift_card_bank_transfer_order(self, credits: int) -> dict[str, Any]: return _unsupported_sdk_feature("Gift cards")
-    def gift_card_purchase_status(self, order_id: str) -> dict[str, Any]: return _unsupported_sdk_feature("Gift cards")
-    def list_purchased_gift_cards(self) -> dict[str, Any]: return _unsupported_sdk_feature("Gift cards")
+        return self._client._post("/v1/sdk/billing/refund", {"invoice_id": invoice_id})
+    def redeem_gift_card(self, code: str) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/gift-cards/redeem", {"code": code})
+    def list_redeemed_gift_cards(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/gift-cards/redeemed")
+    def create_gift_card_bank_transfer_order(self, credits: int) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/gift-cards/bank-transfer-orders", {"credits_amount": credits, "currency": "eur"})
+    def gift_card_purchase_status(self, order_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/billing/gift-cards/purchases/{_quote(order_id)}")
+    def list_purchased_gift_cards(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/gift-cards/purchased")
     def set_low_balance_auto_topup(self, input_data: dict[str, Any]) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/auto-topup/low-balance", input_data)
 
 
@@ -554,8 +749,15 @@ class OpenMatesDocs:
 
 class OpenMatesEmbeds:
     def __init__(self, client: OpenMates): self._client = client
-    def show(self, embed_id: str) -> dict[str, Any]: return _unsupported_sdk_feature("Embed show")
-    def share(self, embed_id: str, **input_data: Any) -> dict[str, Any]: return _unsupported_sdk_feature("Embed sharing")
+    def show(self, embed_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/embeds/{_quote(embed_id)}")
+    def share(self, embed_id: str, *, expires: int | None = None, password: str | None = None) -> dict[str, Any]:
+        shown = self.show(embed_id)
+        embed_keys = shown.get("embed_keys") if isinstance(shown.get("embed_keys"), list) else []
+        embed_key = self._client._resolve_embed_key_for_share(embed_keys, embed_id)
+        if embed_key is None:
+            raise OpenMatesConfigError("Unable to resolve embed key for share link")
+        blob = _generate_share_blob("embed", embed_id, embed_key, expires=expires, password=password)
+        return {"url": f"{self._client._web_origin()}/share/embed/{embed_id}#key={blob}"}
     def versions(self, embed_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/embeds/{_quote(embed_id)}/versions")
     def version(self, embed_id: str, version: int) -> dict[str, Any]: return self._client._get(f"/v1/sdk/embeds/{_quote(embed_id)}/versions/{version}")
     def restore_version(self, embed_id: str, version: int, *, confirmed: bool = False) -> dict[str, Any]:
@@ -566,7 +768,13 @@ class OpenMatesEmbeds:
 class OpenMatesConnectedAccounts:
     def __init__(self, client: OpenMates): self._client = client
     def import_account(self, *, payload: str, passcode: str) -> dict[str, Any]:
-        return _unsupported_sdk_feature("Connected account import")
+        decrypted = _decrypt_connected_account_payload(payload, passcode)
+        account = self._client._get("/v1/sdk/account")
+        user_id = str(account.get("id") or "")
+        if not user_id:
+            raise OpenMatesConfigError("Could not resolve current user id for connected account import")
+        row = _connected_account_row(decrypted, user_id=user_id, master_key=self._client._get_master_key())
+        return self._client._post("/v1/sdk/connected-accounts/import", {"row": row})
 
 
 class OpenMatesLearningMode:
@@ -588,10 +796,10 @@ class OpenMatesNewChatSuggestions:
 
 class OpenMatesFeedback:
     def __init__(self, client: OpenMates): self._client = client
-    def assistant_response(self, *, rating: int) -> dict[str, Any]: return _unsupported_sdk_feature("Assistant response feedback")
+    def assistant_response(self, *, rating: int) -> dict[str, Any]: return self._client._post("/v1/sdk/feedback/assistant-response", {"rating": rating})
 
 
 class OpenMatesBenchmark:
     def __init__(self, client: OpenMates): self._client = client
-    def run(self, input_data: dict[str, Any]) -> dict[str, Any]: return _unsupported_sdk_feature("Benchmark runs")
-    def estimate(self, input_data: dict[str, Any]) -> dict[str, Any]: return _unsupported_sdk_feature("Benchmark estimates")
+    def run(self, input_data: dict[str, Any]) -> dict[str, Any]: return self._client._post("/v1/sdk/benchmark/run", input_data)
+    def estimate(self, input_data: dict[str, Any]) -> dict[str, Any]: return self._client._post("/v1/sdk/benchmark/estimate", input_data)

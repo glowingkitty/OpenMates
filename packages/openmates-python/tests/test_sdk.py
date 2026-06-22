@@ -88,8 +88,7 @@ def test_new_chat_defaults_to_non_persistent(monkeypatch):
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
 
     client = OpenMates(api_key="sk-api-test")
-    chat = client.chats.create()
-    response = chat.send("hello")
+    response = client.chats.send("hello")
 
     assert response.content == "hi"
     assert requests[0]["url"] == "https://api.openmates.org/v1/sdk/chats"
@@ -112,8 +111,7 @@ def test_new_chat_can_include_focus_mode(monkeypatch):
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
 
     client = OpenMates(api_key="sk-api-test")
-    chat = client.chats.create(focus_mode={"app_id": "web", "focus_mode_id": "research"})
-    response = chat.send("research this")
+    response = client.chats.send("research this", focus_mode={"app_id": "web", "focus_mode_id": "research"})
 
     assert response.content == "focused"
     assert requests[0]["json"]["focus_mode"] == {"app_id": "web", "focus_mode_id": "research"}
@@ -389,29 +387,60 @@ def test_named_cli_parity_namespaces_use_sdk_routes(monkeypatch):
     ]
 
 
-def test_unsupported_sdk_surfaces_fail_before_unimplemented_backend_routes():
-    client = OpenMates(api_key="sk-api-test")
+def test_previously_blocked_sdk_surfaces_route_to_concrete_endpoints(monkeypatch):
+    requests_seen = []
 
+    class FakeResponse:
+        status_code = 200
+        headers = {"content-type": "application/json"}
+        content = b"ok"
+
+        def __init__(self, payload=None):
+            self._payload = payload or {"ok": True, "memories": [], "suggestions": [], "embed_keys": []}
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, *, headers, timeout):
+        requests_seen.append({"method": "GET", "url": url})
+        if url.endswith("/v1/sdk/chats/chat-1"):
+            return FakeResponse({"chat": {"id": "chat-1"}, "messages": []})
+        return FakeResponse()
+
+    def fake_post(url, *, json, headers, timeout):
+        requests_seen.append({"method": "POST", "url": url})
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+
+    client = OpenMates(api_key="sk-api-test")
+    client.chats.follow_ups("chat-1")
+    client.chats.export("chat-1")
+    client.account.list_interests()
+    client.memories.types(app_id="code")
+    client.billing.usage_export()
+    client.billing.create_bank_transfer_order(110000)
+    client.embeds.show("embed-1")
+    with pytest.raises(OpenMatesConfigError, match="must start with OMCA1"):
+        client.connected_accounts.import_account(payload="invalid", passcode="123456")
+    client.feedback.assistant_response(rating=5)
+    client.benchmark.estimate({"suite": "quick"})
     with pytest.raises(OpenMatesConfigError, match="not available through the API-key SDK yet"):
-        client.chats.follow_ups("chat-1")
-    with pytest.raises(OpenMatesConfigError, match="not available through the API-key SDK yet"):
-        client.chats.export("chat-1")
-    with pytest.raises(OpenMatesConfigError, match="not available through the API-key SDK yet"):
-        client.account.list_interests()
-    with pytest.raises(OpenMatesConfigError, match="not available through the API-key SDK yet"):
-        client.memories.types(app_id="code")
-    with pytest.raises(OpenMatesConfigError, match="not available through the API-key SDK yet"):
-        client.billing.usage_export()
-    with pytest.raises(OpenMatesConfigError, match="not available through the API-key SDK yet"):
-        client.billing.create_bank_transfer_order(110000)
-    with pytest.raises(OpenMatesConfigError, match="not available through the API-key SDK yet"):
-        client.embeds.show("embed-1")
-    with pytest.raises(OpenMatesConfigError, match="not available through the API-key SDK yet"):
-        client.connected_accounts.import_account(payload="OMCA1...", passcode="123456")
-    with pytest.raises(OpenMatesConfigError, match="not available through the API-key SDK yet"):
-        client.feedback.assistant_response(rating=5)
-    with pytest.raises(OpenMatesConfigError, match="not available through the API-key SDK yet"):
-        client.benchmark.estimate({"suite": "quick"})
+        client.settings.share_debug_logs(confirmed=True)
+
+    assert requests_seen == [
+        {"method": "GET", "url": "https://api.openmates.org/v1/sdk/chats/chat-1"},
+        {"method": "GET", "url": "https://api.openmates.org/v1/sdk/chats/chat-1"},
+        {"method": "POST", "url": "https://api.openmates.org/v1/sdk/chats/chat-1/export"},
+        {"method": "GET", "url": "https://api.openmates.org/v1/sdk/account/topic-preferences"},
+        {"method": "GET", "url": "https://api.openmates.org/v1/sdk/memories/types?app_id=code"},
+        {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/usage/export"},
+        {"method": "POST", "url": "https://api.openmates.org/v1/sdk/billing/bank-transfer-orders"},
+        {"method": "GET", "url": "https://api.openmates.org/v1/sdk/embeds/embed-1"},
+        {"method": "POST", "url": "https://api.openmates.org/v1/sdk/feedback/assistant-response"},
+        {"method": "POST", "url": "https://api.openmates.org/v1/sdk/benchmark/estimate"},
+    ]
 
 
 def test_destructive_sdk_operations_require_confirmation():

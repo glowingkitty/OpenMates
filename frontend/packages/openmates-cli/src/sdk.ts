@@ -8,12 +8,26 @@
  */
 
 import { GeneratedAppSkills } from "./generated/appSkills.js";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import {
+  buildEncryptedConnectedAccountImportRow,
+  decryptConnectedAccountCliTransferPayload,
+} from "./connectedAccountImport.js";
 import {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
+  encryptWithAesGcmCombined,
+  hashItemKey,
   unwrapApiKeyMasterKey,
 } from "./crypto.js";
+import {
+  buildChatShareUrl,
+  buildEmbedShareUrl,
+  deriveWebOrigin,
+  generateChatShareBlob,
+  generateEmbedShareBlob,
+  type ShareDuration,
+} from "./shareEncryption.js";
 
 const DEFAULT_API_URL = "https://api.openmates.org";
 
@@ -25,6 +39,12 @@ export interface OpenMatesOptions {
 export interface ChatCreateOptions {
   saveToAccount?: boolean;
   focusMode?: FocusModeSelection;
+}
+
+export interface ChatSendOptions extends ChatCreateOptions {
+  history?: Array<Record<string, unknown>> | { messages?: Array<Record<string, unknown>> };
+  memoryIds?: string[];
+  model?: string;
 }
 
 export interface ChatListOptions {
@@ -182,6 +202,40 @@ export class OpenMates {
     });
 
     return this.parseResponse<T>(response);
+  }
+
+  async getRaw(path: string): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> {
+    if (!this.apiKey) {
+      throw new OpenMatesConfigError("OpenMates API key is required");
+    }
+
+    const response = await fetch(`${this.apiUrl}${path}`, {
+      method: "GET",
+      headers: this.headers(false),
+    });
+
+    if (!response.ok) {
+      await this.parseResponse<never>(response);
+    }
+    return {
+      contentType: response.headers.get("content-type") ?? "application/octet-stream",
+      filename: extractFilename(response.headers.get("content-disposition")),
+      data: await response.arrayBuffer(),
+    };
+  }
+
+  webOrigin(): string {
+    return deriveWebOrigin(this.apiUrl);
+  }
+
+  masterKey(): Promise<Uint8Array> {
+    return this.getMasterKey();
+  }
+
+  async resolveEmbedKeyForShare(embedKeys: EmbedKeyRecord[], embedId: string): Promise<Uint8Array | null> {
+    const masterKey = await this.getMasterKey();
+    const hashedEmbedId = createHash("sha256").update(embedId).digest("hex");
+    return this.resolveLoadedEmbedKey(embedKeys, hashedEmbedId, masterKey, masterKey);
   }
 
   async decryptChatMetadata<T extends EncryptedChatMetadata>(chat: T): Promise<T> {
@@ -391,6 +445,19 @@ function unsupportedSdkFeature(feature: string): never {
   throw new OpenMatesConfigError(`${feature} is not available through the API-key SDK yet`);
 }
 
+function extractFilename(contentDisposition: string | null): string | undefined {
+  if (!contentDisposition) return undefined;
+  const encoded = contentDisposition.match(/filename\*=UTF-8''([^;]+)/)?.[1];
+  if (encoded) return decodeURIComponent(encoded);
+  return contentDisposition.match(/filename="?([^";]+)"?/)?.[1];
+}
+
+function normalizeHistory(history: ChatSendOptions["history"]): Array<Record<string, unknown>> {
+  if (!history) return [];
+  if (Array.isArray(history)) return history;
+  return Array.isArray(history.messages) ? history.messages : [];
+}
+
 function parseMaybeJson(value: string | null): unknown {
   if (value === null) return null;
   try {
@@ -405,13 +472,6 @@ export class OpenMatesChats {
 
   constructor(client: OpenMates) {
     this.client = client;
-  }
-
-  async create(options: ChatCreateOptions = {}): Promise<OpenMatesChat> {
-    return new OpenMatesChat(this.client, {
-      saveToAccount: options.saveToAccount === true,
-      focusMode: options.focusMode,
-    });
   }
 
   async list(options: ChatListOptions = {}): Promise<EncryptedChatMetadata[]> {
@@ -442,55 +502,59 @@ export class OpenMatesChats {
     return this.client.decryptLoadedChatPayload(payload);
   }
 
+  async send(message: string, options: ChatSendOptions = {}): Promise<ChatResponse> {
+    const result = await this.client.request<{ response?: ChatResponse }>("/v1/sdk/chats", {
+      message,
+      history: normalizeHistory(options.history),
+      save_to_account: options.saveToAccount === true,
+      memory_ids: options.memoryIds ?? [],
+      model: options.model,
+      focus_mode: options.focusMode
+        ? { app_id: options.focusMode.appId, focus_mode_id: options.focusMode.focusModeId }
+        : undefined,
+    });
+    return result.response ?? result;
+  }
+
   async export(chatId: string, options: { format?: "json" | "markdown" | "yaml" } = {}): Promise<Record<string, unknown>> {
-    void chatId;
-    void options;
-    return unsupportedSdkFeature("Chat export");
+    const payload = await this.load(chatId);
+    return this.client.request<Record<string, unknown>>(`/v1/sdk/chats/${encodeURIComponent(chatId)}/export`, {
+      format: options.format ?? "json",
+      payload,
+    });
   }
 
   async delete(chatId: string, options: ConfirmedMutationOptions): Promise<Record<string, unknown>> {
     requireConfirmed(options, "Deleting a chat");
-    void chatId;
-    return unsupportedSdkFeature("Chat deletion");
+    return this.client.delete<Record<string, unknown>>(`/v1/sdk/chats/${encodeURIComponent(chatId)}`);
   }
 
   async share(chatId: string, options: { expires?: number; password?: string } = {}): Promise<Record<string, unknown>> {
-    void chatId;
-    void options;
-    return unsupportedSdkFeature("Chat sharing");
+    const loaded = await this.load(chatId);
+    const chat = loaded.chat as EncryptedChatMetadata | undefined;
+    if (!chat?.encrypted_chat_key) {
+      throw new OpenMatesConfigError("Chat does not include an encrypted chat key");
+    }
+    const chatKey = await decryptBytesWithAesGcm(chat.encrypted_chat_key, await this.client.masterKey());
+    if (!chatKey) {
+      throw new OpenMatesConfigError("Unable to decrypt chat key for share link");
+    }
+    const blob = await generateChatShareBlob(chatId, chatKey, (options.expires ?? 0) as ShareDuration, options.password);
+    return { url: buildChatShareUrl(this.client.webOrigin(), chatId, blob) };
   }
 
   async followUps(chatId: string): Promise<string[]> {
-    void chatId;
-    return unsupportedSdkFeature("Chat follow-up suggestions");
+    const payload = await this.load(chatId);
+    const chat = payload.chat as Record<string, unknown> | undefined;
+    const encrypted = chat?.encrypted_follow_up_request_suggestions;
+    if (typeof encrypted !== "string") return [];
+    const raw = await decryptWithAesGcmCombined(encrypted, await this.client.masterKey());
+    const parsed = raw ? parseMaybeJson(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
   }
 
   async incognito(message: string): Promise<ChatResponse> {
-    const chat = await this.create({ saveToAccount: false });
-    return chat.send(message);
-  }
-}
-
-export class OpenMatesChat {
-  private readonly client: OpenMates;
-  private readonly saveToAccount: boolean;
-  private readonly focusMode?: FocusModeSelection;
-
-  constructor(client: OpenMates, options: { saveToAccount: boolean; focusMode?: FocusModeSelection }) {
-    this.client = client;
-    this.saveToAccount = options.saveToAccount;
-    this.focusMode = options.focusMode;
-  }
-
-  async send(message: string): Promise<ChatResponse> {
-    const result = await this.client.request<{ response?: ChatResponse }>("/v1/sdk/chats", {
-      message,
-      save_to_account: this.saveToAccount,
-      focus_mode: this.focusMode
-        ? { app_id: this.focusMode.appId, focus_mode_id: this.focusMode.focusModeId }
-        : undefined,
-    });
-    return result.response ?? result;
+    return this.send(message, { saveToAccount: false });
   }
 }
 
@@ -510,16 +574,28 @@ export class OpenMatesAccount {
   }
 
   async listInterests(): Promise<Record<string, unknown>> {
-    return unsupportedSdkFeature("Account interests");
+    const data = await this.client.get<Record<string, unknown>>("/v1/sdk/account/topic-preferences");
+    const encrypted = data.encrypted_settings;
+    if (typeof encrypted !== "string") return { selectedTagIds: [] };
+    const raw = await decryptWithAesGcmCombined(encrypted, await this.client.masterKey());
+    const parsed = raw ? parseMaybeJson(raw) : {};
+    return {
+      selectedTagIds: typeof parsed === "object" && parsed !== null && Array.isArray((parsed as Record<string, unknown>).selected_tag_ids)
+        ? (parsed as Record<string, unknown>).selected_tag_ids
+        : [],
+    };
   }
 
   async setInterests(selectedTagIds: string[]): Promise<Record<string, unknown>> {
-    void selectedTagIds;
-    return unsupportedSdkFeature("Account interests");
+    const encrypted_settings = await encryptWithAesGcmCombined(
+      JSON.stringify({ selected_tag_ids: selectedTagIds }),
+      await this.client.masterKey(),
+    );
+    return this.client.request<Record<string, unknown>>("/v1/sdk/account/topic-preferences", { encrypted_settings });
   }
 
   async clearInterests(): Promise<Record<string, unknown>> {
-    return unsupportedSdkFeature("Account interests");
+    return this.setInterests([]);
   }
 
   async exportManifest(): Promise<Record<string, unknown>> {
@@ -593,30 +669,61 @@ export class OpenMatesMemories {
   }
 
   async list(options: RequestOptions = {}): Promise<Record<string, unknown>> {
-    void options;
-    return unsupportedSdkFeature("Encrypted memories");
+    const data = await this.client.get<{ memories?: Array<Record<string, unknown>> }>(withQuery("/v1/sdk/memories", options.query));
+    const memories = await Promise.all((data.memories ?? []).map(async (memory) => {
+      const decrypted = { ...memory };
+      if (typeof memory.encrypted_item_json === "string") {
+        const raw = await decryptWithAesGcmCombined(memory.encrypted_item_json, await this.client.masterKey());
+        decrypted.data = raw ? parseMaybeJson(raw) : null;
+      }
+      return decrypted;
+    }));
+    return { memories };
   }
 
   async types(options: RequestOptions = {}): Promise<Record<string, unknown>> {
-    void options;
-    return unsupportedSdkFeature("Encrypted memories");
+    return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/memories/types", options.query));
   }
 
   async create(input: Record<string, unknown>): Promise<Record<string, unknown>> {
-    void input;
-    return unsupportedSdkFeature("Encrypted memories");
+    return this.storeMemory(input);
   }
 
   async update(id: string, input: Record<string, unknown>): Promise<Record<string, unknown>> {
-    void id;
-    void input;
-    return unsupportedSdkFeature("Encrypted memories");
+    return this.storeMemory({ ...input, id });
   }
 
   async delete(id: string, options: ConfirmedMutationOptions): Promise<Record<string, unknown>> {
     requireConfirmed(options, "Deleting a memory");
-    void id;
-    return unsupportedSdkFeature("Encrypted memories");
+    return this.client.delete<Record<string, unknown>>(`/v1/sdk/memories/${encodeURIComponent(id)}`);
+  }
+
+  private async storeMemory(input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const appId = String(input.appId ?? input.app_id ?? "");
+    const itemType = String(input.itemType ?? input.item_type ?? "");
+    const rawItemValue = input.itemValue ?? input.item_value ?? input.data ?? {};
+    const itemValue = rawItemValue && typeof rawItemValue === "object" && !Array.isArray(rawItemValue)
+      ? rawItemValue as Record<string, unknown>
+      : { value: rawItemValue };
+    if (!appId || !itemType) {
+      throw new OpenMatesConfigError("Memory create/update requires appId and itemType");
+    }
+    const now = Math.floor(Date.now() / 1000);
+    const entry = {
+      id: String(input.id ?? randomUUID()),
+      app_id: appId,
+      item_key: hashItemKey(appId, itemType),
+      item_type: itemType,
+      encrypted_item_json: await encryptWithAesGcmCombined(
+        JSON.stringify({ ...itemValue, settings_group: appId, _original_item_key: itemType, added_date: now }),
+        await this.client.masterKey(),
+      ),
+      encrypted_app_key: "",
+      created_at: Number(input.created_at ?? now),
+      updated_at: now,
+      item_version: Number(input.itemVersion ?? input.item_version ?? 1),
+    };
+    return this.client.request<Record<string, unknown>>("/v1/sdk/memories", { entry });
   }
 }
 
@@ -628,22 +735,22 @@ export class OpenMatesBilling {
   }
 
   async overview(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing"); }
-  async usage(): Promise<Record<string, unknown>> { return unsupportedSdkFeature("Billing usage list"); }
+  async usage(options: RequestOptions = {}): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/billing/usage", options.query)); }
   async usageSummaries(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/usage/summaries"); }
   async usageDaily(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/usage/daily"); }
-  async usageExport(): Promise<Record<string, unknown>> { return unsupportedSdkFeature("Billing usage export"); }
-  async createBankTransferOrder(credits: number): Promise<Record<string, unknown>> { void credits; return unsupportedSdkFeature("Bank-transfer orders"); }
-  async bankTransferStatus(orderId: string): Promise<Record<string, unknown>> { void orderId; return unsupportedSdkFeature("Bank-transfer orders"); }
-  async listBankTransferOrders(): Promise<Record<string, unknown>> { return unsupportedSdkFeature("Bank-transfer orders"); }
+  async usageExport(options: { months?: number } = {}): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> { return this.client.getRaw(withQuery("/v1/sdk/billing/usage/export", { months: options.months })); }
+  async createBankTransferOrder(credits: number): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders", { credits_amount: credits, currency: "eur" }); }
+  async bankTransferStatus(orderId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/billing/bank-transfer-orders/${encodeURIComponent(orderId)}`); }
+  async listBankTransferOrders(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders"); }
   async listInvoices(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/invoices"); }
-  async downloadInvoice(invoiceId: string): Promise<Record<string, unknown>> { void invoiceId; return unsupportedSdkFeature("Invoice downloads"); }
-  async downloadCreditNote(invoiceId: string): Promise<Record<string, unknown>> { void invoiceId; return unsupportedSdkFeature("Credit-note downloads"); }
-  async requestRefund(invoiceId: string, options: ConfirmedMutationOptions): Promise<Record<string, unknown>> { requireConfirmed(options, "Requesting an invoice refund"); void invoiceId; return unsupportedSdkFeature("Invoice refunds"); }
-  async redeemGiftCard(code: string): Promise<Record<string, unknown>> { void code; return unsupportedSdkFeature("Gift cards"); }
-  async listRedeemedGiftCards(): Promise<Record<string, unknown>> { return unsupportedSdkFeature("Gift cards"); }
-  async createGiftCardBankTransferOrder(credits: number): Promise<Record<string, unknown>> { void credits; return unsupportedSdkFeature("Gift cards"); }
-  async giftCardPurchaseStatus(orderId: string): Promise<Record<string, unknown>> { void orderId; return unsupportedSdkFeature("Gift cards"); }
-  async listPurchasedGiftCards(): Promise<Record<string, unknown>> { return unsupportedSdkFeature("Gift cards"); }
+  async downloadInvoice(invoiceId: string): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> { return this.client.getRaw(`/v1/sdk/billing/invoices/${encodeURIComponent(invoiceId)}/download`); }
+  async downloadCreditNote(invoiceId: string): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> { return this.client.getRaw(`/v1/sdk/billing/invoices/${encodeURIComponent(invoiceId)}/credit-note/download`); }
+  async requestRefund(invoiceId: string, options: ConfirmedMutationOptions & { emailEncryptionKey?: string }): Promise<Record<string, unknown>> { requireConfirmed(options, "Requesting an invoice refund"); return this.client.request<Record<string, unknown>>("/v1/sdk/billing/refund", { invoice_id: invoiceId, email_encryption_key: options.emailEncryptionKey }); }
+  async redeemGiftCard(code: string): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/gift-cards/redeem", { code }); }
+  async listRedeemedGiftCards(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/gift-cards/redeemed"); }
+  async createGiftCardBankTransferOrder(credits: number): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/gift-cards/bank-transfer-orders", { credits_amount: credits, currency: "eur" }); }
+  async giftCardPurchaseStatus(orderId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/billing/gift-cards/purchases/${encodeURIComponent(orderId)}`); }
+  async listPurchasedGiftCards(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/gift-cards/purchased"); }
   async setLowBalanceAutoTopup(input: Record<string, unknown>): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/auto-topup/low-balance", input); }
 }
 
@@ -690,8 +797,15 @@ export class OpenMatesEmbeds {
     this.client = client;
   }
 
-  async show(embedId: string): Promise<Record<string, unknown>> { void embedId; return unsupportedSdkFeature("Embed show"); }
-  async share(embedId: string, options: { expires?: number; password?: string } = {}): Promise<Record<string, unknown>> { void embedId; void options; return unsupportedSdkFeature("Embed sharing"); }
+  async show(embedId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/embeds/${encodeURIComponent(embedId)}`); }
+  async share(embedId: string, options: { expires?: number; password?: string } = {}): Promise<Record<string, unknown>> {
+    const shown = await this.show(embedId);
+    const keys = Array.isArray(shown.embed_keys) ? shown.embed_keys as EmbedKeyRecord[] : [];
+    const embedKey = await this.client.resolveEmbedKeyForShare(keys, embedId);
+    if (!embedKey) throw new OpenMatesConfigError("Unable to resolve embed key for share link");
+    const blob = await generateEmbedShareBlob(embedId, embedKey, (options.expires ?? 0) as ShareDuration, options.password);
+    return { url: buildEmbedShareUrl(this.client.webOrigin(), embedId, blob) };
+  }
   async versions(embedId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/embeds/${encodeURIComponent(embedId)}/versions`); }
   async version(embedId: string, version: number): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/embeds/${encodeURIComponent(embedId)}/versions/${version}`); }
   async restoreVersion(embedId: string, version: number, options: ConfirmedMutationOptions): Promise<Record<string, unknown>> { requireConfirmed(options, "Restoring an embed version"); return this.client.request<Record<string, unknown>>(`/v1/sdk/embeds/${encodeURIComponent(embedId)}/versions/${version}/restore`); }
@@ -705,8 +819,18 @@ export class OpenMatesConnectedAccounts {
   }
 
   async import(input: { payload: string; passcode: string }): Promise<Record<string, unknown>> {
-    void input;
-    return unsupportedSdkFeature("Connected account import");
+    const payload = await decryptConnectedAccountCliTransferPayload(input.payload, input.passcode);
+    const account = await this.client.get<Record<string, unknown>>("/v1/sdk/account");
+    const userId = typeof account.id === "string" ? account.id : "";
+    if (!userId) {
+      throw new OpenMatesConfigError("Could not resolve current user id for connected account import");
+    }
+    const row = await buildEncryptedConnectedAccountImportRow({
+      payload,
+      userId,
+      masterKey: await this.client.masterKey(),
+    });
+    return this.client.request<Record<string, unknown>>("/v1/sdk/connected-accounts/import", { row });
   }
 }
 
@@ -754,8 +878,7 @@ export class OpenMatesFeedback {
   }
 
   async assistantResponse(input: { rating: number }): Promise<Record<string, unknown>> {
-    void input;
-    return unsupportedSdkFeature("Assistant response feedback");
+    return this.client.request<Record<string, unknown>>("/v1/sdk/feedback/assistant-response", input);
   }
 }
 
@@ -767,12 +890,10 @@ export class OpenMatesBenchmark {
   }
 
   async run(input: Record<string, unknown>): Promise<Record<string, unknown>> {
-    void input;
-    return unsupportedSdkFeature("Benchmark runs");
+    return this.client.request<Record<string, unknown>>("/v1/sdk/benchmark/run", input);
   }
 
   async estimate(input: Record<string, unknown>): Promise<Record<string, unknown>> {
-    void input;
-    return unsupportedSdkFeature("Benchmark estimates");
+    return this.client.request<Record<string, unknown>>("/v1/sdk/benchmark/estimate", input);
   }
 }

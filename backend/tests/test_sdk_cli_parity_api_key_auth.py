@@ -7,6 +7,7 @@ Scope: focused authorization tests; product route wiring is tested per surface.
 """
 
 import sys
+import hashlib
 from types import SimpleNamespace
 
 import pytest
@@ -23,13 +24,19 @@ class _FakeDirectusService:
             check_chat_ownership=self.check_chat_ownership,
             get_chat_metadata=self.get_chat_metadata,
             get_all_messages_for_chat=self.get_all_messages_for_chat,
+            delete_all_messages_for_chat=self.delete_all_messages_for_chat,
+            delete_all_drafts_for_chat=self.delete_all_drafts_for_chat,
+            persist_delete_chat=self.persist_delete_chat,
         )
         self.embed = SimpleNamespace(
             get_embeds_by_hashed_chat_id=self.get_embeds_by_hashed_chat_id,
             get_embed_keys_by_hashed_chat_id=self.get_embed_keys_by_hashed_chat_id,
+            get_embed_keys_by_embed_id=self.get_embed_keys_by_embed_id,
         )
         self.suggestion_queries = []
         self.ownership_allowed = True
+        self.embed_owner_allowed = True
+        self.deleted_chat_id = None
 
     async def get_user_profile(self, user_id):
         return True, {
@@ -58,6 +65,18 @@ class _FakeDirectusService:
         assert decrypt_content is False
         return [{"id": "message-1", "encrypted_content": "cipher-content"}]
 
+    async def delete_all_messages_for_chat(self, chat_id):
+        self.deleted_chat_id = chat_id
+        return True
+
+    async def delete_all_drafts_for_chat(self, chat_id):
+        self.deleted_chat_id = chat_id
+        return True
+
+    async def persist_delete_chat(self, chat_id):
+        self.deleted_chat_id = chat_id
+        return True
+
     async def get_embeds_by_hashed_chat_id(self, hashed_chat_id):
         assert len(hashed_chat_id) == 64
         return [{"embed_id": "embed-1", "encrypted_content": "cipher-embed"}]
@@ -65,6 +84,18 @@ class _FakeDirectusService:
     async def get_embed_keys_by_hashed_chat_id(self, hashed_chat_id):
         assert len(hashed_chat_id) == 64
         return [{"hashed_embed_id": "hash-embed-1", "key_type": "master", "encrypted_embed_key": "cipher-key"}]
+
+    async def get_embed_keys_by_embed_id(self, embed_id):
+        return [{"hashed_embed_id": "hash-embed-1", "key_type": "master", "encrypted_embed_key": "cipher-key"}]
+
+    async def get_items(self, collection, params=None):
+        if collection == "embeds":
+            if not self.embed_owner_allowed:
+                return []
+            filters = (params or {}).get("filter") or {}
+            assert filters.get("hashed_user_id", {}).get("_eq")
+            return [{"embed_id": "embed-1", "encrypted_content": "cipher-embed", "hashed_user_id": filters["hashed_user_id"]["_eq"]}]
+        return []
 
 
 class _FakeCacheService:
@@ -163,13 +194,27 @@ def test_chat_parity_surface_uses_existing_chat_scope_names():
             _api_key_info(
                 {
                     "full_access": False,
-                    "scopes": {"chat": ["chat:read_existing", "chat:create_saved"]},
+                    "scopes": {"chat": ["chat:read_existing", "chat:delete"]},
                 }
             ),
             "chats",
             "DELETE",
         )
-        == "chat:create_saved"
+        == "chat:delete"
+    )
+    assert (
+        _require_sdk_scope_for_surface(
+            _api_key_info(
+                {
+                    "full_access": False,
+                    "scopes": {"chat": ["chat:export"]},
+                }
+            ),
+            "chats",
+            "POST",
+            "chat-1/export",
+        )
+        == "chat:export"
     )
 
 
@@ -369,25 +414,53 @@ async def test_sdk_dispatch_billing_invoices_reuses_billing_overview(monkeypatch
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("path,method", [("usage/daily", "GET"), ("usage/summaries", "GET"), ("auto-topup/low-balance", "POST")])
-async def test_sdk_billing_unaudited_payment_routes_stay_unimplemented(monkeypatch, path, method):
-    async def fake_authenticate(request):
-        return {"user_id": "user-1", "api_key_metadata": {"full_access": True}}
+async def test_sdk_dispatch_chat_delete_requires_ownership_and_deletes_chat():
+    request = _FakeRequest(method="DELETE")
 
-    monkeypatch.setattr(sdk_routes, "_authenticate_sdk_request", fake_authenticate)
+    result = await _dispatch_sdk_surface(
+        request,
+        {"user_id": "user-1"},
+        "chats",
+        "chat-1",
+        None,
+    )
+
+    assert result == {"success": True, "chat_id": "chat-1"}
+    assert request.app.state.directus_service.deleted_chat_id == "chat-1"
+
+
+@pytest.mark.asyncio
+async def test_sdk_dispatch_embed_show_returns_encrypted_embed_and_keys():
+    result = await _dispatch_sdk_surface(
+        _FakeRequest(method="GET"),
+        {"user_id": "user-1"},
+        "embeds",
+        "embed-1",
+        None,
+    )
+
+    hashed_user_id = hashlib.sha256(b"user-1").hexdigest()
+    assert result == {
+        "embed": {"embed_id": "embed-1", "encrypted_content": "cipher-embed", "hashed_user_id": hashed_user_id},
+        "embed_keys": [{"hashed_embed_id": "hash-embed-1", "key_type": "master", "encrypted_embed_key": "cipher-key"}],
+    }
+
+
+@pytest.mark.asyncio
+async def test_sdk_dispatch_embed_show_hides_non_owned_embeds():
+    request = _FakeRequest(method="GET")
+    request.app.state.directus_service.embed_owner_allowed = False
 
     with pytest.raises(HTTPException) as exc:
-        await sdk_routes._sdk_parity_placeholder(
-            _FakeRequest(method=method),
-            "billing",
-            path,
-            {} if method == "POST" else None,
+        await _dispatch_sdk_surface(
+            request,
+            {"user_id": "user-1"},
+            "embeds",
+            "embed-1",
+            None,
         )
 
-    assert exc.value.status_code == 501
-    assert exc.value.detail["error"] == "sdk_surface_not_implemented"
-    assert exc.value.detail["surface"] == "billing"
-    assert exc.value.detail["path"] == path
+    assert exc.value.status_code == 404
 
 
 @pytest.mark.asyncio

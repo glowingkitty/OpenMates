@@ -86,8 +86,7 @@ describe("OpenMates SDK", () => {
       });
     }, async (apiUrl) => {
       const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
-      const chat = await client.chats.create();
-      const response = await chat.send("hello");
+      const response = await client.chats.send("hello");
       assert.equal(response.content, "hi");
     });
   });
@@ -107,10 +106,9 @@ describe("OpenMates SDK", () => {
       });
     }, async (apiUrl) => {
       const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
-      const chat = await client.chats.create({
+      const response = await client.chats.send("research this", {
         focusMode: { appId: "web", focusModeId: "research" },
       });
-      const response = await chat.send("research this");
       assert.equal(response.content, "focused");
     });
   });
@@ -328,19 +326,44 @@ describe("OpenMates SDK", () => {
     ]);
   });
 
-  it("fails unsupported SDK surfaces before hitting unimplemented backend routes", async () => {
-    const client = new OpenMates({ apiKey: "sk-api-test", apiUrl: "http://127.0.0.1" });
+  it("routes previously blocked SDK parity surfaces to concrete SDK endpoints", async () => {
+    const requests: Array<{ method?: string; url?: string }> = [];
+    await withServer((request, response) => {
+      requests.push({ method: request.method, url: request.url });
+      response.writeHead(200, { "content-type": "application/json" });
+      if (request.url === "/v1/sdk/chats/chat-1") {
+        response.end(JSON.stringify({ chat: { id: "chat-1" }, messages: [] }));
+        return;
+      }
+      response.end(JSON.stringify({ ok: true, memories: [], suggestions: [], embed_keys: [] }));
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
 
-    await assert.rejects(() => client.chats.followUps("chat-1"), /not available through the API-key SDK yet/);
-    await assert.rejects(() => client.chats.export("chat-1"), /not available through the API-key SDK yet/);
-    await assert.rejects(() => client.account.listInterests(), /not available through the API-key SDK yet/);
-    await assert.rejects(() => client.memories.types({ query: { app_id: "code" } }), /not available through the API-key SDK yet/);
-    await assert.rejects(() => client.billing.usageExport(), /not available through the API-key SDK yet/);
-    await assert.rejects(() => client.billing.createBankTransferOrder(110000), /not available through the API-key SDK yet/);
-    await assert.rejects(() => client.embeds.show("embed-1"), /not available through the API-key SDK yet/);
-    await assert.rejects(() => client.connectedAccounts.import({ payload: "OMCA1...", passcode: "123456" }), /not available through the API-key SDK yet/);
-    await assert.rejects(() => client.feedback.assistantResponse({ rating: 5 }), /not available through the API-key SDK yet/);
-    await assert.rejects(() => client.benchmark.estimate({ suite: "quick" }), /not available through the API-key SDK yet/);
+      await client.chats.followUps("chat-1");
+      await client.chats.export("chat-1");
+      await client.account.listInterests();
+      await client.memories.types({ query: { app_id: "code" } });
+      await client.billing.usageExport();
+      await client.billing.createBankTransferOrder(110000);
+      await client.embeds.show("embed-1");
+      await assert.rejects(() => client.connectedAccounts.import({ payload: "invalid", passcode: "123456" }), /must start with OMCA1/);
+      await client.feedback.assistantResponse({ rating: 5 });
+      await client.benchmark.estimate({ suite: "quick" });
+      await assert.rejects(() => client.settings.shareDebugLogs({ confirmed: true }), /not available through the API-key SDK yet/);
+    });
+
+    assert.deepEqual(requests, [
+      { method: "GET", url: "/v1/sdk/chats/chat-1" },
+      { method: "GET", url: "/v1/sdk/chats/chat-1" },
+      { method: "POST", url: "/v1/sdk/chats/chat-1/export" },
+      { method: "GET", url: "/v1/sdk/account/topic-preferences" },
+      { method: "GET", url: "/v1/sdk/memories/types?app_id=code" },
+      { method: "GET", url: "/v1/sdk/billing/usage/export" },
+      { method: "POST", url: "/v1/sdk/billing/bank-transfer-orders" },
+      { method: "GET", url: "/v1/sdk/embeds/embed-1" },
+      { method: "POST", url: "/v1/sdk/feedback/assistant-response" },
+      { method: "POST", url: "/v1/sdk/benchmark/estimate" },
+    ]);
   });
 
   it("requires explicit confirmation for destructive SDK operations", async () => {

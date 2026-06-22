@@ -49,15 +49,13 @@ const allChats = await om.chats.list({ limit: 0 });
 Create a non-persistent chat. This is the default and does not save the transcript to your OpenMates account:
 
 ```ts
-const chat = await om.chats.create();
-const response = await chat.send("Summarize this release note draft.");
+const response = await om.chats.send("Summarize this release note draft.");
 ```
 
 Create a saved account chat explicitly:
 
 ```ts
-const chat = await om.chats.create({ saveToAccount: true });
-await chat.send("Create a project kickoff checklist.");
+await om.chats.send("Create a project kickoff checklist.", { saveToAccount: true });
 ```
 
 Use named namespaces for CLI-parity operations:
@@ -69,7 +67,7 @@ await om.billing.invoices();
 await om.docs.search("api keys");
 ```
 
-Unaudited or high-risk SDK surfaces such as chat deletion/sharing, billing usage exports, invoice downloads, connected-account import, encrypted memories, and benchmarks return typed unavailable errors until their API-key privacy and spending contracts are audited.
+SDK chat deletion/sharing, billing exports/downloads, connected-account import, encrypted memories, assistant feedback, and benchmarks are available through named SDK methods. Debug-log sharing remains CLI-only and returns a typed unavailable error in SDKs.
 
 ## Python
 
@@ -99,15 +97,13 @@ all_chats = om.chats.list(limit=0)
 Create a non-persistent chat:
 
 ```python
-chat = om.chats.create()
-response = chat.send("Summarize this release note draft.")
+response = om.chats.send("Summarize this release note draft.")
 ```
 
 Create a saved account chat explicitly:
 
 ```python
-chat = om.chats.create(save_to_account=True)
-chat.send("Create a project kickoff checklist.")
+om.chats.send("Create a project kickoff checklist.", save_to_account=True)
 ```
 
 Use named namespaces for CLI-parity operations:
@@ -119,7 +115,7 @@ om.billing.invoices()
 om.docs.search("api keys")
 ```
 
-Unaudited or high-risk SDK surfaces such as chat deletion/sharing, billing usage exports, invoice downloads, connected-account import, encrypted memories, and benchmarks return typed unavailable errors until their API-key privacy and spending contracts are audited.
+SDK chat deletion/sharing, billing exports/downloads, connected-account import, encrypted memories, assistant feedback, and benchmarks are available through named SDK methods. Debug-log sharing remains CLI-only and returns a typed unavailable error in SDKs.
 
 ## Scopes
 

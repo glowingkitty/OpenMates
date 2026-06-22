@@ -44,16 +44,14 @@ all_chats = om.chats.list(limit=0)
 Create a non-persistent chat. This is the default and does not save the transcript to your OpenMates account:
 
 ```python
-chat = om.chats.create()
-response = chat.send("Summarize this release note draft.")
+response = om.chats.send("Summarize this release note draft.")
 print(response.content)
 ```
 
 Create a saved account chat explicitly:
 
 ```python
-chat = om.chats.create(save_to_account=True)
-chat.send("Create a project kickoff checklist.")
+om.chats.send("Create a project kickoff checklist.", save_to_account=True)
 
 om.billing.overview()
 om.billing.invoices()

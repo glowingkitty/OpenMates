@@ -11,7 +11,7 @@ goal: >
 scope:
   in:
     - API-key-only SDK access for npm and pip, with approved API-key devices treated as the same trust level as CLI paired sessions.
-    - npm and pip SDK parity coverage for CLI product/account capabilities, with live API-key support for safe audited surfaces and explicit typed unavailable errors for remaining surfaces that need backend/privacy contracts. Newsletter management remains CLI-only.
+    - npm and pip SDK parity coverage for CLI product/account capabilities, with live API-key support for audited surfaces and explicit typed unavailable errors for CLI-only or browser-only exclusions. Newsletter management remains CLI-only.
     - Generated native app-skill methods replacing the public generic app-skill run path in SDK examples and typed APIs.
     - Generated SDK app-skill method descriptions, input types, and output types sourced from app metadata and skill schemas.
     - Chat APIs that can set a specific focus mode before sending a message.
@@ -140,7 +140,7 @@ scenarios:
       - Alice has an approved API key with chat creation scope.
       - The web app metadata includes a focus mode for the web app named Research.
     when:
-      - Developer code creates a chat with that focus mode and sends a message.
+      - Developer code sends a chat message with that focus mode.
     then:
       - The request includes the same focus-mode wire contract that the CLI mention pipeline uses.
       - The backend applies the focus mode before model/tool selection.
@@ -152,10 +152,10 @@ scenarios:
     given:
       - Alice has an approved API key with chat scopes.
     when:
-      - Developer code lists, searches, opens/loads, creates, continues, downloads/exports, deletes, shares, and sends incognito chats through SDK methods.
+      - Developer code lists, searches, opens/loads, sends, continues, downloads/exports, deletes, shares, and sends incognito chats through SDK methods.
     then:
       - SDK behavior matches CLI semantics for pagination, incognito non-persistence, and local encrypted search/load behavior.
-      - Chat export, deletion, sharing, and follow-up suggestions fail with typed unavailable errors until their API-key backend contracts are audited.
+      - Chat export, deletion, sharing, and follow-up suggestions work through named API-key SDK methods.
       - SDK methods encrypt/decrypt account chat content locally and never expose plaintext to the server outside intended AI request payloads.
 
   - id: S-6
@@ -166,28 +166,28 @@ scenarios:
       - Developer code reads and updates CLI-supported settings and memory entries through SDK methods.
     then:
       - SDK methods cover account info, timezone, username, interface preferences, model defaults, privacy auto-delete, storage overview/files/delete, and reminders.
-      - Interests, debug-log sharing, and encrypted memories fail with typed unavailable errors until their zero-knowledge API-key contracts are audited.
-      - Browser-only/high-risk settings remain unavailable with explicit errors and docs.
+      - Interests and encrypted memories work through zero-knowledge API-key contracts.
+      - Debug-log sharing remains unavailable with explicit errors and docs.
 
   - id: S-7
     title: SDK exposes billing-safe and invoice parity
     given:
       - Alice has an approved API key with billing-safe scopes.
     when:
-      - Developer code calls billing overview, usage summaries, daily usage, invoice list, and low-balance auto-topup methods.
+      - Developer code calls billing overview, usage summaries, daily usage, usage export, invoice list/download, credit-note download, refunds, gift cards, bank-transfer orders, and low-balance auto-topup methods.
     then:
       - SDK methods match CLI behavior and typed outputs.
-      - Bank transfers, invoice downloads/credit notes/refunds, gift cards, card checkout, and support payment flows fail with typed unavailable errors until their payment-specific API-key contracts are audited.
+      - Payment-specific routes use named SDK methods and backend API-key scopes instead of generic settings passthroughs.
 
   - id: S-8
     title: SDK exposes embeds, docs, connected accounts, inspirations, feedback, and notifications parity
     given:
       - Alice has an approved API key with the required scopes.
     when:
-      - Developer code calls SDK methods for embed version list/show/restore, docs list/search/show/download, daily inspirations, new chat suggestions, notifications status/list, and reminders.
+      - Developer code calls SDK methods for embed show/share/version list/restore, docs list/search/show/download, connected-account import, daily inspirations, assistant feedback, new chat suggestions, notifications status/list, and reminders.
     then:
       - SDK methods match CLI behavior and return typed data or streams.
-      - Embed show/share, connected-account import, assistant feedback, notification streaming/email/backup settings, and other unaudited routes fail with typed unavailable errors.
+      - Notification streaming/email/backup settings and debug-log sharing remain unavailable when they require browser, TUI, or CLI-only context.
       - Embed and connected-account payloads preserve zero-knowledge encryption boundaries.
 
   - id: S-9
@@ -197,7 +197,7 @@ scenarios:
     when:
       - Developer code runs a model benchmark through npm or pip SDK.
     then:
-      - SDK benchmark methods fail with typed unavailable errors until API-key spend tagging and credit-limit enforcement are audited.
+      - SDK benchmark methods route through API-key-scoped benchmark endpoints with external-request spend tagging.
 
   - id: S-10
     title: Agent instructions require CLI plus npm and pip SDK parity verification
@@ -231,19 +231,19 @@ acceptance_criteria:
     text: npm and pip SDK chat APIs can attach a specific focus mode before sending a message.
   - id: AC-7
     scenario: S-5
-    text: npm and pip SDKs expose live CLI chat parity for listing, searching, loading, creating, continuing, and incognito sends; unaudited chat mutations/exports fail with typed unavailable errors.
+    text: npm and pip SDKs expose live CLI chat parity for listing, searching, loading, sending, continuing, incognito sends, export, delete, share, and follow-up suggestions.
   - id: AC-8
     scenario: S-6
-    text: npm and pip SDKs expose audited CLI-supported settings operations while preserving typed unavailable errors for encrypted memory and other unaudited exclusions.
+    text: npm and pip SDKs expose audited CLI-supported settings operations and encrypted memory operations while preserving typed unavailable errors for debug-log sharing.
   - id: AC-9
     scenario: S-7
-    text: npm and pip SDKs expose audited billing overview, daily/summarized usage, invoice list, and low-balance auto-topup operations; unaudited payment flows fail with typed unavailable errors.
+    text: npm and pip SDKs expose audited billing overview, daily/summarized usage, usage export, invoice list/download, credit notes, refunds, gift cards, bank-transfer orders, and low-balance auto-topup operations.
   - id: AC-10
     scenario: S-8
-    text: npm and pip SDKs expose audited CLI parity for embed versions, docs, inspirations, new chat suggestions, notifications, and reminders; unaudited embed/connected-account/feedback routes fail with typed unavailable errors.
+    text: npm and pip SDKs expose audited CLI parity for embed show/share/versions, docs, connected-account import, assistant feedback, inspirations, new chat suggestions, notifications, and reminders.
   - id: AC-11
     scenario: S-9
-    text: npm and pip SDKs expose typed unavailable errors for benchmark runner methods until API-key spend tagging is audited.
+    text: npm and pip SDKs expose benchmark runner and estimate methods through API-key-scoped SDK endpoints.
   - id: AC-12
     scenario: S-10
     text: Repo agent and testing instructions require npm and pip SDK parity checks alongside CLI parity checks for shared behavior.
@@ -386,7 +386,7 @@ tests:
       - Approved API-key devices can call every in-scope SDK route used for CLI parity.
       - Unapproved devices are blocked for every parity surface.
       - Missing scopes return typed errors with missing scope details.
-      - Browser-only/high-risk routes remain unavailable to API keys.
+      - CLI-only and browser-only exclusions remain unavailable to API keys.
     red_phase:
       required: true
       expected: fail
