@@ -10,12 +10,16 @@ export {};
 
 const path = require('path');
 const { test, expect } = require('./helpers/cookie-audit');
-const { getE2EDebugUrl } = require('./signup-flow-helpers');
+const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	captureContractState,
 	createContract,
 	writeContractArtifact
 } = require('./helpers/apple-ui-contract-helpers');
+
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 test.use({
 	viewport: { width: 390, height: 844 },
@@ -65,6 +69,8 @@ async function attachFiles(page: any, filePaths: string[]): Promise<void> {
 
 test('captures message input web UI contract for Apple parity', async ({ page }) => {
 	test.setTimeout(120000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	await loginToTestAccount(page);
 
 	await openUsableComposer(page);
 
