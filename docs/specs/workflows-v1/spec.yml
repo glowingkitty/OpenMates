@@ -651,9 +651,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: blocked
+        run_id: remote-macos-peer-b5098dc5
+        timestamp: "2026-06-22T23:28:46Z"
+        note: "Remote Mac is SSH-reachable, but checkout is stuck at b5098dc502d0e90e11556659f77edf90fec05730 and python3 scripts/apple_remote.py repo -- git pull --ff-only fails with GitHub public-key authentication. Targeted test would not exercise the deployed workflow files until the remote checkout can fast-forward."
 
   - id: T-APPLE-UI-001
     type: unit
@@ -676,9 +677,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: blocked
+        run_id: remote-macos-peer-b5098dc5
+        timestamp: "2026-06-22T23:28:46Z"
+        note: "Remote Mac is SSH-reachable, but checkout is stuck at b5098dc502d0e90e11556659f77edf90fec05730 and python3 scripts/apple_remote.py repo -- git pull --ff-only fails with GitHub public-key authentication. Targeted test would not exercise the deployed workflow files until the remote checkout can fast-forward."
 
 implementation_plan:
   existing_patterns:
