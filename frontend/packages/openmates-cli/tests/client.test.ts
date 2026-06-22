@@ -178,6 +178,51 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  it("creates API keys through the audited typed path while generic settings POST stays blocked", async () => {
+    let seenBody: Record<string, unknown> | null = null;
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      assert.strictEqual(request.url, "/v1/settings/api-keys");
+      assert.strictEqual(request.method, "POST");
+      let raw = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        raw += chunk;
+      });
+      request.on("end", () => {
+        seenBody = JSON.parse(raw) as Record<string, unknown>;
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ id: "key-1", full_access: true, scopes: {} }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await assert.rejects(
+        () => client.settingsPost("api-keys", {}),
+        /Blocked operation: \/v1\/settings\/api-keys/,
+      );
+      const result = await client.createApiKey({ name: "SDK live test" });
+
+      assert.match(result.api_key, /^sk-api-[A-Za-z0-9]{32}$/);
+      assert.deepEqual(result.key, { id: "key-1", full_access: true, scopes: {} });
+      assert.ok(seenBody);
+      assert.equal(seenBody.encrypted_name, result.crypto.encryptedName);
+      assert.equal(seenBody.api_key_hash, result.crypto.apiKeyHash);
+      assert.equal(seenBody.encrypted_key_prefix, result.crypto.encryptedKeyPrefix);
+      assert.equal(seenBody.encrypted_master_key, result.crypto.encryptedMasterKey);
+      assert.equal(seenBody.full_access, true);
+      assert.deepEqual(seenBody.scopes, {});
+      assert.equal(seenBody.credit_limit, null);
+      assert.equal(seenBody.expires_at, null);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("persists pending AI responses during CLI sync", async () => {
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.url === "/v1/auth/session") {

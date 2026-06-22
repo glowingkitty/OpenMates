@@ -1981,6 +1981,7 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["reminders", "update"], description: "Update a reminder", examples: ["openmates settings reminders update <id> --enabled false"] },
   { path: ["reminders", "delete"], description: "Delete a reminder", examples: ["openmates settings reminders delete <id> --yes"] },
   { path: ["developers", "api-keys", "list"], description: "List API keys", examples: ["openmates settings developers api-keys list"] },
+  { path: ["developers", "api-keys", "create"], description: "Create an API key and reveal it once", examples: ["openmates settings developers api-keys create sdk-test --yes"] },
   { path: ["developers", "api-keys", "revoke"], description: "Revoke an API key", examples: ["openmates settings developers api-keys revoke <key-id> --yes"] },
   { path: ["report-issue", "create"], description: "Report an issue", examples: ["openmates settings report-issue create --title \"Bug\" --body \"What happened\""] },
   { path: ["report-issue", "status"], description: "Show issue status", examples: ["openmates settings report-issue status <issue-id>"] },
@@ -2008,7 +2009,6 @@ const SETTINGS_INFO_COMMANDS: SettingsInfoCommand[] = [
   { path: ["billing", "auto-topup", "monthly"], description: "Monthly auto top-up is web-only for now", webPath: "billing/auto-topup/monthly", reason: "Recurring payment setup needs a payment-flow audit before CLI support.", examples: ["openmates settings billing auto-topup monthly"] },
   { path: ["privacy", "personal-data"], description: "Personal data management is not CLI-ready yet", webPath: "privacy/hide-personal-data", reason: "The CLI needs a dedicated encrypted personal-data UX before exposing writes.", examples: ["openmates settings privacy personal-data"] },
   { path: ["shared", "tip"], description: "Tips are web-only", webPath: "shared/tip", reason: "Payment checkout must use the browser/payment provider UI.", examples: ["openmates settings shared tip"] },
-  { path: ["developers", "api-keys", "create"], description: "API key creation is web-only", webPath: "developers/api-keys", reason: "API key secrets are shown once and need the browser approval flow.", examples: ["openmates settings developers api-keys create"] },
   { path: ["developers", "devices"], description: "Developer devices are web-only", webPath: "developers/devices", reason: "Device approvals and revocations are sensitive.", examples: ["openmates settings developers devices"] },
   { path: ["developers", "webhooks"], description: "Developer webhooks are not CLI-ready yet", webPath: "developers/webhooks", reason: "Webhook CRUD needs a backend/API audit before CLI support.", examples: ["openmates settings developers webhooks"] },
   { path: ["support"], description: "Support payments are web-only", webPath: "support", reason: "Payment flows must use the browser/payment provider UI.", examples: ["openmates settings support"] },
@@ -3170,6 +3170,27 @@ async function handleSettings(
 
   if (matches(tokens, ["developers", "api-keys", "list"])) {
     await printSettingsResult(client.settingsGet("api-keys"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["developers", "api-keys", "create"])) {
+    const name = rest[2] ?? (typeof flags.name === "string" ? flags.name : "CLI API key");
+    if (flags.yes !== true) {
+      await confirmOrExit(
+        "Create a full-access API key with unlimited credits and no expiration? The key is shown once. [y/N] ",
+      );
+    }
+    const result = await client.createApiKey({ name });
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      console.log("\x1b[33m!\x1b[0m Full access enabled");
+      console.log("\x1b[33m!\x1b[0m Credit limit: unlimited");
+      console.log("\x1b[33m!\x1b[0m Expiration: never");
+      console.log("\nAPI key (shown once):");
+      console.log(result.api_key);
+      console.log("\nStore this securely. OpenMates cannot show it again.");
+    }
     return;
   }
 

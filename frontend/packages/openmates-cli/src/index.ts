@@ -19,6 +19,7 @@ export {
 export { serializeToYaml, getExtForLang } from "./cli.js";
 export { defaultCloneBranchForVersion } from "./server.js";
 export { OpenMates, OpenMatesApiError, OpenMatesConfigError } from "./sdk.js";
+export { APP_SKILL_METADATA } from "./generated/appSkills.js";
 export {
   ASSISTANT_FEEDBACK_REPORT_TITLE,
   ASSISTANT_FEEDBACK_THANKS,
@@ -53,6 +54,7 @@ export type {
   ChatListOptions,
   ChatResponse,
   EncryptedChatMetadata,
+  FocusModeSelection,
   OpenMatesOptions,
 } from "./sdk.js";
 export type {

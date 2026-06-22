@@ -19,6 +19,7 @@ import {
   decryptBytesWithAesGcm,
   deriveEmailEncryptionKeyB64,
   createRecoveryKeyMaterial,
+  createApiKeyCryptoMaterial,
   createSignupCryptoMaterial,
   hashEmail,
   hashKey,
@@ -101,6 +102,19 @@ describe("signup crypto material", () => {
     assert.strictEqual(recovery.lookupHash, await hashKey(recovery.recoveryKey, base64ToBytes(signup.userEmailSaltB64)));
     assert.ok(base64ToBytes(recovery.wrappedMasterKey).length > 32);
     assert.strictEqual(base64ToBytes(recovery.keyIv).length, 12);
+  });
+
+  it("creates web-compatible API key material without exposing plaintext fields", async () => {
+    const signup = await createSignupCryptoMaterial("user@example.com", "password");
+    const material = await createApiKeyCryptoMaterial("SDK live test", signup.masterKeyB64);
+
+    assert.match(material.apiKey, /^sk-api-[A-Za-z0-9]{32}$/);
+    assert.match(material.apiKeyHash, /^[a-f0-9]{64}$/);
+    assert.ok(base64ToBytes(material.encryptedName).length > 12);
+    assert.ok(base64ToBytes(material.encryptedKeyPrefix).length > 12);
+    assert.ok(base64ToBytes(material.encryptedMasterKey).length > 32);
+    assert.strictEqual(base64ToBytes(material.keyIv).length, 12);
+    assert.strictEqual(base64ToBytes(material.saltB64).length, 16);
   });
 });
 

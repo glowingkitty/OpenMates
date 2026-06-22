@@ -24,9 +24,11 @@ import {
   base64ToBytes,
   hashItemKey,
   createRecoveryKeyMaterial,
+  createApiKeyCryptoMaterial,
   createSignupCryptoMaterial,
   hashEmail,
   type RecoveryKeyMaterial,
+  type ApiKeyCryptoMaterial,
   type SignupCryptoMaterial,
 } from "./crypto.js";
 import { OpenMatesHttpClient } from "./http.js";
@@ -1156,6 +1158,20 @@ export interface BankTransferStatus {
 
 export interface GiftCardBankTransferStatus extends BankTransferStatus {
   gift_card_code?: string | null;
+}
+
+export interface ApiKeyCreateOptions {
+  name: string;
+  fullAccess?: boolean;
+  scopes?: Record<string, unknown>;
+  creditLimit?: Record<string, unknown> | null;
+  expiresAt?: string | null;
+}
+
+export interface CreatedApiKeyResult {
+  api_key: string;
+  key: unknown;
+  crypto: ApiKeyCryptoMaterial;
 }
 
 export interface AuthMethodsStatus {
@@ -4071,6 +4087,39 @@ export class OpenMatesClient {
       throw new Error(`Settings GET failed with HTTP ${response.status}`);
     }
     return response.data;
+  }
+
+  async createApiKey(options: ApiKeyCreateOptions): Promise<CreatedApiKeyResult> {
+    const session = this.requireSession();
+    const name = options.name.trim();
+    if (!name) throw new Error("API key name is required");
+    const material = await createApiKeyCryptoMaterial(name, session.masterKeyExportedB64);
+    const response = await this.http.post(
+      "/v1/settings/api-keys",
+      {
+        encrypted_name: material.encryptedName,
+        api_key_hash: material.apiKeyHash,
+        encrypted_key_prefix: material.encryptedKeyPrefix,
+        encrypted_master_key: material.encryptedMasterKey,
+        salt: material.saltB64,
+        key_iv: material.keyIv,
+        full_access: options.fullAccess ?? true,
+        scopes: options.scopes ?? {},
+        credit_limit: options.creditLimit ?? null,
+        expires_at: options.expiresAt ?? null,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      const detail = (response.data as { detail?: string; message?: string } | undefined)?.detail
+        ?? (response.data as { message?: string } | undefined)?.message;
+      throw new Error(detail ?? `API key creation failed with HTTP ${response.status}`);
+    }
+    return {
+      api_key: material.apiKey,
+      key: response.data,
+      crypto: material,
+    };
   }
 
   async settingsPost(

@@ -5,7 +5,7 @@ last_verified: 2026-06-22
 
 # OpenMates SDKs
 
-OpenMates provides JavaScript and Python SDKs for API-key access to app skills and encrypted chat workflows.
+OpenMates provides JavaScript and Python SDKs for API-key access to app skills, encrypted chat workflows, and CLI-parity account/product operations.
 
 ## API Keys
 
@@ -32,7 +32,7 @@ import { OpenMates } from "openmates";
 
 const om = new OpenMates({ apiKey: process.env.OPENMATES_API_KEY });
 
-const search = await om.apps.run("web", "search", {
+const search = await om.apps.web.search({
   requests: [{ query: "OpenMates SDK examples" }],
 });
 ```
@@ -60,6 +60,17 @@ const chat = await om.chats.create({ saveToAccount: true });
 await chat.send("Create a project kickoff checklist.");
 ```
 
+Use named namespaces for CLI-parity operations:
+
+```ts
+await om.account.info();
+await om.billing.overview();
+await om.billing.invoices();
+await om.docs.search("api keys");
+```
+
+Unaudited or high-risk SDK surfaces such as chat deletion/sharing, billing usage exports, invoice downloads, connected-account import, encrypted memories, and benchmarks return typed unavailable errors until their API-key privacy and spending contracts are audited.
+
 ## Python
 
 Install the Python package:
@@ -73,7 +84,7 @@ from openmates import OpenMates
 
 om = OpenMates()  # reads OPENMATES_API_KEY
 
-result = om.apps.run("web", "search", {
+result = om.apps.web.search({
     "requests": [{"query": "OpenMates SDK examples"}],
 })
 ```
@@ -99,6 +110,17 @@ chat = om.chats.create(save_to_account=True)
 chat.send("Create a project kickoff checklist.")
 ```
 
+Use named namespaces for CLI-parity operations:
+
+```python
+om.account.info()
+om.billing.overview()
+om.billing.invoices()
+om.docs.search("api keys")
+```
+
+Unaudited or high-risk SDK surfaces such as chat deletion/sharing, billing usage exports, invoice downloads, connected-account import, encrypted memories, and benchmarks return typed unavailable errors until their API-key privacy and spending contracts are audited.
+
 ## Scopes
 
 Chat scopes are enforced server-side:
@@ -110,7 +132,7 @@ Chat scopes are enforced server-side:
 - `chat:delete` allows deleting chats.
 - `chat:share` allows creating share links.
 
-App-skill scopes can allow all apps, specific apps, or specific skills such as `web:search`.
+App-skill scopes can allow all apps, specific apps, or specific skills such as `web:search`. SDK app skills are exposed as generated native methods such as `om.apps.web.search(...)` and `om.apps.images.generate(...)`; public docs do not promote a generic `apps.run(...)` escape hatch.
 
 Memory access requires `memory:read`. SDK callers must explicitly load and select memory IDs; the backend does not pause SDK requests to ask the user for memory-selection confirmation.
 

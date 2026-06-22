@@ -63,7 +63,7 @@ import { OpenMates } from "openmates";
 
 const om = new OpenMates({ apiKey: process.env.OPENMATES_API_KEY });
 
-const search = await om.apps.run("web", "search", {
+const search = await om.apps.web.search({
   requests: [{ query: "OpenMates SDK examples" }],
 });
 ```
@@ -79,6 +79,10 @@ await privateChat.send("Summarize this release note draft.");
 
 const savedChat = await om.chats.create({ saveToAccount: true });
 await savedChat.send("Create a project kickoff checklist.");
+
+await om.billing.overview();
+await om.billing.invoices();
+await om.docs.search("api keys");
 ```
 
 New SDK chats are non-persistent by default. Use `saveToAccount: true` only when you intentionally want the chat saved to the OpenMates account.

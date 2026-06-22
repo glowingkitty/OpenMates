@@ -160,10 +160,11 @@ openmates settings reminders delete <id> --yes
 
 ```
 openmates settings developers api-keys list
+openmates settings developers api-keys create sdk-test --yes
 openmates settings developers api-keys revoke <key-id> --yes
 ```
 
-API key creation, developer devices, and webhooks are web-only or deferred until their security model is audited.
+API key creation prints the plaintext key once. Store it securely; OpenMates cannot show it again. Developer devices and webhooks remain web-only or deferred until their security model is audited.
 
 ## Report Issue
 
@@ -200,7 +201,7 @@ The following operations are blocked in the CLI for security reasons and must be
 
 - Password updates (`/v1/settings/update-password`; `openmates signup` is the guided CLI password setup path)
 - Raw two-factor setup paths (`/v1/auth/2fa/setup/*`; guided CLI setup calls these internally for initial/missing setup only)
-- API key creation (`/v1/settings/api-keys` POST is blocked; listing and deletion are allowed)
+- Raw API key creation (`/v1/settings/api-keys` POST is blocked through generic settings passthrough; use `openmates settings developers api-keys create`)
 - Raw account deletion finalization (`/v1/settings/delete-account`; guided CLI deletion sends `require_email_verification: true`)
 - Raw sensitive action verification endpoints (`/v1/settings/request-action-verification`, `/v1/settings/verify-action-code`)
 

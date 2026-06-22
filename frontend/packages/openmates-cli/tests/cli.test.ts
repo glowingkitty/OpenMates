@@ -1993,6 +1993,8 @@ describe("settings command surface", () => {
     assert.ok(runCli(["settings", "notifications", "--help"]).includes("notifications email set"));
     assert.ok(runCli(["settings", "--help"]).includes("notifications list"));
     assert.ok(runCli(["settings", "--help"]).includes("notifications stream"));
+    assert.ok(runCli(["settings", "developers", "api-keys", "--help"]).includes("api-keys create"));
+    assert.ok(!runCli(["settings", "developers", "api-keys", "create", "--help"]).includes("web-only"));
     assert.ok(runCli(["settings", "mates", "--help"]).includes("mates list"));
     assert.ok(runCli(["settings", "newsletter", "--help"]).includes("newsletter subscribe"));
   });

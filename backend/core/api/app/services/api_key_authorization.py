@@ -60,6 +60,19 @@ class ApiKeyAuthorizationService:
         if required_scope not in chat_scopes:
             raise ApiKeyScopeError(required_scope)
 
+    def require_scope(
+        self,
+        metadata: dict[str, Any],
+        group: str,
+        required_scope: str,
+    ) -> None:
+        if metadata.get("full_access", True):
+            return
+
+        scopes = metadata.get("scopes", {}).get(group) or []
+        if required_scope not in scopes:
+            raise ApiKeyScopeError(required_scope)
+
     def require_app_skill_scope(
         self,
         metadata: dict[str, Any],

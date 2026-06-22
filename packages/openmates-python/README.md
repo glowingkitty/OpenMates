@@ -27,7 +27,7 @@ from openmates import OpenMates
 
 om = OpenMates()  # reads OPENMATES_API_KEY
 
-result = om.apps.run("web", "search", {
+result = om.apps.web.search({
     "requests": [{"query": "OpenMates SDK examples"}],
 })
 ```
@@ -54,6 +54,10 @@ Create a saved account chat explicitly:
 ```python
 chat = om.chats.create(save_to_account=True)
 chat.send("Create a project kickoff checklist.")
+
+om.billing.overview()
+om.billing.invoices()
+om.docs.search("api keys")
 ```
 
 ## Errors

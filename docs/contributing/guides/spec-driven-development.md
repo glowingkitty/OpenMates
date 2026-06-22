@@ -112,12 +112,16 @@ implementation starts:
 
 1. **OpenMates CLI first:** a CLI command or CLI contract test that exercises the
    shared backend/API/WebSocket behavior without browser or native UI state.
-2. **Web app second:** a Playwright `*.spec.ts` run through
+2. **npm SDK second:** a Node SDK contract test for the same shared behavior when
+   it is exposed programmatically.
+3. **pip SDK third:** a Python SDK contract test for the same shared behavior when
+   it is exposed programmatically.
+4. **Web app fourth:** a Playwright `*.spec.ts` run through
    `python3 scripts/tests.py run --spec <name>.spec.ts` after the CLI proof is
    green.
-3. **Apple app third:** `python3 scripts/apple_remote.py test-ios` when a
+5. **Apple app fifth:** `python3 scripts/apple_remote.py test-ios` when a
    targeted native test exists, otherwise `python3 scripts/apple_remote.py
-   build-ios`, after CLI and web evidence are green. Use `Apple not affected`
+   build-ios`, after CLI, SDK, and web evidence are green. Use `Apple not affected`
    only when the spec confirms there is no native counterpart.
 
 Skip the CLI-first requirement only for clearly browser-only changes, such as
