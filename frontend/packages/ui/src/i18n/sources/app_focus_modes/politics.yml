@@ -1,0 +1,25 @@
+prepare_discussion:
+  context: Focus mode name for prepare_discussion
+  en: Prepare a political discussion
+  verified_by_human:
+    - en
+prepare_discussion.description:
+  context: Description for prepare_discussion focus mode
+  en: Plan questions, check facts, and understand opposing arguments before a political conversation.
+  verified_by_human:
+    - en
+prepare_discussion.how_to_use.1:
+  context: "How-to-use example 1 for the Politics Prepare Discussion focus mode. Use **word** to highlight key trigger words."
+  en: "Help me prepare for a **family discussion** about immigration policy without turning it into a fight"
+  verified_by_human:
+    - en
+prepare_discussion.how_to_use.2:
+  context: "How-to-use example 2 for the Politics Prepare Discussion focus mode. Use **word** to highlight key trigger words."
+  en: "Plan questions for a **local election debate** about housing, transport, and taxes"
+  verified_by_human:
+    - en
+prepare_discussion.how_to_use.3:
+  context: "How-to-use example 3 for the Politics Prepare Discussion focus mode. Use **word** to highlight key trigger words."
+  en: "Research the facts and counterarguments before I discuss this **climate policy** with a skeptical friend"
+  verified_by_human:
+    - en

@@ -1496,6 +1496,14 @@ news.description:
   sv: Håll dig informerad med de senaste nyheterna.
   he: להישאר מעודכנים בחדשות האחרונות.
   verified_by_human: [en, de]
+politics:
+  context: App name for the Politics app
+  en: Politics
+  verified_by_human: [en]
+politics.description:
+  context: Description for the Politics app
+  en: Prepare for civic and political discussions with facts, questions, and balanced perspectives.
+  verified_by_human: [en]
 news.search:
   context: Skill name for search in News app
   en: Search

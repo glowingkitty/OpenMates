@@ -1,2 +1,21 @@
-# ideas:
-# provider: OpenSlides API
+name_translation_key: politics
+description_translation_key: politics.description
+icon_image: |
+  politics.svg
+category: personal
+last_updated: "2026-06-21"
+skills: []
+focuses:
+  - id: prepare_discussion
+    name_translation_key: politics.prepare_discussion
+    description_translation_key: politics.prepare_discussion.description
+    process_translation_key: focus_modes.politics_prepare_discussion.process
+    systemprompt_translation_key: focus_modes.politics_prepare_discussion.systemprompt
+    icon_image: politics.svg
+    preprocessor_hint: >
+      Select when the user wants to prepare for a political, civic, policy,
+      election, geopolitical, or public-interest discussion by planning good
+      questions, researching facts, understanding opposing arguments, or staying
+      calm and evidence-based. Do not select for partisan persuasion strategy,
+      campaign targeting, activism logistics, harassment, or manipulative debate
+      tactics.
