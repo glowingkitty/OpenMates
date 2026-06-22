@@ -162,8 +162,8 @@ async function navigateToDevices(page: any, logCheckpoint: (msg: string) => void
 	const settingsMenu = await ensureDevelopersSettingsOpen(page, logCheckpoint);
 
 	const devicesItem = settingsMenu
-		.getByRole('menuitem')
-		.filter({ hasText: /^devices$/i })
+		.getByTestId('menu-item')
+		.filter({ hasText: /devices/i })
 		.first();
 	await devicesItem.scrollIntoViewIfNeeded({ timeout: 8000 });
 	await expect(devicesItem).toBeVisible({ timeout: 8000 });
