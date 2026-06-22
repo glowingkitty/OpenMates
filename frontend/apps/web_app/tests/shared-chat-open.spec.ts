@@ -167,7 +167,7 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 	);
 	await expect(sharedChatItem.getByTestId('shared-chat-public-icon')).toBeVisible({ timeout: 15000 });
 
-	const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
+	const newChatButton = page.getByTestId('new-chat-button').or(page.getByTestId('new-chat-cta-fullwidth')).first();
 	await expect(newChatButton).toBeVisible({ timeout: 10000 });
 	await newChatButton.click();
 	const sharedContinueCard = page.locator(
