@@ -559,8 +559,10 @@ async function startNewChat(
 	await page.locator('body').click({ position: { x: 1, y: 1 }, timeout: 1000 }).catch(() => undefined);
 	await page.waitForTimeout(300);
 
-	// Try stable selectors in priority order
-	const newChatButton = page.getByTestId('new-chat-button');
+	// Try stable selectors in priority order. Use locator(...).last() instead of
+	// getByTestId() so duplicate mobile/desktop/new-chat CTAs don't trigger strict
+	// mode once one visible instance exists.
+	const newChatButton = page.locator('[data-testid="new-chat-button"]').last();
 	let clicked = false;
 
 	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
