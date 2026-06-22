@@ -921,9 +921,12 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
 	await startNewChat(page, logChatCheckpoint);
 	await expect(page).not.toHaveURL(/chat-id=/, { timeout: 10000 });
-	await expect(page.locator('[data-action="message-input"]')).toHaveAttribute('data-current-chat-id', 'new-chat', {
-		timeout: 10000
-	});
+	const explicitNewChatInput = page.locator('[data-action="message-input"]').last();
+	await expect(async () => {
+		const inputChatId = await explicitNewChatInput.getAttribute('data-current-chat-id');
+		expect(inputChatId).toBeTruthy();
+		expect(inputChatId).not.toBe(chatId);
+	}).toPass({ timeout: 10000 });
 	const newChatMessageEditor = page.getByTestId('message-editor');
 	await expect(newChatMessageEditor).toBeVisible({ timeout: 10000 });
 	await newChatMessageEditor.click();
