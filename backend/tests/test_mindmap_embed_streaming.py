@@ -153,8 +153,7 @@ e2b_stub.plan_application_preview_startup = lambda *args, **kwargs: None
 sys.modules.setdefault("backend.shared.providers.e2b_application_preview", e2b_stub)
 
 from backend.core.api.app.services.embed_service import EmbedService  # noqa: E402
-
-decode = toon_stub.decode
+from toon_format import decode  # noqa: E402
 
 
 class FakeRedisClient:
