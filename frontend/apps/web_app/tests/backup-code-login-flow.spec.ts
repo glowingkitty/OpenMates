@@ -384,8 +384,10 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await loginSubmitButton.click();
 	logCheckpoint('Submitted login with backup code.');
 
-	// Wait for successful login - redirect to chat
-	await page.waitForURL(/chat|demo/, { timeout: 60000 });
+	// Wait for successful login. The app now lands on the authenticated new-chat
+	// welcome state, which does not require a chat/demo URL hash.
+	await expect(page.locator('[data-authenticated="true"]').first()).toBeVisible({ timeout: 60000 });
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'login-success-backup-code');
 	logCheckpoint('Login successful with backup code! Test complete.');
 
