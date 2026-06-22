@@ -12,6 +12,7 @@
 # "Aktienbewertament" or "vs" matching inside "canvas".
 
 import logging
+import json
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -29,6 +30,29 @@ _KEYWORDS_PATH = (
 # Cached loaded data — parsed once, reused across calls
 _loaded_keywords: Optional[Dict[str, List[str]]] = None
 _compiled_patterns: Optional[Dict[str, List[re.Pattern]]] = None
+
+_COMPANY_PROFILE_MARKERS = (
+    " company",
+    " corporation",
+    " manufacturer",
+    " automaker",
+    " retailer",
+    " brand",
+    " startup",
+    " commercial service",
+)
+
+_BLOCKED_WIKIDATA_INSTANCE_IDS = {
+    "Q431289",   # brand
+    "Q7397",     # software
+    "Q783794",   # company
+    "Q891723",   # public company
+    "Q167037",   # corporation
+    "Q4830453",  # business
+    "Q6881511",  # enterprise
+    "Q2424752",  # product
+    "Q620615",   # mobile app
+}
 
 
 def _load_keywords() -> Dict[str, List[str]]:
@@ -185,12 +209,13 @@ def check_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
     text_fields = [
         "title", "phrase", "assistant_response",
         "video_title", "video_channel_name", "category",
+        "wiki_metadata", "feature_metadata",
     ]
     text_parts = []
     for field in text_fields:
         value = entry.get(field, "")
         if value:
-            text_parts.append(str(value))
+            text_parts.append(_entry_value_to_text(value))
     full_text = " ".join(text_parts)
 
     violations = check_text(full_text)
@@ -212,6 +237,93 @@ def check_entry(entry: Dict[str, Any]) -> Dict[str, Any]:
             "assistant_response": (entry.get("assistant_response") or "")[:200],
         },
     }
+
+
+def _entry_value_to_text(value: Any) -> str:
+    """Convert Directus JSON/string fields to searchable policy text."""
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return ""
+        if stripped[0] in "[{":
+            try:
+                return _entry_value_to_text(json.loads(stripped))
+            except json.JSONDecodeError:
+                return stripped
+        return stripped
+    if isinstance(value, dict):
+        return " ".join(_entry_value_to_text(v) for v in value.values())
+    if isinstance(value, list):
+        return " ".join(_entry_value_to_text(v) for v in value)
+    return str(value)
+
+
+def is_company_profile_text(*values: Any) -> bool:
+    """Return True when text describes a company/brand/product profile."""
+    text = f" {' '.join(_entry_value_to_text(value).lower() for value in values if value)} "
+    return any(marker in text for marker in _COMPANY_PROFILE_MARKERS)
+
+
+def wikidata_instance_type_ids(entity: Optional[Dict[str, Any]]) -> Set[str]:
+    """Extract Wikidata P31 instance-of QIDs from an entity payload."""
+    if not entity:
+        return set()
+    instance_claims = entity.get("claims", {}).get("P31", [])
+    type_ids: Set[str] = set()
+    for claim in instance_claims:
+        value = (
+            claim.get("mainsnak", {})
+            .get("datavalue", {})
+            .get("value", {})
+        )
+        entity_id = value.get("id") if isinstance(value, dict) else None
+        if isinstance(entity_id, str):
+            type_ids.add(entity_id)
+    return type_ids
+
+
+def blocked_wikidata_company_type_ids(entity: Optional[Dict[str, Any]]) -> Set[str]:
+    """Return blocked Wikidata instance-of QIDs for commercial entities."""
+    return wikidata_instance_type_ids(entity).intersection(_BLOCKED_WIKIDATA_INSTANCE_IDS)
+
+
+def check_daily_inspiration_entry(
+    entry: Dict[str, Any],
+    *,
+    wikidata_entity: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Apply the full Daily Inspiration content policy to an entry.
+
+    Feature cards are deterministic first-party product education and are kept
+    out of generated-content promotion checks. Video and wiki cards must not use
+    any third-party company, brand, product, app, or commercial service as the
+    primary subject.
+    """
+    result = check_entry(entry)
+    violations = dict(result.get("violations", {}))
+
+    content_type = entry.get("content_type") or "video"
+    if content_type == "feature":
+        violations.pop("openmates", None)
+
+    if content_type != "feature":
+        subject_fields = [
+            entry.get("title"),
+            entry.get("phrase"),
+            entry.get("assistant_response"),
+            entry.get("video_title"),
+            entry.get("wiki_metadata"),
+        ]
+        if is_company_profile_text(*subject_fields):
+            violations.setdefault("company_subject", []).append("company_profile_marker")
+
+        blocked_types = sorted(blocked_wikidata_company_type_ids(wikidata_entity))
+        if blocked_types:
+            violations.setdefault("wikidata_company_type", []).extend(blocked_types)
+
+    result["violations"] = violations
+    result["verdict"] = "REJECT" if violations else "PASS"
+    return result
 
 
 def check_tags(tags: List[str]) -> Tuple[Set[str], Set[str]]:

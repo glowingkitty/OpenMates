@@ -12,15 +12,21 @@ import time
 import uuid
 from typing import Any, Dict, List
 
-from backend.apps.ai.daily_inspiration.content_filter import is_blocked_topic
+from backend.apps.ai.daily_inspiration.content_filter import (
+    check_daily_inspiration_entry,
+    is_blocked_topic,
+)
 from backend.apps.ai.daily_inspiration.generator import AVAILABLE_CATEGORIES, INSPIRATION_MODEL_ID
 from backend.apps.ai.daily_inspiration.schemas import DailyInspiration, DailyInspirationWiki
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.providers.wikipedia.wikipedia_api import batch_validate_topics, fetch_page_summary
+from backend.shared.providers.wikipedia.wikipedia_api import (
+    batch_validate_topics,
+    fetch_page_summary,
+    fetch_wikidata_entity,
+)
 
 logger = logging.getLogger(__name__)
-
 
 def _language_base(language: str) -> str:
     return (language or "en").lower().split("-")[0].split("_")[0]
@@ -37,7 +43,10 @@ def _build_wiki_tool_definition(language: str) -> Dict[str, Any]:
         "type": "function",
         "function": {
             "name": "generate_wiki_inspirations",
-            "description": "Suggest Wikipedia article inspirations based on recent user topics.",
+            "description": (
+                "Suggest non-commercial Wikipedia article inspirations based on recent user topics. "
+                "Never choose pages about companies, brands, products, apps, or commercial services."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -48,7 +57,10 @@ def _build_wiki_tool_definition(language: str) -> Dict[str, Any]:
                             "properties": {
                                 "wiki_title": {
                                     "type": "string",
-                                    "description": "Canonical Wikipedia article title/slug, e.g. Albert_Einstein.",
+                                    "description": (
+                                        "Canonical Wikipedia article title/slug, e.g. Albert_Einstein. "
+                                        "Must not be a company, brand, product, app, or commercial service page."
+                                    ),
                                 },
                                 "phrase": {
                                     "type": "string",
@@ -119,7 +131,10 @@ async def generate_wiki_inspirations(
                 f"Generate {count} Wikipedia article daily inspirations.\n\n"
                 f"{topic_context}\n\n"
                 "Choose notable, specific, non-promotional Wikipedia articles that match the user's interests. "
-                "Avoid brands, product promotion, party politics, religious promotion, explicit/sensitive content, "
+                "ABSOLUTE RULE: Do not choose pages about companies, brands, products, apps, or commercial services. "
+                "If a recent topic mentions a company or product, reframe it to the underlying non-commercial concept, "
+                "science, engineering principle, historical event, or social question instead. "
+                "Avoid product promotion, party politics, religious promotion, explicit/sensitive content, "
                 "and OpenMates-related topics. Prefer concepts, people, places, scientific ideas, history, culture, "
                 "or technology topics with broad educational value. Use canonical Wikipedia titles with underscores."
                 f"{lang_instruction}"
@@ -183,13 +198,50 @@ async def generate_wiki_inspirations(
         if not phrase:
             continue
 
+        summary_title = summary.get("title") if summary else valid.wiki_title
+        summary_description = (summary or {}).get("description") or valid.description
+        summary_extract = (summary or {}).get("extract")
+        wikidata_entity = await fetch_wikidata_entity(valid.wikidata_id) if valid.wikidata_id else None
+        wiki_metadata = {
+            "title": summary_title,
+            "wiki_title": valid.wiki_title,
+            "description": summary_description,
+            "extract": summary_extract,
+            "wikidata_id": valid.wikidata_id,
+        }
+
+        policy_entry = {
+            "title": title,
+            "phrase": phrase,
+            "assistant_response": assistant_response or "",
+            "video_title": " ".join(
+                part for part in (valid.wiki_title, summary_title, summary_description, summary_extract) if part
+            ),
+            "video_channel_name": "Wikipedia",
+            "category": category,
+            "content_type": "wiki",
+            "wiki_metadata": wiki_metadata,
+        }
+        policy_result = check_daily_inspiration_entry(
+            policy_entry,
+            wikidata_entity=wikidata_entity,
+        )
+        if policy_result["verdict"] == "REJECT":
+            logger.info(
+                "[DailyInspiration][%s] Skipping wiki candidate %r due to content policy: %s",
+                task_id,
+                valid.wiki_title,
+                policy_result.get("violations", {}),
+            )
+            continue
+
         wiki = DailyInspirationWiki(
-            title=summary.get("title") if summary else valid.wiki_title,
+            title=summary_title,
             wiki_title=valid.wiki_title.replace(" ", "_"),
-            description=(summary or {}).get("description") or valid.description,
+            description=summary_description,
             thumbnail_url=((summary or {}).get("thumbnail") or {}).get("source") or valid.thumbnail_url,
             wikidata_id=valid.wikidata_id,
-            extract=(summary or {}).get("extract"),
+            extract=summary_extract,
         )
         inspirations.append(
             DailyInspiration(

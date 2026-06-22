@@ -376,6 +376,8 @@ company_names:
   - "Northrop Grumman"
   - "Raytheon"
   - "Thales Group"
+  # Aerospace / spaceflight
+  - "SpaceX"  # added after daily inspiration company-promotion incident, 2026-06-22
   # Tobacco / alcohol
   - "Altria"
   - "British American Tobacco"
