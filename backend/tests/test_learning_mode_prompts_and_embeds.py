@@ -18,8 +18,13 @@ from backend.shared.python_utils.learning_mode import (
 )
 
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+MATES_DIR = REPO_ROOT / "backend/apps/ai/mates"
+LEARNING_MODE_SPEC = REPO_ROOT / "docs/specs/learning-mode/spec.yml"
+
+
 def test_every_mate_has_explicit_learning_mode_prompt_variant() -> None:
-    mates = load_mates_config("backend/apps/ai/mates")
+    mates = load_mates_config(str(MATES_DIR))
 
     assert mates
     missing = [mate.id for mate in mates if not mate.learning_mode_system_prompt.strip()]
@@ -27,7 +32,7 @@ def test_every_mate_has_explicit_learning_mode_prompt_variant() -> None:
 
 
 def test_learning_mode_prompt_uses_mate_variant_and_global_instruction() -> None:
-    mates = load_mates_config("backend/apps/ai/mates")
+    mates = load_mates_config(str(MATES_DIR))
     sophia = next(mate for mate in mates if mate.category == "software_development")
 
     prompt = build_learning_mode_system_prompt(
@@ -141,4 +146,4 @@ def test_application_artifacts_are_disabled_in_learning_mode() -> None:
 
 
 def test_learning_mode_spec_exists() -> None:
-    assert Path("docs/specs/learning-mode/spec.yml").is_file()
+    assert LEARNING_MODE_SPEC.is_file()
