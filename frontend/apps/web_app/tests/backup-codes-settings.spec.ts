@@ -260,11 +260,10 @@ test('resets backup codes via Settings > Security > 2FA', async ({
 	await takeStepScreenshot(page, 'logged-out');
 	logCheckpoint('Logged out.');
 
-	// Wait for redirect to demo chat (logged out state)
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 30000
-	});
-	logCheckpoint('Redirected to demo chat after logout.');
+	// Logout now returns to the guest new-chat welcome screen and clears the active chat.
+	await expect(page.getByTestId('header-login-signup-btn')).toBeVisible({ timeout: 15000 });
+	expect(await page.evaluate(() => window.location.hash)).not.toContain('demo-for-everyone');
+	logCheckpoint('Returned to logged-out welcome screen after logout.');
 
 	// ========================================================================
 	// PHASE 7: Login with one of the new backup codes
