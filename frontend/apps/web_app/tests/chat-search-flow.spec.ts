@@ -55,6 +55,23 @@ test.afterEach(async ({}, testInfo: any) => {
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+const UNSEARCHABLE_CHAT_TITLES = new Set(['untitled chat', 'processing']);
+
+async function getSearchableSidebarChatTitle(page: any): Promise<string> {
+	const chatTitles = await page
+		.getByTestId('chat-item-wrapper')
+		.locator('[data-testid="chat-title"]')
+		.evaluateAll((nodes: Element[]) => nodes.map((node) => (node.textContent || '').trim()).filter(Boolean));
+
+	const searchableTitle = chatTitles.find((title: string) => {
+		const normalized = title.toLowerCase();
+		return !UNSEARCHABLE_CHAT_TITLES.has(normalized) && !normalized.includes('processing');
+	});
+
+	expect(searchableTitle, `Expected at least one searchable sidebar title, got: ${chatTitles.join(', ')}`).toBeTruthy();
+	return searchableTitle as string;
+}
+
 // ---------------------------------------------------------------------------
 // Test 1: Open search → find a chat by title → click result → navigate
 // ---------------------------------------------------------------------------
@@ -94,15 +111,12 @@ test('opens search bar and finds a chat by title, then navigates to it', async (
 		await page.waitForTimeout(1000);
 	}
 
-	// Use an EXISTING chat from the sidebar — this avoids the fresh-chat indexing race condition
-	// (addMessageToIndex vs indexChatMessages overwrite). Existing chats are indexed during warm-up.
+	// Use an existing searchable chat from the sidebar. Skip fallback labels like
+	// "Untitled chat" because those are UI placeholders, not indexed metadata.
 	const firstChatItem = page.getByTestId('chat-item-wrapper').first();
 	await expect(firstChatItem).toBeVisible({ timeout: 10000 });
-
-	// Get the title text from the first existing chat item
-	const chatTitleEl = firstChatItem.getByTestId('chat-title');
-	const chatTitleText = await chatTitleEl.textContent().catch(() => '');
-	log(`First chat title: "${chatTitleText}"`);
+	const chatTitleText = await getSearchableSidebarChatTitle(page);
+	log(`Searchable chat title: "${chatTitleText}"`);
 
 	// Extract a useful search keyword: first word that's at least 4 chars (avoids stop words)
 	const titleWords = (chatTitleText || '')
