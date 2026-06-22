@@ -73,13 +73,13 @@ final class ChatFlowParityUITests: XCTestCase {
         app.launch()
 
         XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
-        XCTAssertFalse(app.buttons["guest-interest-continue"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["guest-interest-continue"].exists)
 
         tapVisibleInterestTags(count: 3, in: app)
-        XCTAssertFalse(app.buttons["guest-interest-continue"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["guest-interest-continue"].exists)
         tapVisibleInterestTags(count: 1, in: app)
 
-        let continueButton = app.buttons["guest-interest-continue"]
+        let continueButton = app.descendants(matching: .any)["guest-interest-continue"]
         XCTAssertTrue(continueButton.waitForExistence(timeout: 5))
         continueButton.tap()
 
