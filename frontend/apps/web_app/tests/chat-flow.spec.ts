@@ -73,7 +73,13 @@ const { injectOtelCapture, collectOtelSpans, saveOtelTimeline } = require('./hel
 const { assertChatKeyInvariants } = require('./helpers/chat-key-invariants');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
-const { isSignupInterfaceVisible, openSignupInterface, submitPasswordAndHandleOtp, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const {
+	isSignupInterfaceVisible,
+	openSignupInterface,
+	submitPasswordAndHandleOtp,
+	startNewChat,
+	deleteActiveChat
+} = require('./helpers/chat-test-helpers');
 
 const LLM_QUICK_TIP_SLUGS = [
 	'search-current-info-next-time',
@@ -913,7 +919,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	// create the chat and key before saving the first encrypted message.
 	logChatCheckpoint('Phase 4.6: Sending from explicit new-chat screen...');
 	const baseUrl = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
-	await page.goto(baseUrl);
+	await startNewChat(page, logChatCheckpoint);
 	await expect(page).not.toHaveURL(/chat-id=/, { timeout: 10000 });
 	await expect(page.locator('[data-action="message-input"]')).toHaveAttribute('data-current-chat-id', 'new-chat', {
 		timeout: 10000
@@ -923,6 +929,7 @@ test('logs in and sends a chat message', async ({ page }: { page: any }) => {
 	await newChatMessageEditor.click();
 	const secondChatMessage = 'Reply with only: explicit new chat works';
 	await page.keyboard.insertText(secondChatMessage);
+	await expect(newChatMessageEditor).toContainText(secondChatMessage, { timeout: 5000 });
 
 	const secondSendButton = page.locator('[data-action="send-message"]');
 	await expect(secondSendButton).toBeVisible({ timeout: 15000 });
