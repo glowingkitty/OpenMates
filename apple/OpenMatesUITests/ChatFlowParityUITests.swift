@@ -75,11 +75,9 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
         XCTAssertFalse(app.buttons["guest-interest-continue"].exists)
 
-        tapInterestTag("privacy", in: app)
-        tapInterestTag("software_development", in: app)
-        tapInterestTag("run_code", in: app)
+        tapVisibleInterestTags(count: 3, in: app)
         XCTAssertFalse(app.buttons["guest-interest-continue"].exists)
-        tapInterestTag("build_electronics", in: app)
+        tapVisibleInterestTags(count: 1, in: app)
 
         let continueButton = app.buttons["guest-interest-continue"]
         XCTAssertTrue(continueButton.waitForExistence(timeout: 5))
@@ -103,20 +101,32 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Guest interest tag selection filters suggestions")
     }
 
-    private func tapInterestTag(_ tagId: String, in app: XCUIApplication) {
-        let tag = app.buttons["interest-tag-\(tagId)"]
+    private func tapVisibleInterestTags(count: Int, in app: XCUIApplication) {
         let tagContainer = app.scrollViews["guest-interest-tags"]
         XCTAssertTrue(tagContainer.waitForExistence(timeout: 5), "Expected guest interest tags")
 
-        if !tag.waitForExistence(timeout: 1) || !tag.isHittable {
-            for _ in 0..<3 where !tag.isHittable { tagContainer.swipeRight() }
-            for _ in 0..<8 where !tag.isHittable { tagContainer.swipeLeft() }
+        var tapped = 0
+        var visited = Set<String>()
+        let tagButtons = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "interest-tag-"))
+
+        for _ in 0..<8 where tapped < count {
+            for index in 0..<tagButtons.count where tapped < count {
+                let tag = tagButtons.element(boundBy: index)
+                let tagId = tag.identifier
+                let check = app.descendants(matching: .any)["\(tagId)-check"]
+                guard !visited.contains(tagId), !check.exists, tag.exists, tag.isHittable else { continue }
+                visited.insert(tagId)
+                tag.tap()
+                XCTAssertTrue(check.waitForExistence(timeout: 5))
+                tapped += 1
+            }
+
+            if tapped < count {
+                tagContainer.swipeLeft()
+            }
         }
 
-        XCTAssertTrue(tag.exists, "Expected interest tag \(tagId)")
-        XCTAssertTrue(tag.isHittable, "Expected interest tag \(tagId) to be visible in the rail")
-        tag.tap()
-        XCTAssertTrue(app.descendants(matching: .any)["interest-tag-\(tagId)-check"].waitForExistence(timeout: 5))
+        XCTAssertEqual(tapped, count, "Expected to select \(count) visible interest tags")
     }
 
     private func attachScreenshot(name: String) {
