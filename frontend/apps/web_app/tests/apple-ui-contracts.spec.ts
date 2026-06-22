@@ -38,9 +38,9 @@ const DEFAULT_ELEMENTS = [
 async function openUsableComposer(page: any): Promise<void> {
 	await page.goto(getE2EDebugUrl('/'));
 	await page.waitForLoadState('load');
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 15000
-	});
+	// Logged-out users now land on the guest welcome composer instead of an
+	// auto-opened demo chat hash. Public demo chats still expose the full-width
+	// CTA, so click it only when that state is present.
 	const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
 	if (await newChatButton.isVisible({ timeout: 10000 }).catch(() => false)) {
 		await newChatButton.click();
