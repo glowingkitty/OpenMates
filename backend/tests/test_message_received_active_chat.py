@@ -70,8 +70,10 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
         delete_user_draft_version_from_chat_versions=AsyncMock(return_value=False),
         get_ai_messages_history=AsyncMock(return_value=[]),
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
+        get_chat_list_item_data=AsyncMock(return_value={}),
         get_active_ai_task=AsyncMock(return_value=None),
         set_active_ai_task=AsyncMock(),
+        update_user=AsyncMock(),
     )
     directus_service = SimpleNamespace(
         chat=SimpleNamespace(
@@ -79,7 +81,7 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
             check_chat_ownership=AsyncMock(return_value=True),
         ),
         get_user_profile=AsyncMock(),
-        get_user_fields_direct=AsyncMock(),
+        get_user_fields_direct=AsyncMock(return_value={}),
     )
     encryption_service = SimpleNamespace(encrypt_with_user_key=AsyncMock(return_value=("encrypted", 1)))
     payload = {

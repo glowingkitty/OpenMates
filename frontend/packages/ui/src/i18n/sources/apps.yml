@@ -680,54 +680,6 @@ electronics.description:
   sv: Find components and design electronic circuits.
   he: Find components and design electronic circuits.
   verified_by_human: [en, de]
-pcb_design:
-  context: App name for the PCB Design app
-  en: PCB Design
-  de: PCB-Design
-  zh: PCB Design
-  es: PCB Design
-  fr: PCB Design
-  pt: PCB Design
-  ru: PCB Design
-  ja: PCB Design
-  ko: PCB Design
-  it: PCB Design
-  tr: PCB Design
-  vi: PCB Design
-  id: PCB Design
-  pl: PCB Design
-  nl: PCB Design
-  ar: PCB Design
-  hi: PCB Design
-  th: PCB Design
-  cs: PCB Design
-  sv: PCB Design
-  he: PCB Design
-  verified_by_human: [en]
-pcb_design.description:
-  context: Description for the PCB Design app
-  en: Plan schematics and layouts for printed circuit boards.
-  de: Plane Schaltpläne und Layouts für Leiterplatten.
-  zh: Plan schematics and layouts for printed circuit boards.
-  es: Plan schematics and layouts for printed circuit boards.
-  fr: Plan schematics and layouts for printed circuit boards.
-  pt: Plan schematics and layouts for printed circuit boards.
-  ru: Plan schematics and layouts for printed circuit boards.
-  ja: Plan schematics and layouts for printed circuit boards.
-  ko: Plan schematics and layouts for printed circuit boards.
-  it: Plan schematics and layouts for printed circuit boards.
-  tr: Plan schematics and layouts for printed circuit boards.
-  vi: Plan schematics and layouts for printed circuit boards.
-  id: Plan schematics and layouts for printed circuit boards.
-  pl: Plan schematics and layouts for printed circuit boards.
-  nl: Plan schematics and layouts for printed circuit boards.
-  ar: Plan schematics and layouts for printed circuit boards.
-  hi: Plan schematics and layouts for printed circuit boards.
-  th: Plan schematics and layouts for printed circuit boards.
-  cs: Plan schematics and layouts for printed circuit boards.
-  sv: Plan schematics and layouts for printed circuit boards.
-  he: Plan schematics and layouts for printed circuit boards.
-  verified_by_human: [en]
 nutrition:
   context: App name for the Nutrition app
   en: Nutrition
@@ -1544,6 +1496,14 @@ news.description:
   sv: Håll dig informerad med de senaste nyheterna.
   he: להישאר מעודכנים בחדשות האחרונות.
   verified_by_human: [en, de]
+politics:
+  context: App name for the Politics app
+  en: Politics
+  verified_by_human: [en]
+politics.description:
+  context: Description for the Politics app
+  en: Prepare for civic and political discussions with facts, questions, and balanced perspectives.
+  verified_by_human: [en]
 news.search:
   context: Skill name for search in News app
   en: Search
@@ -2215,6 +2175,16 @@ pdf.description:
   cs: "Nahrajte PDF a \u010dt\u011bte nebo prohledejte jejich obsah."
   sv: "Ladda upp PDF och l\u00e4s eller s\u00f6k i inneh\u00e5llet."
   he: העלאת קובצי PDF וקריאה או חיפוש בתוכן שלהם.
+  verified_by_human: [en, de]
+mindmaps:
+  context: App name for the Mind Maps app
+  en: Mind Maps
+  de: Mindmaps
+  verified_by_human: [en, de]
+mindmaps.description:
+  context: Description for the Mind Maps app
+  en: Create structured idea maps and brainstorm topic trees.
+  de: Erstelle strukturierte Ideen-Karten und Brainstorming-Bäume.
   verified_by_human: [en, de]
 math:
   context: App name for the Math app

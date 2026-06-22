@@ -15,7 +15,7 @@
 
   Icon logic:
   - skillIconName set → skill icon (CSS mask-image SVG, flat white, no circle/gradient)
-  - Otherwise → app icon (icon_rounded CSS class with colored circle background)
+  - Otherwise → app icon (icon_rounded CSS class or explicit mask with colored circle background)
   - showSkillIcon prop is no longer consulted for the center icon (only BasicInfosBar uses it)
 -->
 
@@ -27,6 +27,8 @@
     appId: string;
     /** Skill icon name (e.g. 'search', 'coding'). Uses app icon when empty. */
     skillIconName?: string;
+    /** Optional app icon override when appId has no icon_rounded CSS mapping. */
+    appIconName?: string;
     /** Show the skill icon instead of the app icon. Default true. */
     showSkillIcon?: boolean;
 
@@ -57,6 +59,7 @@
   let {
     appId,
     skillIconName = '',
+    appIconName = '',
     showSkillIcon = true,
     title = '',
     subtitle = '',
@@ -97,6 +100,8 @@
    * This prevents the full app icon (with gradient background) from appearing in the banner.
    */
   let useDecoSkillIcon = $derived(!!skillIconName);
+  let safeAppIconName = $derived(normalizeIconName(appIconName));
+  let appIconStyle = $derived(safeAppIconName ? `--embed-app-icon-url: var(--icon-url-${safeAppIconName});` : '');
 
   import { handleImageError } from '../../utils/offlineImageHandler';
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../utils/imageProxy';
@@ -109,6 +114,11 @@
 
   function hideFavicon(e: Event) {
     handleImageError(e.target as HTMLImageElement);
+  }
+
+  function normalizeIconName(value: string | undefined): string {
+    const normalized = value?.trim().toLowerCase().replace(/\s+/g, '-') ?? '';
+    return /^[a-z0-9_-]+$/.test(normalized) ? normalized : '';
   }
 
   function handleHeaderTouchStart(e: TouchEvent) {
@@ -195,6 +205,8 @@
     <div class="deco-icon deco-icon-left">
       {#if useDecoSkillIcon}
         <div class="deco-skill-icon" data-skill-icon={skillIconName}></div>
+      {:else if safeAppIconName}
+        <div class="deco-app-icon-mask" style={appIconStyle}></div>
       {:else}
         <div class="deco-app-icon icon_rounded {appId}"></div>
       {/if}
@@ -202,6 +214,8 @@
     <div class="deco-icon deco-icon-right">
       {#if useDecoSkillIcon}
         <div class="deco-skill-icon" data-skill-icon={skillIconName}></div>
+      {:else if safeAppIconName}
+        <div class="deco-app-icon-mask" style={appIconStyle}></div>
       {:else}
         <div class="deco-app-icon icon_rounded {appId}"></div>
       {/if}
@@ -218,6 +232,8 @@
         >
           {#if useSkillIcon}
             <div class="header-skill-icon" data-skill-icon={skillIconName}></div>
+          {:else if safeAppIconName}
+            <div class="header-app-icon-mask" style={appIconStyle} data-app-icon={appId}></div>
           {:else}
             <div class="header-app-icon icon_rounded {appId}" data-app-icon={appId}></div>
           {/if}
@@ -226,6 +242,8 @@
         <div class="header-icon">
           {#if useSkillIcon}
             <div class="header-skill-icon" data-skill-icon={skillIconName}></div>
+          {:else if safeAppIconName}
+            <div class="header-app-icon-mask" style={appIconStyle} data-app-icon={appId}></div>
           {:else}
             <div class="header-app-icon icon_rounded {appId}" data-app-icon={appId}></div>
           {/if}
@@ -470,6 +488,20 @@
     background-size: 60px 60px !important;
   }
 
+  .deco-app-icon-mask {
+    width: 80px;
+    height: 80px;
+    background: white;
+    -webkit-mask-image: var(--embed-app-icon-url);
+    mask-image: var(--embed-app-icon-url);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 60px 60px;
+    mask-size: 60px 60px;
+  }
+
   /* ==========================================================
      Center content
      ========================================================== */
@@ -560,6 +592,20 @@
   .header-app-icon::after {
     filter: brightness(0) invert(1) !important;
     background-size: 20px 20px !important;
+  }
+
+  .header-app-icon-mask {
+    width: 30px;
+    height: 30px;
+    background: white;
+    -webkit-mask-image: var(--embed-app-icon-url);
+    mask-image: var(--embed-app-icon-url);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 20px 20px;
+    mask-size: 20px 20px;
   }
 
   .header-app-icon.weather::after {

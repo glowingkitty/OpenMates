@@ -278,9 +278,12 @@ class AnonymousChatStorage {
     const chatId = existingChat?.is_anonymous
       ? existingChat.chat_id
       : `${ANONYMOUS_CHAT_PREFIX}${crypto.randomUUID()}`;
-    const previousMessages = existingChat?.is_anonymous
+    let previousMessages = existingChat?.is_anonymous
       ? await this.getMessagesForChat(chatId)
       : [];
+    if (isNewChat && params.sourceDemoId) {
+      previousMessages = await this.getPublicSourceMessages(params.sourceDemoId, chatId);
+    }
     const featureNoticeMessage = isNewChat ? createFeatureNoticeMessage(chatId, now) : null;
     const userMessage: Message = {
       message_id: createMessageId(chatId),
@@ -302,9 +305,9 @@ class AnonymousChatStorage {
 
     await chatDB.addChat(stripPlainChatFields(chat));
     const pendingMessages = featureNoticeMessage
-      ? [featureNoticeMessage, userMessage]
+      ? [...previousMessages, featureNoticeMessage, userMessage]
       : [...previousMessages, userMessage];
-    for (const message of featureNoticeMessage ? [featureNoticeMessage, userMessage] : [userMessage]) {
+    for (const message of featureNoticeMessage ? [...previousMessages, featureNoticeMessage, userMessage] : [userMessage]) {
       await chatDB.saveMessage(message);
     }
     window.dispatchEvent(new CustomEvent("anonymousChatsUpdated"));
@@ -431,6 +434,45 @@ class AnonymousChatStorage {
       source_demo_id: sourceDemoId,
       title,
     };
+  }
+
+  private async getPublicSourceMessages(sourceDemoId: string, chatId: string): Promise<Message[]> {
+    try {
+      const { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isExampleChat, getExampleChatEmbeds } = await import("../demo_chats");
+      const messages = getDemoMessages(sourceDemoId, DEMO_CHATS, LEGAL_CHATS);
+      if (isExampleChat(sourceDemoId)) {
+        try {
+          const { embedStore } = await import("./embedStore");
+          for (const embed of getExampleChatEmbeds(sourceDemoId)) {
+            await embedStore.put(
+              `embed:${embed.embed_id}`,
+              {
+                content: embed.content,
+                type: embed.type,
+                status: "finished",
+                embed_id: embed.embed_id,
+                parent_embed_id: embed.parent_embed_id,
+                embed_ids: embed.embed_ids,
+              },
+              embed.type as never,
+            );
+          }
+        } catch (embedError) {
+          console.warn("[AnonymousChatStorage] Failed to clone public example embeds", embedError);
+        }
+      }
+      return messages
+        .filter((message) => message.role === "user" || message.role === "assistant")
+        .map((message) => ({
+          ...message,
+          chat_id: chatId,
+          message_id: `${chatId}-${message.message_id}`,
+          status: "synced" as const,
+        }));
+    } catch (error) {
+      console.warn("[AnonymousChatStorage] Failed to load public source messages", error);
+      return [];
+    }
   }
 
   private async updateAnonymousChat(chat: Chat, updates: Partial<Chat>): Promise<Chat> {

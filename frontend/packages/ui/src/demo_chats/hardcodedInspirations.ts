@@ -12,10 +12,11 @@
 // replace these hardcoded ones with a fade transition.
 
 import type { DailyInspiration, DailyInspirationSurface } from "../stores/dailyInspirationStore";
+import { getGuestProductInspirations } from "./guestProductInspirations";
 
 // ─── Shared video metadata (language-independent) ────────────────────────────
 
-const VIDEOS = {
+const _VIDEOS = {
   dreams: {
     youtube_id: "XK4yjmApcHo",
     title: "The Strange Science of Why We Dream",
@@ -56,7 +57,7 @@ interface InspirationText {
 
 // ─── Translations per inspiration ────────────────────────────────────────────
 
-const DREAMS_TEXT: Record<string, InspirationText> = {
+const _DREAMS_TEXT: Record<string, InspirationText> = {
   en: {
     phrase: "Why does your brain create entire worlds while you sleep?",
     title: "The neuroscience of dreaming",
@@ -185,7 +186,7 @@ const DREAMS_TEXT: Record<string, InspirationText> = {
   },
 };
 
-const ENIAC_TEXT: Record<string, InspirationText> = {
+const _ENIAC_TEXT: Record<string, InspirationText> = {
   en: {
     phrase: "Who were the six women that programmed the first computer — and why were they erased from history?",
     title: "The forgotten first programmers",
@@ -314,7 +315,7 @@ const ENIAC_TEXT: Record<string, InspirationText> = {
   },
 };
 
-const URBAN_FARMS_TEXT: Record<string, InspirationText> = {
+const _URBAN_FARMS_TEXT: Record<string, InspirationText> = {
   en: {
     phrase: "What happens when a city turns its vacant lots into farms?",
     title: "Urban gardens vs food deserts",
@@ -450,50 +451,8 @@ const URBAN_FARMS_TEXT: Record<string, InspirationText> = {
  * Falls back to English for any unsupported locale.
  */
 export function getHardcodedInspirations(locale: string): DailyInspiration[] {
-  // Normalize locale: "en-US" → "en", "zh-TW" → "zh"
-  const lang = locale.split("-")[0].toLowerCase();
-
-  const dreamsT = DREAMS_TEXT[lang] ?? DREAMS_TEXT.en;
-  const eniacT = ENIAC_TEXT[lang] ?? ENIAC_TEXT.en;
-  const urbanT = URBAN_FARMS_TEXT[lang] ?? URBAN_FARMS_TEXT.en;
-
-  const now = Math.floor(Date.now() / 1000);
-
-  return [
-    {
-      inspiration_id: "hardcoded-dreams",
-      phrase: dreamsT.phrase,
-      title: dreamsT.title,
-      category: "science",
-      content_type: "video",
-      video: { ...VIDEOS.dreams },
-      generated_at: now,
-      assistant_response: dreamsT.assistant_response,
-      follow_up_suggestions: [...dreamsT.follow_up_suggestions],
-    },
-    {
-      inspiration_id: "hardcoded-eniac",
-      phrase: eniacT.phrase,
-      title: eniacT.title,
-      category: "history",
-      content_type: "video",
-      video: { ...VIDEOS.eniac },
-      generated_at: now,
-      assistant_response: eniacT.assistant_response,
-      follow_up_suggestions: [...eniacT.follow_up_suggestions],
-    },
-    {
-      inspiration_id: "hardcoded-urban-farms",
-      phrase: urbanT.phrase,
-      title: urbanT.title,
-      category: "activism",
-      content_type: "video",
-      video: { ...VIDEOS.urban_farms },
-      generated_at: now,
-      assistant_response: urbanT.assistant_response,
-      follow_up_suggestions: [...urbanT.follow_up_suggestions],
-    },
-  ];
+  void locale;
+  return getGuestProductInspirations();
 }
 
 function getWorkspaceInspirations(surface: Exclude<DailyInspirationSurface, "chats">): DailyInspiration[] {

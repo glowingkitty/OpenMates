@@ -11,6 +11,7 @@ import pytest
 try:
     from backend.apps.ai.processing.preprocessor import (
         _contains_onboarding_trigger_in_user_history,
+        _contains_mindmap_intent_in_user_history,
         _contains_rain_radar_intent_in_user_history,
         _contains_repo_search_intent_in_user_history,
         _normalize_topic_area,
@@ -208,6 +209,35 @@ class TestContainsRainRadarIntent:
         ]
 
         assert _contains_rain_radar_intent_in_user_history(history) is False
+
+
+# ===========================================================================
+# _contains_mindmap_intent_in_user_history
+# ===========================================================================
+
+class TestContainsMindMapIntent:
+    def test_detects_explicit_mind_map_request(self):
+        history = [_user_msg("Create a visual mind map artifact for a privacy-first product launch.")]
+
+        assert _contains_mindmap_intent_in_user_history(history) is True
+
+    def test_detects_concept_map_request(self):
+        history = [_user_msg("Turn these notes into a concept map with branches.")]
+
+        assert _contains_mindmap_intent_in_user_history(history) is True
+
+    def test_ignores_regular_map_request(self):
+        history = [_user_msg("Show me a map of Berlin cafes.")]
+
+        assert _contains_mindmap_intent_in_user_history(history) is False
+
+    def test_only_user_messages_checked(self):
+        history = [
+            _assistant_msg("Create a mind map."),
+            _user_msg("Thanks"),
+        ]
+
+        assert _contains_mindmap_intent_in_user_history(history) is False
 
 
 # ===========================================================================

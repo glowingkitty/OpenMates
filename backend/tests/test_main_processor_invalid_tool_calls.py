@@ -11,39 +11,57 @@ import sys
 import types
 from types import SimpleNamespace
 
+
+_INSTALLED_STUB_MODULES: dict[str, types.ModuleType] = {}
+
+
+def _install_stub(module_name: str, module: types.ModuleType) -> None:
+    if module_name not in sys.modules:
+        sys.modules[module_name] = module
+        _INSTALLED_STUB_MODULES[module_name] = module
+
+
+def teardown_module() -> None:
+    if sys.modules.get("backend.apps.ai.processing.main_processor") is main_processor:
+        del sys.modules["backend.apps.ai.processing.main_processor"]
+    for module_name, module in _INSTALLED_STUB_MODULES.items():
+        if sys.modules.get(module_name) is module:
+            del sys.modules[module_name]
+
+
 toon_format_stub = types.ModuleType("toon_format")
 toon_format_stub.encode = lambda value: str(value)
 toon_format_stub.decode = lambda value: value
-sys.modules.setdefault("toon_format", toon_format_stub)
+_install_stub("toon_format", toon_format_stub)
 
 ask_skill_stub = types.ModuleType("backend.apps.ai.skills.ask_skill")
 ask_skill_stub.AskSkillRequest = object
-sys.modules.setdefault("backend.apps.ai.skills.ask_skill", ask_skill_stub)
+_install_stub("backend.apps.ai.skills.ask_skill", ask_skill_stub)
 
 preprocessor_stub = types.ModuleType("backend.apps.ai.processing.preprocessor")
 preprocessor_stub.IMAGE_CHAT_SAFE_MODEL_ID = "test-model"
 preprocessor_stub.IMAGE_CHAT_SAFE_MODEL_NAME = "Test Model"
 preprocessor_stub.PreprocessingResult = object
-sys.modules.setdefault("backend.apps.ai.processing.preprocessor", preprocessor_stub)
+_install_stub("backend.apps.ai.processing.preprocessor", preprocessor_stub)
 
 mate_utils_stub = types.ModuleType("backend.apps.ai.utils.mate_utils")
 mate_utils_stub.MateConfig = object
-sys.modules.setdefault("backend.apps.ai.utils.mate_utils", mate_utils_stub)
+_install_stub("backend.apps.ai.utils.mate_utils", mate_utils_stub)
 
 llm_utils_stub = types.ModuleType("backend.apps.ai.utils.llm_utils")
 llm_utils_stub.call_main_llm_stream = object
 llm_utils_stub.truncate_message_history_to_token_budget = object
 llm_utils_stub.AllServersFailedError = Exception
 llm_utils_stub.STANDARDIZED_USER_ERROR_MESSAGE = "Model unavailable."
-sys.modules.setdefault("backend.apps.ai.utils.llm_utils", llm_utils_stub)
+_install_stub("backend.apps.ai.utils.llm_utils", llm_utils_stub)
 
 stream_utils_stub = types.ModuleType("backend.apps.ai.utils.stream_utils")
 stream_utils_stub.aggregate_paragraphs = object
-sys.modules.setdefault("backend.apps.ai.utils.stream_utils", stream_utils_stub)
+_install_stub("backend.apps.ai.utils.stream_utils", stream_utils_stub)
 
 override_parser_stub = types.ModuleType("backend.core.api.app.utils.override_parser")
 override_parser_stub.UserOverrides = object
-sys.modules.setdefault("backend.core.api.app.utils.override_parser", override_parser_stub)
+_install_stub("backend.core.api.app.utils.override_parser", override_parser_stub)
 
 for module_name, symbols in {
     "backend.apps.ai.llm_providers.mistral_client": ["ParsedMistralToolCall", "MistralUsage"],
@@ -55,55 +73,55 @@ for module_name, symbols in {
     module = types.ModuleType(module_name)
     for symbol in symbols:
         setattr(module, symbol, object)
-    sys.modules.setdefault(module_name, module)
+    _install_stub(module_name, module)
 
 provider_types_stub = types.ModuleType("backend.apps.ai.llm_providers.types")
 provider_types_stub.UnifiedStreamChunk = object
 provider_types_stub.StreamChunkType = object
-sys.modules.setdefault("backend.apps.ai.llm_providers.types", provider_types_stub)
+_install_stub("backend.apps.ai.llm_providers.types", provider_types_stub)
 
 app_metadata_stub = types.ModuleType("backend.shared.python_schemas.app_metadata_schemas")
 app_metadata_stub.AppYAML = object
 app_metadata_stub.AppSkillDefinition = object
-sys.modules.setdefault("backend.shared.python_schemas.app_metadata_schemas", app_metadata_stub)
+_install_stub("backend.shared.python_schemas.app_metadata_schemas", app_metadata_stub)
 
 wikipedia_stub = types.ModuleType("backend.shared.providers.wikipedia.wikipedia_api")
 wikipedia_stub.normalize_wikipedia_language = lambda language: language
-sys.modules.setdefault("backend.shared.providers.wikipedia.wikipedia_api", wikipedia_stub)
+_install_stub("backend.shared.providers.wikipedia.wikipedia_api", wikipedia_stub)
 
 secrets_stub = types.ModuleType("backend.core.api.app.utils.secrets_manager")
 secrets_stub.SecretsManager = object
-sys.modules.setdefault("backend.core.api.app.utils.secrets_manager", secrets_stub)
+_install_stub("backend.core.api.app.utils.secrets_manager", secrets_stub)
 
 config_stub = types.ModuleType("backend.core.api.app.utils.config_manager")
 config_stub.ConfigManager = object
 config_stub.config_manager = SimpleNamespace(get_model_pricing=lambda *_args, **_kwargs: None)
-sys.modules.setdefault("backend.core.api.app.utils.config_manager", config_stub)
+_install_stub("backend.core.api.app.utils.config_manager", config_stub)
 
 directus_stub = types.ModuleType("backend.core.api.app.services.directus.directus")
 directus_stub.DirectusService = object
-sys.modules.setdefault("backend.core.api.app.services.directus.directus", directus_stub)
+_install_stub("backend.core.api.app.services.directus.directus", directus_stub)
 
 cache_stub = types.ModuleType("backend.core.api.app.services.cache")
 cache_stub.CacheService = object
-sys.modules.setdefault("backend.core.api.app.services.cache", cache_stub)
+_install_stub("backend.core.api.app.services.cache", cache_stub)
 
 encryption_stub = types.ModuleType("backend.core.api.app.utils.encryption")
 encryption_stub.EncryptionService = object
-sys.modules.setdefault("backend.core.api.app.utils.encryption", encryption_stub)
+_install_stub("backend.core.api.app.utils.encryption", encryption_stub)
 
 translations_stub = types.ModuleType("backend.core.api.app.services.translations")
 translations_stub.TranslationService = object
-sys.modules.setdefault("backend.core.api.app.services.translations", translations_stub)
+_install_stub("backend.core.api.app.services.translations", translations_stub)
 
 tool_generator_stub = types.ModuleType("backend.apps.ai.processing.tool_generator")
 tool_generator_stub.generate_tools_from_apps = object
-sys.modules.setdefault("backend.apps.ai.processing.tool_generator", tool_generator_stub)
+_install_stub("backend.apps.ai.processing.tool_generator", tool_generator_stub)
 
 audio_guard_stub = types.ModuleType("backend.apps.ai.processing.audio_recording_guard")
 audio_guard_stub.AUDIO_TRANSCRIBE_SKILL_ID = "audio-transcribe"
 audio_guard_stub.has_transcribed_web_audio_recording = lambda *_args, **_kwargs: False
-sys.modules.setdefault("backend.apps.ai.processing.audio_recording_guard", audio_guard_stub)
+_install_stub("backend.apps.ai.processing.audio_recording_guard", audio_guard_stub)
 
 sub_chat_stub = types.ModuleType("backend.apps.ai.sub_chat_orchestration")
 for symbol in [
@@ -120,19 +138,19 @@ for symbol in [
     setattr(sub_chat_stub, symbol, object)
 sub_chat_stub.MAX_AUTO_SUB_CHATS_PER_TURN = 3
 sub_chat_stub.MAX_DIRECT_SUB_CHATS_PER_PARENT = 3
-sys.modules.setdefault("backend.apps.ai.sub_chat_orchestration", sub_chat_stub)
+_install_stub("backend.apps.ai.sub_chat_orchestration", sub_chat_stub)
 
 skill_executor_stub = types.ModuleType("backend.apps.ai.processing.skill_executor")
 skill_executor_stub.execute_skill_with_multiple_requests = object
 skill_executor_stub.SkillCancelledException = Exception
 skill_executor_stub.generate_skill_task_id = lambda: "skill-task-id"
 skill_executor_stub.DEFAULT_SKILL_TIMEOUT = 30
-sys.modules.setdefault("backend.apps.ai.processing.skill_executor", skill_executor_stub)
+_install_stub("backend.apps.ai.processing.skill_executor", skill_executor_stub)
 
 billing_stub = types.ModuleType("backend.shared.python_utils.billing_utils")
 billing_stub.calculate_total_credits = lambda *_args, **_kwargs: 0
 billing_stub.MINIMUM_CREDITS_CHARGED = 1
-sys.modules.setdefault("backend.shared.python_utils.billing_utils", billing_stub)
+_install_stub("backend.shared.python_utils.billing_utils", billing_stub)
 
 main_processor = importlib.import_module("backend.apps.ai.processing.main_processor")
 INVALID_TOOL_FALLBACK_MESSAGE = main_processor.INVALID_TOOL_FALLBACK_MESSAGE

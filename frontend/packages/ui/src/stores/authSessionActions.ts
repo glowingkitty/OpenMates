@@ -24,7 +24,7 @@ import { setWebSocketToken, clearWebSocketToken } from "../utils/cookies"; // Im
 import { notificationStore } from "./notificationStore"; // Import notification store for logout notifications
 import { loadUserProfileFromDB } from "./userProfile"; // Import to load user profile from IndexedDB
 import { loginInterfaceOpen, loginStayLoggedInRequested } from "./uiStateStore"; // Import login UI state controls
-import { activeChatStore } from "./activeChatStore"; // Import activeChatStore to navigate to demo-for-everyone on logout
+import { activeChatStore } from "./activeChatStore"; // Clear active chat on logout/session reset
 import { clearSignupData, clearIncompleteSignupData } from "./signupStore"; // Import signup cleanup functions
 import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService"; // Import sessionStorage draft cleanup
 import {
@@ -43,6 +43,7 @@ import { clientLogForwarder } from "../services/clientLogForwarder"; // Admin li
 import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import to pre-load entries for @ mention dropdown
 import { applyServerDarkMode } from "./theme"; // Apply server dark mode preference on session restore
 import { applyServerUiFont } from "./uiFont"; // Apply server UI font preference on session restore
+import { promoteGuestTopicPreferencesIfNeeded } from "../services/topicPreferencesSync";
 import { captureReferralCodeFromUrl, submitPendingReferralCode } from "../services/referralService";
 import { markDeviceReceivedFreeTestingCredits } from "./serverStatusStore";
 
@@ -229,8 +230,8 @@ export async function checkAuth(
           );
         }
 
-        // CRITICAL: Navigate to demo-for-everyone IMMEDIATELY (synchronously) BEFORE auth state changes
-        // This ensures any component reading activeChatStore will see demo-for-everyone, not the old chat
+        // CRITICAL: Clear active chat IMMEDIATELY (synchronously) BEFORE auth state changes
+        // This ensures any component reading activeChatStore will see the welcome screen, not the old chat
         //
         // EXCEPTION: If a shared chat redirect is in progress, do NOT override with demo-for-everyone.
         // Shared chats use URL-embedded encryption keys (not the master key), so they work perfectly
@@ -276,10 +277,9 @@ export async function checkAuth(
               "[AuthSessionActions] Skipping demo-for-everyone override — og=1 mode (welcome screen should stay visible)",
             );
           } else {
-            activeChatStore.setActiveChat("demo-for-everyone");
-            window.location.hash = "chat-id=demo-for-everyone";
+            activeChatStore.clearActiveChat();
             console.debug(
-              "[AuthSessionActions] Navigated to demo-for-everyone chat IMMEDIATELY (synchronous) - missing master key",
+              "[AuthSessionActions] Cleared active chat IMMEDIATELY (synchronous) - missing master key",
             );
           }
         }
@@ -676,12 +676,22 @@ export async function checkAuth(
             data.user.follow_up_suggestions_enabled !== false,
           quick_tips_enabled:
             data.user.quick_tips_enabled !== false,
+          encrypted_settings: data.user.encrypted_settings ?? null,
         });
         // Apply server dark mode preference to the theme store.
         // applyServerDarkMode is a no-op when the user already has a local
         // manual preference in localStorage, so local choices always win.
         applyServerDarkMode(userDarkMode);
         applyServerUiFont(userUiFont);
+
+        try {
+          await promoteGuestTopicPreferencesIfNeeded();
+        } catch (error) {
+          console.warn(
+            "[AuthSessionActions] Failed to sync topic preferences after session restore:",
+            error,
+          );
+        }
       } catch (dbError) {
         console.error("Failed to save user data to database:", dbError);
       }
@@ -866,12 +876,12 @@ export async function checkAuth(
           },
         );
 
-        // CRITICAL: If user is in signup flow, close signup interface and return to demo
+        // CRITICAL: If user is in signup flow, close signup interface and return to new chat.
         // This ensures the signup/login interface is closed when logout notification appears during signup
         const wasInSignupProcess = get(isInSignupProcess);
         if (wasInSignupProcess) {
           console.debug(
-            "[AuthSessionActions] User was in signup process - closing signup interface and returning to demo",
+            "[AuthSessionActions] User was in signup process - closing signup interface and returning to new chat",
           );
 
           // Reset signup process state FIRST to ensure Login component switches to login view
@@ -900,19 +910,12 @@ export async function checkAuth(
             "[AuthSessionActions] Cleared all sessionStorage drafts when returning to demo",
           );
 
-          // Close the login interface and load demo chat
-          // This dispatches a global event that ActiveChat.svelte listens to
+          // Close the login interface; ActiveChat returns to the new-chat screen.
           window.dispatchEvent(new CustomEvent("closeLoginInterface"));
-
-          // Small delay to ensure the interface closes before loading chat
-          setTimeout(() => {
-            // Dispatch event to load demo chat (ActiveChat will handle this)
-            window.dispatchEvent(new CustomEvent("loadDemoChat"));
-          }, 100);
         }
 
-        // CRITICAL: Navigate to demo-for-everyone chat to hide the previously open chat
-        // This ensures the previous chat is not visible after logout
+        // CRITICAL: Clear active chat to hide the previously open chat.
+        // This ensures the previous chat is not visible after logout.
         // Small delay to ensure auth state changes are processed first
         // OG image mode (?og=1): skip demo-for-everyone redirect so the welcome screen stays visible
         const isOgImageModeLogout =
@@ -921,10 +924,9 @@ export async function checkAuth(
         if (!isOgImageModeLogout) {
           setTimeout(() => {
             if (typeof window !== "undefined") {
-              activeChatStore.setActiveChat("demo-for-everyone");
-              window.location.hash = "chat-id=demo-for-everyone";
+              activeChatStore.clearActiveChat();
               console.debug(
-                "[AuthSessionActions] Navigated to demo-for-everyone chat after logout notification",
+                "[AuthSessionActions] Cleared active chat after logout notification",
               );
             }
           }, 50);

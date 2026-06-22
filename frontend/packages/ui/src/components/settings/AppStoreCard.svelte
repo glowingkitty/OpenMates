@@ -203,7 +203,7 @@
      * **Note**: CSS variables in theme.css now match app IDs exactly (using underscores).
      * This eliminates the need for a hardcoded mapping that must be kept in sync.
      * 
-     * @param appId - The app ID (e.g., 'web', 'life_coaching', 'pcb_design', 'mail')
+     * @param appId - The app ID (e.g., 'web', 'life_coaching', 'mindmaps', 'mail')
      * @returns CSS variable reference (e.g., 'var(--color-app-web)')
      */
     function getAppGradient(appId: string): string {

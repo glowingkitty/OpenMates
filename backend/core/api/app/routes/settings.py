@@ -26,15 +26,17 @@ from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.utils.config_manager import config_manager
-from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, UiFontUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
+from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, UiFontUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, TopicPreferencesEncryptedRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
+from backend.core.api.app.utils.api_key_device_ownership import api_key_device_belongs_to_user
 from backend.core.api.app.utils.report_issue_ids import (
     create_issue_record_with_short_id,
     issue_identifier_filter,
 )
+from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
 optional_api_key_scheme = HTTPBearer(
@@ -1057,6 +1059,9 @@ class ApiKeyCreateRequest(BaseModel):
     encrypted_master_key: str  # Master key encrypted with key derived from API key (for CLI/npm/pip access)
     salt: str  # Salt used for deriving key from API key
     key_iv: Optional[str] = None  # IV for AES-GCM encryption of master key
+    full_access: bool = True
+    scopes: Dict[str, Any] = Field(default_factory=dict)
+    credit_limit: Optional[Dict[str, Any]] = None
     expires_at: Optional[str] = None  # Optional expiration timestamp (ISO format)
 
 class ApiKeyResponse(BaseModel):
@@ -1067,6 +1072,9 @@ class ApiKeyResponse(BaseModel):
     last_used_at: Optional[str] = None
     encrypted_name: Optional[str] = None
     encrypted_key_prefix: Optional[str] = None
+    full_access: bool = True
+    scopes: Dict[str, Any] = Field(default_factory=dict)
+    credit_limit: Optional[Dict[str, Any]] = None
 
 class ApiKeyListResponse(BaseModel):
     api_keys: list[ApiKeyResponse]
@@ -1130,7 +1138,10 @@ async def get_api_keys(
                         expires_at=expires_at,
                         last_used_at=last_used_at,
                         encrypted_name=key.get('encrypted_name'),
-                        encrypted_key_prefix=key.get('encrypted_key_prefix')
+                        encrypted_key_prefix=key.get('encrypted_key_prefix'),
+                        full_access=key.get('full_access', True),
+                        scopes=key.get('scopes') or {},
+                        credit_limit=key.get('credit_limit')
                     )
                     api_keys.append(api_key_response)
                 except Exception as key_error:
@@ -1174,6 +1185,15 @@ async def create_api_key(
         if not request_data.salt or len(request_data.salt.strip()) == 0:
             raise HTTPException(status_code=400, detail="Salt is required")
 
+        try:
+            normalized_metadata = ApiKeyAuthorizationService().normalize_metadata({
+                "full_access": request_data.full_access,
+                "scopes": request_data.scopes,
+                "credit_limit": request_data.credit_limit,
+            })
+        except ValueError as metadata_error:
+            raise HTTPException(status_code=400, detail=str(metadata_error))
+
         # Check existing API keys count (max 5 per user)
         existing_keys = await directus_service.get_user_api_keys_by_user_id(current_user.id)
         if len(existing_keys) >= 5:
@@ -1194,6 +1214,9 @@ async def create_api_key(
             key_hash=request_data.api_key_hash,
             encrypted_key_prefix=request_data.encrypted_key_prefix,
             encrypted_name=request_data.encrypted_name,
+            full_access=normalized_metadata["full_access"],
+            scopes=normalized_metadata["scopes"],
+            credit_limit=normalized_metadata.get("credit_limit"),
             expires_at=request_data.expires_at
         )
 
@@ -1246,7 +1269,10 @@ async def create_api_key(
             expires_at=expires_at,
             last_used_at=last_used_at,
             encrypted_name=created_key.get('encrypted_name'),
-            encrypted_key_prefix=created_key.get('encrypted_key_prefix')
+            encrypted_key_prefix=created_key.get('encrypted_key_prefix'),
+            full_access=created_key.get('full_access', True),
+            scopes=created_key.get('scopes') or {},
+            credit_limit=created_key.get('credit_limit')
         )
 
     except HTTPException as e:
@@ -1387,6 +1413,20 @@ async def get_api_key_devices(
         raise HTTPException(status_code=500, detail="Failed to retrieve API key devices")
 
 
+async def _get_owned_api_key_device(
+    directus_service: DirectusService,
+    device_id: str,
+    user_id: str,
+    action: str
+) -> dict:
+    user_device = await directus_service.get_api_key_device_by_id(device_id)
+
+    if not api_key_device_belongs_to_user(user_device, user_id):
+        raise HTTPException(status_code=404, detail=f"Device not found or you don't have permission to {action} it")
+
+    return user_device
+
+
 @router.post("/api-key-devices/{device_id}/approve", response_model=SimpleSuccessResponse, include_in_schema=False)  # Exclude from schema - not in whitelist, web app only
 @limiter.limit("30/minute")
 async def approve_api_key_device(
@@ -1400,26 +1440,7 @@ async def approve_api_key_device(
     Only the owner of the API key can approve devices.
     """
     try:
-        # Verify the device belongs to one of the user's API keys
-        # First, get all user's API keys
-        api_keys_data = await directus_service.get_user_api_keys_by_user_id(current_user.id)
-        api_key_ids = [key.get('id') for key in api_keys_data if key.get('id')]
-        
-        # Get the device to verify ownership
-        # We need to check if the device belongs to one of the user's API keys
-        # Since we don't have a direct lookup by device_id, we'll get all devices and filter
-        user_device = None
-        for api_key_id in api_key_ids:
-            devices = await directus_service.get_api_key_devices(api_key_id)
-            for device in devices:
-                if device.get('id') == device_id:
-                    user_device = device
-                    break
-            if user_device:
-                break
-        
-        if not user_device:
-            raise HTTPException(status_code=404, detail="Device not found or you don't have permission to approve it")
+        user_device = await _get_owned_api_key_device(directus_service, device_id, current_user.id, "approve")
         
         # Approve the device
         success, message = await directus_service.approve_api_key_device(device_id)
@@ -1459,23 +1480,7 @@ async def revoke_api_key_device(
     Only the owner of the API key can revoke devices.
     """
     try:
-        # Verify the device belongs to one of the user's API keys
-        api_keys_data = await directus_service.get_user_api_keys_by_user_id(current_user.id)
-        api_key_ids = [key.get('id') for key in api_keys_data if key.get('id')]
-        
-        # Get the device to verify ownership and get device_hash for cache invalidation
-        user_device = None
-        for api_key_id in api_key_ids:
-            devices = await directus_service.get_api_key_devices(api_key_id)
-            for device in devices:
-                if device.get('id') == device_id:
-                    user_device = device
-                    break
-            if user_device:
-                break
-        
-        if not user_device:
-            raise HTTPException(status_code=404, detail="Device not found or you don't have permission to revoke it")
+        user_device = await _get_owned_api_key_device(directus_service, device_id, current_user.id, "revoke")
         
         # Get device_hash for cache invalidation before deletion
         api_key_id = user_device.get('api_key_id')
@@ -1528,23 +1533,7 @@ async def rename_api_key_device(
     Only the owner of the API key can rename devices.
     """
     try:
-        # Verify the device belongs to one of the user's API keys
-        api_keys_data = await directus_service.get_user_api_keys_by_user_id(current_user.id)
-        api_key_ids = [key.get('id') for key in api_keys_data if key.get('id')]
-        
-        # Get the device to verify ownership
-        user_device = None
-        for api_key_id in api_key_ids:
-            devices = await directus_service.get_api_key_devices(api_key_id)
-            for device in devices:
-                if device.get('id') == device_id:
-                    user_device = device
-                    break
-            if user_device:
-                break
-        
-        if not user_device:
-            raise HTTPException(status_code=404, detail="Device not found or you don't have permission to rename it")
+        await _get_owned_api_key_device(directus_service, device_id, current_user.id, "rename")
         
         # Device name is already encrypted client-side with master key
         # Just store it as-is (zero-knowledge: server never sees plaintext)
@@ -5200,6 +5189,46 @@ async def update_ai_model_defaults(
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail="An error occurred while saving default model setting")
+
+
+@router.post("/topic-preferences", response_model=SimpleSuccessResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def update_topic_preferences(
+    request: Request,
+    request_data: TopicPreferencesEncryptedRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> SimpleSuccessResponse:
+    """Persist client-encrypted topic preferences without exposing cleartext tags."""
+
+    user_id = current_user.id
+    update_data = {"encrypted_settings": request_data.encrypted_settings}
+
+    try:
+        success = await directus_service.update_user(user_id, update_data)
+        if not success:
+            logger.error(f"[TopicPreferences] Failed to update Directus for user {user_id}.")
+            raise HTTPException(status_code=500, detail="Failed to save topic preferences")
+
+        cache_ok = await cache_service.update_user(user_id, update_data)
+        if not cache_ok:
+            logger.warning(
+                f"[TopicPreferences] Cache update failed for user {user_id} after Directus update."
+            )
+
+        return SimpleSuccessResponse(
+            success=True,
+            message="Topic preferences saved successfully",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"[TopicPreferences] Unexpected error updating topic preferences for user {user_id}: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="An error occurred while saving topic preferences")
 
 
 # ─── Storage Overview ─────────────────────────────────────────────────────────

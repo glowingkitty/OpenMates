@@ -21,10 +21,12 @@
     let {
         options = $bindable<CheckboxOption[]>([]),
         nested = false,
+        dataTestid = '',
         onChange = undefined,
     }: {
         options: CheckboxOption[];
         nested?: boolean;
+        dataTestid?: string;
         onChange?: ((id: string, checked: boolean) => void) | undefined;
     } = $props();
 
@@ -41,7 +43,7 @@
     }
 </script>
 
-<div class="settings-checkbox-list-wrapper">
+<div class="settings-checkbox-list-wrapper" data-testid={dataTestid || undefined}>
     <ul class="settings-checkbox-list" class:nested role="list">
         {#each options as option (option.id)}
             <li
@@ -50,6 +52,7 @@
                 onkeydown={(e) => handleKeydown(e, option)}
                 role="option"
                 aria-selected={option.checked}
+                data-testid={dataTestid ? `${dataTestid}-option-${option.id}` : undefined}
                 tabindex="0"
             >
                 <input

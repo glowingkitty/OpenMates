@@ -35,6 +35,7 @@
   import { authStore } from '../stores/authStore';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../utils/imageProxy';
   import VideoEmbedPreview from './embeds/videos/VideoEmbedPreview.svelte';
+  import DirectVideoEmbedFullscreen from './embeds/videos/DirectVideoEmbedFullscreen.svelte';
   import WikipediaEmbedPreview from './embeds/wiki/WikipediaEmbedPreview.svelte';
 
   // ─── Lucide icons ────────────────────────────────────────────────────────────
@@ -46,8 +47,8 @@
   const ChevronLeft = getLucideIcon('chevron-left');
   const ChevronRight = getLucideIcon('chevron-right');
 
-  const MOBILE_CARD_ROTATION_INTERVAL_MS = 5000;
   const INSPIRATION_AUTO_ROTATION_INTERVAL_MS = 20000;
+  const MOBILE_CARD_ROTATION_INTERVAL_MS = Math.round(INSPIRATION_AUTO_ROTATION_INTERVAL_MS * 0.55);
   const TOUCH_SWIPE_DISTANCE_PX = 56;
   const TOUCH_SWIPE_VERTICAL_CANCEL_PX = 48;
   // Temporarily disabled with the visit-cycling effect below.
@@ -85,9 +86,14 @@
     containerWidth?: number;
     /** Which workspace surface this banner is rendered in. Legacy items default to chats. */
     surface?: DailyInspirationSurface;
+    /** Visual treatment. Guest intro keeps carousel behavior with ChatHeader-like split media. */
+    variant?: 'default' | 'guest-intro';
+    /** Called when the visible inspiration changes, including manual and automatic carousel moves. */
+    onVisibleInspirationChange?: (inspiration: DailyInspiration) => void;
   }
 
-  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats' }: Props = $props();
+  let { onStartChat, onEmbedFullscreen, containerWidth = 0, surface = 'chats', variant = 'default', onVisibleInspirationChange }: Props = $props();
+  let isGuestIntroVariant = $derived(variant === 'guest-intro');
 
   // ─── Local state (Svelte 5 runes) ──────────────────────────────────────────
 
@@ -119,7 +125,9 @@
   let prefersTouchCta = $state(false);
   let isUserInteracting = $state(false);
   let isOpeningInspiration = $state(false);
+  let directVideoFullscreenOpen = $state(false);
   let progressRestartToken = $state(0);
+  let lastNotifiedInspirationId = $state('');
   // Temporarily disabled with the visit-cycling effect below.
   // let visitCycleTargetIndexes = $state(new Map<string, number>());
   // let visitCycleAppliedInspirations = $state<DailyInspiration[] | null>(null);
@@ -264,6 +272,13 @@
     sendViewedEvent(id);
   });
 
+  $effect(() => {
+    if (!current) return;
+    if (current.inspiration_id === lastNotifiedInspirationId) return;
+    lastNotifiedInspirationId = current.inspiration_id;
+    onVisibleInspirationChange?.(current);
+  });
+
   // Mobile card loop: start on the assistant message, then alternate message and preview.
   $effect(() => {
     if (!shouldCycleMobileCard) {
@@ -377,11 +392,6 @@
   /** Whether the banner is rendered in the narrow mobile layout. */
   let isMobileBannerLayout = $derived(containerWidth > 0 && containerWidth <= 730);
 
-  /** Whether mobile should alternate between the assistant message and embed. */
-  let shouldCycleMobileCard = $derived((hasAttachedVideo || hasInfoContent) && isMobileBannerLayout);
-
-  let hasVideo = $derived(hasAttachedVideo && (containerWidth >= 520 || shouldCycleMobileCard));
-
   /**
    * The embed_id to use for VideoEmbedPreview.
    * Uses embed_id from the inspiration if already stored, otherwise generates a
@@ -412,11 +422,37 @@
       ? `https://www.youtube.com/watch?v=${current.video.youtube_id}`
       : ''
   );
+  let directVideoMp4Url = $derived(current?.direct_video?.mp4_url ?? '');
+  let directVideoTeaserUrl = $derived(current?.direct_video?.teaser_url ?? '');
+  let directVideoTeaserMp4Url = $derived(current?.direct_video?.teaser_mp4_url ?? '');
+  let directVideoPosterUrl = $derived(
+    current?.direct_video?.teaser_webp_url
+      || (current?.direct_video?.thumbnail_url
+        ? proxyImage(current.direct_video.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL)
+        : ''),
+  );
+
+  /** Whether mobile should alternate between the assistant message and preview. */
+  let shouldCycleMobileCard = $derived(
+    isMobileBannerLayout && (
+      isGuestIntroVariant
+        ? !!directVideoMp4Url || hasInfoContent
+        : hasAttachedVideo || hasInfoContent
+    )
+  );
+
+  let hasVideo = $derived(hasAttachedVideo && (containerWidth >= 520 || shouldCycleMobileCard));
 
   let infoCardTitle = $derived(current?.wiki?.title || current?.feature?.title || current?.title || '');
   let infoCardSubtitle = $derived(current?.wiki?.description || current?.feature?.description || '');
-  let infoCardImage = $derived(current?.wiki?.thumbnail_url ? proxyImage(current.wiki.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL) : '');
-  let hasInfoCard = $derived(!hasVideo && hasInfoContent && !hasWikiContent);
+  let infoCardImage = $derived(
+    current?.wiki?.thumbnail_url
+      ? proxyImage(current.wiki.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL)
+      : current?.direct_video?.thumbnail_url
+        ? proxyImage(current.direct_video.thumbnail_url, MAX_WIDTH_PREVIEW_THUMBNAIL)
+        : ''
+  );
+  let hasInfoCard = $derived(!isGuestIntroVariant && !hasVideo && hasInfoContent && !hasWikiContent);
   let mobilePreviewKey = $derived(embedPreviewId || infoCardTitle || current?.inspiration_id || '');
   let progressAnimationKey = $derived(`${current?.inspiration_id ?? 'none'}-${currentIndex}-${progressRestartToken}`);
   let InfoCardIconComponent = $derived.by(() => {
@@ -606,6 +642,13 @@
     }
   }
 
+  function handleDirectVideoClick(e: MouseEvent | KeyboardEvent) {
+    if (!directVideoMp4Url) return;
+    e.stopPropagation();
+    e.preventDefault();
+    directVideoFullscreenOpen = true;
+  }
+
   function handleInfoCardClick(e: MouseEvent | KeyboardEvent) {
     if (!current?.wiki) return;
     e.stopPropagation();
@@ -693,8 +736,9 @@
     if (isAuthenticated) return true;
 
     const feature = inspiration.feature;
-    if (!feature?.settings_path) return false;
+    if (!feature) return false;
     if (AUTHENTICATED_ONLY_FEATURE_IDS.has(feature.feature_id)) return false;
+    if (!feature.settings_path) return feature.requires_authentication !== true;
     if (feature.requires_authentication === true && !GUEST_ALLOWED_FEATURE_PATHS.has(feature.settings_path)) return false;
     return GUEST_ALLOWED_FEATURE_PATHS.has(feature.settings_path);
   }
@@ -734,8 +778,9 @@
       since carousel arrow <button> elements live inside the card.
       Fixed height of 240px so the embed is never cut off.
     -->
-    <div
-      class="daily-inspiration-banner"
+      <div
+        class="daily-inspiration-banner"
+      class:guest-intro-variant={isGuestIntroVariant}
       data-testid="daily-inspiration-banner"
       style={gradientStyle}
       onclick={handleStartChat}
@@ -763,7 +808,7 @@
       <!-- ── Large decorative category icons at left and right edges (126×126px, 0.4 opacity).
            These sit outside .banner-inner so they are not constrained by the 680px inner width.
            On smaller viewports they will be partially clipped by overflow:hidden — intentional. ── -->
-      {#if CategoryIconComponent}
+      {#if CategoryIconComponent && !isGuestIntroVariant}
         <div class="deco-icon deco-icon-left">
           <CategoryIconComponent size={126} color="white" />
         </div>
@@ -775,11 +820,13 @@
       <!-- ── Centered inner content wrapper (max-width 680px) ── -->
       <div class="banner-inner">
 
-        <!-- ── Top label ── -->
-        <div class="banner-label">
-          <BookOpen size={14} color="rgba(255,255,255,0.85)" />
-          <span data-testid="daily-inspiration-label">{$text('daily_inspiration.label')}</span>
-        </div>
+        {#if !isGuestIntroVariant}
+          <!-- ── Top label ── -->
+          <div class="banner-label">
+            <BookOpen size={14} color="rgba(255,255,255,0.85)" />
+            <span data-testid="daily-inspiration-label">{$text('daily_inspiration.label')}</span>
+          </div>
+        {/if}
 
         <!-- ── Main content row: left (mate + text + CTA) + right (embed) ── -->
         <div
@@ -788,41 +835,112 @@
           class:show-mobile-card={shouldCycleMobileCard && showMobileCard}
         >
 
-          <!-- Left column: mate profile (left) + phrase (right), CTA pinned to bottom -->
-          <div class="banner-left">
-            <!-- Row: mate profile image + inspiration phrase side-by-side, vertically centered -->
-            <div class="banner-phrase-row">
-              <!-- Mate profile image with AI badge (uses global mates.css classes) -->
-              <div class="mate-profile banner-mate-profile {displayCategory}"></div>
-
-              <!-- Inspiration phrase -->
-              <p class="banner-phrase" data-testid="daily-inspiration-phrase">{current.phrase}</p>
-            </div>
-
-            <!-- CTA: plain text + icon — pinned to bottom of banner-left. -->
-            <div class="banner-cta">
-              {#if isFeatureInspiration}
-                <LinkIcon class="banner-cta-svg-icon" size={15} color="rgba(255, 255, 255, 0.85)" />
+          {#if isGuestIntroVariant}
+            <div
+              class="guest-intro-copy"
+              class:guest-feature-copy={current.inspiration_id !== 'openmates-intro'}
+              data-testid="guest-intro-copy"
+            >
+              {#if current.inspiration_id === 'openmates-intro'}
+                <div class="guest-intro-ai-icon" data-testid="guest-intro-ai-icon" aria-hidden="true"></div>
+                <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line1')}</span>
+                <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line2')}</span>
+                <span class="guest-intro-copy-line">{$text('demo_chats.for_everyone.teaser_line3')}</span>
               {:else}
-                <span class="clickable-icon icon_create banner-cta-icon"></span>
+                {#if InfoCardIconComponent}
+                  <span class="guest-feature-inline-icon" aria-hidden="true">
+                    <InfoCardIconComponent size={44} color="white" />
+                  </span>
+                {/if}
+                <span class="guest-feature-headline" data-testid="daily-inspiration-phrase">{current.phrase}</span>
               {/if}
-              <span class="banner-cta-text">
-                {isFeatureInspiration
-                  ? (prefersTouchCta
-                    ? $text('daily_inspiration.tap_to_open_settings')
-                    : $text('daily_inspiration.click_to_open_settings'))
-                  : current.is_opened && current.opened_chat_id
-                  ? $text('daily_inspiration.open_chat')
-                  : $text('daily_inspiration.click_to_start_chat')}
-              </span>
             </div>
-          </div>
+          {:else}
+            <!-- Left column: mate profile (left) + phrase (right), CTA pinned to bottom -->
+            <div class="banner-left">
+              <!-- Row: mate profile image + inspiration phrase side-by-side, vertically centered -->
+              <div class="banner-phrase-row">
+                <!-- Mate profile image with AI badge (uses global mates.css classes) -->
+                <div class="mate-profile banner-mate-profile {displayCategory}"></div>
+
+                <!-- Inspiration phrase -->
+                <p class="banner-phrase" data-testid="daily-inspiration-phrase">{current.phrase}</p>
+              </div>
+
+              <!-- CTA: plain text + icon — pinned to bottom of banner-left. -->
+              <div class="banner-cta">
+                {#if isFeatureInspiration}
+                  <LinkIcon class="banner-cta-svg-icon" size={15} color="rgba(255, 255, 255, 0.85)" />
+                {:else}
+                  <span class="clickable-icon icon_create banner-cta-icon"></span>
+                {/if}
+                <span class="banner-cta-text">
+                  {isFeatureInspiration
+                    ? (prefersTouchCta
+                      ? $text('daily_inspiration.tap_to_open_settings')
+                      : $text('daily_inspiration.click_to_open_settings'))
+                    : current.is_opened && current.opened_chat_id
+                    ? $text('daily_inspiration.open_chat')
+                    : $text('daily_inspiration.click_to_start_chat')}
+                </span>
+              </div>
+            </div>
+          {/if}
 
           <!-- Right column: VideoEmbedPreview (if video attached).
                Click on this area opens the video fullscreen, NOT a new chat.
                We wrap with a transparent overlay button to capture clicks cleanly
                and prevent the banner's onclick from firing. -->
-          {#if hasVideo && embedPreviewId}
+          {#if isGuestIntroVariant && directVideoMp4Url}
+            <button
+              type="button"
+              class="guest-intro-video-box"
+              data-testid="guest-intro-video-shell"
+              aria-label={$text('daily_inspiration.watch_video')}
+              onclick={handleDirectVideoClick}
+            >
+              {#if directVideoTeaserUrl || directVideoTeaserMp4Url}
+                <video
+                  class="guest-intro-video"
+                  data-testid="guest-intro-video"
+                  poster={directVideoPosterUrl || undefined}
+                  autoplay
+                  muted
+                  loop
+                  playsinline
+                  preload="metadata"
+                >
+                  {#if directVideoTeaserUrl}
+                    <source src={directVideoTeaserUrl} type="video/webm" />
+                  {/if}
+                  {#if directVideoTeaserMp4Url}
+                    <source src={directVideoTeaserMp4Url} type="video/mp4" />
+                  {/if}
+                </video>
+              {:else if directVideoPosterUrl}
+                <img class="guest-intro-video" data-testid="guest-intro-video" src={directVideoPosterUrl} alt="" />
+              {/if}
+              <span class="guest-intro-play" aria-hidden="true"><span></span></span>
+            </button>
+          {:else if isGuestIntroVariant && hasInfoContent}
+            <div
+              class="guest-intro-feature-card"
+              class:guest-feature-card={current.inspiration_id !== 'openmates-intro'}
+              data-testid="daily-inspiration-info-card"
+            >
+              {#if InfoCardIconComponent}
+                <div class="guest-intro-feature-icon" aria-hidden="true">
+                  <InfoCardIconComponent size={34} color="white" />
+                </div>
+              {/if}
+              <div class="guest-intro-feature-text">
+                <h3>{infoCardTitle}</h3>
+                {#if infoCardSubtitle && current.inspiration_id === 'openmates-intro'}
+                  <p>{infoCardSubtitle}</p>
+                {/if}
+              </div>
+            </div>
+          {:else if hasVideo && embedPreviewId}
             <div
               class="banner-embed-wrapper"
               onclick={handleEmbedClick}
@@ -861,21 +979,49 @@
               />
             </div>
           {:else if hasInfoCard}
-            <div class="banner-info-card" data-testid="daily-inspiration-info-card">
-              {#if infoCardImage}
-                <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
-              {:else if InfoCardIconComponent}
-                <div class="banner-info-icon" aria-hidden="true">
-                  <InfoCardIconComponent size={42} color="white" />
-                </div>
-              {/if}
-              <div class="banner-info-text">
-                <h3>{infoCardTitle}</h3>
-                {#if infoCardSubtitle}
-                  <p>{infoCardSubtitle}</p>
+            {#if directVideoMp4Url}
+              <button
+                type="button"
+                class="banner-info-card"
+                data-testid="daily-inspiration-info-card"
+                data-direct-video="true"
+                onclick={handleDirectVideoClick}
+              >
+                {#if infoCardImage}
+                  <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
+                {:else if InfoCardIconComponent}
+                  <div class="banner-info-icon" aria-hidden="true">
+                    <InfoCardIconComponent size={42} color="white" />
+                  </div>
                 {/if}
+                <div class="banner-info-text">
+                  <h3>{infoCardTitle}</h3>
+                  {#if infoCardSubtitle}
+                    <p>{infoCardSubtitle}</p>
+                  {/if}
+                </div>
+              </button>
+            {:else}
+              <div
+                class="banner-info-card"
+                data-testid="daily-inspiration-info-card"
+                data-direct-video="false"
+              >
+                {#if infoCardImage}
+                  <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
+                {:else if InfoCardIconComponent}
+                  <div class="banner-info-icon" aria-hidden="true">
+                    <InfoCardIconComponent size={42} color="white" />
+                  </div>
+                {/if}
+                <div class="banner-info-text">
+                  <h3>{infoCardTitle}</h3>
+                  {#if infoCardSubtitle}
+                    <p>{infoCardSubtitle}</p>
+                  {/if}
+                </div>
               </div>
-            </div>
+            {/if}
           {/if}
         </div>
       </div><!-- /.banner-inner -->
@@ -921,6 +1067,14 @@
       {/if}
     </div><!-- /.daily-inspiration-banner -->
   </div>
+{/if}
+
+{#if directVideoFullscreenOpen && current?.direct_video?.mp4_url}
+  <DirectVideoEmbedFullscreen
+    mp4Url={current.direct_video.mp4_url}
+    title={current.direct_video.title}
+    onClose={() => { directVideoFullscreenOpen = false; }}
+  />
 {/if}
 
 <style>
@@ -1005,6 +1159,14 @@
     z-index: var(--z-index-dropdown-1);
   }
 
+  .guest-intro-variant .banner-inner {
+    width: min(calc(100% - 80px), clamp(960px, 72vw, 1080px));
+    max-width: none;
+    padding: 8px 40px;
+    justify-content: center;
+    gap: 0;
+  }
+
   /* ── Top label ── */
   .banner-label {
     display: flex;
@@ -1025,6 +1187,208 @@
     gap: 14px;
     flex: 1;
     min-height: 0;
+  }
+
+  .guest-intro-variant .banner-content {
+    align-items: center;
+    justify-content: center;
+    gap: 36px;
+    width: 100%;
+    transform: translateZ(0);
+    contain: layout paint;
+  }
+
+  .guest-intro-copy {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 4px;
+    color: white;
+    text-align: left;
+  }
+
+  .guest-intro-ai-icon {
+    width: clamp(38px, 3.2vw, 72px);
+    height: clamp(38px, 3.2vw, 72px);
+    margin-bottom: var(--spacing-2);
+    flex-shrink: 0;
+    -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+    mask-image: url('@openmates/ui/static/icons/ai.svg');
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background-color: rgba(255, 255, 255, 0.92);
+  }
+
+  .guest-intro-copy-line {
+    display: block;
+    max-width: 760px;
+    font-size: clamp(2rem, 2.6vw, 4.9rem);
+    line-height: 1.08;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.2);
+  }
+
+  .guest-intro-copy-summary {
+    display: block;
+    max-width: 560px;
+    margin-top: var(--spacing-2);
+    font-size: clamp(1rem, 1.35vw, 1.35rem);
+    line-height: 1.35;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .guest-feature-copy {
+    position: relative;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .guest-feature-headline {
+    position: relative;
+    z-index: 1;
+    display: block;
+    max-width: 700px;
+    font-size: clamp(1.35rem, 2vw, 2.7rem);
+    line-height: 1.12;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: rgba(255, 255, 255, 0.96);
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.2);
+  }
+
+  .guest-feature-inline-icon {
+    display: grid;
+    place-items: center;
+    width: clamp(38px, 3.2vw, 72px);
+    height: clamp(38px, 3.2vw, 72px);
+    margin-bottom: var(--spacing-2);
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.92);
+    filter: drop-shadow(0 2px 18px rgba(0, 0, 0, 0.18));
+  }
+
+  .guest-feature-inline-icon :global(svg) {
+    width: 100%;
+    height: 100%;
+  }
+
+  .guest-intro-video-box,
+  .guest-intro-feature-card {
+    position: relative;
+    flex: 0 1 auto;
+    height: calc(100% - 20px);
+    width: auto;
+    min-width: 360px;
+    max-width: min(54vw, 920px);
+    aspect-ratio: 16 / 9;
+    border-radius: var(--radius-4);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    overflow: hidden;
+    background: rgba(18, 18, 18, 0.9);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.18);
+  }
+
+  .guest-intro-video-box {
+    display: block;
+    padding: 0 !important;
+    cursor: pointer;
+  }
+
+  .guest-intro-video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .guest-intro-play {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+    display: grid;
+    place-items: center;
+    width: clamp(68px, 7vw, 96px);
+    height: clamp(68px, 7vw, 96px);
+    border-radius: 999px;
+    background: rgba(245, 105, 86, 0.72);
+    border: 2px solid rgba(255, 255, 255, 0.58);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .guest-intro-play span {
+    display: block;
+    width: 0;
+    height: 0;
+    margin-left: 6px;
+    border-top: 17px solid transparent;
+    border-bottom: 17px solid transparent;
+    border-left: 25px solid rgba(255, 255, 255, 0.96);
+  }
+
+  .guest-intro-feature-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-5);
+    padding: var(--spacing-8);
+    box-sizing: border-box;
+    color: white;
+    text-align: center;
+  }
+
+  .guest-intro-feature-card.guest-feature-card {
+    gap: var(--spacing-5);
+    padding: var(--spacing-6);
+  }
+
+  .guest-intro-feature-icon {
+    display: grid;
+    place-items: center;
+    width: 62px;
+    height: 62px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .guest-feature-card .guest-intro-feature-icon {
+    width: 68px;
+    height: 68px;
+  }
+
+  .guest-feature-card .guest-intro-feature-text h3 {
+    max-width: 260px;
+    font-size: clamp(1.05rem, 1.6vw, 1.45rem);
+    line-height: 1.12;
+  }
+
+  .guest-intro-feature-text h3,
+  .guest-intro-feature-text p {
+    margin: 0;
+  }
+
+  .guest-intro-feature-text h3 {
+    font-size: var(--font-size-lg);
+    line-height: 1.15;
+  }
+
+  .guest-intro-feature-text p {
+    margin-top: var(--spacing-2);
+    font-size: var(--font-size-small);
+    line-height: 1.35;
+    color: rgba(255, 255, 255, 0.78);
   }
 
   /* ── Left column ──
@@ -1431,6 +1795,65 @@
       padding: 12px 48px 10px;
     }
 
+    .guest-intro-variant .banner-inner {
+      width: 100%;
+      padding: 16px 48px 18px;
+    }
+
+    .guest-intro-variant .banner-content {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 14px;
+    }
+
+    .guest-intro-copy-line {
+      font-size: clamp(1.35rem, 6.8vw, 2.15rem);
+      line-height: 1.06;
+    }
+
+    .guest-intro-copy-summary {
+      font-size: var(--font-size-small);
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .guest-feature-headline {
+      font-size: clamp(0.98rem, 4.8vw, 1.42rem);
+      line-height: 1.08;
+      -webkit-line-clamp: 5;
+      line-clamp: 5;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .guest-intro-video-box,
+    .guest-intro-feature-card {
+      width: 100%;
+      min-width: 0;
+      flex-basis: auto;
+      height: auto;
+      max-height: 145px;
+    }
+
+    .guest-intro-feature-card.guest-feature-card {
+      gap: var(--spacing-3);
+      padding: var(--spacing-4);
+    }
+
+    .guest-feature-card .guest-intro-feature-icon {
+      width: 52px;
+      height: 52px;
+    }
+
+    .guest-feature-card .guest-intro-feature-text h3 {
+      max-width: 220px;
+      font-size: var(--font-size-small);
+    }
+
     .carousel-arrow {
       width: 48px !important;
     }
@@ -1447,7 +1870,10 @@
     }
 
     .banner-content.mobile-card-loop .banner-left,
+    .banner-content.mobile-card-loop .guest-intro-copy,
     .banner-content.mobile-card-loop .banner-embed-wrapper,
+    .banner-content.mobile-card-loop .guest-intro-video-box,
+    .banner-content.mobile-card-loop .guest-intro-feature-card,
     .banner-content.mobile-card-loop .banner-info-card {
       position: absolute;
       inset: 0;
@@ -1457,12 +1883,14 @@
         transform 420ms ease;
     }
 
-    .banner-content.mobile-card-loop .banner-left {
+    .banner-content.mobile-card-loop .banner-left,
+    .banner-content.mobile-card-loop .guest-intro-copy {
       opacity: 1;
       transform: translateY(0);
     }
 
-    .banner-content.mobile-card-loop.show-mobile-card .banner-left {
+    .banner-content.mobile-card-loop.show-mobile-card .banner-left,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-copy {
       opacity: 0;
       pointer-events: none;
       transform: translateY(-6px);
@@ -1489,6 +1917,8 @@
     }
 
     .banner-content.mobile-card-loop .banner-embed-wrapper,
+    .banner-content.mobile-card-loop .guest-intro-video-box,
+    .banner-content.mobile-card-loop .guest-intro-feature-card,
     .banner-content.mobile-card-loop .banner-info-card {
       margin: 0;
       opacity: 0;
@@ -1498,10 +1928,20 @@
     }
 
     .banner-content.mobile-card-loop.show-mobile-card .banner-embed-wrapper,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-video-box,
+    .banner-content.mobile-card-loop.show-mobile-card .guest-intro-feature-card,
     .banner-content.mobile-card-loop.show-mobile-card .banner-info-card {
       opacity: 1;
       pointer-events: auto;
       transform: translateY(0);
+    }
+
+    .banner-content.mobile-card-loop .guest-intro-video-box,
+    .banner-content.mobile-card-loop .guest-intro-feature-card {
+      width: min(100%, 560px);
+      height: 100%;
+      max-height: none;
+      margin: 0 auto;
     }
 
     .banner-content.mobile-card-loop .banner-embed-wrapper :global(.embed-preview-container) {

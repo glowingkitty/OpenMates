@@ -18,9 +18,8 @@
 feature_overrides:
   enabled: []
   disabled:
-    # Empty / no implemented skills declared
+    # Empty / no implemented skills or focus modes declared
     - "app:3d"
-    - "app:politics"
     # Placeholder app folders without implemented runtime behavior yet
     - "app:fitness"
     - "app:life_coaching"

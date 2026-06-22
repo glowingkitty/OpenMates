@@ -6,9 +6,11 @@ Terminal CLI and Node.js SDK for OpenMates. Use it to pair-login, create or cont
 
 ```bash
 npm install -g openmates
-openmates chats list
+openmates
 openmates login
 ```
+
+Run plain `openmates` in an interactive terminal to open the full-screen chat UI. Use `/examples` to browse public example chats, type into any example to continue it as a new real or anonymous chat, `/login` for pair-auth, `/signup` for guided account creation, and `/embed <id>` to jump to full embed details. If stdin or stdout is redirected, plain `openmates` prints a script-friendly quickstart instead of entering the TUI.
 
 Without a session, `openmates chats list`, `show`, and `open` display clearly labeled public example chats from the web app. Login uses pair-auth: the CLI shows a QR code or PIN, and you approve it in the web app. To create a new account from the terminal, run `openmates signup`; passwords and recovery secrets are collected through hidden prompts, never command-line flags.
 
@@ -19,7 +21,9 @@ openmates whoami --json
 openmates chats list
 openmates chats show example-gigantic-airplanes
 openmates chats new "Help me plan my day"
+openmates chats new "Review @./src/app.ts"
 openmates chats send --chat <chat-id> "continue"
+openmates embeds show <embed-id>
 openmates apps list
 openmates apps ai ask "What is Docker?"
 openmates apps code run --language python --code 'print("Hello")'
@@ -52,11 +56,31 @@ Predefined settings commands are supported; raw `settings get/post/patch/delete`
 
 ## SDK
 
-```ts
-import { OpenMatesClient } from "openmates";
+The package also exports a lazy API-key SDK. Create an API key in OpenMates under Settings > Developers > API Keys, then set `OPENMATES_API_KEY` or pass `apiKey` explicitly. New SDK devices must be approved in Settings > Developers > Devices before API-key calls are allowed.
 
-const client = OpenMatesClient.load();
-const chats = await client.listChats();
+```ts
+import { OpenMates } from "openmates";
+
+const om = new OpenMates({ apiKey: process.env.OPENMATES_API_KEY });
+
+const search = await om.apps.run("web", "search", {
+  requests: [{ query: "OpenMates SDK examples" }],
+});
 ```
 
-Source docs: `docs/user-guide/cli/` in the OpenMates repository.
+SDK methods authenticate lazily; there is no `connect()` call.
+
+```ts
+const latestChats = await om.chats.list(); // defaults to 10
+const allChats = await om.chats.list({ limit: 0 });
+
+const privateChat = await om.chats.create();
+await privateChat.send("Summarize this release note draft.");
+
+const savedChat = await om.chats.create({ saveToAccount: true });
+await savedChat.send("Create a project kickoff checklist.");
+```
+
+New SDK chats are non-persistent by default. Use `saveToAccount: true` only when you intentionally want the chat saved to the OpenMates account.
+
+Source docs: `docs/user-guide/developers/sdk.md` in the OpenMates repository.

@@ -65,7 +65,13 @@
   let query = $derived(typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '');
   let provider = $derived(typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Brave');
   let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
-  let resultsProp = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
+  let resultsProp = $derived(
+    Array.isArray(data.decodedContent?.results)
+      ? data.decodedContent.results as unknown[]
+      : Array.isArray(data.decodedContent?.preview_results)
+        ? data.decodedContent.preview_results as unknown[]
+        : []
+  );
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
 
   let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
@@ -119,7 +125,7 @@
         embed_id: `legacy-${i}`,
         title: r.title as string | undefined,
         url: r.url as string,
-        favicon_url: (r.favicon_url as string) || (r.meta_url_favicon as string) || metaUrl?.favicon,
+        favicon_url: (r.favicon as string) || (r.favicon_url as string) || (r.meta_url_favicon as string) || metaUrl?.favicon,
         thumbnail: (r.thumbnail_original as string) || thumbnail?.original || thumbnail?.src,
         description: (r.description as string) || (r.snippet as string),
         extra_snippets: r.extra_snippets as string | string[] | undefined,

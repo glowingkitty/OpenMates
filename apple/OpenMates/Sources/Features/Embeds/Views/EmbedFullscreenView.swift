@@ -551,6 +551,7 @@ struct AppGradientBackground: View {
         case "music": return AnyShapeStyle(LinearGradient.appMusic)
         case "mail": return AnyShapeStyle(LinearGradient.appMail)
         case "docs": return AnyShapeStyle(LinearGradient.appDocs)
+        case "mindmaps": return AnyShapeStyle(LinearGradient.appDiagrams)
         case "pdf": return AnyShapeStyle(LinearGradient.appPdf)
         case "home": return AnyShapeStyle(LinearGradient.appHome)
         case "finance": return AnyShapeStyle(LinearGradient.appFinance)

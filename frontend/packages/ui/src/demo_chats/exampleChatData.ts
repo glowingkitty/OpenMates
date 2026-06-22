@@ -46,7 +46,6 @@ import { upcomingRemindersListChat } from "./data/example_chats/upcoming-reminde
 import { cancelTestReminderChat } from "./data/example_chats/cancel-test-reminder";
 import { fediverseActivitypubSocialSearchChat } from "./data/example_chats/fediverse-activitypub-social-search";
 import { mastodonAccountRecentPostsChat } from "./data/example_chats/mastodon-account-recent-posts";
-import { habitGardenViteAppChat } from "./data/example_chats/habit-garden-vite-app";
 import { pdfReadSecretWordChat } from "./data/example_chats/pdf-read-secret-word";
 import { pdfViewPageLayoutChat } from "./data/example_chats/pdf-view-page-layout";
 import { pdfSearchEncryptionChat } from "./data/example_chats/pdf-search-encryption";
@@ -94,6 +93,8 @@ import { rostockHeavyRainRadarChat } from "./data/example_chats/rostock-heavy-ra
 import { classicCarReverseImageSearchChat } from "./data/example_chats/classic-car-reverse-image-search";
 import { usbC3v3LdoPcbSchematicChat } from "./data/example_chats/usb-c-3v3-ldo-pcb-schematic";
 import { berlinMorningBikeForecastChat } from "./data/example_chats/berlin-morning-bike-forecast";
+import { privacyFirstProductLaunchMindMapChat } from "./data/example_chats/privacy-first-product-launch-mind-map";
+import { housingPolicyDinnerDiscussionChat } from "./data/example_chats/housing-policy-dinner-discussion";
 
 export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   giganticAirplanesChat,
@@ -135,7 +136,6 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   cancelTestReminderChat,
   fediverseActivitypubSocialSearchChat,
   mastodonAccountRecentPostsChat,
-  habitGardenViteAppChat,
   pdfReadSecretWordChat,
   pdfViewPageLayoutChat,
   pdfSearchEncryptionChat,
@@ -182,6 +182,8 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   classicCarReverseImageSearchChat,
   usbC3v3LdoPcbSchematicChat,
   berlinMorningBikeForecastChat,
+  privacyFirstProductLaunchMindMapChat,
+  housingPolicyDinnerDiscussionChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 // Internal deterministic fixtures used by tests and direct hash navigation only.

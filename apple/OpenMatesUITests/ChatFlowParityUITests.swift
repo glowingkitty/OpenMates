@@ -67,6 +67,68 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Seeded chat-flow visual snapshot")
     }
 
+    func testGuestInterestTagsSelectAndFilterSuggestions() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
+        app.launch()
+
+        XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
+        XCTAssertFalse(app.descendants(matching: .any)["guest-interest-continue"].exists)
+
+        tapVisibleInterestTags(count: 3, in: app)
+        XCTAssertFalse(app.descendants(matching: .any)["guest-interest-continue"].exists)
+        tapVisibleInterestTags(count: 1, in: app)
+
+        let continueButton = app.descendants(matching: .any)["guest-interest-continue"]
+        XCTAssertTrue(continueButton.waitForExistence(timeout: 5))
+        continueButton.tap()
+
+        XCTAssertTrue(app.buttons["guest-interest-select-interests"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["welcome-chat-card-demo-for-everyone"].waitForExistence(timeout: 10))
+
+        let codingSuggestion = app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.learn_coding"]
+        XCTAssertTrue(codingSuggestion.waitForExistence(timeout: 10))
+
+        let messageEditor = app.textFields["message-editor"]
+        XCTAssertTrue(messageEditor.waitForExistence(timeout: 5))
+        messageEditor.tap()
+        messageEditor.typeText("coding")
+
+        XCTAssertTrue(codingSuggestion.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.cover_letter"].isHittable)
+        XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
+
+        attachScreenshot(name: "Guest interest tag selection filters suggestions")
+    }
+
+    private func tapVisibleInterestTags(count: Int, in app: XCUIApplication) {
+        let tagContainer = app.scrollViews["guest-interest-rail"]
+        XCTAssertTrue(tagContainer.waitForExistence(timeout: 5), "Expected guest interest tags")
+
+        var tapped = 0
+        var visited = Set<String>()
+        let tagButtons = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "interest-tag-"))
+
+        for _ in 0..<8 where tapped < count {
+            for index in 0..<tagButtons.count where tapped < count {
+                let tag = tagButtons.element(boundBy: index)
+                let tagId = tag.identifier
+                let check = app.descendants(matching: .any)["\(tagId)-check"]
+                guard !visited.contains(tagId), !check.exists, tag.exists, tag.isHittable else { continue }
+                visited.insert(tagId)
+                tag.tap()
+                XCTAssertTrue(check.waitForExistence(timeout: 5))
+                tapped += 1
+            }
+
+            if tapped < count {
+                tagContainer.swipeLeft()
+            }
+        }
+
+        XCTAssertEqual(tapped, count, "Expected to select \(count) visible interest tags")
+    }
+
     private func attachScreenshot(name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name

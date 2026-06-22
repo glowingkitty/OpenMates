@@ -4,7 +4,7 @@ doc_type: reference
 audience:
   - end-users
   - technical-users
-last_verified: 2026-06-19
+last_verified: 2026-06-21
 claims:
   - id: cli-readme-lists-command-categories
     type: unit
@@ -27,16 +27,29 @@ claims:
       command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
       assertion: cli-npm-readme-onboarding-matches-command-surface
     verified: '2026-06-11'
+  - id: cli-plain-openmates-launches-tui-or-quickstart
+    type: unit
+    claim: Plain `openmates` launches the terminal chat UI for interactive TTYs and prints a programmatic quickstart for redirected/non-interactive contexts.
+    source:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/tui.ts
+      - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    test:
+      file: frontend/packages/openmates-cli/tests/tui.test.ts
+      command: cd frontend/packages/openmates-cli && npm run test:unit:tui
+      assertion: cli-plain-openmates-launches-tui-or-quickstart
+    verified: '2026-06-21'
 ---
 
 # OpenMates CLI
 
-A terminal interface and Node.js SDK for interacting with OpenMates. Provides pair-auth login, encrypted chat operations, app skill execution, settings management, and self-hosted server administration.
+A terminal interface and Node.js SDK for interacting with OpenMates. Plain `openmates` opens a lightweight chat TUI in interactive terminals; explicit subcommands provide pair-auth login, encrypted chat operations, app skill execution, settings management, and self-hosted server administration.
 
 ## Installation
 
 ```
 npm install -g openmates
+openmates
 ```
 
 Requires Node.js 20+. Runtime dependencies are minimal: `qrcode-terminal` (pair-auth QR display), `ws` (WebSocket streaming), `@toon-format/toon` (embed encoding), and `ahocorasick` (mention matching).
@@ -44,15 +57,19 @@ Requires Node.js 20+. Runtime dependencies are minimal: `qrcode-terminal` (pair-
 ## Quick Start
 
 ```
+openmates
 openmates login
 openmates whoami
 openmates chats list
 openmates chats show example-gigantic-airplanes
 openmates chats new "Hello, what can you help me with?"
+openmates chats new "Review @./src/app.ts"
 openmates apps list
 ```
 
-`openmates chats list`, `show`, and `open` work before login for clearly labeled public example chats. Private encrypted chats, sending messages, settings, and personalized data require login. Login uses pair-auth -- the CLI never asks for your account password during login. A QR code or pair PIN is displayed in your terminal, which you confirm in the web app. New users can run `openmates signup` for guided account creation. See [authentication.md](./authentication.md) for details.
+In a normal terminal, plain `openmates` enters the full-screen chat UI. Use `/examples` for public examples, `/help` for TUI commands, `/login` for pair-auth, `/signup` to leave the TUI and run guided account creation, and `/exit` to restore your shell. In redirected or piped contexts, plain `openmates` prints common programmatic commands and exits successfully.
+
+`openmates chats list`, `show`, and `open` work before login for clearly labeled public example chats. Private encrypted chats, settings, and personalized data require login. Login uses pair-auth -- the CLI never asks for your account password during login. A QR code or pair PIN is displayed in your terminal, which you confirm in the web app. New users can run `openmates signup` for guided account creation. See [authentication.md](./authentication.md) for details.
 
 ## Commands
 

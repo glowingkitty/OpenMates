@@ -137,6 +137,7 @@ struct SuggestionChip: View {
             .contentShape(RoundedRectangle(cornerRadius: 15))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("new-chat-suggestion-card-\(suggestion.id)")
     }
 }
 

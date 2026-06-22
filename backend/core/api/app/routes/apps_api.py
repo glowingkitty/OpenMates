@@ -13,6 +13,7 @@ import base64
 import httpx
 import hashlib
 import os
+from datetime import datetime, timedelta, timezone
 
 from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, HTTPException, Request, Response, Depends, Body, FastAPI, Cookie
@@ -28,6 +29,11 @@ from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkill
 from backend.shared.python_utils.billing_utils import calculate_total_credits
 from backend.shared.python_utils.provider_health import map_provider_name_to_id
 from backend.core.api.app.services.rest_skill_execution_policy import assert_rest_skill_execution_allowed
+from backend.core.api.app.services.api_key_authorization import (
+    ApiKeyAuthorizationService,
+    ApiKeyBudgetError,
+    ApiKeyScopeError,
+)
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 
 # Import comprehensive ASCII smuggling sanitization
@@ -748,6 +754,19 @@ async def call_app_skill(
 
     registry = get_global_registry()
     assert_rest_skill_execution_allowed(registry, app_id, skill_id)
+    api_key_hash = user_info.get("api_key_hash")
+    if api_key_hash:
+        try:
+            ApiKeyAuthorizationService().require_app_skill_scope(
+                user_info.get("api_key_metadata") or {},
+                app_id,
+                skill_id,
+            )
+        except ApiKeyScopeError as exc:
+            raise HTTPException(
+                status_code=403,
+                detail={"error": "missing_scope", "missing_scope": exc.missing_scope},
+            ) from exc
 
     # SECURITY: Sanitize all text in input_data to prevent ASCII smuggling attacks
     user_id_short = user_info['user_id'][:8] if user_info.get('user_id') else 'unknown'
@@ -1127,6 +1146,97 @@ async def charge_credits_via_internal_api(
     except Exception as e:
         logger.error(f"Error charging credits for skill '{app_id}.{skill_id}': {e}", exc_info=True)
         # Don't raise - billing failure shouldn't break skill execution response
+
+
+async def get_api_key_budget_spend(
+    directus_service: DirectusService,
+    *,
+    user_id: str,
+    api_key_hash: str,
+    period: str,
+) -> int:
+    """Return credits already spent by an API key for the configured period."""
+    user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    now = datetime.now(timezone.utc)
+
+    if period == "daily":
+        items = await directus_service.get_items(
+            "usage_daily_api_key_summaries",
+            {
+                "filter[user_id_hash][_eq]": user_id_hash,
+                "filter[api_key_hash][_eq]": api_key_hash,
+                "filter[date][_eq]": now.strftime("%Y-%m-%d"),
+                "fields": "total_credits",
+                "limit": 1,
+            },
+            no_cache=True,
+        )
+        return int(items[0].get("total_credits", 0)) if items else 0
+
+    if period == "monthly":
+        items = await directus_service.get_items(
+            "usage_monthly_api_key_summaries",
+            {
+                "filter[user_id_hash][_eq]": user_id_hash,
+                "filter[api_key_hash][_eq]": api_key_hash,
+                "filter[year_month][_eq]": now.strftime("%Y-%m"),
+                "fields": "total_credits",
+                "limit": 1,
+            },
+            no_cache=True,
+        )
+        return int(items[0].get("total_credits", 0)) if items else 0
+
+    filters = {
+        "filter[user_id_hash][_eq]": user_id_hash,
+        "filter[api_key_hash][_eq]": api_key_hash,
+        "fields": "credits_charged",
+        "limit": 5000,
+    }
+    if period == "weekly":
+        week_start = int((now - timedelta(days=7)).timestamp())
+        filters["filter[timestamp][_gte]"] = week_start
+    items = await directus_service.get_items("usage", filters, no_cache=True)
+    return sum(int(item.get("credits_charged") or 0) for item in (items or []))
+
+
+async def require_api_key_budget_for_charge(
+    directus_service: DirectusService,
+    *,
+    user_info: Dict[str, Any],
+    requested_credits: int,
+) -> None:
+    api_key_hash = user_info.get("api_key_hash")
+    if not api_key_hash or requested_credits <= 0:
+        return
+
+    metadata = user_info.get("api_key_metadata") or {}
+    credit_limit = metadata.get("credit_limit")
+    if not credit_limit:
+        return
+
+    already_spent = await get_api_key_budget_spend(
+        directus_service,
+        user_id=user_info["user_id"],
+        api_key_hash=api_key_hash,
+        period=credit_limit["period"],
+    )
+    try:
+        ApiKeyAuthorizationService().require_budget(
+            metadata,
+            already_spent=already_spent,
+            requested_credits=requested_credits,
+        )
+    except ApiKeyBudgetError as exc:
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "error": "api_key_credit_limit_exceeded",
+                "period": exc.period,
+                "limit_credits": exc.limit_credits,
+                "remaining_credits": exc.remaining_credits,
+            },
+        ) from exc
 
 
 # API Endpoints
@@ -2446,6 +2556,11 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     input_data=request_dict,  # Use request_dict for credit calculation (contains 'requests' array)
                                     result_data=result
                                 )
+                                await require_api_key_budget_for_charge(
+                                    directus_service,
+                                    user_info=user_info,
+                                    requested_credits=credits_charged,
+                                )
                                 
                                 # Calculate units_processed for usage tracking
                                 units_processed = None
@@ -2648,6 +2763,11 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     input_data=request_dict,
                                     result_data=result
                                 )
+                                await require_api_key_budget_for_charge(
+                                    directus_service,
+                                    user_info=user_info,
+                                    requested_credits=credits_charged,
+                                )
                                 
                                 if credits_charged > 0:
                                     user_id_hash = hashlib.sha256(user_info['user_id'].encode()).hexdigest()
@@ -2741,6 +2861,11 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     input_data=request_body,  # Contains 'requests' array
                                     result_data=result
                                 )
+                                await require_api_key_budget_for_charge(
+                                    directus_service,
+                                    user_info=user_info,
+                                    requested_credits=credits_charged,
+                                )
                                 
                                 # Calculate units_processed for usage tracking
                                 units_processed = None
@@ -2826,6 +2951,11 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                                     skill_id=captured_skill.id,
                                     input_data=request_data.input_data,  # Contains 'requests' array
                                     result_data=result
+                                )
+                                await require_api_key_budget_for_charge(
+                                    directus_service,
+                                    user_info=user_info,
+                                    requested_credits=credits_charged,
                                 )
                                 
                                 # Calculate units_processed for usage tracking

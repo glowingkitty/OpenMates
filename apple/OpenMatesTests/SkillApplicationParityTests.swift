@@ -65,6 +65,40 @@ final class SkillApplicationParityTests: XCTestCase {
         XCTAssertEqual(Set(related.map(\.id)), Set(webSearch.allRecords.keys))
     }
 
+    func testSearchPreviewModelUsesParentPreviewMetadataWithoutChildHydration() throws {
+        let parent = EmbedRecord(
+            id: "metadata-only-news-parent",
+            type: EmbedType.newsSearch.rawValue,
+            status: .finished,
+            data: .raw([
+                "app_id": AnyCodable("news"),
+                "skill_id": AnyCodable("search"),
+                "query": AnyCodable("privacy ai"),
+                "provider": AnyCodable("Brave Search"),
+                "result_count": AnyCodable(2),
+                "embed_ids": AnyCodable(["child-1", "child-2"]),
+                "preview_results": AnyCodable([
+                    [
+                        "title": "OpenMates privacy launch",
+                        "url": "https://news.example/openmates",
+                        "favicon": "https://news.example/favicon.ico",
+                    ]
+                ]),
+            ]),
+            parentEmbedId: nil,
+            appId: "news",
+            skillId: "search",
+            embedIds: "child-1|child-2",
+            createdAt: "2026-06-21T12:00:00Z"
+        )
+
+        let model = SearchSkillPreviewModel(embed: parent, allEmbedRecords: [parent.id: parent])
+
+        XCTAssertEqual(model.previewResultCount, 2)
+        XCTAssertEqual(model.websiteResults.map(\.title), ["OpenMates privacy launch"])
+        XCTAssertTrue(model.websiteResults.first?.faviconURL?.contains("news.example") == true)
+    }
+
     func testFileMediaFixturesUseSyntheticPublicPayloads() throws {
         let imageUpload = try XCTUnwrap(
             DevEmbedPreviewFixtures.skills(for: .images).first { $0.id == "images-upload" }?.primaryEmbed

@@ -120,12 +120,7 @@ Uses SecurityAuth component for passkey/2FA verification.
             window.dispatchEvent(new CustomEvent('userLoggingOut'));
             
             await new Promise(resolve => setTimeout(resolve, 50));
-            activeChatStore.setActiveChat('demo-for-everyone');
-            
-            // Reset URL to demo welcome page
-            if (typeof window !== 'undefined') {
-                window.location.hash = 'chat-id=demo-for-everyone';
-            }
+            activeChatStore.clearActiveChat();
             
             phasedSyncState.markSyncCompleted();
             await new Promise(resolve => setTimeout(resolve, 200));

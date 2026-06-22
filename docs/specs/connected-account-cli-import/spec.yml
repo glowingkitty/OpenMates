@@ -1,0 +1,370 @@
+id: connected-account-cli-import
+title: Connected Account CLI Import
+status: implementing
+
+goal: >
+  Let a user copy one connected account from their normal OpenMates account to a
+  separate test account by exporting the refresh-token bundle from the source
+  client, protecting it with a passcode, and importing it through OpenMates CLI
+  where it is re-encrypted for the destination account before storage.
+
+scope:
+  in:
+    - Export command generation for one existing connected account from web settings.
+    - Passcode-encrypted export payload containing the plaintext token bundle only inside ciphertext.
+    - CLI import into the currently logged-in destination account.
+    - Re-encryption of imported connected-account fields with the destination account master key.
+    - Harmless provider validation read after import.
+  out:
+    - Server-side persistent refresh-token grants or offline automation credentials.
+    - Bulk account export/import.
+    - Exporting connected accounts without a user-entered passcode.
+    - Sharing connected accounts through REST/API keys.
+
+context_discovery:
+  github_issues:
+    - "gh issue list --repo glowingkitty/OpenMates --search 'connected account refresh token CLI' --state all --limit 10: no matches."
+  docs:
+    - docs/specs/calendar-permission-management/spec.yml
+    - docs/architecture/apps/action-confirmation.md
+    - docs/architecture/core/client-side-encryption.md
+    - docs/architecture/platforms/cli.md
+  code_patterns:
+    - frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
+    - frontend/packages/ui/src/services/connectedAccountStorageService.ts
+    - frontend/packages/ui/src/services/connectedAccountOAuthService.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/crypto.ts
+    - backend/core/api/app/routes/connected_accounts.py
+    - backend/core/api/app/routes/token_broker.py
+    - backend/shared/providers/google_calendar/oauth.py
+  tests:
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersConnectedAccounts.test.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - backend/tests/test_connected_accounts_permissions.py
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This first slice is web-settings export plus CLI import for testing; Apple app import/export UI is out of scope.
+  verification:
+    - Apple not affected for this CLI-only test-support slice.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should transfer work between separate OpenMates accounts rather than only syncing across devices for the same account?
+      answer: Yes. The source client decrypts locally, exports with a passcode, and the CLI re-encrypts for the separate test account.
+  vision_summary: >
+    Connected-account rows already sync across devices for the same user account because the same account master key can decrypt them. This feature is only for explicitly transferring one connected account to a different test account by re-encrypting token material client-side through a passcode-protected handoff.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Source user generates an encrypted import command
+    given:
+      - Alice is logged into the web app and has one Google Calendar connected account.
+      - Alice opens connected account privacy settings and selects the account.
+    when:
+      - Alice enters a passcode and asks OpenMates to generate a CLI import command.
+    then:
+      - The browser decrypts the selected refresh-token bundle only in memory.
+      - The generated command contains a passcode-encrypted payload and no plaintext refresh token.
+      - Alice can copy the command to the clipboard.
+
+  - id: S-2
+    title: CLI imports into a separate test account
+    given:
+      - Alice is logged into OpenMates CLI as a separate test account.
+      - Alice has copied the encrypted import command from the source account.
+    when:
+      - Alice runs the command and enters the passcode interactively.
+    then:
+      - The CLI decrypts the export payload locally.
+      - The CLI encrypts provider, label, capabilities, permissions, directory hint, and refresh-token bundle with the destination account master key.
+      - The API stores an owned encrypted connected-account row for the destination account.
+
+  - id: S-3
+    title: CLI validates imported credentials with a harmless read
+    given:
+      - The CLI has decrypted a valid Google Calendar refresh-token bundle during import.
+    when:
+      - The CLI asks the backend to validate the account.
+    then:
+      - The backend uses confidential OAuth credentials to exchange the refresh token transiently.
+      - The backend performs a non-mutating provider read.
+      - The backend returns only a success/failure summary without token material or provider-private details.
+
+  - id: S-4
+    title: Invalid imports fail safely
+    given:
+      - Alice runs the CLI import command with a wrong passcode, malformed payload, unsupported provider, or no logged-in CLI session.
+    when:
+      - The CLI attempts import.
+    then:
+      - The command fails with a generic actionable error.
+      - No connected-account row is stored.
+      - No refresh token, access token, provider account id, or provider email is printed or logged.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Web settings can generate a CLI import command for one connected account using a user-entered passcode, and the command contains no plaintext token material.
+  - id: AC-2
+    scenario: S-2
+    text: CLI import re-encrypts the connected-account row with the destination account master key before storing it through the existing connected-account API.
+  - id: AC-3
+    scenario: S-3
+    text: CLI import validates the imported Google Calendar token through a harmless backend-assisted read without persisting or returning token material.
+  - id: AC-4
+    scenario: S-4
+    text: Wrong passcodes, malformed payloads, unsupported providers, and missing CLI sessions fail without storing connected-account rows or leaking secrets.
+
+contracts:
+  ui:
+    - surface: settings/privacy/connected-accounts
+      behavior: >
+        Add a selected-account action that prompts for a passcode, generates a
+        passcode-encrypted CLI command, copies it, and shows explicit warning
+        copy that this grants a separate OpenMates account access to the external
+        provider account.
+  cli:
+    - command: openmates connected-accounts import --payload <OMCA1...>
+      behavior: >
+        Requires an existing CLI login, prompts for passcode interactively, imports
+        exactly one connected account, validates it, and prints a redacted result.
+      forbidden:
+        - --passcode flag
+        - plaintext token flags
+        - printing decrypted payloads
+  api:
+    - route: POST /v1/connected-accounts/validate-import
+      request: "provider_id, app_id, capabilities, refresh_token_envelope"
+      response: "valid boolean, provider_id, app_id, checked_at"
+      errors:
+        - 400 for unsupported provider or malformed token envelope.
+        - 401 when unauthenticated.
+        - 502 when provider token exchange/read validation fails.
+      security:
+        - Does not store refresh tokens or access tokens.
+        - Does not return account email, provider account id, calendar names, event data, or access tokens.
+  data:
+    - collection: connected_accounts
+      behavior: >
+        Import stores the same encrypted/hash field shape as OAuth handoff
+        finalization, with a new destination-account-owned id and hashed_user_id.
+  privacy_security:
+    - Export payload version OMCA1 stores plaintext refresh-token bundle only inside passcode-encrypted ciphertext.
+    - CLI import uses hidden passcode input and does not accept passcode as an argument.
+    - Persistent storage receives only client-encrypted connected-account row fields.
+    - Logs and output must redact refresh_token, access_token, provider_account_id, account_email, provider_email, account labels, and full payload internals.
+
+tests:
+  - id: T-BUILD-UI-EXPORT
+    type: build
+    file: frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
+    command: cd frontend/packages/ui && npm run build
+    covers:
+      - AC-1
+    assertions:
+      - settings export UI and connectedAccountCliTransfer helper typecheck through the UI package build
+      - new settings translation keys resolve through validate:locales
+      - generated metadata and icon validation still pass
+    red_phase:
+      required: false
+      expected: not_captured
+      evidence:
+        status: not_required
+        run_id: "implementation already in progress when this build check was added"
+        timestamp: "2026-06-21"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "cd frontend/packages/ui && npm run build"
+        timestamp: "2026-06-21"
+
+  - id: T-UNIT-CLI-IMPORT
+    type: unit
+    file: frontend/packages/openmates-cli/tests/connectedAccountImport.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test:unit:connected-account-import
+    covers:
+      - AC-2
+      - AC-4
+    assertions:
+      - OMCA1 payload decrypts only with the correct passcode
+      - generated OMCA1 payload does not contain plaintext token material
+      - destination row contains no plaintext token, account ref, or label
+      - destination row encrypted fields decrypt with the destination master key
+    red_phase:
+      required: false
+      expected: not_captured
+      evidence:
+        status: not_required
+        run_id: "implementation already in progress when this unit check was added"
+        timestamp: "2026-06-21"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "cd frontend/packages/openmates-cli && npm run test:unit:connected-account-import"
+        timestamp: "2026-06-21"
+
+  - id: T-UNIT-CLI-COMMAND
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+    covers:
+      - AC-4
+    assertions:
+      - connected-accounts import appears in help
+      - import rejects passcodes passed as flags
+      - import requires a logged-in CLI session before prompting
+      - import output omits connected-account labels because labels may contain provider emails
+    red_phase:
+      required: false
+      expected: not_captured
+      evidence:
+        status: not_required
+        run_id: "implementation already in progress when this command-surface check was added"
+        timestamp: "2026-06-21"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli"
+        timestamp: "2026-06-21"
+
+  - id: T-PYTEST-VALIDATE
+    type: pytest
+    file: backend/tests/test_connected_accounts_permissions.py
+    command: docker exec api python -m pytest /app/backend/tests/test_connected_accounts_permissions.py
+    covers:
+      - AC-3
+      - AC-4
+    assertions:
+      - validate-import rejects unsupported providers
+      - validate-import exchanges token transiently and performs a fake harmless read
+      - validate-import response contains no refresh_token or access_token
+    red_phase:
+      required: false
+      expected: not_captured
+      evidence:
+        status: not_required
+        run_id: "implementation already in progress when this backend check was added"
+        timestamp: "2026-06-21"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_connected_accounts_permissions.py"
+        timestamp: "2026-06-21"
+
+implementation_plan:
+  existing_patterns:
+    - connected-account OAuth finalization already builds encrypted rows client-side.
+    - CLI crypto already supports AES-GCM and destination-account master key access.
+    - Token broker/provider code already exchanges Google refresh tokens on the backend with Vault OAuth credentials.
+  architecture: >
+    Add a shared OMCA1 passcode-encrypted payload format. Web generates the import
+    command by decrypting the selected account locally and encrypting the transfer
+    payload with the passcode. CLI decrypts the payload, validates through a new
+    transient backend endpoint, builds the destination encrypted row with its local
+    master key, and stores it through POST /v1/connected-accounts.
+  data_flow:
+    - Web selected account row -> local decrypt -> OMCA1 ciphertext -> copied CLI command.
+    - CLI command -> hidden passcode prompt -> local decrypt -> backend validation -> destination encrypted row -> connected_accounts create.
+  affected_files:
+    - path: docs/specs/connected-account-cli-import/spec.yml
+      reason: Product/security contract.
+    - path: frontend/packages/ui/src/services/connectedAccountCliTransfer.ts
+      reason: Web export payload crypto and command generation.
+    - path: frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
+      reason: Settings export UI.
+    - path: frontend/packages/openmates-cli/src/connectedAccountImport.ts
+      reason: CLI import payload crypto and row construction.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Command routing and help.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Connected account storage/validation client methods.
+    - path: backend/core/api/app/routes/connected_accounts.py
+      reason: Harmless import validation route.
+    - path: backend/tests/test_connected_accounts_permissions.py
+      reason: Backend route coverage.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/connected-account-cli-import/spec.yml
+    - cd frontend/packages/ui && npm run build
+    - cd frontend/packages/openmates-cli && npm run test:unit:connected-account-import
+    - cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+    - docker exec api python -m pytest /app/backend/tests/test_connected_accounts_permissions.py
+  verification_order:
+    - Backend pytest for transient validation contract.
+    - CLI unit/build tests for import behavior.
+    - Web unit tests if package command is available; otherwise type/build verification.
+
+tasks:
+  - id: TASK-1
+    title: Add transfer payload helpers
+    covers:
+      scenarios:
+        - S-1
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-4
+    expected_files:
+      - frontend/packages/ui/src/services/connectedAccountCliTransfer.ts
+      - frontend/packages/openmates-cli/src/connectedAccountImport.ts
+    verification:
+      - T-BUILD-UI-EXPORT
+      - T-UNIT-CLI-IMPORT
+    independently_deployable: false
+  - id: TASK-2
+    title: Add web export command UI
+    covers:
+      scenarios:
+        - S-1
+      acceptance_criteria:
+        - AC-1
+    expected_files:
+      - frontend/packages/ui/src/components/settings/privacy/SettingsConnectedAccounts.svelte
+    verification:
+      - T-BUILD-UI-EXPORT
+    independently_deployable: false
+  - id: TASK-3
+    title: Add CLI import command and backend validation
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+        - AC-4
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - backend/core/api/app/routes/connected_accounts.py
+      - backend/tests/test_connected_accounts_permissions.py
+    verification:
+      - T-UNIT-CLI-IMPORT
+      - T-UNIT-CLI-COMMAND
+      - T-PYTEST-VALIDATE
+    independently_deployable: true
+
+risks:
+  - Users may mistake this for a normal sharing feature; UI copy must clearly label it as test/developer transfer.
+  - Browser clipboard and shell history hold the encrypted payload, so payload must remain strongly passcode-protected.
+  - Provider token validation must avoid returning calendar names, emails, events, or token material.
+
+open_questions:
+  - Should the export UI be hidden outside dev/test mode in a later hardening slice?

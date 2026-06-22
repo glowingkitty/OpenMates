@@ -321,6 +321,36 @@ def test_web_search_parent_preview_metadata_flattens_grouped_results() -> None:
     ]
 
 
+def test_news_search_parent_preview_metadata_contains_favicon_capable_results() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    metadata = EmbedService._build_parent_preview_metadata(
+        "news",
+        "search",
+        [
+            {
+                "title": "OpenMates raises privacy bar",
+                "url": "https://news.example/openmates",
+                "description": "Long article text that should stay child-only",
+                "favicon": "https://news.example/favicon.ico",
+                "published_date": "2026-06-21",
+                "raw_provider_payload": {"large": "blob"},
+            }
+        ],
+    )
+
+    assert metadata == {
+        "preview_results": [
+            {
+                "title": "OpenMates raises privacy bar",
+                "url": "https://news.example/openmates",
+                "favicon": "https://news.example/favicon.ico",
+                "published_date": "2026-06-21",
+            }
+        ]
+    }
+
+
 def test_generic_result_list_parent_preview_metadata_contains_shallow_fields() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 

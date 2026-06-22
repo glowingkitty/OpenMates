@@ -34,6 +34,7 @@ import { clientLogForwarder } from "../services/clientLogForwarder";
 import { resetUserAvailableSkills } from "./appSkillsStore";
 import { applyServerDarkMode } from "./theme";
 import { applyServerUiFont } from "./uiFont";
+import { promoteGuestTopicPreferencesIfNeeded } from "../services/topicPreferencesSync";
 import { markDeviceReceivedFreeTestingCredits } from "./serverStatusStore";
 
 // Import core auth state and related flags
@@ -348,6 +349,7 @@ export async function login(
                 data.user.follow_up_suggestions_enabled !== false,
               quick_tips_enabled:
                 data.user.quick_tips_enabled !== false,
+              encrypted_settings: data.user.encrypted_settings ?? null,
             });
 
             // Apply server dark mode preference to the theme store.
@@ -355,6 +357,15 @@ export async function login(
             // manual preference in localStorage, so local choices always win.
             applyServerDarkMode(userDarkMode);
             applyServerUiFont(userUiFont);
+
+            try {
+              await promoteGuestTopicPreferencesIfNeeded();
+            } catch (error) {
+              console.warn(
+                "[Login] Failed to sync topic preferences after login:",
+                error,
+              );
+            }
 
             // Sync browser timezone to server (non-blocking)
             // This ensures the server always has the user's current timezone

@@ -15,8 +15,11 @@
     import {
         listConnectedAccounts,
         summarizeConnectedAccountRows,
+        type EncryptedConnectedAccountRow,
         type ConnectedAccountSummary
     } from '../../../services/connectedAccountStorageService';
+    import { buildConnectedAccountCliImportCommand } from '../../../services/connectedAccountCliTransfer';
+    import { copyToClipboard } from '../../../utils/clipboardUtils';
     import {
         finalizeOAuthHandoffAsConnectedAccount,
         startGoogleCalendarOAuth
@@ -26,22 +29,30 @@
         SettingsCard,
         SettingsDetailRow,
         SettingsInfoBox,
-        SettingsSectionHeading
+        SettingsInput,
+        SettingsSectionHeading,
+        SettingsTextarea
     } from '../../settings/elements';
 
     const CALENDAR_UPDATE_ACCOUNT_KEY = 'openmates_calendar_update_account_id';
 
     let summaries = $state<ConnectedAccountSummary[]>([]);
+    let accountRows = $state<EncryptedConnectedAccountRow[]>([]);
     let selectedAccountId = $state('');
     let loading = $state(false);
-    let action = $state<'idle' | 'updating' | 'finalizing'>('idle');
+    let action = $state<'idle' | 'updating' | 'finalizing' | 'exporting'>('idle');
     let error = $state('');
     let success = $state('');
     let finalizedOAuthHandoffId = $state('');
+    let cliExportPasscode = $state('');
+    let cliImportCommand = $state('');
 
     let isAuthenticated = $derived($authStore.isAuthenticated);
     let selectedAccount = $derived(
         summaries.find((summary) => summary.id === selectedAccountId) ?? summaries[0] ?? null
+    );
+    let selectedAccountRow = $derived(
+        accountRows.find((row) => row.id === selectedAccount?.id) ?? null
     );
 
     onMount(() => {
@@ -69,6 +80,7 @@
         if (clearExistingError) error = '';
         try {
             const rows = await listConnectedAccounts();
+            accountRows = rows;
             summaries = await summarizeConnectedAccountRows(rows);
             if (!selectedAccountId && summaries.length > 0) {
                 selectedAccountId = summaries[0].id;
@@ -144,6 +156,34 @@
         }
     }
 
+    async function generateCliImportCommand() {
+        if (!selectedAccountRow) return;
+        if (!cliExportPasscode.trim()) {
+            error = $text('settings.privacy.connected_accounts.cli_export_passcode_required');
+            return;
+        }
+        action = 'exporting';
+        error = '';
+        success = '';
+        cliImportCommand = '';
+        try {
+            const command = await buildConnectedAccountCliImportCommand({
+                row: selectedAccountRow,
+                passcode: cliExportPasscode
+            });
+            cliImportCommand = command;
+            const copied = await copyToClipboard(command);
+            success = copied.success
+                ? $text('settings.privacy.connected_accounts.cli_export_copied')
+                : $text('settings.privacy.connected_accounts.cli_export_generated');
+        } catch (exportError) {
+            console.warn('[SettingsConnectedAccounts] Failed to generate connected-account CLI import command:', exportError);
+            error = $text('settings.privacy.connected_accounts.cli_export_error');
+        } finally {
+            action = 'idle';
+        }
+    }
+
     function getOAuthHandoffId(): string | null {
         if (typeof window === 'undefined') return null;
         return new URLSearchParams(window.location.search).get('oauth_handoff_id');
@@ -188,6 +228,13 @@
     function needsCalendarWriteAccess(account: ConnectedAccountSummary): boolean {
         return account.app_id === 'calendar' && !account.capabilities.includes('write');
     }
+
+    function selectConnectedAccount(accountId: string) {
+        selectedAccountId = accountId;
+        cliImportCommand = '';
+        success = '';
+        error = '';
+    }
 </script>
 
 <div data-testid="privacy-connected-accounts-page">
@@ -220,7 +267,7 @@
                         subtitleTop={providerLabel(account.provider_id)}
                         title={account.label}
                         subtitleBottom={capabilityLabels(account.capabilities)}
-                        onClick={() => { selectedAccountId = account.id; }}
+                        onClick={() => selectConnectedAccount(account.id)}
                     />
                 </div>
             {/each}
@@ -236,6 +283,35 @@
                         <SettingsDetailRow label={$text('settings.privacy.connected_accounts.runtime_modes')} value={runtimeModeLabels(selectedAccount.runtime_modes)} />
                     </SettingsCard>
                 </div>
+
+                <SettingsSectionHeading title={$text('settings.privacy.connected_accounts.cli_export_title')} icon="app" />
+                <SettingsInfoBox type="warning">
+                    <p>{$text('settings.privacy.connected_accounts.cli_export_warning')}</p>
+                </SettingsInfoBox>
+                <SettingsInput
+                    bind:value={cliExportPasscode}
+                    type="password"
+                    placeholder={$text('settings.privacy.connected_accounts.cli_export_passcode_placeholder')}
+                    dataTestid="privacy-connected-account-cli-export-passcode"
+                    disabled={action !== 'idle'}
+                />
+                <SettingsButton
+                    dataTestid="privacy-connected-account-cli-export-button"
+                    variant="secondary"
+                    loading={action === 'exporting'}
+                    disabled={action !== 'idle' || !selectedAccountRow}
+                    onClick={generateCliImportCommand}
+                >
+                    {$text('settings.privacy.connected_accounts.cli_export_button')}
+                </SettingsButton>
+                {#if cliImportCommand}
+                    <SettingsTextarea
+                        bind:value={cliImportCommand}
+                        rows={4}
+                        dataTestid="privacy-connected-account-cli-import-command"
+                        ariaLabel={$text('settings.privacy.connected_accounts.cli_export_command_label')}
+                    />
+                {/if}
 
                 {#if needsCalendarWriteAccess(selectedAccount)}
                     <SettingsButton

@@ -112,27 +112,86 @@ async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void
 	logCheckpoint('API Keys page loaded.');
 }
 
-async function navigateToDevices(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
-	const settingsMenu = await ensureSettingsMenuOpen(page, logCheckpoint);
+async function ensureDevelopersSettingsOpen(
+	page: any,
+	logCheckpoint: (msg: string) => void
+): Promise<any> {
+	const settingsMenu = page.getByTestId('settings-menu');
+	if (!(await settingsMenu.isVisible({ timeout: 1000 }).catch(() => false))) {
+		const openSettingsButton = page.getByRole('button', { name: /open settings menu/i }).first();
+		await expect(openSettingsButton).toBeVisible({ timeout: 10000 });
+		await openSettingsButton.click();
+		logCheckpoint('Opened settings menu.');
+	}
+	await expect(settingsMenu).toBeVisible({ timeout: 10000 });
+
+	for (let i = 0; i < 5; i++) {
+		const activeView = await settingsMenu.getAttribute('data-active-view');
+		if (activeView === 'developers') {
+			return settingsMenu;
+		}
+		if (!activeView || activeView === 'main') {
+			break;
+		}
+
+		const bannerBackButton = page.getByTestId('banner-back-button').first();
+		const backButton = (await bannerBackButton.isVisible({ timeout: 1000 }).catch(() => false))
+			? bannerBackButton
+			: page.locator('#settings-back-button');
+		await expect(backButton).toBeVisible({ timeout: 5000 });
+		await backButton.click();
+		logCheckpoint('Returned toward Developers settings menu.');
+		await expect(settingsMenu).toHaveAttribute('data-active-view', /^(main|developers)$/i, {
+			timeout: 5000
+		});
+	}
 
 	const developersItem = settingsMenu
-		.getByRole('menuitem')
-		.filter({ hasText: /^developers$/i })
+		.getByTestId('menu-item')
+		.filter({ hasText: /developers/i })
 		.first();
-	await developersItem.scrollIntoViewIfNeeded();
+	await developersItem.scrollIntoViewIfNeeded({ timeout: 8000 });
 	await expect(developersItem).toBeVisible({ timeout: 8000 });
-	await developersItem.click();
+	await developersItem.click({ timeout: 8000 });
+	logCheckpoint('Navigated to Developers.');
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'developers', { timeout: 8000 });
+	return settingsMenu;
+}
+
+async function navigateToDevices(page: any, logCheckpoint: (msg: string) => void): Promise<void> {
+	const settingsMenu = await ensureDevelopersSettingsOpen(page, logCheckpoint);
 
 	const devicesItem = settingsMenu
-		.getByRole('menuitem')
-		.filter({ hasText: /^devices$/i })
+		.getByTestId('menu-item')
+		.filter({ hasText: /devices/i })
 		.first();
-	await devicesItem.scrollIntoViewIfNeeded();
+	await devicesItem.scrollIntoViewIfNeeded({ timeout: 8000 });
 	await expect(devicesItem).toBeVisible({ timeout: 8000 });
-	await devicesItem.click();
+	await devicesItem.click({ timeout: 8000 });
 	logCheckpoint('Navigated to Devices page.');
 
 	await expect(page.getByTestId('devices-container')).toBeVisible({ timeout: 8000 });
+}
+
+async function completeDefaultApiKeyGuidedFlow(
+	page: any,
+	logCheckpoint: (msg: string) => void
+): Promise<void> {
+	const createConfirmButton = page.getByTestId('api-key-create-confirm');
+	await expect(page.getByTestId('api-key-full-access-warning')).toBeVisible({ timeout: 3000 });
+	await expect(createConfirmButton).toBeEnabled({ timeout: 3000 });
+	await createConfirmButton.click();
+	logCheckpoint('Continued past scope warning.');
+
+	await expect(page.getByTestId('api-key-credit-step')).toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('api-key-credit-warning')).toBeVisible({ timeout: 3000 });
+	await createConfirmButton.click();
+	logCheckpoint('Continued past credit warning.');
+
+	await expect(page.getByTestId('api-key-expiration-step')).toBeVisible({ timeout: 5000 });
+	await expect(page.getByTestId('api-key-expiration-warning')).toBeVisible({ timeout: 3000 });
+	await createConfirmButton.click();
+	logCheckpoint('Clicked Create API Key confirm after guided warnings.');
 }
 
 async function deleteFirstE2EOwnedApiKey(page: any, log: (msg: string) => void): Promise<boolean> {
@@ -220,11 +279,8 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	log(`Entered key name: "${keyName}"`);
 	await screenshot(page, 'key-name-entered');
 
-	// Click "Create API Key" to confirm
-	const createConfirmButton = page.getByTestId('api-key-create-confirm');
-	await expect(createConfirmButton).toBeEnabled({ timeout: 3000 });
-	await createConfirmButton.click();
-	log('Clicked Create API Key confirm.');
+	// Guided flow: Scope -> Credit limit -> Expiration -> Reveal
+	await completeDefaultApiKeyGuidedFlow(page, log);
 
 	// Wait for "API Key Created" modal with the actual key value
 	const createdKeyEl = page.getByTestId('api-key-created-value');
@@ -435,10 +491,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	await nameInput.fill(keyName);
 	log(`Entered key name: "${keyName}"`);
 
-	const createConfirmButton = page.getByTestId('api-key-create-confirm');
-	await expect(createConfirmButton).toBeEnabled({ timeout: 3000 });
-	await createConfirmButton.click();
-	log('Clicked Create API Key confirm.');
+	await completeDefaultApiKeyGuidedFlow(page, log);
 
 	// Capture the raw key value
 	const createdKeyEl = page.getByTestId('api-key-created-value');
@@ -456,17 +509,18 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Dismissed key modal.');
 	await page.waitForTimeout(1000);
 
-	// ── Phase 3: Make REST API call — expect it to be blocked (device pending) ─
-	log(`Making REST API call to ${API_BASE_URL}/v1/settings/api-keys with new key...`);
-	const blockedResponse = await request.get(`${API_BASE_URL}/v1/settings/api-keys`, {
+	// ── Phase 3: Make API-key-authenticated SDK call — expect device-pending block ─
+	const sdkChatsUrl = `${API_BASE_URL}/v1/sdk/chats?limit=1`;
+	log(`Making SDK API call to ${sdkChatsUrl} with new key...`);
+	const blockedResponse = await request.get(sdkChatsUrl, {
 		headers: { Authorization: `Bearer ${rawApiKey}` }
 	});
 	log(`REST API response (before device approval): ${blockedResponse.status()}`);
 	await screenshot(page, 'api-call-before-approval');
 
 	expect(
-		[401, 403].includes(blockedResponse.status()),
-		`Expected 401 or 403 (device not yet approved), got ${blockedResponse.status()}`
+		blockedResponse.status() === 403,
+		`Expected 403 (device not yet approved), got ${blockedResponse.status()}`
 	).toBe(true);
 	log('Confirmed: REST API call correctly blocked before device approval.');
 
@@ -510,9 +564,9 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	log('Confirmed: Approved status badge is visible.');
 	await screenshot(page, 'device-approved');
 
-	// ── Phase 5: Make REST API call again — expect 200 ───────────────────────
-	log(`Making REST API call to ${API_BASE_URL}/v1/settings/api-keys with approved key...`);
-	const approvedResponse = await request.get(`${API_BASE_URL}/v1/settings/api-keys`, {
+	// ── Phase 5: Make SDK API call again — expect 200 ─────────────────────────
+	log(`Making SDK API call to ${sdkChatsUrl} with approved key...`);
+	const approvedResponse = await request.get(sdkChatsUrl, {
 		headers: { Authorization: `Bearer ${rawApiKey}` }
 	});
 	log(`REST API response (after device approval): ${approvedResponse.status()}`);
@@ -520,7 +574,7 @@ test('creates API key, verifies device approval flow, and saves working key', as
 
 	expect(approvedResponse.status()).toBe(200);
 	const approvedData = await approvedResponse.json();
-	expect(approvedData).toHaveProperty('api_keys');
+	expect(approvedData).toHaveProperty('chats');
 	log('Confirmed: REST API call succeeded after device approval!');
 
 	// ── Phase 6: Save the working API key to artifacts ───────────────────────
@@ -588,8 +642,7 @@ test('shows limit warning and disabled create button when 5 API keys exist', asy
 		await nameInput.fill(keyName);
 		createdKeyNames.push(keyName);
 
-		const createConfirmButton = page.getByTestId('api-key-create-confirm');
-		await createConfirmButton.click();
+		await completeDefaultApiKeyGuidedFlow(page, log);
 
 		const doneButton = page.getByTestId('api-key-done-button');
 		await expect(doneButton).toBeVisible({ timeout: 15000 });

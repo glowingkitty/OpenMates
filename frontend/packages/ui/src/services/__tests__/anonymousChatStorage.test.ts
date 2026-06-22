@@ -42,6 +42,27 @@ const mockKeyState = vi.hoisted(() => ({
   keys: new Map<string, Uint8Array>(),
 }));
 
+const mockPublicSourceMessages = vi.hoisted(() => [
+  {
+    message_id: "source-user",
+    chat_id: "public-demo",
+    role: "user" as const,
+    content: "What does this public example do?",
+    status: "synced" as const,
+    created_at: 10,
+    sender_name: "User",
+  },
+  {
+    message_id: "source-assistant",
+    chat_id: "public-demo",
+    role: "assistant" as const,
+    content: "It shows a reusable public example transcript.",
+    status: "synced" as const,
+    created_at: 11,
+    sender_name: "assistant",
+  },
+]);
+
 const mockChatDB = vi.hoisted(() => ({
   enableSkipOrphanDetection: vi.fn(),
   disableSkipOrphanDetection: vi.fn(),
@@ -84,6 +105,10 @@ const mockChatKeyManager = vi.hoisted(() => ({
   }),
 }));
 
+const mockEmbedStore = vi.hoisted(() => ({
+  put: vi.fn(),
+}));
+
 vi.mock("../db", () => ({ chatDB: mockChatDB }));
 vi.mock("../chatSyncService", () => ({ chatSyncService: mockChatSyncService }));
 vi.mock("../../stores/aiTypingStore", () => ({ aiTypingStore: mockAiTypingStore }));
@@ -106,6 +131,20 @@ vi.mock("../anonymousChatKeyWrapping", () => ({
     return new Uint8Array(wrapped.slice("anonymous:".length).split(",").map(Number));
   }),
 }));
+vi.mock("../../demo_chats", () => ({
+  DEMO_CHATS: [],
+  LEGAL_CHATS: [],
+  getDemoMessages: vi.fn(() => mockPublicSourceMessages),
+  isExampleChat: vi.fn(() => true),
+  getExampleChatEmbeds: vi.fn(() => [
+    {
+      embed_id: "source-embed",
+      type: "document",
+      content: { title: "Source document" },
+    },
+  ]),
+}));
+vi.mock("../embedStore", () => ({ embedStore: mockEmbedStore }));
 
 async function loadStorage() {
   const module = await import("../anonymousChatStorage");
@@ -166,6 +205,7 @@ describe("anonymousChatStorage", () => {
     mockAiTypingStore.setTyping.mockClear();
     mockAiTypingStore.clearTyping.mockClear();
     mockAiTypingStore.clearTypingForChat.mockClear();
+    mockEmbedStore.put.mockClear();
     let uuidCounter = 0;
     vi.spyOn(crypto, "randomUUID").mockImplementation(() => {
       uuidCounter += 1;
@@ -222,6 +262,35 @@ describe("anonymousChatStorage", () => {
       expect.objectContaining({ role: "assistant", content: "First answer" }),
     ]);
     expect(JSON.stringify(secondRequest.message_history)).not.toContain(FEATURE_NOTICE);
+  });
+
+  it("sends public example history when anonymous users continue a source chat", async () => {
+    const fetchMock = mockAnonymousFetch({ messageId: "assistant-message", assistant: "Continued from source" });
+    const storage = await loadStorage();
+
+    const result = await storage.sendTextMessage({
+      markdown: "Continue this example with my next step",
+      sourceDemoId: "public-demo",
+    });
+
+    const request = requestBody(fetchMock, 0);
+    expect(request.message_history).toEqual([
+      expect.objectContaining({ role: "user", content: "What does this public example do?" }),
+      expect.objectContaining({ role: "assistant", content: "It shows a reusable public example transcript." }),
+    ]);
+    const storedMessages = await storage.getMessagesForChat(result.chat.chat_id);
+    expect(storedMessages.map((message) => message.content)).toEqual([
+      "What does this public example do?",
+      "It shows a reusable public example transcript.",
+      FEATURE_NOTICE,
+      "Continue this example with my next step",
+      "Continued from source",
+    ]);
+    expect(mockEmbedStore.put).toHaveBeenCalledWith(
+      "embed:source-embed",
+      expect.objectContaining({ content: { title: "Source document" }, status: "finished" }),
+      "document",
+    );
   });
 
   it("keeps the user message when the API echoes the client message ID", async () => {

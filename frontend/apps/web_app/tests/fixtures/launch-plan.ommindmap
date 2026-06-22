@@ -1,0 +1,64 @@
+{
+  "openmatesType": "mindmap",
+  "schemaVersion": 1,
+  "title": "Launch Plan",
+  "rootId": "launch-plan",
+  "nodes": [
+    {
+      "id": "launch-plan",
+      "label": "Launch Plan",
+      "description": "Coordinate launch workstreams",
+      "children": ["research", "build", "ship"]
+    },
+    {
+      "id": "research",
+      "label": "Audience Research",
+      "children": ["interviews", "survey"]
+    },
+    {
+      "id": "interviews",
+      "label": "Customer Interviews"
+    },
+    {
+      "id": "survey",
+      "label": "Survey"
+    },
+    {
+      "id": "build",
+      "label": "Build",
+      "children": ["copy", "landing-page"]
+    },
+    {
+      "id": "copy",
+      "label": "Messaging"
+    },
+    {
+      "id": "landing-page",
+      "label": "Landing Page"
+    },
+    {
+      "id": "ship",
+      "label": "Ship",
+      "children": ["announcement", "follow-up"]
+    },
+    {
+      "id": "announcement",
+      "label": "Announcement"
+    },
+    {
+      "id": "follow-up",
+      "label": "Follow-up"
+    }
+  ],
+  "edges": [
+    {
+      "source": "research",
+      "target": "copy",
+      "type": "dependency"
+    }
+  ],
+  "view": {
+    "layout": "radial-tree",
+    "collapsedNodeIds": []
+  }
+}

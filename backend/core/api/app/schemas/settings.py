@@ -197,6 +197,15 @@ class AiModelDefaultsRequest(BaseModel):
         }
 
 
+class TopicPreferencesEncryptedRequest(BaseModel):
+    """Client-encrypted account settings blob containing topic preferences."""
+
+    encrypted_settings: str = Field(
+        min_length=1,
+        description="Client-encrypted settings JSON. Server stores ciphertext only and cannot inspect topic preferences.",
+    )
+
+
 # Furry Mode interface preferences are disabled until any furry art is made by human artists.
 
 

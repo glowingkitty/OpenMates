@@ -54,6 +54,8 @@
     skillId: string;
     /** Icon name for the skill icon (e.g., 'search', 'videos', 'book') - passed from skill-specific components */
     skillIconName: string;
+    /** Optional app icon override when appId has no icon_rounded CSS mapping. */
+    appIconName?: string;
     /** Processing status */
     status: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Skill display name (shown in basic_infos bar) */
@@ -99,6 +101,7 @@
     appId,
     skillId,
     skillIconName,
+    appIconName,
     status: statusProp,
     skillName,
     taskId,
@@ -913,6 +916,7 @@
         {appId}
         {skillId}
         {skillIconName}
+        {appIconName}
         {status}
         {skillName}
         {taskId}
@@ -947,6 +951,7 @@
         {appId}
         {skillId}
         {skillIconName}
+        {appIconName}
         {status}
         {skillName}
         {taskId}

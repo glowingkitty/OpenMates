@@ -240,6 +240,117 @@ async def test_connected_accounts_routes_store_only_owned_encrypted_rows() -> No
 
 
 @pytest.mark.anyio
+async def test_connected_account_import_validation_uses_harmless_read(monkeypatch) -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from backend.core.api.app.models.user import User
+    from backend.core.api.app.routes import connected_accounts
+
+    calls: dict[str, object] = {}
+
+    async def fake_exchange_google_refresh_token(refresh_token: str, scope_context: dict):
+        calls["refresh_token"] = refresh_token
+        calls["scope_context"] = scope_context
+        return {"access_token": "access-secret", "refresh_token": "must-not-return"}
+
+    class FakeGoogleCalendarClient:
+        def __init__(self, *, access_token: str, timeout: float = 15.0) -> None:
+            calls["access_token"] = access_token
+
+        async def list_events(self, **kwargs):
+            calls["list_events"] = kwargs
+            return []
+
+    monkeypatch.setattr(connected_accounts, "exchange_google_refresh_token", fake_exchange_google_refresh_token)
+    monkeypatch.setattr(connected_accounts, "GoogleCalendarClient", FakeGoogleCalendarClient)
+
+    user = User(id="user-1", username="alice", vault_key_id="vault-1")
+    app = FastAPI()
+    app.include_router(connected_accounts.router)
+    app.dependency_overrides[connected_accounts.get_current_user] = lambda: user
+    client = TestClient(app)
+
+    response = client.post(
+        "/v1/connected-accounts/validate-import",
+        json={
+            "provider_id": "google_calendar",
+            "app_id": "calendar",
+            "capabilities": ["read"],
+            "refresh_token_envelope": {"refresh_token": "refresh-secret", "scopes": ["calendar.readonly"]},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["valid"] is True
+    assert payload["provider_id"] == "google_calendar"
+    assert payload["app_id"] == "calendar"
+    assert "refresh-secret" not in response.text
+    assert "access-secret" not in response.text
+    assert calls["refresh_token"] == "refresh-secret"
+    assert calls["access_token"] == "access-secret"
+    assert calls["list_events"]
+
+
+@pytest.mark.anyio
+async def test_connected_account_import_validation_rejects_unsupported_provider() -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from backend.core.api.app.models.user import User
+    from backend.core.api.app.routes import connected_accounts
+
+    user = User(id="user-1", username="alice", vault_key_id="vault-1")
+    app = FastAPI()
+    app.include_router(connected_accounts.router)
+    app.dependency_overrides[connected_accounts.get_current_user] = lambda: user
+    client = TestClient(app)
+
+    response = client.post(
+        "/v1/connected-accounts/validate-import",
+        json={
+            "provider_id": "dropbox",
+            "app_id": "files",
+            "capabilities": ["read"],
+            "refresh_token_envelope": {"refresh_token": "refresh-secret"},
+        },
+    )
+
+    assert response.status_code == 400
+    assert "refresh-secret" not in response.text
+
+
+@pytest.mark.anyio
+async def test_connected_account_import_validation_rejects_missing_token_without_field_name_leak() -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from backend.core.api.app.models.user import User
+    from backend.core.api.app.routes import connected_accounts
+
+    user = User(id="user-1", username="alice", vault_key_id="vault-1")
+    app = FastAPI()
+    app.include_router(connected_accounts.router)
+    app.dependency_overrides[connected_accounts.get_current_user] = lambda: user
+    client = TestClient(app)
+
+    response = client.post(
+        "/v1/connected-accounts/validate-import",
+        json={
+            "provider_id": "google_calendar",
+            "app_id": "calendar",
+            "capabilities": ["read"],
+            "refresh_token_envelope": {"scopes": ["calendar.readonly"]},
+        },
+    )
+
+    assert response.status_code == 400
+    assert "refresh_token" not in response.text
+    assert "access_token" not in response.text
+
+
+@pytest.mark.anyio
 async def test_rest_skill_helper_blocks_hidden_connected_account_skill() -> None:
     from fastapi import HTTPException
 

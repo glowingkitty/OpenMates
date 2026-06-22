@@ -102,6 +102,10 @@ struct EmbedContentView: View {
             case .diagramsMermaid:
                 MermaidDiagramRenderer(data: rawData, mode: mode)
 
+            // Mind Maps
+            case .mindmapsMindmap:
+                MindMapEmbedRenderer(data: rawData, mode: mode)
+
             // Electronics
             case .electronicsSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "components")

@@ -11,6 +11,7 @@
 
 import {
   OpenMatesClient,
+  INTEREST_TAG_IDS,
   MEMORY_TYPE_REGISTRY,
   MATE_NAMES,
   deriveAppUrl,
@@ -26,6 +27,7 @@ import {
   type BankTransferOrderDetails,
   type BankTransferStatus,
   type GiftCardBankTransferStatus,
+  type TopicPreferencesPayload,
 } from "./client.js";
 import type { StreamEvent, SubChatEvent } from "./ws.js";
 import { createInterface } from "node:readline/promises";
@@ -68,6 +70,7 @@ import {
 } from "./interactiveQuestions.js";
 import { buildAssistantFeedbackDecision } from "./feedback.js";
 import { handleBenchmark, printBenchmarkHelp } from "./benchmark.js";
+import { defaultModeForStreams, printProgrammaticQuickstart, runTui } from "./tui.js";
 
 type SignupRequiredResult = {
   status: "signup_required";
@@ -103,7 +106,23 @@ async function main(): Promise<void> {
     }
   }
 
-  if (!command || command === "help") {
+  if (!command) {
+    if (parsed.flags.help === true) {
+      printHelp();
+      return;
+    }
+    if (defaultModeForStreams(process.stdin, process.stdout) === "quickstart") {
+      printProgrammaticQuickstart();
+      return;
+    }
+    const result = await runTui(client);
+    if (result.action === "signup") {
+      await handleSignup(client, parsed.flags);
+    }
+    return;
+  }
+
+  if (command === "help") {
     printHelp();
     return;
   }
@@ -121,6 +140,10 @@ async function main(): Promise<void> {
     }
     if (command === "settings") {
       printSettingsHelp(client);
+      return;
+    }
+    if (command === "connected-accounts") {
+      printConnectedAccountsHelp();
       return;
     }
     if (command === "learning-mode") {
@@ -236,6 +259,11 @@ async function main(): Promise<void> {
 
   if (command === "settings") {
     await handleSettings(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "connected-accounts") {
+    await handleConnectedAccounts(client, subcommand, parsed.flags);
     return;
   }
 
@@ -1906,6 +1934,9 @@ type SettingsInfoCommand = {
 const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "info"], description: "Show account info", examples: ["openmates settings account info --json"] },
   { path: ["account", "timezone", "set"], description: "Set account timezone", examples: ["openmates settings account timezone set Europe/Berlin"] },
+  { path: ["account", "interests", "list"], description: "Show encrypted account topic interests", examples: ["openmates settings account interests list --json"] },
+  { path: ["account", "interests", "set"], description: "Set encrypted account topic interests", examples: ["openmates settings account interests set software_development run_code privacy"] },
+  { path: ["account", "interests", "clear"], description: "Clear encrypted account topic interests", examples: ["openmates settings account interests clear --yes"] },
   { path: ["account", "export", "manifest"], description: "Show account export manifest", examples: ["openmates settings account export manifest --json"] },
   { path: ["account", "export", "data"], description: "Fetch account export data", examples: ["openmates settings account export data --json"] },
   { path: ["account", "import-chat"], description: "Import a CLI chat export file", examples: ["openmates settings account import-chat ./chat.yml", "openmates settings account import-chat ./payload.json"] },
@@ -2019,6 +2050,36 @@ async function printSettingsMutationResult(
   }
   process.stdout.write("\x1b[32m✓\x1b[0m Settings updated\n");
   if (result && typeof result === "object") printGenericObject(result);
+}
+
+function printTopicPreferences(
+  preferences: TopicPreferencesPayload | null,
+  flags: Record<string, string | boolean>,
+  successLabel?: string,
+): void {
+  const payload = preferences ?? {
+    version: 1,
+    selectedTagIds: [],
+    updatedAt: null,
+  };
+  const result = {
+    ...payload,
+    availableTagIds: INTEREST_TAG_IDS,
+  };
+
+  if (flags.json === true) {
+    printJson(result);
+    return;
+  }
+
+  if (successLabel) {
+    process.stdout.write(`\x1b[32m✓\x1b[0m ${successLabel}\n`);
+  }
+  const selected = result.selectedTagIds.length > 0
+    ? result.selectedTagIds.join(", ")
+    : "none";
+  process.stdout.write(`Selected interests: ${selected}\n`);
+  process.stdout.write(`Available interests: ${INTEREST_TAG_IDS.join(", ")}\n`);
 }
 
 function printReportIssueCreateResult(result: unknown, flags: Record<string, string | boolean>): void {
@@ -2310,6 +2371,48 @@ async function promptSecret(question: string): Promise<string> {
     };
     stdin.on("data", onData);
   });
+}
+
+async function handleConnectedAccounts(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printConnectedAccountsHelp();
+    return;
+  }
+  if (subcommand !== "import") {
+    throw new Error(`Unknown connected-accounts command '${subcommand}'. Run 'openmates connected-accounts --help'.`);
+  }
+  if (flags.passcode !== undefined) {
+    throw new Error("Connected account import passcodes must be entered through the hidden prompt, not a command-line flag.");
+  }
+  const payload = typeof flags.payload === "string" ? flags.payload.trim() : "";
+  if (!payload) {
+    throw new Error("Missing --payload. Paste the command generated by connected account settings.");
+  }
+  if (!client.hasSession()) {
+    throw new Error("Not logged in. Run `openmates login` before importing a connected account.");
+  }
+  const passcode = await promptSecret("Connected account import passcode: ");
+  const result = await client.importConnectedAccountFromCliPayload({
+    encryptedPayload: payload,
+    passcode,
+  });
+  if (flags.json === true) {
+    printJson({
+      id: result.id,
+      provider_id: result.providerId,
+      app_id: result.appId,
+      validation: result.validation,
+    });
+    return;
+  }
+  console.log("Connected account imported.");
+  console.log(`Provider: ${result.providerId}`);
+  console.log(`App: ${result.appId}`);
+  console.log("Validation: harmless read succeeded");
 }
 
 async function writeSecretFile(filePath: string, content: string, force = false): Promise<string> {
@@ -2649,6 +2752,33 @@ async function handleSettings(
       client.settingsPost("user/timezone", { timezone }),
       flags,
     );
+    return;
+  }
+
+  if (matches(tokens, ["account", "interests", "list"])) {
+    const preferences = await client.getTopicPreferences();
+    printTopicPreferences(preferences, flags);
+    return;
+  }
+
+  if (matches(tokens, ["account", "interests", "set"])) {
+    const selectedTagIds = rest.slice(2);
+    if (selectedTagIds.length === 0) {
+      throw new Error(
+        `Missing interest tag IDs. Use one or more of: ${INTEREST_TAG_IDS.join(", ")}`,
+      );
+    }
+    const preferences = await client.setTopicPreferences(selectedTagIds);
+    printTopicPreferences(preferences, flags, "Interests updated");
+    return;
+  }
+
+  if (matches(tokens, ["account", "interests", "clear"])) {
+    if (flags.yes !== true) {
+      await confirmOrExit("Clear account interests? [y/N] ");
+    }
+    const preferences = await client.clearTopicPreferences();
+    printTopicPreferences(preferences, flags, "Interests cleared");
     return;
   }
 
@@ -5798,6 +5928,7 @@ Commands:
   openmates mentions [--help]                List available @mentions
   openmates embeds [--help]                  Embed commands (show)
   openmates settings [--help]                Predefined settings commands
+  openmates connected-accounts [--help]      Connected account import helpers
   openmates learning-mode [--help]           Account-wide Learning Mode controls
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
@@ -5812,6 +5943,23 @@ Flags:
   --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
   --api-key <key> Optional API key override (or set OPENMATES_API_KEY)
   --help          Show contextual help for any command`);
+}
+
+function printConnectedAccountsHelp(): void {
+  console.log(`Connected account commands:
+  openmates connected-accounts import --payload <OMCA1...> [--json]
+
+Imports one passcode-protected connected account generated from web settings.
+The CLI prompts for the passcode interactively, validates the provider token with
+a harmless read, then re-encrypts the account for the currently logged-in CLI
+account before storing it.
+
+Options:
+  --payload <OMCA1...>  Required encrypted import payload from web settings
+  --json               Output a redacted JSON summary
+
+Security:
+  Do not pass the passcode as a flag. It is always entered through a hidden prompt.`);
 }
 
 function printFeedbackHelp(): void {

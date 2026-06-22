@@ -88,11 +88,7 @@
   let statusProp = $derived(normalizeStatus(data.embedData?.status ?? data.decodedContent?.status));
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
   let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
-  let resultsProp = $derived(
-    Array.isArray(data.decodedContent?.results)
-      ? data.decodedContent.results as LegacyImageResult[]
-      : undefined
-  );
+  let resultsProp = $derived(normalizePreviewResults(data.decodedContent));
 
   // Local reactive state for streaming
   let localQuery    = $state('');
@@ -114,6 +110,24 @@
     if (!url) return '';
     try { return new URL(url).hostname.replace(/^www\./, ''); }
     catch { return ''; }
+  }
+
+  function parsePreviewResultsJson(value: unknown): LegacyImageResult[] {
+    if (typeof value !== 'string' || !value.trim()) return [];
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed as LegacyImageResult[] : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function normalizePreviewResults(content: Record<string, unknown> | undefined): LegacyImageResult[] | undefined {
+    if (!content) return undefined;
+    const results = content.results || content.preview_results || content.preview_thumbnails;
+    if (Array.isArray(results) && results.length > 0) return results as LegacyImageResult[];
+    const parsed = parsePreviewResultsJson(content.preview_results_json);
+    return parsed.length > 0 ? parsed : undefined;
   }
 
   /** Proxy an external image URL — 520px is sufficient for grid cards (~180px * 2x retina) */

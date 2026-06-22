@@ -52,6 +52,7 @@ struct AppIconView: View {
         case "videos": return .appVideos
         case "design": return .appDesign
         case "docs": return .appDocs
+        case "mindmaps": return .appDiagrams
         default: return .primary
         }
     }
@@ -71,7 +72,7 @@ struct AppIconView: View {
         case "finance": return IconAlias.finance
         case "code": return IconAlias.code
         case "hosting": return IconAlias.hosting
-        case "diagrams": return IconAlias.diagrams
+        case "diagrams", "mindmaps": return IconAlias.diagrams
         case "whiteboards": return IconAlias.whiteboards
         case "messages": return IconAlias.messages
         case "contacts": return IconAlias.contacts

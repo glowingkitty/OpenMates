@@ -7,8 +7,8 @@
 // Svelte:  frontend/apps/web_app/src/routes/+page.svelte  (top-level layout)
 //          frontend/packages/ui/src/components/ChatHistory.svelte (sidebar)
 //          frontend/packages/ui/src/components/Header.svelte (top nav)
-// Default: Opens demo-for-everyone chat on cold-boot for unauthenticated users,
-//          matching +page.svelte logic (activeChatStore.setActiveChat('demo-for-everyone'))
+// Default: Opens the new-chat welcome surface on cold boot. The welcome surface
+//          contains the guest/account interest selector and local ranking system.
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -63,6 +63,7 @@ struct MainAppView: View {
     @State private var searchText = ""
     @State private var dailyInspirations: [DailyInspirationBanner.DailyInspiration] = []
     @State private var syncedNewChatSuggestions: [NewChatSuggestionsView.ChatSuggestion] = []
+    @State private var accountInterestTagIds: [InterestTagId] = []
     @State private var totalChatCount = 0
     @State private var isLoadingMore = false
     @State private var showRenameAlert = false
@@ -582,6 +583,7 @@ struct MainAppView: View {
         pendingBackgroundSyncContent = PendingSyncedContent()
         appSession.resetTransientRuntime()
         totalChatCount = 0
+        accountInterestTagIds = []
         selectedChatId = nil
         showNewChat = false
         visibleUserChatLimit = Self.initialUserChatLimit
@@ -607,6 +609,7 @@ struct MainAppView: View {
     private func runStartupTask() async {
         if isAuthenticated {
             await bootstrapAuthenticatedSession()
+            await loadAccountTopicPreferences()
         } else {
             // Unauthenticated: populate sidebar with demo chats
             loadDemoChats()
@@ -1045,6 +1048,7 @@ struct MainAppView: View {
                 chats: chatStore.chats,
                 totalChatCount: totalChatCount,
                 serverSuggestions: syncedNewChatSuggestions,
+                accountInterestTagIds: accountInterestTagIds,
                 onCreateChatWithMessage: { message in
                     let now = ChatSendPipeline.isoString(from: Date())
                     if isAuthenticated {
@@ -1605,6 +1609,7 @@ struct MainAppView: View {
         syncBridge = bridge
 
         Task { await authManager.validateSessionAfterOfflineBootstrap() }
+        Task { await loadAccountTopicPreferences() }
         connectWebSocket()
         Task { await promoteAnonymousChatsAfterAuthentication() }
         scheduleTokenBackedWebSocketReconnectIfNeeded()
@@ -1687,6 +1692,25 @@ struct MainAppView: View {
             print("[MainApp] Loaded \(chatKeysToLoad.count) chat keys")
         } catch {
             print("[MainApp] Failed to load chat keys: \(error)")
+        }
+    }
+
+    private func loadAccountTopicPreferences() async {
+        guard let user = authManager.currentUser,
+              let masterKey = try? await CryptoManager.shared.loadMasterKey(for: user.id) else {
+            accountInterestTagIds = []
+            return
+        }
+
+        do {
+            let payload = try await TopicPreferencesSettingsStore.decrypt(
+                encryptedSettings: user.encryptedSettings,
+                masterKey: masterKey
+            )
+            accountInterestTagIds = payload?.selectedTagIds ?? []
+        } catch {
+            print("[MainApp] Failed to decrypt topic preferences for local ranking: \(error)")
+            accountInterestTagIds = []
         }
     }
 
@@ -3490,6 +3514,7 @@ struct NewChatWelcomeView: View {
     let chats: [Chat]
     let totalChatCount: Int
     let serverSuggestions: [NewChatSuggestionsView.ChatSuggestion]
+    let accountInterestTagIds: [InterestTagId]
     let onCreateChatWithMessage: (String) async throws -> String
     let onChatCreated: (String) -> Void
     let onOpenChat: (String) -> Void
@@ -3502,6 +3527,9 @@ struct NewChatWelcomeView: View {
     @State private var inspirationIndex = 0
     @State private var viewedInspirationIds = Set<String>()
     @State private var isComposerExpanded = false
+    @State private var guestSelectedInterestTagIds: [InterestTagId] = []
+    @State private var appliedGuestInterestTagIds: [InterestTagId] = []
+    @State private var isGuestInterestSelectionActive = true
     @FocusState private var isFocused: Bool
 
     private var activeInspiration: DailyInspirationBanner.DailyInspiration? {
@@ -3530,16 +3558,37 @@ struct NewChatWelcomeView: View {
     }
 
     private var nonAuthChatCards: [WelcomeChatCardData] {
-        chats
+        let publicChats = chats
             .filter { chat in
                 !chat.id.hasPrefix("legal-") &&
                 (chat.id.hasPrefix("demo-") || chat.id.hasPrefix("example-") || chat.id.hasPrefix("announcements-"))
             }
-            .map { WelcomeScreenState.cardData(for: $0) }
+        guard !effectiveInterestTagIds.isEmpty else {
+            return publicChats.map { WelcomeScreenState.cardData(for: $0) }
+        }
+
+        let ids = publicChats.map(\.id)
+        let rankedRest = InterestTagRanking.rankIds(
+            ids.filter { $0 != "demo-for-everyone" },
+            selected: effectiveInterestTagIds,
+            keyPath: \.exampleChats
+        )
+        let rankedIds = ["demo-for-everyone"] + rankedRest
+        let chatById = Dictionary(uniqueKeysWithValues: publicChats.map { ($0.id, $0) })
+        return rankedIds.compactMap { chatById[$0] }.map { WelcomeScreenState.cardData(for: $0) }
     }
 
     private var shownChatCards: [WelcomeChatCardData] {
-        isAuthenticated ? recentChatCards : nonAuthChatCards
+        if shouldShowGuestInterestTags { return [] }
+        return isAuthenticated ? recentChatCards : nonAuthChatCards
+    }
+
+    private var shouldShowGuestInterestTags: Bool {
+        !isAuthenticated && isGuestInterestSelectionActive
+    }
+
+    private var effectiveInterestTagIds: [InterestTagId] {
+        isAuthenticated ? accountInterestTagIds : appliedGuestInterestTagIds
     }
 
     private var isComposerActive: Bool {
@@ -3552,6 +3601,12 @@ struct NewChatWelcomeView: View {
     }
 
     private var subtitle: String {
+        if !isAuthenticated, shouldShowGuestInterestTags {
+            return AppStrings.interestsActiveTitle
+        }
+        if !isAuthenticated {
+            return AppStrings.interestsExploreTitle
+        }
         if isAuthenticated, !shownChatCards.isEmpty {
             return AppStrings.resumeLastChatTitle
         }
@@ -3584,7 +3639,14 @@ struct NewChatWelcomeView: View {
                     VStack(spacing: .spacing4) {
                         welcomeHeader
 
-                        if !shownChatCards.isEmpty {
+                        if shouldShowGuestInterestTags {
+                            GuestInterestTagsView(
+                                selectedTagIds: $guestSelectedInterestTagIds,
+                                onContinue: continueGuestInterestSelection,
+                                onSkip: skipGuestInterestSelection
+                            )
+                            .transition(.opacity)
+                        } else if !shownChatCards.isEmpty {
                             welcomeCardsCarousel
                         }
                     }
@@ -3596,7 +3658,7 @@ struct NewChatWelcomeView: View {
                     .transition(.opacity)
                 }
 
-                if !suggestions.isEmpty && (shownChatCards.isEmpty || isComposerActive) {
+                if !suggestions.isEmpty && !shouldShowGuestInterestTags {
                     suggestionsCarousel
                         .frame(maxWidth: .infinity)
                         .padding(.bottom, composerReserve)
@@ -3617,9 +3679,18 @@ struct NewChatWelcomeView: View {
         }
         .background(Color.clear)
         .task { await loadSuggestions() }
+        .onAppear {
+            isGuestInterestSelectionActive = !isAuthenticated && appliedGuestInterestTagIds.isEmpty
+        }
         .onChange(of: serverSuggestions.map(\.id)) { _, _ in
             if !serverSuggestions.isEmpty {
                 suggestions = serverSuggestions
+                hiddenSuggestionIds.removeAll()
+            }
+        }
+        .onChange(of: effectiveInterestTagIds.map(\.rawValue)) { _, _ in
+            if serverSuggestions.isEmpty {
+                suggestions = Self.defaultSuggestions(selected: effectiveInterestTagIds)
                 hiddenSuggestionIds.removeAll()
             }
         }
@@ -3639,6 +3710,18 @@ struct NewChatWelcomeView: View {
                 .foregroundStyle(Color.fontSecondary)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
+
+            if !isAuthenticated && !shouldShowGuestInterestTags {
+                Button {
+                    isGuestInterestSelectionActive = true
+                } label: {
+                    Text(AppStrings.interestsSelect)
+                        .font(.omSmall.weight(.semibold))
+                        .foregroundStyle(Color.grey60)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("guest-interest-select-interests")
+            }
         }
         .padding(.horizontal, .spacing6)
     }
@@ -3767,7 +3850,8 @@ struct NewChatWelcomeView: View {
 
     /// Filter suggestions based on typed text, matching web's debounced filter behavior
     private var filteredSuggestions: [NewChatSuggestionsView.ChatSuggestion] {
-        let visibleSuggestions = suggestions.filter { !hiddenSuggestionIds.contains($0.id) }
+        let ranked = rankedSuggestions(suggestions)
+        let visibleSuggestions = ranked.filter { !hiddenSuggestionIds.contains($0.id) }
         guard !messageText.isEmpty else { return visibleSuggestions }
         let query = messageText.lowercased()
         let filtered = visibleSuggestions.filter {
@@ -3794,22 +3878,73 @@ struct NewChatWelcomeView: View {
 
         // Hardcoded fallback when API is unavailable (matches web DEFAULT_NEW_CHAT_SUGGESTION_KEYS)
         if suggestions.isEmpty {
-            suggestions = Self.defaultSuggestions
+            suggestions = Self.defaultSuggestions(selected: effectiveInterestTagIds)
         }
         hiddenSuggestionIds.removeAll()
     }
 
-    /// Hardcoded default suggestions matching the web app's defaultNewChatSuggestions.ts
-    private static let defaultSuggestions: [NewChatSuggestionsView.ChatSuggestion] = [
-        .init(id: "s1", text: "What's the difference between machine learning and AI?", appId: "ai", category: nil, icon: nil),
-        .init(id: "s2", text: "Search the web for the latest AI news", appId: "web", category: nil, icon: nil),
-        .init(id: "s3", text: "Plan a 7-day trip to Japan", appId: "travel", category: nil, icon: nil),
-        .init(id: "s4", text: "Find trending videos about space exploration", appId: "videos", category: nil, icon: nil),
-        .init(id: "s5", text: "Explain quantum computing in simple terms", appId: "ai", category: nil, icon: nil),
-        .init(id: "s6", text: "Write a professional cover letter", appId: "ai", category: nil, icon: nil),
-        .init(id: "s7", text: "Create a healthy meal prep plan", appId: "nutrition", category: nil, icon: nil),
-        .init(id: "s8", text: "Help me learn basic Spanish phrases", appId: "ai", category: nil, icon: nil),
+    private func rankedSuggestions(_ source: [NewChatSuggestionsView.ChatSuggestion]) -> [NewChatSuggestionsView.ChatSuggestion] {
+        guard !effectiveInterestTagIds.isEmpty else { return source }
+        let rankedIds = InterestTagRanking.rankIds(source.map(\.id), selected: effectiveInterestTagIds, keyPath: \.suggestions)
+        let allowedIds = InterestTagRanking.surfaceIds(selected: effectiveInterestTagIds, keyPath: \.suggestions)
+        let suggestionById = Dictionary(uniqueKeysWithValues: source.map { ($0.id, $0) })
+        let ranked = rankedIds.compactMap { id -> NewChatSuggestionsView.ChatSuggestion? in
+            guard allowedIds.contains(id) else { return nil }
+            return suggestionById[id]
+        }
+        return ranked.isEmpty ? source : ranked
+    }
+
+    private func skipGuestInterestSelection() {
+        appliedGuestInterestTagIds = []
+        isGuestInterestSelectionActive = false
+    }
+
+    private func continueGuestInterestSelection() {
+        appliedGuestInterestTagIds = guestSelectedInterestTagIds
+        isGuestInterestSelectionActive = false
+    }
+
+    /// Hardcoded default suggestion keys matching the web app's defaultNewChatSuggestions.ts.
+    private static let defaultSuggestionKeys = [
+        "chat.new_chat_suggestions.discover_web_search",
+        "chat.new_chat_suggestions.discover_image_generate",
+        "chat.new_chat_suggestions.discover_news_search",
+        "chat.new_chat_suggestions.discover_video_search",
+        "chat.new_chat_suggestions.discover_math_calculate",
+        "chat.new_chat_suggestions.quantum_computing",
+        "chat.new_chat_suggestions.plan_trip_japan",
+        "chat.new_chat_suggestions.ai_news",
+        "chat.new_chat_suggestions.photosynthesis",
+        "chat.new_chat_suggestions.professional_email",
+        "chat.new_chat_suggestions.healthy_breakfast",
+        "chat.new_chat_suggestions.blockchain",
+        "chat.new_chat_suggestions.learn_spanish",
+        "chat.new_chat_suggestions.ml_vs_ai",
+        "chat.new_chat_suggestions.improve_productivity",
+        "chat.new_chat_suggestions.theory_relativity",
+        "chat.new_chat_suggestions.workout_plan",
+        "chat.new_chat_suggestions.cybersecurity",
+        "chat.new_chat_suggestions.learn_coding",
+        "chat.new_chat_suggestions.use_openmates_cli_api",
+        "chat.new_chat_suggestions.stock_market",
+        "chat.new_chat_suggestions.cover_letter",
+        "chat.new_chat_suggestions.writing_prompts",
+        "chat.new_chat_suggestions.carbon_footprint",
+        "chat.new_chat_suggestions.internet_history",
+        "chat.new_chat_suggestions.meal_prep",
     ]
+
+    private static func defaultSuggestions(selected: [InterestTagId]) -> [NewChatSuggestionsView.ChatSuggestion] {
+        let keys = selected.isEmpty
+            ? defaultSuggestionKeys
+            : InterestTagRanking.rankIds(defaultSuggestionKeys, selected: selected, keyPath: \.suggestions)
+                .filter { InterestTagRanking.surfaceIds(selected: selected, keyPath: \.suggestions).contains($0) }
+
+        return keys.map { key in
+            .init(id: key, text: LocalizationManager.shared.text(key), appId: "ai", category: nil, icon: nil)
+        }
+    }
 
     private func createChatWith(message: String) {
         guard !message.isEmpty else { return }
@@ -3828,6 +3963,125 @@ struct NewChatWelcomeView: View {
                 print("[NewChatWelcome] Failed to create chat: \(error)")
             }
         }
+    }
+}
+
+private struct GuestInterestTagsView: View {
+    @Binding var selectedTagIds: [InterestTagId]
+    let onContinue: () -> Void
+    let onSkip: () -> Void
+
+    private let availableTagLimit = 10
+    private let minimumTagsToContinue = 4
+
+    private var visibleTags: [InterestTagId] {
+        let selectedSet = Set(selectedTagIds)
+        let ranked = InterestTagRanking.rankTags(selected: selectedTagIds)
+        let selected = selectedTagIds
+        let available = ranked.filter { !selectedSet.contains($0) }
+        return selected + Array(available.prefix(availableTagLimit))
+    }
+
+    private var canContinue: Bool {
+        selectedTagIds.count >= minimumTagsToContinue
+    }
+
+    var body: some View {
+        VStack(spacing: .spacing2) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: .spacing4) {
+                    ForEach(visibleTags, id: \.self) { tag in
+                        InterestTagChip(tag: tag, isActive: selectedTagIds.contains(tag)) {
+                            toggle(tag)
+                        }
+                    }
+                }
+                .padding(.horizontal, .spacing8)
+                .padding(.vertical, .spacing4)
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("guest-interest-rail")
+
+            HStack(spacing: .spacing8) {
+                if canContinue {
+                    Button(action: onContinue) {
+                        Text(AppStrings.interestsContinue)
+                            .font(.omSmall.weight(.semibold))
+                            .foregroundStyle(Color.fontButton)
+                            .padding(.horizontal, .spacing8)
+                            .padding(.vertical, .spacing4)
+                            .background(Color.buttonPrimary)
+                            .clipShape(Capsule())
+                            .shadow(color: .black.opacity(0.22), radius: 4, x: 0, y: 4)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("guest-interest-continue")
+                }
+
+                Button(action: onSkip) {
+                    Text(AppStrings.skip)
+                        .font(.omSmall.weight(.semibold))
+                        .foregroundStyle(Color.grey60)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("guest-interest-skip")
+            }
+            .frame(minHeight: 40)
+        }
+        .frame(maxWidth: 1040)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("guest-interest-tags")
+    }
+
+    private func toggle(_ tag: InterestTagId) {
+        if selectedTagIds.contains(tag) {
+            selectedTagIds.removeAll { $0 == tag }
+        } else {
+            selectedTagIds.append(tag)
+        }
+    }
+}
+
+private struct InterestTagChip: View {
+    let tag: InterestTagId
+    let isActive: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: .spacing3) {
+                LucideNativeIcon(tag.icon, size: 15)
+                    .foregroundStyle(Color.fontButton)
+
+                Text(tag.label)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontButton)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing4)
+            .background(CategoryMapping.gradient(for: tag.gradientCategory))
+            .clipShape(Capsule())
+            .overlay(alignment: .topTrailing) {
+                if isActive {
+                    Circle()
+                        .fill(Color.buttonPrimary)
+                        .frame(width: 18, height: 18)
+                        .overlay {
+                            Icon("check", size: 11)
+                                .foregroundStyle(Color.fontButton)
+                        }
+                        .overlay(Circle().stroke(Color.grey20, lineWidth: 2))
+                        .offset(x: 5, y: -5)
+                        .accessibilityIdentifier("interest-tag-\(tag.rawValue)-check")
+                }
+            }
+            .opacity(isActive ? 1 : 0.78)
+            .shadow(color: .black.opacity(isActive ? 0.24 : 0.18), radius: isActive ? 6 : 4, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("interest-tag-\(tag.rawValue)")
+        .accessibilityLabel(tag.label)
     }
 }
 
@@ -3882,6 +4136,7 @@ private struct WelcomeResumeCard: View {
                 .shadow(color: .black.opacity(0.18), radius: 16, x: 0, y: 8)
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("welcome-chat-card-\(card.id)")
             .accessibilityLabel(card.title)
         }
     }

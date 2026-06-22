@@ -18,7 +18,9 @@ claims:
 
 ## What It Does
 
-Daily Inspiration shows up to ten curated prompts on your new chat screen. The daily mix includes videos, Wikipedia article prompts, and OpenMates feature tips. Video and Wikipedia inspirations start a chat about the topic; feature tips open the relevant settings area when available. Inspirations are personalised based on your recent conversations.
+Daily Inspiration shows up to ten curated prompts on your new chat screen. The daily mix includes videos, Wikipedia article prompts, and OpenMates feature tips. Video and Wikipedia inspirations start a chat about the topic; feature tips open the relevant settings area when available.
+
+When you are not signed in yet, the first inspirations introduce OpenMates itself: AI mates, app skills, memories/settings, example chats, CLI/programmatic use, and privacy controls. These logged-out inspirations are local defaults and are replaced or outranked by personalised inspirations after you sign in and use OpenMates.
 
 ## How It Works
 
@@ -39,6 +41,8 @@ Feature tips do not start chats. They deep-link to the relevant OpenMates settin
 ### Personalisation
 
 Inspirations are tailored to your interests based on topics from your recent conversations. The more you chat, the more relevant your daily inspirations become.
+
+Logged-out visitors can also choose interest tags on the welcome screen. Those tags are stored only in the current browser session and locally reorder product explainers, example chats, and starter suggestions. They are not sent to OpenMates as cleartext. If you sign up or log in, your selected interests are encrypted on your device before they sync to your account and can be edited later under Settings > Account > Interests.
 
 ### When Inspirations Refresh
 

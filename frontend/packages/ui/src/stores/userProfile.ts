@@ -1,6 +1,7 @@
 import { get, writable } from "svelte/store";
 import { userDB } from "../services/userDB";
 import { pushNotificationStore } from "./pushNotificationStore";
+import type { TopicPreferencesPayload } from "./topicPreferencesStore";
 
 export interface UserProfile {
   user_id: string | null;
@@ -33,6 +34,8 @@ export interface UserProfile {
   // Top recommended apps (decrypted on-demand, never stored in plaintext)
   top_recommended_apps?: string[]; // Array of top 5 app IDs, computed from encrypted_top_recommended_apps
   encrypted_top_recommended_apps?: string | null; // Encrypted array of top 5 app IDs, encrypted with master key
+  encrypted_settings?: string | null; // Client-encrypted account settings blob; server stores ciphertext only
+  topic_preferences?: TopicPreferencesPayload; // Decrypted local account interest preferences
   // Random apps for "Explore & discover" category (when no personalized recommendations exist)
   random_explore_apps?: string[]; // Array of app IDs for random selection
   random_explore_apps_timestamp?: number; // Unix timestamp when random apps were generated (for daily refresh)

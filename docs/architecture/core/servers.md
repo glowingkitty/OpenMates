@@ -1,8 +1,11 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-06-21
 key_files:
 - backend/core/docker-compose.yml
+- backend/core/docker-compose.selfhost.yml
+- backend/upload/docker-compose.selfhost.yml
+- backend/preview/docker-compose.selfhost.yml
 - backend/preview/docker-compose.preview.yml
 - deployment/dev_server/Caddyfile
 claims:
@@ -44,7 +47,7 @@ claims:
 
 # Server Architecture
 
-> Docker Compose stack with a single FastAPI gateway hosting all app skills in-process, dedicated Celery workers for queue-driven workloads, Directus CMS, and a separate preview server for image/metadata proxying.
+> Docker Compose stacks managed by the host-level `openmates server` CLI: a core FastAPI/Directus/Vault stack, an isolated upload server, and an isolated preview server.
 
 ## Why This Exists
 
@@ -52,6 +55,25 @@ claims:
 - Celery workers (`app-ai-worker`, `app-images-worker`, `app-pdf-worker`, `task-worker`, `task-scheduler`) run their own queues for long-running, parallelizable, or autoscaled work — they earn their RAM
 - Infrastructure services (cache, vault, monitoring) are co-located in the same Compose stack
 - The preview server runs on a separate VM for security isolation (blocks SSRF, prevents hotlinking)
+- Image-mode server operations are owned by the CLI, not the web UI. The CLI packages runtime templates, creates pre-update backups, applies service-scoped updates, and manages host-level Caddyfile drift.
+
+## CLI-Managed Roles
+
+| Role | Compose source | Data-bearing | Health check | Purpose |
+| --- | --- | --- | --- | --- |
+| `core` | `backend/core/docker-compose.selfhost.yml` | Yes | `http://localhost:8000/health` | API, Directus, Postgres, Vault, cache, workers, optional web app |
+| `upload` | `backend/upload/docker-compose.selfhost.yml` | Yes | `http://localhost:8000/health` | Isolated uploads service, local Vault, ClamAV, admin sidecar |
+| `preview` | `backend/preview/docker-compose.selfhost.yml` | No product data | `http://localhost:8080/health` | Isolated image/favicon/metadata proxy with cache |
+
+Core profiles are resolved by the CLI:
+
+| Profile | Observability services |
+| --- | --- |
+| `minimal` | none |
+| `standard` | OpenObserve and Promtail |
+| `production` | OpenObserve, Promtail, Prometheus, and cAdvisor |
+
+Alertmanager is opt-in via `--with-alerts`. Production backend-only operation should use service filtering such as `--exclude webapp` when the official web app is hosted separately.
 
 ## How It Works
 

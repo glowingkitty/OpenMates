@@ -250,6 +250,42 @@ connected_accounts.finalize_error:
   context: Safe generic error when an account update OAuth handoff cannot be saved.
   en: Could not finish updating connected account.
   verified_by_human: [en]
+connected_accounts.cli_export_title:
+  context: Section heading for developer/test connected account CLI import command generation.
+  en: CLI test-account import
+  verified_by_human: [en]
+connected_accounts.cli_export_warning:
+  context: Warning before exporting an encrypted connected account import command.
+  en: This is for testing only. Anyone with the generated command and passcode can add this provider account to another OpenMates account.
+  verified_by_human: [en]
+connected_accounts.cli_export_passcode_placeholder:
+  context: Placeholder for the passcode used to encrypt a connected account CLI import payload.
+  en: Passcode for the CLI import
+  verified_by_human: [en]
+connected_accounts.cli_export_passcode_required:
+  context: Error when generating a CLI import command without a passcode.
+  en: Enter a passcode before generating the CLI import command.
+  verified_by_human: [en]
+connected_accounts.cli_export_button:
+  context: Button label to generate and copy an encrypted connected account CLI import command.
+  en: Generate CLI import command
+  verified_by_human: [en]
+connected_accounts.cli_export_command_label:
+  context: Accessible label for the generated connected account CLI import command text area.
+  en: Generated CLI import command
+  verified_by_human: [en]
+connected_accounts.cli_export_copied:
+  context: Success message when the connected account CLI import command is copied.
+  en: CLI import command copied. Paste it while logged into the test account in OpenMates CLI.
+  verified_by_human: [en]
+connected_accounts.cli_export_generated:
+  context: Success message when the connected account CLI import command was generated but copy fallback did not succeed.
+  en: CLI import command generated. Copy it and paste it while logged into the test account in OpenMates CLI.
+  verified_by_human: [en]
+connected_accounts.cli_export_error:
+  context: Safe generic error when generating the connected account CLI import command fails.
+  en: Could not generate the CLI import command.
+  verified_by_human: [en]
 nearby_by_default:
   context: Toggle label for nearby by default location setting
   en: Nearby by default

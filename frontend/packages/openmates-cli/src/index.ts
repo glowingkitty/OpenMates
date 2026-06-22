@@ -11,11 +11,14 @@
 export {
   OpenMatesClient,
   deriveAppUrl,
+  INTEREST_TAG_IDS,
   MEMORY_TYPE_REGISTRY,
   MATE_NAMES,
+  normalizeInterestTagIds,
 } from "./client.js";
 export { serializeToYaml, getExtForLang } from "./cli.js";
 export { defaultCloneBranchForVersion } from "./server.js";
+export { OpenMates, OpenMatesApiError, OpenMatesConfigError } from "./sdk.js";
 export {
   ASSISTANT_FEEDBACK_REPORT_TITLE,
   ASSISTANT_FEEDBACK_THANKS,
@@ -34,6 +37,8 @@ export type {
   BankTransferOrderDetails,
   BankTransferStatus,
   GiftCardBankTransferStatus,
+  InterestTagId,
+  TopicPreferencesPayload,
   AuthMethodsStatus,
   CliSignupResult,
   TotpSetupStartResult,
@@ -43,6 +48,13 @@ export type {
   DocsFile,
   DocsSearchResult,
 } from "./client.js";
+export type {
+  ChatCreateOptions,
+  ChatListOptions,
+  ChatResponse,
+  EncryptedChatMetadata,
+  OpenMatesOptions,
+} from "./sdk.js";
 export type {
   OpenMatesSession,
   SyncCache,

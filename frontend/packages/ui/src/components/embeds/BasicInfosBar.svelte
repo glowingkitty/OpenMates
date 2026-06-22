@@ -33,6 +33,8 @@
     skillId: string;
     /** Icon name for the skill icon (e.g., 'search', 'videos', 'book') */
     skillIconName: string;
+    /** Optional app icon override when appId has no icon_rounded CSS mapping. */
+    appIconName?: string;
     /** Processing status */
     status: 'processing' | 'finished' | 'error' | 'cancelled';
     /** Skill display name (shown in status text) */
@@ -63,6 +65,7 @@
     appId,
     skillId,
     skillIconName,
+    appIconName,
     status,
     skillName,
     taskId,
@@ -186,6 +189,8 @@
   
   // Compute app gradient style using CSS variables from theme.css
   let appGradientStyle = $derived(`background: var(--color-app-${appId});`);
+  let safeAppIconName = $derived(normalizeIconName(appIconName));
+  let appIconStyle = $derived(safeAppIconName ? `--embed-app-icon-url: var(--icon-url-${safeAppIconName});` : '');
   
   // Handle stop button click - prevent event propagation
   function handleStopClick(e: MouseEvent) {
@@ -193,6 +198,11 @@
     if (onStop) {
       onStop();
     }
+  }
+
+  function normalizeIconName(value: string | undefined): string {
+    const normalized = value?.trim().toLowerCase().replace(/\s+/g, '-') ?? '';
+    return /^[a-z0-9_-]+$/.test(normalized) ? normalized : '';
   }
 </script>
 
@@ -206,7 +216,11 @@
       </div>
     {:else}
       <div class="app-icon-container {appId}" data-app-icon={appId} style={appGradientStyle}>
-        <div class="icon_rounded {appId}"></div>
+        {#if safeAppIconName}
+          <div class="app-icon-mask" style={appIconStyle} data-testid="embed-app-icon-mask"></div>
+        {:else}
+          <div class="icon_rounded {appId}"></div>
+        {/if}
       </div>
     {/if}
     
@@ -249,7 +263,11 @@
   <div class="basic-infos-bar desktop" class:noSkillIcon={!showSkillIcon}>
     <!-- App icon in gradient circle (always show app icon, not favicon) -->
     <div class="app-icon-circle {appId}" data-testid="app-icon-circle" data-app-icon={appId} style={appGradientStyle}>
-      <div class="icon_rounded {appId}"></div>
+      {#if safeAppIconName}
+        <div class="app-icon-mask" style={appIconStyle} data-testid="embed-app-icon-mask"></div>
+      {:else}
+        <div class="icon_rounded {appId}"></div>
+      {/if}
     </div>
     
     <!-- Skill icon (29x29px) - only show for app skills -->
@@ -356,6 +374,20 @@
   /* Make the icon white on gradient background */
   .basic-infos-bar.desktop .app-icon-circle .icon_rounded {
     background: transparent !important;
+  }
+
+  .app-icon-mask {
+    width: 26px;
+    height: 26px;
+    background: #fff;
+    -webkit-mask-image: var(--embed-app-icon-url);
+    mask-image: var(--embed-app-icon-url);
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    mask-size: contain;
   }
   
   .basic-infos-bar.desktop .app-icon-circle .icon_rounded::after {

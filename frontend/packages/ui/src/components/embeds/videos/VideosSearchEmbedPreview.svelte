@@ -7,6 +7,10 @@
   Details content structure:
   - Processing: query text + "via {provider}"
   - Finished: query text + "via {provider}" + channel thumbnails (first 3, circular) + "+ N more"
+
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+  - apple/OpenMates/Sources/Features/Embeds/Renderers/SearchEmbedModels.swift
   
   NOTE: Real-time updates are handled by UnifiedEmbedPreview via embedUpdated events.
   This component implements onEmbedDataUpdated to update its specific data.
@@ -22,6 +26,7 @@
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
   import { chatSyncService } from '../../../services/chatSyncService';
   import { handleImageError } from '../../../utils/offlineImageHandler';
+  import { getParentPreviewResultState, normalizeEmbedIdList } from '../embedPreviewHydration';
   
   /**
    * Video search result interface for channel thumbnail display
@@ -66,6 +71,10 @@
     status: 'processing' | 'finished' | 'error';
     /** Search results (for finished state) */
     results?: VideoSearchResult[];
+    /** Parent-level result_count for metadata-only previews */
+    resultCount?: number;
+    /** Child IDs indicate legacy results exist even when preview metadata is absent */
+    childEmbedIds?: string[] | string;
     /** Task ID for cancellation of entire AI response */
     taskId?: string;
     /** Skill task ID for cancellation of just this skill (allows AI to continue) */
@@ -82,6 +91,8 @@
     provider: providerProp,
     status: statusProp,
     results: resultsProp = [],
+    resultCount: resultCountProp,
+    childEmbedIds: childEmbedIdsProp,
     taskId: taskIdProp,
     skillTaskId: skillTaskIdProp,
     isMobile = false,
@@ -114,6 +125,7 @@
   let provider = $derived(localProvider);
   let status = $derived(localStatus);
   let results = $derived(localResults);
+  let childEmbedIds = $derived(normalizeEmbedIdList(childEmbedIdsProp));
   let taskId = $derived(localTaskId);
   let skillTaskId = $derived(localSkillTaskId);
   
@@ -139,8 +151,9 @@
     if (content) {
       if (typeof content.query === 'string') localQuery = content.query;
       if (typeof content.provider === 'string') localProvider = content.provider;
-      if (content.results && Array.isArray(content.results)) {
-        localResults = content.results as VideoSearchResult[];
+      const previewResults = content.results || content.preview_results;
+      if (previewResults && Array.isArray(previewResults)) {
+        localResults = previewResults as VideoSearchResult[];
         console.debug(`[VideosSearchEmbedPreview] Updated results from callback:`, localResults.length);
       }
       // Extract skill_task_id for individual skill cancellation
@@ -211,6 +224,13 @@
   let remainingCount = $derived(
     Math.max(0, (results?.length || 0) - channelThumbnailResults.length)
   );
+
+  let resultState = $derived(getParentPreviewResultState({
+    status,
+    previewResultCount: results.length,
+    resultCount: resultCountProp,
+    childEmbedIds,
+  }));
   
   // Handle stop button click - cancels this specific skill, not the entire AI response
   async function handleStop() {
@@ -256,10 +276,19 @@
       <!-- Provider subtitle -->
       <div class="ds-search-provider">{viaProvider}</div>
       
-      <!-- Finished state: show channel thumbnails (circular) and remaining count -->
       {#if status === 'finished'}
         <div class="ds-search-results-info">
-          {#if channelThumbnailResults.length > 0}
+          {#if resultState === 'known_zero_results'}
+            <span class="no-results-text" data-testid="videos-search-no-results-message">
+              {query
+                ? $text('embeds.search_no_results_for_query').replace('{query}', query)
+                : $text('embeds.search_no_results')}
+            </span>
+          {:else if resultState === 'missing_preview_metadata'}
+            <span class="no-results-text" data-testid="videos-search-preview-metadata-missing-message">
+              {$text('embeds.search_preview_open_to_view_results')}
+            </span>
+          {:else if channelThumbnailResults.length > 0}
             <div class="channel-thumbnail-row">
               {#each channelThumbnailResults as result, index}
                 {@const rawChannelThumbnailUrl = getChannelThumbnailUrl(result)}
@@ -279,8 +308,7 @@
             </div>
           {/if}
           
-          <!-- Remaining count - uses embeds.more_results translation with {count} placeholder -->
-          {#if remainingCount > 0}
+          {#if resultState === 'has_preview_metadata' && remainingCount > 0}
             <span class="remaining-count">
               {$text('embeds.more_results').replace('{count}', String(remainingCount))}
             </span>
@@ -365,6 +393,13 @@
     font-size: var(--font-size-small);
     color: var(--color-grey-70);
     font-weight: 500;
+  }
+
+  .no-results-text {
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--color-grey-60);
+    font-style: italic;
   }
   
   .videos-search-details.mobile .remaining-count {

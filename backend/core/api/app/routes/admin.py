@@ -359,13 +359,13 @@ async def get_server_stats(
 @limiter.limit("30/minute")
 async def get_free_testing_credits_budget(
     request: Request,
+    _official_cloud: None = Depends(_require_official_cloud),
     admin_user: User = Depends(require_admin),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     encryption_service: EncryptionService = Depends(get_encryption_service),
 ) -> FreeTestingBudgetResponse:
     """Return admin-visible Free testing credit budget state."""
-    _require_official_cloud(request)
     service = _build_free_testing_service(directus_service, cache_service, encryption_service)
     return _free_testing_budget_response(await service.get_budget_status())
 
@@ -375,13 +375,13 @@ async def get_free_testing_credits_budget(
 async def update_free_testing_credits_budget(
     request: Request,
     payload: FreeTestingBudgetRequest,
+    _official_cloud: None = Depends(_require_official_cloud),
     admin_user: User = Depends(require_admin),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     encryption_service: EncryptionService = Depends(get_encryption_service),
 ) -> FreeTestingBudgetResponse:
     """Create or update the Free testing credit budget."""
-    _require_official_cloud(request)
     service = _build_free_testing_service(directus_service, cache_service, encryption_service)
     try:
         status = await service.save_budget(
@@ -402,11 +402,11 @@ async def update_free_testing_credits_budget(
 @limiter.limit("30/minute")
 async def get_anonymous_free_usage_budget(
     request: Request,
+    _official_cloud: None = Depends(_require_official_cloud),
     admin_user: User = Depends(require_admin),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> AnonymousFreeUsageBudgetResponse:
     """Return admin-visible anonymous free usage budget state."""
-    _require_official_cloud(request)
     service = _build_anonymous_free_usage_service(directus_service)
     return _anonymous_free_usage_budget_response(await service.get_budget_status())
 
@@ -416,11 +416,11 @@ async def get_anonymous_free_usage_budget(
 async def update_anonymous_free_usage_budget(
     request: Request,
     payload: AnonymousFreeUsageBudgetRequest,
+    _official_cloud: None = Depends(_require_official_cloud),
     admin_user: User = Depends(require_admin),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> AnonymousFreeUsageBudgetResponse:
     """Create or update the anonymous free usage budget."""
-    _require_official_cloud(request)
     service = _build_anonymous_free_usage_service(directus_service)
     try:
         status = await service.save_budget(
@@ -482,6 +482,7 @@ def generate_gift_card_code(prefix: Optional[str] = None) -> str:
 async def admin_generate_gift_cards(
     request: Request,
     payload: GenerateGiftCardsRequest,
+    _official_cloud: None = Depends(_require_official_cloud),
     admin_user: User = Depends(require_admin),
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
@@ -495,7 +496,6 @@ async def admin_generate_gift_cards(
     Security: Protected by require_admin dependency which validates
     the user is in the server_admins collection with is_active=True.
     """
-    _require_official_cloud(request)
     try:
         generated_cards: List[Dict[str, Any]] = []
         max_retries = 3  # Max retries per code in case of collision
@@ -587,6 +587,7 @@ async def admin_generate_gift_cards(
 @limiter.limit("30/minute")
 async def admin_list_gift_cards(
     request: Request,
+    _official_cloud: None = Depends(_require_official_cloud),
     admin_user: User = Depends(require_admin),
     directus_service: DirectusService = Depends(get_directus_service)
 ) -> Dict[str, Any]:
@@ -598,7 +599,6 @@ async def admin_list_gift_cards(
 
     Security: Protected by require_admin dependency.
     """
-    _require_official_cloud(request)
     try:
         cards = await directus_service.get_all_gift_cards()
 

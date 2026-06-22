@@ -1,0 +1,48 @@
+name: openmates-preview
+
+services:
+  preview:
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-preview:${OPENMATES_IMAGE_TAG:-dev}
+    container_name: preview
+    restart: unless-stopped
+    env_file: ../../.env
+    environment:
+      PREVIEW_HOST: 0.0.0.0
+      PREVIEW_PORT: 8080
+      PREVIEW_CACHE_DIR: /app/cache
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - preview-cache:/app/cache
+    networks: [preview]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  admin-sidecar:
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-dev}
+    container_name: preview-admin-sidecar
+    restart: unless-stopped
+    environment:
+      ADMIN_LOG_API_KEY: ${ADMIN_LOG_API_KEY:-}
+      COMPOSE_PROJECT: openmates-preview
+      COMPOSE_FILE: backend/preview/docker-compose.preview.yml
+      SERVICES_ALLOWED: preview
+      SERVICE_UPDATE_TARGET: preview
+      GIT_WORK_DIR: ${GIT_WORK_DIR}
+      PORT: 8001
+    ports:
+      - "127.0.0.1:8001:8001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [preview]
+
+networks:
+  preview:
+    name: openmates-preview
+
+volumes:
+  preview-cache:
+    name: openmates-preview-cache

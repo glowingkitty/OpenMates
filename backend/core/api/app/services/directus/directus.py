@@ -49,6 +49,7 @@ from backend.core.api.app.services.directus.user.device_management import add_us
 # Import API key device management methods
 from backend.core.api.app.services.directus.api_key_device_methods import (
     get_api_key_device_by_hash,
+    get_api_key_device_by_id,
     create_api_key_device,
     update_api_key_device_last_access,
     get_api_key_devices,
@@ -735,17 +736,26 @@ class DirectusService:
             - key_hash (for validation)
             - encrypted_key_prefix (client decrypts for display)
             - encrypted_name (client decrypts for display)
+            - full_access, scopes, credit_limit (authorization metadata)
             - expires_at (expiration timestamp)
             - last_used_at (last usage timestamp)
             - created_at (creation timestamp)
         """
+        import hashlib
+
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         params = {
-            "filter[user_id][_eq]": user_id,
-            "fields": "id,key_hash,encrypted_key_prefix,encrypted_name,expires_at,last_used_at,created_at",
+            "filter": {
+                "_or": [
+                    {"hashed_user_id": {"_eq": hashed_user_id}},
+                    {"user_id": {"_eq": user_id}},
+                ]
+            },
+            "fields": "id,key_hash,encrypted_key_prefix,encrypted_name,full_access,scopes,credit_limit,expires_at,last_used_at,created_at",
             "sort": "-created_at"  # Most recently created first
         }
         try:
-            items = await self.get_items("api_keys", params)
+            items = await self.get_items("api_keys", params, admin_required=True)
             return items if items else []
         except Exception as e:
             logger.error(f"Exception getting user API keys for user_id {user_id[:8]}...: {e}", exc_info=True)
@@ -763,11 +773,11 @@ class DirectusService:
         """
         params = {
             "filter[key_hash][_eq]": key_hash,
-            "fields": "id,user_id,hashed_user_id,key_hash,encrypted_name,expires_at,last_used_at",
+            "fields": "id,user_id,hashed_user_id,key_hash,encrypted_name,full_access,scopes,credit_limit,expires_at,last_used_at",
             "limit": 1
         }
         try:
-            items = await self.get_items("api_keys", params)
+            items = await self.get_items("api_keys", params, admin_required=True)
             if items:
                 return items[0]
             return None
@@ -782,6 +792,9 @@ class DirectusService:
         key_hash: str,
         encrypted_key_prefix: str,
         encrypted_name: str,
+        full_access: bool = True,
+        scopes: Optional[Dict[str, Any]] = None,
+        credit_limit: Optional[Dict[str, Any]] = None,
         expires_at: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
@@ -793,6 +806,9 @@ class DirectusService:
             key_hash: SHA-256 hash of the full API key
             encrypted_key_prefix: Client-side encrypted key prefix
             encrypted_name: Client-side encrypted API key name
+            full_access: Whether the key can use all supported API-key scopes
+            scopes: Optional server-readable scope metadata
+            credit_limit: Optional single-period credit cap metadata
             expires_at: Optional expiration timestamp (ISO format)
             
         Returns:
@@ -808,6 +824,9 @@ class DirectusService:
             "key_hash": key_hash,
             "encrypted_key_prefix": encrypted_key_prefix,
             "encrypted_name": encrypted_name,
+            "full_access": full_access,
+            "scopes": scopes or {},
+            "credit_limit": credit_limit,
             "created_at": current_timestamp,
             "updated_at": current_timestamp,
         }
@@ -815,7 +834,7 @@ class DirectusService:
             payload["expires_at"] = expires_at
         
         try:
-            success, created_item = await self.create_item("api_keys", payload)
+            success, created_item = await self.create_item("api_keys", payload, admin_required=True)
             if success and created_item:
                 logger.info(f"Successfully created API key for user {user_id}")
                 return created_item
@@ -837,7 +856,7 @@ class DirectusService:
             True if deleted successfully, False otherwise
         """
         try:
-            success = await self.delete_item("api_keys", api_key_id)
+            success = await self.delete_item("api_keys", api_key_id, admin_required=True)
             if success:
                 logger.info(f"Successfully deleted API key {api_key_id}")
             return success
@@ -871,7 +890,7 @@ class DirectusService:
             # Use provided timestamp or generate current UTC time
             timestamp = last_used_at or datetime.now(timezone.utc).isoformat()
             update_data = {"last_used_at": timestamp}
-            updated = await self._update_item("api_keys", api_key_id, update_data)
+            updated = await self._update_item("api_keys", api_key_id, update_data, admin_required=True)
             if updated:
                 logger.debug(f"Updated api_key {api_key_id} last_used_at -> {timestamp}")
             else:
@@ -1296,6 +1315,7 @@ class DirectusService:
     
     # API key device management methods
     get_api_key_device_by_hash = get_api_key_device_by_hash
+    get_api_key_device_by_id = get_api_key_device_by_id
     create_api_key_device = create_api_key_device
     update_api_key_device_last_access = update_api_key_device_last_access
     get_api_key_devices = get_api_key_devices

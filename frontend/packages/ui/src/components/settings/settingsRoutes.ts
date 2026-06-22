@@ -42,6 +42,7 @@ import SettingsShareDebugLogs from "./SettingsShareDebugLogs.svelte";
 // Account & Security
 import SettingsAccount from "./SettingsAccount.svelte";
 import SettingsTimezone from "./account/SettingsTimezone.svelte";
+import SettingsInterests from "./account/SettingsInterests.svelte";
 import SettingsUsername from "./account/SettingsUsername.svelte";
 import SettingsEmail from "./account/SettingsEmail.svelte";
 import SettingsDeleteAccount from "./account/SettingsDeleteAccount.svelte";
@@ -195,6 +196,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   // Account
   account: SettingsAccount,
   "account/timezone": SettingsTimezone,
+  "account/interests": SettingsInterests,
   "account/username": SettingsUsername,
   "account/email": SettingsEmail,
   "account/security": SettingsSecurity,

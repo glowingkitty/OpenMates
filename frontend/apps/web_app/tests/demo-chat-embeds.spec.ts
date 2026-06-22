@@ -37,8 +37,8 @@ test.describe('Demo chat embed rendering', () => {
 			}
 		});
 
-		// ─── Navigate as a fresh user ───────────────────────────────────────
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		// ─── Navigate directly to the intro chat; fresh `/` shows interest onboarding.
+		await page.goto(getE2EDebugUrl('/#chat-id=demo-for-everyone'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
 		// ─── Wait for community demo chat cards to appear ──────────────────
@@ -112,7 +112,7 @@ test.describe('Demo chat embed rendering', () => {
 	test('uploaded demo image shows authentic Sightengine detection details', async ({ page }) => {
 		test.setTimeout(90000);
 
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.goto(getE2EDebugUrl('/#chat-id=demo-for-everyone'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
 		const chatCards = page.getByTestId('example-chats-group').locator('[data-testid="chat-embed-card"]');

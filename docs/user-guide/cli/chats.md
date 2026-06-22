@@ -4,7 +4,7 @@ doc_type: reference
 audience:
   - end-users
   - technical-users
-last_verified: 2026-06-11
+last_verified: 2026-06-21
 claims:
   - id: cli-chats-help-lists-chat-operations
     type: unit
@@ -31,13 +31,50 @@ claims:
       command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
       assertion: cli-unauthenticated-example-chats
     verified: '2026-06-11'
+  - id: cli-tui-examples-continue-with-full-history
+    type: unit
+    claim: CLI TUI example continuations keep the public example transcript as request history instead of sending only a source marker.
+    source:
+      - frontend/packages/openmates-cli/src/tui.ts
+      - frontend/packages/openmates-cli/src/tuiExampleContinuation.ts
+    test:
+      file: frontend/packages/openmates-cli/tests/tuiExampleContinuation.test.ts
+      command: cd frontend/packages/openmates-cli && npm run test:unit:tui
+      assertion: cli-tui-examples-continue-with-full-history
+    verified: '2026-06-21'
 ---
 
 # Chat Commands
 
 Encrypted chat operations -- list, search, view, send messages, share, download, and send incognito messages. Private saved chat data is decrypted client-side using your session's encryption keys.
 
-Without a session, `list`, `show`, and `open` expose only public example chats from the web app. These entries are labeled `EXAMPLE CHAT` and do not include private user data.
+Without a session, `list`, `show`, and `open` expose only public example chats from the web app. These entries are labeled `EXAMPLE CHAT` and do not include private user data. In the interactive TUI, use `/examples` to browse those examples; typing into an example starts a new continuation chat while keeping the bundled example read-only.
+
+## Interactive Chat TUI
+
+```
+openmates
+```
+
+Plain `openmates` opens the chat UI when stdin and stdout are both interactive TTYs. The start screen includes the OpenMates intro, `/examples` guidance, file-reference hints such as `@./notes.md` and `@~/Downloads/report.pdf`, and a bottom input field.
+
+Useful TUI commands:
+
+| Command | Description |
+|---------|-------------|
+| `/examples` | Choose local interest tags and browse ranked public examples |
+| `/help` | Show TUI commands |
+| `/login` | Run pair-auth login and return to the TUI |
+| `/signup` | Leave the TUI and run guided signup with hidden prompts |
+| `/embed <id>` | Show the fallback command for full embed details |
+| `/clear` | Clear the current terminal transcript view |
+| `/exit` | Restore the shell and exit |
+
+If plain `openmates` is run from a script, pipe, or redirected shell, it does not enter alternate-screen mode. It prints common programmatic commands such as `openmates chats new`, `openmates chats send --chat <chat-id>`, `openmates chats list`, and `openmates embeds show <embed-id>`.
+
+### Continuing Public Examples
+
+Example transcripts are read-only, but their input footer behaves like normal chat input. When you continue an example, the CLI starts a new chat context and sends the full public transcript as history with your first continuation message. Logged-out continuations use anonymous free chat history; signed-in continuations use the authenticated chat pipeline. The public example itself is unchanged.
 
 ## Listing Chats
 

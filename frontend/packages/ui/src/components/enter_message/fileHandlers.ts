@@ -1,5 +1,5 @@
 import type { Editor } from "@tiptap/core";
-import { insertCodeFile, insertDelimitedTableFile, insertEmailFile, insertImage, insertOfficeDocumentFile, insertOfficeSpreadsheetFile, insertPDF } from "./embedHandlers"; // Only supported file types are accepted via the upload button
+import { insertCodeFile, insertDelimitedTableFile, insertEmailFile, insertImage, insertMindMapFile, insertOfficeDocumentFile, insertOfficeSpreadsheetFile, insertPDF } from "./embedHandlers"; // Only supported file types are accepted via the upload button
 import { isCodeOrTextFile, isDelimitedTableFile, isEmailFile, isOfficeDocumentFile, isOfficeSpreadsheetFile } from "./utils"; // Import necessary utils
 
 // File size limits (consider moving to a config file later)
@@ -9,6 +9,11 @@ const FILE_SIZE_LIMITS = {
 };
 const MAX_TOTAL_SIZE = FILE_SIZE_LIMITS.TOTAL_MAX_SIZE * 1024 * 1024;
 const MAX_PER_FILE_SIZE = FILE_SIZE_LIMITS.PER_FILE_MAX_SIZE * 1024 * 1024;
+
+function isMindMapUploadFile(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return lower.endsWith(".ommindmap") || lower.endsWith(".openmates-mindmap.json");
+}
 
 /**
  * Processes an array of files (from drop, paste, or input selection).
@@ -61,6 +66,9 @@ export async function processFiles(
           "[FileHandlers] PDF upload requires authentication — skipping in demo mode",
         );
       }
+    } else if (isMindMapUploadFile(file.name)) {
+      editor.commands.focus("end");
+      await insertMindMapFile(editor, file);
     } else if (isDelimitedTableFile(file.name)) {
       editor.commands.focus("end");
       await insertDelimitedTableFile(editor, file);

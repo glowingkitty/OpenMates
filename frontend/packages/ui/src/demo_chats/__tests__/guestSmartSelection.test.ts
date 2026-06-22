@@ -1,0 +1,180 @@
+// frontend/packages/ui/src/demo_chats/__tests__/guestSmartSelection.test.ts
+// Regression coverage for the guest interest smart-selection contract.
+// These tests guard the deterministic, local-only ranking rules before the
+// Svelte welcome screen consumes them.
+
+import { readFileSync } from "node:fs";
+
+import { describe, expect, it } from "vitest";
+
+import {
+  INTEREST_TAGS,
+  type InterestTagId,
+} from "../interestTags";
+import {
+  rankDailyInspirationsByInterests,
+  rankExampleChatIdsByInterests,
+  rankIntroChatIdsByInterests,
+  rankInterestTagsForSelection,
+  rankSuggestionKeysByInterests,
+} from "../guestSmartSelection";
+
+describe("guestSmartSelection", () => {
+  it("uses interest translation keys for every guest-selectable tag", () => {
+    const source = readFileSync(
+      new URL("../../i18n/sources/chat/interests.yml", import.meta.url),
+      "utf-8",
+    );
+
+    expect(
+      INTEREST_TAGS.filter((tag) => !tag.labelKey.startsWith("chat.interests."))
+        .map((tag) => `${tag.id}:${tag.labelKey}`),
+    ).toEqual([]);
+    expect(
+      INTEREST_TAGS.filter((tag) => {
+        const sourceKey = tag.labelKey.replace("chat.interests.", "");
+        return !source.includes(`${sourceKey}:`);
+      }).map((tag) => `${tag.id}:${tag.labelKey}`),
+    ).toEqual([]);
+  });
+
+  it("keeps selected tags first and moves related tags next without hiding unrelated tags", () => {
+    const ranked = rankInterestTagsForSelection(["software_development"]);
+    const rankedIds = ranked.map((tag) => tag.id);
+
+    expect(rankedIds[0]).toBe("software_development");
+    expect(rankedIds).toEqual(
+      expect.arrayContaining(INTEREST_TAGS.map((tag) => tag.id)),
+    );
+    expect(rankedIds.indexOf("run_code")).toBeGreaterThan(0);
+    expect(rankedIds.indexOf("run_code")).toBeLessThan(
+      rankedIds.indexOf("find_apartments"),
+    );
+    expect(rankedIds.indexOf("privacy")).toBeLessThan(
+      rankedIds.indexOf("find_restaurant"),
+    );
+  });
+
+  it("keeps multiple selected tags first in selection order and ignores invalid duplicates", () => {
+    const rankedIds = rankInterestTagsForSelection([
+      "privacy",
+      "unknown_tag",
+      "software_development",
+      "privacy",
+    ]).map((tag) => tag.id);
+
+    expect(rankedIds.slice(0, 2)).toEqual([
+      "privacy",
+      "software_development",
+    ]);
+    expect(rankedIds).toEqual(Array.from(new Set(rankedIds)));
+    expect(rankedIds).toEqual(
+      expect.arrayContaining(INTEREST_TAGS.map((tag) => tag.id)),
+    );
+  });
+
+  it("ranks developer, CLI, and privacy feature inspirations before generic defaults", () => {
+    const inspirations = [
+      { inspiration_id: "openmates-intro", category: "openmates_official" },
+      { inspiration_id: "generic-curiosity", category: "general_knowledge" },
+      { inspiration_id: "cli-parity", category: "software_development" },
+      { inspiration_id: "sandbox-code-execution", category: "software_development" },
+      { inspiration_id: "pii-detection", category: "openmates_official" },
+      { inspiration_id: "relevant-memories", category: "openmates_official" },
+    ];
+
+    const ranked = rankDailyInspirationsByInterests(inspirations, [
+      "software_development",
+      "privacy",
+    ]).map((inspiration) => inspiration.inspiration_id);
+
+    expect(ranked.slice(0, 4)).toEqual([
+      "sandbox-code-execution",
+      "cli-parity",
+      "pii-detection",
+      "relevant-memories",
+    ]);
+    expect(ranked.indexOf("generic-curiosity")).toBeGreaterThan(
+      ranked.indexOf("openmates-intro"),
+    );
+  });
+
+  it("dedupes ranked example chats and remains deterministic", () => {
+    const selected: InterestTagId[] = [
+      "software_development",
+      "privacy",
+    ];
+    const exampleIds = [
+      "example-gigantic-airplanes",
+      "example-svelte-runes-docs",
+      "example-python-squares-code-run",
+      "example-pdf-search-encryption",
+      "example-python-squares-code-run",
+      "example-openmates-app-skills-embeds-docs",
+      "example-privacy-website-hero-background",
+    ];
+
+    const first = rankExampleChatIdsByInterests(exampleIds, selected);
+    const second = rankExampleChatIdsByInterests(exampleIds, selected);
+
+    expect(first).toEqual(second);
+    expect(first).toEqual(Array.from(new Set(first)));
+    expect(first.slice(0, 4)).toEqual([
+      "example-svelte-runes-docs",
+      "example-python-squares-code-run",
+      "example-openmates-app-skills-embeds-docs",
+      "example-pdf-search-encryption",
+    ]);
+  });
+
+  it("ranks intro chats and suggestion keys from the shared registry", () => {
+    expect(
+      rankIntroChatIdsByInterests(
+        [
+          "demo-for-everyone",
+          "demo-who-develops-openmates",
+          "demo-for-developers",
+        ],
+        ["software_development"],
+      ),
+    ).toEqual([
+      "demo-for-developers",
+      "demo-who-develops-openmates",
+      "demo-for-everyone",
+    ]);
+
+    expect(
+      rankSuggestionKeysByInterests(
+        [
+          "chat.new_chat_suggestions.plan_trip_japan",
+          "chat.new_chat_suggestions.learn_coding",
+          "chat.new_chat_suggestions.cybersecurity",
+          "chat.new_chat_suggestions.discover_video_search",
+        ],
+        ["software_development", "privacy"],
+      ).slice(0, 2),
+    ).toEqual([
+      "chat.new_chat_suggestions.cybersecurity",
+      "chat.new_chat_suggestions.learn_coding",
+    ]);
+  });
+
+  it("keeps personalized inspirations ahead of guest product explainers", () => {
+    const ranked = rankDailyInspirationsByInterests(
+      [
+        {
+          inspiration_id: "pii-detection",
+          category: "openmates_official",
+        },
+        {
+          inspiration_id: "personalized-user-topic",
+          category: "general_knowledge",
+          personalized: true,
+        },
+      ],
+      ["privacy"],
+    );
+
+    expect(ranked[0].inspiration_id).toBe("personalized-user-topic");
+  });
+});

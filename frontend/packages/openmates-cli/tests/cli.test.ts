@@ -26,6 +26,8 @@ import {
   getExtForLang,
   defaultCloneBranchForVersion,
   buildAssistantFeedbackDecision,
+  INTEREST_TAG_IDS,
+  normalizeInterestTagIds,
 } from "../dist/index.js";
 
 const execFileAsync = promisify(execFile);
@@ -116,6 +118,45 @@ async function runCliWithEmptyCacheSession(
 function readRepoText(path: string): string {
   return readFileSync(join(REPO_ROOT, path), "utf-8");
 }
+
+describe("connected account import command", () => {
+  it("is listed in global help and prints contextual help", () => {
+    assert.match(runCli(["help"]), /openmates connected-accounts \[--help\]/);
+    const output = runCli(["connected-accounts", "--help"]);
+    assert.match(output, /openmates connected-accounts import --payload <OMCA1\.\.\.>/);
+    assert.match(output, /hidden prompt/);
+  });
+
+  it("rejects passcodes passed as flags", () => {
+    const result = runCliWithoutSessionResult([
+      "connected-accounts",
+      "import",
+      "--payload",
+      "OMCA1.placeholder",
+      "--passcode",
+      "secret",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /passcodes must be entered through the hidden prompt/);
+  });
+
+  it("requires a logged-in CLI session before prompting for import passcode", () => {
+    const result = runCliWithoutSessionResult([
+      "connected-accounts",
+      "import",
+      "--payload",
+      "OMCA1.placeholder",
+    ]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Not logged in/);
+  });
+
+  it("does not print imported account labels because labels may contain provider emails", () => {
+    const source = readRepoText("frontend/packages/openmates-cli/src/cli.ts");
+    assert.doesNotMatch(source, /label: result\.label/);
+    assert.doesNotMatch(source, /Connected account imported: \$\{result\.label\}/);
+  });
+});
 
 describe("benchmark command", () => {
   it("is listed in global help", () => {
@@ -238,6 +279,27 @@ describe("benchmark command", () => {
     ]);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /--confirm-spend-credits/);
+  });
+});
+
+describe("account interest commands", () => {
+  it("lists account interest commands in settings help", () => {
+    const output = runCliWithoutSession(["settings", "account", "interests", "help"]);
+    assert.match(output, /account interests list/);
+    assert.match(output, /account interests set/);
+    assert.match(output, /account interests clear/);
+  });
+
+  it("normalizes interest tag IDs and rejects unknown values", () => {
+    assert.deepEqual(
+      normalizeInterestTagIds(["software_development", "run_code", "software_development"]),
+      ["software_development", "run_code"],
+    );
+    assert.ok(INTEREST_TAG_IDS.includes("privacy"));
+    assert.throws(
+      () => normalizeInterestTagIds(["unknown_topic"]),
+      /Unknown interest tag 'unknown_topic'/,
+    );
   });
 });
 
@@ -1040,8 +1102,8 @@ describe("deriveAppUrl", () => {
 
 describe("defaultCloneBranchForVersion", () => {
   it("uses dev for prerelease CLI versions", () => {
-    assert.strictEqual(defaultCloneBranchForVersion("0.12.0-alpha.12"), "dev");
-    assert.strictEqual(defaultCloneBranchForVersion("0.12.0-beta.1"), "dev");
+    assert.strictEqual(defaultCloneBranchForVersion("0.13.0-alpha.12"), "dev");
+    assert.strictEqual(defaultCloneBranchForVersion("0.13.0-beta.1"), "dev");
     assert.strictEqual(defaultCloneBranchForVersion("1.0.0-rc.1"), "dev");
   });
 

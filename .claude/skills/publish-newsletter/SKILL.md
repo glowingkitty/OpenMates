@@ -33,7 +33,7 @@ Or the user may just describe which newsletter to publish — infer the folder n
 
 Follow these rules before publishing or sending a test email:
 
-- The email/content header `title` in frontmatter must not contain `OpenMates`. `OpenMates` is fine in the `subject` and body text, but not in visible headings such as `OpenMates v0.11: ...` because it can cause email header formatting issues. Prefer `v0.11: Code tools, daily inspirations & new media providers`.
+- The email/content header `title` in frontmatter must not contain `OpenMates`. `OpenMates` is fine in the `subject` and body text, but not in visible headings such as `OpenMates v0.13.0: ...` because it can cause email header formatting issues. Prefer `v0.13.0: Release updates`.
 - Announcements must emphasize useful features and practical daily-life/work use cases. Avoid centering the announcement around debugging, test fixes, or generic stability work.
 - Stability and performance work may be mentioned only briefly, using a short sentence like `Improved stability and performance in chat sync, embeds, and file previews.` Do not list debugging, E2E, or internal implementation details.
 - Do not duplicate standalone announcements. If a feature such as referrals has its own announcement/newsletter, remove it from the release announcement except for a very short cross-reference if the user explicitly asks.

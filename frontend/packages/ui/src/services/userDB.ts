@@ -390,6 +390,15 @@ class UserDatabaseService {
             "top_recommended_apps",
           );
         }
+        if (userData.encrypted_settings !== undefined) {
+          store.put(userData.encrypted_settings, "encrypted_settings");
+        }
+        if (userData.topic_preferences !== undefined) {
+          store.put(
+            JSON.stringify(userData.topic_preferences || null),
+            "topic_preferences",
+          );
+        }
         // Save random explore apps and timestamp
         if (userData.random_explore_apps !== undefined) {
           store.put(
@@ -546,6 +555,15 @@ class UserDatabaseService {
           store.put(
             JSON.stringify(userData.top_recommended_apps || []),
             "top_recommended_apps",
+          );
+        }
+        if (userData.encrypted_settings !== undefined) {
+          store.put(userData.encrypted_settings, "encrypted_settings");
+        }
+        if (userData.topic_preferences !== undefined) {
+          store.put(
+            JSON.stringify(userData.topic_preferences || null),
+            "topic_preferences",
           );
         }
         if (userData.random_explore_apps !== undefined) {
@@ -741,6 +759,8 @@ class UserDatabaseService {
       const encryptedTopRecommendedAppsRequest = store.get(
         "encrypted_top_recommended_apps",
       ); // Get encrypted version
+      const encryptedSettingsRequest = store.get("encrypted_settings");
+      const topicPreferencesRequest = store.get("topic_preferences");
       const randomExploreAppsRequest = store.get("random_explore_apps"); // Get random explore apps
       const randomExploreAppsTimestampRequest = store.get(
         "random_explore_apps_timestamp",
@@ -870,6 +890,24 @@ class UserDatabaseService {
         // Handle encrypted top recommended apps retrieval
         profile.encrypted_top_recommended_apps =
           encryptedTopRecommendedAppsRequest.result || null;
+      };
+
+      encryptedSettingsRequest.onsuccess = () => {
+        profile.encrypted_settings = encryptedSettingsRequest.result || null;
+      };
+
+      topicPreferencesRequest.onsuccess = () => {
+        try {
+          profile.topic_preferences = topicPreferencesRequest.result
+            ? JSON.parse(topicPreferencesRequest.result)
+            : undefined;
+        } catch (e) {
+          console.warn(
+            "[UserDatabase] Failed to parse topic_preferences:",
+            e,
+          );
+          profile.topic_preferences = undefined;
+        }
       };
 
       randomExploreAppsRequest.onsuccess = () => {
@@ -1428,6 +1466,15 @@ class UserDatabaseService {
       }
       if (partialData.quick_tips_enabled !== undefined) {
         store.put(!!partialData.quick_tips_enabled, "quick_tips_enabled");
+      }
+      if (partialData.encrypted_settings !== undefined) {
+        store.put(partialData.encrypted_settings, "encrypted_settings");
+      }
+      if (partialData.topic_preferences !== undefined) {
+        store.put(
+          JSON.stringify(partialData.topic_preferences ?? null),
+          "topic_preferences",
+        );
       }
       // Furry Mode persistence is disabled until any furry art is made by human artists.
 

@@ -1,0 +1,524 @@
+title:
+  context: "Title of example chat: Privacy-First Product Launch Mind Map"
+  en: "Privacy-First Product Launch Mind Map"
+  de: Mindmap für einen Privacy-First-Produktlaunch
+  zh: 隐私优先产品发布思维导图
+  es: Mapa mental para el lanzamiento de un producto con prioridad en la privacidad
+  fr: "Carte mentale : Lancement de produit axé sur la confidentialité"
+  pt: Mapa Mental de Lançamento de Produto Focado em Privacidade
+  ru: Интеллект-карта запуска продукта с приоритетом конфиденциальности
+  ja: プライバシーファーストの製品発表マインドマップ
+  ko: 개인정보 보호 우선 제품 출시 마인드맵
+  it: Mappa Mentale Lancio Prodotto Privacy-First
+  tr: Gizlilik Öncelikli Ürün Lansmanı Zihin Haritası
+  vi: Sơ đồ tư duy Ra mắt Sản phẩm Ưu tiên Quyền riêng tư
+  id: Peta Pikiran Peluncuran Produk yang Mengutamakan Privasi
+  pl: Mapa myśli premiery produktu zorientowanego na prywatność
+  nl: Privacy-First Productlancering Mindmap
+  ar: خريطة ذهنية لإطلاق منتج يركز على الخصوصية أولاً
+  hi: प्राइवेसी-फर्स्ट प्रोडक्ट लॉन्च माइंड मैप
+  th: แผนผังความคิดการเปิดตัวผลิตภัณฑ์ที่เน้นความเป็นส่วนตัวเป็นอันดับแรก
+  cs: Myšlenková mapa uvedení produktu s důrazem na soukromí
+  sv: Mindmap för integritetsfokuserad produktlansering
+  he: מפת חשיבה להשקת מוצר עם דגש על פרטיות
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Privacy-First Product Launch Mind Map"
+  en: "A structured mind map for planning a privacy-first product launch across product, legal, marketing, UX, and logistics."
+  de: Eine strukturierte Mindmap zur Planung eines Privacy-First-Produktlaunches in den Bereichen Produkt, Recht, Marketing, UX und Logistik.
+  zh: 一个结构化的思维导图，用于从产品、法律、营销、用户体验和物流等方面规划隐私优先的产品发布。
+  es: Un mapa mental estructurado para planificar el lanzamiento de un producto que priorice la privacidad en las áreas de producto, legal, marketing, UX y logística.
+  fr: "Une carte mentale structurée pour planifier un lancement de produit axé sur la confidentialité, couvrant le produit, le juridique, le marketing, l'UX et la logistique."
+  pt: Um mapa mental estruturado para planejar o lançamento de um produto focado em privacidade nas áreas de produto, jurídico, marketing, UX e logística.
+  ru: Структурированная интеллект-карта для планирования запуска продукта с приоритетом конфиденциальности, охватывающая разработку, юридические аспекты, маркетинг, UX и логистику.
+  ja: 製品、法務、マーケティング、UX、ロジスティクスにわたる、プライバシーファーストの製品発表を計画するための構造化されたマインドマップ。
+  ko: 제품, 법률, 마케팅, UX 및 물류 전반에 걸쳐 개인정보 보호 우선 제품 출시를 계획하기 위한 구조화된 마인드맵입니다.
+  it: Una mappa mentale strutturata per pianificare il lancio di un prodotto incentrato sulla privacy tra prodotto, legale, marketing, UX e logistica.
+  tr: Ürün, hukuk, pazarlama, kullanıcı deneyimi ve lojistik alanlarında gizlilik öncelikli bir ürün lansmanı planlamak için yapılandırılmış bir zihin haritası.
+  vi: Một sơ đồ tư duy có cấu trúc để lập kế hoạch ra mắt sản phẩm ưu tiên quyền riêng tư trên các lĩnh vực sản phẩm, pháp lý, marketing, UX và hậu cần.
+  id: Peta pikiran terstruktur untuk merencanakan peluncuran produk yang mengutamakan privasi di seluruh bagian produk, hukum, pemasaran, UX, dan logistik.
+  pl: Strukturalna mapa myśli do planowania premiery produktu zorientowanego na prywatność w obszarach produktu, prawa, marketingu, UX i logistyki.
+  nl: Een gestructureerde mindmap voor het plannen van een privacy-first productlancering op het gebied van product, juridische zaken, marketing, UX en logistiek.
+  ar: خريطة ذهنية منظمة للتخطيط لإطلاق منتج يركز على الخصوصية أولاً، تشمل جوانب المنتج، والقانون، والتسويق، وتجربة المستخدم، والخدمات اللوجستية.
+  hi: प्रोडक्ट, लीगल, मार्केटिंग, UX और लॉजिस्टिक्स में प्राइवेसी-फर्स्ट प्रोडक्ट लॉन्च की योजना बनाने के लिए एक स्ट्रक्चर्ड माइंड मैप।
+  th: แผนผังความคิดที่มีโครงสร้างสำหรับการวางแผนเปิดตัวผลิตภัณฑ์ที่เน้นความเป็นส่วนตัวเป็นอันดับแรก ครอบคลุมทั้งด้านผลิตภัณฑ์, กฎหมาย, การตลาด, UX และโลจิสติกส์
+  cs: Strukturovaná myšlenková mapa pro plánování uvedení produktu s důrazem na soukromí napříč oblastmi produktu, práva, marketingu, UX a logistiky.
+  sv: En strukturerad mindmap för planering av en integritetsfokuserad produktlansering omfattande produkt, juridik, marknadsföring, UX och logistik.
+  he: מפת חשיבה מובנית לתכנון השקת מוצר עם דגש על פרטיות בתחומי המוצר, המשפט, השיווק, חוויית המשתמש (UX) והלוגיסטיקה.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Privacy-First Product Launch Mind Map. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Create a visual mind map artifact for planning a privacy-first product launch. Use a central idea with clear branches and sub-branches."
+  de: Erstelle ein visuelles Mindmap-Artefakt für die Planung eines Privacy-First-Produktlaunches. Verwende eine zentrale Idee mit klaren Zweigen und Unterzweigen.
+  zh: 创建一个用于规划隐私优先产品发布的视觉思维导图。使用一个中心思想，并配有清晰的分支和子分支。
+  es: Crea un artefacto de mapa mental visual para planificar el lanzamiento de un producto que priorice la privacidad. Utiliza una idea central con ramas y subramas claras.
+  fr: "Crée une carte mentale visuelle pour planifier le lancement d'un produit axé sur la confidentialité. Utilise une idée centrale avec des branches et sous-branches claires."
+  pt: Cria um artefato de mapa mental visual para planejar o lançamento de um produto focado em privacidade. Usa uma ideia central com ramos e sub-ramos claros.
+  ru: Создай визуальную интеллект-карту для планирования запуска продукта с приоритетом конфиденциальности. Используй центральную идею с четкими ветвями и подветвями.
+  ja: プライバシーファーストの製品発表を計画するための、視覚的なマインドマップを作成してください。中心となるアイデアから、明確なブランチとサブブランチを広げてください。
+  ko: 개인정보 보호 우선 제품 출시 계획을 위한 시각적 마인드맵 아티팩트를 만들어줘. 명확한 가지와 하위 가지가 있는 중심 아이디어를 사용해줘.
+  it: "Crea un artefatto mappa mentale visiva per pianificare il lancio di un prodotto incentrato sulla privacy. Usa un'idea centrale con rami e sottorami chiari."
+  tr: Gizlilik öncelikli bir ürün lansmanını planlamak için görsel bir zihin haritası yapısı oluştur. Net dalları ve alt dalları olan merkezi bir fikir kullan.
+  vi: Tạo một sơ đồ tư duy trực quan để lập kế hoạch ra mắt sản phẩm ưu tiên quyền riêng tư. Sử dụng một ý tưởng trung tâm với các nhánh và nhánh phụ rõ ràng.
+  id: Buat artefak peta pikiran visual untuk merencanakan peluncuran produk yang mengutamakan privasi. Gunakan ide sentral dengan cabang dan sub-cabang yang jelas.
+  pl: Stwórz wizualną mapę myśli do planowania premiery produktu zorientowanego na prywatność. Użyj głównej idei z wyraźnymi gałęziami i podgałęziami.
+  nl: Maak een visuele mindmap voor het plannen van een privacy-first productlancering. Gebruik een centraal idee met duidelijke takken en subtakken.
+  ar: أنشئ خريطة ذهنية مرئية للتخطيط لإطلاق منتج يركز على الخصوصية أولاً. استخدم فكرة مركزية مع فروع وفروع فرعية واضحة.
+  hi: प्राइवेसी-फर्स्ट प्रोडक्ट लॉन्च की योजना बनाने के लिए एक विजुअल माइंड मैप आर्टिफैक्ट बनाएं। स्पष्ट शाखाओं और उप-शाखाओं के साथ एक केंद्रीय विचार का उपयोग करें।
+  th: สร้างอาร์ติแฟกต์แผนผังความคิด (Mind Map) สำหรับการวางแผนเปิดตัวผลิตภัณฑ์ที่เน้นความเป็นส่วนตัวเป็นอันดับแรก โดยใช้แนวคิดหลักที่มีกิ่งก้านและกิ่งย่อยที่ชัดเจน
+  cs: Vytvoř vizuální myšlenkovou mapu pro plánování uvedení produktu s důrazem na soukromí. Použij ústřední myšlenku s jasnými větvemi a podvětvemi.
+  sv: Skapa en visuell mindmap för planering av en integritetsfokuserad produktlansering. Använd en central idé med tydliga grenar och undergrenar.
+  he: צור מפת חשיבה ויזואלית לתכנון השקת מוצר עם דגש על פרטיות. השתמש ברעיון מרכזי עם ענפים ותתי-ענפים ברורים.
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Privacy-First Product Launch Mind Map. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Here is a visual mind map to help you organize and plan your privacy-first product launch. I've broken it down into key areas: Product/Engineering, Legal, Marketing, UX, and Logistics. 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### Design Notes for a Privacy-First Launch
+    Since privacy is deeply connected to user trust, your UI and UX design choices will be just as important as your backend engineering. When you're designing the interface (especially the **UX** branch of this map), keep these principles in mind:
+    *   **Visual Transparency:** Avoid hiding data toggles in complex sub-menus. A clean, spacious privacy dashboard gives users a sense of control. 
+    *   **Plain Language Design:** Pair your "Plain-English Privacy Policy" with simple iconography. E.g., an open padlock vs. a closed padlock.
+    *   **Combine AI and Your Own Craft:** If you need placeholder icons, UI mockups, or wireframes for this launch, you can sketch them out on paper or in a simple tool, upload them here, and we can use AI to refine those rough concepts together. It’s a great way to keep the personal touch while moving quickly!
+    
+    Which area of the launch map feels like the biggest hurdle for you right now? I'd be happy to help you brainstorm marketing assets or sketch out some UI flows for your consent screens!
+  de: |
+    Hier ist eine visuelle Mindmap, die dir hilft, deinen Privacy-First-Produktlaunch zu organisieren und zu planen. Ich habe sie in Kernbereiche unterteilt: Produkt/Engineering, Recht, Marketing, UX und Logistik. 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### Design-Hinweise für einen Privacy-First-Launch
+    Da Datenschutz eng mit dem Vertrauen der Nutzer verknüpft ist, sind deine UI- und UX-Designentscheidungen genauso wichtig wie dein Backend-Engineering. Wenn du das Interface entwirfst (besonders den **UX**-Zweig dieser Map), beachte diese Prinzipien:
+    *   **Visuelle Transparenz:** Vermeide es, Datenschutzeinstellungen in komplexen Untermenüs zu verstecken. Ein klares, großzügiges Datenschutz-Dashboard gibt den Nutzern ein Gefühl der Kontrolle. 
+    *   **Verständliche Sprache im Design:** Ergänze deine leicht verständliche Datenschutzerklärung durch einfache Ikonografie, z. B. ein offenes vs. ein geschlossenes Vorhängeschloss.
+    *   **Kombiniere KI mit deinem eigenen Handwerk:** Wenn du Platzhalter-Icons, UI-Mockups oder Wireframes für diesen Launch benötigst, kannst du sie auf Papier oder in einem einfachen Tool skizzieren, hier hochladen und wir können diese groben Konzepte gemeinsam mit KI verfeinern. So behältst du die persönliche Note und kommst trotzdem schnell voran!
+    
+    Welcher Bereich der Launch-Map stellt für dich gerade die größte Hürde dar? Ich helfe dir gerne beim Brainstorming für Marketing-Assets oder beim Entwerfen von UI-Flows für deine Consent-Screens!
+  zh: |
+    这是一份视觉思维导图，旨在帮助你组织和规划隐私优先的产品发布。我将其拆分为几个关键领域：产品/工程、法律、营销、用户体验 (UX) 和物流。
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### 隐私优先发布的涉及笔记
+    由于隐私与用户信任深度挂钩，你的 UI 和 UX 设计选择将与后端工程同样重要。在设计界面时（尤其是此图中的 **UX** 分支），请记住以下原则：
+    *   **视觉透明度：** 避免将数据开关隐藏在复杂的二级菜单中。一个简洁、开阔的隐私仪表板能给用户一种掌控感。
+    *   **通俗易懂的设计：** 为你的“通俗版隐私政策”配上简单的图标。例如：打开的挂锁 vs. 关闭的挂锁。
+    *   **结合 AI 与你自己的创意：** 如果你在这次发布中需要占位图标、UI 模型或线框图，你可以先在纸上或简单的工具中画出来，然后上传到这里，我们可以一起利用 AI 来完善这些初步构思。这既能保持个性化，又能快速推进！
+    
+    目前发布路线图中的哪个领域让你觉得最具挑战？我很乐意帮你构思营销素材，或为你的征得同意界面绘制一些 UI 流程！
+  es: |
+    Aquí tienes un mapa mental visual para ayudarte a organizar y planificar el lanzamiento de tu producto con prioridad en la privacidad. Lo he desglosado en áreas clave: Producto/Ingeniería, Legal, Marketing, UX y Logística. 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### Notas de diseño para un lanzamiento con prioridad en la privacidad
+    Dado que la privacidad está profundamente ligada a la confianza del usuario, tus decisiones de diseño de UI y UX serán tan importantes como tu ingeniería de backend. Cuando diseñes la interfaz (especialmente la rama de **UX** de este mapa), ten en cuenta estos principios:
+    *   **Transparencia visual:** Evita ocultar los selectores de datos en submenús complejos. Un panel de privacidad limpio y espacioso da a los usuarios una sensación de control. 
+    *   **Diseño con lenguaje sencillo:** Acompaña tu "Política de privacidad en lenguaje sencillo" con iconografía simple. Por ejemplo, un candado abierto frente a un candado cerrado.
+    *   **Combina la IA con tu propia destreza:** Si necesitas iconos provisionales, maquetas de UI o wireframes para este lanzamiento, puedes dibujarlos en papel o en una herramienta sencilla, subirlos aquí y podremos usar la IA para perfeccionar esos conceptos preliminares juntos. ¡Es una forma estupenda de mantener el toque personal mientras avanzas rápido!
+    
+    ¿Qué área del mapa de lanzamiento te parece el mayor obstáculo en este momento? ¡Estaré encantado de ayudarte a generar ideas para activos de marketing o a diseñar algunos flujos de UI para tus pantallas de consentimiento!
+  fr: |
+    Voici une carte mentale visuelle pour t'aider à organiser et planifier ton lancement de produit axé sur la confidentialité. Je l'ai divisée en domaines clés : Produit/Ingénierie, Juridique, Marketing, UX et Logistique. 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### Notes de conception pour un lancement axé sur la confidentialité
+    Comme la confidentialité est étroitement liée à la confiance des utilisateurs, tes choix de conception UI et UX seront tout aussi importants que ton ingénierie backend. Lorsque tu conçois l'interface (en particulier la branche **UX** de cette carte), garde ces principes à l'esprit :
+    *   **Transparence visuelle :** Évite de cacher les options de données dans des sous-menus complexes. Un tableau de bord de confidentialité clair et spacieux donne aux utilisateurs un sentiment de contrôle. 
+    *   **Conception en langage clair :** Accompagne ta « politique de confidentialité en langage simple » d'une iconographie simple. Par exemple, un cadenas ouvert contre un cadenas fermé.
+    *   **Combine l'IA et ton propre savoir-faire :** Si tu as besoin d'icônes de remplacement, de maquettes UI ou de wireframes pour ce lancement, tu peux les dessiner sur papier ou dans un outil simple, les télécharger ici, et nous pourrons utiliser l'IA pour affiner ces concepts ensemble. C'est un excellent moyen de garder une touche personnelle tout en avançant rapidement !
+    
+    Quel domaine de la carte de lancement te semble être le plus grand défi en ce moment ? Je serais ravi de t'aider à réfléchir à des supports marketing ou à esquisser des flux UI pour tes écrans de consentement !
+  pt: |
+    Aqui está um mapa mental visual para te ajudar a organizar e planejar o lançamento do teu produto focado em privacidade. Dividi-o em áreas principais: Produto/Engenharia, Jurídico, Marketing, UX e Logística. 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### Notas de Design para um Lançamento Focado em Privacidade
+    Como a privacidade está profundamente ligada à confiança do utilizador, as tuas escolhas de design de UI e UX serão tão importantes quanto a tua engenharia de backend. Ao desenhares a interface (especialmente o ramo **UX** deste mapa), tem em mente estes princípios:
+    *   **Transparência Visual:** Evita esconder seletores de dados em submenus complexos. Um dashboard de privacidade limpo e espaçoso dá aos utilizadores uma sensação de controlo. 
+    *   **Linguagem Simples no Design:** Acompanha a tua "Política de Privacidade em Linguagem Simples" com iconografia simples. Ex: um cadeado aberto vs. um cadeado fechado.
+    *   **Combina IA e a Tua Própria Arte:** Se precisares de ícones temporários, mockups de UI ou wireframes para este lançamento, podes desenhá-los em papel ou numa ferramenta simples, carregá-los aqui e podemos usar a IA para refinar esses conceitos juntos. É uma excelente forma de manter o toque pessoal enquanto avanças rapidamente!
+    
+    Qual área do mapa de lançamento parece ser o maior obstáculo para ti agora? Terei todo o gosto em ajudar-te a criar ideias para ativos de marketing ou a desenhar fluxos de UI para os teus ecrãs de consentimento!
+  ru: |
+    Вот визуальная интеллект-карта, которая поможет тебе организовать и спланировать запуск продукта с приоритетом конфиденциальности. Я разделил её на ключевые области: Продукт/Разработка, Юридические вопросы, Маркетинг, UX и Логистика. 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### Заметки по дизайну для запуска с приоритетом конфиденциальности
+    Поскольку конфиденциальность тесно связана с доверием пользователей, твои решения в области UI и UX будут так же важны, как и техническая реализация. При проектировании интерфейса (особенно ветки **UX** на этой карте) помни о следующих принципах:
+    *   **Визуальная прозрачность:** Избегай скрытия переключателей данных в сложных подменю. Чистая и просторная панель управления конфиденциальностью дает пользователям чувство контроля. 
+    *   **Простой язык в дизайне:** Дополни политику конфиденциальности на «простом человеческом языке» понятными иконками. Например, открытый замок против закрытого.
+    *   **Сочетай ИИ и свое мастерство:** Если тебе нужны иконки-заглушки, макеты интерфейса или вайрфреймы для этого запуска, ты можешь набросать их на бумаге или в простом инструменте, загрузить сюда, и мы вместе доработаем эти черновики с помощью ИИ. Это отличный способ сохранить индивидуальность, двигаясь быстро!
+    
+    Какая область карты запуска кажется тебе сейчас самым сложным препятствием? Буду рад помочь тебе придумать маркетинговые материалы или набросать UX-сценарии для экранов согласия!
+  ja: |
+    プライバシーファーストの製品発表の整理と計画に役立つ、視覚的なマインドマップを作成しました。製品/エンジニアリング、法務、マーケティング、UX、ロジスティクスの主要な領域に分類しています。
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### プライバシーファーストの発表に向けたデザインノート
+    プライバシーはユーザーの信頼に深く関わっているため、UIやUXのデザインの選択は、バックエンドのエンジニアリングと同じくらい重要です。インターフェース（特にこのマップの**UX**ブランチ）をデザインする際は、以下の原則を念頭に置いてください。
+    
+    *   **視覚的な透明性:** 複雑なサブメニューの中にデータの切り替えスイッチを隠さないようにしましょう。すっきりと広々としたプライバシーダッシュボードは、ユーザーにコントロールできているという感覚を与えます。
+    *   **平易な言葉によるデザイン:** 「平易な表現のプライバシーポリシー」に、シンプルなアイコンを組み合わせましょう。例：開いた南京錠と閉まった南京錠など。
+    *   **AIと自分のスキルの融合:** この発表のためにプレースホルダーアイコン、UIモックアップ、ワイヤーフレームが必要な場合は、紙やシンプルなツールでスケッチしてここにアップロードしてください。AIを使って、それらのラフなコンセプトを一緒に洗練させることができます。個性を保ちつつ、スピーディーに進めるための素晴らしい方法です。
+    
+    現在、発表に向けたマップの中で、どの領域が最大のハードルだと感じていますか？マーケティングアセットのブレインストーミングや、同意画面のUIフローのスケッチなど、喜んでお手伝いします！
+  ko: |
+    개인정보 보호 우선 제품 출시를 체계화하고 계획하는 데 도움이 될 시각적 마인드맵이야. 제품/엔지니어링, 법률, 마케팅, UX, 물류라는 핵심 영역으로 나누어 정리했어.
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### 개인정보 보호 우선 출시를 위한 디자인 노트
+    개인정보 보호는 사용자 신뢰와 깊이 연결되어 있으므로, UI 및 UX 디자인 선택은 백엔드 엔지니어링만큼이나 중요해. 인터페이스(특히 이 맵의 **UX** 가지)를 디자인할 때 다음 원칙을 염두에 두어봐:
+    *   **시각적 투명성:** 복잡한 하위 메뉴에 데이터 토글을 숨기지 마. 깔끔하고 여유 있는 개인정보 보호 대시보드는 사용자에게 통제권을 갖고 있다는 느낌을 줘. 
+    *   **쉬운 언어 디자인:** "쉬운 언어로 된 개인정보 처리방침"을 단순한 아이콘과 결합해봐. 예: 열린 자물쇠 vs. 닫힌 자물쇠.
+    *   **AI와 너의 작업 결합:** 이번 출시를 위해 자리 표시용 아이콘, UI 목업 또는 와이어프레임이 필요하다면 종이나 간단한 도구에 스케치해서 여기에 업로드해줘. AI를 사용해 그 거친 개념들을 함께 다듬을 수 있어. 속도를 높이면서도 개인적인 터치를 유지할 수 있는 좋은 방법이지!
+    
+    지금 출시 맵의 어느 영역이 가장 큰 장애물로 느껴져? 마케팅 자산을 브레인스토밍하거나 동의 화면을 위한 UI 흐름을 스케치하는 걸 기꺼이 도와줄게!
+  it: |
+    Ecco una mappa mentale visiva per aiutarti a organizzare e pianificare il lancio del tuo prodotto incentrato sulla privacy. L'ho suddivisa in aree chiave: Prodotto/Ingegneria, Legale, Marketing, UX e Logistica. 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### Note di Design per un Lancio Privacy-First
+    Poiché la privacy è profondamente legata alla fiducia degli utenti, le tue scelte di design UI e UX saranno importanti tanto quanto l'ingegneria backend. Quando progetti l'interfaccia (specialmente il ramo **UX** di questa mappa), tieni a mente questi principi:
+    *   **Trasparenza Visiva:** Evita di nascondere i selettori dei dati in sottomenu complessi. Una dashboard della privacy pulita e spaziosa dà agli utenti un senso di controllo. 
+    *   **Design con Linguaggio Semplice:** Accompagna la tua "Informativa sulla Privacy in parole povere" con un'iconografia semplice. Ad esempio, un lucchetto aperto rispetto a un lucchetto chiuso.
+    *   **Combina l'IA e la Tua Creatività:** Se hai bisogno di icone segnaposto, mockup UI o wireframe per questo lancio, puoi abbozzarli su carta o in uno strumento semplice, caricarli qui e possiamo usare l'IA per perfezionare insieme quei concetti grezzi. È un ottimo modo per mantenere il tocco personale procedendo velocemente!
+    
+    Quale area della mappa di lancio ti sembra l'ostacolo più grande in questo momento? Sarei felice di aiutarti a ideare asset di marketing o a tracciare alcuni flussi UI per le tue schermate di consenso!
+  tr: |
+    İşte gizlilik öncelikli ürün lansmanını organize etmene ve planlamana yardımcı olacak görsel bir zihin haritası. Bunu temel alanlara ayırdım: Ürün/Mühendislik, Hukuk, Pazarlama, Kullanıcı Deneyimi (UX) ve Lojistik.
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### Gizlilik Öncelikli Bir Lansman İçin Tasarım Notları
+    Gizlilik, kullanıcı güveniyle derinden bağlantılı olduğundan, kullanıcı arayüzü (UI) ve kullanıcı deneyimi (UX) tasarım seçimlerin, arka uç mühendisliğin kadar önemli olacaktır. Arayüzü tasarlarken (özellikle bu haritanın **UX** dalı), şu ilkeleri aklında bulundur:
+    *   **Görsel Şeffaflık:** Veri anahtarlarını karmaşık alt menülere gizlemekten kaçın. Temiz ve ferah bir gizlilik paneli, kullanıcılara kontrol hissi verir.
+    *   **Sade Dil Tasarımı:** "Sade dille yazılmış Gizlilik Politikanı" basit ikonlarla eşleştir. Örneğin, açık bir asma kilit ile kapalı bir asma kilit.
+    *   **Yapay Zekayı Kendi Ustalığınla Birleştir:** Bu lansman için yer tutucu ikonlara, arayüz maketlerine veya tel kafeslere (wireframe) ihtiyacın varsa, bunları kağıda veya basit bir araçla çizebilir, buraya yükleyebilirsin; biz de bu kaba taslakları yapay zeka ile birlikte geliştirebiliriz. Hızlı hareket ederken kişisel dokunuşu korumanın harika bir yoludur!
+    
+    Lansman haritasının hangi alanı şu an senin için en büyük engel gibi görünüyor? Pazarlama varlıkları için beyin fırtınası yapmana veya onay ekranların için bazı kullanıcı arayüzü akışları tasarlamana yardımcı olmaktan mutluluk duyarım!
+  vi: |
+    Dưới đây là sơ đồ tư duy trực quan để giúp bạn tổ chức và lập kế hoạch cho buổi ra mắt sản phẩm ưu tiên quyền riêng tư của mình. Tôi đã chia nó thành các lĩnh vực chính: Sản phẩm/Kỹ thuật, Pháp lý, Marketing, UX và Hậu cần. 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### Ghi chú Thiết kế cho một Buổi ra mắt Ưu tiên Quyền riêng tư
+    Vì quyền riêng tư liên quan sâu sắc đến sự tin tưởng của người dùng, các lựa chọn thiết kế UI và UX của bạn sẽ quan trọng không kém gì kỹ thuật backend. Khi bạn thiết kế giao diện (đặc biệt là nhánh **UX** của sơ đồ này), hãy ghi nhớ các nguyên tắc sau:
+    *   **Minh bạch Trực quan:** Tránh ẩn các nút gạt dữ liệu trong các menu phụ phức tạp. Một bảng điều khiển quyền riêng tư sạch sẽ, rộng rãi mang lại cho người dùng cảm giác được kiểm soát. 
+    *   **Thiết kế bằng Ngôn ngữ Bình dân:** Kết hợp "Chính sách Quyền riêng tư bằng Tiếng Anh đơn giản" của bạn với các biểu tượng đơn giản. Ví dụ: một ổ khóa mở so với một ổ khóa đóng.
+    *   **Kết hợp AI và Kỹ năng của Chính bạn:** Nếu bạn cần các biểu tượng giữ chỗ, mockup UI hoặc wireframe cho buổi ra mắt này, bạn có thể phác thảo chúng trên giấy hoặc trong một công cụ đơn giản, tải chúng lên đây và chúng ta có thể sử dụng AI để cùng nhau tinh chỉnh những khái niệm thô đó. Đó là một cách tuyệt vời để giữ dấu ấn cá nhân trong khi vẫn tiến triển nhanh chóng!
+    
+    Lĩnh vực nào trong sơ đồ ra mắt khiến bạn cảm thấy là trở ngại lớn nhất hiện nay? Tôi rất sẵn lòng giúp bạn lên ý tưởng cho các tài sản marketing hoặc phác thảo một số luồng UI cho màn hình chấp thuận của bạn!
+  id: |
+    Berikut adalah peta pikiran visual untuk membantumu mengatur dan merencanakan peluncuran produk yang mengutamakan privasi. Aku telah membaginya ke dalam area-area utama: Produk/Teknik, Hukum, Pemasaran, UX, dan Logistik. 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### Catatan Desain untuk Peluncuran yang Mengutamakan Privasi
+    Karena privasi sangat berkaitan erat dengan kepercayaan pengguna, pilihan desain UI dan UX kamu akan sama pentingnya dengan teknik backend. Saat kamu mendesain antarmuka (terutama cabang **UX** pada peta ini), ingatlah prinsip-prinsip berikut:
+    *   **Transparansi Visual:** Hindari menyembunyikan tombol data di sub-menu yang rumit. Dasbor privasi yang bersih dan luas memberikan rasa kendali kepada pengguna. 
+    *   **Desain Bahasa Sederhana:** Pasangkan "Kebijakan Privasi Bahasa Sederhana" kamu dengan ikonografi yang simpel. Contoh: gembok terbuka vs. gembok tertutup.
+    *   **Gabungkan AI dan Kreasimu Sendiri:** Jika kamu butuh ikon placeholder, mockup UI, atau wireframe untuk peluncuran ini, kamu bisa mencoret-coretnya di kertas atau di alat sederhana, unggah di sini, dan kita bisa menggunakan AI untuk menyempurnakan konsep kasar tersebut bersama-sama. Ini cara yang bagus untuk mempertahankan sentuhan personal sambil bergerak cepat!
+    
+    Bagian mana dari peta peluncuran ini yang terasa seperti hambatan terbesar bagimu saat ini? Aku akan senang membantumu bertukar pikiran tentang aset pemasaran atau membuat sketsa alur UI untuk layar persetujuanmu!
+  pl: |
+    Oto wizualna mapa myśli, która pomoże Ci zorganizować i zaplanować premierę produktu zorientowanego na prywatność. Podzieliłem ją na kluczowe obszary: Produkt/Inżynieria, Prawo, Marketing, UX i Logistyka. 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### Uwagi projektowe dotyczące premiery zorientowanej na prywatność
+    Ponieważ prywatność jest ściśle powiązana z zaufaniem użytkowników, Twoje wybory projektowe w zakresie UI i UX będą równie ważne, jak inżynieria backendowa. Projektując interfejs (szczególnie gałąź **UX** na tej mapie), pamiętaj o następujących zasadach:
+    *   **Wizualna przejrzystość:** Unikaj ukrywania przełączników danych w skomplikowanych podmenu. Przejrzysty, przestronny panel prywatności daje użytkownikom poczucie kontroli. 
+    *   **Projektowanie prostym językiem:** Połącz swoją „Politykę prywatności napisaną prostym językiem” z prostą ikonografią. Np. otwarta kłódka kontra zamknięta kłódka.
+    *   **Połącz AI z własnym rzemiosłem:** Jeśli potrzebujesz ikon zastępczych, makiet UI lub wireframe'ów na potrzeby tej premiery, możesz naszkicować je na papierze lub w prostym narzędziu, przesłać tutaj, a my wspólnie wykorzystamy AI, aby dopracować te wstępne koncepcje. To świetny sposób na zachowanie osobistego charakteru przy jednoczesnym szybkim tempie pracy!
+    
+    Który obszar mapy premiery wydaje Ci się obecnie największym wyzwaniem? Chętnie pomogę Ci w burzy mózgów nad materiałami marketingowymi lub naszkicowaniu przepływów UI dla ekranów zgód!
+  nl: |
+    Hier is een visuele mindmap om je te helpen bij het organiseren en plannen van je privacy-first productlancering. Ik heb het onderverdeeld in de belangrijkste gebieden: Product/Engineering, Juridisch, Marketing, UX en Logistiek. 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### Ontwerpnotities voor een Privacy-First lancering
+    Omdat privacy nauw verbonden is met het vertrouwen van de gebruiker, zijn je keuzes voor UI- en UX-ontwerp net zo belangrijk als je backend-engineering. Houd bij het ontwerpen van de interface (vooral de **UX**-tak van deze kaart) de volgende principes in gedachten:
+    *   **Visuele transparantie:** Vermijd het verbergen van gegevensinstellingen in complexe submenu's. Een overzichtelijk, ruimtelijk privacydashboard geeft gebruikers een gevoel van controle. 
+    *   **Begrijpelijk taalgebruik:** Combineer je privacybeleid in begrijpelijke taal met eenvoudige iconografie. Bijv. een open hangslot versus een gesloten hangslot.
+    *   **Combineer AI met je eigen vakmanschap:** Als je tijdelijke iconen, UI-mock-ups of wireframes nodig hebt voor deze lancering, kun je ze op papier of in een eenvoudige tool schetsen, hier uploaden en dan kunnen we AI gebruiken om die ruwe concepten samen te verfijnen. Het is een geweldige manier om de persoonlijke touch te behouden terwijl je snel vooruitgang boekt!
+    
+    Welk deel van de lanceringskaart voelt voor jou op dit moment als de grootste hindernis? Ik help je graag bij het brainstormen over marketingmateriaal of het uitschetsen van UI-flows voor je toestemmingsschermen!
+  ar: |
+    إليك خريطة ذهنية مرئية لمساعدتك في تنظيم وتخطيط إطلاق منتجك الذي يركز على الخصوصية أولاً. لقد قمت بتقسيمها إلى مجالات رئيسية: المنتج/الهندسة، القانون، التسويق، تجربة المستخدم، والخدمات اللوجستية. 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### ملاحظات التصميم لإطلاق يركز على الخصوصية أولاً
+    بما أن الخصوصية مرتبطة ارتباطاً وثيقاً بثقة المستخدم، فإن خيارات تصميم واجهة المستخدم (UI) وتجربة المستخدم (UX) ستكون بنفس أهمية الهندسة الخلفية. عند تصميم الواجهة (خاصة فرع **تجربة المستخدم** في هذه الخريطة)، ضع هذه المبادئ في اعتبارك:
+    *   **الشفافية المرئية:** تجنب إخفاء مفاتيح تبديل البيانات في قوائم فرعية معقدة. تمنح لوحة معلومات الخصوصية النظيفة والواسعة المستخدمين شعوراً بالسيطرة. 
+    *   **التصميم بلغة بسيطة:** اربط "سياسة الخصوصية باللغة البسيطة" بأيقونات واضحة. على سبيل المثال، قفل مفتوح مقابل قفل مغلق.
+    *   **اجمع بين الذكاء الاصطناعي وإبداعك الخاص:** إذا كنت بحاجة إلى أيقونات مؤقتة، أو نماذج أولية لواجهة المستخدم، أو إطارات سلكية لهذا الإطلاق، يمكنك رسمها على الورق أو في أداة بسيطة، وتحميلها هنا، ويمكننا استخدام الذكاء الاصطناعي لتحسين تلك المفاهيم الأولية معاً. إنها طريقة رائعة للحفاظ على اللمسة الشخصية مع المضي قدماً بسرعة!
+    
+    أي مجال في خريطة الإطلاق يمثل أكبر عقبة بالنسبة لك الآن؟ سأكون سعيداً بمساعدتك في العصف الذهني للأصول التسويقية أو رسم بعض تدفقات واجهة المستخدم لشاشات الموافقة الخاصة بك!
+  hi: |
+    आपके प्राइवेसी-फर्स्ट प्रोडक्ट लॉन्च को व्यवस्थित करने और उसकी योजना बनाने में मदद करने के लिए यहाँ एक विजुअल माइंड मैप दिया गया है। मैंने इसे मुख्य क्षेत्रों में विभाजित किया है: प्रोडक्ट/इंजीनियरिंग, लीगल, मार्केटिंग, UX और लॉजिस्टिक्स। 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### प्राइवेसी-फर्स्ट लॉन्च के लिए डिज़ाइन नोट्स
+    चूंकि प्राइवेसी सीधे तौर पर यूजर के भरोसे से जुड़ी होती है, इसलिए आपके UI और UX डिज़ाइन विकल्प आपके बैकएंड इंजीनियरिंग जितने ही महत्वपूर्ण होंगे। जब आप इंटरफ़ेस डिज़ाइन कर रहे हों (विशेष रूप से इस मैप की **UX** शाखा), तो इन सिद्धांतों को ध्यान में रखें:
+    *   **विजुअल ट्रांसपेरेंसी:** डेटा टॉगल को जटिल सब-मेन्यू में छिपाने से बचें। एक क्लीन और स्पेशियस प्राइवेसी डैशबोर्ड यूजर्स को नियंत्रण का अहसास कराता है। 
+    *   **सरल भाषा वाला डिज़ाइन:** अपनी "सरल-हिंदी प्राइवेसी पॉलिसी" को सरल आइकनोग्राफी के साथ जोड़ें। जैसे, एक खुला ताला बनाम एक बंद ताला।
+    *   **AI और अपनी कला का मेल:** यदि आपको इस लॉन्च के लिए प्लेसहोल्डर आइकन, UI मॉकअप या वायरफ्रेम की आवश्यकता है, तो आप उन्हें कागज पर या किसी सरल टूल में स्केच कर सकते हैं, उन्हें यहाँ अपलोड कर सकते हैं, और हम उन रफ कॉन्सेप्ट्स को एक साथ बेहतर बनाने के लिए AI का उपयोग कर सकते हैं। तेजी से काम करते हुए व्यक्तिगत स्पर्श बनाए रखने का यह एक शानदार तरीका है!
+    
+    लॉन्च मैप का कौन सा क्षेत्र अभी आपको सबसे बड़ी बाधा लग रहा है? मुझे मार्केटिंग एसेट्स पर विचार-मंथन करने या आपकी सहमति स्क्रीन (consent screens) के लिए कुछ UI फ्लो स्केच करने में मदद करने में खुशी होगी!
+  th: |
+    นี่คือแผนผังความคิดเพื่อช่วยคุณจัดระเบียบและวางแผนการเปิดตัวผลิตภัณฑ์ที่เน้นความเป็นส่วนตัวเป็นอันดับแรก ฉันได้แบ่งออกเป็นส่วนสำคัญต่างๆ ได้แก่ ผลิตภัณฑ์/วิศวกรรม, กฎหมาย, การตลาด, UX และโลจิสติกส์
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### บันทึกการออกแบบสำหรับการเปิดตัวที่เน้นความเป็นส่วนตัว
+    เนื่องจากความเป็นส่วนตัวเชื่อมโยงอย่างลึกซึ้งกับความไว้วางใจของผู้ใช้ การเลือกการออกแบบ UI และ UX ของคุณจึงมีความสำคัญพอๆ กับวิศวกรรมหลังบ้าน เมื่อคุณออกแบบอินเทอร์เฟซ (โดยเฉพาะในส่วน **UX** ของแผนผังนี้) ให้คำนึงถึงหลักการเหล่านี้:
+    *   **ความโปร่งใสทางสายตา:** หลีกเลี่ยงการซ่อนปุ่มสลับข้อมูลไว้ในเมนูย่อยที่ซับซ้อน แดชบอร์ดความเป็นส่วนตัวที่สะอาดตาและกว้างขวางจะช่วยให้ผู้ใช้รู้สึกว่าตนเองเป็นผู้ควบคุม
+    *   **การออกแบบด้วยภาษาที่เข้าใจง่าย:** จับคู่นโยบายความเป็นส่วนตัวที่ใช้ "ภาษาทั่วไปที่เข้าใจง่าย" กับชุดไอคอนที่เรียบง่าย เช่น รูปแม่กุญแจที่เปิดอยู่เทียบกับแม่กุญแจที่ปิดอยู่
+    *   **ผสมผสาน AI เข้ากับฝีมือของคุณ:** หากคุณต้องการไอคอนจำลอง, ม็อคอัพ UI หรือโครงร่าง (Wireframe) สำหรับการเปิดตัวครั้งนี้ คุณสามารถร่างลงบนกระดาษหรือในเครื่องมือง่ายๆ แล้วอัปโหลดที่นี่ และเราสามารถใช้ AI เพื่อช่วยขัดเกลาแนวคิดคร่าวๆ เหล่านั้นร่วมกันได้ เป็นวิธีที่ยอดเยี่ยมในการรักษาเอกลักษณ์เฉพาะตัวในขณะที่ทำงานได้อย่างรวดเร็ว!
+    
+    ส่วนไหนของแผนผังการเปิดตัวที่คุณรู้สึกว่าเป็นอุปสรรคใหญ่ที่สุดในตอนนี้? ฉันยินดีที่จะช่วยคุณระดมความคิดเกี่ยวกับสื่อการตลาดหรือร่างขั้นตอน UI สำหรับหน้าจอการให้ความยินยอม (Consent screens)!
+  cs: |
+    Zde je vizuální myšlenková mapa, která ti pomůže zorganizovat a naplánovat uvedení tvého produktu s důrazem na soukromí. Rozdělil jsem ji do klíčových oblastí: Produkt/Inženýrství, Právní záležitosti, Marketing, UX a Logistika. 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### Designové poznámky pro uvedení s důrazem na soukromí
+    Vzhledem k tomu, že soukromí je úzce spjato s důvěrou uživatelů, tvá rozhodnutí v oblasti UI a UX designu budou stejně důležitá jako technické řešení backendu. Při navrhování rozhraní (zejména u větve **UX** v této mapě) měj na paměti tyto principy:
+    *   **Vizuální transparentnost:** Vyhni se schovávání přepínačů dat do složitých podnabídek. Čistý a přehledný panel soukromí dává uživatelům pocit kontroly. 
+    *   **Srozumitelný jazyk:** Doplň své „Zásady ochrany soukromí psané lidskou řečí“ jednoduchými ikonami. Např. otevřený vs. zavřený visací zámek.
+    *   **Kombinuj AI a vlastní tvorbu:** Pokud pro toto uvedení potřebuješ zástupné ikony, UI makety nebo drátové modely, můžeš je načrtnout na papír nebo v jednoduchém nástroji, nahrát je sem a my pak pomocí AI tyto hrubé koncepty společně doladíme. Je to skvělý způsob, jak si zachovat osobní přístup a zároveň postupovat rychle!
+    
+    Která oblast z mapy uvedení ti teď připadá jako největší překážka? Rád ti pomůžu s brainstormingem marketingových podkladů nebo s návrhem UI toků pro obrazovky se souhlasem!
+  sv: |
+    Här är en visuell mindmap som hjälper dig att organisera och planera din integritetsfokuserade produktlansering. Jag har delat upp den i nyckelområden: Produkt/Teknik, Juridik, Marknadsföring, UX och Logistik. 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### Designanteckningar för en integritetsfokuserad lansering
+    Eftersom integritet är djupt kopplat till användarnas förtroende, kommer dina val av UI- och UX-design att vara lika viktiga som din backend-teknik. När du designar gränssnittet (särskilt **UX**-grenen i denna karta), tänk på dessa principer:
+    *   **Visuell transparens:** Undvik att gömma datainställningar i komplexa undermenyer. En ren och rymlig integritetspanel ger användarna en känsla av kontroll. 
+    *   **Design med klarspråk:** Kombinera din integritetspolicy på lättbegriplig svenska med enkel ikonografi. T.ex. ett öppet hänglås kontra ett stängt hänglås.
+    *   **Kombinera AI med ditt eget skapande:** Om du behöver platshållarikoner, UI-mockups eller trådskisser för denna lansering kan du skissa dem på papper eller i ett enkelt verktyg, ladda upp dem här, så kan vi använda AI för att förfina dessa grova koncept tillsammans. Det är ett utmärkt sätt att behålla den personliga touchen samtidigt som du rör dig snabbt framåt!
+    
+    Vilket område i lanseringskartan känns som det största hindret för dig just nu? Jag hjälper dig gärna att brainstorma marknadsföringsmaterial eller skissa upp UI-flöden för dina samtyckesskärmar!
+  he: |
+    הנה מפת חשיבה ויזואלית שתעזור לך לארגן ולתכנן את השקת המוצר שלך עם דגש על פרטיות. חילקתי אותה לתחומים מרכזיים: מוצר/הנדסה, משפטי, שיווק, חוויית משתמש (UX) ולוגיסטיקה. 
+    
+    ```json
+    {"type": "mindmap", "embed_id": "f9540460-1fce-441a-9abc-f627efaf1c0f"}
+    ```
+    
+    ### הערות עיצוב להשקה עם דגש על פרטיות
+    מכיוון שפרטיות קשורה עמוקות לאמון המשתמשים, בחירות העיצוב שלך בממשק המשתמש (UI) ובחוויית המשתמש (UX) יהיו חשובות לא פחות מההנדסה בצד השרת. כשאתה מעצב את הממשק (במיוחד את ענף ה-**UX** במפה הזו), כדאי לזכור את העקרונות הבאים:
+    *   **שקיפות ויזואלית:** הימנע מהסתרת מתגי נתונים בתפריטי משנה מורכבים. לוח בקרה (dashboard) נקי ומרווח לניהול פרטיות מעניק למשתמשים תחושת שליטה. 
+    *   **עיצוב בשפה פשוטה:** שלב את "מדיניות הפרטיות בשפה פשוטה" שלך עם איקונוגרפיה ברורה. לדוגמה, מנעול פתוח לעומת מנעול סגור.
+    *   **שילוב של בינה מלאכותית והיצירה שלך:** אם דרושים לך אייקונים זמניים, דגמי UI או שרטוטי wireframes להשקה הזו, תוכל לשרבט אותם על נייר או בכלי פשוט, להעלות אותם לכאן, ונוכל להשתמש ב-AI כדי לשכלל את המושגים הגולמיים האלה יחד. זו דרך מצוינת לשמור על המגע האישי תוך התקדמות מהירה!
+    
+    איזה תחום במפת ההשקה מרגיש לך כמו המכשול הגדול ביותר כרגע? אשמח לעזור לך בסיעור מוחות על נכסי שיווק או בשרטוט תזרימי UI למסכי ההסכמה שלך!
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for upcoming privacy-focused product launch events"
+  de: Suche nach anstehenden Events für datenschutzorientierte Produktlaunches
+  zh: 搜索即将举行的以隐私为中心的产品发布活动
+  es: Busca próximos eventos de lanzamiento de productos centrados en la privacidad
+  fr: Rechercher des événements de lancement de produits axés sur la confidentialité à venir
+  pt: Pesquisar eventos de lançamento de produtos focados em privacidade
+  ru: Найти ближайшие мероприятия по запуску продуктов, ориентированных на конфиденциальность
+  ja: プライバシー重視の製品発表イベントを検索して
+  ko: 개인정보 보호 중심의 제품 출시 관련 예정 이벤트 검색하기
+  it: Cerca eventi imminenti per il lancio di prodotti incentrati sulla privacy
+  tr: Yaklaşan gizlilik odaklı ürün lansman etkinliklerini ara
+  vi: Tìm kiếm các sự kiện ra mắt sản phẩm tập trung vào quyền riêng tư sắp tới
+  id: Cari acara peluncuran produk mendatang yang berfokus pada privasi
+  pl: Wyszukaj nadchodzące wydarzenia dotyczące premier produktów zorientowanych na prywatność
+  nl: Zoek naar komende productlanceringsevenementen die gericht zijn op privacy
+  ar: ابحث عن فعاليات إطلاق المنتجات القادمة التي تركز على الخصوصية
+  hi: आगामी प्राइवेसी-केंद्रित प्रोडक्ट लॉन्च इवेंट्स खोजें
+  th: ค้นหากิจกรรมการเปิดตัวผลิตภัณฑ์ที่เน้นความเป็นส่วนตัวที่กำลังจะเกิดขึ้น
+  cs: Vyhledej nadcházející akce zaměřené na uvádění produktů s důrazem na soukromí
+  sv: Sök efter kommande lanseringsevenemang för integritetsfokuserade produkter
+  he: חפש אירועי השקה קרובים של מוצרים המתמקדים בפרטיות
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain the importance of visual transparency in UI design"
+  de: Erkläre die Bedeutung von visueller Transparenz im UI-Design
+  zh: 解释 UI 设计中视觉透明度的重要性
+  es: Explica la importancia de la transparencia visual en el diseño de la interfaz de usuario
+  fr: "Expliquer l'importance de la transparence visuelle dans la conception UI"
+  pt: Explicar a importância da transparência visual no design de UI
+  ru: Объясни важность визуальной прозрачности в дизайне интерфейсов
+  ja: UIデザインにおける視覚的な透明性の重要性を説明して
+  ko: UI 디자인에서 시각적 투명성의 중요성 설명하기
+  it: "Spiega l'importanza della trasparenza visiva nel design dell'interfaccia utente (UI)"
+  tr: Kullanıcı arayüzü tasarımında görsel şeffaflığın önemini açıkla
+  vi: Giải thích tầm quan trọng của tính minh bạch trực quan trong thiết kế UI
+  id: Jelaskan pentingnya transparansi visual dalam desain UI
+  pl: Wyjaśnij znaczenie wizualnej przejrzystości w projektowaniu UI
+  nl: Leg het belang uit van visuele transparantie in UI-ontwerp
+  ar: اشرح أهمية الشفافية المرئية في تصميم واجهة المستخدم
+  hi: UI डिज़ाइन में विजुअल ट्रांसपेरेंसी के महत्व को समझाएं
+  th: อธิบายความสำคัญของความโปร่งใสทางสายตา (Visual Transparency) ในการออกแบบ UI
+  cs: Vysvětli význam vizuální transparentnosti v UI designu
+  sv: Förklara vikten av visuell transparens i UI-design
+  he: הסבר את החשיבות של שקיפות ויזואלית בעיצוב ממשק משתמש (UI)
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Find tutorials on designing privacy dashboards"
+  de: Finde Tutorials zum Design von Datenschutz-Dashboards
+  zh: 查找设计隐私仪表板的教程
+  es: Encuentra tutoriales sobre el diseño de paneles de privacidad
+  fr: Trouver des tutoriels sur la conception de tableaux de bord de confidentialité
+  pt: Encontrar tutoriais sobre design de dashboards de privacidade
+  ru: Найти руководства по проектированию панелей управления конфиденциальностью
+  ja: プライバシーダッシュボードのデザインに関するチュートリアルを探して
+  ko: 개인정보 보호 대시보드 디자인 튜토리얼 찾기
+  it: Trova tutorial sulla progettazione di dashboard per la privacy
+  tr: Gizlilik panelleri tasarlama üzerine eğitimler bul
+  vi: Tìm các bài hướng dẫn về thiết kế bảng điều khiển quyền riêng tư
+  id: Temukan tutorial tentang mendesain dasbor privasi
+  pl: Znajdź samouczki dotyczące projektowania paneli prywatności
+  nl: Vind tutorials over het ontwerpen van privacydashboards
+  ar: ابحث عن دروس تعليمية حول تصميم لوحات معلومات الخصوصية
+  hi: प्राइवेसी डैशबोर्ड डिज़ाइन करने पर ट्यूटोरियल खोजें
+  th: ค้นหาบทช่วยสอนเกี่ยวกับการออกแบบแดชบอร์ดความเป็นส่วนตัว
+  cs: Najdi návody na navrhování panelů pro správu soukromí
+  sv: Hitta guider för att designa integritetspaneler
+  he: מצא מדריכים לעיצוב לוחות בקרה לפרטיות
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "List key principles for a privacy-first product launch"
+  de: Liste die wichtigsten Prinzipien für einen Privacy-First-Produktlaunch auf
+  zh: 列出隐私优先产品发布的关键原则
+  es: Enumera los principios clave para el lanzamiento de un producto que priorice la privacidad
+  fr: Lister les principes clés pour un lancement de produit axé sur la confidentialité
+  pt: Listar princípios fundamentais para um lançamento de produto focado em privacidade
+  ru: Перечислить ключевые принципы запуска продукта с приоритетом конфиденциальности
+  ja: プライバシーファーストの製品発表における主要な原則をリストアップして
+  ko: 개인정보 보호 우선 제품 출시를 위한 핵심 원칙 목록화하기
+  it: Elenca i principi chiave per il lancio di un prodotto incentrato sulla privacy
+  tr: Gizlilik öncelikli bir ürün lansmanı için temel ilkeleri listele
+  vi: Liệt kê các nguyên tắc chính cho một buổi ra mắt sản phẩm ưu tiên quyền riêng tư
+  id: Sebutkan prinsip-prinsip utama untuk peluncuran produk yang mengutamakan privasi
+  pl: Wymień kluczowe zasady premiery produktu zorientowanego na prywatność
+  nl: Lijst met kernprincipes voor een privacy-first productlancering
+  ar: اذكر المبادئ الأساسية لإطلاق منتج يركز على الخصوصية أولاً
+  hi: प्राइवेसी-फर्स्ट प्रोडक्ट लॉन्च के लिए मुख्य सिद्धांतों की सूची बनाएं
+  th: รายการหลักการสำคัญสำหรับการเปิดตัวผลิตภัณฑ์ที่เน้นความเป็นส่วนตัวเป็นอันดับแรก
+  cs: Vyjmenuj klíčové principy pro uvedení produktu s důrazem na soukromí
+  sv: Lista huvudprinciper för en integritetsfokuserad produktlansering
+  he: רשום עקרונות מרכזיים להשקת מוצר עם דגש על פרטיות
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Generate mockups for a clean privacy dashboard"
+  de: Erstelle Mockups für ein klares Datenschutz-Dashboard
+  zh: 生成简洁隐私仪表板的模型图
+  es: Genera maquetas para un panel de privacidad limpio
+  fr: Générer des maquettes pour un tableau de bord de confidentialité épuré
+  pt: Gerar mockups para um dashboard de privacidade limpo
+  ru: Создать макеты для лаконичной панели управления конфиденциальностью
+  ja: クリーンなプライバシーダッシュボードのモックアップを作成して
+  ko: 깔끔한 개인정보 보호 대시보드 목업 생성하기
+  it: Genera mockup per una dashboard della privacy pulita
+  tr: Temiz bir gizlilik paneli için maketler oluştur
+  vi: Tạo mockup cho một bảng điều khiển quyền riêng tư tinh gọn
+  id: Buat mockup untuk dasbor privasi yang bersih
+  pl: Wygeneruj makiety przejrzystego panelu prywatności
+  nl: Genereer mock-ups voor een overzichtelijk privacydashboard
+  ar: أنشئ نماذج أولية للوحة معلومات خصوصية نظيفة
+  hi: एक क्लीन प्राइवेसी डैशबोर्ड के लिए मॉकअप तैयार करें
+  th: สร้างม็อคอัพสำหรับแดชบอร์ดความเป็นส่วนตัวที่ดูสะอาดตา
+  cs: Generuj návrhy pro přehledný panel správy soukromí
+  sv: Generera mockups för en ren integritetspanel
+  he: צור דגמים (mockups) ללוח בקרת פרטיות נקי
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Help me brainstorm marketing assets for a privacy-focused product"
+  de: Hilf mir beim Brainstorming von Marketing-Assets für ein datenschutzorientiertes Produkt
+  zh: 帮我构思以隐私为中心的产品营销素材
+  es: Ayúdame a generar ideas de activos de marketing para un producto centrado en la privacidad
+  fr: "M'aider à réfléchir à des supports marketing pour un produit axé sur la confidentialité"
+  pt: Ajudar-me a criar ideias de ativos de marketing para um produto focado em privacidade
+  ru: Помоги мне придумать маркетинговые материалы для продукта, ориентированного на конфиденциальность
+  ja: プライバシー重視の製品のマーケティングアセットのブレインストーミングを手伝って
+  ko: 개인정보 보호 중심 제품을 위한 마케팅 자산 브레인스토밍 도와주기
+  it: Aiutami a ideare asset di marketing per un prodotto incentrato sulla privacy
+  tr: Gizlilik odaklı bir ürün için pazarlama varlıkları beyin fırtınası yapmama yardım et
+  vi: Giúp tôi lên ý tưởng cho các tài sản marketing cho một sản phẩm tập trung vào quyền riêng tư
+  id: Bantu aku bertukar pikiran tentang aset pemasaran untuk produk yang berfokus pada privasi
+  pl: Pomóż mi wymyślić materiały marketingowe dla produktu zorientowanego na prywatność
+  nl: Help me bij het brainstormen over marketingmateriaal voor een privacygericht product
+  ar: ساعدني في العصف الذهني للأصول التسويقية لمنتج يركز على الخصوصية
+  hi: प्राइवेसी-केंद्रित प्रोडक्ट के लिए मार्केटिंग एसेट्स पर विचार-मंथन करने में मेरी मदद करें
+  th: ช่วยฉันระดมความคิดเกี่ยวกับสื่อการตลาดสำหรับผลิตภัณฑ์ที่เน้นความเป็นส่วนตัว
+  cs: Pomoz mi s brainstormingem marketingových podkladů pro produkt zaměřený na soukromí
+  sv: Hjälp mig brainstorma marknadsföringsmaterial för en integritetsfokuserad produkt
+  he: עזור לי בסיעור מוחות על נכסי שיווק למוצר המתמקד בפרטיות
+  verified_by_human: []
+

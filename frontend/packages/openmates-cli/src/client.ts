@@ -63,6 +63,12 @@ import {
   buildEmbedShareUrl,
   type ShareDuration,
 } from "./shareEncryption.js";
+import {
+  buildEncryptedConnectedAccountImportRow,
+  decryptConnectedAccountCliTransferPayload,
+  type ConnectedAccountCliTransferPayload,
+  type EncryptedConnectedAccountImportRow,
+} from "./connectedAccountImport.js";
 
 function normalizeUnixSeconds(value: unknown, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
@@ -147,6 +153,21 @@ export interface ConnectedAccountTurnTokenRef {
   expires_at: number;
 }
 
+export interface ConnectedAccountImportValidationResult {
+  valid: boolean;
+  provider_id: string;
+  app_id: string;
+  checked_at: number;
+}
+
+export interface ConnectedAccountImportResult {
+  id: string;
+  providerId: string;
+  appId: string;
+  label: string;
+  validation: ConnectedAccountImportValidationResult;
+}
+
 export type LearningModeAgeGroup = "under_10" | "10_12" | "13_15" | "16_18" | "adult";
 
 export interface LearningModeStatus {
@@ -160,6 +181,126 @@ export interface LearningModeContext {
   enabled: boolean;
   ageGroup?: LearningModeAgeGroup | null;
   source?: "anonymous_session";
+}
+
+export type InterestTagId =
+  | "software_development"
+  | "business_development"
+  | "life_coach_psychology"
+  | "medical_health"
+  | "legal_law"
+  | "finance"
+  | "design"
+  | "marketing_sales"
+  | "science"
+  | "history"
+  | "cooking_food"
+  | "electrical_engineering"
+  | "maker_prototyping"
+  | "movies_tv"
+  | "activism"
+  | "general_knowledge"
+  | "find_events"
+  | "find_restaurant"
+  | "find_doctor_appointments"
+  | "plot_charts"
+  | "video_tutorials"
+  | "find_apartments"
+  | "build_electronics"
+  | "diy_projects"
+  | "create_videos"
+  | "find_travel_connections"
+  | "plan_trips"
+  | "discuss_news"
+  | "discuss_videos"
+  | "run_code"
+  | "privacy"
+  | "learning"
+  | "writing";
+
+export interface TopicPreferencesPayload {
+  version: 1;
+  selectedTagIds: InterestTagId[];
+  updatedAt: string;
+}
+
+export const INTEREST_TAG_IDS: InterestTagId[] = [
+  "software_development",
+  "business_development",
+  "life_coach_psychology",
+  "medical_health",
+  "legal_law",
+  "finance",
+  "design",
+  "marketing_sales",
+  "science",
+  "history",
+  "cooking_food",
+  "electrical_engineering",
+  "maker_prototyping",
+  "movies_tv",
+  "activism",
+  "general_knowledge",
+  "find_events",
+  "find_restaurant",
+  "find_doctor_appointments",
+  "plot_charts",
+  "video_tutorials",
+  "find_apartments",
+  "build_electronics",
+  "diy_projects",
+  "create_videos",
+  "find_travel_connections",
+  "plan_trips",
+  "discuss_news",
+  "discuss_videos",
+  "run_code",
+  "privacy",
+  "learning",
+  "writing",
+];
+
+const TOPIC_PREFERENCES_SETTINGS_KEY = "topic_preferences";
+
+export function normalizeInterestTagIds(values: readonly string[]): InterestTagId[] {
+  const validIds = new Set<InterestTagId>(INTEREST_TAG_IDS);
+  const normalized: InterestTagId[] = [];
+  for (const value of values) {
+    if (!validIds.has(value as InterestTagId)) {
+      throw new Error(
+        `Unknown interest tag '${value}'. Use one of: ${INTEREST_TAG_IDS.join(", ")}`,
+      );
+    }
+    if (!normalized.includes(value as InterestTagId)) {
+      normalized.push(value as InterestTagId);
+    }
+  }
+  return normalized;
+}
+
+function normalizeTopicPreferencesPayload(value: unknown): TopicPreferencesPayload | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const candidate = value as Partial<TopicPreferencesPayload>;
+  if (candidate.version !== 1 || !Array.isArray(candidate.selectedTagIds)) {
+    return null;
+  }
+  const validIds = new Set<InterestTagId>(INTEREST_TAG_IDS);
+  const selectedTagIds: InterestTagId[] = [];
+  for (const value of candidate.selectedTagIds) {
+    if (validIds.has(value as InterestTagId) && !selectedTagIds.includes(value as InterestTagId)) {
+      selectedTagIds.push(value as InterestTagId);
+    }
+  }
+  return {
+    version: 1,
+    selectedTagIds,
+    updatedAt:
+      typeof candidate.updatedAt === "string"
+        ? candidate.updatedAt
+        : new Date(0).toISOString(),
+  };
 }
 
 export interface AppSettingsMemorySystemMessage {
@@ -1341,7 +1482,11 @@ export class OpenMatesClient {
     };
   }
 
-  async sendAnonymousMessage(params: { message: string; learningMode?: LearningModeContext }): Promise<{
+  async sendAnonymousMessage(params: {
+    message: string;
+    learningMode?: LearningModeContext;
+    messageHistory?: BenchmarkHistoryMessage[];
+  }): Promise<{
     status: "completed";
     chatId: string;
     messageId: string;
@@ -1375,7 +1520,12 @@ export class OpenMatesClient {
       client_chat_id: chatId,
       client_message_id: messageId,
       plaintext_message: params.message,
-      message_history: [],
+      message_history: (params.messageHistory ?? []).map((message) => ({
+        role: message.role,
+        content: message.content,
+        created_at: message.created_at,
+        sender_name: message.sender_name ?? message.role,
+      })),
     };
     if (params.learningMode?.enabled === true) {
       requestBody.learning_mode = {
@@ -1452,6 +1602,73 @@ export class OpenMatesClient {
         action_scope: input?.action_scope,
       };
     });
+  }
+
+  async importConnectedAccountFromCliPayload(params: {
+    encryptedPayload: string;
+    passcode: string;
+  }): Promise<ConnectedAccountImportResult> {
+    this.requireSession();
+    const payload = await decryptConnectedAccountCliTransferPayload(params.encryptedPayload, params.passcode);
+    const validation = await this.validateConnectedAccountImportPayload(payload);
+    const user = await this.whoAmI();
+    const userId = typeof user.id === "string"
+      ? user.id
+      : typeof user.user_id === "string"
+        ? user.user_id
+        : "";
+    if (!userId) {
+      throw new Error("Could not resolve current user id for connected account import.");
+    }
+    const row = await buildEncryptedConnectedAccountImportRow({
+      payload,
+      userId,
+      masterKey: this.getMasterKeyBytes(),
+    });
+    const stored = await this.createConnectedAccountImportRow(row);
+    return {
+      id: stored.id,
+      providerId: payload.provider_id,
+      appId: payload.app_id,
+      label: payload.label,
+      validation,
+    };
+  }
+
+  async validateConnectedAccountImportPayload(
+    payload: ConnectedAccountCliTransferPayload,
+  ): Promise<ConnectedAccountImportValidationResult> {
+    this.requireSession();
+    const response = await this.http.post<ConnectedAccountImportValidationResult>(
+      "/v1/connected-accounts/validate-import",
+      {
+        provider_id: payload.provider_id,
+        app_id: payload.app_id,
+        capabilities: payload.capabilities,
+        refresh_token_envelope: payload.refresh_token_bundle,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || response.data.valid !== true) {
+      throw new Error(`Connected account validation failed (HTTP ${response.status})`);
+    }
+    assertNoConnectedAccountSecretLeak(response.data);
+    return response.data;
+  }
+
+  private async createConnectedAccountImportRow(
+    row: EncryptedConnectedAccountImportRow,
+  ): Promise<{ id: string; sync_version: number }> {
+    assertNoConnectedAccountSecretLeak(row);
+    const response = await this.http.post<{ id: string; sync_version: number }>(
+      "/v1/connected-accounts",
+      row,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.id) {
+      throw new Error(`Failed to store connected account import (HTTP ${response.status})`);
+    }
+    return response.data;
   }
 
   async cancelConnectedAccountAction(params: {
@@ -1618,6 +1835,37 @@ export class OpenMatesClient {
     session.cookies = this.http.getCookieMap();
     saveSession(session);
     return response.data.user ?? {};
+  }
+
+  async getTopicPreferences(): Promise<TopicPreferencesPayload | null> {
+    const user = await this.whoAmI();
+    return await this.decryptTopicPreferences(user.encrypted_settings);
+  }
+
+  async setTopicPreferences(
+    selectedTagIds: readonly string[],
+  ): Promise<TopicPreferencesPayload> {
+    const user = await this.whoAmI();
+    const settings = await this.decryptSettingsRecord(user.encrypted_settings);
+    const payload: TopicPreferencesPayload = {
+      version: 1,
+      selectedTagIds: normalizeInterestTagIds(selectedTagIds),
+      updatedAt: new Date().toISOString(),
+    };
+
+    settings[TOPIC_PREFERENCES_SETTINGS_KEY] = payload;
+    const encryptedSettings = await encryptWithAesGcmCombined(
+      JSON.stringify(settings),
+      this.getMasterKeyBytes(),
+    );
+    await this.settingsPost("topic-preferences", {
+      encrypted_settings: encryptedSettings,
+    });
+    return payload;
+  }
+
+  async clearTopicPreferences(): Promise<TopicPreferencesPayload> {
+    return await this.setTopicPreferences([]);
   }
 
   async getLearningModeStatus(): Promise<LearningModeStatus> {
@@ -2681,6 +2929,15 @@ export class OpenMatesClient {
         content: params.message,
         created_at: createdAt,
       }];
+    } else if (isNewChat && params.messageHistory && params.messageHistory.length > 0) {
+      messagePayload.message_history = params.messageHistory.map((historyMessage) => ({
+        message_id: historyMessage.message_id,
+        chat_id: chatId,
+        role: historyMessage.role,
+        sender_name: historyMessage.sender_name ?? historyMessage.role,
+        content: historyMessage.content,
+        created_at: historyMessage.created_at,
+      }));
     }
 
     // For non-incognito chats, resolve or generate the chat key and include
@@ -5113,6 +5370,33 @@ export class OpenMatesClient {
   private getMasterKeyBytes(): Uint8Array {
     const session = this.requireSession();
     return base64ToBytes(session.masterKeyExportedB64);
+  }
+
+  private async decryptTopicPreferences(
+    encryptedSettings: unknown,
+  ): Promise<TopicPreferencesPayload | null> {
+    const settings = await this.decryptSettingsRecord(encryptedSettings);
+    return normalizeTopicPreferencesPayload(settings[TOPIC_PREFERENCES_SETTINGS_KEY]);
+  }
+
+  private async decryptSettingsRecord(
+    encryptedSettings: unknown,
+  ): Promise<Record<string, unknown>> {
+    if (typeof encryptedSettings !== "string" || encryptedSettings.length === 0) {
+      return {};
+    }
+    const decrypted = await decryptWithAesGcmCombined(
+      encryptedSettings,
+      this.getMasterKeyBytes(),
+    );
+    if (!decrypted) {
+      throw new Error("Failed to decrypt encrypted account settings.");
+    }
+    const parsed = JSON.parse(decrypted) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+    return parsed as Record<string, unknown>;
   }
 
   private getValidSessionFromDisk(): OpenMatesSession | null {

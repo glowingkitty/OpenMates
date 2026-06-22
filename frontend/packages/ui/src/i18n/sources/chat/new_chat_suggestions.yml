@@ -334,6 +334,30 @@ learn_coding:
   sv: "Hur börjar jag lära mig att koda?"
   he: "איך מתחילים ללמוד תכנות?"
   verified_by_human: []
+use_openmates_cli_api:
+  context: Default natural-language new chat suggestion for developer CLI/API workflows
+  en: "Show me how to use OpenMates from the CLI or API"
+  de: "Zeig mir, wie ich OpenMates über die CLI oder API verwende"
+  zh: "向我展示如何通过 CLI 或 API 使用 OpenMates"
+  es: "Muéstrame cómo usar OpenMates desde la CLI o la API"
+  fr: "Montrez-moi comment utiliser OpenMates depuis la CLI ou l’API"
+  pt: "Mostre-me como usar o OpenMates pela CLI ou API"
+  ru: "Покажите, как использовать OpenMates из CLI или API"
+  ja: "CLI または API から OpenMates を使う方法を教えてください"
+  ko: "CLI 또는 API에서 OpenMates를 사용하는 방법을 보여주세요"
+  it: "Mostrami come usare OpenMates dalla CLI o dall'API"
+  tr: "OpenMates'i CLI veya API üzerinden nasıl kullanacağımı göster"
+  vi: "Chỉ cho tôi cách dùng OpenMates từ CLI hoặc API"
+  id: "Tunjukkan cara menggunakan OpenMates dari CLI atau API"
+  pl: "Pokaż mi, jak używać OpenMates z CLI lub API"
+  nl: "Laat zien hoe ik OpenMates via de CLI of API gebruik"
+  ar: "أرني كيفية استخدام OpenMates من سطر الأوامر أو واجهة API"
+  hi: "मुझे CLI या API से OpenMates इस्तेमाल करना दिखाएँ"
+  th: "แสดงวิธีใช้ OpenMates จาก CLI หรือ API"
+  cs: "Ukažte mi, jak používat OpenMates z CLI nebo API"
+  sv: "Visa mig hur jag använder OpenMates från CLI eller API"
+  he: "הראה לי איך להשתמש ב-OpenMates מה-CLI או מה-API"
+  verified_by_human: []
 stock_market:
   context: Default natural-language new chat suggestion for web research
   en: "Explain how the stock market works"

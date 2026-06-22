@@ -9,6 +9,8 @@ key_files:
 - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
 - frontend/packages/ui/src/stores/dailyInspirationStore.ts
 - frontend/packages/ui/src/services/dailyInspirationDB.ts
+- frontend/packages/ui/src/data/product_features.yml
+- frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
 - backend/core/api/app/tasks/daily_inspiration_tasks.py
 claims:
 - id: arch-frontend-daily-inspiration-behavior
@@ -54,7 +56,7 @@ claims:
 
 ## Why This Exists
 
-Provides curiosity-driven content from independent educators, journalists, documentary makers, and Wikipedia articles, plus static OpenMates feature tips. Content inspirations include a phrase, pre-written assistant response, and follow-up suggestions so users can start a chat instantly. Feature tips deep-link to settings instead of creating chats.
+Provides curiosity-driven content from independent educators, journalists, documentary makers, and Wikipedia articles, plus static OpenMates feature tips. Content inspirations include a phrase, pre-written assistant response, and follow-up suggestions so users can start a chat instantly. Logged-out product feature cards use concise editorial headlines from `product_features.yml`; authenticated feature tips can deep-link to settings instead of creating chats.
 
 ## How It Works
 
@@ -93,6 +95,7 @@ Runs in `app-ai-worker` Celery container:
 - `DailyInspirationBanner.svelte` -- carousel of up to 10 cards
 - `dailyInspirationStore.ts` -- Svelte store for state/navigation
 - `dailyInspirationDB.ts` -- IndexedDB with AES-GCM encryption, 72h TTL
+- `product_features.yml` -- logged-out OpenMates feature headline registry
 - Chat creation: `handleStartChatFromInspiration()` in `ActiveChat.svelte`
 
 ## Data Structures

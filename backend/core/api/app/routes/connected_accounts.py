@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import time
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -22,6 +23,8 @@ from backend.core.api.app.services.connected_accounts_service import (
 )
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.models.user import User
+from backend.shared.providers.google_calendar.client import GoogleCalendarClient
+from backend.shared.providers.google_calendar.oauth import exchange_google_refresh_token
 
 router = APIRouter(prefix="/v1/connected-accounts", tags=["Connected Accounts"])
 
@@ -33,6 +36,20 @@ class ConnectedAccountRowResponse(BaseModel):
 
 class ConnectedAccountListResponse(BaseModel):
     rows: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class ConnectedAccountImportValidationRequest(BaseModel):
+    provider_id: str
+    app_id: str
+    capabilities: list[str] = Field(default_factory=list)
+    refresh_token_envelope: dict[str, Any]
+
+
+class ConnectedAccountImportValidationResponse(BaseModel):
+    valid: bool
+    provider_id: str
+    app_id: str
+    checked_at: int
 
 
 def get_directus_service(request: Request) -> DirectusService:
@@ -94,6 +111,52 @@ async def list_connected_accounts(
         params={"filter[hashed_user_id][_eq]": hashed_user_id},
     )
     return ConnectedAccountListResponse(rows=rows or [])
+
+
+@router.post("/validate-import", response_model=ConnectedAccountImportValidationResponse)
+async def validate_connected_account_import(
+    body: ConnectedAccountImportValidationRequest,
+    current_user: User = Depends(get_current_user),
+) -> ConnectedAccountImportValidationResponse:
+    """Validate an imported refresh-token envelope without persisting it."""
+
+    if body.provider_id != "google_calendar" or body.app_id not in {"calendar", "google_calendar"}:
+        raise HTTPException(status_code=400, detail="Unsupported connected account import provider")
+    refresh_token = body.refresh_token_envelope.get("refresh_token")
+    if not isinstance(refresh_token, str) or not refresh_token:
+        raise HTTPException(status_code=400, detail="Token envelope is malformed")
+
+    try:
+        token_response = await exchange_google_refresh_token(
+            refresh_token,
+            {
+                "connected_account_import_validation": True,
+                "app_id": "calendar",
+                "user_id": current_user.id,
+                "capabilities": body.capabilities,
+            },
+        )
+        access_token = token_response.get("access_token")
+        if not access_token:
+            raise RuntimeError("provider token exchange did not return access_token")
+        now = datetime.now(UTC)
+        await GoogleCalendarClient(access_token=str(access_token)).list_events(
+            calendar_id="primary",
+            time_min=now.isoformat().replace("+00:00", "Z"),
+            time_max=(now + timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
+            max_results=1,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Connected account import validation failed") from exc
+
+    return ConnectedAccountImportValidationResponse(
+        valid=True,
+        provider_id="google_calendar",
+        app_id="calendar",
+        checked_at=_sync_version(),
+    )
 
 
 @router.post("", response_model=ConnectedAccountRowResponse)

@@ -21,13 +21,20 @@ struct SearchSkillPreviewModel {
     let provider: String
     let status: EmbedStatus
     let childEmbeds: [EmbedRecord]
+    let previewResultCount: Int
 
     var websiteResults: [WebsiteResultModel] {
-        childEmbeds.compactMap(WebsiteResultModel.init(embed:))
+        let childResults = childEmbeds.compactMap(WebsiteResultModel.init(embed:))
+        return childResults.isEmpty ? previewRecords.compactMap(WebsiteResultModel.init(embed:)) : childResults
     }
 
     var imageResults: [ImageSearchResultModel] {
-        childEmbeds.compactMap(ImageSearchResultModel.init(embed:))
+        let childResults = childEmbeds.compactMap(ImageSearchResultModel.init(embed:))
+        return childResults.isEmpty ? previewRecords.compactMap(ImageSearchResultModel.init(embed:)) : childResults
+    }
+
+    private var previewRecords: [EmbedRecord] {
+        Self.previewRecords(from: embed)
     }
 
     init(embed: EmbedRecord, allEmbedRecords: [String: EmbedRecord]) {
@@ -43,6 +50,38 @@ struct SearchSkillPreviewModel {
         provider = EmbedFieldReader.string(raw, keys: ["provider"]).map(Self.displayProvider) ?? fallbackProvider
         status = embed.status
         childEmbeds = Self.resolveChildren(for: embed, appId: appId, allEmbedRecords: allEmbedRecords)
+        previewResultCount = EmbedFieldReader.int(raw, keys: ["result_count"])
+            ?? (childEmbeds.isEmpty ? Self.previewRecords(from: embed).count : childEmbeds.count)
+    }
+
+    private static func previewRecords(from embed: EmbedRecord) -> [EmbedRecord] {
+        let raw = embed.rawData ?? [:]
+        let previewResults = EmbedFieldReader.dictionaryArray(raw, key: "preview_results")
+        guard !previewResults.isEmpty else { return [] }
+
+        return previewResults.enumerated().map { index, result in
+            var recordData = result.mapValues { AnyCodable($0) }
+            recordData["app_id"] = recordData["app_id"] ?? AnyCodable(embed.appId ?? "web")
+            return EmbedRecord(
+                id: "\(embed.id)-preview-\(index)",
+                type: Self.previewChildType(for: embed),
+                status: .finished,
+                data: .raw(recordData),
+                parentEmbedId: embed.id,
+                appId: embed.appId,
+                skillId: nil,
+                embedIds: nil,
+                createdAt: embed.createdAt
+            )
+        }
+    }
+
+    private static func previewChildType(for embed: EmbedRecord) -> String {
+        switch embed.appId {
+        case "images", "photos": return EmbedType.imagesImageResult.rawValue
+        case "videos": return EmbedType.videosVideo.rawValue
+        default: return EmbedType.webWebsite.rawValue
+        }
     }
 
     private static func displayProvider(_ provider: String) -> String {
@@ -174,6 +213,37 @@ enum EmbedFieldReader {
             }
         }
         return nil
+    }
+
+    static func int(_ raw: [String: AnyCodable], keys: [String]) -> Int? {
+        for key in keys {
+            if let value = raw[key]?.value as? Int {
+                return value
+            }
+            if let value = raw[key]?.value as? String, let intValue = Int(value) {
+                return intValue
+            }
+        }
+        return nil
+    }
+
+    static func dictionaryArray(_ raw: [String: AnyCodable], key: String) -> [[String: Any]] {
+        guard let value = raw[key]?.value else { return [] }
+        if let dictionaries = value as? [[String: Any]] {
+            return dictionaries
+        }
+        if let array = value as? [Any] {
+            return array.compactMap { item in
+                if let dictionary = item as? [String: Any] {
+                    return dictionary
+                }
+                if let dictionary = item as? [String: String] {
+                    return dictionary.mapValues { $0 as Any }
+                }
+                return nil
+            }
+        }
+        return []
     }
 
     static func host(from value: String?) -> String? {

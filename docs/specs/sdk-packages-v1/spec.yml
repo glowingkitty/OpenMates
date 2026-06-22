@@ -1,0 +1,766 @@
+id: sdk-packages-v1
+title: SDK Packages V1
+status: approved
+
+goal: >
+  Let developers use OpenMates from JavaScript and Python code with API keys,
+  including app-skill execution, encrypted chat access, and new chat creation,
+  while preserving zero-knowledge encryption, per-key scopes, per-key credit
+  budgets, expiration controls, and first-use device approval.
+
+scope:
+  in:
+    - CSPRNG-generated API keys for the web settings flow.
+    - Guided API key creation with scope, credit limit, expiration, and one-time key reveal.
+    - API key scopes for chats, app skills, settings, memories, embeds, sharing, and safe account reads.
+    - Optional app-level and app-skill-level scope restrictions.
+    - One credit cap per API key, selected from daily, weekly, monthly, or lifetime.
+    - API-key SDK session unlock that returns only API-key-wrapped master-key material for local SDK decryption.
+    - npm SDK ergonomics with lazy initialization and no explicit connect call.
+    - pip SDK ergonomics with lazy initialization and no explicit connect call.
+    - SDK access to existing encrypted chats only when the key has read scope.
+    - SDK creation of non-persistent chats by default, with saved account chats only when explicitly requested.
+    - SDK memory loading and explicit memory selection for requests.
+    - Apple developer settings parity for API-key creation, warnings, listing, and device approval.
+  out:
+    - Requiring email address for SDK API-key auth.
+    - Server-side plaintext storage of API keys, master keys, chat messages, memories, or API-key labels.
+    - Password, passkey, 2FA, recovery-key, and active-session management through API keys.
+    - Card checkout through SDKs.
+    - Enterprise OAuth, team-scoped API keys, or organization keys.
+    - Replacing the existing CLI pair-auth login flow.
+
+context_discovery:
+  github_issues:
+    - "Search `SDK api key scope limit`: no matching public issue found during spec discovery."
+  docs:
+    - docs/architecture/platforms/cli-package.md
+    - docs/architecture/platforms/cli-feature-parity.md
+    - docs/architecture/apps/rest-api.md
+    - docs/architecture/infrastructure/developer-settings.md
+    - docs/architecture/webhooks.md
+    - docs/user-guide/cli/apps-and-skills.md
+    - docs/contributing/guides/spec-driven-development.md
+  code_patterns:
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/index.ts
+    - frontend/packages/openmates-cli/src/crypto.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
+    - frontend/packages/ui/src/components/settings/developers/SettingsDevices.svelte
+    - frontend/packages/ui/src/components/settings/developers/SettingsWebhooks.svelte
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/utils/api_key_auth.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routers/webhooks.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/directus/api_key_device_methods.py
+    - backend/core/api/app/services/directus/usage.py
+    - backend/core/directus/schemas/api_keys.yml
+    - backend/core/directus/schemas/usage.yml
+    - backend/core/directus/schemas/usage_daily_api_key_summaries.yml
+    - backend/core/directus/schemas/usage_monthly_api_key_summaries.yml
+  tests:
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - backend/tests/test_rest_api_core.py
+    - backend/tests/test_webhook_incoming.py
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+  parity_expectations:
+    - Apple developer settings must expose the same API-key creation and management concepts as web: scopes, credit limit, expiration, reveal-once, listing, and device approval.
+    - Apple API-key UI must preserve native session auth; it is for managing developer keys, not using API keys as Apple app login credentials.
+    - Backend auth, sync, and billing changes must preserve existing Apple session and chat behavior.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios or targeted settings test when available.
+  intentional_native_differences:
+    - Apple app continues using native/session auth rather than API-key SDK auth for normal app usage.
+
+clarification:
+  rounds:
+    - question: Should API keys default to no chat access or full access?
+      answer: Full access by default, with a warning before key creation when full access remains active.
+    - question: Should credit limits be required or optional?
+      answer: Optional; no limit is default, but the flow warns while no limit is set.
+    - question: What create flow should users see?
+      answer: Scope selection first, then credit limit, then expiration, then one-time reveal of the full key.
+    - question: Which chat permissions should V1 expose?
+      answer: Use chat:create_incognito, chat:create_saved, chat:read_existing, chat:append_existing, chat:delete, and chat:share.
+    - question: Which expiration presets should V1 expose?
+      answer: 7 days, 30 days, 90 days, 1 year, and Never, with Never selected by default and warning-highlighted.
+    - question: Can multiple credit cap periods be active at once?
+      answer: No. The user chooses either daily, weekly, monthly, or lifetime to avoid over-complication.
+  vision_summary: >
+    SDK API keys should be powerful enough to replace CLI/web workflows from code,
+    but every key must have visible scope, budget, expiration, and device-approval
+    controls. Developer ergonomics should be simple: provide an API key from the
+    environment and call SDK methods directly, with lazy auth/unlock performed by
+    the SDK as needed. New SDK chats are private/non-persistent by default and are
+    saved to the user's account only when explicitly requested.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: User creates a full-access API key with warnings
+    given:
+      - Alice is logged in to the web app.
+      - Alice opens Settings > Developers > API Keys and selects Create key.
+    when:
+      - Alice leaves full scope enabled, leaves credit limit unset, leaves expiration as Never, and continues through the guided flow.
+    then:
+      - The scope step warns that full access can read and create account data.
+      - The credit step warns that the key can spend credits without a per-key cap.
+      - The expiration step warns that the key never expires.
+      - Alice must explicitly continue past each warning before the key is generated and shown once.
+
+  - id: S-2
+    title: User restricts an API key to one app skill
+    given:
+      - Alice is creating an API key.
+      - Alice expands app-skill scope controls.
+    when:
+      - Alice disables full access and allows only app web skill search.
+    then:
+      - The created key can call web/search.
+      - The created key cannot call other apps or other web skills.
+      - Denied calls return a typed 403 error with the missing scope.
+
+  - id: S-3
+    title: User grants chat creation without existing-chat reads
+    given:
+      - Alice is creating an API key.
+    when:
+      - Alice enables chat:create_incognito and chat:create_saved but disables chat:read_existing and chat:append_existing.
+    then:
+      - The SDK can create new non-persistent chats.
+      - The SDK can create saved account chats only when saveToAccount is true.
+      - The SDK cannot list existing chats, read existing chat messages, or append to existing chats.
+
+  - id: S-4
+    title: SDK lazily unlocks encrypted account access
+    given:
+      - Alice has an approved npm or pip SDK device for an API key with chat read scope.
+      - The API key has an API-key-specific wrapper for Alice's existing account master key.
+    when:
+      - Developer code calls om.chats.list() or om.chats.list({ limit: 10 }) without calling connect().
+    then:
+      - The SDK calls the API-key SDK session endpoint lazily.
+      - The backend returns only the API-key-wrapped master-key material, not plaintext keys.
+      - The SDK derives the wrapping key from the API key and decrypts the account master key locally.
+      - The SDK requests the latest 10 encrypted account chats by default and decrypts them in memory.
+      - If the caller explicitly sets limit to 0, the SDK requests all account chats.
+
+  - id: S-5
+    title: New SDK chat is non-persistent by default
+    given:
+      - Alice has an approved API key with chat:create_incognito scope.
+    when:
+      - Developer code calls om.chats.create() and sends a prompt without saveToAccount.
+    then:
+      - The chat is processed and charged normally.
+      - The chat transcript is not stored in Alice's account and does not appear in the web app chat list.
+      - The SDK returns the assistant response to the caller.
+
+  - id: S-6
+    title: SDK can save a new chat to the account explicitly
+    given:
+      - Alice has an approved API key with chat:create_saved scope.
+    when:
+      - Developer code calls om.chats.create({ saveToAccount: true }) and sends a prompt.
+    then:
+      - The chat is encrypted client-side by the SDK and synced to Alice's account.
+      - The saved chat appears in Alice's web app chat list after sync.
+      - The request is charged normally.
+
+  - id: S-7
+    title: SDK memory access requires explicit memory selection
+    given:
+      - Alice has memories stored in OpenMates.
+      - Alice has an API key with memory read scope and chat creation scope.
+    when:
+      - Developer code loads memories, selects one memory ID, and includes it in a new chat request.
+    then:
+      - Only the selected memory content is included in the request context.
+      - The backend does not ask the user for memory-selection confirmation during the SDK ask flow.
+      - Unselected memories are not processed.
+
+  - id: S-8
+    title: API-key credit cap blocks spend before exceeding budget
+    given:
+      - Alice creates an API key with a daily credit cap of 100 credits.
+      - The key has already spent 95 credits today.
+    when:
+      - Developer code attempts an operation estimated or priced at 10 credits.
+    then:
+      - The operation is blocked before credits are charged.
+      - The response is a typed 402 or 429-style budget error with remaining budget and reset time.
+      - Alice's account credits are not debited for the blocked operation.
+
+  - id: S-9
+    title: New SDK device is blocked until approved
+    given:
+      - Alice has created an API key.
+      - Developer code runs on a new npm or pip SDK device identity.
+    when:
+      - The SDK makes its first authenticated call.
+    then:
+      - The backend creates an API-key device record with approved_at null.
+      - The call is blocked.
+      - Alice receives a warning notification and email.
+      - Calls from that device succeed only after Alice approves it in developer device settings.
+
+  - id: S-10
+    title: SDK package examples work without email or connect
+    given:
+      - Developer code has OPENMATES_API_KEY set.
+    when:
+      - The developer imports the npm or pip package and calls an app skill or chat method directly.
+    then:
+      - The SDK does not require an email address.
+      - The SDK does not require an explicit connect() call.
+      - The SDK returns typed errors for missing env vars, unapproved devices, expired keys, missing scopes, and exceeded credit caps.
+
+  - id: S-11
+    title: Apple user manages API keys with web parity
+    given:
+      - Alice is logged in to the Apple app.
+      - Alice opens Settings > Developers > API Keys.
+    when:
+      - Alice creates, reviews, or manages API-key device approval from Apple.
+    then:
+      - Apple shows the same scope, credit-limit, expiration, and reveal-once concepts as web.
+      - Apple shows the same warnings for full access, unlimited credits, and Never expiration.
+      - Apple lists API keys and API-key devices without exposing plaintext keys.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: API keys are generated with a CSPRNG and revealed only once after the guided creation flow completes.
+  - id: AC-2
+    scenario: S-1
+    text: API key creation uses the sequence Scope, Credit limit, Expiration, Reveal key and shows warnings for full scope, no credit limit, and no expiration.
+  - id: AC-3
+    scenario: S-2
+    text: API keys store and enforce scopes for all app access, app-specific access, and app-skill-specific access.
+  - id: AC-4
+    scenario: S-3
+    text: API keys store and enforce fine-grained chat scopes for creating incognito chats, creating saved chats, reading existing chats, appending existing chats, deleting chats, and sharing chats.
+  - id: AC-5
+    scenario: S-4
+    text: SDKs lazily obtain API-key-wrapped master-key material and can list encrypted account chats for local decryption, defaulting to the latest 10 unless the caller explicitly sets limit 0 for all chats.
+  - id: AC-6
+    scenario: S-5
+    text: SDK-created chats are non-persistent by default and are charged normally without appearing in account chat history.
+  - id: AC-7
+    scenario: S-6
+    text: SDK-created chats with saveToAccount true are encrypted and synced so they appear in the web app.
+  - id: AC-8
+    scenario: S-7
+    text: SDK memory support requires explicit memory loading and selected memory IDs; unselected memories are not processed by SDK ask flows.
+  - id: AC-9
+    scenario: S-8
+    text: API keys support exactly one optional credit cap period selected from daily, weekly, monthly, or lifetime.
+  - id: AC-10
+    scenario: S-8
+    text: API key budget enforcement blocks operations before charging when a configured cap would be exceeded.
+  - id: AC-11
+    scenario: S-9
+    text: Every new API-key device is unapproved by default and must be approved before any API or SDK operation can proceed.
+  - id: AC-12
+    scenario: S-10
+    text: npm and pip SDKs expose direct method calls that do not require email or explicit connect calls.
+  - id: AC-13
+    scenario: S-10
+    text: npm and pip SDKs provide examples for app skills, existing chat reads, non-persistent chats, saved chats, streaming, and memory-selected requests.
+  - id: AC-14
+    scenario: S-4
+    text: API-key scopes and budget metadata are available to enforcement code without exposing encrypted API-key labels or plaintext key material.
+  - id: AC-15
+    scenario: S-11
+    text: Apple developer settings provide API-key creation, listing, warning, expiration, credit-limit, scope, and device-approval parity with web without using API keys for Apple login.
+
+contracts:
+  api:
+    - route: POST /v1/sdk/session
+      auth: Authorization Bearer sk-api-...
+      request: "{ sdk_name?: 'npm'|'pip'|'cli'|'rest_api', device_identity?: string, device_label_encrypted?: string }"
+      response: >
+        { user: { id: string, username: string }, api_key: { id: string,
+        scopes: object, credit_limit: object|null, expires_at: string|null },
+        key_wrapper: { encrypted_key: string, salt: string, key_iv: string|null },
+        ws: { session_id: string, token: string } }
+      errors:
+        - 401 when the API key is missing, malformed, expired, revoked, or unknown.
+        - 403 when the SDK device is new or unapproved.
+        - 403 when required SDK session scope is disabled.
+    - route: POST /v1/apps/{app_id}/skills/{skill_id}
+      request: Existing app-skill request body.
+      response: Existing app-skill response body.
+      enforcement:
+        - Requires app skill scope matching all apps, app:{app_id}, or skill:{app_id}:{skill_id}.
+        - Checks credit cap before dispatch and before final charge when exact costs are known.
+    - route: POST /v1/sdk/chats
+      auth: Authorization Bearer sk-api-...
+      request: "{ save_to_account?: boolean, title?: string, message?: string, memory_ids?: string[], model?: string, stream?: boolean }"
+      response: "{ chat_id?: string, persistent: boolean, response?: object, stream_url?: string }"
+      enforcement:
+        - save_to_account false or omitted requires chat:create_incognito.
+        - save_to_account true requires chat:create_saved.
+        - memory_ids require memory:read and only selected memory IDs are processed.
+    - route: GET /v1/sdk/chats
+      auth: Authorization Bearer sk-api-...
+      response: Encrypted chat metadata and encrypted message payloads for SDK-side decryption.
+      enforcement:
+        - Requires chat:read_existing.
+    - route: POST /v1/sdk/chats/{chat_id}/messages
+      auth: Authorization Bearer sk-api-...
+      enforcement:
+        - Requires chat:append_existing for saved existing chats.
+    - route: DELETE /v1/sdk/chats/{chat_id}
+      auth: Authorization Bearer sk-api-...
+      enforcement:
+        - Requires chat:delete.
+    - route: POST /v1/sdk/chats/{chat_id}/share
+      auth: Authorization Bearer sk-api-...
+      enforcement:
+        - Requires chat:share.
+  data:
+    - Add API-key scope metadata to api_keys as server-readable JSON or equivalent structured fields.
+    - Add API-key credit-limit metadata to api_keys with one optional period: daily, weekly, monthly, or lifetime.
+    - Add expiration metadata to api_keys using existing expires_at.
+    - Preserve encrypted_name and encrypted_key_prefix as client-side encrypted display fields.
+    - Preserve encryption_keys login_method format api_key_<sha256(api_key)> for API-key-specific master-key wrappers.
+    - Store API-key devices with approved_at null on first use and access_type npm, pip, cli, or rest_api.
+    - Usage entries continue storing api_key_hash and device_hash for budget accounting.
+  ui_states:
+    - API key list shows current scopes, credit cap, expiration, last used, and warning state without revealing the key.
+    - Create scope page has full-access toggle, grouped chat toggles, settings/memory/embed toggles, and expandable app/app-skill lists.
+    - Create credit page supports Unlimited, Daily, Weekly, Monthly, and Lifetime; only one non-unlimited period can be selected.
+    - Create expiration page supports 7 days, 30 days, 90 days, 1 year, and Never.
+    - Reveal page displays the full key one time and requires the user to confirm it was copied.
+  privacy_security:
+    - API keys and webhook keys must be generated with CSPRNG, never Math.random.
+    - The server never stores plaintext API keys or plaintext master keys.
+    - SDK session returns only wrapped master-key material encrypted for the presented API key.
+    - New API-key devices remain blocked until approved by the account owner.
+    - API-key scope enforcement must happen on the backend for every scoped route, not only in SDK clients.
+    - Credit-limit enforcement must happen before charging; client-side checks are advisory only.
+    - SDK memory requests process only explicit memory IDs supplied by the caller.
+    - No API-key-authenticated route may expose password/passkey/2FA/recovery-key management.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_api_key_scopes.py
+    command: python3 -m pytest backend/tests/test_api_key_scopes.py
+    covers:
+      - AC-3
+      - AC-4
+      - AC-9
+      - AC-10
+      - AC-11
+      - AC-14
+    assertions:
+      - API key records persist scope and single-period credit-limit metadata.
+      - App-skill routes allow matching app/app-skill scopes and deny missing scopes with 403.
+      - Chat routes enforce each chat scope independently.
+      - New device auth creates approved_at null and blocks until approval.
+      - Credit cap checks block before charge when the configured period would be exceeded.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-session-449e
+        timestamp: "2026-06-22T08:08:34Z"
+
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_sdk_session.py
+    command: python3 -m pytest backend/tests/test_sdk_session.py
+    covers:
+      - AC-5
+      - AC-11
+      - AC-14
+    assertions:
+      - SDK session endpoint returns key wrapper, scopes, budget metadata, and a WebSocket auth contract for approved devices.
+      - SDK session endpoint does not return plaintext master keys or plaintext API-key labels.
+      - SDK session endpoint returns 403 for new or unapproved devices.
+      - SDK chat listing returns the latest encrypted account chat metadata when chat:read_existing is present.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-session-449e
+        timestamp: "2026-06-22T08:08:34Z"
+
+  - id: T-UNIT-JS-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types tests/sdk.test.ts
+    covers:
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-8
+      - AC-12
+      - AC-13
+    assertions:
+      - OpenMates SDK methods lazily initialize without connect().
+      - Missing OPENMATES_API_KEY produces a typed configuration error.
+      - API-key wrapped master key decrypts using shared crypto vectors.
+      - chats.create defaults to non-persistent behavior.
+      - chats.list({ limit }) calls the SDK chat listing endpoint and returns encrypted chat metadata.
+      - chats.create with saveToAccount true uses the saved-chat path.
+      - Memory-selected chat requests include only explicit memory IDs.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-session-449e
+        timestamp: "2026-06-22T08:08:34Z"
+
+  - id: T-UNIT-PY-001
+    type: unit
+    file: packages/openmates-python/tests/test_sdk.py
+    command: python3 -m pytest packages/openmates-python/tests/test_sdk.py
+    covers:
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-8
+      - AC-12
+      - AC-13
+    assertions:
+      - Python SDK methods lazily initialize without connect().
+      - Missing OPENMATES_API_KEY produces a typed configuration error.
+      - API-key wrapped master key decrypts using the same vectors as JS.
+      - Python SDK exposes app-skill, latest-chat-list, non-persistent chat, saved-chat, streaming, and memory-selected examples.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-session-449e
+        timestamp: "2026-06-22T08:08:34Z"
+
+  - id: T-PLAYWRIGHT-001
+    type: playwright
+    file: frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    command: python3 scripts/tests.py run --spec api-keys-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+    assertions:
+      - Create key opens scope sub-settings first.
+      - Full-access warning is visible while full access is active.
+      - Credit-limit warning is visible while no limit is selected.
+      - Expiration warning is visible while Never is selected.
+      - Key reveal happens only after Scope, Credit limit, and Expiration steps.
+      - Generated key matches the expected prefix and is produced by the CSPRNG helper.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed_after_deploy
+        run_id: "27947809563"
+        timestamp: "2026-06-22T11:02:36Z"
+
+  - id: T-MANUAL-001
+    type: manual
+    covers:
+      - AC-13
+    assertions:
+      - Developer docs include npm and pip examples for app skills, existing chat reads, non-persistent chats, saved chats, streaming, and memory-selected requests.
+      - Examples do not require email or connect().
+      - Examples document first-device approval and scope/credit/expiration failures.
+    red_phase:
+      required: false
+      expected: inspect_docs_before_release
+    green_phase:
+      required: true
+      expected: docs_review_pass
+      evidence:
+        status: passed
+        run_id: local-session-449e
+        timestamp: "2026-06-22T08:08:34Z"
+
+  - id: T-APPLE-001
+    type: manual
+    command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+    covers:
+      - AC-15
+    assertions:
+      - Apple settings build succeeds after API-key management parity changes.
+      - If a targeted settings UI test exists, it verifies API-key creation and device approval parity.
+    red_phase:
+      required: false
+      expected: not_applicable_for_native_parity_build
+    green_phase:
+      required: true
+      expected: pass_or_sanitized_remote_failure
+      evidence:
+        status: passed
+        run_id: local-session-449e
+        timestamp: "2026-06-22T08:08:34Z"
+
+implementation_plan:
+  existing_patterns:
+    - SettingsApiKeys.svelte for API-key creation and one-time reveal.
+    - SettingsWebhooks.svelte and webhooks.py for permissions plus rate-limit UI patterns.
+    - api_key_auth.py for API-key lookup, device registration, approval blocking, and security notification.
+    - encryption_keys login_method records for wrapping account master keys by login method.
+    - usage daily/monthly API-key summaries for budget accounting.
+    - openmates-cli client.ts, crypto.ts, ws.ts, and index.ts for Node crypto/sync/package foundations.
+  architecture: >
+    Add server-readable API-key authorization metadata to api_keys, a backend
+    enforcement service used by every API-key route, an SDK session endpoint that
+    returns only wrapped key material for local decryption, and SDK package
+    facades that lazy-initialize on first authenticated method call. Keep CLI
+    pair-auth flows intact while sharing protocol/crypto helpers where possible.
+  data_flow:
+    - User opens Create key and configures scopes, one optional credit cap, and expiration.
+    - Browser generates the API key with CSPRNG, wraps the existing master key with API-key-derived material, hashes the key, and submits metadata plus encrypted display fields.
+    - SDK sends Bearer API key and SDK device identity on first method call.
+    - Backend hashes the API key, checks expiration, scope, budget, and device approval, then returns key-wrapper material only when the requested operation needs account decryption.
+    - SDK decrypts the master key locally and decrypts/encrypts chat, memory, embed, and share payloads client-side.
+    - Usage charging writes api_key_hash and device_hash so budget checks and usage UI remain per-key and per-device.
+  affected_files:
+    - path: backend/core/directus/schemas/api_keys.yml
+      reason: Add scope and credit-limit metadata.
+    - path: backend/core/api/app/routes/settings.py
+      reason: API-key create/list/update models and settings endpoints.
+    - path: backend/core/api/app/utils/api_key_auth.py
+      reason: Preserve and extend first-device approval with SDK access types.
+    - path: backend/core/api/app/services/api_key_authorization.py
+      reason: New shared scope and credit-budget enforcement service.
+    - path: backend/core/api/app/routes/sdk.py
+      reason: New SDK session and chat endpoints.
+    - path: backend/core/api/main.py
+      reason: Register SDK API routes.
+    - path: backend/core/api/app/routes/apps_api.py
+      reason: Enforce app and app-skill scopes plus credit caps.
+    - path: frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
+      reason: Guided create flow, CSPRNG helper, scopes, credit cap, and expiration UI.
+    - path: frontend/packages/openmates-cli/src/index.ts
+      reason: Export SDK facade.
+    - path: frontend/packages/openmates-cli/src/sdk.ts
+      reason: npm SDK lazy-init public API.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Reuse or extract chat/sync/app-skill methods for SDK mode.
+    - path: packages/openmates-python/pyproject.toml
+      reason: New pip package scaffold.
+    - path: packages/openmates-python/openmates/
+      reason: Python SDK implementation.
+    - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+      reason: Apple developer API-key management parity.
+    - path: apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+      reason: Typed localized strings for Apple API-key settings.
+    - path: docs/user-guide/developers/sdk.md
+      reason: npm and pip examples and SDK auth/scopes docs.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/sdk-packages-v1/spec.yml
+    - python3 -m pytest backend/tests/test_api_key_scopes.py backend/tests/test_sdk_session.py
+    - cd frontend/packages/openmates-cli && node --test --experimental-strip-types tests/sdk.test.ts
+    - python3 -m pytest packages/openmates-python/tests/test_sdk.py
+    - python3 scripts/tests.py run --spec api-keys-flow.spec.ts
+    - python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+  verification_order:
+    - Backend contract tests for scopes, budget, device approval, and SDK session.
+    - JS SDK unit/contract tests.
+    - Python SDK unit/contract tests.
+    - Web Playwright API-key creation flow after deploy.
+    - Apple remote build or targeted settings test.
+
+tasks:
+  - id: TASK-1
+    title: Add API-key authorization metadata and enforcement service
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-8
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-9
+        - AC-10
+        - AC-14
+    expected_files:
+      - backend/core/directus/schemas/api_keys.yml
+      - backend/core/api/app/services/api_key_authorization.py
+      - backend/tests/test_api_key_scopes.py
+    verification:
+      - T-PYTEST-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add SDK session and API-key device identity support
+    covers:
+      scenarios:
+        - S-4
+        - S-9
+      acceptance_criteria:
+        - AC-5
+        - AC-11
+        - AC-14
+    expected_files:
+      - backend/core/api/app/routes/sdk.py
+      - backend/core/api/app/utils/api_key_auth.py
+      - backend/tests/test_sdk_session.py
+    verification:
+      - T-PYTEST-002
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Rebuild web API-key creation flow
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-8
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-9
+    expected_files:
+      - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
+      - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    verification:
+      - T-PLAYWRIGHT-001
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Ship npm SDK facade with lazy initialization
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+        - S-10
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-12
+        - AC-13
+    expected_files:
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/src/index.ts
+      - frontend/packages/openmates-cli/tests/sdk.test.ts
+    verification:
+      - T-UNIT-JS-001
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Ship Python SDK package with parity contracts
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+        - S-10
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-12
+        - AC-13
+    expected_files:
+      - packages/openmates-python/pyproject.toml
+      - packages/openmates-python/openmates/
+      - packages/openmates-python/tests/test_sdk.py
+    verification:
+      - T-UNIT-PY-001
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Add Apple developer API-key management parity
+    covers:
+      scenarios:
+        - S-11
+      acceptance_criteria:
+        - AC-15
+    expected_files:
+      - apple/OpenMates/Sources/Features/Settings/Views/SettingsDeveloperFull.swift
+      - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    verification:
+      - T-APPLE-001
+    independently_deployable: false
+
+  - id: TASK-7
+    title: Add developer SDK docs and examples
+    covers:
+      scenarios:
+        - S-10
+      acceptance_criteria:
+        - AC-13
+    expected_files:
+      - docs/user-guide/developers/sdk.md
+    verification:
+      - T-MANUAL-001
+    independently_deployable: true
+
+risks:
+  - API-key full access by default is powerful; the warning flow must be explicit and hard to miss.
+  - SDK chat access expands the blast radius of leaked API keys, so device approval, scopes, expiration, and budget caps are mandatory enforcement layers.
+  - Credit estimation may be imperfect before execution; exact post-execution costs must still never push a key beyond its configured cap.
+  - Python crypto parity can drift from web/Node unless shared vectors are mandatory.
+  - Existing CLI pair-auth behavior must not regress while extracting shared SDK logic.
+
+open_questions:
+  - Should API keys support update-in-place for scopes, credit caps, and expiration after creation, or require key rotation for changes?
+  - Should lifetime credit caps count historical usage before the cap was configured when editing an existing key?
+  - Should saved SDK chats have a visible source label in the web app indicating they were created by an API key?

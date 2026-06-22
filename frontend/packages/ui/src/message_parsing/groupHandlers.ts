@@ -1082,6 +1082,20 @@ export class GroupHandlerRegistry {
       ]),
     );
 
+    this.register(
+      new BaseGroupHandler("mindmaps-mindmap", [
+        "id",
+        "type",
+        "status",
+        "contentRef",
+        "title",
+        "source_json",
+        "model",
+        "node_count",
+        "edge_count",
+      ]),
+    );
+
     // Generic handlers for embed types that follow the standard grouping pattern
     this.register(
       new BaseGroupHandler("home-listing", [

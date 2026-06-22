@@ -36,6 +36,7 @@ import {
   type DailyInspiration,
   type DailyInspirationSurface,
 } from "../stores/dailyInspirationStore";
+import { authStore } from "../stores/authStore";
 import { getHardcodedInspirationsForSurface } from "./hardcodedInspirations";
 
 const LOG_PREFIX = "[loadDefaultInspirations]";
@@ -244,6 +245,11 @@ export async function loadDefaultInspirations(
       console.debug(
         `${LOG_PREFIX} Loaded ${hardcoded.length} hardcoded inspiration(s) for lang=${currentLangSync}`,
       );
+    }
+
+    if (!get(authStore).isAuthenticated) {
+      console.debug(`${LOG_PREFIX} Guest session: keeping product explainer defaults`);
+      return;
     }
 
     // ── Step 1: Try IndexedDB ─────────────────────────────────────────────────

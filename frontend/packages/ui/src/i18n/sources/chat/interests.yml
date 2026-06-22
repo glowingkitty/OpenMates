@@ -1,0 +1,620 @@
+eyebrow:
+  context: Small label above the logged-out new-chat interest tag selector
+  en: "Private local personalization"
+  de: "Private lokale Personalisierung"
+  zh: "私密本地个性化"
+  es: "Personalización local privada"
+  fr: "Personnalisation locale privée"
+  pt: "Personalização local privada"
+  ru: "Локальная приватная персонализация"
+  ja: "プライベートなローカルパーソナライズ"
+  ko: "비공개 로컬 개인화"
+  it: "Personalizzazione locale privata"
+  tr: "Özel yerel kişiselleştirme"
+  vi: "Cá nhân hóa cục bộ riêng tư"
+  id: "Personalisasi lokal privat"
+  pl: "Prywatna personalizacja lokalna"
+  nl: "Private lokale personalisatie"
+  ar: "تخصيص محلي خاص"
+  hi: "निजी स्थानीय वैयक्तिकरण"
+  th: "การปรับแต่งในเครื่องแบบส่วนตัว"
+  cs: "Soukromé místní přizpůsobení"
+  sv: "Privat lokal personalisering"
+  he: "התאמה אישית מקומית ופרטית"
+  verified_by_human: []
+title:
+  context: Prompt shown after "Hey there!" once logged-out tag selection is skipped or completed
+  en: "Explore what you can do:"
+  de: "Wähle, was dir wichtig ist. Deine Auswahl bleibt in dieser Browsersitzung."
+  zh: "选择你关心的内容。你的选择只保留在此浏览器会话中。"
+  es: "Elige lo que te importa. Tus elecciones se quedan en esta sesión del navegador."
+  fr: "Choisissez ce qui vous intéresse. Vos choix restent dans cette session de navigateur."
+  pt: "Escolha o que importa para você. Suas escolhas ficam nesta sessão do navegador."
+  ru: "Выберите, что вам интересно. Ваш выбор останется только в этой сессии браузера."
+  ja: "関心のあるものを選んでください。選択内容はこのブラウザーセッション内に留まります。"
+  ko: "관심 있는 항목을 선택하세요. 선택 내용은 이 브라우저 세션에만 저장됩니다."
+  it: "Scegli ciò che ti interessa. Le scelte restano in questa sessione del browser."
+  tr: "Önemsediğin konuları seç. Seçimlerin bu tarayıcı oturumunda kalır."
+  vi: "Chọn điều bạn quan tâm. Lựa chọn chỉ ở trong phiên trình duyệt này."
+  id: "Pilih hal yang Anda pedulikan. Pilihan tetap di sesi browser ini."
+  pl: "Wybierz, co Cię interesuje. Wybory zostają w tej sesji przeglądarki."
+  nl: "Kies wat je belangrijk vindt. Je keuzes blijven in deze browsersessie."
+  ar: "اختر ما يهمك. تبقى اختياراتك في جلسة المتصفح هذه."
+  hi: "जो आपके लिए मायने रखता है उसे चुनें। आपकी पसंद इसी ब्राउज़र सत्र में रहती है।"
+  th: "เลือกสิ่งที่คุณสนใจ ตัวเลือกจะอยู่ในเซสชันเบราว์เซอร์นี้เท่านั้น"
+  cs: "Vyberte, na čem vám záleží. Volby zůstanou v této relaci prohlížeče."
+  sv: "Välj vad du bryr dig om. Dina val stannar i den här webbläsarsessionen."
+  he: "בחר מה חשוב לך. הבחירות נשארות בסשן הדפדפן הזה."
+  verified_by_human: []
+active_title:
+  context: Prompt shown after "Hey there!" while logged-out interest tag selection is active
+  en: "What are your interests?"
+  de: "Was sind deine Interessen?"
+  zh: "你对什么感兴趣？"
+  es: "¿Cuáles son tus intereses?"
+  fr: "Quels sont vos centres d'intérêt ?"
+  pt: "Quais são seus interesses?"
+  ru: "Что вам интересно?"
+  ja: "興味のあることは何ですか？"
+  ko: "어떤 것에 관심이 있나요?"
+  it: "Quali sono i tuoi interessi?"
+  tr: "İlgi alanların neler?"
+  vi: "Bạn quan tâm đến điều gì?"
+  id: "Apa minat Anda?"
+  pl: "Jakie masz zainteresowania?"
+  nl: "Wat zijn je interesses?"
+  ar: "ما اهتماماتك؟"
+  hi: "आपकी रुचियाँ क्या हैं?"
+  th: "คุณสนใจอะไรบ้าง?"
+  cs: "Jaké máte zájmy?"
+  sv: "Vilka är dina intressen?"
+  he: "מה תחומי העניין שלך?"
+  verified_by_human: []
+continue:
+  context: Button shown after a guest selects at least one interest tag
+  en: "Continue"
+  de: "Weiter"
+  zh: "继续"
+  es: "Continuar"
+  fr: "Continuer"
+  pt: "Continuar"
+  ru: "Продолжить"
+  ja: "続ける"
+  ko: "계속"
+  it: "Continua"
+  tr: "Devam et"
+  vi: "Tiếp tục"
+  id: "Lanjutkan"
+  pl: "Kontynuuj"
+  nl: "Doorgaan"
+  ar: "متابعة"
+  hi: "जारी रखें"
+  th: "ดำเนินการต่อ"
+  cs: "Pokračovat"
+  sv: "Fortsätt"
+  he: "המשך"
+  verified_by_human: []
+skip:
+  context: Text link under the logged-out interest tag selector that skips personalization
+  en: "Skip"
+  de: "Überspringen"
+  zh: "跳过"
+  es: "Saltar"
+  fr: "Ignorer"
+  pt: "Pular"
+  ru: "Пропустить"
+  ja: "スキップ"
+  ko: "건너뛰기"
+  it: "Salta"
+  tr: "Atla"
+  vi: "Bỏ qua"
+  id: "Lewati"
+  pl: "Pomiń"
+  nl: "Overslaan"
+  ar: "تخطي"
+  hi: "छोड़ें"
+  th: "ข้าม"
+  cs: "Přeskočit"
+  sv: "Hoppa över"
+  he: "דלג"
+  verified_by_human: []
+select_interests:
+  context: Text link shown after a guest skipped or continued interest selection, allowing them to reopen the selector
+  en: "Select interests"
+  de: "Interessen auswählen"
+  zh: "选择兴趣"
+  es: "Seleccionar intereses"
+  fr: "Sélectionner des centres d'intérêt"
+  pt: "Selecionar interesses"
+  ru: "Выбрать интересы"
+  ja: "興味を選択"
+  ko: "관심사 선택"
+  it: "Seleziona interessi"
+  tr: "İlgi alanlarını seç"
+  vi: "Chọn mối quan tâm"
+  id: "Pilih minat"
+  pl: "Wybierz zainteresowania"
+  nl: "Interesses selecteren"
+  ar: "اختيار الاهتمامات"
+  hi: "रुचियाँ चुनें"
+  th: "เลือกความสนใจ"
+  cs: "Vybrat zájmy"
+  sv: "Välj intressen"
+  he: "בחר תחומי עניין"
+  verified_by_human: []
+software_development:
+  context: Guest interest tag label
+  en: "software development"
+  de: "Softwareentwicklung"
+  zh: "软件开发"
+  es: "desarrollo de software"
+  fr: "développement logiciel"
+  pt: "desenvolvimento de software"
+  ru: "разработка ПО"
+  ja: "ソフトウェア開発"
+  ko: "소프트웨어 개발"
+  it: "sviluppo software"
+  tr: "yazılım geliştirme"
+  vi: "phát triển phần mềm"
+  id: "pengembangan perangkat lunak"
+  pl: "tworzenie oprogramowania"
+  nl: "softwareontwikkeling"
+  ar: "تطوير البرمجيات"
+  hi: "सॉफ़्टवेयर विकास"
+  th: "พัฒนาซอฟต์แวร์"
+  cs: "vývoj softwaru"
+  sv: "mjukvaruutveckling"
+  he: "פיתוח תוכנה"
+  verified_by_human: []
+business_development:
+  context: Guest interest topic tag label
+  en: "business development"
+  verified_by_human: []
+life_coach_psychology:
+  context: Guest interest topic tag label
+  en: "life coaching"
+  verified_by_human: []
+medical_health:
+  context: Guest interest topic tag label
+  en: "health"
+  verified_by_human: []
+legal_law:
+  context: Guest interest topic tag label
+  en: "law"
+  verified_by_human: []
+finance:
+  context: Guest interest topic tag label
+  en: "finance"
+  verified_by_human: []
+design:
+  context: Guest interest topic tag label
+  en: "design"
+  verified_by_human: []
+marketing_sales:
+  context: Guest interest topic tag label
+  en: "marketing"
+  verified_by_human: []
+science:
+  context: Guest interest topic tag label
+  en: "science"
+  verified_by_human: []
+history:
+  context: Guest interest topic tag label
+  en: "history"
+  verified_by_human: []
+cooking_food:
+  context: Guest interest topic tag label
+  en: "cooking"
+  verified_by_human: []
+electrical_engineering:
+  context: Guest interest topic tag label
+  en: "electronics"
+  verified_by_human: []
+maker_prototyping:
+  context: Guest interest topic tag label
+  en: "maker projects"
+  verified_by_human: []
+movies_tv:
+  context: Guest interest topic tag label
+  en: "movies & TV"
+  verified_by_human: []
+activism:
+  context: Guest interest topic tag label
+  en: "activism"
+  verified_by_human: []
+general_knowledge:
+  context: Guest interest topic tag label
+  en: "general knowledge"
+  verified_by_human: []
+use_the_cli:
+  context: Guest interest tag label
+  en: "use the CLI"
+  de: "CLI nutzen"
+  zh: "使用 CLI"
+  es: "usar la CLI"
+  fr: "utiliser la CLI"
+  pt: "usar a CLI"
+  ru: "использовать CLI"
+  ja: "CLI を使う"
+  ko: "CLI 사용"
+  it: "usare la CLI"
+  tr: "CLI kullan"
+  vi: "dùng CLI"
+  id: "gunakan CLI"
+  pl: "używać CLI"
+  nl: "de CLI gebruiken"
+  ar: "استخدام CLI"
+  hi: "CLI इस्तेमाल करें"
+  th: "ใช้ CLI"
+  cs: "používat CLI"
+  sv: "använd CLI"
+  he: "להשתמש ב-CLI"
+  verified_by_human: []
+open_source:
+  context: Guest interest tag label
+  en: "open source"
+  de: "Open Source"
+  zh: "开源"
+  es: "código abierto"
+  fr: "open source"
+  pt: "código aberto"
+  ru: "open source"
+  ja: "オープンソース"
+  ko: "오픈 소스"
+  it: "open source"
+  tr: "açık kaynak"
+  vi: "mã nguồn mở"
+  id: "sumber terbuka"
+  pl: "open source"
+  nl: "open source"
+  ar: "مفتوح المصدر"
+  hi: "ओपन सोर्स"
+  th: "โอเพนซอร์ส"
+  cs: "open source"
+  sv: "öppen källkod"
+  he: "קוד פתוח"
+  verified_by_human: []
+read_developer_docs:
+  context: Guest interest tag label
+  en: "read developer docs"
+  de: "Entwicklerdokumentation lesen"
+  zh: "阅读开发者文档"
+  es: "leer documentación para desarrolladores"
+  fr: "lire la documentation développeur"
+  pt: "ler documentação de desenvolvedor"
+  ru: "читать документацию разработчика"
+  ja: "開発者ドキュメントを読む"
+  ko: "개발자 문서 읽기"
+  it: "leggere documentazione per sviluppatori"
+  tr: "geliştirici dokümanlarını oku"
+  vi: "đọc tài liệu nhà phát triển"
+  id: "baca dokumentasi pengembang"
+  pl: "czytać dokumentację deweloperską"
+  nl: "ontwikkelaarsdocumentatie lezen"
+  ar: "قراءة وثائق المطورين"
+  hi: "डेवलपर दस्तावेज़ पढ़ें"
+  th: "อ่านเอกสารนักพัฒนา"
+  cs: "číst vývojářskou dokumentaci"
+  sv: "läs utvecklardokumentation"
+  he: "לקרוא תיעוד למפתחים"
+  verified_by_human: []
+run_code:
+  context: Guest interest tag label
+  en: "run code"
+  de: "Code ausführen"
+  zh: "运行代码"
+  es: "ejecutar código"
+  fr: "exécuter du code"
+  pt: "executar código"
+  ru: "запускать код"
+  ja: "コードを実行"
+  ko: "코드 실행"
+  it: "eseguire codice"
+  tr: "kod çalıştır"
+  vi: "chạy mã"
+  id: "jalankan kode"
+  pl: "uruchamiać kod"
+  nl: "code uitvoeren"
+  ar: "تشغيل الكود"
+  hi: "कोड चलाएँ"
+  th: "รันโค้ด"
+  cs: "spouštět kód"
+  sv: "kör kod"
+  he: "להריץ קוד"
+  verified_by_human: []
+protect_my_privacy:
+  context: Guest interest tag label
+  en: "protect my privacy"
+  de: "meine Privatsphäre schützen"
+  zh: "保护我的隐私"
+  es: "proteger mi privacidad"
+  fr: "protéger ma vie privée"
+  pt: "proteger minha privacidade"
+  ru: "защитить мою приватность"
+  ja: "プライバシーを守る"
+  ko: "내 개인정보 보호"
+  it: "proteggere la mia privacy"
+  tr: "gizliliğimi koru"
+  vi: "bảo vệ quyền riêng tư"
+  id: "lindungi privasi saya"
+  pl: "chronić moją prywatność"
+  nl: "mijn privacy beschermen"
+  ar: "حماية خصوصيتي"
+  hi: "मेरी गोपनीयता बचाएँ"
+  th: "ปกป้องความเป็นส่วนตัว"
+  cs: "chránit mé soukromí"
+  sv: "skydda min integritet"
+  he: "להגן על הפרטיות שלי"
+  verified_by_human: []
+summarize_documents:
+  context: Guest interest tag label
+  en: "summarize documents"
+  de: "Dokumente zusammenfassen"
+  zh: "总结文档"
+  es: "resumir documentos"
+  fr: "résumer des documents"
+  pt: "resumir documentos"
+  ru: "суммировать документы"
+  ja: "文書を要約"
+  ko: "문서 요약"
+  it: "riassumere documenti"
+  tr: "belgeleri özetle"
+  vi: "tóm tắt tài liệu"
+  id: "ringkas dokumen"
+  pl: "streszczać dokumenty"
+  nl: "documenten samenvatten"
+  ar: "تلخيص المستندات"
+  hi: "दस्तावेज़ों का सारांश"
+  th: "สรุปเอกสาร"
+  cs: "shrnovat dokumenty"
+  sv: "sammanfatta dokument"
+  he: "לסכם מסמכים"
+  verified_by_human: []
+find_apartments:
+  context: Guest interest tag label
+  en: "find apartments"
+  de: "Wohnungen finden"
+  zh: "找公寓"
+  es: "buscar apartamentos"
+  fr: "trouver des appartements"
+  pt: "encontrar apartamentos"
+  ru: "искать квартиры"
+  ja: "アパートを探す"
+  ko: "아파트 찾기"
+  it: "trovare appartamenti"
+  tr: "daire bul"
+  vi: "tìm căn hộ"
+  id: "cari apartemen"
+  pl: "znajdować mieszkania"
+  nl: "appartementen vinden"
+  ar: "العثور على شقق"
+  hi: "अपार्टमेंट खोजें"
+  th: "หาห้องพัก"
+  cs: "hledat byty"
+  sv: "hitta lägenheter"
+  he: "למצוא דירות"
+  verified_by_human: []
+local_life:
+  context: Guest interest tag label
+  en: "local life"
+  de: "lokales Leben"
+  zh: "本地生活"
+  es: "vida local"
+  fr: "vie locale"
+  pt: "vida local"
+  ru: "местная жизнь"
+  ja: "地域の暮らし"
+  ko: "지역 생활"
+  it: "vita locale"
+  tr: "yerel yaşam"
+  vi: "đời sống địa phương"
+  id: "kehidupan lokal"
+  pl: "lokalne życie"
+  nl: "lokaal leven"
+  ar: "الحياة المحلية"
+  hi: "स्थानीय जीवन"
+  th: "ชีวิตท้องถิ่น"
+  cs: "místní život"
+  sv: "lokalt liv"
+  he: "חיים מקומיים"
+  verified_by_human: []
+learn_anything:
+  context: Guest interest tag label
+  en: "learn anything"
+  de: "alles lernen"
+  zh: "学习任何东西"
+  es: "aprender cualquier cosa"
+  fr: "tout apprendre"
+  pt: "aprender qualquer coisa"
+  ru: "учиться чему угодно"
+  ja: "何でも学ぶ"
+  ko: "무엇이든 배우기"
+  it: "imparare qualsiasi cosa"
+  tr: "her şeyi öğren"
+  vi: "học bất cứ điều gì"
+  id: "pelajari apa saja"
+  pl: "uczyć się wszystkiego"
+  nl: "alles leren"
+  ar: "تعلم أي شيء"
+  hi: "कुछ भी सीखें"
+  th: "เรียนรู้อะไรก็ได้"
+  cs: "učit se cokoli"
+  sv: "lär dig vad som helst"
+  he: "ללמוד כל דבר"
+  verified_by_human: []
+plan_trips:
+  context: Guest interest tag label
+  en: "plan trips"
+  de: "Reisen planen"
+  zh: "规划旅行"
+  es: "planificar viajes"
+  fr: "planifier des voyages"
+  pt: "planejar viagens"
+  ru: "планировать поездки"
+  ja: "旅行を計画"
+  ko: "여행 계획"
+  it: "pianificare viaggi"
+  tr: "seyahat planla"
+  vi: "lên kế hoạch du lịch"
+  id: "rencanakan perjalanan"
+  pl: "planować podróże"
+  nl: "reizen plannen"
+  ar: "تخطيط الرحلات"
+  hi: "यात्राएँ प्लान करें"
+  th: "วางแผนทริป"
+  cs: "plánovat cesty"
+  sv: "planera resor"
+  he: "לתכנן נסיעות"
+  verified_by_human: []
+create_images:
+  context: Guest interest tag label
+  en: "create images"
+  de: "Bilder erstellen"
+  zh: "创建图像"
+  es: "crear imágenes"
+  fr: "créer des images"
+  pt: "criar imagens"
+  ru: "создавать изображения"
+  ja: "画像を作成"
+  ko: "이미지 만들기"
+  it: "creare immagini"
+  tr: "görseller oluştur"
+  vi: "tạo hình ảnh"
+  id: "buat gambar"
+  pl: "tworzyć obrazy"
+  nl: "afbeeldingen maken"
+  ar: "إنشاء صور"
+  hi: "छवियाँ बनाएँ"
+  th: "สร้างรูปภาพ"
+  cs: "vytvářet obrázky"
+  sv: "skapa bilder"
+  he: "ליצור תמונות"
+  verified_by_human: []
+follow_news:
+  context: Guest interest tag label
+  en: "follow news"
+  de: "Nachrichten verfolgen"
+  zh: "关注新闻"
+  es: "seguir noticias"
+  fr: "suivre l'actualité"
+  pt: "acompanhar notícias"
+  ru: "следить за новостями"
+  ja: "ニュースを追う"
+  ko: "뉴스 팔로우"
+  it: "seguire le notizie"
+  tr: "haberleri takip et"
+  vi: "theo dõi tin tức"
+  id: "ikuti berita"
+  pl: "śledzić wiadomości"
+  nl: "nieuws volgen"
+  ar: "متابعة الأخبار"
+  hi: "समाचार देखें"
+  th: "ติดตามข่าว"
+  cs: "sledovat zprávy"
+  sv: "följ nyheter"
+  he: "לעקוב אחרי חדשות"
+  verified_by_human: []
+stay_healthy:
+  context: Guest interest tag label
+  en: "stay healthy"
+  de: "gesund bleiben"
+  zh: "保持健康"
+  es: "mantenerme saludable"
+  fr: "rester en bonne santé"
+  pt: "manter a saúde"
+  ru: "оставаться здоровым"
+  ja: "健康を保つ"
+  ko: "건강 유지"
+  it: "restare in salute"
+  tr: "sağlıklı kal"
+  vi: "giữ sức khỏe"
+  id: "tetap sehat"
+  pl: "dbać o zdrowie"
+  nl: "gezond blijven"
+  ar: "البقاء بصحة جيدة"
+  hi: "स्वस्थ रहें"
+  th: "ดูแลสุขภาพ"
+  cs: "zůstat zdravý"
+  sv: "håll dig frisk"
+  he: "להישאר בריאים"
+  verified_by_human: []
+write_better:
+  context: Guest interest tag label
+  en: "write better"
+  de: "besser schreiben"
+  zh: "写得更好"
+  es: "escribir mejor"
+  fr: "mieux écrire"
+  pt: "escrever melhor"
+  ru: "писать лучше"
+  ja: "より良く書く"
+  ko: "더 잘 쓰기"
+  it: "scrivere meglio"
+  tr: "daha iyi yaz"
+  vi: "viết tốt hơn"
+  id: "menulis lebih baik"
+  pl: "pisać lepiej"
+  nl: "beter schrijven"
+  ar: "الكتابة بشكل أفضل"
+  hi: "बेहतर लिखें"
+  th: "เขียนให้ดีขึ้น"
+  cs: "psát lépe"
+  sv: "skriv bättre"
+  he: "לכתוב טוב יותר"
+  verified_by_human: []
+privacy:
+  context: Guest interest context tag label
+  en: "privacy"
+  verified_by_human: []
+learning:
+  context: Guest interest context tag label
+  en: "learning"
+  verified_by_human: []
+writing:
+  context: Guest interest context tag label
+  en: "writing"
+  verified_by_human: []
+find_events:
+  context: Guest app-skill intent tag label
+  en: "find events"
+  verified_by_human: []
+find_restaurant:
+  context: Guest app-skill intent tag label
+  en: "find restaurant"
+  verified_by_human: []
+find_doctor_appointments:
+  context: Guest app-skill intent tag label
+  en: "find doctor appointments"
+  verified_by_human: []
+plot_charts:
+  context: Guest app-skill intent tag label
+  en: "plot charts"
+  verified_by_human: []
+video_tutorials:
+  context: Guest app-skill intent tag label
+  en: "video tutorials"
+  verified_by_human: []
+build_electronics:
+  context: Guest app-skill intent tag label
+  en: "build electronics"
+  verified_by_human: []
+diy_projects:
+  context: Guest app-skill intent tag label
+  en: "DIY projects"
+  verified_by_human: []
+create_videos:
+  context: Guest app-skill intent tag label
+  en: "create videos"
+  verified_by_human: []
+find_travel_connections:
+  context: Guest app-skill intent tag label
+  en: "find travel connections"
+  verified_by_human: []
+discuss_news:
+  context: Guest app-skill intent tag label
+  en: "discuss news"
+  verified_by_human: []
+discuss_videos:
+  context: Guest app-skill intent tag label
+  en: "discuss videos"
+  verified_by_human: []
