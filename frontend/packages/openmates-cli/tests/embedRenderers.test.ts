@@ -8,7 +8,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { renderEmbedPreview, renderEmbedFullscreen } from "../src/embedRenderers.ts";
+import { formatEmbedPreviewLines, renderEmbedPreview, renderEmbedFullscreen } from "../src/embedRenderers.ts";
 import type { DecryptedEmbed } from "../src/client.ts";
 
 function captureStdout(run: () => Promise<void>): Promise<string> {
@@ -122,6 +122,34 @@ describe("Remotion videos.create CLI renderer", () => {
 });
 
 describe("Direct content embed CLI renderers", () => {
+  it("formats generated application embeds as compact TUI preview lines", () => {
+    const lines = formatEmbedPreviewLines({
+      id: "embed-application-compact",
+      embedId: "52345678-1234-4234-9234-123456789abc",
+      type: "code-application",
+      textPreview: "Habit Garden",
+      appId: "code",
+      skillId: "application",
+      createdAt: 1_700_000_000,
+      content: {
+        type: "application",
+        name: "Habit Garden",
+        files: {
+          "package.json": "{}",
+          "index.html": "<div id=\"app\"></div>",
+          "src/main.js": "const habits = JSON.parse(localStorage.getItem('habits') || '[]');\nfunction renderHabits() {}",
+          "src/style.css": "body { margin: 0; }",
+        },
+        code: "const habits = JSON.parse(localStorage.getItem('habits') || '[]');\nfunction renderHabits() {}",
+      },
+    });
+
+    assert.match(lines.join("\n"), /Files: package\.json, index\.html, src\/main\.js, src\/style\.css/);
+    assert.match(lines.join("\n"), /const habits = JSON\.parse/);
+    assert.match(lines.join("\n"), /openmates embeds show 52345678/);
+    assert.ok(lines.length < 16);
+  });
+
   it("renders backend document aliases as document embeds", async () => {
     const output = await captureStdout(async () => {
       await renderEmbedPreview(

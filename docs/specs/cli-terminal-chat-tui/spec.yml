@@ -1,0 +1,730 @@
+id: cli-terminal-chat-tui
+title: CLI Terminal Chat TUI
+status: approved
+
+goal: >
+  Make `openmates` with no arguments feel like a modern terminal chat client:
+  interactive terminals open a clean full-screen TUI for chatting, browsing
+  recommended example chats, continuing examples, and viewing compact embed
+  previews, while non-interactive use remains script-friendly with a concise
+  quickstart. The CLI TUI must reuse the existing OpenMates client/chat/embed
+  contracts instead of introducing a heavy terminal framework.
+
+scope:
+  in:
+    - "`openmates` with no positional arguments launches a terminal chat UI when stdin and stdout are interactive TTYs."
+    - "`openmates --help` and `openmates help` continue to show command help."
+    - Plain `openmates` in non-interactive or redirected contexts prints a compact programmatic quickstart and exits successfully.
+    - The TUI start screen shows OpenMates ASCII/text logo, the for-everyone intro teaser copy, `/examples` guidance, file-reference hints, and a message input field.
+    - "`/examples` first asks for local interest tags when no local TUI interest selection exists, then ranks bundled public example chats using the same deterministic interest semantics as the web guest-interest flow."
+    - Example-chat screens render the full public transcript and the same message input footer as normal chats.
+    - Continuing from an example creates a new real chat or anonymous chat entry and sends the full example history as context, matching web app processing parity.
+    - Authenticated CLI example continuation clones the full example transcript and embeds into the new encrypted chat before sending the user's continuation message.
+    - Logged-out CLI and web anonymous example continuation create an anonymous local chat entry and send the full example history in the anonymous `message_history` payload.
+    - Chat messages, markdown-ish text, code blocks, follow-up suggestions, sub-chat progress, and interactive waiting states render inside the TUI without direct stdout streaming.
+    - Embed previews render as compact cards. Text-heavy embeds such as code, docs, PDFs, transcripts, and generated applications show only a capped excerpt plus a command to open the full embed.
+    - Full embed detail opens inside a dedicated scrollable TUI detail view and remains available through the existing `openmates embeds show <id>` command outside the TUI.
+    - The TUI uses terminal alternate-screen cleanup so exiting restores the user's shell contents.
+    - The first implementation uses no new runtime dependencies unless a later implementation task records a concrete terminal-width correctness need.
+  out:
+    - Mouse support in v1.
+    - Full markdown rendering parity with the web TipTap/Markdown renderer.
+    - Running live app/application previews inside the terminal.
+    - Replacing existing CLI subcommands or changing their flags.
+    - Browser-based payment, passkey, password, or raw security settings flows.
+    - Apple native TUI implementation.
+    - Server-side storage of logged-out anonymous example continuation history beyond existing anonymous request processing.
+    - Adding ML/LLM-based example ranking; ranking remains deterministic and local.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 bad credentials. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"CLI TUI terminal interactive openmates examples embeds\" --state all --limit 10` returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/standards/cli.md
+    - docs/user-guide/cli/README.md
+    - docs/user-guide/cli/chats.md
+    - docs/user-guide/cli/embeds-and-sharing.md
+    - docs/specs/guest-interest-smart-selection/spec.yml
+    - docs/specs/anonymous-streaming-ui/spec.yml
+    - docs/specs/scalable-chat-embed-loading/spec.yml
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+  code_patterns:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/src/exampleChats.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/src/fileEmbed.ts
+    - frontend/packages/openmates-cli/src/urlEmbed.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/stores/topicPreferencesStore.ts
+    - frontend/packages/ui/src/i18n/sources/demo_chats/for_everyone.yml
+    - frontend/packages/ui/src/i18n/sources/chat/interests.yml
+  tests:
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - frontend/packages/openmates-cli/tests/fileEmbed.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/openmates-cli/tests/anonymous-free-usage.test.ts
+    - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - The CLI TUI has no Apple terminal counterpart.
+    - The web anonymous example-continuation parity fix must not change backend contracts in a way that breaks Apple anonymous chat.
+    - If implementation touches shared example-chat ranking or anonymous request contracts used by Apple, run the Apple impact check from the testing guide before completion.
+  verification:
+    - Apple not affected for CLI-only TUI work.
+    - Reassess with `python3 scripts/apple_remote.py status` plus build/test if shared anonymous or example-chat contracts change beyond web/CLI callers.
+  intentional_native_differences:
+    - Native Apple chat remains a platform-native UI rather than a terminal UI.
+
+clarification:
+  rounds:
+    - question: When a user types into the input field while viewing a public example chat, should the continuation include the example transcript as context for the first real/anonymous message, or only use the user’s new message plus a lightweight source reference?
+      answer: Check existing web code. The web app creates a new real chat based on the full example chat history, and the CLI must ensure full parity with that processing.
+    - question: For logged-out users continuing from an example in the TUI, should we match today's anonymous web behavior exactly, or require parity-aligning anonymous continuation so the full example history is also sent/available as context?
+      answer: Both web app and CLI must create a local chat entry as usual and send the full history when the user is not authenticated.
+    - question: Should `openmates` with no arguments launch the TUI only for interactive TTYs, and what should non-interactive/script contexts do?
+      answer: Interactive `openmates` should launch the TUI. Non-interactive `openmates` should output the most common programmatic commands for asking a question, files, login, examples, and command discovery, plus point to help.
+    - question: How should `/login`, `/signup`, `/embed <id>`, and TUI interest persistence work in v1?
+      answer: "`/login` should run inside the TUI as a pair-auth modal/status screen. `/signup` should cleanly leave the TUI before running or handing off to the existing guided signup flow. `/embed <id>` should resolve visible/current-chat embeds first, then current example/session embeds, then local/client lookup; `/embed` with no ID lists current chat embeds. TUI interests remain terminal-session only for v1."
+  vision_summary: >
+    OpenMates CLI should become a chat-first terminal experience for humans while
+    preserving script-friendly command behavior. Example chats are not a separate
+    dead-end viewer: every example screen has the same input field, and continuing
+    from it creates a new real or anonymous chat with the full example history and
+    embeds available as context, matching web app semantics. The implementation
+    should stay lean by using Node terminal primitives, pure render helpers, and
+    existing OpenMates client/embed logic instead of a large TUI dependency.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Interactive `openmates` opens the terminal chat UI
+    given:
+      - A user installed the npm package and runs `openmates` in a normal interactive terminal.
+      - stdin and stdout are both TTYs.
+    when:
+      - The command starts.
+    then:
+      - The CLI enters an alternate-screen terminal UI.
+      - The top of the screen shows OpenMates logo text.
+      - The start screen shows the existing for-everyone teaser lines `AI team mates.`, `For everyday tasks & learning.`, and `With privacy & safety by design.`
+      - The start screen shows `Check example chats via /examples`.
+      - The start screen explains file references such as `@./notes.md`, `@~/Downloads/report.pdf`, and `@src/app.ts`.
+      - A message input field is visible at the bottom.
+
+  - id: S-2
+    title: Non-interactive `openmates` stays script-friendly
+    given:
+      - A user or script runs plain `openmates` with stdout redirected or piped.
+    when:
+      - The command detects that stdin or stdout is not an interactive TTY.
+    then:
+      - The CLI does not enter alternate-screen mode.
+      - The CLI prints a compact programmatic quickstart and exits with status 0.
+      - The quickstart includes examples for `openmates chats new`, `openmates chats new --json`, `openmates chats send --chat <chat-id>`, `openmates login`, `openmates signup`, `openmates chats list`, `openmates chats show <example>`, file references, `openmates apps list`, `openmates mentions list`, `openmates embeds show <embed-id>`, and `openmates --help`.
+
+  - id: S-3
+    title: Explicit help still shows command help
+    given:
+      - A user runs `openmates --help` or `openmates help` in any terminal context.
+    when:
+      - The CLI parses the command.
+    then:
+      - The existing command help is printed.
+      - The TUI does not launch.
+      - Existing subcommands and flags keep their current behavior.
+
+  - id: S-4
+    title: TUI sends a new chat message through the existing client pipeline
+    given:
+      - A user is on the TUI start screen.
+      - The user types `Explain SQLite strict tables`.
+    when:
+      - The user presses Enter.
+    then:
+      - The TUI creates or uses the appropriate chat context through existing OpenMatesClient behavior.
+      - Logged-in sends use the authenticated WebSocket client path and stream chunks into TUI state instead of writing directly to stdout.
+      - Logged-out sends use the anonymous chat path and render lifecycle state inside the TUI.
+      - The input field stays available after the response completes.
+      - Existing terminal command output mode for `openmates chats new` and `openmates chats send` is unchanged.
+
+  - id: S-5
+    title: "`/examples` asks for interests before first recommendation"
+    given:
+      - A user is in the TUI.
+      - The TUI has no local interest selection for this terminal session.
+    when:
+      - The user enters `/examples`.
+    then:
+      - The TUI shows the local personalization prompt `What are you interested in?` with selectable interest tags aligned with the web guest-interest tag registry.
+      - The user can move with arrow keys, toggle tags with Space, and continue with Enter.
+      - The prompt states that choices stay local in the terminal session unless a future signed-in settings flow explicitly saves account interests.
+      - No network request sends cleartext selected interest tags.
+      - Mouse support is not required.
+
+  - id: S-6
+    title: Example recommendations are ranked and keyboard navigable
+    given:
+      - A TUI user selected interests such as `software development`, `travel`, or `research`.
+    when:
+      - The user continues from the interest prompt.
+    then:
+      - Bundled example chats from `ALL_EXAMPLE_CHATS` are ranked deterministically from the selected interests.
+      - Relevant examples such as Habit Garden Vite App, Svelte Runes Docs, Flights from Berlin to Bangkok, Why US Egg Prices Stayed High, and Read a PDF page can appear in the list when their topics match.
+      - The list is navigable with arrow keys and Enter.
+      - A search/filter input can narrow examples without leaving the TUI.
+
+  - id: S-7
+    title: Example chat screen includes transcript and input field
+    given:
+      - A user opens an example chat such as Svelte Runes Docs or Flights from Berlin to Bangkok.
+    when:
+      - The TUI renders the example chat screen.
+    then:
+      - The full public transcript is rendered in the scrollable message area.
+      - Existing example embeds render as compact preview cards.
+      - The bottom input field remains visible just like in real chats.
+      - The example transcript itself remains read-only.
+      - Typing into the input starts a continuation chat rather than mutating the bundled example.
+
+  - id: S-8
+    title: Authenticated example continuation clones full history and embeds
+    given:
+      - A signed-in CLI user is viewing a public example chat in the TUI.
+      - The example contains messages and embeds.
+    when:
+      - The user types a continuation question and presses Enter.
+    then:
+      - The CLI creates a new regular encrypted chat with a new UUID.
+      - The new chat records `source_demo_id` as the source example ID.
+      - The full example transcript is copied into the new chat history before the new user message.
+      - Example embed records needed by the transcript are cloned into the CLI/local embed store equivalent before rendering or sync.
+      - The new user message is sent with the full copied history available to the backend through the same recovery/history semantics as web-created chats.
+      - The public example remains unchanged.
+
+  - id: S-9
+    title: Logged-out example continuation sends full anonymous history in web and CLI
+    given:
+      - A logged-out user is viewing a public example chat in either the web app or CLI TUI.
+      - Anonymous free usage is active.
+    when:
+      - The user types a continuation question and sends it.
+    then:
+      - The client creates a local anonymous chat entry as usual.
+      - The local anonymous chat records `source_demo_id`.
+      - The initial anonymous `message_history` payload includes the full public example conversation history before the new user message.
+      - The full history sent to the backend excludes hidden implementation-only fields and includes only conversation roles, content, sender names, and timestamps required for AI context.
+      - The anonymous local chat displays the example transcript plus the new user and assistant messages.
+      - No durable server-side anonymous transcript is created beyond existing anonymous request processing.
+
+  - id: S-10
+    title: Text and embed rendering stays compact in chat view
+    given:
+      - A chat response contains markdown text, code fences, app-skill embed references, generated code/application embeds, docs embeds, PDF reads, or transcript embeds.
+    when:
+      - The TUI renders the chat view.
+    then:
+      - Text is wrapped to the current terminal width.
+      - Code fences in normal assistant text are rendered as bounded text blocks.
+      - Embed references render as compact cards rather than full inline content.
+      - Text-heavy embeds show a capped excerpt, a truncation marker when needed, and `openmates embeds show <short-id>`.
+      - Full code projects or long documents are not dumped into the main chat scrollback.
+
+  - id: S-11
+    title: Full embed detail is available on demand
+    given:
+      - A TUI chat contains a compact embed preview card.
+    when:
+      - The user enters a TUI embed command such as `/embed <short-id>` or uses the existing external command `openmates embeds show <short-id>` outside the TUI.
+    then:
+      - The full embed content is shown in a dedicated scrollable TUI detail view or the existing non-TUI renderer.
+      - Multi-file code/application embeds provide file navigation or clearly separated file sections.
+      - The user can return to the chat without losing scroll or input state.
+
+  - id: S-12
+    title: TUI scroll and resize behavior is predictable
+    given:
+      - A TUI chat has more lines than fit on screen.
+    when:
+      - The user presses Up, Down, PageUp, PageDown, Home, End, or resizes the terminal.
+    then:
+      - The scrollable message region moves without corrupting the input footer.
+      - When pinned to bottom, new streaming chunks keep the viewport pinned.
+      - When the user scrolls up, new chunks do not force the viewport to bottom.
+      - Resizing rewraps and re-slices the visible lines.
+
+  - id: S-13
+    title: Terminal cleanup always restores the shell
+    given:
+      - A user has launched the TUI.
+    when:
+      - The user exits with `/exit`, Ctrl+C, EOF, SIGTERM, or an unexpected handled error.
+    then:
+      - Raw mode is disabled.
+      - The cursor is shown.
+      - Alternate screen mode is exited.
+      - Mouse tracking remains disabled.
+      - Event listeners installed by the TUI are removed.
+      - The previous shell contents are restored by the terminal.
+
+  - id: S-14
+    title: Documentation explains both interactive and programmatic usage
+    given:
+      - A user reads the npm README or CLI user guide after installing OpenMates.
+    when:
+      - The docs describe the default `openmates` behavior.
+    then:
+      - The docs explain that `openmates` opens the TUI in an interactive terminal.
+      - The docs explain that `openmates --help` shows the command reference.
+      - The docs include programmatic examples for asking questions, JSON output, file references, examples, login/signup, apps, mentions, and embeds.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Interactive plain `openmates` launches a full-screen TUI with logo, canonical intro teaser copy, example guidance, file-reference hints, and message input.
+  - id: AC-2
+    scenario: S-2
+    text: Non-interactive plain `openmates` prints a compact programmatic quickstart and exits 0 without entering alternate-screen mode.
+  - id: AC-3
+    scenario: S-3
+    text: Explicit help commands keep the existing help behavior and do not launch the TUI.
+  - id: AC-4
+    scenario: S-4
+    text: TUI message sending uses existing OpenMates chat clients and routes streaming/lifecycle updates into TUI state instead of direct stdout output.
+  - id: AC-5
+    scenario: S-5
+    text: "`/examples` first-use interest selection is local, keyboard-accessible, and aligned with the web guest-interest tag semantics."
+  - id: AC-6
+    scenario: S-6
+    text: Example recommendations are deterministic from selected interests and keyboard navigable.
+  - id: AC-7
+    scenario: S-7
+    text: Example chat screens render full public transcripts and keep the same input footer as normal chats.
+  - id: AC-8
+    scenario: S-8
+    text: Authenticated CLI example continuation creates a new encrypted chat, clones full example history and embeds, records source_demo_id, and sends with full history available as context.
+  - id: AC-9
+    scenario: S-9
+    text: Logged-out web and CLI example continuation create local anonymous chats and send full public example history in the anonymous message_history payload.
+  - id: AC-10
+    scenario: S-10
+    text: Chat view renders compact message and embed previews, with capped excerpts for text-heavy embeds and no full generated-project dump inline.
+  - id: AC-11
+    scenario: S-11
+    text: Full embed content remains available through a TUI detail view and the existing `openmates embeds show` command.
+  - id: AC-12
+    scenario: S-12
+    text: Scrolling, bottom pinning, and terminal resize keep the message region and input footer stable.
+  - id: AC-13
+    scenario: S-13
+    text: Exiting or erroring from the TUI always restores terminal state.
+  - id: AC-14
+    scenario: S-14
+    text: CLI README and user guide document the new interactive default and script-friendly programmatic commands.
+
+contracts:
+  cli_entrypoint:
+    - command: openmates
+      interactive_tty: true
+      behavior: Launch TUI.
+    - command: openmates
+      interactive_tty: false
+      behavior: Print programmatic quickstart and exit 0.
+    - command: openmates --help
+      behavior: Print command help.
+    - command: openmates help
+      behavior: Print command help.
+  tui_commands:
+    - command: /help
+      behavior: Show TUI shortcuts plus pointers to `openmates --help` and subcommand help.
+    - command: /examples
+      behavior: Open interest selection or ranked example list.
+    - command: /login
+      behavior: Start pair-auth login using existing CLI login flow without exposing passwords.
+    - command: /signup
+      behavior: Start guided signup or instruct user to run existing CLI signup flow if full-screen hidden prompts cannot safely coexist with the TUI.
+    - command: /embed <id>
+      behavior: Open full embed detail view for a visible or resolvable embed.
+    - command: /clear
+      behavior: Clear the current TUI visual transcript only when this is a local view reset; do not delete saved chats.
+    - command: /exit
+      behavior: Exit TUI and restore terminal.
+  data:
+    - name: TUI interest selection
+      persistence: Terminal-session local state only for v1.
+      privacy: Must not send cleartext interests over the network before explicit account settings sync.
+    - name: Example continuation source
+      field: source_demo_id
+      behavior: Records the public source chat ID on new real or anonymous continuation chats.
+    - name: Anonymous example history
+      field: message_history
+      behavior: Includes full public example transcript for first logged-out continuation sends.
+  rendering:
+    - surface: Main chat view
+      behavior: Line-based renderer with bounded embed cards and scrollable message region.
+    - surface: Embed detail view
+      behavior: Scrollable full content view, especially for text/code/document embeds.
+    - surface: Terminal lifecycle
+      behavior: Alternate screen, raw mode, hidden cursor during TUI, guaranteed cleanup.
+  privacy_security:
+    - File references use existing `@path` processing and require login for uploads.
+    - The TUI must not print secrets or hidden prompt values into shell history.
+    - Anonymous example continuation sends only public example content plus the user's new message as plaintext to the anonymous endpoint, matching existing anonymous chat constraints.
+    - Authenticated chat content and cloned example continuation data use existing client-side encryption paths.
+
+tests:
+  - id: T-CLI-TUI-UNIT
+    type: unit
+    file: frontend/packages/openmates-cli/tests/tui.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tui.test.ts
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-12
+      - AC-13
+    assertions:
+      - interactive no-arg launch chooses TUI mode
+      - non-interactive no-arg launch chooses quickstart output and exit 0
+      - explicit help bypasses TUI mode
+      - renderer includes logo text, intro teaser copy, examples hint, file-reference hint, and input footer
+      - local interest selection updates ranked example output deterministically
+      - example chat screen includes transcript lines and input footer
+      - scroll state preserves bottom pinning and user-scrolled-up behavior
+      - terminal cleanup restores raw mode, cursor, alternate screen, and listeners on all exit paths
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-CLI-EXAMPLE-CONTINUATION
+    type: unit
+    file: frontend/packages/openmates-cli/tests/tuiExampleContinuation.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tuiExampleContinuation.test.ts
+    covers:
+      - AC-8
+      - AC-9
+    assertions:
+      - authenticated continuation from an example creates a new UUID chat and records source_demo_id
+      - authenticated continuation copies all example messages before the new user message
+      - authenticated continuation makes example embed data resolvable from the local embed store path used by CLI rendering
+      - logged-out continuation builds anonymous message_history from the full public example transcript before the new user message
+      - public example data is not mutated
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-CLI-EMBED-PREVIEWS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types tests/embedRenderers.test.ts
+    covers:
+      - AC-10
+      - AC-11
+    assertions:
+      - code/application embed preview shows file list and capped excerpt
+      - docs/text/PDF/transcript preview shows capped excerpt and full-open command
+      - compact preview renderer can return pure lines for TUI usage without writing directly to stdout
+      - existing `renderEmbedPreview` stdout wrapper remains compatible with current CLI commands
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-WEB-ANON-EXAMPLE-CONTINUATION-UNIT
+    type: unit
+    file: frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers:
+      - AC-9
+    assertions:
+      - anonymous send from a public example includes the full example transcript in initial message_history
+      - anonymous send stores source_demo_id on the local anonymous chat
+      - anonymous history payload contains role, content, created_at, and sender_name only
+      - hidden implementation-only example fields and embed storage internals are not sent as anonymous history
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-WEB-ANON-EXAMPLE-CONTINUATION-E2E
+    type: playwright
+    file: frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    command: python3 scripts/tests.py run --spec anonymous-free-chat.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-9
+    assertions:
+      - logged-out user opens a public example chat
+      - sending a continuation creates a local anonymous chat rather than mutating the example
+      - the visible anonymous chat contains example history, the new user message, and the assistant response
+      - network/debug evidence shows anonymous request history includes the source example transcript
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-CLI-DOCS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+    covers:
+      - AC-14
+    assertions:
+      - npm README documents interactive `openmates` TUI behavior
+      - npm README documents non-interactive quickstart commands
+      - CLI user guide documents TUI commands and programmatic usage
+      - top-level help remains consistent with the command surface
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - frontend/packages/openmates-cli/src/cli.ts already routes commands and prints top-level help for no args.
+    - frontend/packages/openmates-cli/src/client.ts already supports authenticated WebSocket sends and anonymous sends.
+    - frontend/packages/openmates-cli/src/exampleChats.ts already exposes bundled public example chats to the CLI.
+    - frontend/packages/openmates-cli/src/embedRenderers.ts already knows how to render many embed previews, but currently writes to stdout.
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts is the web source for public example continuation cloning.
+    - frontend/packages/ui/src/services/anonymousChatStorage.ts is the web source for anonymous local chat entries and anonymous message_history payloads.
+  architecture: >
+    Add a thin terminal UI layer around the existing CLI SDK: a terminal lifecycle
+    helper, pure state transitions, pure line renderers, and small adapters from
+    OpenMatesClient streaming callbacks into TUI state. Refactor embed preview
+    rendering so compact previews can be returned as lines and existing stdout
+    commands remain wrappers. Add shared example-continuation helpers where
+    possible so CLI behavior mirrors the web duplication flow without copying
+    large logic into the command router.
+  data_flow:
+    - "`openmates` detects TTY context and chooses TUI, quickstart, or help."
+    - TUI start screen renders static intro copy and collects input.
+    - "`/examples` collects local interest tags and ranks `ALL_EXAMPLE_CHATS` deterministically."
+    - Opening an example renders public transcript and compact embed previews.
+    - Sending from an example creates a new continuation chat, copies or serializes full example history, and sends the user's new message through authenticated or anonymous client paths.
+    - Stream events update TUI message state; render throttling redraws the alternate screen.
+    - Exiting always runs terminal cleanup in a `finally` path.
+  affected_files:
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: no-arg dispatch, explicit help preservation, quickstart output
+    - path: frontend/packages/openmates-cli/src/tui.ts
+      reason: new TUI event loop and command handling
+    - path: frontend/packages/openmates-cli/src/tuiTerminal.ts
+      reason: raw mode, alternate screen, cleanup, resize handling
+    - path: frontend/packages/openmates-cli/src/tuiRenderer.ts
+      reason: pure frame rendering and scroll slicing
+    - path: frontend/packages/openmates-cli/src/tuiExamples.ts
+      reason: local interest selection and deterministic example ranking
+    - path: frontend/packages/openmates-cli/src/tuiExampleContinuation.ts
+      reason: CLI example continuation parity with web duplication flow
+    - path: frontend/packages/openmates-cli/src/embedRenderers.ts
+      reason: pure compact preview lines plus existing stdout wrappers
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: expose any missing non-stdout hooks needed by TUI sends
+    - path: frontend/packages/ui/src/services/anonymousChatStorage.ts
+      reason: web anonymous example continuation must send full public example history
+    - path: frontend/packages/openmates-cli/README.md
+      reason: npm onboarding docs for TUI and quickstart
+    - path: docs/user-guide/cli/README.md
+      reason: user guide update for TUI and programmatic usage
+    - path: docs/user-guide/cli/chats.md
+      reason: document example continuation and file references in TUI context
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/cli-terminal-chat-tui/spec.yml
+    - CLI unit tests for TUI state/render/cleanup and continuation helpers.
+    - CLI embed renderer unit tests for compact line previews.
+    - Web unit test for anonymous example message_history parity through `scripts/tests.py run --suite vitest`.
+    - Playwright red/green for logged-out web anonymous example continuation after deploy.
+  verification_order:
+    - CLI unit contracts first for TUI and continuation helpers.
+    - Web anonymous unit contract for full example history payload.
+    - Web Playwright red/green for user-visible anonymous continuation after deploy.
+    - Apple impact check only if shared native-facing anonymous contracts change.
+
+tasks:
+  - id: TASK-1
+    title: Add TUI entrypoint and terminal lifecycle
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-13
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-13
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/tui.ts
+      - frontend/packages/openmates-cli/src/tuiTerminal.ts
+      - frontend/packages/openmates-cli/tests/tui.test.ts
+    verification:
+      - T-CLI-TUI-UNIT
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Build TUI renderer, scroll model, and examples flow
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+        - S-12
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-12
+    expected_files:
+      - frontend/packages/openmates-cli/src/tui.ts
+      - frontend/packages/openmates-cli/src/tuiRenderer.ts
+      - frontend/packages/openmates-cli/src/tuiExamples.ts
+      - frontend/packages/openmates-cli/tests/tui.test.ts
+    verification:
+      - T-CLI-TUI-UNIT
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Implement example continuation parity for CLI and web anonymous
+    covers:
+      scenarios:
+        - S-8
+        - S-9
+      acceptance_criteria:
+        - AC-8
+        - AC-9
+    expected_files:
+      - frontend/packages/openmates-cli/src/tuiExampleContinuation.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/ui/src/services/anonymousChatStorage.ts
+      - frontend/packages/openmates-cli/tests/tuiExampleContinuation.test.ts
+      - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
+      - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    verification:
+      - T-CLI-EXAMPLE-CONTINUATION
+      - T-WEB-ANON-EXAMPLE-CONTINUATION-UNIT
+      - T-WEB-ANON-EXAMPLE-CONTINUATION-E2E
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Refactor embed previews for compact TUI cards and detail view
+    covers:
+      scenarios:
+        - S-10
+        - S-11
+      acceptance_criteria:
+        - AC-10
+        - AC-11
+    expected_files:
+      - frontend/packages/openmates-cli/src/embedRenderers.ts
+      - frontend/packages/openmates-cli/src/tuiRenderer.ts
+      - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    verification:
+      - T-CLI-EMBED-PREVIEWS
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Update CLI docs and npm onboarding
+    covers:
+      scenarios:
+        - S-14
+      acceptance_criteria:
+        - AC-14
+    expected_files:
+      - frontend/packages/openmates-cli/README.md
+      - docs/user-guide/cli/README.md
+      - docs/user-guide/cli/chats.md
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+    verification:
+      - T-CLI-DOCS
+    independently_deployable: true
+
+risks:
+  - Terminal raw-mode bugs can leave the shell in a bad state; cleanup paths need unit coverage and manual smoke testing.
+  - Reusing sendMessageStreaming directly would corrupt TUI rendering because it writes to stdout; implementation must route streaming events into state instead.
+  - Text width for emoji/CJK can be imperfect without a dependency; v1 should use simple width handling and add a dependency only if tests expose unacceptable layout breakage.
+  - Anonymous example continuation will send public example text as context; keep this limited to public example content and avoid sending private local-only metadata.
+  - Copying large example histories and embeds must stay bounded and deterministic; avoid broad IndexedDB scans or loading unrelated examples.
+
+open_questions:
+  - Should TUI interest selections persist across CLI invocations after v1, or remain terminal-session only long term?

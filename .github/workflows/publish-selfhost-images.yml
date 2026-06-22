@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: Optional image tag override, e.g. v0.11.0-alpha.12
+        description: Optional image tag override, e.g. v0.13.0
         required: false
         type: string
   push:

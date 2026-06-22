@@ -26,25 +26,25 @@ describe("guestSmartSelection", () => {
     expect(rankedIds).toEqual(
       expect.arrayContaining(INTEREST_TAGS.map((tag) => tag.id)),
     );
-    expect(rankedIds.indexOf("use_the_cli")).toBeGreaterThan(0);
-    expect(rankedIds.indexOf("use_the_cli")).toBeLessThan(
+    expect(rankedIds.indexOf("run_code")).toBeGreaterThan(0);
+    expect(rankedIds.indexOf("run_code")).toBeLessThan(
       rankedIds.indexOf("find_apartments"),
     );
-    expect(rankedIds.indexOf("protect_my_privacy")).toBeLessThan(
-      rankedIds.indexOf("local_life"),
+    expect(rankedIds.indexOf("privacy")).toBeLessThan(
+      rankedIds.indexOf("find_restaurant"),
     );
   });
 
   it("keeps multiple selected tags first in selection order and ignores invalid duplicates", () => {
     const rankedIds = rankInterestTagsForSelection([
-      "protect_my_privacy",
+      "privacy",
       "unknown_tag",
       "software_development",
-      "protect_my_privacy",
+      "privacy",
     ]).map((tag) => tag.id);
 
     expect(rankedIds.slice(0, 2)).toEqual([
-      "protect_my_privacy",
+      "privacy",
       "software_development",
     ]);
     expect(rankedIds).toEqual(Array.from(new Set(rankedIds)));
@@ -65,7 +65,7 @@ describe("guestSmartSelection", () => {
 
     const ranked = rankDailyInspirationsByInterests(inspirations, [
       "software_development",
-      "protect_my_privacy",
+      "privacy",
     ]).map((inspiration) => inspiration.inspiration_id);
 
     expect(ranked.slice(0, 4)).toEqual([
@@ -82,7 +82,7 @@ describe("guestSmartSelection", () => {
   it("dedupes ranked example chats and remains deterministic", () => {
     const selected: InterestTagId[] = [
       "software_development",
-      "protect_my_privacy",
+      "privacy",
     ];
     const exampleIds = [
       "example-gigantic-airplanes",
@@ -131,7 +131,7 @@ describe("guestSmartSelection", () => {
           "chat.new_chat_suggestions.cybersecurity",
           "chat.new_chat_suggestions.discover_video_search",
         ],
-        ["software_development", "protect_my_privacy"],
+        ["software_development", "privacy"],
       ).slice(0, 2),
     ).toEqual([
       "chat.new_chat_suggestions.cybersecurity",
@@ -152,7 +152,7 @@ describe("guestSmartSelection", () => {
           personalized: true,
         },
       ],
-      ["protect_my_privacy"],
+      ["privacy"],
     );
 
     expect(ranked[0].inspiration_id).toBe("personalized-user-topic");

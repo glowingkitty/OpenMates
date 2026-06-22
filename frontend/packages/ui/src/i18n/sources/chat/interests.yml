@@ -502,3 +502,59 @@ write_better:
   sv: "skriv bättre"
   he: "לכתוב טוב יותר"
   verified_by_human: []
+privacy:
+  context: Guest interest context tag label
+  en: "privacy"
+  verified_by_human: []
+learning:
+  context: Guest interest context tag label
+  en: "learning"
+  verified_by_human: []
+writing:
+  context: Guest interest context tag label
+  en: "writing"
+  verified_by_human: []
+find_events:
+  context: Guest app-skill intent tag label
+  en: "find events"
+  verified_by_human: []
+find_restaurant:
+  context: Guest app-skill intent tag label
+  en: "find restaurant"
+  verified_by_human: []
+find_doctor_appointments:
+  context: Guest app-skill intent tag label
+  en: "find doctor appointments"
+  verified_by_human: []
+plot_charts:
+  context: Guest app-skill intent tag label
+  en: "plot charts"
+  verified_by_human: []
+video_tutorials:
+  context: Guest app-skill intent tag label
+  en: "video tutorials"
+  verified_by_human: []
+build_electronics:
+  context: Guest app-skill intent tag label
+  en: "build electronics"
+  verified_by_human: []
+diy_projects:
+  context: Guest app-skill intent tag label
+  en: "DIY projects"
+  verified_by_human: []
+create_videos:
+  context: Guest app-skill intent tag label
+  en: "create videos"
+  verified_by_human: []
+find_travel_connections:
+  context: Guest app-skill intent tag label
+  en: "find travel connections"
+  verified_by_human: []
+discuss_news:
+  context: Guest app-skill intent tag label
+  en: "discuss news"
+  verified_by_human: []
+discuss_videos:
+  context: Guest app-skill intent tag label
+  en: "discuss videos"
+  verified_by_human: []

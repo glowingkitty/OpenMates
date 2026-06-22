@@ -399,7 +399,7 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: failed_as_expected_missing_serverPlanning_module
+        status: failed_as_expected
         run_id: npm-run-test-unit-server-red-2026-06-20
         timestamp: "2026-06-20T23:40:25Z"
     green_phase:
@@ -492,9 +492,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: passed
-        run_id: lint-changed-settings-software-update-2026-06-21
-        timestamp: "2026-06-21T07:33:38Z"
+        status: ""
+        run_id: ""
+        timestamp: ""
 
   - id: T-SELFHOST-SMOKE
     type: manual
@@ -514,20 +514,21 @@ tests:
       - smoke runs update --dry-run and update with service selection
       - smoke installs continuous updater in a disposable systemd-capable environment or validates generated unit/timer files when systemd is unavailable
       - smoke verifies upload and preview role dry-run plans
+      - smoke creates a backup, mutates user data, restores the backup, and verifies the user data is recovered
     red_phase:
-      required: true
-      expected: fail
+      required: false
+      expected: not_applicable
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: not_required
+        run_id: green_phase_only_by_user_decision
+        timestamp: "2026-06-21T10:43:00Z"
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        run_id: npm-run-test-unit-server-green-2026-06-21
-        timestamp: "2026-06-21T07:33:38Z"
+        run_id: github-actions-selfhost-smoke-27901255247
+        timestamp: "2026-06-21T10:42:25Z"
 
   - id: T-SOFTWARE-UPDATE-UI
     type: unit
@@ -551,9 +552,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: lint-changed-settings-software-update-2026-06-21
+        timestamp: "2026-06-21T07:33:38Z"
 
   - id: T-CONFIG-CADDY-PREFLIGHT
     type: unit
@@ -580,9 +581,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: npm-run-test-unit-server-green-2026-06-21
+        timestamp: "2026-06-21T07:33:38Z"
 
 implementation_plan:
   existing_patterns:

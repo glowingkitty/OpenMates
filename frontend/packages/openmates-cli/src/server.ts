@@ -2513,7 +2513,7 @@ Examples:
   openmates server features enable embed:code:application
   openmates server update
   openmates server update --dry-run
-  openmates server update --image-tag v0.12.0-alpha.1
+  openmates server update --image-tag v0.13.0
   openmates server update --channel dev
   openmates server restart --rebuild
 `.trim());

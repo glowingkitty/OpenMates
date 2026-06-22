@@ -32,7 +32,7 @@ Analyze the user's input and determine:
    - `UI`, `Backend`, `DevOps`, `testing`, `docs`, `marketing`, `payment`
    - `cronjob`, `user-feedback`, `SEO`
 6. **Project**: Suggest Web App or CLI based on content
-7. **Milestone**: Suggest v0.10.1 alpha (stability/UI fixes) or v0.11.0 alpha (features) based on scope
+7. **Milestone**: Suggest v0.13.1 (stability/UI fixes) or v0.14.0 (features) based on scope
 8. **Spec size**: Decide `none`, `inline`, or `full` using `docs/contributing/guides/spec-driven-development.md`
 
 ### Step 2: Present the Suggested Task
@@ -47,7 +47,7 @@ Show the user what will be created:
 **Priority:** High (2)
 **Labels:** Bug, UI
 **Project:** Web App
-**Milestone:** v0.10.1 alpha
+**Milestone:** v0.13.1
 
 ### Description
 The create reminder UI is broken — [expanded description based on user input].

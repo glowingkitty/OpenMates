@@ -70,6 +70,7 @@ import {
 } from "./interactiveQuestions.js";
 import { buildAssistantFeedbackDecision } from "./feedback.js";
 import { handleBenchmark, printBenchmarkHelp } from "./benchmark.js";
+import { defaultModeForStreams, printProgrammaticQuickstart, runTui } from "./tui.js";
 
 type SignupRequiredResult = {
   status: "signup_required";
@@ -105,7 +106,23 @@ async function main(): Promise<void> {
     }
   }
 
-  if (!command || command === "help") {
+  if (!command) {
+    if (parsed.flags.help === true) {
+      printHelp();
+      return;
+    }
+    if (defaultModeForStreams(process.stdin, process.stdout) === "quickstart") {
+      printProgrammaticQuickstart();
+      return;
+    }
+    const result = await runTui(client);
+    if (result.action === "signup") {
+      await handleSignup(client, parsed.flags);
+    }
+    return;
+  }
+
+  if (command === "help") {
     printHelp();
     return;
   }
@@ -1918,7 +1935,7 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["account", "info"], description: "Show account info", examples: ["openmates settings account info --json"] },
   { path: ["account", "timezone", "set"], description: "Set account timezone", examples: ["openmates settings account timezone set Europe/Berlin"] },
   { path: ["account", "interests", "list"], description: "Show encrypted account topic interests", examples: ["openmates settings account interests list --json"] },
-  { path: ["account", "interests", "set"], description: "Set encrypted account topic interests", examples: ["openmates settings account interests set software_development use_the_cli"] },
+  { path: ["account", "interests", "set"], description: "Set encrypted account topic interests", examples: ["openmates settings account interests set software_development run_code privacy"] },
   { path: ["account", "interests", "clear"], description: "Clear encrypted account topic interests", examples: ["openmates settings account interests clear --yes"] },
   { path: ["account", "export", "manifest"], description: "Show account export manifest", examples: ["openmates settings account export manifest --json"] },
   { path: ["account", "export", "data"], description: "Fetch account export data", examples: ["openmates settings account export data --json"] },

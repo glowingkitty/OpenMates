@@ -292,10 +292,10 @@ describe("account interest commands", () => {
 
   it("normalizes interest tag IDs and rejects unknown values", () => {
     assert.deepEqual(
-      normalizeInterestTagIds(["software_development", "use_the_cli", "software_development"]),
-      ["software_development", "use_the_cli"],
+      normalizeInterestTagIds(["software_development", "run_code", "software_development"]),
+      ["software_development", "run_code"],
     );
-    assert.ok(INTEREST_TAG_IDS.includes("protect_my_privacy"));
+    assert.ok(INTEREST_TAG_IDS.includes("privacy"));
     assert.throws(
       () => normalizeInterestTagIds(["unknown_topic"]),
       /Unknown interest tag 'unknown_topic'/,
@@ -1102,8 +1102,8 @@ describe("deriveAppUrl", () => {
 
 describe("defaultCloneBranchForVersion", () => {
   it("uses dev for prerelease CLI versions", () => {
-    assert.strictEqual(defaultCloneBranchForVersion("0.12.0-alpha.12"), "dev");
-    assert.strictEqual(defaultCloneBranchForVersion("0.12.0-beta.1"), "dev");
+    assert.strictEqual(defaultCloneBranchForVersion("0.13.0-alpha.12"), "dev");
+    assert.strictEqual(defaultCloneBranchForVersion("0.13.0-beta.1"), "dev");
     assert.strictEqual(defaultCloneBranchForVersion("1.0.0-rc.1"), "dev");
   });
 

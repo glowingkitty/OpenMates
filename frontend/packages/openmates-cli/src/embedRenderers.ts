@@ -133,6 +133,70 @@ function trunc(s: string, max: number): string {
   return s.length > max ? s.slice(0, max) + "…" : s;
 }
 
+function stripAnsi(value: string): string {
+  return value.replace(new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g"), "");
+}
+
+function extractTextLines(value: unknown): string[] {
+  if (typeof value === "string") return value.split("\n");
+  if (Array.isArray(value)) return value.flatMap(extractTextLines);
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return [
+      ...extractTextLines(record.content),
+      ...extractTextLines(record.text),
+      ...extractTextLines(record.markdown),
+      ...extractTextLines(record.body),
+      ...extractTextLines(record.source),
+      ...extractTextLines(record.code),
+    ];
+  }
+  return [];
+}
+
+function extractFileNames(value: unknown): string[] {
+  if (!value || typeof value !== "object") return [];
+  const record = value as Record<string, unknown>;
+  if (Array.isArray(record.files)) {
+    return record.files
+      .map((file) => typeof file === "string" ? file : str((file as Record<string, unknown>)?.name) ?? str((file as Record<string, unknown>)?.path))
+      .filter((file): file is string => Boolean(file));
+  }
+  if (record.files && typeof record.files === "object") return Object.keys(record.files as Record<string, unknown>);
+  return [];
+}
+
+export function formatEmbedPreviewLines(embed: DecryptedEmbed, maxContentLines = 8): string[] {
+  const shortId = embed.embedId.slice(0, 8);
+  const c = (embed.content ?? {}) as Record<string, unknown>;
+  const resolvedType = embed.type ?? str(c.type) ?? "embed";
+  const app = embed.appId ?? str(c.app_id) ?? "";
+  const skill = embed.skillId ?? str(c.skill_id) ?? "";
+  const label = skill ? `${app}/${skill}` : (app || DIRECT_TYPE_LABELS[resolvedType] || resolvedType);
+  const title = str(c.title) ?? str(c.name) ?? embed.textPreview ?? "";
+  const status = stripAnsi(statusIcon(str(c.status)) || statusIcon("finished"));
+  const lines = [`┌─ ${status} ${label}${title ? ` · ${trunc(title, 56)}` : ""}`];
+
+  const fileNames = extractFileNames(c);
+  if (fileNames.length > 0) {
+    lines.push(`│  Files: ${trunc(fileNames.slice(0, 4).join(", "), 72)}`);
+    if (fileNames.length > 4) lines.push(`│  ... ${fileNames.length - 4} more file(s)`);
+  }
+
+  const textLines = extractTextLines(c)
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim().length > 0 && !line.trim().startsWith("{") && !line.trim().startsWith("["));
+  const previewLines = textLines.slice(0, maxContentLines);
+  if (previewLines.length > 0) {
+    if (lines.length > 1) lines.push("│");
+    for (const line of previewLines) lines.push(`│  ${trunc(line, 76)}`);
+    if (textLines.length > previewLines.length) lines.push("│  ...");
+  }
+
+  lines.push(`└─ openmates embeds show ${shortId}`);
+  return lines;
+}
+
 // ---------------------------------------------------------------------------
 // Preview renderer — compact card shown inline in chat messages
 // ---------------------------------------------------------------------------

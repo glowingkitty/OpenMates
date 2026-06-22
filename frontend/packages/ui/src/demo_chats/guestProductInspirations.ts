@@ -62,7 +62,7 @@ const PRODUCT_EXPLAINERS: Array<DailyInspiration & { tags: string[]; order: numb
       description: "AI mates, apps, memories, examples, and privacy controls in one workspace.",
       settings_path: null,
     },
-    tags: ["learn_anything", "protect_my_privacy", "software_development"],
+    tags: ["learning", "privacy", "software_development"],
     order: 10,
   },
   ...parseProductFeatureConfigs().map((feature, index) => ({

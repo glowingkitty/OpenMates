@@ -1,6 +1,6 @@
 {
   "name": "openmates",
-  "version": "0.12.0-alpha.0",
+  "version": "0.13.0",
   "description": "OpenMates CLI and SDK",
   "type": "module",
   "main": "dist/index.js",
@@ -30,9 +30,10 @@
     "test:unit:billing": "node --test tests/billing.test.ts",
     "test:unit:account-delete": "node --test tests/account-delete.test.ts",
     "test:unit:cli": "node --test tests/cli.test.ts",
+    "test:unit:tui": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tui.test.ts tests/tuiExampleContinuation.test.ts",
     "test:unit:connected-account-import": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/connectedAccountImport.test.ts",
     "test:unit:benchmark": "node --test --experimental-strip-types --loader ./tests/loader.mjs src/__tests__/benchmark.test.ts",
-    "test": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/crypto.test.ts tests/storage.test.ts tests/keychain.test.ts tests/mentions.test.ts tests/outputRedactor.test.ts tests/fileEmbed.test.ts tests/embedCreator.test.ts tests/shareEncryption.test.ts tests/server.test.ts tests/ws.test.ts tests/urlEmbed.test.ts src/__tests__/benchmark.test.ts && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/embedRenderers.test.ts tests/connectedAccountImport.test.ts && node --test tests/cli.test.ts tests/billing.test.ts tests/account-delete.test.ts tests/signup.test.ts tests/security-setup.test.ts tests/e2e-provisioning.test.ts"
+    "test": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/crypto.test.ts tests/storage.test.ts tests/keychain.test.ts tests/mentions.test.ts tests/outputRedactor.test.ts tests/fileEmbed.test.ts tests/embedCreator.test.ts tests/shareEncryption.test.ts tests/server.test.ts tests/ws.test.ts tests/urlEmbed.test.ts tests/tui.test.ts tests/tuiExampleContinuation.test.ts src/__tests__/benchmark.test.ts && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/embedRenderers.test.ts tests/connectedAccountImport.test.ts && node --test tests/cli.test.ts tests/billing.test.ts tests/account-delete.test.ts tests/signup.test.ts tests/security-setup.test.ts tests/e2e-provisioning.test.ts"
   },
   "keywords": [
     "openmates",

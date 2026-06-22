@@ -6,9 +6,11 @@ Terminal CLI and Node.js SDK for OpenMates. Use it to pair-login, create or cont
 
 ```bash
 npm install -g openmates
-openmates chats list
+openmates
 openmates login
 ```
+
+Run plain `openmates` in an interactive terminal to open the full-screen chat UI. Use `/examples` to browse public example chats, type into any example to continue it as a new real or anonymous chat, `/login` for pair-auth, `/signup` for guided account creation, and `/embed <id>` to jump to full embed details. If stdin or stdout is redirected, plain `openmates` prints a script-friendly quickstart instead of entering the TUI.
 
 Without a session, `openmates chats list`, `show`, and `open` display clearly labeled public example chats from the web app. Login uses pair-auth: the CLI shows a QR code or PIN, and you approve it in the web app. To create a new account from the terminal, run `openmates signup`; passwords and recovery secrets are collected through hidden prompts, never command-line flags.
 
@@ -19,7 +21,9 @@ openmates whoami --json
 openmates chats list
 openmates chats show example-gigantic-airplanes
 openmates chats new "Help me plan my day"
+openmates chats new "Review @./src/app.ts"
 openmates chats send --chat <chat-id> "continue"
+openmates embeds show <embed-id>
 openmates apps list
 openmates apps ai ask "What is Docker?"
 openmates apps code run --language python --code 'print("Hello")'

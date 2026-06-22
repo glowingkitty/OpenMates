@@ -16,9 +16,9 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const GUEST_TOPIC_PREFERENCES_STORAGE_KEY = 'openmates.guest_interest_tags.v1';
 const SELECTED_INTEREST_TAGS = [
 	'software_development',
-	'protect_my_privacy',
-	'open_source',
-	'use_the_cli'
+	'privacy',
+	'run_code',
+	'build_electronics'
 ];
 
 async function interestTagOrder(page: any): Promise<string[]> {
@@ -181,12 +181,12 @@ test.describe('Guest interest smart selection', () => {
 		expect(defaultRailMetrics.availableTagCount).toBe(10);
 		expect(defaultRailMetrics.selectedTagCount).toBe(0);
 		expect(await tagRailEndGap(page)).toBeLessThanOrEqual(24);
-		expect(defaultTagOrder.slice(0, 6)).toEqual(
+		expect(defaultTagOrder.slice(0, 10)).toEqual(
 			expect.arrayContaining([
-				'protect_my_privacy',
-				'learn_anything',
-				'summarize_documents',
-				'local_life',
+				'privacy',
+				'learning',
+				'writing',
+				'find_restaurant',
 				'find_apartments'
 			])
 		);
@@ -207,10 +207,10 @@ test.describe('Guest interest smart selection', () => {
 		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
 		await expect(page.getByTestId('recent-chats-scroll-container')).toHaveCount(0);
 		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
-		await clickInterestTag(page, 'protect_my_privacy');
-		await clickInterestTag(page, 'open_source');
+		await clickInterestTag(page, 'privacy');
+		await clickInterestTag(page, 'run_code');
 		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
-		await clickInterestTag(page, 'use_the_cli');
+		await clickInterestTag(page, 'build_electronics');
 		await expect(page.getByTestId('guest-interest-continue')).toBeVisible({ timeout: 5000 });
 
 		const tagOrder = await interestTagOrder(page);
@@ -221,7 +221,7 @@ test.describe('Guest interest smart selection', () => {
 		expect(await tagRailEndGap(page)).toBeLessThanOrEqual(24);
 		expect(await firstAvailableTagCenterDelta(page)).toBeLessThanOrEqual(32);
 		expect(tagOrder).toEqual(
-			expect.arrayContaining(['use_the_cli', 'open_source', 'read_developer_docs', 'run_code'])
+			expect.arrayContaining(['privacy', 'run_code', 'build_electronics', 'diy_projects'])
 		);
 		expect(tagOrder).toContain('find_apartments');
 
@@ -246,6 +246,7 @@ test.describe('Guest interest smart selection', () => {
 		}), GUEST_TOPIC_PREFERENCES_STORAGE_KEY);
 		expect(storageStateAfterContinue.localValue).toBeNull();
 		expect(storageStateAfterContinue.sessionValue).toContain('software_development');
+		expect(storageStateAfterContinue.sessionValue).toContain('privacy');
 		await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: 15000 });
 		await expect(firstContinueChatCard(page)).toHaveAttribute('data-chat-id', 'demo-for-everyone', { timeout: 15000 });
 		await expect(page.getByTestId('example-chat-badge').first()).toContainText('Example chat', { timeout: 15000 });

@@ -185,15 +185,38 @@ export interface LearningModeContext {
 
 export type InterestTagId =
   | "software_development"
-  | "use_the_cli"
-  | "open_source"
-  | "read_developer_docs"
-  | "run_code"
-  | "protect_my_privacy"
-  | "summarize_documents"
+  | "business_development"
+  | "life_coach_psychology"
+  | "medical_health"
+  | "legal_law"
+  | "finance"
+  | "design"
+  | "marketing_sales"
+  | "science"
+  | "history"
+  | "cooking_food"
+  | "electrical_engineering"
+  | "maker_prototyping"
+  | "movies_tv"
+  | "activism"
+  | "general_knowledge"
+  | "find_events"
+  | "find_restaurant"
+  | "find_doctor_appointments"
+  | "plot_charts"
+  | "video_tutorials"
   | "find_apartments"
-  | "local_life"
-  | "learn_anything";
+  | "build_electronics"
+  | "diy_projects"
+  | "create_videos"
+  | "find_travel_connections"
+  | "plan_trips"
+  | "discuss_news"
+  | "discuss_videos"
+  | "run_code"
+  | "privacy"
+  | "learning"
+  | "writing";
 
 export interface TopicPreferencesPayload {
   version: 1;
@@ -203,15 +226,38 @@ export interface TopicPreferencesPayload {
 
 export const INTEREST_TAG_IDS: InterestTagId[] = [
   "software_development",
-  "use_the_cli",
-  "open_source",
-  "read_developer_docs",
-  "run_code",
-  "protect_my_privacy",
-  "summarize_documents",
+  "business_development",
+  "life_coach_psychology",
+  "medical_health",
+  "legal_law",
+  "finance",
+  "design",
+  "marketing_sales",
+  "science",
+  "history",
+  "cooking_food",
+  "electrical_engineering",
+  "maker_prototyping",
+  "movies_tv",
+  "activism",
+  "general_knowledge",
+  "find_events",
+  "find_restaurant",
+  "find_doctor_appointments",
+  "plot_charts",
+  "video_tutorials",
   "find_apartments",
-  "local_life",
-  "learn_anything",
+  "build_electronics",
+  "diy_projects",
+  "create_videos",
+  "find_travel_connections",
+  "plan_trips",
+  "discuss_news",
+  "discuss_videos",
+  "run_code",
+  "privacy",
+  "learning",
+  "writing",
 ];
 
 const TOPIC_PREFERENCES_SETTINGS_KEY = "topic_preferences";
@@ -1436,7 +1482,11 @@ export class OpenMatesClient {
     };
   }
 
-  async sendAnonymousMessage(params: { message: string; learningMode?: LearningModeContext }): Promise<{
+  async sendAnonymousMessage(params: {
+    message: string;
+    learningMode?: LearningModeContext;
+    messageHistory?: BenchmarkHistoryMessage[];
+  }): Promise<{
     status: "completed";
     chatId: string;
     messageId: string;
@@ -1470,7 +1520,12 @@ export class OpenMatesClient {
       client_chat_id: chatId,
       client_message_id: messageId,
       plaintext_message: params.message,
-      message_history: [],
+      message_history: (params.messageHistory ?? []).map((message) => ({
+        role: message.role,
+        content: message.content,
+        created_at: message.created_at,
+        sender_name: message.sender_name ?? message.role,
+      })),
     };
     if (params.learningMode?.enabled === true) {
       requestBody.learning_mode = {
@@ -2874,6 +2929,15 @@ export class OpenMatesClient {
         content: params.message,
         created_at: createdAt,
       }];
+    } else if (isNewChat && params.messageHistory && params.messageHistory.length > 0) {
+      messagePayload.message_history = params.messageHistory.map((historyMessage) => ({
+        message_id: historyMessage.message_id,
+        chat_id: chatId,
+        role: historyMessage.role,
+        sender_name: historyMessage.sender_name ?? historyMessage.role,
+        content: historyMessage.content,
+        created_at: historyMessage.created_at,
+      }));
     }
 
     // For non-incognito chats, resolve or generate the chat key and include

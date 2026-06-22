@@ -483,45 +483,45 @@ describe("feature override config", () => {
 
 describe("image-mode update planning", () => {
   it("updates default version-pinned installs to the current CLI version tag", () => {
-    const target = resolveTargetImageTag({}, "v0.11.0-alpha.0", "0.12.0-alpha.0");
-    assert.deepEqual(target, { tag: "v0.12.0-alpha.0" });
+    const target = resolveTargetImageTag({}, "v0.13.0", "0.13.0");
+    assert.deepEqual(target, { tag: "v0.13.0" });
   });
 
   it("preserves installed channel tags when no explicit target is provided", () => {
-    assert.deepEqual(resolveTargetImageTag({}, "dev", "0.12.0-alpha.0"), { tag: "dev", channel: "dev" });
-    assert.deepEqual(resolveTargetImageTag({}, "main", "0.12.0"), { tag: "main", channel: "main" });
+    assert.deepEqual(resolveTargetImageTag({}, "dev", "0.13.0"), { tag: "dev", channel: "dev" });
+    assert.deepEqual(resolveTargetImageTag({}, "main", "0.13.0"), { tag: "main", channel: "main" });
   });
 
   it("maps stable channel to the published main image tag", () => {
-    const target = resolveTargetImageTag({ channel: "stable" }, "v0.11.0", "0.12.0");
+    const target = resolveTargetImageTag({ channel: "stable" }, "v0.13.0", "0.13.0");
     assert.deepEqual(target, { tag: "main", channel: "main" });
   });
 
   it("rejects ambiguous image tag and channel combinations", () => {
     assert.throws(
-      () => resolveTargetImageTag({ "image-tag": "v0.12.0", channel: "dev" }, "v0.11.0", "0.12.0"),
+      () => resolveTargetImageTag({ "image-tag": "v0.13.0", channel: "dev" }, "v0.13.0", "0.13.0"),
       /either --image-tag or --channel/,
     );
   });
 
   it("rejects missing image tag and channel values", () => {
     assert.throws(
-      () => resolveTargetImageTag({ "image-tag": true }, "v0.11.0", "0.12.0"),
+      () => resolveTargetImageTag({ "image-tag": true }, "v0.13.0", "0.13.0"),
       /--image-tag <tag>/,
     );
     assert.throws(
-      () => resolveTargetImageTag({ channel: true }, "v0.11.0", "0.12.0"),
+      () => resolveTargetImageTag({ channel: true }, "v0.13.0", "0.13.0"),
       /--channel stable/,
     );
   });
 
   it("uses dev templates for prerelease and smoke tags", () => {
-    assert.equal(templateRefForImageTag("v0.12.0-alpha.0"), "dev");
+    assert.equal(templateRefForImageTag("v0.13.0-alpha.0"), "dev");
     assert.equal(templateRefForImageTag("selfhost-smoke-abc123"), "dev");
   });
 
   it("uses release and channel template refs where available", () => {
-    assert.equal(templateRefForImageTag("v0.12.0"), "v0.12.0");
+    assert.equal(templateRefForImageTag("v0.13.0"), "v0.13.0");
     assert.equal(templateRefForImageTag("main"), "main");
     assert.equal(templateRefForImageTag("stable"), "main");
   });

@@ -26,9 +26,9 @@ gh release list --limit 3
 Version bump decision:
 | Change type | Bump | Example |
 |-------------|------|---------|
-| New features | Minor | v0.10.0-alpha → v0.11.0-alpha |
-| Bug fixes only | Patch | v0.10.0-alpha → v0.10.1-alpha |
-| Breaking changes | Major | v0.10.0-alpha → v1.0.0-alpha |
+| New features | Minor | v0.13.0 → v0.14.0 |
+| Bug fixes only | Patch | v0.13.0 → v0.13.1 |
+| Breaking changes | Major | v0.13.0 → v1.0.0 |
 
 ### Step 2 — Write Release Notes
 

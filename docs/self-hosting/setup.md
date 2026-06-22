@@ -77,7 +77,7 @@ The installer prepares a lightweight runtime directory, writes the image-mode Do
 
 The installer also stores the self-host API target in `~/.openmates/server.json`. Fresh CLI commands such as `openmates login`, `openmates signup`, and `openmates chats list` will use `http://localhost:8000` instead of the OpenMates cloud API unless you already have a saved login session, set `OPENMATES_API_URL`, or pass `--api-url`.
 
-By default the stack pulls OpenMates images from `ghcr.io/glowingkitty` using the CLI version tag, for example `v0.12.0-alpha.0`. Expect the first start to download several GB of compressed images; later updates reuse Docker's image cache.
+By default the stack pulls OpenMates images from `ghcr.io/glowingkitty` using the CLI version tag, for example `v0.13.0`. Expect the first start to download several GB of compressed images; later updates reuse Docker's image cache.
 
 For satellite VMs, install only the relevant role:
 
@@ -237,7 +237,7 @@ openmates server preflight --path ~/openmates
 openmates server backup --path ~/openmates --role core
 openmates server backup list --path ~/openmates --role core
 openmates server caddy status --role core
-openmates server update --path ~/openmates --image-tag v0.12.0-alpha.1
+openmates server update --path ~/openmates --image-tag v0.13.0
 openmates server update --path ~/openmates --channel dev
 openmates server update install-service --continuous --channel main --window "02:00-04:00 Europe/Berlin"
 openmates server uninstall --path ~/openmates --yes

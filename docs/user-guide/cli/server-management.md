@@ -72,7 +72,7 @@ Then run the installer:
 openmates server install
 openmates server install --path /opt/openmates
 openmates server install --env-path ~/my-env-file
-openmates server install --image-tag v0.12.0-alpha.0
+openmates server install --image-tag v0.13.0
 openmates server install --role core --profile production
 openmates server install --role upload --path /opt/openmates-upload
 openmates server install --role preview --path /opt/openmates-preview
@@ -182,7 +182,7 @@ openmates server logs --services api,task-worker
 ```
 openmates server update
 openmates server update --dry-run
-openmates server update --image-tag v0.12.0-alpha.1
+openmates server update --image-tag v0.13.0
 openmates server update --channel stable
 openmates server update --channel dev
 openmates server update --services api,task-worker
