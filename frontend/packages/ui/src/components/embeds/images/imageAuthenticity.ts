@@ -67,7 +67,7 @@ export function buildAuthenticityBadgeViewModel(
   if (!status || !aiDetection) return null;
 
   const percentage = formatAIGeneratedPercentage(aiDetection.ai_generated);
-  const probabilityLabel = translate('app_skills.images.view.ai_generated_chance', { percentage });
+  const probabilityLabel = translate('app_skills.images.view.ai_generated_chance', { values: { percentage } });
   const providerLabel = getDetectionProviderLabel(aiDetection.provider);
   const providerUrl = getDetectionProviderUrl(aiDetection.provider);
   const statusLabel = translate(
@@ -77,7 +77,7 @@ export function buildAuthenticityBadgeViewModel(
       ? 'app_skills.images.view.ai_generated'
       : 'app_skills.images.view.authentic',
   );
-  const viaProvider = translate('app_skills.images.view.via_provider', { provider: providerLabel });
+  const viaProvider = translate('app_skills.images.view.via_provider', { values: { provider: providerLabel } });
   const explanationLabel = translate(
     status === 'failed'
       ? 'app_skills.images.view.detection_failed_description'

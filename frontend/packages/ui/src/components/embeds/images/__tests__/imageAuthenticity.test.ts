@@ -27,7 +27,10 @@ const TRANSLATIONS: Record<string, string> = {
 
 function translate(key: string, vars: Record<string, unknown> = {}): string {
   let value = TRANSLATIONS[key] ?? key;
-  for (const [name, replacement] of Object.entries(vars)) {
+  const replacements = typeof vars.values === 'object' && vars.values !== null
+    ? vars.values as Record<string, unknown>
+    : vars;
+  for (const [name, replacement] of Object.entries(replacements)) {
     value = value.replace(`{${name}}`, String(replacement));
   }
   return value;
