@@ -263,6 +263,25 @@ async function mockProgressiveAnonymousChatStream(page: any, anonymousRequests: 
 			}
 			return originalFetch(input, init);
 		};
+  });
+}
+
+async function openDemoForEveryoneAndStartAnonymousChat(
+	page: any,
+	afterGoto?: () => Promise<void>
+): Promise<void> {
+	await page.goto(getE2EDebugUrl('/#chat-id=demo-for-everyone'), { waitUntil: 'domcontentloaded' });
+	if (afterGoto) {
+		await afterGoto();
+	}
+	await page.waitForLoadState('networkidle');
+	await expect(page).toHaveURL(/chat-id=demo-for-everyone/, { timeout: 15000 });
+	const newChatCta = page.getByTestId('new-chat-cta-fullwidth');
+	await expect(newChatCta).toBeVisible({ timeout: 10000 });
+	await newChatCta.click();
+	await expect(newChatCta).toHaveCount(0, { timeout: 10000 });
+	await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeVisible({
+		timeout: 10000
 	});
 }
 
@@ -341,18 +360,11 @@ test.describe('Anonymous free chat', () => {
 		const anonymousRequests: Array<Record<string, unknown>> = [];
 		await mockAnonymousChatStream(page, anonymousRequests);
 
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await page.evaluate(() => {
-			window.sessionStorage.setItem('openmates.learningMode.enabled', 'true');
-			window.sessionStorage.setItem('openmates.learningMode.ageGroup', '10_12');
-		});
-		await page.waitForLoadState('networkidle');
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 15000
-		});
-		await page.getByTestId('new-chat-cta-fullwidth').click();
-		await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeVisible({
-			timeout: 10000
+		await openDemoForEveryoneAndStartAnonymousChat(page, async () => {
+			await page.evaluate(() => {
+				window.sessionStorage.setItem('openmates.learningMode.enabled', 'true');
+				window.sessionStorage.setItem('openmates.learningMode.ageGroup', '10_12');
+			});
 		});
 
 		await typeMessageText(page, 'Help me understand fractions');
@@ -382,16 +394,7 @@ test.describe('Anonymous free chat', () => {
 		const anonymousRequests: Array<Record<string, unknown>> = [];
 		await mockAnonymousChatStream(page, anonymousRequests);
 
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 15000
-		});
-		await page.getByTestId('new-chat-cta-fullwidth').click();
-		await expect(page.getByTestId('new-chat-cta-fullwidth')).toHaveCount(0, { timeout: 10000 });
-		await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeVisible({
-			timeout: 10000
-		});
+		await openDemoForEveryoneAndStartAnonymousChat(page);
 
 		await typeMessageText(page, 'Hello anonymous text');
 		const termsReminder = page.getByTestId('anonymous-terms-reminder');
@@ -503,13 +506,7 @@ test.describe('Anonymous free chat', () => {
 		const anonymousRequests: Array<Record<string, unknown>> = [];
 		await mockDelayedAnonymousChatStream(page, anonymousRequests);
 
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 15000
-		});
-		await page.getByTestId('new-chat-cta-fullwidth').click();
-		await expect(page.getByTestId('new-chat-cta-fullwidth')).toHaveCount(0, { timeout: 10000 });
+		await openDemoForEveryoneAndStartAnonymousChat(page);
 
 		await typeMessageText(page, 'Slow anonymous stream should still show my message');
 		await page.locator('[data-action="send-message"]').click();
@@ -552,13 +549,7 @@ test.describe('Anonymous free chat', () => {
 		const anonymousRequests: Array<Record<string, unknown>> = [];
 		await mockProgressiveAnonymousChatStream(page, anonymousRequests);
 
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 15000
-		});
-		await page.getByTestId('new-chat-cta-fullwidth').click();
-		await expect(page.getByTestId('new-chat-cta-fullwidth')).toHaveCount(0, { timeout: 10000 });
+		await openDemoForEveryoneAndStartAnonymousChat(page);
 
 		await typeMessageText(page, 'Stream anonymously like regular chat');
 		await page.locator('[data-action="send-message"]').click();
@@ -608,13 +599,7 @@ test.describe('Anonymous free chat', () => {
 			localStorage.setItem('openmates_anonymous_id', id);
 		}, anonymousId);
 
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 15000
-		});
-		await page.getByTestId('new-chat-cta-fullwidth').click();
-		await expect(page.getByTestId('new-chat-cta-fullwidth')).toHaveCount(0, { timeout: 10000 });
+		await openDemoForEveryoneAndStartAnonymousChat(page);
 
 		const prompt = `Capital of Spain? Anonymous lifecycle live check ${Date.now()}`;
 		await typeMessageText(page, prompt);
@@ -665,12 +650,7 @@ test.describe('Anonymous free chat', () => {
 			}
 		});
 
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 15000
-		});
-		await page.getByTestId('new-chat-cta-fullwidth').click();
+		await openDemoForEveryoneAndStartAnonymousChat(page);
 
 		await typeMessageText(page, 'Budget should hide send');
 		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
@@ -762,12 +742,7 @@ test.describe('Anonymous free chat', () => {
 			});
 		});
 
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 15000
-		});
-		await page.getByTestId('new-chat-cta-fullwidth').click();
+		await openDemoForEveryoneAndStartAnonymousChat(page);
 
 		const prompt = 'Budget race should stay draft';
 		const editor = await typeMessageText(page, prompt);
@@ -812,12 +787,7 @@ test.describe('Anonymous free chat', () => {
 			}
 		});
 
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 15000
-		});
-		await page.getByTestId('new-chat-cta-fullwidth').click();
+		await openDemoForEveryoneAndStartAnonymousChat(page);
 
 		await typeMessageText(page, 'Previously logged in device should not get free usage');
 		await expect(page.locator('[data-action="send-message"]')).toHaveCount(0);
@@ -850,13 +820,7 @@ test.describe('Anonymous free chat', () => {
 			}
 		});
 
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 15000
-		});
-		await page.getByTestId('new-chat-cta-fullwidth').click();
+		await openDemoForEveryoneAndStartAnonymousChat(page);
 
 		await page.getByTestId('message-file-input').setInputFiles({
 			name: 'anonymous-empty-upload.png',
