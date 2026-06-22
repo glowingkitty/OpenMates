@@ -138,6 +138,15 @@ async function holdAndReleaseMicButton(page: any, micButton: any, holdMs = 1500)
 	await expect(overlay).not.toBeVisible({ timeout: 10000 });
 }
 
+async function holdSpaceToRecord(page: any, holdMs = 2000) {
+	await page.keyboard.down('Space');
+	const overlay = page.getByTestId('record-overlay');
+	await expect(overlay).toBeVisible({ timeout: 5000 });
+	await page.waitForTimeout(holdMs);
+	await page.keyboard.up('Space');
+	await expect(overlay).not.toBeVisible({ timeout: 10000 });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 1: Single tap shows "Press & hold" hint (no recording overlay)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -276,7 +285,6 @@ test('authenticated press hold release uploads and transcribes audio embed', asy
 	await page.keyboard.type(' ');
 	await page.keyboard.press('Backspace');
 
-	const micButton = await waitForMicButton(page);
 	const transcribeResponsePromise = page.waitForResponse(
 		(response: any) =>
 			response.url().includes('/v1/apps/audio/skills/transcribe') &&
@@ -284,7 +292,7 @@ test('authenticated press hold release uploads and transcribes audio embed', asy
 		{ timeout: 120000 }
 	);
 
-	await holdAndReleaseMicButton(page, micButton, 2000);
+	await holdSpaceToRecord(page);
 
 	const transcribeResponse = await transcribeResponsePromise;
 	const transcribeBody = await transcribeResponse.text().catch(() => '<unreadable response body>');
