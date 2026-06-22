@@ -217,7 +217,7 @@
     {:else}
       <div class="app-icon-container {appId}" data-app-icon={appId} style={appGradientStyle}>
         {#if safeAppIconName}
-          <div class="app-icon-mask" style={appIconStyle}></div>
+          <div class="app-icon-mask" style={appIconStyle} data-testid="embed-app-icon-mask"></div>
         {:else}
           <div class="icon_rounded {appId}"></div>
         {/if}
@@ -264,7 +264,7 @@
     <!-- App icon in gradient circle (always show app icon, not favicon) -->
     <div class="app-icon-circle {appId}" data-testid="app-icon-circle" data-app-icon={appId} style={appGradientStyle}>
       {#if safeAppIconName}
-        <div class="app-icon-mask" style={appIconStyle}></div>
+        <div class="app-icon-mask" style={appIconStyle} data-testid="embed-app-icon-mask"></div>
       {:else}
         <div class="icon_rounded {appId}"></div>
       {/if}
@@ -379,7 +379,7 @@
   .app-icon-mask {
     width: 26px;
     height: 26px;
-    background: var(--color-grey-0, #fff);
+    background: #fff;
     -webkit-mask-image: var(--embed-app-icon-url);
     mask-image: var(--embed-app-icon-url);
     -webkit-mask-position: center;

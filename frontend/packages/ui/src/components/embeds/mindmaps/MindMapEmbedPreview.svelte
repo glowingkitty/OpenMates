@@ -77,7 +77,7 @@
   appIconName="workflow"
   showSkillIcon={false}
   status={localStatus}
-  skillName="Mind Map"
+  skillName={displayTitle}
   {isMobile}
   {onFullscreen}
   onEmbedDataUpdated={handleEmbedDataUpdated}
