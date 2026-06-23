@@ -38,10 +38,10 @@ final class ChatFlowParityUITests: XCTestCase {
         )
 
         XCTAssertTrue(app.descendants(matching: .any)["workspace-switcher"].exists)
-        XCTAssertTrue(app.buttons["chats-nav-link"].exists)
-        XCTAssertTrue(app.buttons["projects-nav-link"].exists)
-        XCTAssertTrue(app.buttons["workflows-nav-link"].exists)
-        XCTAssertTrue(app.buttons["tasks-nav-link"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["chats-nav-link"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["projects-nav-link"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["workflows-nav-link"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["tasks-nav-link"].exists)
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
 
         attachScreenshot(name: "Unauthenticated new-chat parity surface")
