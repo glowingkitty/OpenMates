@@ -211,7 +211,11 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 	const switchToNonEuBtn = page.getByTestId('switch-to-non-eu');
 	const hasSwitchBtn = await switchToNonEuBtn.isVisible({ timeout: 5000 }).catch(() => false);
 	if (hasSwitchBtn) {
-		await switchToNonEuBtn.click();
+		// The Payment component disables provider-switch buttons while Stripe config/order
+		// setup is still in flight. A plain click can wait until the CI job timeout
+		// with no useful screenshot, so wait for the real actionable state first.
+		await expect(switchToNonEuBtn).toBeEnabled({ timeout: 30000 });
+		await switchToNonEuBtn.click({ timeout: 10000 });
 		log('Clicked "switch to non-EU card" to force managed payments.');
 	}
 

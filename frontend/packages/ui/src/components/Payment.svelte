@@ -45,7 +45,7 @@
         supportContribution?: boolean;
         supportEmail?: string | null;
         isRecurring?: boolean;
-        initialProviderOverride?: 'stripe' | null;
+        initialProviderOverride?: 'stripe' | 'managed' | null;
         isSignupFlow?: boolean;
     } = $props();
 
