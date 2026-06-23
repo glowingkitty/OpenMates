@@ -14,10 +14,12 @@
 
   type WorkflowNodeType = 'schedule_trigger' | 'manual_trigger' | 'app_skill_action' | 'decision' | 'repeat' | 'create_chat_report' | 'send_notification' | 'send_email_notification' | 'end';
 
+  type WorkflowNode = { id: string; type: WorkflowNodeType; title?: string; config?: Record<string, unknown> };
+
   type WorkflowGraph = {
     version: number;
     trigger_node_id: string;
-    nodes: Array<{ id: string; type: WorkflowNodeType; title?: string; config?: Record<string, unknown> }>;
+    nodes: WorkflowNode[];
     edges: Array<{ from: string; to: string; branch?: string }>;
     limits?: Record<string, unknown>;
   };
@@ -60,6 +62,9 @@
   let error = $state<string | null>(null);
   let runContentRetention = $state<'last_5' | 'none'>('last_5');
   let selectedRunContentRetention = $state<'last_5' | 'none'>('last_5');
+  let editorTitle = $state('');
+  let editorGraph = $state<WorkflowGraph | null>(null);
+  let editorDirty = $state(false);
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
   let workflowsEnabled = $derived($featureAvailabilityStore.disabledById?.['platform:workflows'] !== true && $featureAvailabilityStore.disabledById !== null);
@@ -118,6 +123,7 @@
     ]);
     selectedWorkflow = workflowData.workflow;
     selectedRunContentRetention = workflowData.workflow.run_content_retention ?? 'last_5';
+    resetEditor(workflowData.workflow);
     runs = runsData.runs;
   }
 
@@ -127,6 +133,10 @@
 
   async function createNewsWorkflow() {
     await createWorkflow('Twice-weekly AI news brief', newsBriefGraph(), true);
+  }
+
+  async function createBlankWorkflow() {
+    await createWorkflow('Untitled workflow', blankWorkflowGraph(), false);
   }
 
   async function createWorkflow(title: string, graph: WorkflowGraph, enabled: boolean) {
@@ -178,6 +188,29 @@
       workflows = workflows.map((workflow) => workflow.id === data.workflow.id ? data.workflow : workflow);
     } catch (saveError) {
       error = saveError instanceof Error ? saveError.message : 'Failed to update workflow retention.';
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function saveSelectedWorkflow() {
+    if (!selectedWorkflow || !editorGraph) return;
+    saving = true;
+    error = null;
+    try {
+      const data = await workflowRequest<{ workflow: WorkflowDetail }>(`/v1/workflows/${encodeURIComponent(selectedWorkflow.id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          title: editorTitle.trim() || selectedWorkflow.title,
+          graph: editorGraph,
+          run_content_retention: selectedRunContentRetention
+        })
+      });
+      selectedWorkflow = data.workflow;
+      workflows = workflows.map((workflow) => workflow.id === data.workflow.id ? data.workflow : workflow);
+      resetEditor(data.workflow);
+    } catch (saveError) {
+      error = saveError instanceof Error ? saveError.message : 'Failed to save workflow.';
     } finally {
       saving = false;
     }
@@ -246,6 +279,18 @@
     };
   }
 
+  function blankWorkflowGraph(): WorkflowGraph {
+    return {
+      version: 1,
+      trigger_node_id: 'trigger',
+      nodes: [
+        { id: 'trigger', type: 'schedule_trigger', title: 'New schedule', config: { schedule: { type: 'daily', time: '09:00', timezone: 'Europe/Berlin' } } },
+        { id: 'end', type: 'end', title: 'Done', config: {} }
+      ],
+      edges: [{ from: 'trigger', to: 'end' }]
+    };
+  }
+
   function newsBriefGraph(): WorkflowGraph {
     return {
       version: 1,
@@ -266,6 +311,164 @@
         { from: 'email', to: 'end' }
       ]
     };
+  }
+
+  function resetEditor(workflow: WorkflowDetail) {
+    editorTitle = workflow.title;
+    editorGraph = cloneGraph(workflow.graph);
+    editorDirty = false;
+  }
+
+  function cloneGraph(graph: WorkflowGraph): WorkflowGraph {
+    return JSON.parse(JSON.stringify(graph)) as WorkflowGraph;
+  }
+
+  function retentionLabel(value: 'last_5' | 'none' | undefined): string {
+    return value === 'none' ? 'No durable run content' : 'Keep latest 5 encrypted runs';
+  }
+
+  function nodeTypeLabel(type: WorkflowNodeType): string {
+    switch (type) {
+      case 'schedule_trigger':
+        return 'When';
+      case 'manual_trigger':
+        return 'Manual start';
+      case 'app_skill_action':
+        return 'App action';
+      case 'decision':
+        return 'If';
+      case 'repeat':
+        return 'Repeat';
+      case 'create_chat_report':
+        return 'Create report';
+      case 'send_notification':
+        return 'Notify';
+      case 'send_email_notification':
+        return 'Email';
+      case 'end':
+        return 'End';
+    }
+  }
+
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  function configRecord(node: WorkflowNode): Record<string, unknown> {
+    return node.config ?? {};
+  }
+
+  function inputRecord(node: WorkflowNode): Record<string, unknown> {
+    const input = configRecord(node).input;
+    return isRecord(input) ? input : {};
+  }
+
+  function scheduleRecord(node: WorkflowNode): Record<string, unknown> {
+    const schedule = configRecord(node).schedule;
+    return isRecord(schedule) ? schedule : {};
+  }
+
+  function predicateRecord(node: WorkflowNode): Record<string, unknown> {
+    const predicate = configRecord(node).predicate;
+    return isRecord(predicate) ? predicate : { left: '', op: 'gte', right: 0 };
+  }
+
+  function firstRequestQuery(node: WorkflowNode): string {
+    const requests = inputRecord(node).requests;
+    if (!Array.isArray(requests)) return 'AI news';
+    const firstRequest = requests[0];
+    return isRecord(firstRequest) ? stringValue(firstRequest.query, 'AI news') : 'AI news';
+  }
+
+  function stringValue(value: unknown, fallback = ''): string {
+    return typeof value === 'string' ? value : fallback;
+  }
+
+  function numberValue(value: unknown, fallback = 0): number {
+    return typeof value === 'number' ? value : fallback;
+  }
+
+  function setEditorTitle(value: string) {
+    editorTitle = value;
+    editorDirty = true;
+  }
+
+  function updateEditorNode(nodeId: string, updater: (node: WorkflowNode) => WorkflowNode) {
+    if (!editorGraph) return;
+    editorGraph = {
+      ...editorGraph,
+      nodes: editorGraph.nodes.map((node) => node.id === nodeId ? updater(node) : node)
+    };
+    editorDirty = true;
+  }
+
+  function updateNodeTitle(nodeId: string, title: string) {
+    updateEditorNode(nodeId, (node) => ({ ...node, title }));
+  }
+
+  function updateNodeConfig(nodeId: string, config: Record<string, unknown>) {
+    updateEditorNode(nodeId, (node) => ({ ...node, config: { ...configRecord(node), ...config } }));
+  }
+
+  function updateSchedule(node: WorkflowNode, field: string, value: string) {
+    updateNodeConfig(node.id, { schedule: { ...scheduleRecord(node), [field]: value } });
+  }
+
+  function updateInput(node: WorkflowNode, field: string, value: string | number) {
+    updateNodeConfig(node.id, { input: { ...inputRecord(node), [field]: value } });
+  }
+
+  function updatePredicate(node: WorkflowNode, field: string, value: string | number) {
+    updateNodeConfig(node.id, { predicate: { ...predicateRecord(node), [field]: value } });
+  }
+
+  function appendNode(type: WorkflowNodeType) {
+    if (!editorGraph || type === 'schedule_trigger' || type === 'manual_trigger') return;
+    const node = defaultNode(type);
+    const endIndex = editorGraph.nodes.findIndex((item) => item.type === 'end');
+    const nodes = endIndex >= 0
+      ? [...editorGraph.nodes.slice(0, endIndex), node, ...editorGraph.nodes.slice(endIndex)]
+      : [...editorGraph.nodes, node];
+    editorGraph = { ...editorGraph, nodes, edges: buildLinearEdges(nodes) };
+    editorDirty = true;
+  }
+
+  function removeNode(nodeId: string) {
+    if (!editorGraph) return;
+    const nodes = editorGraph.nodes.filter((node) => node.id !== nodeId || node.type === 'schedule_trigger' || node.type === 'end');
+    editorGraph = { ...editorGraph, nodes, edges: buildLinearEdges(nodes) };
+    editorDirty = true;
+  }
+
+  function defaultNode(type: WorkflowNodeType): WorkflowNode {
+    const id = `${type}-${Date.now().toString(36)}`;
+    switch (type) {
+      case 'app_skill_action':
+        return { id, type, title: 'Check weather', config: { app_id: 'weather', skill_id: 'forecast', input: { location: 'Berlin', days: 1 } } };
+      case 'decision':
+        return { id, type, title: 'Decision', config: { predicate: { left: '$nodes.weather.output.rain_probability', op: 'gte', right: 60 } } };
+      case 'repeat':
+        return { id, type, title: 'Repeat safely', config: { max_iterations: 3, max_duration_seconds: 120, max_credits: 5, per_iteration_timeout_seconds: 30 } };
+      case 'create_chat_report':
+        return { id, type, title: 'Create report', config: { summary: 'Workflow report' } };
+      case 'send_notification':
+        return { id, type, title: 'Push notification', config: { title: 'Workflow update', body: 'Your workflow finished.' } };
+      case 'send_email_notification':
+        return { id, type, title: 'Email notification', config: { title: 'Workflow update', body: 'Your workflow finished.' } };
+      case 'end':
+        return { id, type, title: 'Done', config: {} };
+      case 'schedule_trigger':
+      case 'manual_trigger':
+        return { id, type, title: 'Manual start', config: {} };
+    }
+  }
+
+  function buildLinearEdges(nodes: WorkflowNode[]): WorkflowGraph['edges'] {
+    return nodes.slice(0, -1).map((node, index) => ({
+      from: node.id,
+      to: nodes[index + 1].id,
+      ...(node.type === 'decision' ? { branch: 'yes' } : {})
+    }));
   }
 </script>
 
@@ -295,6 +498,7 @@
                   <option value="none">No durable run content</option>
                 </select>
               </label>
+              <button type="button" data-testid="create-blank-workflow" onclick={createBlankWorkflow} disabled={saving}>Blank workflow</button>
               <button type="button" data-testid="create-rain-workflow" onclick={createRainWorkflow} disabled={saving}>Daily rain alert</button>
               <button type="button" data-testid="create-news-workflow" onclick={createNewsWorkflow} disabled={saving}>AI news brief</button>
           </div>
@@ -310,7 +514,7 @@
                 onclick={() => selectWorkflow(workflow.id)}
               >
                 <strong>{workflow.title}</strong>
-                <span>{workflow.enabled ? 'Enabled' : 'Disabled'} - {workflow.trigger_summary ?? 'Manual'} - {workflow.run_content_retention ?? 'last_5'}</span>
+                <span>{workflow.enabled ? 'Enabled' : 'Disabled'} - {workflow.trigger_summary ?? 'Manual'} - {retentionLabel(workflow.run_content_retention)}</span>
               </button>
             {/each}
           {/if}
@@ -325,8 +529,16 @@
             <div class="detail-header">
               <div>
                 <p>{selectedWorkflow.status}</p>
-                <h2>{selectedWorkflow.title}</h2>
-                <span class="retention-chip" data-testid="selected-workflow-retention">Run content: {selectedWorkflow.run_content_retention ?? 'last_5'}</span>
+                <label class="title-editor" for="workflow-title-input">
+                  <span>Workflow name</span>
+                  <input
+                    id="workflow-title-input"
+                    data-testid="workflow-title-input"
+                    value={editorTitle}
+                    oninput={(event) => setEditorTitle(event.currentTarget.value)}
+                  />
+                </label>
+                <span class="retention-chip" data-testid="selected-workflow-retention">Run content: {retentionLabel(selectedWorkflow.run_content_retention)}</span>
               </div>
               <div class="detail-actions">
                 <label class="inline-retention" for="selected-workflow-retention-select">
@@ -336,6 +548,7 @@
                     <option value="none">No durable content</option>
                   </select>
                 </label>
+                <button type="button" data-testid="save-workflow" onclick={saveSelectedWorkflow} disabled={saving || !editorDirty}>{saving ? 'Saving...' : 'Save workflow'}</button>
                 <button type="button" data-testid="save-workflow-retention" onclick={updateSelectedWorkflowRetention} disabled={saving}>Save</button>
                 <button type="button" data-testid="toggle-workflow" onclick={() => setSelectedWorkflowEnabled(!selectedWorkflow?.enabled)} disabled={saving}>
                   {selectedWorkflow.enabled ? 'Disable' : 'Enable'}
@@ -345,16 +558,150 @@
               </div>
             </div>
 
-            <div class="node-stack" data-testid="workflow-node-stack">
-              {#each selectedWorkflow.graph.nodes as node, index (node.id)}
-                <article class="node-card" data-node-type={node.type}>
-                  <span class="step-number">{index + 1}</span>
-                  <div>
-                    <h3>{node.title ?? node.type}</h3>
-                    <p>{node.type.replaceAll('_', ' ')}</p>
-                  </div>
-                </article>
-              {/each}
+            <div class="workflow-editor" data-testid="workflow-editor">
+              <div class="editor-toolbar" data-testid="workflow-action-palette">
+                <span>Add action</span>
+                <button type="button" data-testid="add-weather-node" onclick={() => appendNode('app_skill_action')}>Weather</button>
+                <button type="button" data-testid="add-decision-node" onclick={() => appendNode('decision')}>If</button>
+                <button type="button" data-testid="add-report-node" onclick={() => appendNode('create_chat_report')}>Report</button>
+                <button type="button" data-testid="add-push-node" onclick={() => appendNode('send_notification')}>Push</button>
+                <button type="button" data-testid="add-email-node" onclick={() => appendNode('send_email_notification')}>Email</button>
+              </div>
+
+              <div class="node-stack shortcut-flow" data-testid="workflow-node-stack">
+                {#if editorGraph}
+                  {#each editorGraph.nodes as node, index (node.id)}
+                    <article class="node-card shortcut-node" data-node-type={node.type} data-testid="workflow-node-card">
+                      <div class="node-index-column">
+                        <span class="step-number">{index + 1}</span>
+                        {#if index < editorGraph.nodes.length - 1}
+                          <span class="node-connector" aria-hidden="true"></span>
+                        {/if}
+                      </div>
+                      <div class="node-editor-body">
+                        <div class="node-editor-header">
+                          <span class="node-kind">{nodeTypeLabel(node.type)}</span>
+                          {#if node.type !== 'schedule_trigger' && node.type !== 'end'}
+                            <button type="button" class="remove-node" data-testid="remove-workflow-node" onclick={() => removeNode(node.id)}>Remove</button>
+                          {/if}
+                        </div>
+                        <label class="node-field">
+                          <span>Action title</span>
+                          <input
+                            data-testid="workflow-node-title-input"
+                            value={node.title ?? node.type}
+                            oninput={(event) => updateNodeTitle(node.id, event.currentTarget.value)}
+                          />
+                        </label>
+
+                        {#if node.type === 'schedule_trigger'}
+                          <div class="node-grid">
+                            <label class="node-field">
+                              <span>Repeat</span>
+                              <select value={stringValue(scheduleRecord(node).type, 'daily')} oninput={(event) => updateSchedule(node, 'type', event.currentTarget.value)}>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                              </select>
+                            </label>
+                            <label class="node-field">
+                              <span>Time</span>
+                              <input value={stringValue(scheduleRecord(node).time, '09:00')} oninput={(event) => updateSchedule(node, 'time', event.currentTarget.value)} />
+                            </label>
+                            <label class="node-field">
+                              <span>Timezone</span>
+                              <input value={stringValue(scheduleRecord(node).timezone, 'Europe/Berlin')} oninput={(event) => updateSchedule(node, 'timezone', event.currentTarget.value)} />
+                            </label>
+                          </div>
+                        {:else if node.type === 'app_skill_action'}
+                          <div class="node-grid">
+                            <label class="node-field">
+                              <span>Skill</span>
+                              <select
+                                value={`${stringValue(configRecord(node).app_id, 'weather')}:${stringValue(configRecord(node).skill_id, 'forecast')}`}
+                                oninput={(event) => {
+                                  const [appId, skillId] = event.currentTarget.value.split(':');
+                                  updateNodeConfig(node.id, { app_id: appId, skill_id: skillId, input: appId === 'news' ? { requests: [{ query: 'AI news' }] } : { location: 'Berlin', days: 1 } });
+                                }}
+                              >
+                                <option value="weather:forecast">Weather forecast</option>
+                                <option value="news:search">News search</option>
+                              </select>
+                            </label>
+                            {#if stringValue(configRecord(node).app_id, 'weather') === 'news'}
+                              <label class="node-field wide">
+                                <span>Search query</span>
+                                <input
+                                  value={firstRequestQuery(node)}
+                                  oninput={(event) => updateNodeConfig(node.id, { input: { requests: [{ query: event.currentTarget.value }] } })}
+                                />
+                              </label>
+                            {:else}
+                              <label class="node-field">
+                                <span>Location</span>
+                                <input value={stringValue(inputRecord(node).location, 'Berlin')} oninput={(event) => updateInput(node, 'location', event.currentTarget.value)} />
+                              </label>
+                              <label class="node-field">
+                                <span>Days</span>
+                                <input type="number" min="1" max="7" value={numberValue(inputRecord(node).days, 1)} oninput={(event) => updateInput(node, 'days', Number(event.currentTarget.value))} />
+                              </label>
+                            {/if}
+                          </div>
+                        {:else if node.type === 'decision'}
+                          <div class="node-grid">
+                            <label class="node-field wide">
+                              <span>Check value</span>
+                              <input value={stringValue(predicateRecord(node).left, '$nodes.weather.output.rain_probability')} oninput={(event) => updatePredicate(node, 'left', event.currentTarget.value)} />
+                            </label>
+                            <label class="node-field">
+                              <span>Operator</span>
+                              <select value={stringValue(predicateRecord(node).op, 'gte')} oninput={(event) => updatePredicate(node, 'op', event.currentTarget.value)}>
+                                <option value="gte">is at least</option>
+                                <option value="gt">is greater than</option>
+                                <option value="lte">is at most</option>
+                                <option value="lt">is less than</option>
+                                <option value="eq">equals</option>
+                              </select>
+                            </label>
+                            <label class="node-field">
+                              <span>Value</span>
+                              <input type="number" value={numberValue(predicateRecord(node).right, 60)} oninput={(event) => updatePredicate(node, 'right', Number(event.currentTarget.value))} />
+                            </label>
+                          </div>
+                        {:else if node.type === 'send_notification' || node.type === 'send_email_notification'}
+                          <div class="node-grid">
+                            <label class="node-field">
+                              <span>Title</span>
+                              <input value={stringValue(configRecord(node).title, 'Workflow update')} oninput={(event) => updateNodeConfig(node.id, { title: event.currentTarget.value })} />
+                            </label>
+                            <label class="node-field wide">
+                              <span>Message</span>
+                              <input value={stringValue(configRecord(node).body, 'Your workflow finished.')} oninput={(event) => updateNodeConfig(node.id, { body: event.currentTarget.value })} />
+                            </label>
+                          </div>
+                        {:else if node.type === 'create_chat_report'}
+                          <label class="node-field">
+                            <span>Report summary</span>
+                            <input value={stringValue(configRecord(node).summary, 'Workflow report')} oninput={(event) => updateNodeConfig(node.id, { summary: event.currentTarget.value })} />
+                          </label>
+                        {:else if node.type === 'repeat'}
+                          <div class="node-grid">
+                            <label class="node-field">
+                              <span>Max iterations</span>
+                              <input type="number" min="1" value={numberValue(configRecord(node).max_iterations, 3)} oninput={(event) => updateNodeConfig(node.id, { max_iterations: Number(event.currentTarget.value) })} />
+                            </label>
+                            <label class="node-field">
+                              <span>Max credits</span>
+                              <input type="number" min="1" value={numberValue(configRecord(node).max_credits, 5)} oninput={(event) => updateNodeConfig(node.id, { max_credits: Number(event.currentTarget.value) })} />
+                            </label>
+                          </div>
+                        {:else}
+                          <p class="node-note">This action ends the workflow.</p>
+                        {/if}
+                      </div>
+                    </article>
+                  {/each}
+                {/if}
+              </div>
             </div>
 
             <div class="runs-panel" data-testid="workflow-runs">
@@ -465,7 +812,6 @@
   }
 
   .section-heading h1,
-  .detail-header h2,
   .empty-detail h2 {
     margin: 0;
   }
@@ -483,7 +829,10 @@
     font-size: 0.9rem;
   }
 
-  .retention-picker select {
+  .retention-picker select,
+  .title-editor input,
+  .node-field input,
+  .node-field select {
     width: 100%;
     border: 1px solid var(--color-grey-30);
     border-radius: var(--radius-8, 20px);
@@ -491,6 +840,28 @@
     color: var(--color-font-primary);
     background: var(--color-grey-0);
     font: inherit;
+  }
+
+  .title-editor {
+    display: grid;
+    gap: 6px;
+  }
+
+  .title-editor span {
+    color: var(--color-font-secondary);
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .title-editor input {
+    max-width: 420px;
+    border-color: transparent;
+    padding-inline: 0;
+    border-radius: 0;
+    background: transparent;
+    font-size: clamp(1.8rem, 4vw, 2.4rem);
+    font-weight: 800;
+    line-height: 1.05;
   }
 
   .retention-chip {
@@ -586,27 +957,76 @@
     background: var(--color-grey-20);
   }
 
-  .node-stack {
-    display: grid;
-    gap: 10px;
-    max-width: 620px;
+  .detail-actions button[data-testid="save-workflow"] {
+    color: var(--color-font-button);
+    background: var(--color-button-primary);
   }
 
-  .node-card {
+  .workflow-editor {
+    display: grid;
+    gap: 18px;
+  }
+
+  .editor-toolbar {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
     border: 1px solid var(--color-grey-20);
     border-radius: var(--radius-12, 24px);
     background: var(--color-grey-10);
   }
 
+  .editor-toolbar span {
+    color: var(--color-font-secondary);
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .editor-toolbar button {
+    color: var(--color-font-primary);
+    background: var(--color-grey-0);
+    box-shadow: inset 0 0 0 1px var(--color-grey-20);
+  }
+
+  .node-stack {
+    display: grid;
+    gap: 0;
+    max-width: 760px;
+  }
+
+  .node-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+    position: relative;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .node-index-column {
+    display: grid;
+    justify-items: center;
+    grid-template-rows: 44px 1fr;
+  }
+
+  .node-connector {
+    width: 3px;
+    min-height: 18px;
+    margin-block: 4px;
+    border-radius: var(--radius-full, 999px);
+    background: var(--color-grey-30);
+  }
+
   .step-number {
     display: grid;
     place-items: center;
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     color: var(--color-font-button);
     background: var(--color-button-primary);
@@ -614,9 +1034,67 @@
     flex: 0 0 auto;
   }
 
-  .node-card h3 {
-    margin: 0 0 2px;
-    font-size: 1rem;
+  .node-editor-body {
+    display: grid;
+    gap: 12px;
+    margin-block-end: 14px;
+    padding: 16px;
+    border: 1px solid var(--color-grey-20);
+    border-radius: var(--radius-12, 24px);
+    background: var(--color-grey-10);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  }
+
+  .node-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .node-kind {
+    width: fit-content;
+    padding: 4px 9px;
+    border-radius: var(--radius-full, 999px);
+    color: var(--color-font-button);
+    background: var(--color-button-primary);
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .remove-node {
+    padding: 6px 10px;
+    color: var(--color-font-secondary);
+    background: var(--color-grey-20);
+  }
+
+  .node-field {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+  }
+
+  .node-field span {
+    color: var(--color-font-secondary);
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  .node-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .node-field.wide {
+    grid-column: span 2;
+  }
+
+  .node-note {
+    margin: 0;
+    color: var(--color-font-secondary);
   }
 
   .runs-panel {

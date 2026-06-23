@@ -49,9 +49,20 @@ test.describe('Workflows editor', () => {
 
 			await page.getByTestId('workflow-retention-select').selectOption('none');
 			await page.getByTestId('create-rain-workflow').click();
-			await expect(page.getByTestId('selected-workflow-retention')).toContainText('none', { timeout: 30000 });
+			await expect(page.getByTestId('selected-workflow-retention')).toContainText('No durable run content', { timeout: 30000 });
+			await expect(page.getByTestId('workflow-editor')).toBeVisible();
+			await expect(page.getByTestId('workflow-action-palette')).toContainText('Add action');
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('Check weather');
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('Decision: rain likely?');
+
+			await page.getByTestId('workflow-title-input').fill('Daily rain alert edited');
+			await page.getByTestId('workflow-node-title-input').nth(1).fill('Check Berlin weather');
+			await page.getByTestId('add-report-node').click();
+			await expect(page.getByTestId('workflow-node-card')).toHaveCount(7);
+			await page.getByTestId('save-workflow').click();
+			await expect(page.getByTestId('workflow-node-stack')).toContainText('Check Berlin weather', { timeout: 30000 });
+			await expect(page.getByTestId('workflow-node-stack')).toContainText('Create report');
+			await expect(page.getByTestId('workflows-list')).toContainText('Daily rain alert edited');
 
 			await page.getByTestId('toggle-workflow').click();
 			await expect(page.getByTestId('workflow-detail')).toContainText('disabled', { timeout: 30000 });
@@ -65,11 +76,11 @@ test.describe('Workflows editor', () => {
 
 			await page.getByTestId('selected-workflow-retention-select').selectOption('last_5');
 			await page.getByTestId('save-workflow-retention').click();
-			await expect(page.getByTestId('selected-workflow-retention')).toContainText('last_5', { timeout: 30000 });
+			await expect(page.getByTestId('selected-workflow-retention')).toContainText('Keep latest 5 encrypted runs', { timeout: 30000 });
 
 			await page.getByTestId('workflow-retention-select').selectOption('last_5');
 			await page.getByTestId('create-news-workflow').click();
-			await expect(page.getByTestId('selected-workflow-retention')).toContainText('last_5', { timeout: 30000 });
+			await expect(page.getByTestId('selected-workflow-retention')).toContainText('Keep latest 5 encrypted runs', { timeout: 30000 });
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('Search AI news');
 			await page.getByTestId('run-workflow').click();
 			await expect(page.getByTestId('workflow-run-row').first()).toContainText('durable last_5', { timeout: 30000 });
