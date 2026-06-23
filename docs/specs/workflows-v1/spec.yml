@@ -624,9 +624,9 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed_after_deploy
-        run_id: github-actions-27990843586
-        timestamp: "2026-06-22T23:25:39Z"
-        note: "Passed after deploying 9f35db7 and b0a2073, applying the dev Caddyfile, and restarting api so platform:workflows config loaded. Test orchestrator run 2026-06-22T23:21:36Z on dev commit e9cd8fc3b."
+        run_id: github-actions-27994570123
+        timestamp: "2026-06-23T00:57:34Z"
+        note: "Passed after deploying editable Shortcuts-style workflow builder fixes through a745d81. Test orchestrator run 2026-06-23T00:50:22Z verifies visible editor palette, editable title/action fields, adding a report action, saving graph changes, running workflows, retention labels, and cleanup."
 
   - id: T-APPLE-001
     type: unit
