@@ -463,9 +463,10 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	logSignupCheckpoint('Entered action verification code to confirm deletion.');
 
 	// Confirm logout after deletion. Logged-out home now clears the chat hash instead of
-	// forcing #chat-id=demo-for-everyone, so assert unauthenticated shell readiness.
+	// forcing #chat-id=demo-for-everyone. The settings/profile button remains visible
+	// as guest chrome, so the Login CTA is the unauthenticated-shell proof.
 	await expect(page.getByRole('button', { name: /login/i })).toBeVisible({ timeout: 30000 });
-	await expect(page.getByTestId('profile-container')).toBeHidden({ timeout: 30000 });
+	await expect(page.getByTestId('profile-container')).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'delete-account-success');
 	logSignupCheckpoint('Account deletion confirmed.');
 	logSignupCheckpoint('Returned to logged-out home after account deletion.');
