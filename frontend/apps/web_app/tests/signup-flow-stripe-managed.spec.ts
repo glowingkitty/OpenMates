@@ -462,14 +462,13 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	await deleteOtpInput.fill(deleteVerificationCode);
 	logSignupCheckpoint('Entered action verification code to confirm deletion.');
 
-	// Confirm logout redirect to demo chat after deletion. The deletion flow can
-	// clear authenticated UI before the transient in-settings success message is visible.
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 30000
-	});
+	// Confirm logout after deletion. Logged-out home now clears the chat hash instead of
+	// forcing #chat-id=demo-for-everyone, so assert unauthenticated shell readiness.
+	await expect(page.getByRole('button', { name: /login/i })).toBeVisible({ timeout: 30000 });
+	await expect(page.getByTestId('profile-container')).toBeHidden({ timeout: 30000 });
 	await takeStepScreenshot(page, 'delete-account-success');
 	logSignupCheckpoint('Account deletion confirmed.');
-	logSignupCheckpoint('Returned to demo chat after account deletion.');
+	logSignupCheckpoint('Returned to logged-out home after account deletion.');
 
 	// Privacy promise check: after a full signup + purchase + deletion flow,
 	// no third-party tracking cookies must exist. Enforces
