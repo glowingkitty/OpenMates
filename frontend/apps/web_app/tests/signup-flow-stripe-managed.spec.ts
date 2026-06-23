@@ -241,13 +241,16 @@ test('completes signup and Managed Payments purchase from Settings billing', asy
 	await expect(passwordManagerLink).toHaveAttribute('href', /^https?:/i);
 
 	await page.locator('#signup-password-continue').click();
-	await page.waitForURL(/chat/);
+
+	// Signup completion now closes the modal and reveals the authenticated chat shell
+	// without relying on a full route navigation. Assert the authenticated Settings
+	// menu is visible, which is the UI surface this spec needs for the purchase flow.
+	const settingsMenuButtonForPurchase = page.locator('#settings-menu-toggle');
+	await expect(settingsMenuButtonForPurchase).toBeVisible({ timeout: 60000 });
 	await takeStepScreenshot(page, 'chat');
-	logSignupCheckpoint('Arrived in chat after signup.');
+	logSignupCheckpoint('Arrived in authenticated chat shell after signup.');
 
 	// Billing moved out of signup. Purchase credits from Settings > Billing > Buy Credits.
-	const settingsMenuButtonForPurchase = page.locator('#settings-menu-toggle');
-	await expect(settingsMenuButtonForPurchase).toBeVisible({ timeout: 10000 });
 	await settingsMenuButtonForPurchase.click();
 	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
 	await page.getByRole('menuitem', { name: /billing/i }).click();
