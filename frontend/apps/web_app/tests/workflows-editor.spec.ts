@@ -52,15 +52,21 @@ test.describe('Workflows editor', () => {
 			await expect(page.getByTestId('selected-workflow-retention')).toContainText('No durable run content', { timeout: 30000 });
 			await expect(page.getByTestId('workflow-editor')).toBeVisible();
 			await expect(page.getByTestId('workflow-action-palette')).toContainText('Add action');
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('Check weather');
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('Decision: rain likely?');
+			await expect(page.getByTestId('workflow-node-stack')).toContainText('then');
+			await expect(page.getByTestId('workflow-node-stack')).toContainText('If true:');
+			await expect(page.getByTestId('workflow-node-stack')).toContainText('If false:');
+			await expect(page.getByTestId('workflow-node-stack')).toContainText('Do nothing');
+			await expect(page.getByTestId('workflow-node-stack')).toContainText('Weather | Get forecast for Berlin');
+			await expect(page.getByTestId('workflow-node-stack')).toContainText('rain probability > 60');
 
 			await page.getByTestId('workflow-title-input').fill('Daily rain alert edited');
-			await page.getByTestId('workflow-node-title-input').nth(1).fill('Check Berlin weather');
+			await page.getByTestId('workflow-node-summary').nth(1).click();
+			await expect(page.getByTestId('workflow-node-expanded')).toBeVisible();
+			await page.getByTestId('workflow-node-location-input').fill('Paris');
 			await page.getByTestId('add-report-node').click();
-			await expect(page.getByTestId('workflow-node-card')).toHaveCount(7);
+			await expect(page.getByTestId('workflow-node-card')).toHaveCount(6);
 			await page.getByTestId('save-workflow').click();
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('Check Berlin weather', { timeout: 30000 });
+			await expect(page.getByTestId('workflow-node-stack')).toContainText('Weather | Get forecast for Paris', { timeout: 30000 });
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('Create report');
 			await expect(page.getByTestId('workflows-list')).toContainText('Daily rain alert edited');
 
@@ -86,7 +92,7 @@ test.describe('Workflows editor', () => {
 			await expect(page.getByTestId('workflow-run-row').first()).toContainText('durable last_5', { timeout: 30000 });
 
 			await page.getByTestId('delete-workflow').click();
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('Check Berlin weather', { timeout: 30000 });
+			await expect(page.getByTestId('workflow-node-stack')).toContainText('Weather | Get forecast for Paris', { timeout: 30000 });
 			await page.getByTestId('delete-workflow').click();
 			await expect(page.getByText('Build your first workflow')).toBeVisible({ timeout: 30000 });
 		} finally {

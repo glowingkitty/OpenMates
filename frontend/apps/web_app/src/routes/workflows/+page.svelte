@@ -53,6 +53,12 @@
     body?: string;
   };
 
+  type WorkflowFlowItem =
+    | { kind: 'connector'; id: string; label: string; indent?: boolean }
+    | { kind: 'branch-label'; id: string; label: string }
+    | { kind: 'placeholder'; id: string; label: string }
+    | { kind: 'node'; id: string; node: WorkflowNode; index: number; branch?: boolean };
+
   let workflows = $state<WorkflowSummary[]>([]);
   let selectedWorkflow = $state<WorkflowDetail | null>(null);
   let runs = $state<WorkflowRun[]>([]);
@@ -65,6 +71,7 @@
   let editorTitle = $state('');
   let editorGraph = $state<WorkflowGraph | null>(null);
   let editorDirty = $state(false);
+  let expandedNodeId = $state<string | null>(null);
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
   let workflowsEnabled = $derived($featureAvailabilityStore.disabledById?.['platform:workflows'] !== true && $featureAvailabilityStore.disabledById !== null);
@@ -317,6 +324,7 @@
     editorTitle = workflow.title;
     editorGraph = cloneGraph(workflow.graph);
     editorDirty = false;
+    expandedNodeId = null;
   }
 
   function cloneGraph(graph: WorkflowGraph): WorkflowGraph {
@@ -330,13 +338,13 @@
   function nodeTypeLabel(type: WorkflowNodeType): string {
     switch (type) {
       case 'schedule_trigger':
-        return 'When';
+        return 'Time trigger';
       case 'manual_trigger':
         return 'Manual start';
       case 'app_skill_action':
-        return 'App action';
+        return 'Use App skill';
       case 'decision':
-        return 'If';
+        return 'Check';
       case 'repeat':
         return 'Repeat';
       case 'create_chat_report':
@@ -348,6 +356,123 @@
       case 'end':
         return 'End';
     }
+  }
+
+  function cardIconLabel(type: WorkflowNodeType): string {
+    switch (type) {
+      case 'schedule_trigger':
+        return 'CAL';
+      case 'app_skill_action':
+        return 'SUN';
+      case 'decision':
+        return 'IF';
+      case 'send_notification':
+        return 'MSG';
+      case 'send_email_notification':
+        return 'MAIL';
+      case 'create_chat_report':
+        return 'DOC';
+      case 'repeat':
+        return 'LOOP';
+      case 'manual_trigger':
+        return 'RUN';
+      case 'end':
+        return 'END';
+    }
+  }
+
+  function cardSummary(node: WorkflowNode): string {
+    if (node.type === 'schedule_trigger') {
+      const schedule = scheduleRecord(node);
+      const repeat = stringValue(schedule.type, 'daily') === 'weekly' ? 'Every week' : 'Every day';
+      return `${repeat}, at ${formatTime(stringValue(schedule.time, '09:00'))}`;
+    }
+    if (node.type === 'app_skill_action') {
+      const appId = stringValue(configRecord(node).app_id, 'weather');
+      const skillId = stringValue(configRecord(node).skill_id, 'forecast');
+      if (appId === 'weather') return `Weather | Get forecast for ${stringValue(inputRecord(node).location, 'Berlin')}`;
+      if (appId === 'news') return `News | Search ${firstRequestQuery(node)}`;
+      return `${appId} | ${skillId}`;
+    }
+    if (node.type === 'decision') {
+      const predicate = predicateRecord(node);
+      return `${humanizeExpression(stringValue(predicate.left, 'value'))} ${operatorLabel(stringValue(predicate.op, 'gte'))} ${predicate.right ?? ''}`.trim();
+    }
+    if (node.type === 'send_notification') return 'Send notification';
+    if (node.type === 'send_email_notification') return 'Send email';
+    if (node.type === 'create_chat_report') return stringValue(configRecord(node).summary, 'Create report');
+    if (node.type === 'repeat') return `Repeat up to ${numberValue(configRecord(node).max_iterations, 3)} times`;
+    return node.title ?? node.type;
+  }
+
+  function formatTime(value: string): string {
+    const [hourValue, minuteValue] = value.split(':');
+    const hour = Number(hourValue);
+    const minute = minuteValue ?? '00';
+    if (!Number.isFinite(hour)) return value;
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minute}${period}`;
+  }
+
+  function humanizeExpression(value: string): string {
+    return value
+      .replace('$nodes.weather.output.', '')
+      .replaceAll('_', ' ')
+      .replaceAll('.', ' ');
+  }
+
+  function operatorLabel(value: string): string {
+    switch (value) {
+      case 'gte':
+        return '>';
+      case 'gt':
+        return '>';
+      case 'lte':
+        return '<';
+      case 'lt':
+        return '<';
+      case 'eq':
+        return '=';
+      default:
+        return value;
+    }
+  }
+
+  function flowItems(graph: WorkflowGraph | null): WorkflowFlowItem[] {
+    if (!graph) return [];
+    const decisionIndex = graph.nodes.findIndex((node) => node.type === 'decision');
+    if (decisionIndex < 0) return linearFlowItems(graph.nodes);
+
+    const items: WorkflowFlowItem[] = [];
+    const mainNodes = graph.nodes.slice(0, decisionIndex + 1);
+    mainNodes.forEach((node, index) => {
+      if (index > 0) items.push({ kind: 'connector', id: `connector-${node.id}`, label: 'then' });
+      items.push({ kind: 'node', id: `node-${node.id}`, node, index: graph.nodes.indexOf(node) });
+    });
+
+    const branchNodes = graph.nodes.slice(decisionIndex + 1).filter((node) => node.type !== 'end');
+    items.push({ kind: 'branch-label', id: 'if-true-label', label: 'If true:' });
+    branchNodes.forEach((node, branchIndex) => {
+      if (branchIndex > 0) items.push({ kind: 'connector', id: `branch-connector-${node.id}`, label: 'then', indent: true });
+      items.push({ kind: 'node', id: `branch-node-${node.id}`, node, index: graph.nodes.indexOf(node), branch: true });
+    });
+    items.push({ kind: 'branch-label', id: 'if-false-label', label: 'If false:' });
+    items.push({ kind: 'placeholder', id: 'false-placeholder', label: 'Do nothing' });
+    return items;
+  }
+
+  function linearFlowItems(nodes: WorkflowNode[]): WorkflowFlowItem[] {
+    const items: WorkflowFlowItem[] = [];
+    nodes.forEach((node, index) => {
+      if (index > 0) items.push({ kind: 'connector', id: `connector-${node.id}`, label: 'then' });
+      items.push({ kind: 'node', id: `node-${node.id}`, node, index });
+    });
+    return items;
+  }
+
+  function toggleExpandedNode(nodeId: string) {
+    expandedNodeId = expandedNodeId === nodeId ? null : nodeId;
   }
 
   function isRecord(value: unknown): value is Record<string, unknown> {
@@ -559,151 +684,178 @@
             </div>
 
             <div class="workflow-editor" data-testid="workflow-editor">
-              <div class="editor-toolbar" data-testid="workflow-action-palette">
-                <span>Add action</span>
-                <button type="button" data-testid="add-weather-node" onclick={() => appendNode('app_skill_action')}>Weather</button>
-                <button type="button" data-testid="add-decision-node" onclick={() => appendNode('decision')}>If</button>
-                <button type="button" data-testid="add-report-node" onclick={() => appendNode('create_chat_report')}>Report</button>
-                <button type="button" data-testid="add-push-node" onclick={() => appendNode('send_notification')}>Push</button>
-                <button type="button" data-testid="add-email-node" onclick={() => appendNode('send_email_notification')}>Email</button>
-              </div>
-
               <div class="node-stack shortcut-flow" data-testid="workflow-node-stack">
-                {#if editorGraph}
-                  {#each editorGraph.nodes as node, index (node.id)}
-                    <article class="node-card shortcut-node" data-node-type={node.type} data-testid="workflow-node-card">
-                      <div class="node-index-column">
-                        <span class="step-number">{index + 1}</span>
-                        {#if index < editorGraph.nodes.length - 1}
-                          <span class="node-connector" aria-hidden="true"></span>
-                        {/if}
-                      </div>
-                      <div class="node-editor-body">
-                        <div class="node-editor-header">
-                          <div class="node-heading">
-                            <span class="node-kind">{nodeTypeLabel(node.type)}</span>
-                            <strong data-testid="workflow-node-title-label">{node.title ?? node.type}</strong>
-                          </div>
-                          {#if node.type !== 'schedule_trigger' && node.type !== 'end'}
-                            <button type="button" class="remove-node" data-testid="remove-workflow-node" onclick={() => removeNode(node.id)}>Remove</button>
-                          {/if}
-                        </div>
-                        <label class="node-field">
-                          <span>Action title</span>
-                          <input
-                            data-testid="workflow-node-title-input"
-                            value={node.title ?? node.type}
-                            oninput={(event) => updateNodeTitle(node.id, event.currentTarget.value)}
-                          />
-                        </label>
+                {#each flowItems(editorGraph) as item (item.id)}
+                  {#if item.kind === 'connector'}
+                    <div class="flow-connector" class:branch-connector={item.indent}>{item.label}</div>
+                  {:else if item.kind === 'branch-label'}
+                    <div class="branch-label">{item.label}</div>
+                  {:else if item.kind === 'placeholder'}
+                    <article class="workflow-card placeholder-card">{item.label}</article>
+                  {:else if item.kind === 'node'}
+                    <article
+                      class="flow-node"
+                      class:branch-node={item.branch}
+                      class:expanded={expandedNodeId === item.node.id}
+                      data-node-type={item.node.type}
+                      data-testid="workflow-node-card"
+                    >
+                      <button
+                        type="button"
+                        class="workflow-card"
+                        class:app-skill-card={item.node.type === 'app_skill_action'}
+                        data-testid="workflow-node-summary"
+                        aria-expanded={expandedNodeId === item.node.id}
+                        onclick={() => toggleExpandedNode(item.node.id)}
+                      >
+                        <span class="card-kind">{nodeTypeLabel(item.node.type)}</span>
+                        <span class="card-icon" aria-hidden="true">{cardIconLabel(item.node.type)}</span>
+                        <strong data-testid="workflow-node-title-label">{cardSummary(item.node)}</strong>
+                      </button>
 
-                        {#if node.type === 'schedule_trigger'}
-                          <div class="node-grid">
-                            <label class="node-field">
-                              <span>Repeat</span>
-                              <select value={stringValue(scheduleRecord(node).type, 'daily')} oninput={(event) => updateSchedule(node, 'type', event.currentTarget.value)}>
-                                <option value="daily">Daily</option>
-                                <option value="weekly">Weekly</option>
-                              </select>
-                            </label>
-                            <label class="node-field">
-                              <span>Time</span>
-                              <input value={stringValue(scheduleRecord(node).time, '09:00')} oninput={(event) => updateSchedule(node, 'time', event.currentTarget.value)} />
-                            </label>
-                            <label class="node-field">
-                              <span>Timezone</span>
-                              <input value={stringValue(scheduleRecord(node).timezone, 'Europe/Berlin')} oninput={(event) => updateSchedule(node, 'timezone', event.currentTarget.value)} />
-                            </label>
-                          </div>
-                        {:else if node.type === 'app_skill_action'}
-                          <div class="node-grid">
-                            <label class="node-field">
-                              <span>Skill</span>
-                              <select
-                                value={`${stringValue(configRecord(node).app_id, 'weather')}:${stringValue(configRecord(node).skill_id, 'forecast')}`}
-                                oninput={(event) => {
-                                  const [appId, skillId] = event.currentTarget.value.split(':');
-                                  updateNodeConfig(node.id, { app_id: appId, skill_id: skillId, input: appId === 'news' ? { requests: [{ query: 'AI news' }] } : { location: 'Berlin', days: 1 } });
-                                }}
-                              >
-                                <option value="weather:forecast">Weather forecast</option>
-                                <option value="news:search">News search</option>
-                              </select>
-                            </label>
-                            {#if stringValue(configRecord(node).app_id, 'weather') === 'news'}
-                              <label class="node-field wide">
-                                <span>Search query</span>
-                                <input
-                                  value={firstRequestQuery(node)}
-                                  oninput={(event) => updateNodeConfig(node.id, { input: { requests: [{ query: event.currentTarget.value }] } })}
-                                />
-                              </label>
-                            {:else}
-                              <label class="node-field">
-                                <span>Location</span>
-                                <input value={stringValue(inputRecord(node).location, 'Berlin')} oninput={(event) => updateInput(node, 'location', event.currentTarget.value)} />
-                              </label>
-                              <label class="node-field">
-                                <span>Days</span>
-                                <input type="number" min="1" max="7" value={numberValue(inputRecord(node).days, 1)} oninput={(event) => updateInput(node, 'days', Number(event.currentTarget.value))} />
-                              </label>
+                      {#if expandedNodeId === item.node.id}
+                        <div class="node-editor-panel" data-testid="workflow-node-expanded">
+                          <div class="expanded-header">
+                            <div>
+                              <span>{nodeTypeLabel(item.node.type)}</span>
+                              <h3>{cardSummary(item.node)}</h3>
+                            </div>
+                            {#if item.node.type !== 'schedule_trigger' && item.node.type !== 'end'}
+                              <button type="button" class="remove-node" data-testid="remove-workflow-node" onclick={() => removeNode(item.node.id)}>Remove</button>
                             {/if}
                           </div>
-                        {:else if node.type === 'decision'}
-                          <div class="node-grid">
-                            <label class="node-field wide">
-                              <span>Check value</span>
-                              <input value={stringValue(predicateRecord(node).left, '$nodes.weather.output.rain_probability')} oninput={(event) => updatePredicate(node, 'left', event.currentTarget.value)} />
-                            </label>
-                            <label class="node-field">
-                              <span>Operator</span>
-                              <select value={stringValue(predicateRecord(node).op, 'gte')} oninput={(event) => updatePredicate(node, 'op', event.currentTarget.value)}>
-                                <option value="gte">is at least</option>
-                                <option value="gt">is greater than</option>
-                                <option value="lte">is at most</option>
-                                <option value="lt">is less than</option>
-                                <option value="eq">equals</option>
-                              </select>
-                            </label>
-                            <label class="node-field">
-                              <span>Value</span>
-                              <input type="number" value={numberValue(predicateRecord(node).right, 60)} oninput={(event) => updatePredicate(node, 'right', Number(event.currentTarget.value))} />
-                            </label>
-                          </div>
-                        {:else if node.type === 'send_notification' || node.type === 'send_email_notification'}
-                          <div class="node-grid">
-                            <label class="node-field">
-                              <span>Title</span>
-                              <input value={stringValue(configRecord(node).title, 'Workflow update')} oninput={(event) => updateNodeConfig(node.id, { title: event.currentTarget.value })} />
-                            </label>
-                            <label class="node-field wide">
-                              <span>Message</span>
-                              <input value={stringValue(configRecord(node).body, 'Your workflow finished.')} oninput={(event) => updateNodeConfig(node.id, { body: event.currentTarget.value })} />
-                            </label>
-                          </div>
-                        {:else if node.type === 'create_chat_report'}
+
                           <label class="node-field">
-                            <span>Report summary</span>
-                            <input value={stringValue(configRecord(node).summary, 'Workflow report')} oninput={(event) => updateNodeConfig(node.id, { summary: event.currentTarget.value })} />
+                            <span>Action title</span>
+                            <input
+                              data-testid="workflow-node-title-input"
+                              value={item.node.title ?? item.node.type}
+                              oninput={(event) => updateNodeTitle(item.node.id, event.currentTarget.value)}
+                            />
                           </label>
-                        {:else if node.type === 'repeat'}
-                          <div class="node-grid">
+
+                          {#if item.node.type === 'schedule_trigger'}
+                            <div class="node-grid">
+                              <label class="node-field">
+                                <span>Repeat</span>
+                                <select value={stringValue(scheduleRecord(item.node).type, 'daily')} oninput={(event) => updateSchedule(item.node, 'type', event.currentTarget.value)}>
+                                  <option value="daily">Daily</option>
+                                  <option value="weekly">Weekly</option>
+                                </select>
+                              </label>
+                              <label class="node-field">
+                                <span>Time</span>
+                                <input value={stringValue(scheduleRecord(item.node).time, '09:00')} oninput={(event) => updateSchedule(item.node, 'time', event.currentTarget.value)} />
+                              </label>
+                              <label class="node-field">
+                                <span>Timezone</span>
+                                <input value={stringValue(scheduleRecord(item.node).timezone, 'Europe/Berlin')} oninput={(event) => updateSchedule(item.node, 'timezone', event.currentTarget.value)} />
+                              </label>
+                            </div>
+                          {:else if item.node.type === 'app_skill_action'}
+                            <div class="node-grid">
+                              <label class="node-field">
+                                <span>Skill</span>
+                                <select
+                                  value={`${stringValue(configRecord(item.node).app_id, 'weather')}:${stringValue(configRecord(item.node).skill_id, 'forecast')}`}
+                                  oninput={(event) => {
+                                    const [appId, skillId] = event.currentTarget.value.split(':');
+                                    updateNodeConfig(item.node.id, { app_id: appId, skill_id: skillId, input: appId === 'news' ? { requests: [{ query: 'AI news' }] } : { location: 'Berlin', days: 1 } });
+                                  }}
+                                >
+                                  <option value="weather:forecast">Weather forecast</option>
+                                  <option value="news:search">News search</option>
+                                </select>
+                              </label>
+                              {#if stringValue(configRecord(item.node).app_id, 'weather') === 'news'}
+                                <label class="node-field wide">
+                                  <span>Search query</span>
+                                  <input
+                                    value={firstRequestQuery(item.node)}
+                                    oninput={(event) => updateNodeConfig(item.node.id, { input: { requests: [{ query: event.currentTarget.value }] } })}
+                                  />
+                                </label>
+                              {:else}
+                                <label class="node-field">
+                                  <span>Location</span>
+                                  <input data-testid="workflow-node-location-input" value={stringValue(inputRecord(item.node).location, 'Berlin')} oninput={(event) => updateInput(item.node, 'location', event.currentTarget.value)} />
+                                </label>
+                                <label class="node-field">
+                                  <span>Days</span>
+                                  <input type="number" min="1" max="7" value={numberValue(inputRecord(item.node).days, 1)} oninput={(event) => updateInput(item.node, 'days', Number(event.currentTarget.value))} />
+                                </label>
+                              {/if}
+                            </div>
+                          {:else if item.node.type === 'decision'}
+                            <div class="node-grid">
+                              <label class="node-field wide">
+                                <span>Check value</span>
+                                <input value={stringValue(predicateRecord(item.node).left, '$nodes.weather.output.rain_probability')} oninput={(event) => updatePredicate(item.node, 'left', event.currentTarget.value)} />
+                              </label>
+                              <label class="node-field">
+                                <span>Operator</span>
+                                <select value={stringValue(predicateRecord(item.node).op, 'gte')} oninput={(event) => updatePredicate(item.node, 'op', event.currentTarget.value)}>
+                                  <option value="gte">is at least</option>
+                                  <option value="gt">is greater than</option>
+                                  <option value="lte">is at most</option>
+                                  <option value="lt">is less than</option>
+                                  <option value="eq">equals</option>
+                                </select>
+                              </label>
+                              <label class="node-field">
+                                <span>Value</span>
+                                <input type="number" value={numberValue(predicateRecord(item.node).right, 60)} oninput={(event) => updatePredicate(item.node, 'right', Number(event.currentTarget.value))} />
+                              </label>
+                            </div>
+                          {:else if item.node.type === 'send_notification' || item.node.type === 'send_email_notification'}
+                            <div class="node-grid">
+                              <label class="node-field">
+                                <span>Title</span>
+                                <input value={stringValue(configRecord(item.node).title, 'Workflow update')} oninput={(event) => updateNodeConfig(item.node.id, { title: event.currentTarget.value })} />
+                              </label>
+                              <label class="node-field wide">
+                                <span>Message</span>
+                                <input value={stringValue(configRecord(item.node).body, 'Your workflow finished.')} oninput={(event) => updateNodeConfig(item.node.id, { body: event.currentTarget.value })} />
+                              </label>
+                            </div>
+                          {:else if item.node.type === 'create_chat_report'}
                             <label class="node-field">
-                              <span>Max iterations</span>
-                              <input type="number" min="1" value={numberValue(configRecord(node).max_iterations, 3)} oninput={(event) => updateNodeConfig(node.id, { max_iterations: Number(event.currentTarget.value) })} />
+                              <span>Report summary</span>
+                              <input value={stringValue(configRecord(item.node).summary, 'Workflow report')} oninput={(event) => updateNodeConfig(item.node.id, { summary: event.currentTarget.value })} />
                             </label>
-                            <label class="node-field">
-                              <span>Max credits</span>
-                              <input type="number" min="1" value={numberValue(configRecord(node).max_credits, 5)} oninput={(event) => updateNodeConfig(node.id, { max_credits: Number(event.currentTarget.value) })} />
-                            </label>
-                          </div>
-                        {:else}
-                          <p class="node-note">This action ends the workflow.</p>
-                        {/if}
-                      </div>
+                          {:else if item.node.type === 'repeat'}
+                            <div class="node-grid">
+                              <label class="node-field">
+                                <span>Max iterations</span>
+                                <input type="number" min="1" value={numberValue(configRecord(item.node).max_iterations, 3)} oninput={(event) => updateNodeConfig(item.node.id, { max_iterations: Number(event.currentTarget.value) })} />
+                              </label>
+                              <label class="node-field">
+                                <span>Max credits</span>
+                                <input type="number" min="1" value={numberValue(configRecord(item.node).max_credits, 5)} oninput={(event) => updateNodeConfig(item.node.id, { max_credits: Number(event.currentTarget.value) })} />
+                              </label>
+                            </div>
+                          {:else}
+                            <p class="node-note">This action ends the workflow.</p>
+                          {/if}
+                        </div>
+                      {/if}
                     </article>
-                  {/each}
-                {/if}
+                  {/if}
+                {/each}
+              </div>
+
+              <div class="editor-toolbar" data-testid="workflow-action-palette">
+                <button type="button" data-testid="add-weather-node" onclick={() => appendNode('app_skill_action')}>
+                  <span aria-hidden="true">+</span>
+                  Add action
+                </button>
+                <button type="button" data-testid="add-decision-node" onclick={() => appendNode('decision')}>
+                  <span aria-hidden="true">+</span>
+                  Add decision
+                </button>
+                <button type="button" data-testid="add-report-node" onclick={() => appendNode('create_chat_report')}>Add report</button>
+                <button type="button" data-testid="add-push-node" onclick={() => appendNode('send_notification')}>Add push</button>
+                <button type="button" data-testid="add-email-node" onclick={() => appendNode('send_email_notification')}>Add email</button>
               </div>
             </div>
 
@@ -913,7 +1065,6 @@
 
   .workflow-row span,
   .empty-copy,
-  .node-card p,
   .run-row span {
     margin: 0;
     color: var(--color-font-secondary);
@@ -967,114 +1118,195 @@
 
   .workflow-editor {
     display: grid;
-    gap: 18px;
+    justify-items: center;
+    gap: 38px;
+    padding-block: 10px 24px;
   }
 
   .editor-toolbar {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 10px;
-    border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-12, 24px);
-    background: var(--color-grey-10);
-  }
-
-  .editor-toolbar span {
-    color: var(--color-font-secondary);
-    font-size: 0.85rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    width: min(680px, 100%);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+    border-block-start: 3px solid var(--color-grey-20);
   }
 
   .editor-toolbar button {
-    color: var(--color-font-primary);
-    background: var(--color-grey-0);
-    box-shadow: inset 0 0 0 1px var(--color-grey-20);
+    min-height: 118px;
+    display: grid;
+    place-items: center;
+    gap: 8px;
+    border-radius: 0;
+    color: var(--color-font-secondary);
+    background: transparent;
+    font-size: 1.15rem;
+    font-weight: 800;
+  }
+
+  .editor-toolbar button:nth-child(2) {
+    border-inline-start: 3px solid var(--color-grey-20);
+  }
+
+  .editor-toolbar button:nth-child(n + 3) {
+    min-height: auto;
+    padding-block: 12px;
+    border-block-start: 1px solid var(--color-grey-20);
+    font-size: 0.9rem;
+  }
+
+  .editor-toolbar button span {
+    font-size: 2rem;
+    line-height: 1;
   }
 
   .node-stack {
-    display: grid;
-    gap: 0;
-    max-width: 760px;
-  }
-
-  .node-card {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 12px;
-    position: relative;
-    padding: 0;
-    border: 0;
-    background: transparent;
-  }
-
-  .node-index-column {
+    width: min(680px, 100%);
     display: grid;
     justify-items: center;
-    grid-template-rows: 44px 1fr;
+    gap: 0;
   }
 
-  .node-connector {
-    width: 3px;
-    min-height: 18px;
-    margin-block: 4px;
-    border-radius: var(--radius-full, 999px);
-    background: var(--color-grey-30);
+  .flow-node {
+    width: 100%;
+    display: grid;
+    justify-items: center;
   }
 
-  .step-number {
+  .flow-node.branch-node,
+  .placeholder-card {
+    width: 82%;
+    justify-self: end;
+  }
+
+  .flow-connector,
+  .branch-label {
+    color: var(--color-font-secondary);
+    font-size: 1.4rem;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .flow-connector {
+    padding-block: 16px 20px;
+    text-align: center;
+  }
+
+  .flow-connector.branch-connector {
+    width: 82%;
+    justify-self: end;
+  }
+
+  .branch-label {
+    width: 82%;
+    justify-self: end;
+    padding-block: 20px 12px;
+    text-align: start;
+  }
+
+  .workflow-card {
+    width: 100%;
+    min-height: 164px;
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 18px;
+    padding: 22px 26px;
+    border: 0;
+    border-radius: 30px;
+    color: var(--color-font-primary);
+    background: var(--color-grey-10);
+    text-align: center;
+    box-shadow: none;
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  .workflow-card:hover,
+  .workflow-card[aria-expanded="true"] {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.14);
+  }
+
+  .workflow-card.app-skill-card {
+    color: var(--color-font-button);
+    background: linear-gradient(135deg, #0072bc 0%, #04b8cf 100%);
+  }
+
+  .workflow-card.placeholder-card {
+    min-height: 96px;
+    color: var(--color-font-secondary);
+    font-size: 1.35rem;
+    font-weight: 900;
+  }
+
+  .card-kind {
+    color: var(--color-font-secondary);
+    font-size: 1.25rem;
+    font-weight: 900;
+  }
+
+  .app-skill-card .card-kind {
+    color: color-mix(in srgb, var(--color-font-button) 76%, transparent);
+  }
+
+  .card-icon {
+    width: 54px;
+    height: 54px;
     display: grid;
     place-items: center;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    color: var(--color-font-button);
-    background: var(--color-button-primary);
-    font-weight: 700;
-    flex: 0 0 auto;
+    border-radius: var(--radius-8, 20px);
+    color: var(--color-button-primary);
+    background: color-mix(in srgb, var(--color-button-primary) 12%, transparent);
+    font-size: 0.88rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
   }
 
-  .node-editor-body {
+  .app-skill-card .card-icon {
+    color: var(--color-font-button);
+    background: color-mix(in srgb, var(--color-font-button) 18%, transparent);
+  }
+
+  .workflow-card strong {
+    max-width: 520px;
+    color: inherit;
+    font-size: clamp(1.45rem, 3vw, 2rem);
+    font-weight: 900;
+    line-height: 1.15;
+  }
+
+  .node-editor-panel {
+    width: min(760px, calc(100% + 88px));
     display: grid;
-    gap: 12px;
-    margin-block-end: 14px;
-    padding: 16px;
+    gap: 14px;
+    margin-block: 14px 8px;
+    padding: 18px;
     border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-12, 24px);
-    background: var(--color-grey-10);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+    border-radius: 28px;
+    background: var(--color-grey-0);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.14);
   }
 
-  .node-editor-header {
+  .branch-node .node-editor-panel {
+    width: min(720px, calc(100% + 60px));
+  }
+
+  .expanded-header {
     display: flex;
-    justify-content: space-between;
+    justify-items: center;
     align-items: flex-start;
-    gap: 12px;
+    justify-content: space-between;
+    gap: 14px;
   }
 
-  .node-heading {
-    display: grid;
-    gap: 6px;
+  .expanded-header span {
+    color: var(--color-font-secondary);
+    font-weight: 900;
   }
 
-  .node-heading strong {
+  .expanded-header h3 {
+    margin: 4px 0 0;
     color: var(--color-font-primary);
-    font-size: 1.1rem;
-  }
-
-  .node-kind {
-    width: fit-content;
-    padding: 4px 9px;
-    border-radius: var(--radius-full, 999px);
-    color: var(--color-font-button);
-    background: var(--color-button-primary);
-    font-size: 0.78rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    font-size: 1.25rem;
   }
 
   .remove-node {
