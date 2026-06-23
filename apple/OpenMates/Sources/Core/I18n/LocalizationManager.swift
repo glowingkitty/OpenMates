@@ -121,6 +121,12 @@ final class LocalizationManager: ObservableObject {
     private func candidateTranslationURLs(locale: String) -> [URL] {
         var urls: [URL] = []
 
+        #if DEBUG
+        // Simulator/UI tests should read the current checkout before any copied bundle
+        // resources so stale Xcode resource copies do not mask regenerated i18n JSON.
+        urls.append(devCheckoutTranslationURL(locale: locale))
+        #endif
+
         // 1. Bundle resource (for release builds — copied from the web app generated locale output)
         if let bundled = Bundle.main.url(forResource: locale, withExtension: "json", subdirectory: "i18n") {
             urls.append(bundled)
@@ -136,6 +142,14 @@ final class LocalizationManager: ObservableObject {
         }
 
         // 2. Web app generated locales (for dev/simulator — built from YML sources by npm run build:translations)
+        #if !DEBUG
+        urls.append(devCheckoutTranslationURL(locale: locale))
+        #endif
+
+        return urls
+    }
+
+    private func devCheckoutTranslationURL(locale: String) -> URL {
         let sourceFile = URL(fileURLWithPath: #filePath)
         let repoRoot = sourceFile
             .deletingLastPathComponent() // I18n/
@@ -143,9 +157,7 @@ final class LocalizationManager: ObservableObject {
             .deletingLastPathComponent() // Sources/
             .deletingLastPathComponent() // OpenMates/
             .deletingLastPathComponent() // apple/
-        urls.append(repoRoot.appendingPathComponent("frontend/packages/ui/src/i18n/locales/\(locale).json"))
-
-        return urls
+        return repoRoot.appendingPathComponent("frontend/packages/ui/src/i18n/locales/\(locale).json")
     }
 
     private func fetchTranslations(locale: String) async -> [String: Any]? {
