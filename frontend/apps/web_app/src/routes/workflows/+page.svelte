@@ -580,7 +580,10 @@
                       </div>
                       <div class="node-editor-body">
                         <div class="node-editor-header">
-                          <span class="node-kind">{nodeTypeLabel(node.type)}</span>
+                          <div class="node-heading">
+                            <span class="node-kind">{nodeTypeLabel(node.type)}</span>
+                            <strong data-testid="workflow-node-title-label">{node.title ?? node.type}</strong>
+                          </div>
                           {#if node.type !== 'schedule_trigger' && node.type !== 'end'}
                             <button type="button" class="remove-node" data-testid="remove-workflow-node" onclick={() => removeNode(node.id)}>Remove</button>
                           {/if}
@@ -1048,8 +1051,18 @@
   .node-editor-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
+  }
+
+  .node-heading {
+    display: grid;
+    gap: 6px;
+  }
+
+  .node-heading strong {
+    color: var(--color-font-primary);
+    font-size: 1.1rem;
   }
 
   .node-kind {
