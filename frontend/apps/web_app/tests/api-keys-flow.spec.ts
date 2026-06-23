@@ -577,6 +577,50 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	expect(approvedData).toHaveProperty('chats');
 	log('Confirmed: REST API call succeeded after device approval!');
 
+	// ── Phase 5b: Register and approve the stable CLI API-key device ───────────
+	const cliDeviceHeaders = {
+		Authorization: `Bearer ${rawApiKey}`,
+		'User-Agent': `OpenMates CLI/0.1 (${os.platform()} ${os.release()})`,
+		'X-OpenMates-SDK': 'cli',
+		'X-OpenMates-Device-Identity': `cli:${os.platform()}:${os.arch()}`
+	};
+	log('Making CLI-style SDK API call with new key; expecting pending-device block...');
+	const cliBlockedResponse = await request.get(sdkChatsUrl, { headers: cliDeviceHeaders });
+	log(`CLI-style SDK API response (before device approval): ${cliBlockedResponse.status()}`);
+	expect(
+		cliBlockedResponse.status() === 403,
+		`Expected 403 for CLI device before approval, got ${cliBlockedResponse.status()}`
+	).toBe(true);
+
+	await page.reload();
+	await page.waitForLoadState('domcontentloaded');
+	await navigateToDevices(page, log);
+	await expect(devicesContainer).toBeVisible({ timeout: 8000 });
+	await page.waitForTimeout(2000);
+
+	let cliPendingCard = page.locator('[data-testid="device-card"].pending').first();
+	if (!(await cliPendingCard.isVisible({ timeout: 15000 }).catch(() => false))) {
+		log('CLI pending device card not visible yet; reloading and reopening Devices.');
+		await page.reload();
+		await page.waitForLoadState('domcontentloaded');
+		await navigateToDevices(page, log);
+		cliPendingCard = page.locator('[data-testid="device-card"].pending').first();
+		await expect(cliPendingCard).toBeVisible({ timeout: 30000 });
+	}
+	await screenshot(page, 'cli-pending-device');
+	const cliApproveButton = cliPendingCard.getByTestId('device-approve-button');
+	await expect(cliApproveButton).toBeVisible({ timeout: 5000 });
+	await cliApproveButton.click();
+	await expect(cliPendingCard).not.toBeVisible({ timeout: 10000 });
+	await screenshot(page, 'cli-device-approved');
+
+	const cliApprovedResponse = await request.get(sdkChatsUrl, { headers: cliDeviceHeaders });
+	log(`CLI-style SDK API response (after device approval): ${cliApprovedResponse.status()}`);
+	expect(cliApprovedResponse.status()).toBe(200);
+	const cliApprovedData = await cliApprovedResponse.json();
+	expect(cliApprovedData).toHaveProperty('chats');
+	log('Confirmed: CLI-style API key call succeeded after device approval!');
+
 	// ── Phase 6: Save the working API key to artifacts ───────────────────────
 	const keyFilePath = path.join(ARTIFACTS_DIR, 'api_key.txt');
 	fs.writeFileSync(keyFilePath, rawApiKey, 'utf8');

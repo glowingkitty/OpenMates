@@ -9,7 +9,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { platform, release } from "node:os";
+import { arch, platform, release } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import qrcode from "qrcode-terminal";
@@ -6215,7 +6215,7 @@ export class OpenMatesClient {
     return {
       "User-Agent": this.getCliUserAgent(),
       "X-OpenMates-SDK": "cli",
-      "X-OpenMates-Device-Identity": this.getLocalDeviceName(),
+      "X-OpenMates-Device-Identity": this.getCliApiKeyDeviceIdentity(),
       Origin: deriveAppUrl(this.apiUrl),
     };
   }
@@ -6226,6 +6226,10 @@ export class OpenMatesClient {
 
   private getLocalDeviceName(): string {
     return `${CLI_DEVICE_NAME_PREFIX} (${platform()} ${release()})`;
+  }
+
+  private getCliApiKeyDeviceIdentity(): string {
+    return `cli:${platform()}:${arch()}`;
   }
 
   // -------------------------------------------------------------------------

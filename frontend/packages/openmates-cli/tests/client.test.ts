@@ -229,7 +229,7 @@ describe("OpenMatesClient session API URL", () => {
       assert.strictEqual(request.method, "POST");
       assert.strictEqual(request.headers.authorization, "Bearer sk-api-test-key");
       assert.strictEqual(request.headers["x-openmates-sdk"], "cli");
-      assert.match(String(request.headers["x-openmates-device-identity"]), /^OpenMates CLI \(.+\)$/);
+      assert.match(String(request.headers["x-openmates-device-identity"]), /^cli:.+:.+$/);
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({ success: true, data: { ok: true } }));
     });
