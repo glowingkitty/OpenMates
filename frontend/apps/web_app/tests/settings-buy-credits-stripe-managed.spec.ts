@@ -206,17 +206,35 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 		log('Accepted limited refund consent.');
 	}
 
-	// If the "switch to non-EU card" button is present (user has EU saved cards),
-	// click it to force the managed payments Checkout Session.
+	// The Payment component can briefly render the EU Payment Element branch while it
+	// fetches geo/provider config. During that initialization window the non-EU
+	// switch may be visible but disabled, then disappear once the backend-selected
+	// Managed Payments checkout mounts. Wait for either the real managed mode or an
+	// actionable switch, instead of failing on the transient disabled button.
 	const switchToNonEuBtn = page.getByTestId('switch-to-non-eu');
-	const hasSwitchBtn = await switchToNonEuBtn.isVisible({ timeout: 5000 }).catch(() => false);
-	if (hasSwitchBtn) {
-		// The Payment component disables provider-switch buttons while Stripe config/order
-		// setup is still in flight. A plain click can wait until the CI job timeout
-		// with no useful screenshot, so wait for the real actionable state first.
-		await expect(switchToNonEuBtn).toBeEnabled({ timeout: 30000 });
+	const switchToEuBtn = page.getByTestId('switch-to-stripe');
+	const checkoutIframe = page.locator('#checkout iframe');
+	const detectManagedProviderState = async () => {
+		if ((await checkoutIframe.count()) > 0) return 'managed';
+		if (await switchToEuBtn.isVisible().catch(() => false)) return 'managed';
+		if (await switchToNonEuBtn.isVisible().catch(() => false)) {
+			return (await switchToNonEuBtn.isEnabled().catch(() => false)) ? 'switch' : 'initializing';
+		}
+		return 'initializing';
+	};
+
+	await expect
+		.poll(detectManagedProviderState, {
+			timeout: 30000,
+			intervals: [250, 500, 1000]
+		})
+		.toMatch(/^(managed|switch)$/);
+
+	if ((await detectManagedProviderState()) === 'switch') {
 		await switchToNonEuBtn.click({ timeout: 10000 });
 		log('Clicked "switch to non-EU card" to force managed payments.');
+	} else {
+		log('Managed Payments mode already active; no provider switch needed.');
 	}
 
 	await screenshot(page, 'payment-screen');
