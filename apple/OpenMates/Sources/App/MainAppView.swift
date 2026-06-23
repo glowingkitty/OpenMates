@@ -3127,8 +3127,8 @@ struct OpenMatesWebHeader: View {
                         .lineLimit(1)
                 }
                 .accessibilityElement(children: .combine)
-                .accessibilityIdentifier("app-version-label")
                 .accessibilityLabel("OpenMates, \(AppStrings.signupVersionTitle)")
+                .accessibilityIdentifier("app-version-label")
 
                 Spacer(minLength: .spacing4)
 
