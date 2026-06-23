@@ -17,6 +17,8 @@
 # default_enabled: false. `disabled` can disable default-on features.
 feature_overrides:
   enabled:
+    - "platform:projects"
+    - "platform:tasks"
     - "platform:workflows"
   disabled:
     # Empty / no implemented skills or focus modes declared
