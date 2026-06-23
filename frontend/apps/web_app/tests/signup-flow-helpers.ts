@@ -17,6 +17,7 @@ const nodeCrypto = require('crypto');
 const ARTIFACTS_DIRNAME = 'artifacts';
 const PREVIOUS_RUN_DIRNAME = 'previous_run';
 const MAILOSAUR_BASE_URL = 'https://mailosaur.com/api';
+const MAILOSAUR_USAGE_LIMITS_AUTH_FAILURE_STATUSES = new Set([401, 403]);
 const GMAIL_API_BASE_URL = 'https://gmail.googleapis.com/gmail/v1/users/me';
 const GMAIL_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GMAIL_RECEIVED_AFTER_TOLERANCE_MS = 10000;
@@ -406,7 +407,14 @@ async function checkMailosaurQuota(
 			headers: { Authorization: `Basic ${token}` }
 		});
 		if (!res.ok) {
-			console.log(`[Mailosaur] Quota check failed: HTTP ${res.status}`);
+			const message = `[Mailosaur] Quota check failed: HTTP ${res.status}`;
+			console.log(message);
+			if (MAILOSAUR_USAGE_LIMITS_AUTH_FAILURE_STATUSES.has(res.status)) {
+				console.log(
+					`${message}. /usage/limits requires an account-level Mailosaur key; continuing because server-restricted inbox keys can still receive test mail.`
+				);
+				return { available: true, current: -1, limit: -1 };
+			}
 			return { available: false, current: 0, limit: 0 };
 		}
 		const data = await res.json();
@@ -424,7 +432,7 @@ async function checkMailosaurQuota(
 		return { available, current, limit };
 	} catch (err) {
 		console.log(`[Mailosaur] Quota check error: ${err}`);
-		return { available: false, current: 0, limit: 0 };
+		return { available: true, current: -1, limit: -1 };
 	}
 }
 
