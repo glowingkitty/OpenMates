@@ -12,6 +12,36 @@ final class ChatFlowParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    func testUnauthenticatedColdBootShowsNewChatParitySurface() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-show-workspace-tabs"
+        ]
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["v0.13.0"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["daily-inspiration-card"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.staticTexts["What are your interests?"].exists)
+
+        XCTAssertTrue(app.buttons["interest-tag-privacy"].waitForExistence(timeout: 5))
+        XCTAssertEqual(
+            app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "chat.interests.")).count,
+            0,
+            "Interest tags must resolve localized labels instead of raw i18n keys"
+        )
+
+        XCTAssertTrue(app.descendants(matching: .any)["workspace-switcher"].exists)
+        XCTAssertTrue(app.buttons["chats-nav-link"].exists)
+        XCTAssertTrue(app.buttons["projects-nav-link"].exists)
+        XCTAssertTrue(app.buttons["workflows-nav-link"].exists)
+        XCTAssertTrue(app.buttons["tasks-nav-link"].exists)
+        XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
+
+        attachScreenshot(name: "Unauthenticated new-chat parity surface")
+    }
+
     func testVisibleChatFlowElementsMatchWebParitySnapshot() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-header-contract"]

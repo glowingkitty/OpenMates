@@ -185,6 +185,7 @@ struct InspirationCard: View {
             .onTapGesture(perform: onTap)
         }
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("daily-inspiration-card")
         .accessibleButton(
             "Daily inspiration: \(inspiration.text)",
             hint: "Starts a new chat with this inspiration"

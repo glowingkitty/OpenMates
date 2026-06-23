@@ -42,6 +42,10 @@ enum AppStrings {
     static var openMatesName: String { L("apps.openmates") }
     static var guest: String { L("settings.guest") }
     static var newWindow: String { L("common.new_window") }
+    static var chat: String { L("common.chat") }
+    static var projects: String { L("navigation.projects") }
+    static var workflows: String { L("navigation.workflows") }
+    static var tasks: String { L("navigation.tasks") }
 
     // MARK: - Chat
     static var newChat: String { L("chat.new_chat") }

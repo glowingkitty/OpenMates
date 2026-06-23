@@ -1420,28 +1420,7 @@ enum InterestTagId: String, CaseIterable, Codable, Hashable {
     }
 
     var labelKey: String {
-        switch self {
-        case .privacy, .learning, .writing, .findEvents, .findRestaurant, .findDoctorAppointments,
-             .plotCharts, .videoTutorials, .findApartments, .buildElectronics, .diyProjects,
-             .createVideos, .findTravelConnections, .planTrips, .discussNews, .discussVideos, .runCode:
-            return "chat.interests.\(rawValue)"
-        case .softwareDevelopment: return "mates.software_development"
-        case .businessDevelopment: return "mates.business_development"
-        case .lifeCoachPsychology: return "mates.life_coach_psychology"
-        case .medicalHealth: return "mates.medical_health"
-        case .legalLaw: return "mates.legal_law"
-        case .finance: return "mates.finance"
-        case .design: return "mates.design"
-        case .marketingSales: return "mates.marketing_sales"
-        case .science: return "mates.science"
-        case .history: return "mates.history"
-        case .cookingFood: return "mates.cooking_food"
-        case .electricalEngineering: return "mates.electrical_engineering"
-        case .makerPrototyping: return "mates.maker_prototyping"
-        case .moviesTv: return "mates.movies_tv"
-        case .activism: return "mates.activism"
-        case .generalKnowledge: return "mates.general_knowledge"
-        }
+        "chat.interests.\(rawValue)"
     }
 
     var icon: String {

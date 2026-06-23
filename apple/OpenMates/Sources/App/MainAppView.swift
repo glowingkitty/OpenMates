@@ -174,6 +174,16 @@ struct MainAppView: View {
     private static let backgroundSyncInterChunkPauseNs: UInt64 = 40_000_000
     private static let backgroundSyncForegroundPauseNs: UInt64 = 180_000_000
     private static let foregroundInteractionGraceSeconds: TimeInterval = 2.0
+    private static let workspaceTabsEnabled = true
+
+    private var shouldShowWorkspaceSwitcher: Bool {
+        #if DEBUG
+        let forcedForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-show-workspace-tabs")
+        #else
+        let forcedForUITest = false
+        #endif
+        return (isAuthenticated || forcedForUITest) && Self.workspaceTabsEnabled
+    }
 
     private var currentDailyInspiration: DailyInspirationBanner.DailyInspiration? {
         dailyInspirations.first
@@ -611,8 +621,9 @@ struct MainAppView: View {
             await bootstrapAuthenticatedSession()
             await loadAccountTopicPreferences()
         } else {
-            // Unauthenticated: populate sidebar with demo chats
-            loadDemoChats()
+            // Unauthenticated: populate the sidebar, but keep the welcome/new-chat surface active.
+            loadDemoChats(selectDefault: false)
+            openNewChatScreen()
             await anonymousFreeUsage.refreshStatus()
             await anonymousFreeUsage.loadAnonymousChats(into: chatStore)
             // Fetch default daily inspirations (public endpoint, no auth required)
@@ -765,6 +776,7 @@ struct MainAppView: View {
                 profileImageUrl: authManager.currentUser?.profileImageUrl,
                 onToggleChats: { withAnimation(.easeInOut(duration: 0.2)) { isChatsPanelOpen.toggle() } },
                 onNewChat: { selectedChatId = nil; showNewChat = true },
+                showWorkspaceSwitcher: shouldShowWorkspaceSwitcher,
                 onShareChat: { showShareChat = true },
                 canShareChat: selectedChatId != nil,
                 onOpenSettings: {
@@ -1033,7 +1045,7 @@ struct MainAppView: View {
         AuthFlowView(onBackToDemo: {
             authFlowState.reset()
             showAuthSheet = false
-            selectedChatId = "demo-for-everyone"
+            openNewChatScreen()
         }, flowState: authFlowState)
         .environmentObject(authManager)
     }
@@ -1465,7 +1477,7 @@ struct MainAppView: View {
 
     // MARK: - Demo chats for unauthenticated users
 
-    /// Populates the sidebar with all public chats matching the web app's cold-boot landing page.
+    /// Populates the sidebar with all public chats while the main surface stays on new chat by default.
     /// Mirrors: INTRO_CHATS + LEGAL_CHATS + announcements + example chats from demo_chats/index.ts
     private func loadDemoChats(selectDefault: Bool = true) {
         let now = ISO8601DateFormatter().string(from: Date())
@@ -1530,7 +1542,6 @@ struct MainAppView: View {
         ]
         chatStore.upsertChats(demoChats)
         if selectDefault {
-            // Open the for-everyone chat by default — matches web app's cold-boot behaviour
             selectedChatId = "demo-for-everyone"
         }
     }
@@ -3073,75 +3084,84 @@ struct OpenMatesWebHeader: View {
     let profileImageUrl: String?
     let onToggleChats: () -> Void
     let onNewChat: () -> Void
+    let showWorkspaceSwitcher: Bool
     let onShareChat: () -> Void
     let canShareChat: Bool
     let onOpenSettings: () -> Void
     let onOpenAuth: () -> Void
 
     var body: some View {
-        HStack(alignment: .center, spacing: .spacing4) {
-            if !isChatsPanelOpen {
-                Button(action: onToggleChats) {
-                    // Web: uses the same branded icon treatment as the top-right settings affordance.
-                    WebHamburgerIcon(isOpen: isChatsPanelOpen)
-                        .foregroundStyle(LinearGradient.primary)
-                        .frame(width: 25, height: 25)
-                }
-                .buttonStyle(.plain)
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
-                .accessibilityIdentifier("sidebar-toggle")
-                .accessibilityLabel(LocalizationManager.shared.text("header.toggle_menu"))
-            }
-
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 0) {
-                    // Web: "Open" uses var(--color-primary) gradient as text color
-                    Text("Open")
-                        .font(.omH3)
-                        .fontWeight(.bold)
-                        .foregroundStyle(LinearGradient.primary)
-
-                    Text("Mates")
-                        .font(.omH3)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.grey100)
+        ZStack {
+            HStack(alignment: .center, spacing: .spacing4) {
+                if !isChatsPanelOpen {
+                    Button(action: onToggleChats) {
+                        // Web: uses the same branded icon treatment as the top-right settings affordance.
+                        WebHamburgerIcon(isOpen: isChatsPanelOpen)
+                            .foregroundStyle(LinearGradient.primary)
+                            .frame(width: 25, height: 25)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+                    .accessibilityIdentifier("sidebar-toggle")
+                    .accessibilityLabel(LocalizationManager.shared.text("header.toggle_menu"))
                 }
 
-                Text(AppStrings.signupVersionTitle)
-                    .font(.omXs)
-                    .foregroundStyle(Color.grey60)
-                    .lineLimit(1)
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("OpenMates, \(AppStrings.signupVersionTitle)")
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: 0) {
+                        // Web: "Open" uses var(--color-primary) gradient as text color
+                        Text("Open")
+                            .font(.omH3)
+                            .fontWeight(.bold)
+                            .foregroundStyle(LinearGradient.primary)
 
-            Spacer(minLength: .spacing4)
+                        Text("Mates")
+                            .font(.omH3)
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.grey100)
+                    }
 
-            if !isAuthenticated {
-                Button(action: onOpenAuth) {
-                    Text(AppStrings.signup)
-                        .font(.omP)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.fontButton)
+                    Text(AppStrings.signupVersionTitle)
+                        .font(.omXs)
+                        .foregroundStyle(Color.grey60)
                         .lineLimit(1)
-                        .padding(.horizontal, .spacing8)
-                        .padding(.vertical, .spacing4)
-                        .background(Color.buttonPrimary)
-                        .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("OpenMates, \(AppStrings.signupVersionTitle)")
+
+                Spacer(minLength: .spacing4)
+
+                if !isAuthenticated {
+                    Button(action: onOpenAuth) {
+                        Text(AppStrings.signup)
+                            .font(.omP)
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.fontButton)
+                            .lineLimit(1)
+                            .padding(.horizontal, .spacing8)
+                            .padding(.vertical, .spacing4)
+                            .background(Color.buttonPrimary)
+                            .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("login-signup-button")
+                    .accessibilityLabel(AppStrings.signup)
+                }
+
+                Button(action: onOpenSettings) {
+                    // Web: settings affordance changes into the close affordance while the panel is open.
+                    headerSettingsIcon
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("login-signup-button")
-                .accessibilityLabel(AppStrings.signup)
+                .accessibilityIdentifier("settings-button")
+                .accessibilityLabel(isSettingsOpen ? AppStrings.close : AppStrings.settings)
             }
 
-            Button(action: onOpenSettings) {
-                // Web: settings affordance changes into the close affordance while the panel is open.
-                headerSettingsIcon
+            if showWorkspaceSwitcher {
+                WorkspaceSwitcherTabs(onNewChat: onNewChat)
+                    .accessibilityIdentifier("workspace-switcher")
+                    .zIndex(1)
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("settings-button")
-            .accessibilityLabel(isSettingsOpen ? AppStrings.close : AppStrings.settings)
         }
         .padding(.horizontal, .spacing10)
         .padding(.top, .spacing5)
@@ -3184,6 +3204,54 @@ struct OpenMatesWebHeader: View {
             return nil
         }
         return "/v1/users/\(encodedUserId)/profile-image"
+    }
+}
+
+private struct WorkspaceSwitcherTabs: View {
+    let onNewChat: () -> Void
+
+    var body: some View {
+        HStack(spacing: .spacing2) {
+            workspaceTab(icon: "chat", label: AppStrings.chat, testId: "chats-nav-link", active: true, disabled: false, action: onNewChat)
+            workspaceTab(icon: "project", label: AppStrings.projects, testId: "projects-nav-link", active: false, disabled: true, action: {})
+            workspaceTab(icon: "workflow", label: AppStrings.workflows, testId: "workflows-nav-link", active: false, disabled: true, action: {})
+            workspaceTab(icon: "task", label: AppStrings.tasks, testId: "tasks-nav-link", active: false, disabled: true, action: {})
+        }
+        .padding(3)
+        .background(Color.grey20)
+        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+    }
+
+    @ViewBuilder
+    private func workspaceTab(
+        icon: String,
+        label: String,
+        testId: String,
+        active: Bool,
+        disabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        let tab = Button(action: action) {
+            Icon(icon, size: 20)
+                .foregroundStyle(LinearGradient.primary)
+                .frame(width: 44, height: 44)
+                .background(active ? Color.grey60.opacity(0.3) : Color.clear)
+                .clipShape(RoundedRectangle(cornerRadius: .radius3))
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+        .opacity(disabled ? 0.7 : 1)
+        .accessibilityIdentifier(testId)
+        .accessibilityLabel(label)
+        .accessibilityValue(disabled ? AppStrings.disabled : "")
+
+        if disabled {
+            tab.accessibilityAddTraits(.isDisabled)
+        } else if active {
+            tab.accessibilityAddTraits(.isSelected)
+        } else {
+            tab
+        }
     }
 }
 
@@ -3973,6 +4041,7 @@ private struct GuestInterestTagsView: View {
 
     private let availableTagLimit = 10
     private let minimumTagsToContinue = 4
+    private let tagRailCenterItemWidth: CGFloat = 150
 
     private var visibleTags: [InterestTagId] {
         let selectedSet = Set(selectedTagIds)
@@ -3988,19 +4057,26 @@ private struct GuestInterestTagsView: View {
 
     var body: some View {
         VStack(spacing: .spacing2) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: .spacing4) {
-                    ForEach(visibleTags, id: \.self) { tag in
-                        InterestTagChip(tag: tag, isActive: selectedTagIds.contains(tag)) {
-                            toggle(tag)
+            GeometryReader { proxy in
+                let sideInset = max(CGFloat(6), (proxy.size.width / 2) - (tagRailCenterItemWidth / 2))
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: .spacing4) {
+                        ForEach(visibleTags, id: \.self) { tag in
+                            InterestTagChip(tag: tag, isActive: selectedTagIds.contains(tag)) {
+                                toggle(tag)
+                            }
                         }
                     }
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
+                    .padding(.leading, sideInset)
+                    .padding(.trailing, sideInset)
                 }
-                .padding(.horizontal, .spacing8)
-                .padding(.vertical, .spacing4)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("guest-interest-rail")
             }
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("guest-interest-rail")
+            .frame(height: 48)
 
             HStack(spacing: .spacing8) {
                 if canContinue {
@@ -4029,6 +4105,7 @@ private struct GuestInterestTagsView: View {
             .frame(minHeight: 40)
         }
         .frame(maxWidth: 1040)
+        .padding(.top, 10)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("guest-interest-tags")
     }
@@ -4058,10 +4135,11 @@ private struct InterestTagChip: View {
                     .foregroundStyle(Color.fontButton)
                     .lineLimit(1)
             }
-            .padding(.horizontal, .spacing5)
+            .padding(.horizontal, 11)
             .padding(.vertical, .spacing4)
             .background(CategoryMapping.gradient(for: tag.gradientCategory))
             .clipShape(Capsule())
+            .overlay(Capsule().stroke(Color.white.opacity(isActive ? 0.72 : 0.28), lineWidth: 1))
             .overlay(alignment: .topTrailing) {
                 if isActive {
                     Circle()
