@@ -530,6 +530,13 @@ function createMailosaurClient({
 		// 204 = success, 404 = already empty — both are acceptable
 		if (!response.ok && response.status !== 404) {
 			const errorBody = await response.text();
+			if (MAILOSAUR_USAGE_LIMITS_AUTH_FAILURE_STATUSES.has(response.status)) {
+				console.log(
+					`[Mailosaur] Skipping inbox cleanup: DELETE /messages returned ${response.status}. ` +
+						`Server-restricted keys may not allow destructive cleanup; fresh-message filtering still protects the test. ${errorBody}`
+				);
+				return;
+			}
 			throw new Error(`Mailosaur delete-all error (${response.status}): ${errorBody}`);
 		}
 	}
