@@ -86,7 +86,7 @@ test.describe('Workflows editor', () => {
 			await expect(page.getByTestId('workflow-run-row').first()).toContainText('durable last_5', { timeout: 30000 });
 
 			await page.getByTestId('delete-workflow').click();
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('Check weather', { timeout: 30000 });
+			await expect(page.getByTestId('workflow-node-stack')).toContainText('Check Berlin weather', { timeout: 30000 });
 			await page.getByTestId('delete-workflow').click();
 			await expect(page.getByText('Build your first workflow')).toBeVisible({ timeout: 30000 });
 		} finally {
