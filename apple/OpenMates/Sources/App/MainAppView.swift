@@ -3120,15 +3120,15 @@ struct OpenMatesWebHeader: View {
                             .fontWeight(.bold)
                             .foregroundStyle(Color.grey100)
                     }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(AppStrings.openMatesName)
 
                     Text(AppStrings.signupVersionTitle)
                         .font(.omXs)
                         .foregroundStyle(Color.grey60)
                         .lineLimit(1)
+                        .accessibilityIdentifier("app-version-label")
                 }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("OpenMates, \(AppStrings.signupVersionTitle)")
-                .accessibilityIdentifier("app-version-label")
 
                 Spacer(minLength: .spacing4)
 
