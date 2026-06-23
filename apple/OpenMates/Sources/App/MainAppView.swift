@@ -3245,9 +3245,7 @@ private struct WorkspaceSwitcherTabs: View {
         .accessibilityLabel(label)
         .accessibilityValue(disabled ? AppStrings.disabled : "")
 
-        if disabled {
-            tab.accessibilityAddTraits(.isDisabled)
-        } else if active {
+        if active {
             tab.accessibilityAddTraits(.isSelected)
         } else {
             tab
