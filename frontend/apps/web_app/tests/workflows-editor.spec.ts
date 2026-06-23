@@ -87,7 +87,7 @@ test.describe('Workflows editor', () => {
 			await page.getByTestId('workflow-retention-select').selectOption('last_5');
 			await page.getByTestId('create-news-workflow').click();
 			await expect(page.getByTestId('selected-workflow-retention')).toContainText('Keep latest 5 encrypted runs', { timeout: 30000 });
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('Search AI news');
+			await expect(page.getByTestId('workflow-node-stack')).toContainText('News | Search OpenAI news');
 			await page.getByTestId('run-workflow').click();
 			await expect(page.getByTestId('workflow-run-row').first()).toContainText('durable last_5', { timeout: 30000 });
 
