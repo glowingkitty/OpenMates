@@ -242,13 +242,16 @@ test('completes signup and EU card purchase from Settings billing', async ({
 	await expect(passwordManagerLink).toHaveAttribute('href', /^https?:/i);
 
 	await page.locator('#signup-password-continue').click();
-	await page.waitForURL(/chat/);
+
+	// Signup completion now closes the modal and reveals the authenticated chat shell
+	// without relying on a full route navigation. Assert the authenticated Settings
+	// menu is visible, which is the UI surface this spec needs for the purchase flow.
+	const settingsMenuButtonForPurchase = page.locator('#settings-menu-toggle');
+	await expect(settingsMenuButtonForPurchase).toBeVisible({ timeout: 60000 });
 	await takeStepScreenshot(page, 'chat');
-	logSignupCheckpoint('Arrived in chat after signup.');
+	logSignupCheckpoint('Arrived in authenticated chat shell after signup.');
 
 	// Billing moved out of signup. Purchase credits from Settings > Billing > Buy Credits.
-	const settingsMenuButtonForPurchase = page.locator('#settings-menu-toggle');
-	await expect(settingsMenuButtonForPurchase).toBeVisible({ timeout: 10000 });
 	await settingsMenuButtonForPurchase.click();
 	await expect(page.locator('[data-testid="settings-menu"].visible')).toBeVisible({ timeout: 10000 });
 	await page.getByRole('menuitem', { name: /billing/i }).click();
@@ -404,14 +407,14 @@ test('completes signup and EU card purchase from Settings billing', async ({
 	await deleteOtpInput.fill(deleteVerificationCode);
 	logSignupCheckpoint('Entered action verification code to confirm deletion.');
 
-	// Confirm logout redirect to demo chat after deletion. The deletion flow can
-	// clear authenticated UI before the transient in-settings success message is visible.
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 30000
-	});
+	// Confirm logout after deletion. Logged-out home now clears the chat hash instead of
+	// forcing #chat-id=demo-for-everyone. The settings/profile button remains visible
+	// as guest chrome, so the Login CTA is the unauthenticated-shell proof.
+	await expect(page.getByRole('button', { name: /login/i })).toBeVisible({ timeout: 30000 });
+	await expect(page.getByTestId('profile-container')).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'delete-account-success');
 	logSignupCheckpoint('Account deletion confirmed.');
-	logSignupCheckpoint('Returned to demo chat after account deletion.');
+	logSignupCheckpoint('Returned to logged-out home after account deletion.');
 
 	// Privacy promise check: after a full signup + purchase + deletion flow,
 	// no third-party tracking cookies must exist. Enforces
