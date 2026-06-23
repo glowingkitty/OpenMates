@@ -1774,6 +1774,8 @@ interface NewSystemMessagePayload {
     /** Status of this system message — e.g. "waiting_for_user" for credits rejection.
      *  Preserves the originating device's status so other devices show the correct UI state. */
     status?: string;
+    /** Encrypted chat key when this system message is the first persisted item for a chat. */
+    encrypted_chat_key?: string;
   };
   versions: {
     messages_v: number;
@@ -1850,7 +1852,22 @@ export async function handleNewSystemMessageImpl(
   try {
     // Check if chat exists locally AND key is in cache before saving.
     // If either is missing, queue the message for later flush.
-    const chat = await chatDB.getChat(chat_id);
+    let chat = await chatDB.getChat(chat_id);
+
+    if (chat && data.encrypted_chat_key && !chat.encrypted_chat_key) {
+      const receivedKey = await chatKeyManager.receiveKeyFromServer(
+        chat_id,
+        data.encrypted_chat_key,
+      );
+      if (receivedKey) {
+        chat = { ...chat, encrypted_chat_key: data.encrypted_chat_key };
+        await chatDB.updateChat(chat);
+        console.info(
+          `[ChatSyncService:AppSettings] Persisted encrypted_chat_key from system message for chat ${chat_id}`,
+        );
+      }
+    }
+
     const keyInCache = !!chatKeyManager.getKeySync(chat_id);
 
     if (!chat || !keyInCache) {

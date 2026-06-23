@@ -65,7 +65,7 @@ async def handle_chat_system_message_added(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("chat_system_message_added", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -105,6 +105,9 @@ async def handle_chat_system_message_added(
             # status preserves the originating device's message status (e.g., "waiting_for_user")
             # so other devices store and display the correct state after cross-device sync
             message_status = message_payload.get("status")
+            encrypted_chat_key = payload.get(
+                "encrypted_chat_key"
+            ) or message_payload.get("encrypted_chat_key")
         
             # Validate required fields
             if not message_id or not encrypted_content:
@@ -189,7 +192,8 @@ async def handle_chat_system_message_added(
                     "created_at": created_at,
                     "new_chat_messages_version": new_messages_v,
                     "new_last_edited_overall_timestamp": now_ts,
-                    "encrypted_chat_key": None,  # Not needed for system messages in existing chats
+                    # Required when a system message creates the chat.
+                    "encrypted_chat_key": encrypted_chat_key,
                     "user_id": user_id,  # For sync cache updates
                     "user_message_id": user_message_id,  # Links rejection to triggering user message
                     "message_status": message_status,  # Preserve status for phased sync delivery
@@ -226,6 +230,8 @@ async def handle_chat_system_message_added(
             # Include status so Device B stores the same status as Device A (e.g., "waiting_for_user")
             if message_status:
                 broadcast_data["status"] = message_status
+            if encrypted_chat_key:
+                broadcast_data["encrypted_chat_key"] = encrypted_chat_key
 
             broadcast_payload = {
                 "type": "new_system_message",  # Message type for frontend handler
