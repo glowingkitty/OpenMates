@@ -20,7 +20,10 @@ final class ChatFlowParityUITests: XCTestCase {
         ]
         app.launch()
 
-        XCTAssertTrue(app.staticTexts["v0.13.0"].waitForExistence(timeout: 10))
+        let versionLabel = app.descendants(matching: .any)
+            .containing(NSPredicate(format: "label CONTAINS %@", "v0.13.0"))
+            .firstMatch
+        XCTAssertTrue(versionLabel.waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["daily-inspiration-card"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["What are your interests?"].exists)
