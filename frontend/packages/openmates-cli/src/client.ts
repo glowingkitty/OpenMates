@@ -6214,6 +6214,8 @@ export class OpenMatesClient {
   private getCliRequestHeaders(): Record<string, string> {
     return {
       "User-Agent": this.getCliUserAgent(),
+      "X-OpenMates-SDK": "cli",
+      "X-OpenMates-Device-Identity": this.getLocalDeviceName(),
       Origin: deriveAppUrl(this.apiUrl),
     };
   }

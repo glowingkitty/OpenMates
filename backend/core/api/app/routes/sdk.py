@@ -7,6 +7,8 @@ Scope: SDK bootstrap routes; chat execution routes are added in later slices.
 """
 
 import hashlib
+import importlib
+import inspect
 import time
 from typing import Any, TYPE_CHECKING
 
@@ -195,6 +197,16 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
+def _sdk_route_handler(handler: Any) -> Any:
+    # SDK dispatch reuses product route handlers directly; unwrap decorators
+    # such as SlowAPI so internal calls keep normal FastAPI dependencies explicit.
+    return inspect.unwrap(handler)
+
+
+def _sdk_route_module(module_name: str) -> Any:
+    return importlib.import_module(f"backend.core.api.app.routes.{module_name}")
+
+
 def _extract_chat_response_content(result: Any) -> str | None:
     if not isinstance(result, dict):
         return None
@@ -290,16 +302,16 @@ async def _dispatch_sdk_surface(
                 raise HTTPException(status_code=400, detail="Missing docs search query")
             if len(query) > 200:
                 raise HTTPException(status_code=400, detail="Docs search query must be 200 characters or fewer")
-            from backend.core.api.app.routes import docs_routes
+            docs_routes = _sdk_route_module("docs_routes")
 
-            return {"results": await docs_routes.search_docs(query)}
-        from backend.core.api.app.routes import docs_routes
+            return {"results": await _sdk_route_handler(docs_routes.search_docs)(query)}
+        docs_routes = _sdk_route_module("docs_routes")
 
         if path == "":
-            return await docs_routes.list_docs()
+            return await _sdk_route_handler(docs_routes.list_docs)()
         if path.endswith("/download"):
             path = path.removesuffix("/download")
-        response = await docs_routes.get_doc(path)
+        response = await _sdk_route_handler(docs_routes.get_doc)(path)
         content = response.body.decode("utf-8") if isinstance(response.body, bytes) else str(response.body)
         return {"slug": path, "content": content}
 
@@ -313,9 +325,9 @@ async def _dispatch_sdk_surface(
         )
 
         if path == "" and request.method == "GET":
-            return _jsonable(await get_learning_mode_status(user, cache_service, directus_service))
+            return _jsonable(await _sdk_route_handler(get_learning_mode_status)(user, cache_service, directus_service))
         if path in ("enable", "activate") and request.method == "POST":
-            return _jsonable(await activate_learning_mode(
+            return _jsonable(await _sdk_route_handler(activate_learning_mode)(
                 request,
                 LearningModeActivateRequest(passcode=str((body or {}).get("passcode") or ""), age_group=str((body or {}).get("age_group") or "")),
                 user,
@@ -323,7 +335,7 @@ async def _dispatch_sdk_surface(
                 directus_service,
             ))
         if path in ("disable", "deactivate") and request.method == "POST":
-            return _jsonable(await deactivate_learning_mode(
+            return _jsonable(await _sdk_route_handler(deactivate_learning_mode)(
                 request,
                 LearningModeDeactivateRequest(passcode=str((body or {}).get("passcode") or "")),
                 user,
@@ -345,11 +357,11 @@ async def _dispatch_sdk_surface(
             return {"events": events}
 
     if surface == "reminders":
-        from backend.core.api.app.routes import settings as settings_routes
+        settings_routes = _sdk_route_module("settings")
 
         parts = [part for part in path.split("/") if part]
         if not parts and request.method == "GET":
-            return _jsonable(await settings_routes.get_active_reminders(
+            return _jsonable(await _sdk_route_handler(settings_routes.get_active_reminders)(
                 request,
                 include_recent_fired=request.query_params.get("include_recent_fired") == "true",
                 upcoming_hours=_bounded_int_query(request, "upcoming_hours", default=0, minimum=0, maximum=168),
@@ -359,7 +371,7 @@ async def _dispatch_sdk_surface(
                 encryption_service=encryption_service,
             ))
         if len(parts) == 1 and request.method == "PATCH":
-            return _jsonable(await settings_routes.update_reminder_endpoint(
+            return _jsonable(await _sdk_route_handler(settings_routes.update_reminder_endpoint)(
                 parts[0],
                 request,
                 settings_routes.UpdateReminderRequest(**(body or {})),
@@ -368,12 +380,12 @@ async def _dispatch_sdk_surface(
                 encryption_service,
             ))
         if len(parts) == 1 and request.method == "DELETE":
-            return await settings_routes.delete_reminder_endpoint(parts[0], request, user, cache_service)
+            return await _sdk_route_handler(settings_routes.delete_reminder_endpoint)(parts[0], request, user, cache_service)
 
     if surface == "inspirations" and request.method == "GET":
         from backend.core.api.app.routes.default_inspirations import get_default_inspirations
 
-        return await get_default_inspirations(
+        return await _sdk_route_handler(get_default_inspirations)(
             request,
             lang=request.query_params.get("lang", "en"),
             directus_service=directus_service,
@@ -406,11 +418,11 @@ async def _dispatch_sdk_surface(
         if path in ("export/manifest", "export/data"):
             _require_chat_scope(api_key_info, "chat:read_existing")
             _require_sdk_read_scope(api_key_info, "billing", "billing:read")
-        from backend.core.api.app.routes import settings as settings_routes
+        settings_routes = _sdk_route_module("settings")
         from backend.core.api.app.schemas.settings import StorageDeleteFilesRequest, TimezoneUpdateRequest, TopicPreferencesEncryptedRequest, UsernameUpdateRequest
 
         if path == "timezone" and request.method == "POST":
-            return _jsonable(await settings_routes.update_user_timezone(
+            return _jsonable(await _sdk_route_handler(settings_routes.update_user_timezone)(
                 request,
                 TimezoneUpdateRequest(timezone=str((body or {}).get("timezone") or "")),
                 user,
@@ -418,7 +430,7 @@ async def _dispatch_sdk_surface(
                 cache_service,
             ))
         if path == "username" and request.method == "POST":
-            return _jsonable(await settings_routes.update_username(
+            return _jsonable(await _sdk_route_handler(settings_routes.update_username)(
                 request,
                 UsernameUpdateRequest(username=str((body or {}).get("username") or "")),
                 user,
@@ -427,13 +439,13 @@ async def _dispatch_sdk_surface(
                 encryption_service,
             ))
         if path == "export/manifest" and request.method == "GET":
-            return _jsonable(await settings_routes.get_export_manifest(request, user, directus_service, cache_service))
+            return _jsonable(await _sdk_route_handler(settings_routes.get_export_manifest)(request, user, directus_service, cache_service))
         if path == "export/data" and request.method == "GET":
-            return _jsonable(await settings_routes.get_export_data(request, True, True, user, directus_service, encryption_service, cache_service))
+            return _jsonable(await _sdk_route_handler(settings_routes.get_export_data)(request, True, True, user, directus_service, encryption_service, cache_service))
         if path == "storage" and request.method == "GET":
-            return _jsonable(await settings_routes.get_storage_overview(request, user, directus_service))
+            return _jsonable(await _sdk_route_handler(settings_routes.get_storage_overview)(request, user, directus_service))
         if path == "storage/files" and request.method == "GET":
-            return _jsonable(await settings_routes.list_storage_files(
+            return _jsonable(await _sdk_route_handler(settings_routes.list_storage_files)(
                 request,
                 category=request.query_params.get("category"),
                 current_user=user,
@@ -442,14 +454,14 @@ async def _dispatch_sdk_surface(
         if path == "storage/files" and request.method == "DELETE":
             payload = body or {}
             scope = "all" if payload.get("all") else "category" if payload.get("category") else "single"
-            return _jsonable(await settings_routes.delete_storage_files(
+            return _jsonable(await _sdk_route_handler(settings_routes.delete_storage_files)(
                 StorageDeleteFilesRequest(scope=scope, file_id=payload.get("file_id"), category=payload.get("category")),
                 request,
                 user,
                 directus_service,
             ))
         if path == "topic-preferences" and request.method == "POST":
-            return _jsonable(await settings_routes.update_topic_preferences(
+            return _jsonable(await _sdk_route_handler(settings_routes.update_topic_preferences)(
                 request,
                 TopicPreferencesEncryptedRequest(**(body or {})),
                 user,
@@ -474,9 +486,9 @@ async def _dispatch_sdk_surface(
             )
             return {"memories": memories or []}
         if parts == ["types"] and request.method == "GET":
-            from backend.core.api.app.routes import apps_api as apps_routes
+            apps_routes = _sdk_route_module("apps_api")
 
-            apps = await apps_routes.list_apps(request=request, user_info={"user_id": user.id})
+            apps = await _sdk_route_handler(apps_routes.list_apps)(request=request, user_info={"user_id": user.id})
             return {"apps": _jsonable(apps)}
         if not parts and request.method == "POST":
             entry = (body or {}).get("entry") or body or {}
@@ -514,7 +526,7 @@ async def _dispatch_sdk_surface(
             return {"success": True, "id": parts[0]}
 
     if surface == "settings":
-        from backend.core.api.app.routes import settings as settings_routes
+        settings_routes = _sdk_route_module("settings")
         from backend.core.api.app.schemas.settings import (
             AiModelDefaultsRequest,
             AutoDeleteChatsRequest,
@@ -524,7 +536,7 @@ async def _dispatch_sdk_surface(
         )
 
         if path == "language" and request.method == "POST":
-            return _jsonable(await settings_routes.update_user_language(
+            return _jsonable(await _sdk_route_handler(settings_routes.update_user_language)(
                 request,
                 LanguageUpdateRequest(language=str((body or {}).get("language") or "")),
                 user,
@@ -532,7 +544,7 @@ async def _dispatch_sdk_surface(
                 cache_service,
             ))
         if path == "dark-mode" and request.method == "POST":
-            return _jsonable(await settings_routes.update_user_darkmode(
+            return _jsonable(await _sdk_route_handler(settings_routes.update_user_darkmode)(
                 request,
                 DarkModeUpdateRequest(darkmode=bool((body or {}).get("enabled"))),
                 user,
@@ -540,7 +552,7 @@ async def _dispatch_sdk_surface(
                 cache_service,
             ))
         if path == "font" and request.method == "POST":
-            return _jsonable(await settings_routes.update_user_ui_font(
+            return _jsonable(await _sdk_route_handler(settings_routes.update_user_ui_font)(
                 request,
                 UiFontUpdateRequest(ui_font=str((body or {}).get("font") or "")),
                 user,
@@ -548,7 +560,7 @@ async def _dispatch_sdk_surface(
                 cache_service,
             ))
         if path == "auto-delete/chats" and request.method == "POST":
-            return _jsonable(await settings_routes.update_auto_delete_chats(
+            return _jsonable(await _sdk_route_handler(settings_routes.update_auto_delete_chats)(
                 request,
                 AutoDeleteChatsRequest(period=str((body or {}).get("period") or "")),
                 user,
@@ -556,7 +568,7 @@ async def _dispatch_sdk_surface(
                 cache_service,
             ))
         if path == "ai-model-defaults" and request.method == "POST":
-            return _jsonable(await settings_routes.update_ai_model_defaults(
+            return _jsonable(await _sdk_route_handler(settings_routes.update_ai_model_defaults)(
                 request,
                 AiModelDefaultsRequest(**(body or {})),
                 user,
@@ -566,22 +578,22 @@ async def _dispatch_sdk_surface(
 
     if surface == "billing":
         if path == "" and request.method == "GET":
-            from backend.core.api.app.routes import settings as settings_routes
+            settings_routes = _sdk_route_module("settings")
 
-            return _jsonable(await settings_routes.get_billing_overview(request, user, directus_service, cache_service, encryption_service))
+            return _jsonable(await _sdk_route_handler(settings_routes.get_billing_overview)(request, user, directus_service, cache_service, encryption_service))
         if path == "invoices" and request.method == "GET":
-            from backend.core.api.app.routes import settings as settings_routes
+            settings_routes = _sdk_route_module("settings")
 
-            overview = await settings_routes.get_billing_overview(request, user, directus_service, cache_service, encryption_service)
+            overview = await _sdk_route_handler(settings_routes.get_billing_overview)(request, user, directus_service, cache_service, encryption_service)
             return {"invoices": _jsonable(getattr(overview, "invoices", []))}
         if path == "usage" and request.method == "GET":
-            from backend.core.api.app.routes import settings as settings_routes
+            settings_routes = _sdk_route_module("settings")
 
-            return await settings_routes.get_usage(request, user, directus_service, cache_service)
+            return await _sdk_route_handler(settings_routes.get_usage)(request, user, directus_service, cache_service)
         if path == "usage/summaries" and request.method == "GET":
-            from backend.core.api.app.routes import settings as settings_routes
+            settings_routes = _sdk_route_module("settings")
 
-            return await settings_routes.get_usage_summaries(
+            return await _sdk_route_handler(settings_routes.get_usage_summaries)(
                 request,
                 type=request.query_params.get("type", "chats"),
                 months=_bounded_int_query(request, "months", default=3, minimum=1, maximum=36),
@@ -590,64 +602,64 @@ async def _dispatch_sdk_surface(
                 cache_service=cache_service,
             )
         if path == "usage/daily" and request.method == "GET":
-            from backend.core.api.app.routes import settings as settings_routes
+            settings_routes = _sdk_route_module("settings")
 
-            return await settings_routes.get_daily_overview(request, _bounded_int_query(request, "days", default=7, minimum=1, maximum=90), user, directus_service, cache_service)
+            return await _sdk_route_handler(settings_routes.get_daily_overview)(request, _bounded_int_query(request, "days", default=7, minimum=1, maximum=90), user, directus_service, cache_service)
         if path == "usage/export" and request.method == "GET":
-            from backend.core.api.app.routes import settings as settings_routes
+            settings_routes = _sdk_route_module("settings")
 
-            return await settings_routes.export_usage_csv(request, _bounded_int_query(request, "months", default=3, minimum=1, maximum=36), user, directus_service, encryption_service)
+            return await _sdk_route_handler(settings_routes.export_usage_csv)(request, _bounded_int_query(request, "months", default=3, minimum=1, maximum=36), user, directus_service, encryption_service)
         if path == "auto-topup/low-balance" and request.method == "POST":
-            from backend.core.api.app.routes import settings as settings_routes
+            settings_routes = _sdk_route_module("settings")
             from backend.core.api.app.schemas.settings import AutoTopUpLowBalanceRequest
 
-            return _jsonable(await settings_routes.update_low_balance_auto_topup(request, AutoTopUpLowBalanceRequest(**(body or {})), user, directus_service, cache_service, encryption_service))
+            return _jsonable(await _sdk_route_handler(settings_routes.update_low_balance_auto_topup)(request, AutoTopUpLowBalanceRequest(**(body or {})), user, directus_service, cache_service, encryption_service))
         if path == "bank-transfer-orders" and request.method == "POST":
-            from backend.core.api.app.routes import payments as payments_routes
+            payments_routes = _sdk_route_module("payments")
 
-            return _jsonable(await payments_routes.create_bank_transfer_order(request=request, order_data=payments_routes.CreateBankTransferOrderRequest(**(body or {})), payment_service=request.app.state.payment_service, cache_service=cache_service, directus_service=directus_service, encryption_service=encryption_service, current_user=user))
+            return _jsonable(await _sdk_route_handler(payments_routes.create_bank_transfer_order)(request=request, order_data=payments_routes.CreateBankTransferOrderRequest(**(body or {})), payment_service=request.app.state.payment_service, cache_service=cache_service, directus_service=directus_service, encryption_service=encryption_service, current_user=user))
         if path == "bank-transfer-orders" and request.method == "GET":
-            from backend.core.api.app.routes import payments as payments_routes
+            payments_routes = _sdk_route_module("payments")
 
-            return _jsonable(await payments_routes.get_pending_bank_transfers(request=request, cache_service=cache_service, directus_service=directus_service, current_user=user))
+            return _jsonable(await _sdk_route_handler(payments_routes.get_pending_bank_transfers)(request=request, cache_service=cache_service, directus_service=directus_service, current_user=user))
         if path.startswith("bank-transfer-orders/") and request.method == "GET":
-            from backend.core.api.app.routes import payments as payments_routes
+            payments_routes = _sdk_route_module("payments")
 
-            return _jsonable(await payments_routes.get_bank_transfer_status(request=request, order_id=path.split("/", 1)[1], cache_service=cache_service, directus_service=directus_service, current_user=user))
+            return _jsonable(await _sdk_route_handler(payments_routes.get_bank_transfer_status)(request=request, order_id=path.split("/", 1)[1], cache_service=cache_service, directus_service=directus_service, current_user=user))
         if path == "gift-cards/redeem" and request.method == "POST":
-            from backend.core.api.app.routes import payments as payments_routes
+            payments_routes = _sdk_route_module("payments")
 
-            return _jsonable(await payments_routes.redeem_gift_card(request, payments_routes.RedeemGiftCardRequest(**(body or {})), None, user, directus_service, cache_service, encryption_service))
+            return _jsonable(await _sdk_route_handler(payments_routes.redeem_gift_card)(request, payments_routes.RedeemGiftCardRequest(**(body or {})), None, user, directus_service, cache_service, encryption_service))
         if path == "gift-cards/redeemed" and request.method == "GET":
-            from backend.core.api.app.routes import payments as payments_routes
+            payments_routes = _sdk_route_module("payments")
 
-            return _jsonable(await payments_routes.get_redeemed_gift_cards(request=request, _official_cloud=None, current_user=user, directus_service=directus_service, cache_service=cache_service, encryption_service=encryption_service))
+            return _jsonable(await _sdk_route_handler(payments_routes.get_redeemed_gift_cards)(request=request, _official_cloud=None, current_user=user, directus_service=directus_service, cache_service=cache_service, encryption_service=encryption_service))
         if path == "gift-cards/purchased" and request.method == "GET":
-            from backend.core.api.app.routes import payments as payments_routes
+            payments_routes = _sdk_route_module("payments")
 
-            return _jsonable(await payments_routes.get_purchased_gift_cards(request=request, current_user=user, directus_service=directus_service))
+            return _jsonable(await _sdk_route_handler(payments_routes.get_purchased_gift_cards)(request=request, current_user=user, directus_service=directus_service))
         if path == "gift-cards/bank-transfer-orders" and request.method == "POST":
-            from backend.core.api.app.routes import payments as payments_routes
+            payments_routes = _sdk_route_module("payments")
 
-            return _jsonable(await payments_routes.create_gift_card_bank_transfer_order(request=request, order_data=payments_routes.CreateBankTransferOrderRequest(**(body or {})), _official_cloud=None, payment_service=request.app.state.payment_service, cache_service=cache_service, directus_service=directus_service, encryption_service=encryption_service, current_user=user))
+            return _jsonable(await _sdk_route_handler(payments_routes.create_gift_card_bank_transfer_order)(request=request, order_data=payments_routes.CreateBankTransferOrderRequest(**(body or {})), _official_cloud=None, payment_service=request.app.state.payment_service, cache_service=cache_service, directus_service=directus_service, encryption_service=encryption_service, current_user=user))
         if path.startswith("gift-cards/purchases/") and request.method == "GET":
-            from backend.core.api.app.routes import payments as payments_routes
+            payments_routes = _sdk_route_module("payments")
 
-            return _jsonable(await payments_routes.get_gift_card_purchase_status(request=request, order_id=path.split("/", 2)[2], _official_cloud=None, cache_service=cache_service, directus_service=directus_service, current_user=user))
+            return _jsonable(await _sdk_route_handler(payments_routes.get_gift_card_purchase_status)(request=request, order_id=path.split("/", 2)[2], _official_cloud=None, cache_service=cache_service, directus_service=directus_service, current_user=user))
         if path.startswith("invoices/") and path.endswith("/download") and request.method == "GET":
-            from backend.core.api.app.routes import payments as payments_routes
+            payments_routes = _sdk_route_module("payments")
 
             invoice_id = path.split("/")[1]
-            return await payments_routes.download_invoice(request, invoice_id, user, directus_service, encryption_service, request.app.state.s3_service)
+            return await _sdk_route_handler(payments_routes.download_invoice)(request, invoice_id, user, directus_service, encryption_service, request.app.state.s3_service)
         if path.startswith("invoices/") and path.endswith("/credit-note/download") and request.method == "GET":
-            from backend.core.api.app.routes import payments as payments_routes
+            payments_routes = _sdk_route_module("payments")
 
             invoice_id = path.split("/")[1]
-            return await payments_routes.download_credit_note(request, invoice_id, user, directus_service, encryption_service, request.app.state.s3_service)
+            return await _sdk_route_handler(payments_routes.download_credit_note)(request, invoice_id, user, directus_service, encryption_service, request.app.state.s3_service)
         if path == "refund" and request.method == "POST":
-            from backend.core.api.app.routes import payments as payments_routes
+            payments_routes = _sdk_route_module("payments")
 
-            return _jsonable(await payments_routes.request_refund(request=request, refund_request=payments_routes.RefundRequest(**(body or {})), current_user=user, payment_service=request.app.state.payment_service, directus_service=directus_service, encryption_service=encryption_service, cache_service=cache_service, compliance_service=payments_routes.ComplianceService()))
+            return _jsonable(await _sdk_route_handler(payments_routes.request_refund)(request=request, refund_request=payments_routes.RefundRequest(**(body or {})), current_user=user, payment_service=request.app.state.payment_service, directus_service=directus_service, encryption_service=encryption_service, cache_service=cache_service, compliance_service=payments_routes.ComplianceService()))
 
     if surface == "embeds":
         parts = [part for part in path.split("/") if part]
@@ -669,11 +681,11 @@ async def _dispatch_sdk_surface(
         from backend.core.api.app.routes.embeds_api import get_embed_version, list_embed_versions, restore_embed_version
 
         if len(parts) == 2 and parts[1] == "versions" and request.method == "GET":
-            return await list_embed_versions(parts[0], request, user, directus_service)
+            return await _sdk_route_handler(list_embed_versions)(parts[0], request, user, directus_service)
         if len(parts) == 3 and parts[1] == "versions" and request.method == "GET":
-            return await get_embed_version(parts[0], int(parts[2]), request, user, directus_service)
+            return await _sdk_route_handler(get_embed_version)(parts[0], int(parts[2]), request, user, directus_service)
         if len(parts) == 4 and parts[1] == "versions" and parts[3] == "restore" and request.method == "POST":
-            return await restore_embed_version(parts[0], int(parts[2]), request, user, directus_service)
+            return await _sdk_route_handler(restore_embed_version)(parts[0], int(parts[2]), request, user, directus_service)
 
     if surface == "connected-accounts":
         if path == "import" and request.method == "POST":

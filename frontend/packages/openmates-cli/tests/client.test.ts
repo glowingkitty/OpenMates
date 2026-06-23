@@ -223,6 +223,36 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  it("sends stable CLI API-key device headers for app-skill execution", async () => {
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      assert.strictEqual(request.url, "/v1/apps/code/skills/get_docs");
+      assert.strictEqual(request.method, "POST");
+      assert.strictEqual(request.headers.authorization, "Bearer sk-api-test-key");
+      assert.strictEqual(request.headers["x-openmates-sdk"], "cli");
+      assert.match(String(request.headers["x-openmates-device-identity"]), /^OpenMates CLI \(.+\)$/);
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ success: true, data: { ok: true } }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const result = await client.runSkill({
+        app: "code",
+        skill: "get_docs",
+        inputData: { library: "React", question: "useState" },
+        apiKey: "sk-api-test-key",
+      });
+
+      assert.deepEqual(result, { success: true, data: { ok: true } });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it("persists pending AI responses during CLI sync", async () => {
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.url === "/v1/auth/session") {

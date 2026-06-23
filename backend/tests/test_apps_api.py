@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import base64
 import importlib
+import re
 import sys
 import types
 
-from fastapi import FastAPI
+import pytest
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, Field
 
@@ -53,6 +55,7 @@ encryption_stub.EncryptionService = object
 sys.modules.setdefault("backend.core.api.app.services.cache", cache_stub)
 sys.modules.setdefault("backend.core.api.app.services.directus", directus_stub)
 sys.modules.setdefault("backend.core.api.app.utils.encryption", encryption_stub)
+sys.modules.setdefault("regex", re)
 
 
 class CodeRunDirectFile(BaseModel):
@@ -167,6 +170,36 @@ for module_name, stub in (
 
 def _b64(value: str) -> str:
     return base64.b64encode(value.encode("utf-8")).decode("ascii")
+
+
+@pytest.mark.asyncio
+async def test_session_or_api_key_auth_preserves_device_approval_errors(monkeypatch) -> None:
+    api_key_auth_module = importlib.import_module("backend.core.api.app.utils.api_key_auth")
+
+    class FakeApiKeyAuthService:
+        async def authenticate_api_key(self, api_key, request):
+            assert api_key == "sk-api-test"
+            raise api_key_auth_module.DeviceNotApprovedError("New device detected")
+
+    monkeypatch.setattr(
+        api_key_auth_module,
+        "get_api_key_auth_service",
+        lambda _request: FakeApiKeyAuthService(),
+    )
+
+    request = types.SimpleNamespace(headers={"Authorization": "Bearer sk-api-test"})
+
+    with pytest.raises(HTTPException) as exc:
+        await apps_api.get_session_or_api_key_info(
+            request=request,
+            response=Response(),
+            cache_service=object(),
+            directus_service=object(),
+            refresh_token=None,
+        )
+
+    assert exc.value.status_code == 403
+    assert exc.value.detail == "New device detected"
 
 
 def test_code_run_app_skill_route_starts_direct_run(monkeypatch) -> None:

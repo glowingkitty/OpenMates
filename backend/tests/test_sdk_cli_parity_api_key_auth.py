@@ -278,7 +278,11 @@ async def test_sdk_dispatch_settings_language_reuses_settings_route(monkeypatch)
         assert request_data.language == "de"
         return {"success": True}
 
-    fake_settings_routes = SimpleNamespace(update_user_language=fake_update_language)
+    async def fake_rate_limit_wrapper(*args, **kwargs):
+        raise AssertionError("SDK dispatch must unwrap route decorators before calling handlers")
+
+    fake_rate_limit_wrapper.__wrapped__ = fake_update_language
+    fake_settings_routes = SimpleNamespace(update_user_language=fake_rate_limit_wrapper)
     monkeypatch.setitem(sys.modules, "backend.core.api.app.routes.settings", fake_settings_routes)
 
     result = await _dispatch_sdk_surface(

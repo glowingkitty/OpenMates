@@ -34,6 +34,10 @@ from backend.core.api.app.services.api_key_authorization import (
     ApiKeyBudgetError,
     ApiKeyScopeError,
 )
+from backend.core.api.app.utils.api_key_auth import (
+    ApiKeyNotFoundError,
+    DeviceNotApprovedError,
+)
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 
 # Import comprehensive ASCII smuggling sanitization
@@ -215,8 +219,10 @@ async def get_session_or_api_key_info(
             api_key = auth_header[7:]
             user_info = await api_key_auth_service.authenticate_api_key(api_key, request=request)
             return user_info  # already the correct Dict shape
-        except Exception:
-            pass  # API key invalid — fall through to 401
+        except DeviceNotApprovedError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except ApiKeyNotFoundError as exc:
+            raise HTTPException(status_code=401, detail=str(exc)) from exc
 
     raise HTTPException(status_code=401, detail="Not authenticated: provide a session cookie or API key")
 

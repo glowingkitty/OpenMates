@@ -8451,15 +8451,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Defensive fallback: also detect from a user message with waiting_for_user alone,
         // for cases where the system message's IDB save failed.
         if (!activeChatDecryptedTitle && !activeChatDecryptedCategory && newMessages.length > 0) {
+            const hasCreditsRejectionEvidence = (m: ChatMessageModel) => {
+                if (m.rejection_reason === 'insufficient_credits') return true;
+                const content = typeof m.content === 'string' ? m.content.toLowerCase() : '';
+                return content.includes('insufficient credit') || content.includes('not enough credits') || content.includes('credits needed');
+            };
             const hasSystemRejection = newMessages.some(m =>
-                m.status === 'waiting_for_user' && (m.role === 'system' || m.role === 'assistant')
+                m.status === 'waiting_for_user' &&
+                (m.role === 'system' || m.role === 'assistant') &&
+                hasCreditsRejectionEvidence(m)
             );
             // Detect system messages whose status was corrupted by phased sync:
-            // In a credits-rejected chat (no title/category), a role='system' message must
-            // have been a rejection notice — restore its status to 'waiting_for_user'.
+            // In a credits-rejected chat (no title/category), only repair system
+            // messages with explicit credit-rejection evidence. Webhook chats can
+            // legitimately start titleless with synced system messages.
             const corruptedSystemMessages = !hasSystemRejection
                 ? newMessages.filter(m =>
-                    m.role === 'system' && (m.status === 'delivered' || m.status === 'synced')
+                    m.role === 'system' &&
+                    (m.status === 'delivered' || m.status === 'synced') &&
+                    hasCreditsRejectionEvidence(m)
                 )
                 : [];
             // Fallback: detect from user message alone (system message may be missing from IDB)
