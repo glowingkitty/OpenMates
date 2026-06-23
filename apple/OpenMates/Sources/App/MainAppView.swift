@@ -3242,9 +3242,11 @@ private struct WorkspaceSwitcherTabs: View {
         .buttonStyle(.plain)
         .disabled(disabled)
         .opacity(disabled ? 0.7 : 1)
+        .accessibilityElement(children: .ignore)
         .accessibilityIdentifier(testId)
         .accessibilityLabel(label)
         .accessibilityValue(disabled ? AppStrings.disabled : "")
+        .accessibilityAddTraits(.isButton)
 
         if active {
             tab.accessibilityAddTraits(.isSelected)
