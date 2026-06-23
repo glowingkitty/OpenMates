@@ -624,9 +624,9 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed_after_deploy
-        run_id: github-actions-27994570123
-        timestamp: "2026-06-23T00:57:34Z"
-        note: "Passed after deploying editable Shortcuts-style workflow builder fixes through a745d81. Test orchestrator run 2026-06-23T00:50:22Z verifies visible editor palette, editable title/action fields, adding a report action, saving graph changes, running workflows, retention labels, and cleanup."
+        run_id: github-actions-28023031745
+        timestamp: "2026-06-23T11:33:22Z"
+        note: "Passed after deploying screenshot-style Shortcuts card rendering through ddb547a and updated summary assertions through 210f783. Test orchestrator run 2026-06-23T11:26:17Z verifies collapsed semantic cards, then/branch labels, Do nothing false branch, click-to-expand node editing, saved graph changes, runs, retention labels, and cleanup."
 
   - id: T-APPLE-001
     type: unit
