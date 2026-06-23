@@ -3160,7 +3160,6 @@ struct OpenMatesWebHeader: View {
 
             if showWorkspaceSwitcher {
                 WorkspaceSwitcherTabs(onNewChat: onNewChat)
-                    .accessibilityIdentifier("workspace-switcher")
                     .zIndex(1)
             }
         }
@@ -3221,6 +3220,8 @@ private struct WorkspaceSwitcherTabs: View {
         .padding(3)
         .background(Color.grey20)
         .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("workspace-switcher")
     }
 
     @ViewBuilder
