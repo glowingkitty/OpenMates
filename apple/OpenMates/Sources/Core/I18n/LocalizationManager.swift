@@ -157,6 +157,7 @@ final class LocalizationManager: ObservableObject {
             .deletingLastPathComponent() // Sources/
             .deletingLastPathComponent() // OpenMates/
             .deletingLastPathComponent() // apple/
+            .deletingLastPathComponent() // repository root
         return repoRoot.appendingPathComponent("frontend/packages/ui/src/i18n/locales/\(locale).json")
     }
 
