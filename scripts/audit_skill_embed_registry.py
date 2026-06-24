@@ -24,6 +24,12 @@ APPS_DIR = REPO_ROOT / "backend/apps"
 # do not create user-visible app_skill_use embeds. New entries require a reason.
 SKILL_EMBED_EXCEPTIONS: dict[str, str] = {
     "ai:ask": "Core chat entrypoint invoked implicitly for every request, not a tool-call embed.",
+    "workflows:cancel-pending": "Internal workflow control-plane skill; it updates pending state and does not create a chat embed.",
+    "workflows:keep-temporary": "Internal workflow control-plane skill; it updates workflow lifecycle and does not create a chat embed.",
+    "workflows:run": "Internal workflow control-plane skill; it creates a pending countdown/approval gate rather than a rendered embed.",
+    "workflows:schedule-once": "Internal workflow control-plane skill; temporary workflow creation is surfaced by workflow UI/history, not an app-skill embed.",
+    "workflows:schedule-recurring": "Internal workflow control-plane skill; persisted workflow creation is surfaced by workflow UI/history, not an app-skill embed.",
+    "workflows:search": "Internal workflow discovery skill; search results guide assistant selection and do not create chat embeds.",
 }
 
 

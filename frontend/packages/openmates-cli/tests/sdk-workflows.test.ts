@@ -21,9 +21,8 @@ function minimalGraph() {
     trigger_node_id: "trigger",
     nodes: [
       { id: "trigger", type: "manual_trigger", config: {} },
-      { id: "end", type: "end", config: {} },
     ],
-    edges: [{ from: "trigger", to: "end" }],
+    edges: [],
   };
 }
 
@@ -63,6 +62,9 @@ describe("OpenMates SDK workflows", () => {
         if (request.url === "/v1/workflows" && request.method === "GET") {
           return { workflows: [{ id: "wf-1", title: "Morning", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1 }] };
         }
+        if (request.url === "/v1/workflows/temporary" && request.method === "GET") {
+          return { workflows: [{ id: "wf-temp", title: "Temporary", status: "disabled", enabled: false, lifecycle: "temporary", run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1 }] };
+        }
         if (request.url === "/v1/workflows/capabilities") {
           return { capabilities: [{ id: "weather:forecast", type: "app_skill", title: "Weather forecast", enabled: true }] };
         }
@@ -82,12 +84,14 @@ describe("OpenMates SDK workflows", () => {
       async (apiUrl, seen) => {
         const client = new OpenMates({ apiKey: "x", apiUrl });
         assert.equal((await client.workflows.list())[0]?.id, "wf-1");
+        assert.equal((await client.workflows.temporary())[0]?.id, "wf-temp");
         assert.equal((await client.workflows.capabilities())[0]?.id, "weather:forecast");
-        assert.equal((await client.workflows.create({ title: "Morning", graph, enabled: true, runContentRetention: "none" })).run_content_retention, "none");
+        assert.equal((await client.workflows.create({ title: "Morning", graph, enabled: true, runContentRetention: "none", lifecycle: "temporary", source: "chat", sourceChatId: "chat-1", createdByAssistant: true })).run_content_retention, "none");
         assert.equal((await client.workflows.get("wf-1")).id, "wf-1");
         assert.equal((await client.workflows.update("wf-1", { enabled: false, runContentRetention: "last_5" })).id, "wf-1");
         assert.equal((await client.workflows.enable("wf-1")).enabled, true);
         assert.equal((await client.workflows.disable("wf-1")).id, "wf-1");
+        assert.equal((await client.workflows.keep("wf-1")).id, "wf-1");
         assert.equal((await client.workflows.run("wf-1", { mode: "test", input: { dry: true } })).content_storage, "ephemeral");
         assert.equal((await client.workflows.runs("wf-1"))[0]?.content_storage, "durable");
         assert.equal((await client.workflows.runDetail("wf-1", "run-1")).id, "run-1");
@@ -95,17 +99,20 @@ describe("OpenMates SDK workflows", () => {
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
           ["GET", "/v1/workflows"],
+          ["GET", "/v1/workflows/temporary"],
           ["GET", "/v1/workflows/capabilities"],
           ["POST", "/v1/workflows"],
           ["GET", "/v1/workflows/wf-1"],
           ["PATCH", "/v1/workflows/wf-1"],
           ["POST", "/v1/workflows/wf-1/enable"],
           ["POST", "/v1/workflows/wf-1/disable"],
+          ["POST", "/v1/workflows/wf-1/keep"],
           ["POST", "/v1/workflows/wf-1/run"],
           ["GET", "/v1/workflows/wf-1/runs"],
           ["GET", "/v1/workflows/wf-1/runs/run-1"],
           ["DELETE", "/v1/workflows/wf-1"],
         ]);
+        assert.deepEqual(seen[3]?.body, { title: "Morning", graph, enabled: true, run_content_retention: "none", lifecycle: "temporary", source: "chat", source_chat_id: "chat-1", created_by_assistant: true });
       },
     );
   });

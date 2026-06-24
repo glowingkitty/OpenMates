@@ -6,18 +6,78 @@
 # Spec: docs/specs/workflows-v1/spec.yml
 
 import json
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
 
 from backend.core.api.app.services.feature_availability_service import FeatureAvailabilityService, FeatureDefinition
-from backend.core.api.app.services.workflow_models import WorkflowGraph
+from backend.core.api.app.services.workflow_models import WorkflowGraph, WorkflowLifecycle, WorkflowMissingInputError
 from backend.core.api.app.services.workflow_service import (
+    DirectusWorkflowRepository,
     InMemoryWorkflowRepository,
     WORKFLOW_PLATFORM_FEATURE,
+    WORKFLOW_TEMPORARY_TTL_SECONDS,
     WorkflowFeatureDisabledError,
     WorkflowService,
 )
+
+
+class FakeDirectusResponse:
+    def __init__(self, status_code: int, data: Any = None) -> None:
+        self.status_code = status_code
+        self._data = data
+        self.text = json.dumps(data or {})
+
+    def json(self) -> Any:
+        return self._data
+
+    def raise_for_status(self) -> None:
+        raise AssertionError(f"Unexpected fake Directus status: {self.status_code}")
+
+
+class FakeDirectusClient:
+    def __init__(self) -> None:
+        self.collections: dict[str, dict[str, dict[str, Any]]] = {}
+
+    def request(self, method: str, url: str, **kwargs: Any) -> FakeDirectusResponse:
+        collection, item_id = self._parse_url(url)
+        rows = self.collections.setdefault(collection, {})
+        if method == "GET":
+            filters = json.loads(kwargs.get("params", {}).get("filter", "{}"))
+            data = [row for row in rows.values() if self._matches(row, filters)]
+            limit = int(kwargs.get("params", {}).get("limit", 100))
+            return FakeDirectusResponse(200, {"data": data if limit == -1 else data[:limit]})
+        if method == "POST":
+            payload = dict(kwargs["json"])
+            payload.setdefault("id", payload.get("ref") or f"fake-{len(rows) + 1}")
+            rows[payload["id"]] = payload
+            return FakeDirectusResponse(200, {"data": payload})
+        if method == "PATCH" and item_id:
+            rows[item_id].update(kwargs["json"])
+            return FakeDirectusResponse(200, {"data": rows[item_id]})
+        if method == "DELETE" and item_id:
+            rows.pop(item_id, None)
+            return FakeDirectusResponse(204, {})
+        return FakeDirectusResponse(500, {"error": "unsupported fake request"})
+
+    def post(self, url: str, **kwargs: Any) -> FakeDirectusResponse:
+        return FakeDirectusResponse(200, {"data": {"access_token": "fake-token"}})
+
+    def _parse_url(self, url: str) -> tuple[str, str | None]:
+        path = url.split("/items/", 1)[1]
+        parts = path.split("/", 1)
+        return parts[0], parts[1] if len(parts) > 1 else None
+
+    def _matches(self, row: dict[str, Any], filters: dict[str, Any]) -> bool:
+        if "_and" in filters:
+            return all(self._matches(row, item) for item in filters["_and"])
+        for field, condition in filters.items():
+            if condition.get("_eq") is not None and row.get(field) != condition["_eq"]:
+                return False
+            if condition.get("_neq") is not None and row.get(field) == condition["_neq"]:
+                return False
+        return True
 
 
 def rain_graph() -> dict:
@@ -42,14 +102,12 @@ def rain_graph() -> dict:
             },
             {"id": "notify", "type": "send_notification", "config": {"title": "Rain today", "body": "Take an umbrella."}},
             {"id": "email", "type": "send_email_notification", "config": {"title": "Rain today", "body": "Take an umbrella."}},
-            {"id": "end", "type": "end", "config": {}},
         ],
         "edges": [
             {"from": "trigger", "to": "weather"},
             {"from": "weather", "to": "decision"},
             {"from": "decision", "to": "notify", "branch": "yes"},
             {"from": "notify", "to": "email"},
-            {"from": "email", "to": "end"},
         ],
     }
 
@@ -90,7 +148,7 @@ def test_app_skill_actions_are_limited_to_v1_allowlist() -> None:
 def test_repeat_nodes_require_safety_bounds() -> None:
     graph = rain_graph()
     graph["nodes"].append({"id": "repeat", "type": "repeat", "config": {"max_iterations": 10}})
-    graph["edges"].append({"from": "end", "to": "repeat"})
+    graph["edges"].append({"from": "email", "to": "repeat"})
 
     with pytest.raises(ValidationError, match="max_duration_seconds"):
         WorkflowGraph.model_validate(graph)
@@ -102,6 +160,36 @@ def test_future_custom_code_node_is_not_executable_in_v1() -> None:
 
     with pytest.raises(ValidationError, match="future UI only"):
         WorkflowGraph.model_validate(graph)
+
+
+def test_event_trigger_nodes_require_scoped_rate_limited_metadata() -> None:
+    graph = rain_graph()
+    graph["nodes"][0] = {"id": "trigger", "type": "event_trigger", "config": {}}
+
+    with pytest.raises(ValidationError, match="event.source"):
+        WorkflowGraph.model_validate(graph)
+
+    graph["nodes"][0]["config"] = {"event": {"source": "chat_message", "scope": {}, "filters": {"phrase": "rain"}, "rate_limit": {"max_per_hour": 1}}}
+    with pytest.raises(ValidationError, match="event.scope"):
+        WorkflowGraph.model_validate(graph)
+
+    graph["nodes"][0]["config"] = {"event": {"source": "chat_message", "scope": {"chat_id": "chat-1"}, "filters": {}, "rate_limit": {"max_per_hour": 1}}}
+    with pytest.raises(ValidationError, match="event.filters"):
+        WorkflowGraph.model_validate(graph)
+
+    graph["nodes"][0]["config"] = {"event": {"source": "chat_message", "scope": {"chat_id": "chat-1"}, "filters": {"phrase": "rain"}, "rate_limit": {"max_per_hour": 0}}}
+    with pytest.raises(ValidationError, match="event.rate_limit"):
+        WorkflowGraph.model_validate(graph)
+
+    graph["nodes"][0]["config"] = {
+        "event": {
+            "source": "chat_message",
+            "scope": {"chat_id": "chat-1"},
+            "filters": {"phrase": "rain"},
+            "rate_limit": {"max_per_hour": 1},
+        }
+    }
+    assert WorkflowGraph.model_validate(graph).nodes[0].type == "event_trigger"
 
 
 def test_workflow_service_blocks_when_platform_feature_disabled() -> None:
@@ -140,6 +228,25 @@ def test_workflow_definition_rows_store_sensitive_content_as_encrypted_blob_refs
     assert "alice" not in raw_blob_rows
 
 
+def test_directus_workflow_repository_persists_workflow_records_without_plaintext() -> None:
+    repository = DirectusWorkflowRepository(base_url="http://directus.test", token="test-token")
+    fake_client = FakeDirectusClient()
+    setattr(repository, "_client", fake_client)
+    service = WorkflowService(repository=repository)
+
+    workflow = service.create_workflow("alice", "Daily rain alert", rain_graph(), enabled=True)
+    loaded = service.get_workflow(workflow.id, "alice")
+    raw_workflow_rows = json.dumps(fake_client.collections["workflows"], sort_keys=True)
+    raw_blob_rows = json.dumps(fake_client.collections["workflow_encrypted_blobs"], sort_keys=True)
+
+    assert loaded.id == workflow.id
+    assert service.list_workflows("alice")[0].title == "Daily rain alert"
+    assert "Daily rain alert" not in raw_workflow_rows
+    assert "Berlin" not in raw_workflow_rows
+    assert "Daily rain alert" not in raw_blob_rows
+    assert "Berlin" not in raw_blob_rows
+
+
 def test_workflow_run_content_retention_defaults_updates_and_rejects_unknown_values() -> None:
     service = WorkflowService()
     workflow = service.create_workflow("alice", "Daily rain alert", rain_graph())
@@ -150,6 +257,90 @@ def test_workflow_run_content_retention_defaults_updates_and_rejects_unknown_val
         service.update_workflow(workflow.id, "alice", run_content_retention="not_a_mode")
 
 
+def test_graph_completes_without_explicit_end_node() -> None:
+    graph = WorkflowGraph.model_validate(rain_graph())
+
+    assert {node.id for node in graph.nodes} == {"trigger", "weather", "decision", "notify", "email"}
+
+
+def test_temporary_workflow_lifecycle_can_be_kept_and_cleaned_up() -> None:
+    repository = InMemoryWorkflowRepository()
+    service = WorkflowService(repository=repository)
+    workflow = service.create_workflow(
+        "alice",
+        "Temporary rain reminder",
+        rain_graph(),
+        lifecycle=WorkflowLifecycle.TEMPORARY,
+        source="chat",
+        source_chat_id="chat-1",
+        created_by_assistant=True,
+    )
+
+    assert workflow.lifecycle == WorkflowLifecycle.TEMPORARY
+    assert workflow.auto_delete_at is not None
+    assert workflow.auto_delete_at - workflow.created_at >= WORKFLOW_TEMPORARY_TTL_SECONDS
+    assert service.list_workflows("alice") == []
+    assert service.list_temporary_workflows("alice")[0].id == workflow.id
+
+    with pytest.raises(ValueError, match="no sooner than seven days"):
+        service.create_workflow(
+            "alice",
+            "Too short",
+            rain_graph(),
+            lifecycle=WorkflowLifecycle.TEMPORARY,
+            auto_delete_at=workflow.created_at + WORKFLOW_TEMPORARY_TTL_SECONDS - 1,
+        )
+
+    kept = service.keep_temporary_workflow(workflow.id, "alice")
+
+    assert kept.lifecycle == WorkflowLifecycle.PERSISTED
+    assert kept.auto_delete_at is None
+    assert kept.kept_at is not None
+    assert service.list_workflows("alice")[0].id == workflow.id
+
+
+def test_expired_temporary_workflows_are_deleted_by_cleanup_not_by_run() -> None:
+    repository = InMemoryWorkflowRepository()
+    service = WorkflowService(repository=repository)
+    workflow = service.create_workflow(
+        "alice",
+        "Expired temporary workflow",
+        rain_graph(),
+        lifecycle="temporary",
+    )
+    assert workflow.auto_delete_at is not None
+
+    assert service.get_workflow(workflow.id, "alice").id == workflow.id
+    assert service.cleanup_expired_temporary_workflows("alice", now=workflow.auto_delete_at - 1) == 0
+    assert service.get_workflow(workflow.id, "alice").id == workflow.id
+
+    assert service.cleanup_expired_temporary_workflows("alice", now=workflow.auto_delete_at + 1) == 1
+    with pytest.raises(KeyError):
+        service.get_workflow(workflow.id, "alice")
+
+
+def test_manual_runs_validate_required_start_input_schema() -> None:
+    graph = rain_graph()
+    graph["nodes"][0] = {
+        "id": "trigger",
+        "type": "manual_trigger",
+        "config": {
+            "required_start_input_schema": {
+                "type": "object",
+                "properties": {"city": {"type": "string"}},
+                "required": ["city"],
+            }
+        },
+    }
+    service = WorkflowService()
+    workflow = service.create_workflow("alice", "Manual city workflow", graph)
+
+    with pytest.raises(WorkflowMissingInputError, match="city"):
+        service.validate_manual_run_input(workflow, {})
+
+    service.validate_manual_run_input(workflow, {"city": "Berlin"})
+
+
 def test_capabilities_include_safe_v1_app_skills_and_disabled_custom_code() -> None:
     service = WorkflowService()
     capabilities = {item.id: item for item in service.capabilities()}
@@ -157,3 +348,17 @@ def test_capabilities_include_safe_v1_app_skills_and_disabled_custom_code() -> N
     assert capabilities["weather:forecast"].enabled is True
     assert capabilities["news:search"].enabled is True
     assert capabilities["custom_code"].enabled is False
+
+
+def test_capabilities_include_owner_scoped_persisted_workflows_only() -> None:
+    service = WorkflowService()
+    persisted = service.create_workflow("alice", "Weekly AI news", rain_graph())
+    service.create_workflow("alice", "Temporary chat workflow", rain_graph(), lifecycle="temporary")
+    service.create_workflow("bob", "Bob workflow", rain_graph())
+
+    capabilities = {item.id: item for item in service.capabilities(user_id="alice")}
+
+    assert f"workflow:{persisted.id}" in capabilities
+    assert capabilities[f"workflow:{persisted.id}"].title == "Weekly AI news"
+    assert all(item.title != "Temporary chat workflow" for item in capabilities.values())
+    assert all(item.title != "Bob workflow" for item in capabilities.values())

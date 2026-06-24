@@ -47,3 +47,19 @@ workflow_runs:
     encrypted_output_summary:
       type: text
       note: "[Encrypted] Run output summary."
+    content_retention_mode:
+      type: string
+      note: "Retention policy active when this run was saved."
+    content_available:
+      type: boolean
+      default: false
+      note: "Whether encrypted node/output content can still be inspected."
+    content_storage:
+      type: string
+      note: "durable, ephemeral, or deleted."
+    content_expires_at:
+      type: integer
+      note: "Nullable Unix timestamp for ephemeral run-content expiry."
+    record_json:
+      type: json
+      note: "Server-owned normalized run record with encrypted refs only."

@@ -799,6 +799,11 @@ export class OpenMatesWorkflows {
     return response.workflows ?? [];
   }
 
+  async temporary(): Promise<WorkflowSummary[]> {
+    const response = await this.client.get<{ workflows?: WorkflowSummary[] }>("/v1/workflows/temporary");
+    return response.workflows ?? [];
+  }
+
   async capabilities(): Promise<WorkflowCapability[]> {
     const response = await this.client.get<{ capabilities?: WorkflowCapability[] }>("/v1/workflows/capabilities");
     return response.capabilities ?? [];
@@ -815,12 +820,22 @@ export class OpenMatesWorkflows {
     graph: WorkflowGraph;
     enabled?: boolean;
     runContentRetention?: WorkflowRunContentRetention;
+    lifecycle?: "persisted" | "temporary";
+    source?: string;
+    sourceChatId?: string | null;
+    createdByAssistant?: boolean;
+    autoDeleteAt?: number | null;
   }): Promise<WorkflowDetail> {
     const response = await this.client.request<{ workflow?: WorkflowDetail }>("/v1/workflows", {
       title: params.title,
       graph: params.graph,
       enabled: params.enabled ?? false,
       run_content_retention: params.runContentRetention ?? "last_5",
+      ...(params.lifecycle ? { lifecycle: params.lifecycle } : {}),
+      ...(params.source ? { source: params.source } : {}),
+      ...(params.sourceChatId !== undefined ? { source_chat_id: params.sourceChatId } : {}),
+      ...(params.createdByAssistant !== undefined ? { created_by_assistant: params.createdByAssistant } : {}),
+      ...(params.autoDeleteAt !== undefined ? { auto_delete_at: params.autoDeleteAt } : {}),
     });
     if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow response missing workflow" });
     return response.workflow;
@@ -855,6 +870,12 @@ export class OpenMatesWorkflows {
   async delete(workflowId: string, options: ConfirmedMutationOptions = {}): Promise<{ deleted: boolean }> {
     requireConfirmed(options, "Deleting a workflow");
     return this.client.delete<{ deleted: boolean }>(`/v1/workflows/${encodeURIComponent(workflowId)}`);
+  }
+
+  async keep(workflowId: string): Promise<WorkflowDetail> {
+    const response = await this.client.request<{ workflow?: WorkflowDetail }>(`/v1/workflows/${encodeURIComponent(workflowId)}/keep`, {});
+    if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow response missing workflow" });
+    return response.workflow;
   }
 
   async run(

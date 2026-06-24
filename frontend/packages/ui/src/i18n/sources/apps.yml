@@ -1696,6 +1696,76 @@ events.search.description:
   sv: Hitta meetups, konferenser och lokala evenemang.
   he: מצא מפגשים, כנסים ואירועים מקומיים.
   verified_by_human: []
+workflows:
+  context: App name for the Workflows app
+  en: Workflows
+  de: Workflows
+  verified_by_human: [en, de]
+workflows.description:
+  context: Description for the Workflows app
+  en: Create and run reusable automations.
+  de: Wiederverwendbare Automatisierungen erstellen und ausführen.
+  verified_by_human: [en, de]
+workflows.skills.search:
+  context: Internal skill name for finding user workflows
+  en: Search Workflows
+  de: Workflows suchen
+  verified_by_human: [en, de]
+workflows.skills.search.description:
+  context: Internal skill description for finding user workflows
+  en: Find user-owned workflows that match a chat intent.
+  de: Nutzer-Workflows finden, die zu einer Chat-Absicht passen.
+  verified_by_human: [en, de]
+workflows.skills.run:
+  context: Internal skill name for preparing a workflow run
+  en: Run Workflow
+  de: Workflow ausführen
+  verified_by_human: [en, de]
+workflows.skills.run.description:
+  context: Internal skill description for preparing a workflow run
+  en: Prepare a workflow run with countdown or approval.
+  de: Einen Workflow-Lauf mit Countdown oder Freigabe vorbereiten.
+  verified_by_human: [en, de]
+workflows.skills.schedule_once:
+  context: Internal skill name for creating a temporary one-time workflow
+  en: Schedule One-Time Workflow
+  de: Einmaligen Workflow planen
+  verified_by_human: [en, de]
+workflows.skills.schedule_once.description:
+  context: Internal skill description for creating a temporary one-time workflow
+  en: Create a temporary one-time workflow from chat.
+  de: Einen temporären einmaligen Workflow aus dem Chat erstellen.
+  verified_by_human: [en, de]
+workflows.skills.schedule_recurring:
+  context: Internal skill name for creating a recurring workflow
+  en: Schedule Recurring Workflow
+  de: Wiederkehrenden Workflow planen
+  verified_by_human: [en, de]
+workflows.skills.schedule_recurring.description:
+  context: Internal skill description for creating a recurring workflow
+  en: Create a persisted recurring workflow from chat.
+  de: Einen gespeicherten wiederkehrenden Workflow aus dem Chat erstellen.
+  verified_by_human: [en, de]
+workflows.skills.cancel_pending:
+  context: Internal skill name for canceling a pending workflow run
+  en: Cancel Pending Workflow
+  de: Ausstehenden Workflow abbrechen
+  verified_by_human: [en, de]
+workflows.skills.cancel_pending.description:
+  context: Internal skill description for canceling a pending workflow run
+  en: Cancel a pending countdown or approval workflow run.
+  de: Einen ausstehenden Countdown- oder Freigabe-Workflow abbrechen.
+  verified_by_human: [en, de]
+workflows.skills.keep_temporary:
+  context: Internal skill name for keeping a temporary workflow
+  en: Keep Temporary Workflow
+  de: Temporären Workflow behalten
+  verified_by_human: [en, de]
+workflows.skills.keep_temporary.description:
+  context: Internal skill description for keeping a temporary workflow
+  en: Convert a temporary workflow into a reusable workflow.
+  de: Einen temporären Workflow in einen wiederverwendbaren Workflow umwandeln.
+  verified_by_human: [en, de]
 reminder:
   context: App name for the Reminder app
   en: Reminder

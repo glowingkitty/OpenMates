@@ -50,14 +50,21 @@ class WorkflowRunContentStorage(str, Enum):
     DELETED = "deleted"
 
 
+class WorkflowLifecycle(str, Enum):
+    PERSISTED = "persisted"
+    TEMPORARY = "temporary"
+
+
 class WorkflowNodeType(str, Enum):
     SCHEDULE_TRIGGER = "schedule_trigger"
     MANUAL_TRIGGER = "manual_trigger"
     WEBHOOK_TRIGGER = "webhook_trigger"
+    EVENT_TRIGGER = "event_trigger"
     APP_SKILL_ACTION = "app_skill_action"
     DECISION = "decision"
     REPEAT = "repeat"
     CREATE_CHAT_REPORT = "create_chat_report"
+    START_NEW_CHAT = "start_new_chat"
     SEND_NOTIFICATION = "send_notification"
     SEND_EMAIL_NOTIFICATION = "send_email_notification"
     ASK_USER = "ask_user"
@@ -86,8 +93,10 @@ EXECUTABLE_NODE_TYPES = {
     WorkflowNodeType.DECISION,
     WorkflowNodeType.REPEAT,
     WorkflowNodeType.CREATE_CHAT_REPORT,
+    WorkflowNodeType.START_NEW_CHAT,
     WorkflowNodeType.SEND_NOTIFICATION,
     WorkflowNodeType.SEND_EMAIL_NOTIFICATION,
+    WorkflowNodeType.EVENT_TRIGGER,
     WorkflowNodeType.END,
 }
 DISABLED_FUTURE_NODE_TYPES = {
@@ -100,6 +109,10 @@ SUPPORTED_WORKFLOW_APP_SKILLS = {("weather", "forecast"), ("news", "search")}
 
 class WorkflowValidationError(ValueError):
     """Raised when a workflow graph violates the V1 executable contract."""
+
+
+class WorkflowMissingInputError(ValueError):
+    """Raised when a manual workflow run lacks required trigger input."""
 
 
 class WorkflowEdge(BaseModel):
@@ -139,6 +152,12 @@ class WorkflowSummary(BaseModel):
     title: str
     status: WorkflowStatus
     enabled: bool
+    lifecycle: WorkflowLifecycle = WorkflowLifecycle.PERSISTED
+    source: str = "manual"
+    source_chat_id: str | None = None
+    created_by_assistant: bool = False
+    auto_delete_at: int | None = None
+    kept_at: int | None = None
     trigger_summary: str | None = None
     next_run_at: int | None = None
     last_run_status: WorkflowRunStatus | None = None
@@ -194,7 +213,7 @@ class WorkflowRunDetail(WorkflowRunSummary):
 
 
 class WorkflowCapability(BaseModel):
-    type: Literal["node", "app_skill"]
+    type: Literal["node", "app_skill", "workflow"]
     id: str
     title: str
     enabled: bool = True
@@ -213,7 +232,7 @@ def validate_workflow_graph(graph: WorkflowGraph) -> None:
 
     trigger_nodes = [
         node for node in graph.nodes
-        if node.type in {WorkflowNodeType.SCHEDULE_TRIGGER, WorkflowNodeType.MANUAL_TRIGGER, WorkflowNodeType.WEBHOOK_TRIGGER}
+        if node.type in {WorkflowNodeType.SCHEDULE_TRIGGER, WorkflowNodeType.MANUAL_TRIGGER, WorkflowNodeType.WEBHOOK_TRIGGER, WorkflowNodeType.EVENT_TRIGGER}
     ]
     if len(trigger_nodes) != 1:
         raise WorkflowValidationError("Workflows V1 must contain exactly one trigger node")
@@ -256,6 +275,58 @@ def _validate_node_config(node: WorkflowNode) -> None:
         schedule = node.config.get("schedule")
         if not isinstance(schedule, dict) or not schedule.get("type"):
             raise WorkflowValidationError("Schedule trigger nodes require schedule.type")
+    elif node.type == WorkflowNodeType.MANUAL_TRIGGER:
+        _validate_required_start_input_schema(node.config.get("required_start_input_schema"))
+    elif node.type == WorkflowNodeType.EVENT_TRIGGER:
+        _validate_event_trigger_config(node.config)
+
+
+def validate_manual_run_input(graph: WorkflowGraph, input_payload: dict[str, Any] | None) -> None:
+    """Validate run-now input against the trigger's required start input schema."""
+    trigger = next(node for node in graph.nodes if node.id == graph.trigger_node_id)
+    schema = trigger.config.get("required_start_input_schema")
+    if schema is None:
+        return
+    _validate_required_start_input_schema(schema)
+    required = schema.get("required") or []
+    payload = input_payload or {}
+    missing = [field for field in required if payload.get(field) in (None, "")]
+    if missing:
+        raise WorkflowMissingInputError(f"Missing workflow start input: {missing}")
+
+
+def _validate_required_start_input_schema(schema: Any) -> None:
+    if schema is None:
+        return
+    if not isinstance(schema, dict):
+        raise WorkflowValidationError("required_start_input_schema must be an object")
+    if schema.get("type") != "object":
+        raise WorkflowValidationError("required_start_input_schema.type must be object")
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        raise WorkflowValidationError("required_start_input_schema.properties must be an object")
+    required = schema.get("required") or []
+    if not isinstance(required, list):
+        raise WorkflowValidationError("required_start_input_schema.required must be an array")
+    for field in required:
+        if field not in properties:
+            raise WorkflowValidationError(f"required_start_input_schema missing property for required field: {field}")
+
+
+def _validate_event_trigger_config(config: dict[str, Any]) -> None:
+    event_config = config.get("event") if isinstance(config.get("event"), dict) else config
+    source = event_config.get("source") or event_config.get("event_type")
+    if not source:
+        raise WorkflowValidationError("Event trigger nodes require event.source")
+    scope = event_config.get("scope")
+    if not isinstance(scope, dict) or not scope:
+        raise WorkflowValidationError("Event trigger nodes require event.scope")
+    filters = event_config.get("filters")
+    if not isinstance(filters, (dict, list)) or not filters:
+        raise WorkflowValidationError("Event trigger nodes require event.filters")
+    rate_limit = event_config.get("rate_limit") or {"rate_limit_seconds": event_config.get("rate_limit_seconds")}
+    if not isinstance(rate_limit, dict) or not any(isinstance(value, (int, float)) and value > 0 for value in rate_limit.values()):
+        raise WorkflowValidationError("Event trigger nodes require event.rate_limit")
 
 
 def _validate_predicate(predicate: dict[str, Any]) -> None:

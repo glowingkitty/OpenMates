@@ -12,10 +12,14 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import logging
+import os
 import time
 import uuid
 from copy import deepcopy
 from typing import Any
+
+import httpx
 
 from backend.core.api.app.services.feature_availability_service import (
     FeatureAvailabilityService,
@@ -26,6 +30,8 @@ from backend.core.api.app.services.workflow_models import (
     WorkflowCapability,
     WorkflowDetail,
     WorkflowGraph,
+    WorkflowLifecycle,
+    WorkflowMissingInputError,
     WorkflowRunDetail,
     WorkflowRunContentRetention,
     WorkflowRunContentStorage,
@@ -39,6 +45,9 @@ from backend.core.api.app.services.workflow_models import (
 WORKFLOW_PLATFORM_FEATURE = "platform:workflows"
 WORKFLOW_EPHEMERAL_RUN_CONTENT_TTL_SECONDS = 7 * 24 * 60 * 60
 WORKFLOW_DURABLE_RUN_CONTENT_LIMIT = 5
+WORKFLOW_TEMPORARY_TTL_SECONDS = 7 * 24 * 60 * 60
+
+logger = logging.getLogger(__name__)
 
 
 def _hash_owner_id(user_id: str) -> str:
@@ -92,6 +101,14 @@ class InMemoryWorkflowRepository:
             if record["owner_hash"] == owner_hash and record["status"] != WorkflowStatus.DELETED.value
         ]
 
+    def list_all_workflow_records(self, user_id: str | None = None) -> list[dict[str, Any]]:
+        owner_hash = _hash_owner_id(user_id) if user_id else None
+        return [
+            deepcopy(record)
+            for record in self.workflows.values()
+            if (owner_hash is None or record["owner_hash"] == owner_hash) and record["status"] != WorkflowStatus.DELETED.value
+        ]
+
     def get_workflow(self, workflow_id: str, user_id: str) -> dict[str, Any] | None:
         record = self.workflows.get(workflow_id)
         if not record or record["owner_hash"] != _hash_owner_id(user_id) or record["status"] == WorkflowStatus.DELETED.value:
@@ -110,6 +127,9 @@ class InMemoryWorkflowRepository:
             if record["workflow_id"] == workflow_id and record["owner_hash"] == owner_hash
         ]
 
+    def list_run_records_for_workflow(self, workflow_id: str) -> list[dict[str, Any]]:
+        return [deepcopy(record) for record in self.runs.values() if record["workflow_id"] == workflow_id]
+
     def get_run(self, workflow_id: str, run_id: str, user_id: str) -> dict[str, Any] | None:
         record = self.runs.get(run_id)
         if not record or record["workflow_id"] != workflow_id or record["owner_hash"] != _hash_owner_id(user_id):
@@ -127,11 +147,258 @@ class InMemoryWorkflowRepository:
     def delete_encrypted_blob(self, ref: str) -> None:
         self.encrypted_blobs.pop(ref, None)
 
+    def delete_workflow_record(self, workflow_id: str) -> None:
+        self.workflows.pop(workflow_id, None)
+
+    def delete_run_record(self, run_id: str) -> None:
+        self.runs.pop(run_id, None)
+
+
+class DirectusWorkflowRepository:
+    """Durable workflow repository backed by Directus custom collections."""
+
+    WORKFLOWS = "workflows"
+    RUNS = "workflow_runs"
+    BLOBS = "workflow_encrypted_blobs"
+
+    def __init__(self, base_url: str | None = None, token: str | None = None) -> None:
+        self.base_url = (base_url or os.getenv("CMS_URL") or "http://cms:8055").rstrip("/")
+        self.token = token or os.getenv("DIRECTUS_TOKEN")
+        self.admin_email = os.getenv("DATABASE_ADMIN_EMAIL")
+        self.admin_password = os.getenv("DATABASE_ADMIN_PASSWORD")
+        self._admin_token: str | None = None
+        self._client = httpx.Client(timeout=5.0)
+
+    def save_workflow(self, record: dict[str, Any]) -> dict[str, Any]:
+        payload = {
+            "id": record["id"],
+            "workflow_id": record["id"],
+            "hashed_user_id": record["owner_hash"],
+            "encrypted_title": record["encrypted_title_ref"],
+            "status": record["status"],
+            "enabled": record["enabled"],
+            "lifecycle": record.get("lifecycle", WorkflowLifecycle.PERSISTED.value),
+            "source": record.get("source") or "manual",
+            "source_chat_id": record.get("source_chat_id"),
+            "created_by_assistant": bool(record.get("created_by_assistant")),
+            "auto_delete_at": record.get("auto_delete_at"),
+            "kept_at": record.get("kept_at"),
+            "current_version_id": record["current_version_id"],
+            "trigger_type": record.get("trigger_type") or record.get("trigger_summary"),
+            "trigger_summary": record.get("trigger_summary"),
+            "next_run_at": record.get("next_run_at"),
+            "last_run_id": record.get("last_run_id"),
+            "last_run_status": record.get("last_run_status"),
+            "run_content_retention": record.get("run_content_retention"),
+            "deleted_at": record.get("updated_at") if record.get("status") == WorkflowStatus.DELETED.value else None,
+            "record_json": record,
+            "created_at": record["created_at"],
+            "updated_at": record["updated_at"],
+        }
+        existing = self._find_one(self.WORKFLOWS, {"id": {"_eq": record["id"]}}, fields="id")
+        if existing:
+            self._patch_item(self.WORKFLOWS, existing["id"], payload)
+        else:
+            self._create_item(self.WORKFLOWS, payload)
+        return deepcopy(record)
+
+    def list_workflows(self, user_id: str) -> list[dict[str, Any]]:
+        return self.list_all_workflow_records(user_id=user_id)
+
+    def list_all_workflow_records(self, user_id: str | None = None) -> list[dict[str, Any]]:
+        filters: dict[str, Any] = {"status": {"_neq": WorkflowStatus.DELETED.value}}
+        if user_id is not None:
+            filters["hashed_user_id"] = {"_eq": _hash_owner_id(user_id)}
+        items = self._get_items(self.WORKFLOWS, filters, sort="-updated_at", limit=-1)
+        return [deepcopy(item["record_json"]) for item in items if isinstance(item.get("record_json"), dict)]
+
+    def get_workflow(self, workflow_id: str, user_id: str) -> dict[str, Any] | None:
+        item = self._find_one(
+            self.WORKFLOWS,
+            {"_and": [{"id": {"_eq": workflow_id}}, {"hashed_user_id": {"_eq": _hash_owner_id(user_id)}}]},
+        )
+        if not item or not isinstance(item.get("record_json"), dict):
+            return None
+        record = item["record_json"]
+        if record.get("status") == WorkflowStatus.DELETED.value:
+            return None
+        return deepcopy(record)
+
+    def save_run(self, record: dict[str, Any]) -> dict[str, Any]:
+        payload = {
+            "id": record["id"],
+            "run_id": record["id"],
+            "workflow_id": record["workflow_id"],
+            "version_id": record["version_id"],
+            "hashed_user_id": record["owner_hash"],
+            "trigger_id": record.get("trigger_id"),
+            "trigger_type": record.get("trigger_type"),
+            "status": record.get("status"),
+            "started_at": record.get("started_at"),
+            "finished_at": record.get("finished_at"),
+            "cost_summary": record.get("cost_summary"),
+            "error_summary": record.get("error_summary"),
+            "encrypted_input": None,
+            "encrypted_output_summary": record.get("encrypted_content_ref"),
+            "content_retention_mode": record.get("content_retention_mode"),
+            "content_available": record.get("content_available"),
+            "content_storage": record.get("content_storage"),
+            "content_expires_at": record.get("content_expires_at"),
+            "record_json": record,
+        }
+        existing = self._find_one(self.RUNS, {"id": {"_eq": record["id"]}}, fields="id")
+        if existing:
+            self._patch_item(self.RUNS, existing["id"], payload)
+        else:
+            self._create_item(self.RUNS, payload)
+        return deepcopy(record)
+
+    def list_runs(self, workflow_id: str, user_id: str) -> list[dict[str, Any]]:
+        items = self._get_items(
+            self.RUNS,
+            {"_and": [{"workflow_id": {"_eq": workflow_id}}, {"hashed_user_id": {"_eq": _hash_owner_id(user_id)}}]},
+            sort="-started_at",
+            limit=-1,
+        )
+        return [deepcopy(item["record_json"]) for item in items if isinstance(item.get("record_json"), dict)]
+
+    def list_run_records_for_workflow(self, workflow_id: str) -> list[dict[str, Any]]:
+        items = self._get_items(self.RUNS, {"workflow_id": {"_eq": workflow_id}}, sort="-started_at", limit=-1)
+        return [deepcopy(item["record_json"]) for item in items if isinstance(item.get("record_json"), dict)]
+
+    def get_run(self, workflow_id: str, run_id: str, user_id: str) -> dict[str, Any] | None:
+        item = self._find_one(
+            self.RUNS,
+            {
+                "_and": [
+                    {"id": {"_eq": run_id}},
+                    {"workflow_id": {"_eq": workflow_id}},
+                    {"hashed_user_id": {"_eq": _hash_owner_id(user_id)}},
+                ]
+            },
+        )
+        if not item or not isinstance(item.get("record_json"), dict):
+            return None
+        return deepcopy(item["record_json"])
+
+    def save_encrypted_blob(self, blob: dict[str, Any]) -> dict[str, Any]:
+        payload = {
+            "ref": blob["ref"],
+            "hashed_user_id": blob["owner_hash"],
+            "kind": blob["kind"],
+            "ciphertext": blob["ciphertext"],
+            "checksum": blob["checksum"],
+            "expires_at": blob.get("expires_at"),
+            "created_at": blob["created_at"],
+        }
+        existing = self._find_one(self.BLOBS, {"ref": {"_eq": blob["ref"]}}, fields="id")
+        if existing:
+            self._patch_item(self.BLOBS, existing["id"], payload)
+        else:
+            self._create_item(self.BLOBS, payload)
+        return deepcopy(blob)
+
+    def get_encrypted_blob(self, ref: str) -> dict[str, Any] | None:
+        item = self._find_one(self.BLOBS, {"ref": {"_eq": ref}})
+        if not item:
+            return None
+        return {
+            "ref": item["ref"],
+            "owner_hash": item["hashed_user_id"],
+            "kind": item["kind"],
+            "ciphertext": item["ciphertext"],
+            "checksum": item["checksum"],
+            "expires_at": item.get("expires_at"),
+            "created_at": item["created_at"],
+        }
+
+    def delete_encrypted_blob(self, ref: str) -> None:
+        item = self._find_one(self.BLOBS, {"ref": {"_eq": ref}}, fields="id")
+        if item:
+            self._delete_item(self.BLOBS, item["id"])
+
+    def delete_workflow_record(self, workflow_id: str) -> None:
+        item = self._find_one(self.WORKFLOWS, {"id": {"_eq": workflow_id}}, fields="id")
+        if item:
+            self._delete_item(self.WORKFLOWS, item["id"])
+
+    def delete_run_record(self, run_id: str) -> None:
+        item = self._find_one(self.RUNS, {"id": {"_eq": run_id}}, fields="id")
+        if item:
+            self._delete_item(self.RUNS, item["id"])
+
+    def _find_one(self, collection: str, filters: dict[str, Any], fields: str = "*") -> dict[str, Any] | None:
+        items = self._get_items(collection, filters, fields=fields, limit=1)
+        return items[0] if items else None
+
+    def _get_items(
+        self,
+        collection: str,
+        filters: dict[str, Any],
+        *,
+        fields: str = "*",
+        sort: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"filter": json.dumps(filters), "fields": fields, "limit": limit, "_ts": str(time.time_ns())}
+        if sort:
+            params["sort"] = sort
+        response = self._request("GET", f"/items/{collection}", params=params)
+        data = response.json().get("data")
+        if not isinstance(data, list):
+            raise RuntimeError(f"Directus returned invalid list response for {collection}")
+        return data
+
+    def _create_item(self, collection: str, payload: dict[str, Any]) -> None:
+        self._request("POST", f"/items/{collection}", json=payload)
+
+    def _patch_item(self, collection: str, item_id: str, payload: dict[str, Any]) -> None:
+        patch_payload = {key: value for key, value in payload.items() if key != "id"}
+        self._request("PATCH", f"/items/{collection}/{item_id}", json=patch_payload)
+
+    def _delete_item(self, collection: str, item_id: str) -> None:
+        self._request("DELETE", f"/items/{collection}/{item_id}")
+
+    def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
+        headers = kwargs.pop("headers", {}) or {}
+        headers.setdefault("Authorization", f"Bearer {self._token()}")
+        response = self._client.request(method, f"{self.base_url}{path}", headers=headers, **kwargs)
+        if 200 <= response.status_code < 300:
+            return response
+        if response.status_code == 401 and not self.token:
+            self._admin_token = None
+            headers["Authorization"] = f"Bearer {self._token()}"
+            response = self._client.request(method, f"{self.base_url}{path}", headers=headers, **kwargs)
+            if 200 <= response.status_code < 300:
+                return response
+        logger.error("Directus workflow request failed: %s %s -> %s %s", method, path, response.status_code, response.text[:500])
+        response.raise_for_status()
+        return response
+
+    def _token(self) -> str:
+        if self.token:
+            return self.token
+        if self._admin_token:
+            return self._admin_token
+        if not self.admin_email or not self.admin_password:
+            raise RuntimeError("Directus workflow repository requires DIRECTUS_TOKEN or admin credentials")
+        response = self._client.post(
+            f"{self.base_url}/auth/login",
+            json={"email": self.admin_email, "password": self.admin_password},
+        )
+        if not (200 <= response.status_code < 300):
+            raise RuntimeError(f"Directus admin login failed for workflow repository: {response.status_code}")
+        token = response.json().get("data", {}).get("access_token")
+        if not token:
+            raise RuntimeError("Directus admin login did not return an access token")
+        self._admin_token = str(token)
+        return self._admin_token
+
 
 class WorkflowService:
     def __init__(
         self,
-        repository: InMemoryWorkflowRepository | None = None,
+        repository: Any | None = None,
         feature_availability: FeatureAvailabilityService | None = None,
     ) -> None:
         self.repository = repository or InMemoryWorkflowRepository()
@@ -146,7 +413,22 @@ class WorkflowService:
 
     def list_workflows(self, user_id: str) -> list[WorkflowSummary]:
         self.ensure_enabled()
-        records = sorted(self.repository.list_workflows(user_id), key=lambda item: item["updated_at"], reverse=True)
+        records = [
+            record
+            for record in self.repository.list_workflows(user_id)
+            if record.get("lifecycle", WorkflowLifecycle.PERSISTED.value) == WorkflowLifecycle.PERSISTED.value
+        ]
+        records = sorted(records, key=lambda item: item["updated_at"], reverse=True)
+        return [self._summary_from_record(record) for record in records]
+
+    def list_temporary_workflows(self, user_id: str) -> list[WorkflowSummary]:
+        self.ensure_enabled()
+        records = [
+            record
+            for record in self.repository.list_workflows(user_id)
+            if record.get("lifecycle") == WorkflowLifecycle.TEMPORARY.value
+        ]
+        records = sorted(records, key=lambda item: item["updated_at"], reverse=True)
         return [self._summary_from_record(record) for record in records]
 
     def get_workflow(self, workflow_id: str, user_id: str) -> WorkflowDetail:
@@ -163,11 +445,25 @@ class WorkflowService:
         graph: dict[str, Any] | WorkflowGraph,
         enabled: bool = False,
         run_content_retention: WorkflowRunContentRetention = WorkflowRunContentRetention.LAST_5,
+        lifecycle: WorkflowLifecycle | str = WorkflowLifecycle.PERSISTED,
+        source: str = "manual",
+        source_chat_id: str | None = None,
+        created_by_assistant: bool = False,
+        auto_delete_at: int | None = None,
     ) -> WorkflowDetail:
         self.ensure_enabled()
         workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph)
         retention = WorkflowRunContentRetention(run_content_retention)
+        workflow_lifecycle = WorkflowLifecycle(lifecycle)
         now = int(time.time())
+        if workflow_lifecycle == WorkflowLifecycle.TEMPORARY:
+            minimum_auto_delete_at = now + WORKFLOW_TEMPORARY_TTL_SECONDS
+            if auto_delete_at is None:
+                auto_delete_at = minimum_auto_delete_at
+            elif auto_delete_at < minimum_auto_delete_at:
+                raise ValueError("temporary workflows must auto-delete no sooner than seven days after creation")
+        if workflow_lifecycle == WorkflowLifecycle.PERSISTED and auto_delete_at is not None:
+            raise ValueError("auto_delete_at is only valid for temporary workflows")
         workflow_id = str(uuid.uuid4())
         version_id = str(uuid.uuid4())
         title_blob = self._save_encrypted_blob(user_id, "workflow_title", title)
@@ -180,6 +476,12 @@ class WorkflowService:
             "encrypted_title_checksum": title_blob["checksum"],
             "status": WorkflowStatus.ACTIVE.value if enabled else WorkflowStatus.DISABLED.value,
             "enabled": enabled,
+            "lifecycle": workflow_lifecycle.value,
+            "source": source,
+            "source_chat_id": source_chat_id,
+            "created_by_assistant": created_by_assistant,
+            "auto_delete_at": auto_delete_at,
+            "kept_at": None,
             "trigger_summary": self._trigger_summary(workflow_graph),
             "next_run_at": None,
             "last_run_status": None,
@@ -246,6 +548,49 @@ class WorkflowService:
             record["run_content_retention"] = WorkflowRunContentRetention(run_content_retention).value
         record["updated_at"] = int(time.time())
         return self._detail_from_record(self.repository.save_workflow(record))
+
+    def keep_temporary_workflow(self, workflow_id: str, user_id: str) -> WorkflowDetail:
+        self.ensure_enabled()
+        record = self.repository.get_workflow(workflow_id, user_id)
+        if not record:
+            raise WorkflowNotFoundError(workflow_id)
+        if record.get("lifecycle") != WorkflowLifecycle.TEMPORARY.value:
+            raise ValueError("Only temporary workflows can be kept")
+        now = int(time.time())
+        record["lifecycle"] = WorkflowLifecycle.PERSISTED.value
+        record["auto_delete_at"] = None
+        record["kept_at"] = now
+        record["updated_at"] = now
+        return self._detail_from_record(self.repository.save_workflow(record))
+
+    def cleanup_expired_temporary_workflows(self, user_id: str | None = None, now: int | None = None) -> int:
+        self.ensure_enabled()
+        cutoff = now if now is not None else int(time.time())
+        deleted = 0
+        records = self.repository.list_all_workflow_records(user_id=user_id)
+        for record in records:
+            if user_id is not None and record.get("owner_hash") != _hash_owner_id(user_id):
+                continue
+            if record.get("lifecycle") != WorkflowLifecycle.TEMPORARY.value:
+                continue
+            auto_delete_at = record.get("auto_delete_at")
+            if not isinstance(auto_delete_at, int) or auto_delete_at > cutoff:
+                continue
+            workflow_id = record["id"]
+            for ref_key in ("encrypted_title_ref", "encrypted_graph_ref"):
+                ref = record.get(ref_key)
+                if ref:
+                    self.repository.delete_encrypted_blob(ref)
+            for run_record in self.repository.list_run_records_for_workflow(workflow_id):
+                if run_record.get("workflow_id") != workflow_id:
+                    continue
+                ref = run_record.get("encrypted_content_ref")
+                if ref:
+                    self.repository.delete_encrypted_blob(ref)
+                self.repository.delete_run_record(run_record["id"])
+            self.repository.delete_workflow_record(workflow_id)
+            deleted += 1
+        return deleted
 
     def delete_workflow(self, workflow_id: str, user_id: str) -> bool:
         self.ensure_enabled()
@@ -317,7 +662,15 @@ class WorkflowService:
             raise WorkflowNotFoundError(run_id)
         return self._run_detail_from_record(record)
 
-    def capabilities(self) -> list[WorkflowCapability]:
+    def validate_manual_run_input(self, workflow: WorkflowDetail, input_payload: dict[str, Any] | None) -> None:
+        from backend.core.api.app.services.workflow_models import validate_manual_run_input
+
+        try:
+            validate_manual_run_input(workflow.graph, input_payload)
+        except WorkflowMissingInputError:
+            raise
+
+    def capabilities(self, user_id: str | None = None) -> list[WorkflowCapability]:
         node_capabilities = [
             WorkflowCapability(type="node", id="schedule_trigger", title="Schedule", metadata={"category": "trigger"}),
             WorkflowCapability(type="node", id="manual_trigger", title="Manual run", metadata={"category": "trigger"}),
@@ -325,15 +678,34 @@ class WorkflowService:
             WorkflowCapability(type="node", id="decision", title="Decision", metadata={"category": "decision"}),
             WorkflowCapability(type="node", id="repeat", title="Repeat", metadata={"category": "repeat"}),
             WorkflowCapability(type="node", id="create_chat_report", title="Create chat report", metadata={"category": "action"}),
+            WorkflowCapability(type="node", id="start_new_chat", title="Start new chat", metadata={"category": "action"}),
             WorkflowCapability(type="node", id="send_notification", title="Send push notification", metadata={"category": "action"}),
             WorkflowCapability(type="node", id="send_email_notification", title="Send email notification", metadata={"category": "action"}),
+            WorkflowCapability(type="node", id="event_trigger", title="Event trigger", enabled=False, reason="Event triggers require scoped event matching before execution"),
             WorkflowCapability(type="node", id="custom_code", title="Run custom code", enabled=False, reason="Custom code nodes are planned for a later E2B-gated slice"),
         ]
         app_skill_capabilities = [
             WorkflowCapability(type="app_skill", id="weather:forecast", title="Weather forecast", metadata={"app_id": "weather", "skill_id": "forecast"}),
             WorkflowCapability(type="app_skill", id="news:search", title="News search", metadata={"app_id": "news", "skill_id": "search"}),
         ]
-        return node_capabilities + app_skill_capabilities
+        workflow_capabilities: list[WorkflowCapability] = []
+        if user_id is not None:
+            workflow_capabilities = [
+                WorkflowCapability(
+                    type="workflow",
+                    id=f"workflow:{record['id']}",
+                    title=str(self._load_encrypted_blob(record["encrypted_title_ref"])),
+                    metadata={
+                        "workflow_id": record["id"],
+                        "lifecycle": record.get("lifecycle", WorkflowLifecycle.PERSISTED.value),
+                        "trigger_type": record.get("trigger_type") or self._trigger_type_from_record(record),
+                        "requires_input": self._workflow_requires_start_input(record),
+                    },
+                )
+                for record in self.repository.list_workflows(user_id)
+                if record.get("lifecycle", WorkflowLifecycle.PERSISTED.value) == WorkflowLifecycle.PERSISTED.value
+            ]
+        return node_capabilities + app_skill_capabilities + workflow_capabilities
 
     def _summary_from_record(self, record: dict[str, Any]) -> WorkflowSummary:
         return WorkflowSummary(
@@ -341,6 +713,12 @@ class WorkflowService:
             title=str(self._load_encrypted_blob(record["encrypted_title_ref"])),
             status=WorkflowStatus(record["status"]),
             enabled=bool(record["enabled"]),
+            lifecycle=WorkflowLifecycle(record.get("lifecycle", WorkflowLifecycle.PERSISTED.value)),
+            source=record.get("source") or "manual",
+            source_chat_id=record.get("source_chat_id"),
+            created_by_assistant=bool(record.get("created_by_assistant")),
+            auto_delete_at=record.get("auto_delete_at"),
+            kept_at=record.get("kept_at"),
             trigger_summary=record.get("trigger_summary"),
             next_run_at=record.get("next_run_at"),
             last_run_status=WorkflowRunStatus(record["last_run_status"]) if record.get("last_run_status") else None,
@@ -431,6 +809,22 @@ class WorkflowService:
                 return f"{schedule_type} at {time_value}"
             return str(schedule_type)
         return trigger.type.value
+
+    def _trigger_type_from_record(self, record: dict[str, Any]) -> str:
+        try:
+            graph = WorkflowGraph.model_validate(self._load_encrypted_blob(record["encrypted_graph_ref"]))
+            return next(node.type.value for node in graph.nodes if node.id == graph.trigger_node_id)
+        except Exception:
+            return "unknown"
+
+    def _workflow_requires_start_input(self, record: dict[str, Any]) -> bool:
+        try:
+            graph = WorkflowGraph.model_validate(self._load_encrypted_blob(record["encrypted_graph_ref"]))
+            trigger = next(node for node in graph.nodes if node.id == graph.trigger_node_id)
+            schema = trigger.config.get("required_start_input_schema") or {}
+            return bool(schema.get("required"))
+        except Exception:
+            return False
 
 
 def validate_app_skill_available(app_id: str, skill_id: str) -> None:

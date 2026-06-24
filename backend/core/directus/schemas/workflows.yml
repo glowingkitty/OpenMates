@@ -28,6 +28,25 @@ workflows:
       type: boolean
       default: false
       note: "Whether scheduled triggers may run."
+    lifecycle:
+      type: string
+      note: "persisted or temporary. Temporary workflows auto-delete unless kept."
+    source:
+      type: string
+      note: "manual, assistant, import, or system source label."
+    source_chat_id:
+      type: string
+      note: "Nullable chat id that produced an assistant-created workflow."
+    created_by_assistant:
+      type: boolean
+      default: false
+      note: "Whether the workflow was created through assistant workflow skills."
+    auto_delete_at:
+      type: integer
+      note: "Nullable Unix timestamp for temporary workflow cleanup."
+    kept_at:
+      type: integer
+      note: "Nullable Unix timestamp when a temporary workflow was kept."
     current_version_id:
       type: string
       note: "Current immutable workflow_versions id."
@@ -43,6 +62,15 @@ workflows:
     last_run_id:
       type: string
       note: "Nullable latest workflow_runs id."
+    last_run_status:
+      type: string
+      note: "Nullable status of the latest run."
+    run_content_retention:
+      type: string
+      note: "Run-content retention mode, such as last_5 or none."
+    record_json:
+      type: json
+      note: "Server-owned normalized workflow record with encrypted refs only."
     deleted_at:
       type: integer
       note: "Nullable soft delete timestamp."

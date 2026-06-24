@@ -40,9 +40,8 @@ function minimalGraph(): WorkflowGraph {
     trigger_node_id: "trigger",
     nodes: [
       { id: "trigger", type: "manual_trigger", config: {} },
-      { id: "end", type: "end", config: {} },
     ],
-    edges: [{ from: "trigger", to: "end" }],
+    edges: [],
   };
 }
 
@@ -93,16 +92,20 @@ describe("OpenMatesClient workflows", () => {
       async (apiUrl, seen) => {
         const client = new OpenMatesClient({ apiUrl, session: testSession() });
         assert.equal((await client.listWorkflows())[0]?.id, "wf-1");
-        assert.equal((await client.createWorkflow({ title: "Morning", graph, enabled: true, runContentRetention: "none" })).enabled, true);
+        assert.equal((await client.listTemporaryWorkflows())[0]?.id, "wf-1");
+        assert.equal((await client.createWorkflow({ title: "Morning", graph, enabled: true, runContentRetention: "none", lifecycle: "temporary", source: "chat", sourceChatId: "chat-1", createdByAssistant: true })).enabled, true);
         assert.equal((await client.updateWorkflow("wf-1", { enabled: false, runContentRetention: "last_5" })).id, "wf-1");
+        assert.equal((await client.keepWorkflow("wf-1")).id, "wf-1");
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
           ["GET", "/v1/workflows"],
+          ["GET", "/v1/workflows/temporary"],
           ["POST", "/v1/workflows"],
           ["PATCH", "/v1/workflows/wf-1"],
+          ["POST", "/v1/workflows/wf-1/keep"],
         ]);
-        assert.deepEqual(seen[1]?.body, { title: "Morning", graph, enabled: true, run_content_retention: "none" });
-        assert.deepEqual(seen[2]?.body, { enabled: false, run_content_retention: "last_5" });
+        assert.deepEqual(seen[2]?.body, { title: "Morning", graph, enabled: true, run_content_retention: "none", lifecycle: "temporary", source: "chat", source_chat_id: "chat-1", created_by_assistant: true });
+        assert.deepEqual(seen[3]?.body, { enabled: false, run_content_retention: "last_5" });
       },
     );
   });

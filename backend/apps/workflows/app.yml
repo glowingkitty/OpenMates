@@ -1,0 +1,156 @@
+name_translation_key: workflows
+description_translation_key: workflows.description
+icon_image: workflow.svg
+category: productivity
+last_updated: "2026-06-24"
+settings_and_memories: []
+embed_types: []
+instructions:
+  - instruction: |
+      **Workflow Skills**
+      - Use workflow skills when the user asks to create, keep, find, or run reusable automations.
+      - One-time chat-created automations use schedule-once and remain temporary for seven days unless kept.
+      - Recurring automations use schedule-recurring and create persisted workflows.
+      - Running an existing workflow creates a pending countdown or approval state before execution.
+skills:
+  - id: search
+    name_translation_key: workflows.skills.search
+    description_translation_key: workflows.skills.search.description
+    icon_image: search.svg
+    internal: true
+    preprocessor_hint: >
+      Search the user's existing persisted workflows before proposing a new automation.
+      Include temporary workflows only when the user explicitly asks about recent chat-created workflows.
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    class_path: backend.apps.workflows.skills.search_skill.SearchSkill
+    tool_schema:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Workflow title or intent text to search for.
+        include_temporary:
+          type: boolean
+          description: Include temporary chat-created workflows in the search results.
+
+  - id: run
+    name_translation_key: workflows.skills.run
+    description_translation_key: workflows.skills.run.description
+    icon_image: play.svg
+    internal: true
+    preprocessor_hint: >
+      Prepare an existing user-owned workflow to run from chat. Use this only after selecting a specific workflow.
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    class_path: backend.apps.workflows.skills.run_skill.RunSkill
+    tool_schema:
+      type: object
+      properties:
+        workflow_id:
+          type: string
+          description: ID of the workflow to run.
+        input:
+          type: object
+          description: Required start input for the workflow, if any.
+        high_risk:
+          type: boolean
+          description: Whether this workflow needs explicit approval before running.
+      required:
+        - workflow_id
+
+  - id: schedule-once
+    name_translation_key: workflows.skills.schedule_once
+    description_translation_key: workflows.skills.schedule_once.description
+    icon_image: schedule.svg
+    internal: true
+    preprocessor_hint: >
+      Create a one-time chat-created workflow. The workflow is temporary, inspectable after running, and auto-deletes after seven days unless kept.
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    class_path: backend.apps.workflows.skills.schedule_once_skill.ScheduleOnceSkill
+    tool_schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Short user-facing workflow title.
+        graph:
+          type: object
+          description: Valid WorkflowGraph definition.
+        source_chat_id:
+          type: string
+          description: Chat where the workflow was created.
+      required:
+        - title
+        - graph
+
+  - id: schedule-recurring
+    name_translation_key: workflows.skills.schedule_recurring
+    description_translation_key: workflows.skills.schedule_recurring.description
+    icon_image: repeat.svg
+    internal: true
+    preprocessor_hint: >
+      Create a recurring workflow from chat. Recurring workflows are persisted immediately and remain enabled until the user changes them.
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    class_path: backend.apps.workflows.skills.schedule_recurring_skill.ScheduleRecurringSkill
+    tool_schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Short user-facing workflow title.
+        graph:
+          type: object
+          description: Valid WorkflowGraph definition.
+        source_chat_id:
+          type: string
+          description: Chat where the workflow was created.
+      required:
+        - title
+        - graph
+
+  - id: cancel-pending
+    name_translation_key: workflows.skills.cancel_pending
+    description_translation_key: workflows.skills.cancel_pending.description
+    icon_image: close.svg
+    internal: true
+    preprocessor_hint: >
+      Cancel a pending workflow countdown or approval state before execution starts.
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    class_path: backend.apps.workflows.skills.cancel_pending_skill.CancelPendingSkill
+    tool_schema:
+      type: object
+      properties:
+        pending_id:
+          type: string
+          description: Pending workflow run ID returned by the run skill.
+      required:
+        - pending_id
+
+  - id: keep-temporary
+    name_translation_key: workflows.skills.keep_temporary
+    description_translation_key: workflows.skills.keep_temporary.description
+    icon_image: bookmark.svg
+    internal: true
+    preprocessor_hint: >
+      Keep a temporary chat-created workflow so it becomes a persisted reusable workflow.
+    providers:
+      - name: OpenMates
+        no_api_key: true
+    class_path: backend.apps.workflows.skills.keep_temporary_skill.KeepTemporarySkill
+    tool_schema:
+      type: object
+      properties:
+        workflow_id:
+          type: string
+          description: Temporary workflow ID to keep.
+      required:
+        - workflow_id

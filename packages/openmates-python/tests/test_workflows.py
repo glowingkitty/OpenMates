@@ -17,9 +17,8 @@ def minimal_graph():
         "trigger_node_id": "trigger",
         "nodes": [
             {"id": "trigger", "type": "manual_trigger", "config": {}},
-            {"id": "end", "type": "end", "config": {}},
         ],
-        "edges": [{"from": "trigger", "to": "end"}],
+        "edges": [],
     }
 
 
@@ -40,6 +39,8 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
         requests_seen.append({"method": "GET", "url": url})
         if url.endswith("/v1/workflows"):
             return FakeResponse({"workflows": [{"id": "wf-1", "title": "Morning"}]})
+        if url.endswith("/v1/workflows/temporary"):
+            return FakeResponse({"workflows": [{"id": "wf-temp", "title": "Temporary", "lifecycle": "temporary"}]})
         if url.endswith("/v1/workflows/capabilities"):
             return FakeResponse({"capabilities": [{"id": "weather:forecast", "enabled": True}]})
         if url.endswith("/v1/workflows/wf-1/runs"):
@@ -69,12 +70,23 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
 
     client = OpenMates(api_key="x")
     assert client.workflows.list()[0]["id"] == "wf-1"
+    assert client.workflows.temporary()[0]["id"] == "wf-temp"
     assert client.workflows.capabilities()[0]["id"] == "weather:forecast"
-    assert client.workflows.create(title="Morning", graph=graph, enabled=True, run_content_retention="none")["id"] == "wf-1"
+    assert client.workflows.create(
+        title="Morning",
+        graph=graph,
+        enabled=True,
+        run_content_retention="none",
+        lifecycle="temporary",
+        source="chat",
+        source_chat_id="chat-1",
+        created_by_assistant=True,
+    )["id"] == "wf-1"
     assert client.workflows.get("wf-1")["id"] == "wf-1"
     assert client.workflows.update("wf-1", enabled=False, run_content_retention="last_5")["id"] == "wf-1"
     assert client.workflows.enable("wf-1")["id"] == "wf-1"
     assert client.workflows.disable("wf-1")["id"] == "wf-1"
+    assert client.workflows.keep("wf-1")["id"] == "wf-1"
     assert client.workflows.run("wf-1", mode="test", input_data={"dry": True})["id"] == "run-1"
     assert client.workflows.runs("wf-1")[0]["id"] == "run-1"
     assert client.workflows.run_detail("wf-1", "run-1")["id"] == "run-1"
@@ -82,12 +94,14 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
 
     assert requests_seen == [
         {"method": "GET", "url": "https://api.openmates.org/v1/workflows"},
+        {"method": "GET", "url": "https://api.openmates.org/v1/workflows/temporary"},
         {"method": "GET", "url": "https://api.openmates.org/v1/workflows/capabilities"},
-        {"method": "POST", "url": "https://api.openmates.org/v1/workflows", "json": {"title": "Morning", "graph": graph, "enabled": True, "run_content_retention": "none"}},
+        {"method": "POST", "url": "https://api.openmates.org/v1/workflows", "json": {"title": "Morning", "graph": graph, "enabled": True, "run_content_retention": "none", "lifecycle": "temporary", "source": "chat", "created_by_assistant": True, "source_chat_id": "chat-1"}},
         {"method": "GET", "url": "https://api.openmates.org/v1/workflows/wf-1"},
         {"method": "PATCH", "url": "https://api.openmates.org/v1/workflows/wf-1", "json": {"enabled": False, "run_content_retention": "last_5"}},
         {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/enable", "json": {}},
         {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/disable", "json": {}},
+        {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/keep", "json": {}},
         {"method": "POST", "url": "https://api.openmates.org/v1/workflows/wf-1/run", "json": {"mode": "test", "input": {"dry": True}}},
         {"method": "GET", "url": "https://api.openmates.org/v1/workflows/wf-1/runs"},
         {"method": "GET", "url": "https://api.openmates.org/v1/workflows/wf-1/runs/run-1"},

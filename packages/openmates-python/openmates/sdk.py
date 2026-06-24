@@ -573,6 +573,9 @@ class OpenMatesWorkflows:
     def list(self) -> list[dict[str, Any]]:
         return self._client._get("/v1/workflows").get("workflows", [])
 
+    def temporary(self) -> list[dict[str, Any]]:
+        return self._client._get("/v1/workflows/temporary").get("workflows", [])
+
     def capabilities(self) -> list[dict[str, Any]]:
         return self._client._get("/v1/workflows/capabilities").get("capabilities", [])
 
@@ -586,10 +589,28 @@ class OpenMatesWorkflows:
         graph: dict[str, Any],
         enabled: bool = False,
         run_content_retention: str = "last_5",
+        lifecycle: str = "persisted",
+        source: str = "manual",
+        source_chat_id: str | None = None,
+        created_by_assistant: bool = False,
+        auto_delete_at: int | None = None,
     ) -> dict[str, Any]:
+        payload = {
+            "title": title,
+            "graph": graph,
+            "enabled": enabled,
+            "run_content_retention": run_content_retention,
+            "lifecycle": lifecycle,
+            "source": source,
+            "created_by_assistant": created_by_assistant,
+        }
+        if source_chat_id is not None:
+            payload["source_chat_id"] = source_chat_id
+        if auto_delete_at is not None:
+            payload["auto_delete_at"] = auto_delete_at
         return self._client._post(
             "/v1/workflows",
-            {"title": title, "graph": graph, "enabled": enabled, "run_content_retention": run_content_retention},
+            payload,
         ).get("workflow", {})
 
     def update(
@@ -622,6 +643,9 @@ class OpenMatesWorkflows:
     def delete(self, workflow_id: str, *, confirmed: bool = False) -> dict[str, Any]:
         _require_confirmed(confirmed, "Deleting a workflow")
         return self._client._delete(f"/v1/workflows/{_quote(workflow_id)}")
+
+    def keep(self, workflow_id: str) -> dict[str, Any]:
+        return self._client._post(f"/v1/workflows/{_quote(workflow_id)}/keep", {}).get("workflow", {})
 
     def run(self, workflow_id: str, *, mode: str = "manual", input_data: dict[str, Any] | None = None) -> dict[str, Any]:
         return self._client._post(

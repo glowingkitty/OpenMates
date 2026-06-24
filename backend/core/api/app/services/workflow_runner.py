@@ -12,6 +12,10 @@ import time
 import uuid
 from typing import Any
 
+from starlette.concurrency import run_in_threadpool
+
+from backend.core.api.app.services.workflow_action_adapter import WorkflowActionAdapter
+from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter
 from backend.core.api.app.services.workflow_models import (
     WorkflowDetail,
     WorkflowNode,
@@ -25,10 +29,18 @@ from backend.core.api.app.services.workflow_service import WorkflowService
 
 
 class WorkflowRunner:
-    def __init__(self, workflow_service: WorkflowService) -> None:
+    def __init__(
+        self,
+        workflow_service: WorkflowService,
+        app_skill_adapter: WorkflowAppSkillAdapter | None = None,
+        action_adapter: WorkflowActionAdapter | None = None,
+    ) -> None:
         self.workflow_service = workflow_service
+        self.app_skill_adapter = app_skill_adapter or WorkflowAppSkillAdapter()
+        self.action_adapter = action_adapter or WorkflowActionAdapter()
 
     async def run_workflow(self, workflow: WorkflowDetail, user_id: str, trigger_type: str = "manual", input_payload: dict[str, Any] | None = None) -> WorkflowRunDetail:
+        self.workflow_service.validate_manual_run_input(workflow, input_payload)
         run_id = str(uuid.uuid4())
         started_at = int(time.time())
         context: dict[str, Any] = {"trigger": input_payload or {}, "nodes": {}}
@@ -64,7 +76,7 @@ class WorkflowRunner:
                     node_runs=node_runs,
                     output_summary=context,
                 )
-                return self.workflow_service.save_run(user_id, run)
+                return await run_in_threadpool(self.workflow_service.save_run, user_id, run)
             current_node_id = self._next_node_id(node, node_run.output_summary, outgoing_edges)
 
         run = WorkflowRunDetail(
@@ -78,7 +90,7 @@ class WorkflowRunner:
             node_runs=node_runs,
             output_summary=context,
         )
-        return self.workflow_service.save_run(user_id, run)
+        return await run_in_threadpool(self.workflow_service.save_run, user_id, run)
 
     def _next_node_id(self, node: WorkflowNode, output: dict[str, Any], outgoing_edges: dict[str, list[Any]]) -> str | None:
         candidates = outgoing_edges.get(node.id, [])
@@ -131,42 +143,28 @@ class WorkflowRunner:
         if node.type in {WorkflowNodeType.SCHEDULE_TRIGGER, WorkflowNodeType.MANUAL_TRIGGER}:
             return {"triggered": True, "trigger": node.type.value}
         if node.type == WorkflowNodeType.APP_SKILL_ACTION:
-            return await self._execute_app_skill(node)
+            return await self._execute_app_skill(node, context)
         if node.type == WorkflowNodeType.DECISION:
             matched = _evaluate_predicate(node.config["predicate"], context)
             return {"matched": matched, "branch": "yes" if matched else "no"}
         if node.type == WorkflowNodeType.REPEAT:
             return {"configured": True, "max_iterations": node.config["max_iterations"], "skipped": True, "skipped_reason": "repeat_execution_not_enabled_in_this_slice"}
         if node.type == WorkflowNodeType.CREATE_CHAT_REPORT:
-            return {"report_id": str(uuid.uuid4()), "summary": node.config.get("summary") or "Workflow report created"}
+            return await self.action_adapter.create_chat_report(node.config, context)
+        if node.type == WorkflowNodeType.START_NEW_CHAT:
+            return await self.action_adapter.start_new_chat(node.config, context)
         if node.type in {WorkflowNodeType.SEND_NOTIFICATION, WorkflowNodeType.SEND_EMAIL_NOTIFICATION}:
-            return {"queued": True, "channel": node.type.value, "title": node.config.get("title"), "body": node.config.get("body")}
+            return await self.action_adapter.send_notification(node.config, node.type.value)
         if node.type == WorkflowNodeType.END:
             return {"ended": True}
         return {"skipped": True, "skipped_reason": f"node_type_{node.type.value}_not_executable"}
 
-    async def _execute_app_skill(self, node: WorkflowNode) -> dict[str, Any]:
+    async def _execute_app_skill(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
         app_id = node.config["app_id"]
         skill_id = node.config["skill_id"]
-        request = node.config.get("input") or {}
-        if app_id == "weather" and skill_id == "forecast":
-            return {
-                "app_id": app_id,
-                "skill_id": skill_id,
-                "summary": f"Weather forecast for {request.get('location', 'selected location')}",
-                "rain_probability": request.get("mock_rain_probability", 70),
-                "rain_start_time": request.get("mock_rain_start_time", "10:00"),
-            }
-        if app_id == "news" and skill_id == "search":
-            queries = [item.get("query") for item in request.get("requests", []) if isinstance(item, dict)]
-            return {
-                "app_id": app_id,
-                "skill_id": skill_id,
-                "summary": "AI news brief",
-                "queries": queries,
-                "result_count": max(len(queries), 1),
-            }
-        raise ValueError(f"Unsupported workflow app skill: {app_id}:{skill_id}")
+        request = _resolve_template(node.config.get("input") or {}, context)
+        request.update(_resolve_template(node.input_mapping, context))
+        return await self.app_skill_adapter.execute(app_id, skill_id, request)
 
 
 def _evaluate_predicate(predicate: dict[str, Any], context: dict[str, Any]) -> bool:
@@ -211,4 +209,14 @@ def _resolve_value(reference: Any, context: dict[str, Any]) -> Any:
             value = value.get(part)
         else:
             return None
+    return value
+
+
+def _resolve_template(value: Any, context: dict[str, Any]) -> Any:
+    if isinstance(value, str):
+        return _resolve_value(value, context)
+    if isinstance(value, list):
+        return [_resolve_template(item, context) for item in value]
+    if isinstance(value, dict):
+        return {key: _resolve_template(item, context) for key, item in value.items()}
     return value
