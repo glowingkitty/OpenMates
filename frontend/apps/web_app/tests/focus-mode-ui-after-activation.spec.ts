@@ -475,7 +475,7 @@ test('focus mode UI elements work correctly after activation', async ({
 		// panel in this layout, and the panel intercepts the embed context menu.
 		const closeSettingsButton = page
 			.locator(
-				'[data-testid="settings-menu"].visible [data-testid="icon-button-close"], [data-testid="settings-panel"] [data-testid="icon-button-close"]'
+				'[data-testid="settings-menu"].visible [data-testid="icon-button-close"], [data-testid="settings-panel"] [data-testid="icon-button-close"], [data-testid="icon-button-close"]'
 			)
 			.first();
 		await expect(closeSettingsButton).toBeVisible({ timeout: 5000 });
