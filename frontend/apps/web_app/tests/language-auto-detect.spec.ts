@@ -419,7 +419,7 @@ test.describe('language selection — English-first with browser suggestion', ()
 		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
 
 		log('Navigating with ?lang=de URL parameter...');
-		await page.goto(getE2EDebugUrl('/?lang=de'));
+		await page.goto(getE2EDebugUrl('/?lang=de#chat-id=demo-for-everyone'));
 		await waitForLocaleInit(page);
 		await takeScreenshot(page, '01-lang-param');
 
@@ -499,7 +499,7 @@ test.describe('language selection — English-first with browser suggestion', ()
 		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
 
 		log('Navigating with ?lang=es...');
-		await page.goto(getE2EDebugUrl('/?lang=es'));
+		await page.goto(getE2EDebugUrl('/?lang=es#chat-id=demo-for-everyone'));
 		await waitForLocaleInit(page);
 		await takeScreenshot(page, '01-after-lang-param');
 
@@ -535,7 +535,7 @@ test.describe('language selection — English-first with browser suggestion', ()
 		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
 
 		log('Navigating with ?lang=de and stored preferredLanguage=fr...');
-		await page.goto(getE2EDebugUrl('/?lang=de'));
+		await page.goto(getE2EDebugUrl('/?lang=de#chat-id=demo-for-everyone'));
 		await waitForLocaleInit(page);
 		await takeScreenshot(page, '01-after-lang-param');
 
