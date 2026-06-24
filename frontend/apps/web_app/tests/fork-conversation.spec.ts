@@ -192,29 +192,27 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	log('AI response fully settled.');
 	await screenshot(page, 'second-response');
 
-	// ── 12. Right-click first user message to open context menu ─────────────
-	// The fork context menu is triggered by right-clicking .user-message-content.
-	// We want to fork AFTER the first user message (the "alpha" one), so we
-	// grab the first user-message-content element.
+	// ── 12. Right-click first assistant response to open context menu ────────
+	// We want the fork to include the first assistant answer ("alpha") but not
+	// the second answer ("beta"), so fork from the first assistant bubble.
 	//
 	// IMPORTANT: After 2 AI responses the page is scrolled to the bottom.
-	// We must scroll the first user message into view before right-clicking,
+	// We must scroll the first assistant response into view before right-clicking,
 	// otherwise Playwright cannot interact with an off-screen element.
 	// We also wait briefly after scrolling so Svelte can re-render any
 	// lazy-loaded content (e.g. decrypted message data) before the click.
-	log('Scrolling first user message into view for right-click...');
-	const userMessageContents = page.getByTestId('user-message-content');
-	const firstUserMessage = userMessageContents.first();
-	await expect(firstUserMessage).toBeVisible({ timeout: 10000 });
-	await firstUserMessage.scrollIntoViewIfNeeded();
+	log('Scrolling first assistant response into view for right-click...');
+	const firstAssistantResponse = page.getByTestId('mate-message-content').filter({ hasText: 'alpha' }).first();
+	await expect(firstAssistantResponse).toBeVisible({ timeout: 10000 });
+	await firstAssistantResponse.scrollIntoViewIfNeeded();
 	await page.waitForTimeout(1000); // Allow decrypt/render after scroll
 
-	log('Right-clicking the first user message to open context menu...');
-	await firstUserMessage.click({ button: 'right' });
+	log('Right-clicking the first assistant response to open context menu...');
+	await firstAssistantResponse.click({ button: 'right' });
 	const forkMenuItem = page.getByTestId('chat-context-fork');
 	if (!(await forkMenuItem.isVisible({ timeout: 2000 }).catch(() => false))) {
-		const box = await firstUserMessage.boundingBox();
-		await firstUserMessage.dispatchEvent('contextmenu', {
+		const box = await firstAssistantResponse.boundingBox();
+		await firstAssistantResponse.dispatchEvent('contextmenu', {
 			button: 2,
 			buttons: 2,
 			clientX: box ? box.x + box.width / 2 : 0,
@@ -278,14 +276,10 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	log(`Forked chat URL: ${forkedChatUrl}`);
 
 	// ── 18. Verify forked chat contains "alpha" but NOT "beta" ───────────────
-	// The fork was created after the first user message ("alpha"), so:
+	// The fork was created after the first assistant response ("alpha"), so:
 	// - The forked chat should contain "alpha" in an assistant response
 	// - The forked chat should NOT contain "beta" (that was message 2 in original)
 	log('Verifying forked chat message content...');
-	const allMessages = page.getByTestId('message-wrapper');
-	await expect(allMessages.first()).toBeVisible({ timeout: 10000 });
-
-	// Check that "alpha" appears somewhere in the chat (from assistant response)
 	const chatContent = page.getByTestId('mate-message-content');
 	await expect(chatContent.first()).toContainText('alpha', { timeout: 15000 });
 	log('Confirmed "alpha" is present in forked chat.');
