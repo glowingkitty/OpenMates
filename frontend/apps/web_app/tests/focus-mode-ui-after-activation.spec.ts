@@ -471,9 +471,19 @@ test('focus mode UI elements work correctly after activation', async ({
 			expect(isAnySettingsOpen).toBeTruthy();
 		}
 
-		// Close settings
-		await page.keyboard.press('Escape');
-		await page.waitForTimeout(500);
+		// Close settings before testing Stop. Escape does not close the details
+		// panel in this layout, and the panel intercepts the embed context menu.
+		const closeSettingsButton = page
+			.locator(
+				'[data-testid="settings-menu"].visible [data-testid="icon-button-close"], [data-testid="settings-panel"] [data-testid="icon-button-close"]'
+			)
+			.first();
+		await expect(closeSettingsButton).toBeVisible({ timeout: 5000 });
+		await closeSettingsButton.click();
+		await expect(page.locator('[data-testid="settings-menu"].visible')).not.toBeVisible({
+			timeout: 5000
+		});
+		await expect(page.locator(SELECTORS.focusModeBarActivated).first()).toBeVisible({ timeout: 5000 });
 	});
 
 	// ======================================================================
