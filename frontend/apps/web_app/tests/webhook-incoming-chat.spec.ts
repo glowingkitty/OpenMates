@@ -107,6 +107,22 @@ async function cleanupStaleE2EWebhooks(page: any, log: (msg: string) => void): P
 		await page.waitForTimeout(1000);
 		log('Deleted a stale E2E webhook.');
 	}
+
+	for (let i = 0; i < 10; i++) {
+		if (await page.getByTestId('webhook-create-button').isEnabled().catch(() => false)) break;
+
+		const webhookItems = page.getByTestId('webhook-item');
+		if ((await webhookItems.count()) === 0) break;
+
+		const item = webhookItems.first();
+		await item.scrollIntoViewIfNeeded();
+		const deleteBtn = item.getByTestId('webhook-delete-button');
+		await expect(deleteBtn).toBeVisible({ timeout: 5000 });
+		page.once('dialog', (dialog: any) => dialog.accept());
+		await deleteBtn.click();
+		await page.waitForTimeout(1000);
+		log('Deleted a webhook to clear the E2E account limit.');
+	}
 }
 
 // ---------------------------------------------------------------------------
