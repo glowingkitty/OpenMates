@@ -36,6 +36,7 @@ const {
 } = require('./signup-flow-helpers');
 
 const {
+	sendMessage,
 	waitForAssistantMessage,
 	openSignupInterface,
 	submitPasswordAndHandleOtp,
@@ -130,17 +131,13 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 
 	// ── 8. Send first message ────────────────────────────────────────────────
 	// Short, deterministic prompt so the response is predictable and quick.
-	const messageEditor = page.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible();
-	await messageEditor.click();
-	await page.keyboard.type(withMockMarker('Reply with the single word: alpha', 'fork_conversation_turn1'));
-	log('Typed first message.');
-	await screenshot(page, 'first-message-typed');
-
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeEnabled();
-	await sendButton.click();
-	log('Sent first message.');
+	await sendMessage(
+		page,
+		withMockMarker('Reply with the single word: alpha', 'fork_conversation_turn1'),
+		log,
+		screenshot,
+		'first-message'
+	);
 
 	// Wait for chat ID in URL (assigned after first message)
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
@@ -156,21 +153,25 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 		contains: 'alpha',
 		logCheckpoint: log
 	});
-	const assistantMessages = page.getByTestId('message-assistant');
 	log('First response confirmed: contains "alpha".');
 	await screenshot(page, 'first-response');
 
 	// ── 10. Send second message ──────────────────────────────────────────────
-	await messageEditor.click();
-	await page.keyboard.insertText(withMockMarker('Reply with the single word: beta', 'fork_conversation_turn2'));
-	log('Typed second message.');
-
-	await sendButton.click();
-	log('Sent second message.');
+	await sendMessage(
+		page,
+		withMockMarker('Reply with the single word: beta', 'fork_conversation_turn2'),
+		log,
+		screenshot,
+		'second-message'
+	);
 
 	// ── 11. Wait for second AI response containing "beta" ───────────────────
 	log('Waiting for second AI response...');
-	await expect(assistantMessages.last()).toContainText('beta', { timeout: 45000 });
+	await waitForAssistantMessage(page, {
+		which: 'last',
+		contains: 'beta',
+		logCheckpoint: log
+	});
 	log('Second response confirmed: contains "beta".');
 
 	// Wait for the AI to FINISH streaming before attempting the right-click.
