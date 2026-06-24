@@ -93,13 +93,15 @@ async function navigateToWebhooks(page: any, log: (msg: string) => void): Promis
  */
 async function cleanupStaleE2EWebhooks(page: any, log: (msg: string) => void): Promise<void> {
 	for (let i = 0; i < 10; i++) {
-		const stale = page
+		const staleItems = page
 			.getByTestId('webhook-item')
-			.filter({ has: page.getByTestId('webhook-name').filter({ hasText: /E2E/i }) })
-			.first();
-		if (!(await stale.isVisible({ timeout: 1500 }).catch(() => false))) break;
+			.filter({ has: page.getByTestId('webhook-name').filter({ hasText: /E2E/i }) });
+		if ((await staleItems.count()) === 0) break;
+
+		const stale = staleItems.first();
+		await stale.scrollIntoViewIfNeeded();
 		const deleteBtn = stale.getByTestId('webhook-delete-button');
-		if (!(await deleteBtn.isVisible({ timeout: 1500 }).catch(() => false))) break;
+		await expect(deleteBtn).toBeVisible({ timeout: 5000 });
 		page.once('dialog', (dialog: any) => dialog.accept());
 		await deleteBtn.click();
 		await page.waitForTimeout(1000);
