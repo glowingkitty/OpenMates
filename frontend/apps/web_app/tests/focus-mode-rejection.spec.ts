@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -36,10 +35,7 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	generateTotp,
-	assertNoMissingTranslations,
 	getTestAccount,
-	getE2EDebugUrl,
 	withMockMarker
 } = require('./signup-flow-helpers');
 
@@ -179,23 +175,14 @@ test('clicking focus mode embed during countdown rejects focus mode activation',
 	// STEP 4: Verify the embed is in countdown state (not yet activated)
 	// ======================================================================
 	const countingEmbed = page.locator(SELECTORS.focusModeBarCounting);
-	const isCountingVisible = await countingEmbed
-		.first()
-		.isVisible({ timeout: 3000 })
-		.catch(() => false);
-	logCheckpoint(`Focus mode is in counting state: ${isCountingVisible}`);
+	await expect(countingEmbed.first()).toBeVisible({ timeout: 1000 });
+	logCheckpoint('Focus mode is in counting state.');
 
-	// The progress bar should be visible during countdown
+	// The progress bar and reject hint should be present during countdown.
 	const progressBar = focusModeEmbed.first().locator(SELECTORS.progressBar);
-	const isProgressVisible = await progressBar.isVisible({ timeout: 3000 }).catch(() => false);
-	logCheckpoint(`Progress bar visible: ${isProgressVisible}`);
-
-	// The reject hint should be visible during countdown
+	await expect(progressBar).toBeVisible({ timeout: 1000 });
 	const rejectHint = page.locator(SELECTORS.rejectHint);
-	const isHintVisible = await rejectHint.isVisible({ timeout: 3000 }).catch(() => false);
-	logCheckpoint(`Reject hint visible: ${isHintVisible}`);
-
-	await takeStepScreenshot(page, 'reject-countdown-state');
+	await expect(rejectHint).toBeVisible({ timeout: 1000 });
 
 	// ======================================================================
 	// STEP 5: Click on the embed to reject/interrupt the focus mode

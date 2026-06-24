@@ -8,6 +8,7 @@ import { websocketStatus } from "../stores/websocketStatusStore";
 import { notificationStore } from "../stores/notificationStore";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
+import { activeChatFocusStore } from "../stores/activeChatFocusStore";
 import { get } from "svelte/store";
 import { forcedLogoutInProgress, isLoggingOut } from "../stores/signupState";
 import { authStore } from "../stores/authStore";
@@ -1063,6 +1064,7 @@ export class ChatSynchronizationService extends EventTarget {
         const chatId = focusPayload.chat_id;
         const focusId = focusPayload.focus_id;
         if (!chatId || !focusId) return;
+        activeChatFocusStore.setActiveFocus(chatId, focusId);
         console.warn("[ChatSyncService] Focus mode activated:", {
           chatId,
           focusId,

@@ -15,7 +15,7 @@ function deriveApiUrl(baseUrl: string): string {
 }
 
 test.describe('Feature availability', () => {
-	test('platform feature overrides expose workflows while unfinished sections stay hidden', async ({ page }) => {
+	test('platform feature overrides expose enabled workspace sections', async ({ page }) => {
 		test.setTimeout(120000);
 
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
@@ -24,26 +24,26 @@ test.describe('Feature availability', () => {
 		const availability = await availabilityResponse.json();
 		const disabled = availability.disabled ?? [];
 
-		expect(disabled).toContain('platform:projects');
+		expect(disabled).not.toContain('platform:projects');
 		expect(disabled).not.toContain('platform:workflows');
-		expect(disabled).toContain('platform:tasks');
+		expect(disabled).not.toContain('platform:tasks');
 		expect(disabled).not.toContain('app:web');
 
 		await page.goto('/', { waitUntil: 'domcontentloaded' });
 		await loginToTestAccount(page, () => {}, async () => {});
 
 		await expect(page.getByTestId('chats-nav-link')).toHaveCount(0);
-		await expect(page.getByTestId('projects-nav-link')).toHaveCount(0);
+		await expect(page.getByTestId('projects-nav-link')).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('workflows-nav-link')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('tasks-nav-link')).toHaveCount(0);
+		await expect(page.getByTestId('tasks-nav-link')).toBeVisible({ timeout: 30000 });
 
 		await page.goto('/projects', { waitUntil: 'domcontentloaded' });
 
-		await expect(page.getByTestId('projects-feature-disabled')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('projects-page')).toHaveCount(0);
-		await expect(page.getByTestId('projects-nav-link')).toHaveCount(0);
+		await expect(page.getByTestId('projects-feature-disabled')).toHaveCount(0);
+		await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('projects-nav-link')).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('workflows-nav-link')).toBeVisible({ timeout: 30000 });
-		await expect(page.getByTestId('tasks-nav-link')).toHaveCount(0);
+		await expect(page.getByTestId('tasks-nav-link')).toBeVisible({ timeout: 30000 });
 
 		await page.goto('/workflows', { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
