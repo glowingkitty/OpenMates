@@ -2119,6 +2119,17 @@
                     </div>
                   {/if}
                 </div>
+                {#if activeFocusBadgeAppId}
+                  <div
+                    class="focus-mode-badge"
+                    data-testid="focus-mode-badge"
+                    style="background: var(--color-app-{activeFocusBadgeAppId}, #5856d6);"
+                    title={activeFocusId ?? ''}
+                    aria-label="Focus mode active"
+                  >
+                    <span class="focus-mode-badge-icon"></span>
+                  </div>
+                {/if}
               </div>
             {:else}
               <!-- CRITICAL: NO FALLBACK ICONS - only render if category/icon are set by backend -->
@@ -2198,6 +2209,17 @@
                       </div>
                     {/if}
                   </div>
+                  {#if activeFocusBadgeAppId}
+                    <div
+                      class="focus-mode-badge"
+                      data-testid="focus-mode-badge"
+                      style="background: var(--color-app-{activeFocusBadgeAppId}, #5856d6);"
+                      title={activeFocusId ?? ''}
+                      aria-label="Focus mode active"
+                    >
+                      <span class="focus-mode-badge-icon"></span>
+                    </div>
+                  {/if}
                 </div>
               {/if}
             {/if}
