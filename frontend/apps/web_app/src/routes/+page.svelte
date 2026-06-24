@@ -74,8 +74,8 @@
 	import { pushNotificationService } from '@repo/ui';
 	import { settingsMenuVisible } from '@repo/ui/components/Settings.svelte';
 	import { rehydratePairSession, registerPairLogoutCallback, pendingPairToken } from '@repo/ui';
-	import { onMount, onDestroy, untrack } from 'svelte';
-	import { locale, waitLocale } from 'svelte-i18n';
+	import { onMount, onDestroy, tick, untrack } from 'svelte';
+	import { locale, waitLocale, _ as translationStore } from 'svelte-i18n';
 	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
 	import { replaceState } from '$app/navigation';
@@ -105,6 +105,13 @@
 	const EDGE_SWIPE_VERTICAL_CANCEL_PX = 48;
 	const AUTH_DEEP_LINK_LOCAL_FALLBACK_DELAY_MS = 12_000;
 	const PAIR_LOGIN_HASH_PATTERN = /^#pair=[A-Za-z0-9]{6}$/i;
+
+	async function waitForLocaleTextStores(): Promise<void> {
+		await waitLocale();
+		await tick();
+		await tick();
+		get(translationStore);
+	}
 
 	type EdgeSwipeTarget = 'open-chats' | 'close-chats' | 'open-settings' | 'close-settings';
 
@@ -566,7 +573,8 @@
 
 			const loadPublicChat = async (retries = 20): Promise<void> => {
 				if (activeChat) {
-					// Translate and convert to Chat format
+					// Translate and convert to Chat format after the URL locale has reached derived text stores.
+					await waitForLocaleTextStores();
 					const translatedChat = translateDemoChat(publicChat);
 					const chat = convertDemoChatToChat(translatedChat);
 
