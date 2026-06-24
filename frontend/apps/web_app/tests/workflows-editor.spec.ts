@@ -65,10 +65,15 @@ test.describe('Workflows editor', () => {
 			await page.getByTestId('workflow-node-location-input').fill('Paris');
 			await page.getByTestId('add-report-node').click();
 			await expect(page.getByTestId('workflow-node-card')).toHaveCount(6);
+			const saveWorkflowResponse = page.waitForResponse(
+				(response) => response.url().includes('/v1/workflows/') && response.request().method() === 'PATCH' && response.ok(),
+				{ timeout: 30000 }
+			);
 			await page.getByTestId('save-workflow').click();
+			await saveWorkflowResponse;
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('Weather | Get forecast for Paris', { timeout: 30000 });
 			await expect(page.getByTestId('workflow-node-stack')).toContainText('Create report');
-			await expect(page.getByTestId('workflows-list')).toContainText('Daily rain alert edited');
+			await expect(page.getByTestId('workflows-list')).toContainText('Daily rain alert edited', { timeout: 30000 });
 
 			await page.getByTestId('toggle-workflow').click();
 			await expect(page.getByTestId('workflow-detail')).toContainText('disabled', { timeout: 30000 });

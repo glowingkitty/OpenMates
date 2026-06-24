@@ -367,6 +367,7 @@ class DirectusWorkflowRepository:
             return response
         if response.status_code == 401:
             self._admin_token = None
+            self.token = None
             headers["Authorization"] = f"Bearer {self._admin_login_token()}"
             response = self._client.request(method, f"{self.base_url}{path}", headers=headers, **kwargs)
             if 200 <= response.status_code < 300:
