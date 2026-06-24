@@ -451,17 +451,17 @@ test.describe('language selection — English-first with browser suggestion', ()
 		await archiveExistingScreenshots(log);
 
 		// English-browser context (no locale preference set) so the page defaults to English.
-		// The ?lang=de URL param must set German BEFORE the default chat is loaded.
+		// The ?lang=de URL param must set German BEFORE the deep-linked demo chat is loaded.
 		const context = await browser.newContext();
 		const page = await context.newPage();
 		page.on('console', (msg: any) => consoleLogs.push(`[${msg.type()}] ${msg.text()}`));
 
 		log('Navigating with ?lang=de — checking for-everyone active chat renders in German...');
-		await page.goto(getE2EDebugUrl('/?lang=de'));
+		await page.goto(getE2EDebugUrl('/?lang=de#chat-id=demo-for-everyone'));
 		await waitForLocaleInit(page);
 		await takeScreenshot(page, '01-after-lang-param');
 
-		// The for-everyone chat is auto-loaded as the default active chat for non-auth users.
+		// The for-everyone chat is explicitly deep-linked because the root page now shows the welcome screen.
 		// The ChatHeader teaser line 1 in German is "KI Team-Mates." (was hardcoded English before this fix).
 		// The chat message H1 in German is "Digitale Team-Mates für alle".
 		// Without the early-locale fix it renders as "Digital team mates for everyone" (English).
