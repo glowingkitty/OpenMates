@@ -365,9 +365,9 @@ class DirectusWorkflowRepository:
         response = self._client.request(method, f"{self.base_url}{path}", headers=headers, **kwargs)
         if 200 <= response.status_code < 300:
             return response
-        if response.status_code == 401 and not self.token:
+        if response.status_code == 401:
             self._admin_token = None
-            headers["Authorization"] = f"Bearer {self._token()}"
+            headers["Authorization"] = f"Bearer {self._admin_login_token()}"
             response = self._client.request(method, f"{self.base_url}{path}", headers=headers, **kwargs)
             if 200 <= response.status_code < 300:
                 return response
@@ -378,6 +378,9 @@ class DirectusWorkflowRepository:
     def _token(self) -> str:
         if self.token:
             return self.token
+        return self._admin_login_token()
+
+    def _admin_login_token(self) -> str:
         if self._admin_token:
             return self._admin_token
         if not self.admin_email or not self.admin_password:
