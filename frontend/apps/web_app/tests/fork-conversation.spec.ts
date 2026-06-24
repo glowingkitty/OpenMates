@@ -252,11 +252,18 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	log('Fork button clicked.');
 	await screenshot(page, 'fork-started');
 
-	// ── 16. Wait for the active chat to switch to the fork ────────────────────
-	// The default E2E viewport keeps the sidebar closed, so do not assert on the
-	// chat list being mounted. Fork completion navigates the active chat instead.
-	log('Waiting for active chat to switch to the fork...');
+	// ── 16. Open the completed fork from the notification ─────────────────────
+	// Fork completion is intentionally non-disruptive: it shows a notification
+	// whose action opens the forked chat. The default E2E viewport keeps the
+	// sidebar closed, so use that product action instead of sidebar assertions.
+	log('Waiting for fork completion notification...');
 	await expect(forkContainer).not.toBeVisible({ timeout: 30000 });
+	const notificationAction = page.getByTestId('notification-action');
+	await expect(notificationAction).toBeVisible({ timeout: 30000 });
+	await notificationAction.click();
+	log('Clicked fork completion notification action.');
+
+	log('Waiting for active chat to switch to the fork...');
 	await expect(async () => {
 		const currentUrl = page.url();
 		expect(currentUrl).toContain('chat-id=');
