@@ -477,7 +477,6 @@ class ChatDatabase {
   private async deleteDatabaseForSchemaRepair(): Promise<void> {
     this.isDeleting = true;
     this.db = null;
-    this.initializationPromise = null;
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -610,7 +609,6 @@ class ChatDatabase {
     }
 
     this.db = null;
-    this.initializationPromise = null;
     chatKeyManager.clearAll({ broadcast: false });
     await this.deleteDatabaseForSchemaRepair();
     await this.recreateDatabaseFromSnapshot(snapshot);
@@ -955,6 +953,10 @@ class ChatDatabase {
           }
           if (repaired) {
             try {
+              // Keep concurrent init() callers waiting on the original promise
+              // until repair completes. Clear only now so this controlled re-open
+              // does not return the in-flight promise to itself.
+              this.initializationPromise = null;
               await this.init(options);
               resolve();
             } catch (error) {
