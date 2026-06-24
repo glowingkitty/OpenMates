@@ -108,16 +108,6 @@ async def handle_store_embed_diff(
             )
             return
 
-        existing = await _read_existing_row(
-            directus_service,
-            embed_id,
-            version_number,
-            authenticated_user_hash,
-        )
-        if existing:
-            logger.debug("Embed diff row already exists: embed=%s version=%s", embed_id, version_number)
-            return
-
         row = {
             "embed_id": embed_id,
             "version_number": version_number,
@@ -130,6 +120,50 @@ async def handle_store_embed_diff(
             import time
 
             row["created_at"] = int(time.time())
+
+        existing = await _read_existing_row(
+            directus_service,
+            embed_id,
+            version_number,
+            authenticated_user_hash,
+        )
+        if existing:
+            existing_id = existing.get("id")
+            if not existing_id:
+                logger.warning(
+                    "Embed diff row exists without id: embed=%s version=%s",
+                    embed_id,
+                    version_number,
+                )
+                return
+            updated = await directus_service.update_item("embed_diffs", existing_id, row)
+            if not updated:
+                logger.error(
+                    "Failed to update encrypted embed diff row embed=%s version=%s",
+                    embed_id,
+                    version_number,
+                )
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Failed to update embed diff row"}},
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+            logger.info(
+                "Updated encrypted embed diff row embed=%s version=%s",
+                embed_id,
+                version_number,
+            )
+            await manager.broadcast_to_user(
+                message={
+                    "type": "embed_diff_stored",
+                    "event_for_client": "embed_diff_stored",
+                    **row,
+                },
+                user_id=user_id,
+                exclude_device_hash=device_fingerprint_hash,
+            )
+            return
 
         await directus_service.create_item("embed_diffs", row)
         logger.info("Stored encrypted embed diff row embed=%s version=%s", embed_id, version_number)
