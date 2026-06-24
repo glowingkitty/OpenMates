@@ -37,6 +37,7 @@
   import { settingsMenuVisible } from '../Settings.svelte'; // For controlling Settings visibility
   import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
   import { activeChatStore } from '../../stores/activeChatStore'; // For setting active chat before share
+  import { activeChatFocusStore } from '../../stores/activeChatFocusStore';
   
   // Import Lucide icons dynamically
   import * as LucideIcons from '@lucide/svelte';
@@ -441,7 +442,8 @@
   // Active focus mode badge: derived from cachedMetadata.activeFocusId.
   // Shows a small circle in the bottom-right of the category circle when a focus mode is active.
   // Format of activeFocusId: "{app_id}-{focus_mode_id}" e.g. "jobs-career_insights"
-  let activeFocusId = $derived(cachedMetadata?.activeFocusId ?? null);
+  let liveActiveFocusId = $derived(chat ? ($activeChatFocusStore[chat.chat_id] ?? null) : null);
+  let activeFocusId = $derived(cachedMetadata?.activeFocusId ?? liveActiveFocusId);
   let activeFocusBadgeAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
   
   // CRITICAL: Track if we're waiting for title (reactive variable for template)
