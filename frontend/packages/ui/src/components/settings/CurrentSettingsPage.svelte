@@ -5,7 +5,7 @@
     import { userProfile } from '../../stores/userProfile';
     import { authStore } from '../../stores/authStore';
     import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
-    import { learningMode } from '../../stores/learningModeStore';
+    import { isLearningModeAuthError, learningMode } from '../../stores/learningModeStore';
     import { notificationStore } from '../../stores/notificationStore';
     import SettingsItem from '../SettingsItem.svelte';
     import { createEventDispatcher, tick } from 'svelte';
@@ -118,6 +118,7 @@
         if (($learningMode.loaded && $learningMode.source === 'account') || $learningMode.loading) return;
         learningMode.load().catch((error) => {
             console.error('[CurrentSettingsPage] Failed to load Learning Mode status:', error);
+            if (isLearningModeAuthError(error)) return;
             notificationStore.error($text('settings.learning_mode_load_error'));
         });
     });

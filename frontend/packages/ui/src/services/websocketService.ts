@@ -188,6 +188,7 @@ class WebSocketService extends EventTarget {
   private connectionPromise: Promise<void> | null = null;
   private resolveConnectionPromise: (() => void) | null = null;
   private rejectConnectionPromise: ((reason?: unknown) => void) | null = null;
+  private isPreparingConnection = false;
   private pingIntervalId: NodeJS.Timeout | null = null;
   private readonly PING_INTERVAL = 25000; // 25 seconds, less than typical 30-60s timeouts
   private pongTimeoutId: NodeJS.Timeout | null = null; // Track pong timeout
@@ -196,6 +197,7 @@ class WebSocketService extends EventTarget {
   private hasEverConnected = false; // Tracks whether a WebSocket connection was ever established (suppresses initial network change event)
   private consecutiveAbnormalClosures = 0; // Track consecutive 1006 (abnormal closure) failures for auth detection
   private readonly AUTH_FAILURE_THRESHOLD = 4; // After 4 consecutive 1006 failures, treat as auth error
+  private sessionRefreshPromise: Promise<boolean> | null = null;
   // Rationale: 2 was too aggressive — transient network events (WiFi handoff, brief server
   // restart, mobile network change) can produce 2 rapid 1006 closures without the session
   // actually being invalid. Raising to 4 gives the reconnect loop enough room to recover
@@ -229,7 +231,11 @@ class WebSocketService extends EventTarget {
       authStore.subscribe((auth) => {
         if (auth.isAuthenticated) {
           // Only attempt to connect if not already connected AND no connection attempt is in progress.
-          if (!this.isConnected() && !this.connectionPromise) {
+          if (
+            !this.isConnected() &&
+            !this.connectionPromise &&
+            !this.isPreparingConnection
+          ) {
             console.debug(
               "[WebSocketService] Auth detected, no active connection or pending attempt, connecting...",
             );
@@ -518,9 +524,54 @@ class WebSocketService extends EventTarget {
     }
   }
 
-  public connect(): Promise<void> {
+  private async refreshSessionForWebSocket(reason: string): Promise<boolean> {
+    if (this.sessionRefreshPromise) {
+      return this.sessionRefreshPromise;
+    }
+
+    this.sessionRefreshPromise = (async () => {
+      if (!get(authStore).isAuthenticated) return false;
+
+      try {
+        console.info(
+          `[WebSocketService] Refreshing auth session before WebSocket retry: ${reason}`,
+        );
+        const isAuthenticated = await authStore.checkAuth(undefined, true);
+        const hasWebSocketToken = Boolean(getWebSocketToken());
+        if (!isAuthenticated) {
+          console.warn(
+            "[WebSocketService] Session refresh confirmed user is no longer authenticated.",
+          );
+          return false;
+        }
+        if (!hasWebSocketToken) {
+          console.warn(
+            "[WebSocketService] Session refresh succeeded but no WebSocket token was returned.",
+          );
+          return false;
+        }
+        return true;
+      } catch (error) {
+        console.warn(
+          "[WebSocketService] Session refresh before WebSocket retry failed:",
+          error,
+        );
+        return false;
+      } finally {
+        this.sessionRefreshPromise = null;
+      }
+    })();
+
+    return this.sessionRefreshPromise;
+  }
+
+  public async connect(): Promise<void> {
     // If already connected or connecting, return existing promise
-    if (this.isConnected() || this.connectionPromise) {
+    if (
+      this.isConnected() ||
+      this.connectionPromise ||
+      this.isPreparingConnection
+    ) {
       return this.connectionPromise || Promise.resolve();
     }
 
@@ -544,7 +595,19 @@ class WebSocketService extends EventTarget {
     websocketStatus.setStatus(isReconnecting ? "reconnecting" : "connecting");
 
     const sessionId = getSessionId();
-    const authToken = getWebSocketToken(); // Get WebSocket token from sessionStorage (for Safari iOS compatibility)
+    let authToken = getWebSocketToken(); // Get WebSocket token from sessionStorage (for Safari iOS compatibility)
+
+    if (!authToken || isReconnecting) {
+      this.isPreparingConnection = true;
+      try {
+        await this.refreshSessionForWebSocket(
+          authToken ? "reconnect attempt" : "missing WebSocket token",
+        );
+        authToken = getWebSocketToken();
+      } finally {
+        this.isPreparingConnection = false;
+      }
+    }
 
     // Log auth token status at info level so it's visible in Loki for debugging connection issues
     console.info(
@@ -841,7 +904,7 @@ class WebSocketService extends EventTarget {
           // However, an error often precedes a close.
         };
 
-        currentWS.onclose = (event) => {
+        currentWS.onclose = async (event) => {
           // ADDED: Initial log to confirm onclose is triggered and see event details (sanitized)
           console.log(
             `[WebSocketService] DEBUG: onclose triggered. Code: ${event.code}, Reason: '${event.reason}', Clean: ${event.wasClean}, For WS URL: ${sanitizeUrlForLogging(currentWS.url)}, Current this.ws URL: ${sanitizeUrlForLogging(this.ws?.url)}`,
@@ -940,30 +1003,44 @@ class WebSocketService extends EventTarget {
               this.consecutiveAbnormalClosures >= this.AUTH_FAILURE_THRESHOLD ||
               isAuthRelated
             ) {
-              console.error(
-                "[WebSocketService] Detected authentication failure (repeated 1006 closures or auth-related reason). Logging out user.",
-              );
-              websocketStatus.setError(
-                "Authentication failed. Please log in again.",
-                "error",
-              );
-              this.consecutiveAbnormalClosures = 0; // Reset counter
-              this.dispatchEvent(
-                new CustomEvent("authError", {
-                  detail: { reason: "Session expired or invalid token" },
-                }),
+              const sessionStillValid = await this.refreshSessionForWebSocket(
+                isAuthRelated
+                  ? "auth-related close reason"
+                  : "repeated abnormal closures",
               );
 
-              // Reject and clear the main connection promise
-              if (
-                this.rejectConnectionPromise &&
-                this.connectionPromise &&
-                !this.ws
-              ) {
-                this.rejectConnectionPromise("Authentication failed");
-                this.connectionPromise = null;
+              if (!sessionStillValid) {
+                console.error(
+                  "[WebSocketService] REST session check also failed after WebSocket auth signal. Emitting authError.",
+                );
+                websocketStatus.setError(
+                  "Authentication failed. Please log in again.",
+                  "error",
+                );
+                this.consecutiveAbnormalClosures = 0; // Reset counter
+                this.dispatchEvent(
+                  new CustomEvent("authError", {
+                    detail: { reason: "Session expired or invalid token" },
+                  }),
+                );
+
+                // Reject and clear the main connection promise
+                if (
+                  this.rejectConnectionPromise &&
+                  this.connectionPromise &&
+                  !this.ws
+                ) {
+                  this.rejectConnectionPromise("Authentication failed");
+                  this.connectionPromise = null;
+                }
+                return; // Do not attempt reconnect on confirmed auth errors
               }
-              return; // Do not attempt reconnect on auth errors
+
+              console.info(
+                "[WebSocketService] REST session is still valid after WebSocket auth signal. Retrying with refreshed token.",
+              );
+              this.consecutiveAbnormalClosures = 0;
+              this.reconnectAttempts = 0;
             }
           } else {
             // Reset counter on successful connection or other close codes

@@ -31,6 +31,13 @@ export interface AnonymousLearningModeContext {
 	source: 'anonymous_session';
 }
 
+export class LearningModeRequestError extends Error {
+	constructor(message: string, public readonly status: number) {
+		super(message);
+		this.name = 'LearningModeRequestError';
+	}
+}
+
 const GUEST_ENABLED_STORAGE_KEY = 'openmates.learningMode.enabled';
 const GUEST_AGE_GROUP_STORAGE_KEY = 'openmates.learningMode.ageGroup';
 const DEFAULT_GUEST_AGE_GROUP: LearningModeAgeGroup = '13_15';
@@ -103,16 +110,21 @@ export function getAnonymousLearningModeContext(): AnonymousLearningModeContext 
 	};
 }
 
+export function isLearningModeAuthError(error: unknown): boolean {
+	return error instanceof LearningModeRequestError
+		&& (error.status === 401 || error.status === 403);
+}
+
 async function parseError(response: Response, fallback: string): Promise<Error> {
 	try {
 		const body = await response.json();
 		const detail = body?.detail;
-		if (typeof detail === 'string') return new Error(detail);
-		if (detail?.reason) return new Error(String(detail.reason));
+		if (typeof detail === 'string') return new LearningModeRequestError(detail, response.status);
+		if (detail?.reason) return new LearningModeRequestError(String(detail.reason), response.status);
 	} catch {
 		// Response body is optional; fall back to the explicit status message below.
 	}
-	return new Error(`${fallback} (HTTP ${response.status})`);
+	return new LearningModeRequestError(`${fallback} (HTTP ${response.status})`, response.status);
 }
 
 function createLearningModeStore() {

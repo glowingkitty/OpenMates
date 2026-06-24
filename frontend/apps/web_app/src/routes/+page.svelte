@@ -25,6 +25,7 @@
 		currentSignupStep, // Import currentSignupStep to set signup step from hash
 		getStepFromPath, // Import getStepFromPath to parse step from hash
 		isSignupPath, // Import isSignupPath helper
+		checkAuth,
 		// types
 		type Chat,
 		// services
@@ -1999,11 +2000,11 @@
 				});
 		}
 
-		// Listen for WebSocket auth errors and trigger logout
-		// This handles cases where the session expires and WebSocket connection is rejected with 403
+		// Listen for WebSocket auth errors and trigger logout only after REST auth confirms expiry.
+		// WebSocket 1006 can also come from sleep, proxy restarts, or transient network loss.
 		handleWebSocketAuthError = async () => {
 			console.info(
-				'[+page.svelte] WebSocket auth error detected - session expired or invalid token. Logging out user.'
+				'[+page.svelte] WebSocket auth error detected. Verifying REST session before logout.'
 			);
 
 			if (isPairLoginPending()) {
@@ -2013,9 +2014,22 @@
 				return;
 			}
 
-			// The session endpoint intentionally uses an offline-first fallback for non-OK responses.
-			// A WebSocket auth error is already a definitive stale-token signal, so clear local auth
-			// state and browser credentials directly instead of re-checking the session endpoint.
+			try {
+				const isSessionStillValid = await checkAuth(undefined, true);
+				if (isSessionStillValid) {
+					console.info(
+						'[+page.svelte] REST session is still valid after WebSocket auth error. Retrying WebSocket instead of logging out.'
+					);
+					webSocketService.connect().catch((error) => {
+						console.warn('[+page.svelte] WebSocket retry after session verification failed:', error);
+					});
+					return;
+				}
+			} catch (error) {
+				console.warn('[+page.svelte] REST session verification after WebSocket auth error failed:', error);
+			}
+
+			console.info('[+page.svelte] REST session invalid after WebSocket auth error. Logging out user.');
 			const { logout } = await import('@repo/ui');
 			await logout({ skipServerLogout: true, isSessionExpiredLogout: true });
 		};
