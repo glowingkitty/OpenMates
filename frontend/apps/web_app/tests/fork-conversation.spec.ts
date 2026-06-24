@@ -252,35 +252,18 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	log('Fork button clicked.');
 	await screenshot(page, 'fork-started');
 
-	// ── 16. Wait for the forked chat to appear in the sidebar ────────────────
-	// After forking, the new chat should appear at the top of the chat list.
-	// We capture the sidebar count BEFORE the fork panel closes, then wait
-	// for it to grow by 1. This is robust even with an account that already
-	// has many existing chats.
-	//
-	// Note: the fork panel closes after clicking Fork, the settings panel
-	// dismisses, and then the new chat appears at the top of the sidebar.
-	log('Waiting for forked chat to appear in sidebar...');
-	const chatItems = page.getByTestId('chat-item-wrapper');
-	const countBefore = await chatItems.count();
-	log(`Sidebar chat count before fork completion: ${countBefore}`);
-
-	// Wait up to 30s for the sidebar to have one more chat than before
+	// ── 16. Wait for the active chat to switch to the fork ────────────────────
+	// The default E2E viewport keeps the sidebar closed, so do not assert on the
+	// chat list being mounted. Fork completion navigates the active chat instead.
+	log('Waiting for active chat to switch to the fork...');
+	await expect(forkContainer).not.toBeVisible({ timeout: 30000 });
 	await expect(async () => {
-		const countNow = await chatItems.count();
-		expect(countNow).toBeGreaterThan(countBefore);
+		const currentUrl = page.url();
+		expect(currentUrl).toContain('chat-id=');
+		expect(currentUrl).not.toBe(originalChatUrl);
 	}).toPass({ timeout: 30000, intervals: [1000] });
 
-	const countAfter = await chatItems.count();
-	log(`Sidebar chat count after fork: ${countAfter} (grew by ${countAfter - countBefore}).`);
-	await screenshot(page, 'fork-complete-sidebar');
-
-	// ── 17. Open the forked chat (first item = most recent = the fork) ───────
-	const firstChatItem = chatItems.first();
-	await expect(firstChatItem).toBeVisible();
-	await firstChatItem.click();
-	log('Opened the forked chat.');
-	await page.waitForTimeout(2000);
+	log(`Forked chat is active: ${page.url()}`);
 	await screenshot(page, 'forked-chat-opened');
 
 	// Capture the forked chat URL for cleanup
