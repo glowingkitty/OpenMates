@@ -40,7 +40,8 @@ const {
 	waitForAssistantMessage,
 	openSignupInterface,
 	submitPasswordAndHandleOtp,
-	waitForChatReady
+	waitForChatReady,
+	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
 
 /**
@@ -298,37 +299,15 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	log('No missing translations detected.');
 
 	// ── 20. Clean up: delete forked chat ────────────────────────────────────
-	// The forked chat is currently active. Right-click the active item.
 	log('Cleaning up: deleting forked chat...');
-	const activeForkItem = page.locator('[data-testid="chat-item-wrapper"].active');
-	await expect(activeForkItem).toBeVisible();
-	await activeForkItem.scrollIntoViewIfNeeded();
-	await activeForkItem.click({ button: 'right' });
-	const deleteBtn = page.getByTestId('chat-context-delete');
-	await expect(deleteBtn).toBeVisible({ timeout: 5000 });
-	await deleteBtn.click(); // First click: show confirm state
-	await expect(deleteBtn).toContainText(/confirm/i, { timeout: 3000 });
-	await deleteBtn.click(); // Second click: confirm deletion
-	await expect(activeForkItem).not.toBeVisible({ timeout: 10000 });
-	log('Forked chat deleted.');
+	await deleteActiveChat(page, log, screenshot, 'forked-chat-cleanup');
 
 	// ── 21. Clean up: delete original chat ──────────────────────────────────
 	// Navigate back to the original chat URL and delete it.
 	log('Cleaning up: navigating back to original chat...');
 	await page.goto(originalChatUrl);
 	await page.waitForTimeout(2000);
-
-	const activeOriginalItem = page.locator('[data-testid="chat-item-wrapper"].active');
-	await expect(activeOriginalItem).toBeVisible({ timeout: 10000 });
-	await activeOriginalItem.scrollIntoViewIfNeeded();
-	await activeOriginalItem.click({ button: 'right' });
-	const deleteBtnOriginal = page.getByTestId('chat-context-delete');
-	await expect(deleteBtnOriginal).toBeVisible({ timeout: 5000 });
-	await deleteBtnOriginal.click(); // First click: show confirm state
-	await expect(deleteBtnOriginal).toContainText(/confirm/i, { timeout: 3000 });
-	await deleteBtnOriginal.click(); // Second click: confirm deletion
-	await expect(activeOriginalItem).not.toBeVisible({ timeout: 10000 });
-	log('Original chat deleted.');
+	await deleteActiveChat(page, log, screenshot, 'original-chat-cleanup');
 	await screenshot(page, 'cleanup-complete');
 
 	log('Fork conversation test passed successfully.');
