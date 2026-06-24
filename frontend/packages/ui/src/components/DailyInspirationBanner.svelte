@@ -1229,7 +1229,7 @@
   .guest-intro-copy-line {
     display: block;
     max-width: 760px;
-    font-size: clamp(1.35rem, 2vw, 2.7rem);
+    font-size: clamp(2rem, 2vw, 2.7rem);
     line-height: 1.08;
     font-weight: 700;
     letter-spacing: -0.035em;
