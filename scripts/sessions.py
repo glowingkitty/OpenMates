@@ -3324,6 +3324,35 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             file_owners[of] = other_sid
 
     if not to_commit:
+        git_summary = _get_git_status_summary()
+        if git_summary.get("unpushed", 0) > 0:
+            rc, commit_hash_full, _ = _run_cmd(["git", "rev-parse", "HEAD"])
+            commit_hash_full = (commit_hash_full or "").strip() if rc == 0 else ""
+            commit_hash = commit_hash_full[:7] if commit_hash_full else "unknown"
+
+            print(f"No files to commit; pushing {git_summary['unpushed']} existing commit(s) to origin dev...")
+            rc, stdout, stderr = _run_cmd(["git", "push", "origin", "dev"])
+            if rc != 0:
+                print(f"git push failed: {stderr}", file=sys.stderr)
+                print("Existing local commit(s) were not pushed.")
+                sys.exit(1)
+
+            if commit_hash_full:
+                _save_last_deploy_sha(commit_hash_full)
+
+            print()
+            print("== DEPLOYED ==")
+            print(f"Commit: {commit_hash}")
+            print("Files: 0 (resumed previous deploy push)")
+            print("Branch: dev")
+
+            if getattr(args, "end_session", False):
+                _linear_complete_session(sid, session, commit_sha=commit_hash)
+                del data["sessions"][sid]
+                _save_sessions(data)
+                print(f"Session {sid} ended.")
+            sys.exit(0)
+
         # Surface untracked dirty files so the caller knows why nothing was committed
         if dirty_but_untracked:
             print("No tracked files to commit, but these dirty files are NOT tracked by this session:", file=sys.stderr)
