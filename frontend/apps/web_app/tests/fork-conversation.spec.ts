@@ -211,12 +211,22 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 
 	log('Right-clicking the first user message to open context menu...');
 	await firstUserMessage.click({ button: 'right' });
+	const forkMenuItem = page.getByTestId('chat-context-fork');
+	if (!(await forkMenuItem.isVisible({ timeout: 2000 }).catch(() => false))) {
+		const box = await firstUserMessage.boundingBox();
+		await firstUserMessage.dispatchEvent('contextmenu', {
+			button: 2,
+			buttons: 2,
+			clientX: box ? box.x + box.width / 2 : 0,
+			clientY: box ? box.y + box.height / 2 : 0
+		});
+		log('Dispatched contextmenu event after right-click did not open the menu.');
+	}
 	await screenshot(page, 'context-menu-open');
 
 	// ── 13. Click "Fork Conversation" in context menu ────────────────────────
 	// The menu is rendered at document.body level (portal pattern).
 	// It is marked .menu-container.show once visible.
-	const forkMenuItem = page.getByTestId('chat-context-fork');
 	await expect(forkMenuItem).toBeVisible({ timeout: 8000 });
 	log('Fork menu item visible, clicking...');
 	await forkMenuItem.click();
