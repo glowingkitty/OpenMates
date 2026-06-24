@@ -227,19 +227,12 @@ export interface WorkflowGraph {
 
 export type WorkflowRunContentRetention = "last_5" | "none";
 export type WorkflowRunContentStorage = "durable" | "ephemeral" | "deleted";
-export type WorkflowLifecycle = "persisted" | "temporary";
 
 export interface WorkflowSummary {
   id: string;
   title: string;
   status: "draft" | "active" | "disabled" | "error" | "deleted";
   enabled: boolean;
-  lifecycle?: WorkflowLifecycle;
-  source?: string;
-  source_chat_id?: string | null;
-  created_by_assistant?: boolean;
-  auto_delete_at?: number | null;
-  kept_at?: number | null;
   trigger_summary?: string | null;
   next_run_at?: number | null;
   last_run_status?: "queued" | "running" | "waiting" | "completed" | "failed" | "cancelled" | null;
@@ -291,7 +284,7 @@ export interface WorkflowRunDetail {
 }
 
 export interface WorkflowCapability {
-  type: "node" | "app_skill" | "workflow";
+  type: "node" | "app_skill";
   id: string;
   title: string;
   enabled: boolean;
@@ -4220,28 +4213,11 @@ export class OpenMatesClient {
     return response.data.workflows ?? [];
   }
 
-  async listTemporaryWorkflows(): Promise<WorkflowSummary[]> {
-    this.requireSession();
-    const response = await this.http.get<{ workflows?: WorkflowSummary[] }>(
-      "/v1/workflows/temporary",
-      this.getCliRequestHeaders(),
-    );
-    if (!response.ok) {
-      throw new Error(`Temporary workflow list failed with HTTP ${response.status}`);
-    }
-    return response.data.workflows ?? [];
-  }
-
   async createWorkflow(params: {
     title: string;
     graph: WorkflowGraph;
     enabled?: boolean;
     runContentRetention?: WorkflowRunContentRetention;
-    lifecycle?: WorkflowLifecycle;
-    source?: string;
-    sourceChatId?: string | null;
-    createdByAssistant?: boolean;
-    autoDeleteAt?: number | null;
   }): Promise<WorkflowDetail> {
     this.requireSession();
     const response = await this.http.post<{ workflow?: WorkflowDetail }>(
@@ -4251,11 +4227,6 @@ export class OpenMatesClient {
         graph: params.graph,
         enabled: params.enabled ?? false,
         ...(params.runContentRetention ? { run_content_retention: params.runContentRetention } : {}),
-        ...(params.lifecycle ? { lifecycle: params.lifecycle } : {}),
-        ...(params.source ? { source: params.source } : {}),
-        ...(params.sourceChatId !== undefined ? { source_chat_id: params.sourceChatId } : {}),
-        ...(params.createdByAssistant !== undefined ? { created_by_assistant: params.createdByAssistant } : {}),
-        ...(params.autoDeleteAt !== undefined ? { auto_delete_at: params.autoDeleteAt } : {}),
       },
       this.getCliRequestHeaders(),
     );
@@ -4309,19 +4280,6 @@ export class OpenMatesClient {
       throw new Error(`Workflow delete failed with HTTP ${response.status}`);
     }
     return { deleted: response.data.deleted === true };
-  }
-
-  async keepWorkflow(workflowId: string): Promise<WorkflowDetail> {
-    this.requireSession();
-    const response = await this.http.post<{ workflow?: WorkflowDetail }>(
-      `/v1/workflows/${encodeURIComponent(workflowId)}/keep`,
-      {},
-      this.getCliRequestHeaders(),
-    );
-    if (!response.ok || !response.data.workflow) {
-      throw new Error(`Workflow keep failed with HTTP ${response.status}`);
-    }
-    return response.data.workflow;
   }
 
   async enableWorkflow(workflowId: string): Promise<WorkflowDetail> {
