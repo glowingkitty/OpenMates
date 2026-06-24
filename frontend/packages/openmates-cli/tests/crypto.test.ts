@@ -17,6 +17,7 @@ import {
   encryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
   decryptBytesWithAesGcm,
+  deriveEmbedKeyFromChatKey,
   deriveEmailEncryptionKeyB64,
   createRecoveryKeyMaterial,
   createApiKeyCryptoMaterial,
@@ -229,6 +230,19 @@ describe("encryptBytesWithAesGcm / decryptBytesWithAesGcm", () => {
     const c1 = await encryptBytesWithAesGcm(chatKey, masterKey);
     const c2 = await encryptBytesWithAesGcm(chatKey, masterKey);
     assert.notStrictEqual(c1, c2, "random IV should make ciphertexts differ");
+  });
+});
+
+describe("deriveEmbedKeyFromChatKey", () => {
+  it("matches the browser HKDF embed-key derivation contract", async () => {
+    const chatKey = new Uint8Array(32).fill(7);
+    const key = await deriveEmbedKeyFromChatKey(chatKey, "embed-123");
+    const repeated = await deriveEmbedKeyFromChatKey(chatKey, "embed-123");
+    const differentEmbed = await deriveEmbedKeyFromChatKey(chatKey, "embed-456");
+
+    assert.equal(bytesToBase64(key), "C1aHZnpAOX6QQZR+wToF+2BU8m8ib8ZGOIcK+KLvLsA=");
+    assert.deepEqual(repeated, key);
+    assert.notDeepEqual(differentEmbed, key);
   });
 });
 

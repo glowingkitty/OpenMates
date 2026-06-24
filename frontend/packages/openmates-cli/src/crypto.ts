@@ -434,6 +434,33 @@ export async function decryptBytesWithAesGcm(
 }
 
 /**
+ * Derive an embed-specific AES key deterministically from the chat key.
+ *
+ * Mirrors the browser's deriveEmbedKeyFromChatKey() contract so CLI-created
+ * embed version rows stay decryptable across updates and devices.
+ */
+export async function deriveEmbedKeyFromChatKey(
+  chatKey: Uint8Array,
+  embedId: string,
+): Promise<Uint8Array> {
+  const hkdfKey = await cryptoApi.subtle.importKey(
+    "raw",
+    toArrayBuffer(new Uint8Array(chatKey)),
+    "HKDF",
+    false,
+    ["deriveBits"],
+  );
+  const salt = new TextEncoder().encode("openmates-embed-key-v1");
+  const info = new TextEncoder().encode(embedId);
+  const derivedBits = await cryptoApi.subtle.deriveBits(
+    { name: "HKDF", hash: "SHA-256", salt: toArrayBuffer(salt), info: toArrayBuffer(info) },
+    hkdfKey,
+    256,
+  );
+  return new Uint8Array(derivedBits);
+}
+
+/**
  * Encrypt raw bytes with AES-256-GCM and return base64(IV || ciphertext).
  *
  * Mirrors cryptoService.ts encryptChatKeyWithMasterKey() — used for wrapping

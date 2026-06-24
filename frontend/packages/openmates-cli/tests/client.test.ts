@@ -68,7 +68,11 @@ const {
   buildTurnTokenRefsRequestPayload,
   getClientMessagesVersionForSync,
 } = await import("../src/client.ts");
-const { decryptBytesWithAesGcm, decryptWithAesGcmCombined, encryptBytesWithAesGcm } = await import("../src/crypto.ts");
+const {
+  decryptBytesWithAesGcm,
+  decryptWithAesGcmCombined,
+  encryptBytesWithAesGcm,
+} = await import("../src/crypto.ts");
 
 after(() => {
   if (originalHome === undefined) {
@@ -377,6 +381,75 @@ describe("memory type registry", () => {
       "web/bookmarks",
       "web/read_later",
     ]);
+  });
+});
+
+describe("CLI streamed embed persistence", () => {
+  it("uses the same deterministic parent embed key across version updates", async () => {
+    writeLegacySession();
+    const client = OpenMatesClient.load();
+    const masterKey = new Uint8Array(32);
+    const chatKey = new Uint8Array(32).fill(7);
+    const frames: { type: string; payload: Record<string, any> }[] = [];
+    const ws = {
+      sendAsync: async (type: string, payload: Record<string, any>) => {
+        frames.push({ type, payload });
+      },
+    };
+
+    const persist = async (content: string, version: number) => {
+      await (client as any).persistStreamedEmbeds({
+        ws,
+        embeds: [{
+          embed_id: "embed-123",
+          type: "code-code",
+          content,
+          status: "finished",
+          version_number: version,
+          version_history_rows: [{
+            embed_id: "embed-123",
+            version_number: version,
+            snapshot: content,
+            created_at: 1780000000 + version,
+          }],
+        }],
+        chatId: "chat-123",
+        chatKeyBytes: chatKey,
+        fallbackMessageId: "message-123",
+      });
+    };
+
+    await persist("version one", 1);
+    await persist("version two", 2);
+
+    const keyFrames = frames.filter((frame) => frame.type === "store_embed_keys");
+    const diffFrames = frames.filter((frame) => frame.type === "store_embed_diff");
+    assert.equal(keyFrames.length, 2);
+    assert.equal(diffFrames.length, 2);
+    assert.ok(
+      frames.findIndex((frame) => frame.type === "store_embed_keys") <
+        frames.findIndex((frame) => frame.type === "store_embed_diff"),
+    );
+
+    const firstMasterWrapper = keyFrames[0].payload.keys.find(
+      (entry: Record<string, unknown>) => entry.key_type === "master",
+    );
+    const secondMasterWrapper = keyFrames[1].payload.keys.find(
+      (entry: Record<string, unknown>) => entry.key_type === "master",
+    );
+    const firstKey = await decryptBytesWithAesGcm(firstMasterWrapper.encrypted_embed_key, masterKey);
+    const secondKey = await decryptBytesWithAesGcm(secondMasterWrapper.encrypted_embed_key, masterKey);
+    assert.ok(firstKey);
+    assert.ok(secondKey);
+    assert.deepEqual(secondKey, firstKey);
+    assert.equal(
+      await decryptWithAesGcmCombined(diffFrames[0].payload.encrypted_snapshot, firstKey),
+      "version one",
+    );
+    assert.equal(
+      await decryptWithAesGcmCombined(diffFrames[1].payload.encrypted_snapshot, secondKey),
+      "version two",
+    );
   });
 });
 

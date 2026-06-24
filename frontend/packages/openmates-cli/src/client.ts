@@ -18,6 +18,7 @@ import {
   decryptBundle,
   decryptWithAesGcmCombined,
   decryptBytesWithAesGcm,
+  deriveEmbedKeyFromChatKey,
   deriveEmailEncryptionKeyB64,
   encryptWithAesGcmCombined,
   encryptBytesWithAesGcm,
@@ -3580,11 +3581,22 @@ export class OpenMatesClient {
     const masterKey = this.getMasterKeyBytes();
     const parentKeys = new Map<string, Uint8Array>();
     const processed = new Set<string>();
+    const cachedEmbeds = loadSyncCache();
 
-    const makeKey = () => {
-      const key = new Uint8Array(32);
-      globalThis.crypto.getRandomValues(key);
-      return key;
+    const resolveCachedParentKey = async (parentId: string): Promise<Uint8Array | undefined> => {
+      if (!cachedEmbeds) return undefined;
+      const cachedParent = cachedEmbeds?.embeds.find(
+        (entry) => String(entry.embed_id ?? entry.id ?? "") === parentId,
+      );
+      if (!cachedParent) return undefined;
+      const hashedParentId = computeSHA256(parentId);
+      return await this.resolveEmbedKey(
+        cachedEmbeds,
+        masterKey,
+        cachedParent,
+        parentId,
+        hashedParentId,
+      ) ?? undefined;
     };
 
     const persistOne = async (
@@ -3612,6 +3624,29 @@ export class OpenMatesClient {
       const encryptedTextPreview = embed.text_preview
         ? await encryptWithAesGcmCombined(embed.text_preview, embedKey)
         : undefined;
+      const keys: EmbedKeyWrapper[] = !isChild
+        ? [
+            {
+              hashed_embed_id: hashedEmbedId,
+              key_type: "master",
+              hashed_chat_id: null,
+              encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, masterKey),
+              hashed_user_id: hashedUserId,
+              created_at: now,
+            },
+            {
+              hashed_embed_id: hashedEmbedId,
+              key_type: "chat",
+              hashed_chat_id: hashedChatId,
+              encrypted_embed_key: await encryptBytesWithAesGcm(
+                embedKey,
+                params.chatKeyBytes,
+              ),
+              hashed_user_id: hashedUserId,
+              created_at: now,
+            },
+          ]
+        : [];
 
       await params.ws.sendAsync("store_embed", {
         embed_id: embed.embed_id,
@@ -3635,6 +3670,11 @@ export class OpenMatesClient {
         updated_at: updatedAt,
       });
 
+      if (keys.length > 0) {
+        await params.ws.sendAsync("store_embed_keys", { keys });
+        parentKeys.set(embed.embed_id, embedKey);
+      }
+
       if (Array.isArray(embed.version_history_rows)) {
         for (const row of embed.version_history_rows) {
           if (!row.embed_id || typeof row.version_number !== "number") continue;
@@ -3657,32 +3697,6 @@ export class OpenMatesClient {
           });
         }
       }
-
-      if (!isChild) {
-        const keys: EmbedKeyWrapper[] = [
-          {
-            hashed_embed_id: hashedEmbedId,
-            key_type: "master",
-            hashed_chat_id: null,
-            encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, masterKey),
-            hashed_user_id: hashedUserId,
-            created_at: now,
-          },
-          {
-            hashed_embed_id: hashedEmbedId,
-            key_type: "chat",
-            hashed_chat_id: hashedChatId,
-            encrypted_embed_key: await encryptBytesWithAesGcm(
-              embedKey,
-              params.chatKeyBytes,
-            ),
-            hashed_user_id: hashedUserId,
-            created_at: now,
-          },
-        ];
-        await params.ws.sendAsync("store_embed_keys", { keys });
-        parentKeys.set(embed.embed_id, embedKey);
-      }
     };
 
     let madeProgress = true;
@@ -3695,8 +3709,12 @@ export class OpenMatesClient {
           continue;
         }
 
-        const parentKey = parentId ? parentKeys.get(parentId) : undefined;
-        await persistOne(embed, parentKey ?? makeKey(), Boolean(parentKey));
+        const parentKey = parentId
+          ? parentKeys.get(parentId) ?? await resolveCachedParentKey(parentId)
+          : undefined;
+        if (parentId && !parentKey) continue;
+        const embedKey = parentKey ?? await deriveEmbedKeyFromChatKey(params.chatKeyBytes, embed.embed_id);
+        await persistOne(embed, embedKey, Boolean(parentId));
         processed.add(embed.embed_id);
         madeProgress = true;
       }
@@ -3704,7 +3722,15 @@ export class OpenMatesClient {
 
     for (const embed of finalized.values()) {
       if (processed.has(embed.embed_id)) continue;
-      await persistOne(embed, makeKey(), false);
+      const parentId = embed.parent_embed_id || null;
+      const parentKey = parentId
+        ? parentKeys.get(parentId) ?? await resolveCachedParentKey(parentId)
+        : undefined;
+      if (parentId && !parentKey) {
+        throw new Error(`Cannot persist child embed ${embed.embed_id}: parent embed key ${parentId} is unavailable.`);
+      }
+      const embedKey = parentKey ?? await deriveEmbedKeyFromChatKey(params.chatKeyBytes, embed.embed_id);
+      await persistOne(embed, embedKey, Boolean(parentId));
       processed.add(embed.embed_id);
     }
   }
