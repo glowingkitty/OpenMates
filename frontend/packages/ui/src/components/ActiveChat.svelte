@@ -166,6 +166,8 @@
     import { autoStartCreatedApplicationPreview } from '../services/applicationPreviewService';
 
     const GUEST_DEFAULT_INTRO_INSPIRATION_ID = 'openmates-intro';
+    const CANCELLED_NEW_CHAT_DRAFT_RESTORE_ATTEMPTS = 5;
+    const CANCELLED_NEW_CHAT_DRAFT_RESTORE_DELAY_MS = 50;
 
     function loadWikipediaFullscreenComponent() {
         return import('./embeds/wiki/WikipediaFullscreen.svelte').catch((error) => {
@@ -6198,12 +6200,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
 
         await handleNewChatClick();
-        await tick();
-
-        if (text && messageInputFieldRef?.setSuggestionText) {
-            messageInputFieldRef.setSuggestionText(text);
-            messageInputFieldRef.focus();
+        if (text) {
+            await restoreCancelledNewChatDraft(text);
         }
+    }
+
+    async function restoreCancelledNewChatDraft(text: string): Promise<void> {
+        for (let attempt = 0; attempt < CANCELLED_NEW_CHAT_DRAFT_RESTORE_ATTEMPTS; attempt++) {
+            await tick();
+            await new Promise(resolve => setTimeout(resolve, CANCELLED_NEW_CHAT_DRAFT_RESTORE_DELAY_MS));
+
+            if (!messageInputFieldRef?.setSuggestionText) {
+                continue;
+            }
+
+            const currentText = messageInputFieldRef.getTextContent?.() ?? '';
+            if (!currentText.includes(text)) {
+                messageInputFieldRef.setSuggestionText(text);
+            }
+
+            const restoredText = messageInputFieldRef.getTextContent?.() ?? '';
+            if (restoredText.includes(text)) {
+                messageInputFieldRef.focus();
+                return;
+            }
+        }
+
+        console.warn('[ActiveChat] Failed to restore cancelled new-chat draft text after reset');
     }
 
     /**
