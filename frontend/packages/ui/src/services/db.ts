@@ -673,6 +673,13 @@ class ChatDatabase {
   async init(options: { skipOrphanDetection?: boolean } = {}): Promise<void> {
     const { skipOrphanDetection = false } = options;
 
+    // If an open/repair is already in progress, piggyback before inspecting this.db.
+    // Partial schema repair temporarily keeps an invalid handle while snapshotting it;
+    // concurrent callers must not close it or start a second repair attempt.
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
     // FAST PATH: If the database is already open and no deletion is pending,
     // skip all orphan detection, cleanup checks, and re-open logic.
     // This eliminates the "Skipping orphan detection" log spam that fires on
@@ -691,11 +698,6 @@ class ChatDatabase {
         missingStores,
         "Open database handle is missing required stores",
       );
-    }
-
-    // If an open is already in progress, piggyback on the existing promise.
-    if (this.initializationPromise) {
-      return this.initializationPromise;
     }
 
     // Make skipOrphanDetection persistent via sessionStorage - once set to true, it
