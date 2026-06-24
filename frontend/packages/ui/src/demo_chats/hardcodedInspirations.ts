@@ -451,8 +451,7 @@ const _URBAN_FARMS_TEXT: Record<string, InspirationText> = {
  * Falls back to English for any unsupported locale.
  */
 export function getHardcodedInspirations(locale: string): DailyInspiration[] {
-  void locale;
-  return getGuestProductInspirations();
+  return getGuestProductInspirations(locale);
 }
 
 function getWorkspaceInspirations(surface: Exclude<DailyInspirationSurface, "chats">): DailyInspiration[] {

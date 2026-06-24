@@ -210,6 +210,8 @@
         status: 'processing' | 'finished' | 'error' | 'cancelled';
         content: string;
         text_preview?: string;
+        app_id?: string;
+        skill_id?: string;
         embed_ids?: string[];
         file_path?: string;
         createdAt: number;
@@ -217,6 +219,25 @@
     };
 
     type EmbedDataRecord = EmbedStoreEntry | EmbedResolverData | Partial<EmbedResolverData>;
+
+    function mergeFullscreenDecodedContent(
+        previousContent: EmbedDecodedContent | null | undefined,
+        freshContent: EmbedDecodedContent | null | undefined,
+        freshEmbedData: EmbedDataRecord | null | undefined
+    ): EmbedDecodedContent | null | undefined {
+        if (!freshContent) return previousContent;
+
+        const merged: EmbedDecodedContent = {
+            ...(previousContent ?? {}),
+            ...freshContent
+        };
+
+        if (!merged.app_id && freshEmbedData?.app_id) merged.app_id = freshEmbedData.app_id;
+        if (!merged.skill_id && freshEmbedData?.skill_id) merged.skill_id = freshEmbedData.skill_id;
+        if (!merged.embed_ids && freshEmbedData?.embed_ids) merged.embed_ids = freshEmbedData.embed_ids;
+
+        return merged;
+    }
 
     function shouldAutoStartCreatedApplicationPreview(chat: Chat | null): boolean {
         if (!$authStore.isAuthenticated || !chat?.chat_id || chat.is_incognito || chat.is_anonymous) return false;
@@ -1395,7 +1416,12 @@
                     finalEmbedData = freshEmbedData;
                     
                     if (freshEmbedData.content) {
-                        finalDecodedContent = await decodeToonContent(freshEmbedData.content);
+                        const freshDecodedContent = await decodeToonContent(freshEmbedData.content);
+                        finalDecodedContent = mergeFullscreenDecodedContent(
+                            finalDecodedContent,
+                            freshDecodedContent,
+                            freshEmbedData
+                        );
                     }
                     
                     console.debug('[ActiveChat] 🔍 Loaded fresh embed data from EmbedStore:', {
@@ -12546,6 +12572,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         cursor: pointer;
         pointer-events: auto;
         text-decoration: none;
+        box-shadow: none;
+        filter: none;
     }
 
     .welcome-text .decrypting-chats-text {

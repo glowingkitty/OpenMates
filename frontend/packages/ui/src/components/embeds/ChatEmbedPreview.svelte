@@ -284,7 +284,7 @@
     display: block;
     font-size: var(--font-size-p);
     font-weight: 700;
-    color: var(--color-grey-100);
+    color: white;
     text-align: center;
     line-height: 1.3;
     max-width: 100%;

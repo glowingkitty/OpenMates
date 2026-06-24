@@ -215,7 +215,7 @@
     scroll-behavior: smooth;
     overscroll-behavior-x: contain;
     touch-action: pan-x;
-    padding: 4px 12px 8px max(6px, calc(50% - var(--guest-interest-center-offset, 75px)));
+    padding: 8px 12px 12px max(6px, calc(50% - var(--guest-interest-center-offset, 75px)));
     box-sizing: border-box;
     justify-content: flex-start;
     scrollbar-width: none;
@@ -243,7 +243,7 @@
     width: auto;
     min-width: max-content;
     padding: 8px 11px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 3px 9px rgba(0, 0, 0, 0.12);
     opacity: 0.78;
     cursor: pointer;
     pointer-events: auto;
@@ -255,7 +255,7 @@
   .guest-interest-tag.active {
     opacity: 1;
     transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
   }
 
   .guest-interest-tag.active {
@@ -308,6 +308,8 @@
     font-weight: 650;
     cursor: pointer;
     text-decoration: none;
+    box-shadow: none;
+    filter: none;
   }
 
   @media (max-width: 700px) {

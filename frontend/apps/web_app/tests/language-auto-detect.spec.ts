@@ -309,6 +309,7 @@ test.describe('language selection — English-first with browser suggestion', ()
 		// Wait for locale change to propagate
 		await page.waitForTimeout(2000);
 		await takeScreenshot(page, '02-after-switch');
+		await expect(page.getByText('Language Detected')).toHaveCount(0);
 
 		const htmlLangAfter = await page.evaluate(() =>
 			document.documentElement.getAttribute('lang')

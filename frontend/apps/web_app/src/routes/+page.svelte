@@ -1885,13 +1885,14 @@
 					const language = getLanguageByCode(browserLang);
 					if (language) {
 						localStorage.setItem("language_suggestion_shown", "1");
-						notificationStore.addNotificationWithOptions("info", {
+						const notificationId = notificationStore.addNotificationWithOptions("info", {
 							title: "Language Detected",
 							message: `Your browser language is ${language.nativeName}.`,
 							duration: 0,
 							dismissible: true,
 							actionLabel: `Switch to ${language.nativeName}`,
 							onAction: async () => {
+								window.dispatchEvent(new CustomEvent('language-changed'));
 								locale.set(browserLang);
 								await waitLocale();
 								localStorage.setItem("preferredLanguage", browserLang);
@@ -1900,6 +1901,10 @@
 									"dir",
 									isRtlLanguage(browserLang) ? "rtl" : "ltr"
 								);
+								setTimeout(() => {
+									window.dispatchEvent(new CustomEvent('language-changed-complete'));
+									notificationStore.removeNotification(notificationId);
+								}, 50);
 							}
 						});
 					}
