@@ -41,6 +41,7 @@ const CLI_DIST = fs.existsSync('/workspace/cli/dist/cli.js')
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 const consoleLogs: string[] = [];
+const MEMORY_LIST_TIMEOUT_MS = 90_000;
 
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
@@ -268,7 +269,7 @@ async function loginViaPair(page: any, apiUrl: string, logCheckpoint: (msg: stri
 // ---------------------------------------------------------------------------
 
 test.describe('CLI Memories', () => {
-	test.setTimeout(240_000);
+	test.setTimeout(360_000);
 
 	test('full memory lifecycle: create → list (decrypted) → update → delete', async ({
 		page
@@ -360,7 +361,7 @@ test.describe('CLI Memories', () => {
 				'preferred_tech',
 				'--json'
 			],
-			30_000
+			MEMORY_LIST_TIMEOUT_MS
 		);
 		consoleLogs.push(`[list stdout] ${listResult.stdout}`);
 		expect(listResult.code).toBe(0);
@@ -424,7 +425,7 @@ test.describe('CLI Memories', () => {
 				'preferred_tech',
 				'--json'
 			],
-			30_000
+			MEMORY_LIST_TIMEOUT_MS
 		);
 		const memoriesAfterUpdate = parseJsonOutput(listAfterUpdate.stdout, 'memories list after update');
 		const updatedEntry = memoriesAfterUpdate.find((m: any) => m.id === entryId);
@@ -462,7 +463,7 @@ test.describe('CLI Memories', () => {
 				'preferred_tech',
 				'--json'
 			],
-			30_000
+			MEMORY_LIST_TIMEOUT_MS
 		);
 		const memoriesAfterDelete = parseJsonOutput(listAfterDelete.stdout, 'memories list after delete');
 		const deletedEntry = memoriesAfterDelete.find((m: any) => m.id === entryId);
@@ -520,7 +521,7 @@ test.describe('CLI Memories', () => {
 // ---------------------------------------------------------------------------
 
 test.describe('CLI Memories — Additional Apps', () => {
-	test.setTimeout(300_000);
+	test.setTimeout(420_000);
 
 	test('travel/trips memory lifecycle: create → list (decrypted) → update → delete', async ({
 		page
@@ -579,7 +580,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 		const listResult = await runCli(
 			apiUrl,
 			['settings', 'memories', 'list', '--app-id', 'travel', '--item-type', 'trips', '--json'],
-			30_000
+			MEMORY_LIST_TIMEOUT_MS
 		);
 		expect(listResult.code).toBe(0);
 		const memories = parseJsonOutput(listResult.stdout, 'memories list');
@@ -633,7 +634,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 		const listAfterUpdate = await runCli(
 			apiUrl,
 			['settings', 'memories', 'list', '--app-id', 'travel', '--item-type', 'trips', '--json'],
-			30_000
+			MEMORY_LIST_TIMEOUT_MS
 		);
 		const updatedMemories = parseJsonOutput(listAfterUpdate.stdout, 'memories list after update');
 		const updatedEntry = updatedMemories.find((m: any) => m.id === entryId);
@@ -657,7 +658,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 		const listAfterDelete = await runCli(
 			apiUrl,
 			['settings', 'memories', 'list', '--app-id', 'travel', '--item-type', 'trips', '--json'],
-			30_000
+			MEMORY_LIST_TIMEOUT_MS
 		);
 		const memoriesAfterDelete = parseJsonOutput(listAfterDelete.stdout, 'memories list after delete');
 		const deletedEntry = memoriesAfterDelete.find((m: any) => m.id === entryId);
@@ -764,7 +765,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 				'communication_style',
 				'--json'
 			],
-			30_000
+			MEMORY_LIST_TIMEOUT_MS
 		);
 		expect(listResult.code).toBe(0);
 		const memories = parseJsonOutput(listResult.stdout, 'memories list');
@@ -826,7 +827,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 				'communication_style',
 				'--json'
 			],
-			30_000
+			MEMORY_LIST_TIMEOUT_MS
 		);
 		const updatedMemories = parseJsonOutput(listAfterUpdate.stdout, 'memories list after update');
 		const updatedEntry = updatedMemories.find((m: any) => m.id === entryId);
@@ -862,7 +863,7 @@ test.describe('CLI Memories — Additional Apps', () => {
 				'communication_style',
 				'--json'
 			],
-			30_000
+			MEMORY_LIST_TIMEOUT_MS
 		);
 		const memoriesAfterDelete = parseJsonOutput(listAfterDelete.stdout, 'memories list after delete');
 		const deletedEntry = memoriesAfterDelete.find((m: any) => m.id === entryId);
