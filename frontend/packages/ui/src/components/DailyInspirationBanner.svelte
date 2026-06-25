@@ -765,7 +765,7 @@
       const { webSocketService } = await import('../services/websocketService');
       if (!webSocketService.isConnected()) {
         console.debug('[DailyInspirationBanner] Skipping inspiration_viewed while WebSocket is disconnected:', inspirationId);
-        return false;
+        return true;
       }
       await webSocketService.sendMessage('inspiration_viewed', {
         inspiration_id: inspirationId,
@@ -774,7 +774,7 @@
       return true;
     } catch (err) {
       console.error('[DailyInspirationBanner] Failed to send inspiration_viewed:', err);
-      return false;
+      return true;
     }
   }
 </script>
