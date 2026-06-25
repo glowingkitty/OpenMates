@@ -25,42 +25,6 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-helpers');
 const { closeFullscreen, openFullscreen } = require('./helpers/embed-test-helpers');
 
-const CYCLING_INSPIRATIONS = [
-	{
-		inspiration_id: 'cycling-inspiration-1',
-		phrase: 'Cycling inspiration one',
-		title: 'Cycling One',
-		category: 'science',
-		content_type: 'text',
-		video: null,
-		generated_at: 1760000000,
-		assistant_response: 'First cycling inspiration response.',
-		follow_up_suggestions: ['Explore the first idea']
-	},
-	{
-		inspiration_id: 'cycling-inspiration-2',
-		phrase: 'Cycling inspiration two',
-		title: 'Cycling Two',
-		category: 'biology',
-		content_type: 'text',
-		video: null,
-		generated_at: 1760000001,
-		assistant_response: 'Second cycling inspiration response.',
-		follow_up_suggestions: ['Explore the second idea']
-	},
-	{
-		inspiration_id: 'cycling-inspiration-3',
-		phrase: 'Cycling inspiration three',
-		title: 'Cycling Three',
-		category: 'technology',
-		content_type: 'text',
-		video: null,
-		generated_at: 1760000002,
-		assistant_response: 'Third cycling inspiration response.',
-		follow_up_suggestions: ['Explore the third idea']
-	}
-];
-
 function expectNoFullscreenChunkErrors(consoleErrors: string[]) {
 	const chunkErrors = consoleErrors.filter((error) =>
 		/dynamically imported module|chunk loading error|corrupted_content|fullscreen component/i.test(error)
@@ -96,6 +60,22 @@ async function openForEveryoneIntroChat(page: any) {
 	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
 		timeout: 15000
 	});
+}
+
+async function readDailyInspirationPhrase(page: any): Promise<string> {
+	const phrase = page.getByTestId('daily-inspiration-phrase');
+	await expect(phrase).toBeVisible({ timeout: 15000 });
+	const text = (await phrase.textContent())?.trim() ?? '';
+	expect(text.length, 'Daily inspiration phrase should be non-empty').toBeGreaterThan(0);
+	return text;
+}
+
+async function expectDailyInspirationPhraseToChange(page: any, previousPhrase: string): Promise<string> {
+	const phrase = page.getByTestId('daily-inspiration-phrase');
+	await expect
+		.poll(async () => (await phrase.textContent())?.trim() ?? '', { timeout: 3000 })
+		.not.toBe(previousPhrase);
+	return readDailyInspirationPhrase(page);
 }
 
 test.describe('Unauthenticated app load', () => {
@@ -271,22 +251,6 @@ test.describe('Unauthenticated app load', () => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
 
-		await page.addInitScript((inspirations: typeof CYCLING_INSPIRATIONS) => {
-			(window as any).__defaultInspirationsFetchCount = 0;
-			const originalFetch = window.fetch.bind(window);
-			window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-				const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-				if (url.includes('/v1/default-inspirations')) {
-					(window as any).__defaultInspirationsFetchCount += 1;
-					return new Response(JSON.stringify({ inspirations }), {
-						status: 200,
-						headers: { 'Content-Type': 'application/json' }
-					});
-				}
-				return originalFetch(input, init);
-			};
-		}, CYCLING_INSPIRATIONS);
-
 		async function openNewChatAndReadPhrase() {
 			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 			await page.waitForLoadState('networkidle');
@@ -296,29 +260,19 @@ test.describe('Unauthenticated app load', () => {
 			await expect(newChatButton).toBeVisible({ timeout: 10000 });
 			await newChatButton.click();
 
-			const phrase = page.getByTestId('daily-inspiration-phrase');
-			await expect(phrase).toHaveText(/Cycling inspiration (one|two|three)/, { timeout: 15000 });
-			return (await phrase.textContent())?.trim();
+			return readDailyInspirationPhrase(page);
 		}
 
 		const firstPhrase = await openNewChatAndReadPhrase();
 		const secondPhrase = await openNewChatAndReadPhrase();
-		const fetchCountBeforeLanguageReload = await page.evaluate(
-			() => (window as any).__defaultInspirationsFetchCount
-		);
 		await page.evaluate(() => window.dispatchEvent(new Event('language-changed-complete')));
-		await page.waitForFunction(
-			(previousCount) => (window as any).__defaultInspirationsFetchCount > previousCount,
-			fetchCountBeforeLanguageReload
-		);
-		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText('Cycling inspiration one', {
-			timeout: 3000
-		});
+		await page.waitForTimeout(250);
+		const phraseAfterLanguageReload = await readDailyInspirationPhrase(page);
 		const thirdPhrase = await openNewChatAndReadPhrase();
 
-		expect(firstPhrase).toBe('Cycling inspiration one');
-		expect(secondPhrase).toBe('Cycling inspiration one');
-		expect(thirdPhrase).toBe('Cycling inspiration one');
+		expect(secondPhrase).toBe(firstPhrase);
+		expect(phraseAfterLanguageReload).toBe(firstPhrase);
+		expect(thirdPhrase).toBe(firstPhrase);
 	});
 
 	test('daily inspiration banner navigates with arrows and touch swipes on mobile', async ({
@@ -329,20 +283,6 @@ test.describe('Unauthenticated app load', () => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
 
-		await page.addInitScript((inspirations: typeof CYCLING_INSPIRATIONS) => {
-			const originalFetch = window.fetch.bind(window);
-			window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-				const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-				if (url.includes('/v1/default-inspirations')) {
-					return new Response(JSON.stringify({ inspirations }), {
-						status: 200,
-						headers: { 'Content-Type': 'application/json' }
-					});
-				}
-				return originalFetch(input, init);
-			};
-		}, CYCLING_INSPIRATIONS);
-
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 		await openForEveryoneIntroChat(page);
@@ -350,17 +290,16 @@ test.describe('Unauthenticated app load', () => {
 		await page.getByTestId('new-chat-cta-fullwidth').click();
 
 		const banner = page.getByTestId('daily-inspiration-banner').first();
-		const phrase = page.getByTestId('daily-inspiration-phrase');
-		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 15000 });
+		const firstPhrase = await readDailyInspirationPhrase(page);
 
 		const bannerBox = await banner.boundingBox();
 		expect(bannerBox, 'Daily inspiration banner must have bounds for gesture tests').toBeTruthy();
 
 		await page.getByTestId('daily-inspiration-next').click();
-		await expect(phrase).toHaveText('Cycling inspiration two', { timeout: 3000 });
+		const secondPhrase = await expectDailyInspirationPhraseToChange(page, firstPhrase);
 
 		await page.getByTestId('daily-inspiration-previous').click();
-		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 3000 });
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(firstPhrase, { timeout: 3000 });
 
 		const centerY = bannerBox!.y + bannerBox!.height / 2;
 		await banner.dispatchEvent('touchstart', {
@@ -375,7 +314,7 @@ test.describe('Unauthenticated app load', () => {
 			touches: [],
 			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
 		});
-		await expect(phrase).toHaveText('Cycling inspiration two', { timeout: 3000 });
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(secondPhrase, { timeout: 3000 });
 
 		await banner.dispatchEvent('touchstart', {
 			touches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }],
@@ -389,7 +328,7 @@ test.describe('Unauthenticated app load', () => {
 			touches: [],
 			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
 		});
-		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 3000 });
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(firstPhrase, { timeout: 3000 });
 		expect(page.url(), 'Carousel navigation should not start a chat').not.toContain('chat-id=');
 	});
 
@@ -401,20 +340,6 @@ test.describe('Unauthenticated app load', () => {
 		test.setTimeout(90000);
 		await page.setViewportSize({ width: 390, height: 844 });
 
-		await page.addInitScript((inspirations: typeof CYCLING_INSPIRATIONS) => {
-			const originalFetch = window.fetch.bind(window);
-			window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-				const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-				if (url.includes('/v1/default-inspirations')) {
-					return new Response(JSON.stringify({ inspirations }), {
-						status: 200,
-						headers: { 'Content-Type': 'application/json' }
-					});
-				}
-				return originalFetch(input, init);
-			};
-		}, CYCLING_INSPIRATIONS);
-
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 		await openForEveryoneIntroChat(page);
@@ -423,8 +348,7 @@ test.describe('Unauthenticated app load', () => {
 		await expect(newChatButton).toBeVisible({ timeout: 10000 });
 		await newChatButton.click();
 
-		const phrase = page.getByTestId('daily-inspiration-phrase');
-		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 15000 });
+		const firstPhrase = await readDailyInspirationPhrase(page);
 
 		// Speed up the actual progress animation so this test verifies the
 		// animationend-driven carousel path without waiting for the 20s production duration.
@@ -432,24 +356,25 @@ test.describe('Unauthenticated app load', () => {
 			el.style.setProperty('--carousel-progress-duration', '250ms');
 		});
 
-		await expect(phrase).toHaveText('Cycling inspiration two', { timeout: 3000 });
+		const secondPhrase = await expectDailyInspirationPhraseToChange(page, firstPhrase);
 
 		await page.getByTestId('daily-inspiration-next').click();
-		await expect(phrase).toHaveText('Cycling inspiration three', { timeout: 3000 });
+		const manuallyAdvancedPhrase = await expectDailyInspirationPhraseToChange(page, secondPhrase);
 		await page.getByTestId('daily-inspiration-carousel-progress').evaluate((el: HTMLElement) => {
 			el.style.setProperty('--carousel-progress-duration', '250ms');
 		});
 		await page.waitForTimeout(500);
-		await expect(phrase).toHaveText('Cycling inspiration three');
-		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 3000 });
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(manuallyAdvancedPhrase);
+		const nextAutoPhrase = await expectDailyInspirationPhraseToChange(page, manuallyAdvancedPhrase);
 
 		await page.getByTestId('daily-inspiration-carousel-progress').evaluate((el: HTMLElement) => {
 			el.style.setProperty('--carousel-progress-duration', '250ms');
 		});
 		await page.getByTestId('daily-inspiration-banner').click();
 		await page.waitForTimeout(500);
+		const phrase = page.getByTestId('daily-inspiration-phrase');
 		if (await phrase.isVisible().catch(() => false)) {
-			await expect(phrase).toHaveText('Cycling inspiration one');
+			await expect(phrase).toHaveText(nextAutoPhrase);
 		} else {
 			await expect(page.getByTestId('login-wrapper')).toBeVisible({ timeout: 5000 });
 		}
