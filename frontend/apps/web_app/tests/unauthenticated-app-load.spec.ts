@@ -41,17 +41,13 @@ function expectNoWelcomeCarouselRuntimeErrors(consoleErrors: string[]) {
 
 async function openForEveryoneIntroChat(page: any) {
 	const newChatCta = page.getByTestId('new-chat-cta-fullwidth');
+	const skipInterests = page.getByTestId('guest-interest-skip');
+	if (await skipInterests.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await skipInterests.click();
+		await expect(skipInterests).not.toBeVisible({ timeout: 10000 });
+	}
+
 	if (!(await newChatCta.isVisible({ timeout: 1000 }).catch(() => false))) {
-		if (await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, { timeout: 1500 }).then(() => true).catch(() => false)) {
-			await expect(newChatCta).toBeVisible({ timeout: 15000 });
-			return;
-		}
-
-		const skipInterests = page.getByTestId('guest-interest-skip');
-		if (await skipInterests.isVisible({ timeout: 5000 }).catch(() => false)) {
-			await skipInterests.click();
-		}
-
 		const forEveryoneCard = page
 			.locator('[data-testid="resume-chat-large-card"][data-chat-id="demo-for-everyone"], [data-testid="resume-chat-card"][data-chat-id="demo-for-everyone"]')
 			.first();
@@ -62,6 +58,7 @@ async function openForEveryoneIntroChat(page: any) {
 	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
 		timeout: 15000
 	});
+	await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
 	await expect(newChatCta).toBeVisible({ timeout: 15000 });
 }
 
