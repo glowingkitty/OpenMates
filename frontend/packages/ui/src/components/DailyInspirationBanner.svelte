@@ -760,7 +760,7 @@
    * Errors are logged but never swallowed silently.
    */
   async function sendViewedEvent(inspirationId: string): Promise<boolean> {
-    if (!get(authStore).isAuthenticated) return false;
+    if (!get(authStore).isAuthenticated) return true;
     try {
       const { webSocketService } = await import('../services/websocketService');
       if (!webSocketService.isConnected()) {
