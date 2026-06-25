@@ -5,6 +5,8 @@
 // hydrate child embeds as a fallback.
 // Covered by embedPreviewHydration.test.ts.
 
+import { decode as toonDecode } from '@toon-format/toon';
+
 export const DEFAULT_CAROUSEL_HYDRATION_OVERSCAN = 1;
 export const DEFAULT_PARENT_PREVIEW_METADATA_LIMIT = 6;
 
@@ -38,6 +40,52 @@ export interface ImageSearchPreviewResult {
   thumbnail_url?: string;
   source?: string;
   favicon_url?: string;
+}
+
+type SearchResultsContent = Record<string, unknown> | null | undefined;
+
+function firstArrayField(content: SearchResultsContent, keys: string[]): unknown[] | undefined {
+  if (!content) return undefined;
+  for (const key of keys) {
+    const value = content[key];
+    if (Array.isArray(value)) return value;
+  }
+  return undefined;
+}
+
+function parseResultsPayload(value: unknown): unknown {
+  if (typeof value !== 'string' || !value.trim()) return undefined;
+  const trimmed = value.trim();
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    try {
+      return toonDecode(trimmed, { strict: false });
+    } catch {
+      return undefined;
+    }
+  }
+}
+
+function normalizeResultsPayload(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (!value || typeof value !== 'object') return [];
+
+  const record = value as Record<string, unknown>;
+  if (Array.isArray(record.results)) return record.results;
+  if (Object.keys(record).length === 0 || typeof record.error === 'string') return [];
+  return [record];
+}
+
+export function extractSearchResultsFromContent(
+  content: SearchResultsContent,
+  keys: string[] = ['results', 'preview_results'],
+): unknown[] {
+  const directResults = firstArrayField(content, keys);
+  if (directResults) return directResults;
+
+  return normalizeResultsPayload(parseResultsPayload(content?.results_toon));
 }
 
 function normalizeCarouselIndex(index: number, total: number): number {

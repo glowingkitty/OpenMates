@@ -22,6 +22,7 @@
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
   import type { MapMarker } from '../EmbedLeafletMap.svelte';
+  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   interface PlaceResult {
     embed_id: string;
@@ -67,7 +68,7 @@
   let query = $derived(typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '');
   let provider = $derived(typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Google');
   let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
-  let resultsProp = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as PlaceResult[] : []);
+  let resultsProp = $derived(extractSearchResultsFromContent(data.decodedContent) as PlaceResult[]);
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
 
   let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);

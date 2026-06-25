@@ -20,6 +20,7 @@
   import HomeListingEmbedFullscreen from './HomeListingEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   /**
    * Normalize a raw status value to one of the valid embed status strings.
@@ -105,7 +106,7 @@
   let query = $derived(localQuery);
   let provider = $derived(localProvider);
   let providers = $derived(localProviders);
-  let legacyResults = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
+  let legacyResults = $derived(extractSearchResultsFromContent(data.decodedContent));
 
   // "via {provider}" subtitle — use providers list when available for multi-source display
   let viaProvider = $derived.by(() => {

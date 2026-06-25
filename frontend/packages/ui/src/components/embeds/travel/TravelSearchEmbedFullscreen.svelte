@@ -23,6 +23,7 @@
   import TravelConnectionEmbedFullscreen from './TravelConnectionEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   /**
    * Normalize a raw status value to one of the valid embed status strings.
@@ -188,7 +189,7 @@
       localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : '';
       localProviders = Array.isArray(data.decodedContent?.providers) ? data.decodedContent.providers as ProviderInfo[] : [];
       localLegs = Array.isArray(data.decodedContent?.legs) ? data.decodedContent.legs as SearchLeg[] : [];
-      localResults = Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : [];
+      localResults = extractSearchResultsFromContent(data.decodedContent);
       localResultCount = typeof data.decodedContent?.result_count === 'number' ? data.decodedContent.result_count : undefined;
       localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
       localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';

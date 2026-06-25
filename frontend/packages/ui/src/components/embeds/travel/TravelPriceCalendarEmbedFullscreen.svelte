@@ -20,6 +20,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   /**
    * Normalize an unknown status value to a valid embed status string.
@@ -114,7 +115,7 @@
   let queryProp = $derived(typeof dc.query === 'string' ? dc.query : undefined);
   let statusProp = $derived(normalizeStatus(dc.status));
   let errorMessageProp = $derived(typeof dc.error === 'string' ? dc.error : undefined);
-  let resultsProp = $derived(Array.isArray(dc.results) ? dc.results as PriceCalendarResult[] : undefined);
+  let resultsProp = $derived(extractSearchResultsFromContent(dc) as PriceCalendarResult[]);
   
   // Local reactive state — initialised to defaults; synced from props via $effect below
   let localQuery = $state<string>('');
@@ -127,7 +128,7 @@
   $effect(() => {
     if (!storeResolved) {
       localQuery = queryProp || '';
-      localResults = resultsProp || [];
+      localResults = resultsProp;
       localStatus = statusProp || 'finished';
       localErrorMessage = errorMessageProp || '';
     }

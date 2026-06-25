@@ -11,6 +11,7 @@
   import ElectronicsComponentEmbedFullscreen from './ElectronicsComponentEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   function normalizeStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
     if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') return value;
@@ -85,7 +86,7 @@
     if (!storeResolved) {
       localQuery = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : 'Power converters';
       localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'TI WEBENCH';
-      localResults = Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : [];
+      localResults = extractSearchResultsFromContent(data.decodedContent);
       localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
       localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
     }

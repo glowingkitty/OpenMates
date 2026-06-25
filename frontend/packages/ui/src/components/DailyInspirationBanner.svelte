@@ -108,6 +108,7 @@
   // unique inspiration is counted toward tomorrow's replacement quota even if
   // the user never clicks it (passive view tracking).
   let viewedIds = $state(new Set<string>());
+  let pendingViewedIds = $state(new Set<string>());
 
   // Whether the banner wrapper is currently intersecting the viewport. Default
   // to true so Safari/blocked IntersectionObserver does not stall the carousel.
@@ -266,10 +267,15 @@
     if (!current) return;
     const id = current.inspiration_id;
     if (viewedIds.has(id)) return;
+    if (pendingViewedIds.has(id)) return;
 
-    // Mark before sending to prevent duplicate sends if the effect re-runs quickly
-    viewedIds = new Set([...viewedIds, id]);
-    sendViewedEvent(id);
+    pendingViewedIds = new Set([...pendingViewedIds, id]);
+    void sendViewedEvent(id).then((sent) => {
+      pendingViewedIds = new Set([...pendingViewedIds].filter((pendingId) => pendingId !== id));
+      if (sent) {
+        viewedIds = new Set([...viewedIds, id]);
+      }
+    });
   });
 
   $effect(() => {
@@ -753,16 +759,22 @@
    * and there is nothing to track server-side for them.
    * Errors are logged but never swallowed silently.
    */
-  async function sendViewedEvent(inspirationId: string) {
-    if (!get(authStore).isAuthenticated) return;
+  async function sendViewedEvent(inspirationId: string): Promise<boolean> {
+    if (!get(authStore).isAuthenticated) return false;
     try {
       const { webSocketService } = await import('../services/websocketService');
+      if (!webSocketService.isConnected()) {
+        console.debug('[DailyInspirationBanner] Skipping inspiration_viewed while WebSocket is disconnected:', inspirationId);
+        return false;
+      }
       await webSocketService.sendMessage('inspiration_viewed', {
         inspiration_id: inspirationId,
       });
       console.debug('[DailyInspirationBanner] Sent inspiration_viewed:', inspirationId);
+      return true;
     } catch (err) {
       console.error('[DailyInspirationBanner] Failed to send inspiration_viewed:', err);
+      return false;
     }
   }
 </script>

@@ -20,6 +20,7 @@
   import EventEmbedFullscreen from './EventEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   /**
    * Normalize a raw status value to one of the valid embed status strings.
@@ -197,7 +198,7 @@
     return '';
   });
   let headerSubtitle = $derived.by(() => [viaProvider, searchRange].filter(Boolean).join(' · '));
-  let legacyResults = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
+  let legacyResults = $derived(extractSearchResultsFromContent(data.decodedContent));
 
   /**
    * Transform legacy results (from .preview.ts files) to EventResult format.

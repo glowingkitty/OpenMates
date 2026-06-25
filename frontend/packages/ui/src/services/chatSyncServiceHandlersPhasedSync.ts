@@ -164,6 +164,11 @@ export async function handlePhase2RecentChatsImpl(
 
     if (chats.length === 0) {
       console.debug("[ChatSyncService] Phase 2 empty chats array");
+      serviceInstance.dispatchEvent(
+        new CustomEvent("phase_2_last_20_chats_ready", {
+          detail: { chat_count, total_chat_count },
+        }),
+      );
       return;
     }
 

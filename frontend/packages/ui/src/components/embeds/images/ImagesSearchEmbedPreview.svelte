@@ -18,7 +18,7 @@
   import { text } from '@repo/ui';
   import { handleImageError } from '../../../utils/offlineImageHandler';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
-  import { getParentPreviewResultState, normalizeEmbedIdList } from '../embedPreviewHydration';
+  import { extractSearchResultsFromContent, getParentPreviewResultState, normalizeEmbedIdList } from '../embedPreviewHydration';
 
   /**
    * Single image search result (child embed content schema).
@@ -158,6 +158,11 @@
     if (Array.isArray(resultsValue) && resultsValue.length > 0) {
       return resultsValue as ImageResult[];
     }
+    const extracted = extractSearchResultsFromContent(
+      { results_toon: resultsValue },
+      ['results', 'preview_results', 'preview_thumbnails'],
+    );
+    if (extracted.length > 0) return extracted as ImageResult[];
     return parsePreviewResultsJson(fallbackJson);
   }
 
@@ -178,7 +183,7 @@
       if (c.query)    localQuery    = c.query    as string;
       if (c.provider) localProvider = c.provider as string;
       const previewResults = normalizePreviewResults(
-        c.results || c.preview_results || c.preview_thumbnails,
+        c.results || c.preview_results || c.preview_thumbnails || c.results_toon,
         c.preview_results_json
       );
       if (previewResults.length > 0) {

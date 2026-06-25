@@ -21,7 +21,7 @@
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   import { embedStore } from '../../../services/embedStore';
   import { chatSyncService } from '../../../services/chatSyncService';
-  import { buildImageSearchPreviewMetadata } from '../embedPreviewHydration';
+  import { buildImageSearchPreviewMetadata, extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   /**
    * Normalize a raw status value to one of the valid embed status strings.
@@ -124,8 +124,8 @@
 
   function normalizePreviewResults(content: Record<string, unknown> | undefined): LegacyImageResult[] | undefined {
     if (!content) return undefined;
-    const results = content.results || content.preview_results || content.preview_thumbnails;
-    if (Array.isArray(results) && results.length > 0) return results as LegacyImageResult[];
+    const results = extractSearchResultsFromContent(content, ['results', 'preview_results', 'preview_thumbnails']);
+    if (results.length > 0) return results as LegacyImageResult[];
     const parsed = parsePreviewResultsJson(content.preview_results_json);
     return parsed.length > 0 ? parsed : undefined;
   }

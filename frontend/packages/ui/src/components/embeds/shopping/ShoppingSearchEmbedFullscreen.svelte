@@ -14,6 +14,7 @@
   import ShoppingResultEmbedFullscreen from './ShoppingResultEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   /**
    * Normalize a raw status value to one of the valid embed status strings.
@@ -120,7 +121,7 @@
       localQuery = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '';
       localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : '';
       localProviders = Array.isArray(data.decodedContent?.providers) ? data.decodedContent.providers as string[] : [];
-      localResults = Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : [];
+      localResults = extractSearchResultsFromContent(data.decodedContent);
       localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
       localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
     }

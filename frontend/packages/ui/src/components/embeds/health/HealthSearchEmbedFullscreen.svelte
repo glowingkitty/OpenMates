@@ -20,6 +20,7 @@
   import HealthAppointmentEmbedFullscreen from './HealthAppointmentEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   /**
    * Normalize a raw status value to one of the valid embed status strings.
@@ -122,7 +123,7 @@
 
   $effect(() => {
     if (!storeResolved) {
-      localResults = Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : [];
+      localResults = extractSearchResultsFromContent(data.decodedContent);
       localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
       localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
       if (typeof data.decodedContent?.query === 'string') localQuery = data.decodedContent.query as string;
