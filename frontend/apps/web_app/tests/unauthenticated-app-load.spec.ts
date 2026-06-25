@@ -42,15 +42,18 @@ function expectNoWelcomeCarouselRuntimeErrors(consoleErrors: string[]) {
 async function openForEveryoneIntroChat(page: any) {
 	const newChatCta = page.getByTestId('new-chat-cta-fullwidth');
 	const skipInterests = page.getByTestId('guest-interest-skip');
+	const forEveryoneCard = page
+		.locator('[data-testid="resume-chat-large-card"][data-chat-id="demo-for-everyone"], [data-testid="resume-chat-card"][data-chat-id="demo-for-everyone"]')
+		.first();
+
 	if (await skipInterests.isVisible({ timeout: 5000 }).catch(() => false)) {
 		await skipInterests.click();
 		await expect(skipInterests).not.toBeVisible({ timeout: 10000 });
 	}
 
-	if (!(await newChatCta.isVisible({ timeout: 1000 }).catch(() => false))) {
-		const forEveryoneCard = page
-			.locator('[data-testid="resume-chat-large-card"][data-chat-id="demo-for-everyone"], [data-testid="resume-chat-card"][data-chat-id="demo-for-everyone"]')
-			.first();
+	if (await forEveryoneCard.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await forEveryoneCard.click();
+	} else if (!(await newChatCta.isVisible({ timeout: 1000 }).catch(() => false))) {
 		await expect(forEveryoneCard).toBeVisible({ timeout: 10000 });
 		await forEveryoneCard.click();
 	}
