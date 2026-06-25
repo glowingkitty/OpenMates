@@ -215,13 +215,18 @@ async function waitForLoginSuccessAfterSubmitWithDiagnostics(
 		]);
 	} finally {
 		if (timeoutId) clearTimeout(timeoutId);
-		const diagnostics = await page.evaluate(() => ({
-			url: window.location.href,
-			isAuthenticated: document.querySelector('[data-authenticated="true"]') !== null,
-			hasOtpInput: document.querySelector('#login-otp-input') !== null,
-			hasErrorMessage: document.querySelector('[data-testid="error-message"]')?.textContent?.trim() || null,
-			modalText: document.querySelector('[data-testid="signup-modal"], [data-testid="login-modal"]')?.textContent?.slice(0, 300) || null,
-		})).catch((error: Error) => ({ error: error.message }));
+		const diagnostics = await Promise.race([
+			page.evaluate(() => ({
+				url: window.location.href,
+				isAuthenticated: document.querySelector('[data-authenticated="true"]') !== null,
+				hasOtpInput: document.querySelector('#login-otp-input') !== null,
+				hasErrorMessage: document.querySelector('[data-testid="error-message"]')?.textContent?.trim() || null,
+				modalText: document.querySelector('[data-testid="signup-modal"], [data-testid="login-modal"]')?.textContent?.slice(0, 300) || null,
+			})),
+			new Promise((resolve) => {
+				setTimeout(() => resolve({ error: 'login diagnostics timed out after 2000ms' }), 2000);
+			})
+		]).catch((error: Error) => ({ error: error.message }));
 		logCheckpoint('Post-login-submit diagnostics.', diagnostics);
 	}
 }
