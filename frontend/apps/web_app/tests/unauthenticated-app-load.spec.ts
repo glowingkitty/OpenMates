@@ -40,8 +40,10 @@ function expectNoWelcomeCarouselRuntimeErrors(consoleErrors: string[]) {
 }
 
 async function openForEveryoneIntroChat(page: any) {
-	if (!page.url().includes('demo-for-everyone')) {
+	const newChatCta = page.getByTestId('new-chat-cta-fullwidth');
+	if (!(await newChatCta.isVisible({ timeout: 1000 }).catch(() => false))) {
 		if (await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, { timeout: 1500 }).then(() => true).catch(() => false)) {
+			await expect(newChatCta).toBeVisible({ timeout: 15000 });
 			return;
 		}
 
@@ -60,6 +62,7 @@ async function openForEveryoneIntroChat(page: any) {
 	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
 		timeout: 15000
 	});
+	await expect(newChatCta).toBeVisible({ timeout: 15000 });
 }
 
 async function readDailyInspirationPhrase(page: any): Promise<string> {
