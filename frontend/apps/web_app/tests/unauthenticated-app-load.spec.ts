@@ -75,6 +75,29 @@ function expectNoWelcomeCarouselRuntimeErrors(consoleErrors: string[]) {
 	expect(runtimeErrors, `Unexpected welcome carousel runtime error(s): ${runtimeErrors.join('\n')}`).toEqual([]);
 }
 
+async function openForEveryoneIntroChat(page: any) {
+	if (!page.url().includes('demo-for-everyone')) {
+		if (await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, { timeout: 1500 }).then(() => true).catch(() => false)) {
+			return;
+		}
+
+		const skipInterests = page.getByTestId('guest-interest-skip');
+		if (await skipInterests.isVisible({ timeout: 5000 }).catch(() => false)) {
+			await skipInterests.click();
+		}
+
+		const forEveryoneCard = page
+			.locator('[data-testid="resume-chat-large-card"][data-chat-id="demo-for-everyone"], [data-testid="resume-chat-card"][data-chat-id="demo-for-everyone"]')
+			.first();
+		await expect(forEveryoneCard).toBeVisible({ timeout: 10000 });
+		await forEveryoneCard.click();
+	}
+
+	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+		timeout: 15000
+	});
+}
+
 test.describe('Unauthenticated app load', () => {
 	const consoleLogs: string[] = [];
 	const consoleErrors: string[] = [];
@@ -129,14 +152,10 @@ test.describe('Unauthenticated app load', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		// ─── 2. Verify the for-everyone demo chat opens automatically ───────
-		// The app auto-navigates to the for-everyone intro chat for new visitors.
-		// The chat ID appears in the URL hash.
-		await page.waitForFunction(
-			() => window.location.hash.includes('demo-for-everyone'),
-			null,
-			{ timeout: 15000 }
-		);
+		// ─── 2. Verify the for-everyone demo chat is reachable after guest onboarding ───────
+		// New visitors now see the interest selector first; skipping it should reveal
+		// the for-everyone intro card, which opens the public chat URL hash.
+		await openForEveryoneIntroChat(page);
 		console.log('[unauthenticated-load] for-everyone demo chat opened in URL hash');
 
 		// Verify the active chat container is visible
@@ -229,11 +248,7 @@ test.describe('Unauthenticated app load', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		await page.waitForFunction(
-			() => window.location.hash.includes('demo-for-everyone'),
-			null,
-			{ timeout: 15000 }
-		);
+		await openForEveryoneIntroChat(page);
 
 		const followUpSuggestion = page.getByTestId('follow-up-suggestion-item').first();
 		await expect(followUpSuggestion).toBeVisible({ timeout: 10000 });
@@ -271,9 +286,7 @@ test.describe('Unauthenticated app load', () => {
 		async function openNewChatAndReadPhrase() {
 			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 			await page.waitForLoadState('networkidle');
-			await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-				timeout: 15000
-			});
+			await openForEveryoneIntroChat(page);
 
 			const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
 			await expect(newChatButton).toBeVisible({ timeout: 10000 });
@@ -328,9 +341,7 @@ test.describe('Unauthenticated app load', () => {
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 15000
-		});
+		await openForEveryoneIntroChat(page);
 
 		await page.getByTestId('new-chat-cta-fullwidth').click();
 
@@ -402,9 +413,7 @@ test.describe('Unauthenticated app load', () => {
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 15000
-		});
+		await openForEveryoneIntroChat(page);
 
 		const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
 		await expect(newChatButton).toBeVisible({ timeout: 10000 });
@@ -458,9 +467,7 @@ test.describe('Unauthenticated app load', () => {
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 15000
-		});
+		await openForEveryoneIntroChat(page);
 
 		const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
 		await expect(newChatButton).toBeVisible({ timeout: 10000 });
@@ -500,11 +507,7 @@ test.describe('Unauthenticated app load', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Wait for the for-everyone intro chat to load (default for new visitors)
-		await page.waitForFunction(
-			() => window.location.hash.includes('demo-for-everyone'),
-			null,
-			{ timeout: 15000 }
-		);
+		await openForEveryoneIntroChat(page);
 		console.log('[unauthenticated-load] Intro chat loaded');
 
 		// ─── 2. Find and click the Artemis II example chat card ─────────
@@ -660,11 +663,7 @@ test.describe('Unauthenticated app load', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Wait for the for-everyone demo chat to load
-		await page.waitForFunction(
-			() => window.location.hash.includes('demo-for-everyone'),
-			null,
-			{ timeout: 15000 }
-		);
+		await openForEveryoneIntroChat(page);
 
 		// ─── 2. Find and click an AI model card ────────────────────────
 		// Scroll until we find a model card (they're in the ai_models_group)
@@ -824,11 +823,7 @@ test.describe('Unauthenticated app load', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		await page.waitForFunction(
-			() => window.location.hash.includes('demo-for-everyone'),
-			null,
-			{ timeout: 15000 }
-		);
+		await openForEveryoneIntroChat(page);
 		console.log('[unauthenticated-load] for-everyone intro chat loaded');
 
 		// ─── 2. Play button must be visible in the chat header ───────────
@@ -868,11 +863,7 @@ test.describe('Unauthenticated app load', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		await page.waitForFunction(
-			() => window.location.hash.includes('demo-for-everyone'),
-			null,
-			{ timeout: 15000 }
-		);
+		await openForEveryoneIntroChat(page);
 		console.log('[unauthenticated-load] Intro chat loaded');
 
 		// ─── 2. Open sidebar and find the announcements group ──────────
