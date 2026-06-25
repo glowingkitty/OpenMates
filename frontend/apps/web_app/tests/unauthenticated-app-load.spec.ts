@@ -214,16 +214,20 @@ test.describe('Unauthenticated app load', () => {
 		expect(page.url(), 'Swipe navigation should not start a chat').not.toContain('chat-id=');
 		console.log('[unauthenticated-load] Mobile swipe navigation changed the banner phrase');
 
-		// Verify the /v1/default-inspirations endpoint was called and succeeded
-		const inspirationApiCalled = networkRequests.some(
-			(r) => r.includes('/v1/default-inspirations') && r.startsWith('200')
+		// Guests intentionally keep hardcoded product explainer defaults. If the
+		// endpoint is called anyway, it must succeed rather than leaving the banner blank.
+		const inspirationApiResponses = networkRequests.filter((r) =>
+			r.includes('/v1/default-inspirations')
 		);
-		expect(
-			inspirationApiCalled,
-			'Expected /v1/default-inspirations API call to succeed (200). ' +
-				`Requests seen: ${networkRequests.filter((r) => r.includes('inspiration')).join(', ') || 'none'}`
-		).toBe(true);
-		console.log('[unauthenticated-load] /v1/default-inspirations returned 200');
+		if (inspirationApiResponses.length > 0) {
+			expect(
+				inspirationApiResponses.some((r) => r.startsWith('200')),
+				`Expected /v1/default-inspirations API call to succeed (200). Requests seen: ${inspirationApiResponses.join(', ')}`
+			).toBe(true);
+			console.log('[unauthenticated-load] /v1/default-inspirations returned 200');
+		} else {
+			console.log('[unauthenticated-load] Daily inspiration banner used hardcoded guest defaults');
+		}
 
 		// ─── 5. No missing translations ─────────────────────────────────────
 		await assertNoMissingTranslations(page);
