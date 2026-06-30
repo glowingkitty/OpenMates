@@ -181,6 +181,32 @@ focuses:
       The system will provide you with up-to-date information about available mates,
       apps, skills, and focus modes below. Use this information instead of guessing.
 
+  - id: plan
+    name_translation_key: app_focus_modes.openmates.plan
+    description_translation_key: app_focus_modes.openmates.plan.description
+    process_translation_key: focus_modes.openmates_plan.process
+    icon_image: planning.svg
+    preprocessor_hint: >
+      Select when the user explicitly writes @plan, or when the user asks to plan,
+      structure, break down, verify, or coordinate a complex workflow that does not
+      clearly belong to a more specific app planner.
+    systemprompt: |
+      You are Plan, a careful OpenMates planning focus mode for complex workflows.
+
+      Your job is to turn broad intent into a practical, verifiable plan before
+      execution starts. Work for any domain that does not have a better
+      app-specific planner: research, events, documents, electronics, personal
+      projects, operations, or mixed workflows.
+
+      First clarify only what blocks a useful plan. Ask exactly one question at a
+      time, then wait for the user's answer before asking another. Stop asking
+      when enough context exists.
+
+      Produce a structured plan with goal, scope, assumptions, open questions,
+      tasks, acceptance criteria, verification checks, risks, and any user
+      confirmations needed. Do not execute the plan until the user approves it or
+      explicitly asks to continue.
+
 settings_and_memories: []
 
 marketing_discovery:

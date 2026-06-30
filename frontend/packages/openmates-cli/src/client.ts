@@ -273,6 +273,25 @@ export interface WorkflowNodeRun {
 export type UserTaskStatus = "backlog" | "todo" | "in_progress" | "blocked" | "done";
 export type UserTaskAssigneeType = "ai" | "user";
 
+export type ProjectSourceType = "local_folder" | "local_git_repository" | "remote_folder" | "remote_git_repository";
+export type ProjectSourceCapability = "read" | "search" | "import" | "write_request";
+export type ProjectSourceStatus = "connected" | "offline" | "permission_required" | "revoked";
+
+export interface ProjectSourceRecord {
+  source_id: string;
+  source_type: ProjectSourceType;
+  encrypted_display_name: string;
+  encrypted_metadata: string;
+  capabilities?: ProjectSourceCapability[];
+  status?: ProjectSourceStatus;
+  created_at?: number;
+  updated_at?: number;
+  last_indexed_at?: number | null;
+  [key: string]: unknown;
+}
+
+export type ProjectSourceCreateInput = ProjectSourceRecord;
+
 export interface UserTaskRecord {
   task_id: string;
   encrypted_task_key?: string | null;
@@ -313,6 +332,73 @@ export type UserTaskStartAIInput = UserTaskUpdateInput & {
   plaintext_latest_instruction?: string;
   plaintext_chat_title?: string;
 };
+
+export type UserPlanStatus = "draft" | "awaiting_confirmation" | "active" | "executing" | "blocked" | "completed" | "archived";
+export type UserPlanCriterionStatus = "pending" | "satisfied" | "failed" | "waived";
+export type UserPlanVerificationStatus = "pending" | "passed" | "failed" | "passed_unexpectedly" | "skipped" | "waived";
+
+export interface UserPlanRecord {
+  plan_id: string;
+  encrypted_plan_key?: string | null;
+  encrypted_title: string;
+  encrypted_summary?: string | null;
+  encrypted_goal?: string | null;
+  encrypted_scope_in?: string | null;
+  encrypted_scope_out?: string | null;
+  encrypted_assumptions?: string | null;
+  encrypted_open_questions?: string | null;
+  encrypted_constraints?: string | null;
+  encrypted_decisions?: string | null;
+  encrypted_risks?: string | null;
+  status: UserPlanStatus;
+  primary_chat_id?: string | null;
+  linked_project_ids?: string[] | null;
+  current_phase_id?: string | null;
+  current_step_id?: string | null;
+  current_task_id?: string | null;
+  planner_focus_id?: string | null;
+  version?: number;
+  created_at?: number;
+  updated_at?: number;
+  completed_at?: number | null;
+}
+
+export type UserPlanCreateInput = Omit<UserPlanRecord, "version" | "completed_at"> & { version?: number };
+export type UserPlanUpdateInput = Partial<Omit<UserPlanRecord, "plan_id" | "created_at">> & { version?: number };
+
+export interface UserPlanCriterionRecord {
+  criterion_id: string;
+  encrypted_text: string;
+  type?: string;
+  status?: UserPlanCriterionStatus;
+  required?: boolean;
+  linked_step_ids?: string[];
+  linked_task_ids?: string[];
+  verification_ids?: string[];
+  created_at?: number;
+  updated_at?: number;
+}
+
+export interface UserPlanVerificationRecord {
+  verification_id: string;
+  kind: string;
+  phase?: string;
+  status?: UserPlanVerificationStatus;
+  required_for_done?: boolean;
+  covers?: string[];
+  threshold?: number | null;
+  score?: number | null;
+  confidence?: string | null;
+  linked_task_id?: string | null;
+  run_id?: string | null;
+  created_at?: number;
+  updated_at?: number;
+  encrypted_command?: string | null;
+  encrypted_evaluation_prompt?: string | null;
+  encrypted_expected_result?: string | null;
+  encrypted_result_summary?: string | null;
+  encrypted_required_fixes?: string | null;
+}
 
 export interface WorkflowRunDetail {
   id: string;
@@ -4443,6 +4529,35 @@ export class OpenMatesClient {
   }
 
   // -------------------------------------------------------------------------
+  // Project sources
+  // -------------------------------------------------------------------------
+
+  async listProjectSources(projectId: string): Promise<ProjectSourceRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ sources?: ProjectSourceRecord[] }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/sources`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Project source list failed with HTTP ${response.status}`);
+    }
+    return response.data.sources ?? [];
+  }
+
+  async createProjectSource(projectId: string, input: ProjectSourceCreateInput): Promise<ProjectSourceRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ source?: ProjectSourceRecord }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/sources`,
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.source) {
+      throw new Error(`Project source create failed with HTTP ${response.status}`);
+    }
+    return response.data.source;
+  }
+
+  // -------------------------------------------------------------------------
   // User tasks
   // -------------------------------------------------------------------------
 
@@ -4500,6 +4615,91 @@ export class OpenMatesClient {
       throw new Error(`User task AI start failed with HTTP ${response.status}`);
     }
     return response.data.task;
+  }
+
+  // -------------------------------------------------------------------------
+  // User plans
+  // -------------------------------------------------------------------------
+
+  async listUserPlans(filters: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean } = {}): Promise<UserPlanRecord[]> {
+    this.requireSession();
+    const params = new URLSearchParams();
+    if (filters.status) params.set("status", filters.status);
+    if (filters.chatId) params.set("chat_id", filters.chatId);
+    if (filters.projectId) params.set("project_id", filters.projectId);
+    if (filters.activeOnly !== undefined) params.set("active_only", String(filters.activeOnly));
+    const query = params.toString();
+    const response = await this.http.get<{ plans?: UserPlanRecord[] }>(
+      `/v1/user-plans${query ? `?${query}` : ""}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`User plan list failed with HTTP ${response.status}`);
+    }
+    return response.data.plans ?? [];
+  }
+
+  async createUserPlan(input: UserPlanCreateInput): Promise<UserPlanRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ plan?: UserPlanRecord }>("/v1/user-plans", input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.plan) {
+      throw new Error(`User plan create failed with HTTP ${response.status}`);
+    }
+    return response.data.plan;
+  }
+
+  async updateUserPlan(planId: string, input: UserPlanUpdateInput): Promise<UserPlanRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.plan) {
+      throw new Error(`User plan update failed with HTTP ${response.status}`);
+    }
+    return response.data.plan;
+  }
+
+  async activateUserPlan(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/activate`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.plan) {
+      throw new Error(`User plan activate failed with HTTP ${response.status}`);
+    }
+    return response.data.plan;
+  }
+
+  async completeUserPlan(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ plan?: UserPlanRecord; blocked_by?: unknown[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/complete`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.plan) {
+      throw new Error(`User plan complete failed with HTTP ${response.status}`);
+    }
+    return response.data.plan;
+  }
+
+  async createPlanCriterion(planId: string, input: UserPlanCriterionRecord): Promise<UserPlanCriterionRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ criterion?: UserPlanCriterionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.criterion) {
+      throw new Error(`User plan criterion create failed with HTTP ${response.status}`);
+    }
+    return response.data.criterion;
+  }
+
+  async createPlanVerification(planId: string, input: UserPlanVerificationRecord & Record<string, unknown>): Promise<UserPlanVerificationRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.verification) {
+      throw new Error(`User plan verification create failed with HTTP ${response.status}`);
+    }
+    return response.data.verification;
+  }
+
+  async addPlanVerificationEvidence(planId: string, verificationId: string, input: Partial<UserPlanVerificationRecord>): Promise<UserPlanVerificationRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}/evidence`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.verification) {
+      throw new Error(`User plan verification evidence failed with HTTP ${response.status}`);
+    }
+    return response.data.verification;
   }
 
   // -------------------------------------------------------------------------

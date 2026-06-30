@@ -11,6 +11,7 @@
 #   @mate:{mate_id}                   - Force a specific mate/persona
 #   @skill:{app_id}:{skill_id}        - Force using a specific skill
 #   @focus:{app_id}:{focus_id}        - Force a specific focus mode
+#   @plan                             - Force planning mode with best planner route
 #   @memory:{app_id}:{memory_id}:{type} - Include all entries from a settings/memory category
 #   @memory-entry:{app_id}:{category_id}:{entry_id} - Include a specific entry from a settings/memory category
 #
@@ -38,6 +39,7 @@ class UserOverrides:
         mate_id: Overridden mate/persona ID (e.g., "coder", "researcher")
         skills: List of (app_id, skill_id) tuples for forced skill usage
         focus_modes: List of (app_id, focus_id) tuples for forced focus modes
+        plan_requested: True when @plan explicitly requests planner routing
         memory_categories: List of (app_id, memory_id, memory_type) tuples for settings/memory category inclusion
         memory_entries: List of (app_id, category_id, entry_id) tuples for individual entry inclusion
         cleaned_message: Original message with all override syntax removed
@@ -49,6 +51,7 @@ class UserOverrides:
     mate_id: Optional[str] = None
     skills: List[Tuple[str, str]] = field(default_factory=list)
     focus_modes: List[Tuple[str, str]] = field(default_factory=list)
+    plan_requested: bool = False
     memory_categories: List[Tuple[str, str, str]] = field(default_factory=list)
     memory_entries: List[Tuple[str, str, str]] = field(default_factory=list)
     cleaned_message: str = ""
@@ -93,6 +96,9 @@ _FOCUS_PATTERN = re.compile(
     r'@focus:([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)',
     re.IGNORECASE
 )
+
+# @plan shorthand for planner routing.
+_PLAN_PATTERN = re.compile(r'@plan\b', re.IGNORECASE)
 
 # @memory-entry:{app_id}:{category_id}:{entry_id}
 # Examples: @memory-entry:code:preferred_technologies:abc123
@@ -197,6 +203,14 @@ def parse_overrides(message: str, log_prefix: str = "") -> UserOverrides:
         )
     cleaned = _FOCUS_PATTERN.sub('', cleaned)
 
+    # Parse @plan shorthand. This is separate from @focus so users do not need
+    # to know internal planner focus-mode ids.
+    if _PLAN_PATTERN.search(message):
+        overrides.plan_requested = True
+        overrides.has_overrides = True
+        cleaned = _PLAN_PATTERN.sub('', cleaned)
+        logger.info(f"{log_prefix} USER_OVERRIDE: Plan mode requested via @plan")
+
     # Parse all @memory-entry overrides (MUST come before @memory to avoid partial matches)
     for entry_match in _MEMORY_ENTRY_PATTERN.finditer(message):
         app_id = entry_match.group(1)
@@ -230,7 +244,8 @@ def parse_overrides(message: str, log_prefix: str = "") -> UserOverrides:
         logger.info(
             f"{log_prefix} USER_OVERRIDE: Total overrides parsed. "
             f"model={overrides.model_id}, mate={overrides.mate_id}, "
-            f"skills={len(overrides.skills)}, focus_modes={len(overrides.focus_modes)}"
+            f"skills={len(overrides.skills)}, focus_modes={len(overrides.focus_modes)}, "
+            f"plan_requested={overrides.plan_requested}"
         )
 
     return overrides

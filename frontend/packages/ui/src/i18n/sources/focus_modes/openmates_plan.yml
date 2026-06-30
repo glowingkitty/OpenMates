@@ -1,0 +1,138 @@
+openmates_plan:
+  context: Focus mode display name for the generic OpenMates planning mode
+  en: Plan
+  de: Planen
+  zh: 计划
+  es: Planificar
+  fr: Planifier
+  pt: Planejar
+  ru: План
+  ja: 計画
+  ko: 계획
+  it: Piano
+  tr: Plan
+  vi: Lập kế hoạch
+  id: Rencana
+  pl: Plan
+  nl: Plan
+  ar: خطة
+  hi: योजना
+  th: แผน
+  cs: Plán
+  sv: Plan
+  he: תכנון
+  verified_by_human:
+    - en
+description:
+  context: Focus mode description for the generic OpenMates planning mode
+  en: Turn complex work into a clear plan with tasks and checks.
+  de: Verwandle komplexe Arbeit in einen klaren Plan mit Aufgaben und Prüfungen.
+  zh: 将复杂工作转化为包含任务和检查的清晰计划。
+  es: Convierte trabajo complejo en un plan claro con tareas y comprobaciones.
+  fr: Transforme un travail complexe en plan clair avec tâches et vérifications.
+  pt: Transforme trabalho complexo em um plano claro com tarefas e verificações.
+  ru: Превращайте сложную работу в ясный план с задачами и проверками.
+  ja: 複雑な作業をタスクと確認付きの明確な計画にします。
+  ko: 복잡한 일을 작업과 확인 항목이 있는 명확한 계획으로 바꿉니다.
+  it: Trasforma il lavoro complesso in un piano chiaro con attività e verifiche.
+  tr: Karmaşık işleri görevler ve kontroller içeren net bir plana dönüştürür.
+  vi: Biến công việc phức tạp thành kế hoạch rõ ràng với nhiệm vụ và kiểm tra.
+  id: Ubah pekerjaan kompleks menjadi rencana jelas dengan tugas dan pemeriksaan.
+  pl: Zamień złożoną pracę w jasny plan z zadaniami i kontrolami.
+  nl: Zet complex werk om in een duidelijk plan met taken en controles.
+  ar: حوّل العمل المعقد إلى خطة واضحة بمهام وفحوصات.
+  hi: जटिल काम को कार्यों और जाँचों वाली स्पष्ट योजना में बदलें।
+  th: เปลี่ยนงานซับซ้อนให้เป็นแผนชัดเจนพร้อมงานและการตรวจสอบ
+  cs: Převeďte složitou práci na jasný plán s úkoly a kontrolami.
+  sv: Gör komplext arbete till en tydlig plan med uppgifter och kontroller.
+  he: הפכו עבודה מורכבת לתוכנית ברורה עם משימות ובדיקות.
+  verified_by_human:
+    - en
+process:
+  context: Step-by-step process description for the generic OpenMates planning mode
+  en: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  de: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  zh: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  es: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  fr: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  pt: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  ru: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  ja: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  ko: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  it: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  tr: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  vi: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  id: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  pl: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  nl: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  ar: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  hi: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  th: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  cs: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  sv: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  he: |
+    - asks one clarifying question at a time when important details are missing
+    - creates a durable plan with goal, scope, assumptions, tasks, acceptance criteria, checks, and risks
+    - waits for approval before execution unless the user explicitly asks to continue
+  verified_by_human:
+    - en

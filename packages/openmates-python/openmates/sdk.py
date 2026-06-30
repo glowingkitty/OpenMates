@@ -77,7 +77,9 @@ class OpenMates:
         self.new_chat_suggestions = OpenMatesNewChatSuggestions(self)
         self.notifications = OpenMatesNotifications(self)
         self.reminders = OpenMatesReminders(self)
+        self.projects = OpenMatesProjects(self)
         self.settings = OpenMatesSettings(self)
+        self.plans = OpenMatesPlans(self)
         self.tasks = OpenMatesTasks(self)
         self.workflows = OpenMatesWorkflows(self)
 
@@ -565,6 +567,59 @@ class OpenMatesChats:
         return self.send(message, save_to_account=False)
 
 
+class OpenMatesPlans:
+    """Encrypted user plans SDK namespace."""
+
+    def __init__(self, client: OpenMates):
+        self._client = client
+
+    def list(
+        self,
+        *,
+        status: str | None = None,
+        chat_id: str | None = None,
+        project_id: str | None = None,
+        active_only: bool | None = None,
+    ) -> list[dict[str, Any]]:
+        return self._client._get(
+            _with_query(
+                "/v1/user-plans",
+                status=status,
+                chat_id=chat_id,
+                project_id=project_id,
+                active_only=active_only,
+            )
+        ).get("plans", [])
+
+    def create(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._post("/v1/user-plans", payload).get("plan", {})
+
+    def update(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._patch(f"/v1/user-plans/{_quote(plan_id)}", payload).get("plan", {})
+
+    def activate(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        request_payload = payload or {}
+        plan = self._client._post(f"/v1/user-plans/{_quote(plan_id)}/activate", request_payload).get("plan", {})
+        if "primary_chat_id" not in plan and isinstance(request_payload.get("chat_id"), str):
+            plan = {**plan, "primary_chat_id": request_payload["chat_id"]}
+        return plan
+
+    def complete(self, plan_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/complete", payload or {}).get("plan", {})
+
+    def create_criterion(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/criteria", payload).get("criterion", {})
+
+    def create_verification(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._post(f"/v1/user-plans/{_quote(plan_id)}/verification", payload).get("verification", {})
+
+    def add_verification_evidence(self, plan_id: str, verification_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._post(
+            f"/v1/user-plans/{_quote(plan_id)}/verification/{_quote(verification_id)}/evidence",
+            payload,
+        ).get("verification", {})
+
+
 class OpenMatesTasks:
     """Encrypted user tasks SDK namespace."""
 
@@ -595,6 +650,19 @@ class OpenMatesTasks:
 
     def start_ai(self, task_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         return self._client._post(f"/v1/user-tasks/{_quote(task_id)}/start-ai", payload or {}).get("task", {})
+
+
+class OpenMatesProjects:
+    """Encrypted Project source SDK namespace."""
+
+    def __init__(self, client: OpenMates):
+        self._client = client
+
+    def list_sources(self, project_id: str) -> list[dict[str, Any]]:
+        return self._client._get(f"/v1/projects/{_quote(project_id)}/sources").get("sources", [])
+
+    def create_source(self, project_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._post(f"/v1/projects/{_quote(project_id)}/sources", payload).get("source", {})
 
 
 class OpenMatesWorkflows:

@@ -17,6 +17,13 @@
     type UserTaskStatus,
     type UserTaskViewModel,
   } from '../../services/userTaskService';
+  import {
+    activateUserPlan,
+    completeUserPlan,
+    createUserPlan,
+    listUserPlans,
+    type UserPlanViewModel,
+  } from '../../services/userPlanService';
 
   let {
     projectId = null,
@@ -29,16 +36,22 @@
   } = $props();
 
   let tasks = $state<UserTaskViewModel[]>([]);
+  let plans = $state<UserPlanViewModel[]>([]);
   let isLoading = $state(true);
+  let isLoadingPlans = $state(true);
   let isSaving = $state(false);
+  let planActionId = $state<string | null>(null);
   let hasLoadError = $state(false);
   let title = $state('');
   let description = $state('');
+  let planTitle = $state('');
+  let planSummary = $state('');
   let assignToAI = $state(false);
 
   const totalCount = $derived(tasks.length);
   const activeCount = $derived(tasks.filter((task) => task.status === 'in_progress').length);
   const doneCount = $derived(tasks.filter((task) => task.status === 'done').length);
+  const activePlans = $derived(plans.filter((plan) => !['completed', 'archived'].includes(plan.status)));
 
   function filters(): ListUserTasksFilters {
     return {
@@ -54,6 +67,13 @@
     }));
   }
 
+  function broadcastPlansChanged(): void {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('openmates-user-plans-changed', {
+      detail: { chatId, projectId },
+    }));
+  }
+
   async function refreshTasks(): Promise<void> {
     isLoading = true;
     try {
@@ -65,6 +85,21 @@
       notificationStore.error('Failed to load tasks');
     } finally {
       isLoading = false;
+    }
+  }
+
+  async function refreshPlans(): Promise<void> {
+    isLoadingPlans = true;
+    try {
+      plans = await listUserPlans({
+        projectId: projectId ?? undefined,
+        chatId: chatId ?? undefined,
+        limit: compact ? 5 : 12,
+      });
+    } catch (error) {
+      console.error('[TasksPage] Failed to load plans:', error);
+    } finally {
+      isLoadingPlans = false;
     }
   }
 
@@ -90,6 +125,31 @@
     } catch (error) {
       console.error('[TasksPage] Failed to create task:', error);
       notificationStore.error('Failed to create task');
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  async function handleCreatePlan(): Promise<void> {
+    const trimmedTitle = planTitle.trim();
+    if (!trimmedTitle || isSaving) return;
+    isSaving = true;
+    try {
+      const plan = await createUserPlan({
+        title: trimmedTitle,
+        summary: planSummary.trim(),
+        status: 'draft',
+        primaryChatId: chatId,
+        linkedProjectIds: projectId ? [projectId] : [],
+      });
+      plans = [plan, ...plans];
+      broadcastPlansChanged();
+      planTitle = '';
+      planSummary = '';
+      notificationStore.success('Plan created');
+    } catch (error) {
+      console.error('[TasksPage] Failed to create plan:', error);
+      notificationStore.error('Failed to create plan');
     } finally {
       isSaving = false;
     }
@@ -121,8 +181,39 @@
     }
   }
 
+  async function handleActivatePlan(plan: UserPlanViewModel): Promise<void> {
+    planActionId = plan.plan_id;
+    try {
+      const updated = await activateUserPlan(plan);
+      plans = plans.map((candidate) => candidate.plan_id === updated.plan_id ? updated : candidate);
+      broadcastPlansChanged();
+      notificationStore.success('Plan activated');
+    } catch (error) {
+      console.error('[TasksPage] Failed to activate plan:', error);
+      notificationStore.error('Failed to activate plan');
+    } finally {
+      planActionId = null;
+    }
+  }
+
+  async function handleCompletePlan(plan: UserPlanViewModel): Promise<void> {
+    planActionId = plan.plan_id;
+    try {
+      const updated = await completeUserPlan(plan);
+      plans = plans.map((candidate) => candidate.plan_id === updated.plan_id ? updated : candidate);
+      broadcastPlansChanged();
+      notificationStore.success('Plan completed');
+    } catch (error) {
+      console.error('[TasksPage] Failed to complete plan:', error);
+      notificationStore.error('Plan still has blockers');
+    } finally {
+      planActionId = null;
+    }
+  }
+
   onMount(() => {
     void refreshTasks();
+    void refreshPlans();
   });
 </script>
 
@@ -141,6 +232,52 @@
       </div>
     </header>
   {/if}
+
+  <section class="plans-strip" data-testid="linked-plans-section" aria-label="Linked plans">
+    <div class="plans-strip-heading">
+      <div>
+        <p class="eyebrow">Plans</p>
+        <h2>{chatId ? 'Chat plan' : projectId ? 'Project plans' : 'Active plans'}</h2>
+      </div>
+      <span>{activePlans.length}</span>
+    </div>
+    <form class="plan-create-row" onsubmit={(event) => { event.preventDefault(); void handleCreatePlan(); }} data-testid="plan-create-form">
+      <input bind:value={planTitle} placeholder={compact ? 'New project plan' : 'New plan'} data-testid="plan-title-input" />
+      <input bind:value={planSummary} placeholder="Optional plan summary" data-testid="plan-summary-input" />
+      <button type="submit" disabled={isSaving || !planTitle.trim()} data-testid="plan-create-button">
+        {isSaving ? 'Creating...' : 'Create plan'}
+      </button>
+    </form>
+    {#if isLoadingPlans}
+      <div class="plans-loading" data-testid="plans-loading">Loading plans...</div>
+    {:else if activePlans.length > 0}
+      <div class="plan-card-list">
+        {#each activePlans as plan (plan.plan_id)}
+          <article class="plan-card" data-testid="linked-plan-card" data-plan-status={plan.status}>
+            <div>
+              <p class="plan-status">{plan.status.replaceAll('_', ' ')}</p>
+              <h3>{plan.title || 'Untitled plan'}</h3>
+              {#if plan.summary || plan.goal}
+                <p>{plan.summary || plan.goal}</p>
+              {/if}
+            </div>
+            <div class="plan-actions">
+              {#if plan.status === 'draft' || plan.status === 'awaiting_confirmation'}
+                <button type="button" disabled={planActionId === plan.plan_id} onclick={() => void handleActivatePlan(plan)} data-testid="plan-activate-button">
+                  {planActionId === plan.plan_id ? 'Activating...' : 'Activate'}
+                </button>
+              {/if}
+              <button type="button" disabled={planActionId === plan.plan_id} onclick={() => void handleCompletePlan(plan)} data-testid="plan-complete-button">
+                {planActionId === plan.plan_id ? 'Saving...' : 'Complete'}
+              </button>
+            </div>
+          </article>
+        {/each}
+      </div>
+    {:else}
+      <div class="plans-empty" data-testid="plans-empty">Create a plan above to coordinate tasks and verification.</div>
+    {/if}
+  </section>
 
   <form class="task-create-card" class:compact onsubmit={(event) => { event.preventDefault(); void handleCreateTask(); }} data-testid="task-create-form">
     <div>
@@ -205,6 +342,7 @@
   }
 
   .tasks-hero,
+  .plans-strip,
   .task-create-card,
   .tasks-state {
     border-radius: 32px;
@@ -222,6 +360,100 @@
     margin-bottom: 18px;
   }
 
+  .plans-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px;
+    margin-bottom: 18px;
+  }
+
+  .tasks-page.compact .plans-strip {
+    box-shadow: none;
+    margin-bottom: 16px;
+  }
+
+  .plans-strip-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .plans-strip-heading span {
+    display: grid;
+    place-items: center;
+    min-width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    background: var(--color-grey-0);
+    color: var(--color-font-secondary);
+    font-size: 0.82rem;
+  }
+
+  .plan-create-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.4fr) auto;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .tasks-page.compact .plan-create-row {
+    grid-template-columns: 1fr;
+  }
+
+  .plans-loading,
+  .plans-empty {
+    border: 1px dashed var(--color-grey-30);
+    border-radius: 20px;
+    padding: 16px;
+    color: var(--color-font-secondary);
+    font-size: 0.88rem;
+  }
+
+  .plan-card-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+  }
+
+  .plan-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 16px;
+    border: 1px solid var(--color-grey-20);
+    border-radius: 24px;
+    padding: 14px;
+    background: var(--color-grey-0);
+  }
+
+  .plan-card h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .plan-card p:not(.plan-status) {
+    margin-top: 6px;
+    color: var(--color-font-secondary);
+    font-size: 0.86rem;
+  }
+
+  .plan-status {
+    margin: 0 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-font-secondary);
+    font-size: 0.68rem;
+    font-weight: 700;
+  }
+
+  .plan-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .eyebrow {
     margin: 0 0 8px;
     text-transform: uppercase;
@@ -233,6 +465,7 @@
 
   h1,
   h2,
+  h3,
   p {
     margin: 0;
   }

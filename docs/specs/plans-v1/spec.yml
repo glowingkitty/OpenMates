@@ -1,0 +1,1117 @@
+id: plans-v1
+title: Plans V1
+status: implementing
+
+goal: >
+  Add a durable privacy-preserving Plans product model that lets users and
+  assistants turn complex natural-language requests into structured plans with
+  tasks, acceptance criteria, verification checks, anti-drift guardrails, and
+  project/chat context. Plans must work for coding, research, document work,
+  electronics, social media, personal projects, and other multi-step workflows;
+  they must remain available to the assistant even after chat compression.
+
+scope:
+  in:
+    - A separate durable Directus plan model, distinct from user-facing tasks and chat messages.
+    - Client-encrypted durable plan content, including title, goal, scope, assumptions, open questions, decisions, risks, phases, steps, acceptance criteria, verification instructions, and evaluation rubrics.
+    - Minimal server-visible metadata for ownership, chat/project linking, ordering, status, versioning, active-step routing, and safe assistant orchestration.
+    - A new product API namespace under /v1/user-plans.
+    - Plan creation from explicit @plan and natural-language auto-detection.
+    - Planner focus-mode routing with app-specific planner focus modes where applicable and a generic OpenMates plan focus mode as fallback.
+    - Clarifying-question flow where planner focus modes ask one high-value question at a time and wait for the user's answer before asking the next.
+    - Durable plan activation and deactivation that exits plan focus mode after the plan is created or approved.
+    - Plan injection into assistant context as protected active-plan context that is not lost when chat history is compressed.
+    - Chat header state that shows the active plan title before execution and the current task title during execution, with previous/next task navigation.
+    - Chat details/settings Tasks tab showing a Plan section above linked tasks and verification tasks.
+    - Project plan management surfaces similar to project chat management, including plan cards, status, progress, linked chat, linked tasks, and open-plan actions.
+    - Acceptance criteria as structured machine-processable plan records.
+    - Verification records for automated tests, deterministic checks, AI evaluation, user confirmation, manual checks, and artifact reviews.
+    - Verification tasks that appear in the regular Tasks view, can be assigned to AI or user, and link back to acceptance criteria.
+    - Flexible red-phase evidence for coding work: recommended and recorded, but not a hard completion blocker when tests pass unexpectedly or are not applicable.
+    - Required green/final verification evidence before a plan or task can be marked done.
+    - Anti-drift detection that steers the assistant back to the active plan/task or stops to ask the user when the assistant drifts too far from the original objective.
+    - Anti-drift correction messages sent to the LLM as user-role messages while rendered in the UI as system/status messages.
+    - CLI, npm SDK, and pip SDK contracts for plan creation, listing, updates, acceptance criteria, verification evidence, and active-plan lookup before web E2E verification.
+  out:
+    - Fully collaborative team/shared plans in V1.
+    - Public plan sharing in V1.
+    - Server-side full-text search over encrypted private plan content.
+    - Unlimited dependency graphs or arbitrary workflow engines beyond simple ordered phases, steps, and task/criterion links.
+    - Automatic execution of high-stakes remote filesystem writes, shell commands, payments, or account mutations without later permission specs.
+    - Native Apple plan UI implementation in the first web/API slice, although the spec records expected parity.
+    - Building Mac/Xcode, electronics CAD, or hardware-control automation in V1; these can be represented as user-confirmed verification tasks.
+
+context_discovery:
+  github_issues:
+    - "#442 Design a plan view for multi-step chats: directly asks for plan data model, UI placement, step status, requirements, task/sub-chat links, and focus-mode constraints."
+    - "#447 Design planning, tasks, projects, and permissions for agentic coding: broader foundation for planning, task management, Projects 2.0, permissions, and remote access."
+    - "GitHub MCP issue reads returned 401 bad credentials in prior discovery; gh issue list/view was used instead."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/planning.md
+    - docs/specs/tasks-v1/spec.yml
+    - docs/specs/projects-remote-sources/spec.yml
+    - docs/specs/workflows-v1/spec.yml
+    - docs/specs/interactive-questions-parity/spec.yml
+    - docs/specs/apple-sub-chat-focus-parity/spec.yml
+    - docs/design-guide/settings-ui.md
+    - docs/user-guide/apps/code.md
+  code_patterns:
+    - backend/core/api/app/utils/override_parser.py supports explicit @focus overrides and should add @plan as a first-class shorthand rather than requiring users to type @focus:code:project_planner.
+    - backend/apps/code/app.yml already defines code.project_planner as an app-specific planning focus mode.
+    - frontend/packages/ui/src/data/appsMetadata.ts mirrors Project Planner focus-mode metadata for the web app.
+    - backend/apps/ai/tasks/ask_skill_task.py applies explicit focus-mode overrides after preprocessing.
+    - backend/apps/ai/processing/main_processor.py injects active focus prompts and owns focus-mode activation/deactivation tool behavior.
+    - backend/apps/ai/processing/chat_compressor.py replaces older message history with compression summaries; plans therefore cannot live only as chat message text.
+    - backend/core/directus/schemas/chat_compression_checkpoints.yml stores client-encrypted compression checkpoint summaries; Plans V1 should use separate durable plan storage and active-plan context injection.
+    - backend/core/directus/schemas/user_tasks.yml and backend/core/api/app/routes/user_tasks.py define the existing privacy-preserving task model that Plans V1 should link to rather than duplicate.
+    - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte shows the existing top-of-chat task preview pattern that Plans V1 extends for plan/title/current-task header state.
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte, TaskBoard.svelte, and TaskCard.svelte provide the reusable task surfaces that verification tasks should appear in.
+    - frontend/packages/ui/src/components/settings/elements provides canonical settings components for chat details/settings plan and tasks sections.
+  tests:
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_tasks_scheduler.py
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - packages/openmates-python/tests/test_tasks.py
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/apps/web_app/tests/feature-availability.spec.ts
+  external_research:
+    - "Martin Fowler SDD tool comparison: distinguishes spec-first, spec-anchored, and spec-as-source; highlights requirements, design, tasks, planning, research, and memory banks."
+    - "Addy Osmani AI-agent spec guidance: good specs need boundaries, testing, commands, project structure, code style, git workflow, always/ask-first/never guardrails, and clear enough detail without overlong prompts."
+    - "Augment SDD guide: specifications act as executable contracts with outcomes, scope boundaries, constraints, decisions, task breakdown, and verification criteria."
+    - "Atlassian software design document guidance: useful sections include overview, architecture, data design, interface design, UI design, assumptions/dependencies, glossary, traceability, and current central storage."
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Chat/ChatView.swift
+    - apple/OpenMates/Sources/Chat/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Tasks/TaskBoardView.swift
+    - apple/OpenMates/Sources/Projects/ProjectDetailView.swift
+    - apple/OpenMates/Sources/Core/Networking/OpenMatesAPIClient.swift
+  parity_expectations:
+    - Apple should eventually list active plans, show active plan/task header state, display project-linked plans, and handle user-assigned verification tasks through the same /v1/user-plans and /v1/user-tasks contracts.
+    - Apple must preserve the same client-side encryption model for durable plan content.
+    - Apple may defer rich plan editing in the first native slice if it can show active plan/task state and user verification tasks accessibly.
+  verification:
+    - Run or attempt python3 scripts/apple_remote.py status when Apple task or chat header UI is implemented.
+    - Run or attempt python3 scripts/apple_remote.py build-ios after shared API clients or native UI are touched.
+  intentional_native_differences:
+    - Native may use compact disclosure sections instead of the full web chat settings tab layout.
+
+clarification:
+  rounds:
+    - question: Should plan mode be explicit, automatic, or both?
+      answer: >
+        Both. A user must always be able to type @plan to trigger plan mode.
+        The assistant should also auto-detect complex natural-language requests
+        that need planning.
+    - question: Should Plans V1 be only for coding or for broader tasks?
+      answer: >
+        Plans must work beyond code: research, project planning, documents,
+        electronics, social media, personal workflows, and other complex tasks.
+    - question: Should there be one generic plan focus mode or app-specific planners?
+      answer: >
+        Prefer app-specific planner focus modes when the domain matches. Add a
+        generic Plan focus mode to the OpenMates app for complex workflows that
+        do not match an existing app.
+    - question: Where should a chat plan be shown?
+      answer: >
+        Show the plan inside the chat Tasks tab as the top Plan section. The
+        active chat header should show the plan title before execution starts and
+        the currently worked task once execution begins.
+    - question: How should acceptance criteria, tests, and AI evaluation work?
+      answer: >
+        Acceptance criteria should be processable structured records. Verification
+        checks/tests should be explicit and can become regular task items assigned
+        to AI or user. Coding work should support red/green tests, but red phase
+        should be flexible when initial tests unexpectedly pass. Green/final
+        verification is the hard requirement. AI evaluation can use numeric scores
+        and thresholds, with failed evaluations causing the assistant to keep
+        working.
+    - question: How should anti-drift correction work?
+      answer: >
+        The system should detect when the assistant gets distracted or moves too
+        far away from the active plan/task. Correcting messages should be sent to
+        the LLM as user-role messages for steering strength, while rendered in the
+        UI as system messages.
+  vision_summary: >
+    Plans V1 is the durable coordination layer above chats and tasks. Plan focus
+    modes create structured plans through one-question-at-a-time clarification,
+    plans stay visible in chat/project UI, tasks and verification items execute
+    against structured acceptance criteria, and anti-drift guardrails keep the
+    assistant aligned with the user's original goal.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: User explicitly starts generic planning with @plan
+    given:
+      - Alice is logged into the web app and is in a normal chat.
+      - Alice types "@plan Help me plan a 60-person community workshop in Berlin".
+    when:
+      - The message is sent.
+      - The planner needs more information about date, budget, audience, accessibility, and language.
+    then:
+      - "@plan is removed from the user-visible prompt text after parsing."
+      - The generic OpenMates Plan focus mode activates for this planning request.
+      - The assistant asks one clarifying question, waits for Alice's answer, and does not ask a batch of unrelated questions at once.
+      - A durable draft plan is created after enough context exists.
+      - The plan appears at the top of the chat Tasks tab and the chat header shows the plan title before any task starts.
+
+  - id: S-2
+    title: Natural language routes to an app-specific planner
+    given:
+      - Alice asks "Help me plan and implement password-protected shared chats" without typing @plan.
+      - The Code app has the project_planner focus mode enabled.
+    when:
+      - The preprocessing layer classifies the request as a complex coding feature.
+    then:
+      - The request routes to the Code Project Planner focus mode.
+      - The assistant explains that it will plan first because the request is multi-step and user-facing.
+      - The plan contains coding-specific acceptance criteria, verification tests, risks, and implementation tasks.
+      - The plan exits planner focus mode after Alice approves the plan.
+
+  - id: S-3
+    title: Durable plan survives chat compression
+    given:
+      - Alice has a long chat with an active plan and linked tasks.
+      - The chat history exceeds the compression threshold.
+    when:
+      - Chat compression replaces older messages with a compression summary.
+      - Alice sends "Continue".
+    then:
+      - The assistant receives a protected active-plan context block separate from compressed message history.
+      - The active plan title, current step, open acceptance criteria, and verification blockers remain available to the assistant.
+      - The plan content is not lost or degraded by compression summaries.
+
+  - id: S-4
+    title: Plan creates linked tasks and verification tasks
+    given:
+      - Alice approves a plan for a research report comparing open-source vector databases.
+    when:
+      - The assistant creates the plan execution tasks.
+    then:
+      - Regular work tasks are created for source collection, comparison, and recommendation writing.
+      - Verification tasks are created for citation count, source freshness, structured comparison completeness, and AI rubric evaluation.
+      - Verification tasks appear in the regular Tasks view with type verification and link back to the plan acceptance criteria.
+
+  - id: S-5
+    title: Coding plan supports flexible red phase and required green phase
+    given:
+      - Alice approves a plan for a new user-facing coding feature.
+      - The plan includes a backend pytest and a Playwright spec.
+    when:
+      - The assistant creates or runs the tests before implementation.
+      - One red-phase test unexpectedly passes because adjacent behavior already exists.
+    then:
+      - The red-phase evidence records passed_unexpectedly with a reason.
+      - The assistant either adjusts the test if coverage is inadequate or proceeds if the test still validates the missing behavior.
+      - The plan is not blocked solely because red phase did not fail.
+      - The plan cannot be marked done until required green/final checks pass and evidence is attached.
+
+  - id: S-6
+    title: AI evaluation enforces qualitative criteria
+    given:
+      - Alice asks for a research plan output with criteria for neutrality, source quality, and recommendation usefulness.
+      - The plan defines an AI evaluation threshold of 85.
+    when:
+      - The assistant finishes a draft report.
+      - The AI evaluator scores the result 78 because licensing comparison is missing.
+    then:
+      - The verification record is marked failed.
+      - A system-rendered correction message is shown in the UI.
+      - The same correction is sent to the LLM as a user-role message instructing it to continue working on the missing requirement.
+      - The plan remains active until the evaluation passes or Alice waives the criterion.
+
+  - id: S-7
+    title: Anti-drift steers the assistant back to the active task
+    given:
+      - Alice has an active plan whose current task is "Finish AC-2: add source citations".
+      - The assistant starts discussing unrelated social media promotion ideas.
+    when:
+      - The drift checker compares the latest assistant action with the active plan goal, current task, and unsatisfied acceptance criteria.
+    then:
+      - A drift score above the configured threshold is recorded.
+      - A correction is sent to the LLM as a user-role message telling it to return to AC-2.
+      - The UI displays the correction as a system/status message, not as Alice-authored text.
+      - If drift is severe or the user's latest message intentionally changes scope, the assistant asks whether to update the plan or return to the original goal.
+
+  - id: S-8
+    title: Chat header shows plan before work and current task during work
+    given:
+      - Alice has an approved plan with three ordered tasks.
+      - No task is currently in progress.
+    when:
+      - Alice opens the active chat.
+      - The assistant starts the first task.
+    then:
+      - Before execution, the active chat header shows the plan title and opens the chat details Tasks tab when clicked.
+      - During execution, the header shows the current task title.
+      - Previous and next buttons navigate across tasks without changing task status.
+      - The first position before Task 1 shows the plan overview/title.
+
+  - id: S-9
+    title: Project manages linked plans like linked chats
+    given:
+      - Alice has a Project named Community Workshop.
+      - The workshop plan is linked to the Project and its primary chat.
+    when:
+      - Alice opens the Project page.
+    then:
+      - The Project page shows a Plans section with plan cards.
+      - Each plan card shows encrypted title after client decryption, status, progress, linked chat, and linked task counts.
+      - Alice can open the plan's primary chat or the plan detail in the chat settings Tasks tab.
+      - Alice can filter project tasks by plan.
+
+  - id: S-10
+    title: User-confirmed checks support domains without automation
+    given:
+      - Alice is planning an electronics prototype.
+      - The plan includes a check "Confirm KiCad DRC passes" and no automated KiCad runner exists in V1.
+    when:
+      - The assistant creates verification tasks.
+    then:
+      - The KiCad check is created as a user-assigned verification task.
+      - The plan explains that the user must confirm this check manually.
+      - The plan cannot be marked done until Alice completes or waives the user-confirmed verification task.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Explicit @plan always forces planner routing and never requires the user to know the lower-level @focus syntax.
+  - id: AC-2
+    scenario: S-1
+    text: Generic planning uses an OpenMates Plan focus mode that asks one clarifying question at a time and waits for the user's answer before continuing.
+  - id: AC-3
+    scenario: S-2
+    text: Natural-language planning intent can select an app-specific planner focus mode when the domain clearly matches an enabled app.
+  - id: AC-4
+    scenario: S-2
+    text: Planner focus mode exits after a durable plan is created or approved, so execution can proceed under normal or task-specific assistant behavior.
+  - id: AC-5
+    scenario: S-3
+    text: Active plans are stored separately from chat messages and injected into assistant context after compression without depending on compressed chat history text.
+  - id: AC-6
+    scenario: S-4
+    text: Plans can contain structured phases, steps, linked tasks, acceptance criteria, and verification items with stable IDs and traceability between them.
+  - id: AC-7
+    scenario: S-4
+    text: Verification items can be represented as user-facing tasks with type verification, assignment, status, and links back to plan acceptance criteria.
+  - id: AC-8
+    scenario: S-5
+    text: Coding plans support red-phase evidence but do not fail the plan solely because a red-phase test passes unexpectedly when the result is recorded and handled explicitly.
+  - id: AC-9
+    scenario: S-5
+    text: Required green/final verification evidence blocks plan and task completion until all required checks pass, are completed by the assigned user, or are explicitly waived.
+  - id: AC-10
+    scenario: S-6
+    text: AI evaluation verification returns numeric per-criterion scores, thresholds, pass/fail status, confidence, reasons, and required fixes.
+  - id: AC-11
+    scenario: S-6
+    text: Failed AI evaluation generates a system-rendered correction that is sent to the LLM as a user-role steering message and keeps the plan active.
+  - id: AC-12
+    scenario: S-7
+    text: Anti-drift checks compare the latest assistant behavior against the active plan goal, active step/task, and unsatisfied acceptance criteria and either continue, steer back, ask the user, or stop.
+  - id: AC-13
+    scenario: S-7
+    text: Anti-drift correction messages render as system/status messages in the UI while carrying metadata that the LLM receives them as user-role messages.
+  - id: AC-14
+    scenario: S-8
+    text: The active chat header shows the active plan title before execution and the current task title during execution, with previous/next navigation and a click target to open the Tasks tab.
+  - id: AC-15
+    scenario: S-9
+    text: Project pages can show and manage linked plans similarly to linked chats, including status, progress, primary chat, and task filters.
+  - id: AC-16
+    scenario: S-10
+    text: Plans support user-confirmed verification tasks for domains where automated checks are impractical in V1.
+  - id: AC-17
+    scenario: S-3
+    text: Durable private plan content is client-encrypted; the server only stores minimal metadata needed for ownership, filtering, status, versioning, active-plan lookup, and safe orchestration.
+  - id: AC-18
+    scenario: S-4
+    text: CLI, npm SDK, and pip SDK expose the shared plan contract before web-only flows are considered complete.
+
+contracts:
+  api:
+    - route: GET /v1/user-plans
+      auth: session_or_api_key
+      request: "query: status?, chat_id?, project_id?, active_only?, limit?, cursor?"
+      response: "{ plans: PlanSummary[], next_cursor?: string }"
+      notes:
+        - Does not return plaintext private plan content; clients decrypt encrypted fields locally.
+        - Supports chat and project plan management surfaces.
+    - route: POST /v1/user-plans
+      auth: session_or_api_key
+      request: "{ plan_id, encrypted_plan_key, encrypted_title, encrypted_goal, encrypted_scope?, primary_chat_id?, linked_project_ids?, status?, planner_focus_id?, created_at, updated_at }"
+      response: "{ plan: PlanRecord }"
+      notes:
+        - Creates draft or active durable plans from @plan, natural-language planning, or explicit user actions.
+    - route: PATCH /v1/user-plans/{plan_id}
+      auth: session_or_api_key
+      request: "partial encrypted fields and metadata with client version"
+      response: "{ plan: PlanRecord }"
+      notes:
+        - Rejects stale versions visibly rather than silently overwriting user or assistant edits.
+    - route: POST /v1/user-plans/{plan_id}/activate
+      auth: session_or_api_key
+      request: "{ chat_id?, current_step_id?, version? }"
+      response: "{ plan: PlanRecord }"
+      notes:
+        - Sets the active plan for a chat or project context.
+    - route: POST /v1/user-plans/{plan_id}/complete
+      auth: session_or_api_key
+      request: "{ version, completion_note?, waive_incomplete?: Waiver[] }"
+      response: "{ plan: PlanRecord, blocked_by?: VerificationBlocker[] }"
+      notes:
+        - Refuses completion while required acceptance criteria or verification items remain incomplete unless explicitly waived.
+    - route: POST /v1/user-plans/{plan_id}/criteria
+      auth: session_or_api_key
+      request: "{ criterion_id, encrypted_text, type, required, linked_step_ids?, linked_task_ids?, created_at }"
+      response: "{ criterion: AcceptanceCriterionRecord }"
+    - route: PATCH /v1/user-plans/{plan_id}/criteria/{criterion_id}
+      auth: session_or_api_key
+      request: "{ status?, encrypted_evidence?, verification_ids?, version? }"
+      response: "{ criterion: AcceptanceCriterionRecord }"
+    - route: POST /v1/user-plans/{plan_id}/verification
+      auth: session_or_api_key
+      request: "{ verification_id, kind, phase, required_for_done, covers, encrypted_command?, encrypted_prompt?, threshold?, assigned_to? }"
+      response: "{ verification: VerificationRecord, task?: UserTaskRecord }"
+      notes:
+        - May create a linked user task when the verification item needs AI or user action.
+    - route: POST /v1/user-plans/{plan_id}/verification/{verification_id}/evidence
+      auth: session_or_api_key
+      request: "{ result, score?, threshold?, status, encrypted_reason?, encrypted_required_fixes?, run_id?, task_id?, created_at }"
+      response: "{ verification: VerificationRecord }"
+    - route: POST /v1/user-plans/{plan_id}/drift-check
+      auth: internal_or_session
+      request: "{ latest_action_summary, latest_user_message_id?, active_step_id?, active_task_id? }"
+      response: "{ drift_score, status, reason, recommended_action, correction_message? }"
+      notes:
+        - Internal worker path may call this after assistant turns or task transitions.
+    - route: GET /v1/user-plans/active-context
+      auth: session_or_api_key
+      request: "query: chat_id, project_id?"
+      response: "{ active_plan?: PlanContext, active_task?: TaskContext, blockers?: VerificationBlocker[] }"
+      notes:
+        - Used by preprocessing/main processing to inject active plan context separately from compressed chat history.
+  data:
+    collections:
+      - name: user_plans
+        purpose: Durable user-facing plan records.
+        server_visible_fields:
+          - id
+          - plan_id
+          - hashed_user_id
+          - status: draft|awaiting_confirmation|active|executing|blocked|completed|archived
+          - primary_chat_id
+          - hashed_primary_chat_id
+          - linked_project_ids
+          - current_phase_id
+          - current_step_id
+          - current_task_id
+          - planner_focus_id
+          - version
+          - created_at
+          - updated_at
+          - completed_at
+        encrypted_fields:
+          - encrypted_plan_key
+          - encrypted_title
+          - encrypted_summary
+          - encrypted_goal
+          - encrypted_scope_in
+          - encrypted_scope_out
+          - encrypted_assumptions
+          - encrypted_open_questions
+          - encrypted_constraints
+          - encrypted_decisions
+          - encrypted_risks
+      - name: user_plan_steps
+        purpose: Ordered phases and steps inside a plan.
+        server_visible_fields:
+          - id
+          - plan_id
+          - step_id
+          - parent_step_id
+          - status: pending|active|blocked|done|skipped
+          - position
+          - linked_task_ids
+          - version
+          - created_at
+          - updated_at
+        encrypted_fields:
+          - encrypted_title
+          - encrypted_description
+          - encrypted_notes
+      - name: user_plan_acceptance_criteria
+        purpose: Machine-processable criteria that define plan success.
+        server_visible_fields:
+          - id
+          - plan_id
+          - criterion_id
+          - type: functional|quality|safety|privacy|performance|research|content|manual
+          - status: pending|satisfied|failed|waived
+          - required
+          - linked_step_ids
+          - linked_task_ids
+          - verification_ids
+          - version
+          - created_at
+          - updated_at
+        encrypted_fields:
+          - encrypted_text
+          - encrypted_evidence
+          - encrypted_waiver_reason
+      - name: user_plan_verifications
+        purpose: Required and optional proof items for acceptance criteria.
+        server_visible_fields:
+          - id
+          - plan_id
+          - verification_id
+          - kind: automated_test|deterministic_check|manual_check|ai_evaluation|user_confirmation|artifact_review
+          - phase: red|green|final|not_applicable
+          - status: pending|passed|failed|passed_unexpectedly|skipped|waived
+          - required_for_done
+          - covers
+          - threshold
+          - score
+          - confidence
+          - linked_task_id
+          - run_id
+          - created_at
+          - updated_at
+        encrypted_fields:
+          - encrypted_command
+          - encrypted_evaluation_prompt
+          - encrypted_expected_result
+          - encrypted_result_summary
+          - encrypted_required_fixes
+      - name: user_plan_activity
+        purpose: Append-only activity entries for plan updates, drift checks, criteria changes, and verification evidence.
+        server_visible_fields:
+          - id
+          - plan_id
+          - actor_type: user|ai|system
+          - actor_hash
+          - event_type
+          - created_at
+        encrypted_fields:
+          - encrypted_message
+          - encrypted_snapshot
+      - name: user_plan_artifacts
+        purpose: Links from a plan to chats, messages, embeds, files, commands, sources, diffs, commits, or external artifacts.
+        server_visible_fields:
+          - id
+          - plan_id
+          - artifact_id
+          - artifact_type
+          - linked_task_id
+          - linked_step_id
+          - created_at
+        encrypted_fields:
+          - encrypted_label
+          - encrypted_private_metadata
+    statuses:
+      plan:
+        - draft
+        - awaiting_confirmation
+        - active
+        - executing
+        - blocked
+        - completed
+        - archived
+      criterion:
+        - pending
+        - satisfied
+        - failed
+        - waived
+      verification:
+        - pending
+        - passed
+        - failed
+        - passed_unexpectedly
+        - skipped
+        - waived
+    task_extensions:
+      - user_tasks gains plan_id for linked plan membership.
+      - user_tasks gains plan_step_id for current step traceability.
+      - user_tasks gains task_type with values work|verification.
+      - user_tasks gains verification_id when task_type is verification.
+  websocket:
+    - event: plan_created
+      direction: server_to_client
+      payload: "{ plan_id, primary_chat_id?, linked_project_ids?, status, version, updated_at }"
+      behavior:
+        - Client refreshes active plan surfaces for the chat and linked projects.
+    - event: plan_activated
+      direction: server_to_client
+      payload: "{ plan_id, chat_id?, project_id?, current_step_id?, current_task_id? }"
+      behavior:
+        - Client updates chat header and Tasks tab active Plan section.
+    - event: active_plan_task_changed
+      direction: server_to_client
+      payload: "{ plan_id, task_id?, step_id?, direction?: previous|next|current }"
+      behavior:
+        - Client header updates from plan title to current task title or selected plan/task navigation item.
+    - event: plan_verification_updated
+      direction: server_to_client
+      payload: "{ plan_id, verification_id, status, score?, threshold?, linked_task_id? }"
+      behavior:
+        - Criteria and verification task UI update without a full reload.
+    - event: plan_drift_detected
+      direction: server_to_client
+      payload: "{ plan_id, drift_score, status, recommended_action, display_message_id? }"
+      behavior:
+        - Client shows a system/status correction when the drift action is steer_back, ask_user, or stop.
+  ui_states:
+    - Empty chat with @plan typed in the composer.
+    - Planner focus mode asking one clarifying question.
+    - Draft plan awaiting confirmation.
+    - Approved active plan before any task starts.
+    - Chat header showing active plan title.
+    - Chat header showing current task title with previous/next controls.
+    - Chat details/settings Tasks tab with Plan section above task list.
+    - Plan section showing goal, scope, current step, open questions, criteria progress, verification blockers, and linked tasks.
+    - Project page Plans section showing plan cards similar to linked chat cards.
+    - Project task board filtered by plan.
+    - Verification tasks shown in regular Tasks view and chat/project task sections.
+    - AI evaluation failed state with score, threshold, reason, and continue-working correction.
+    - User-confirmed verification task waiting for user.
+    - Drift warning shown as system/status message while not appearing as user-authored text.
+    - Red-phase passed unexpectedly state with recorded reason.
+    - Completion blocked by missing verification evidence.
+    - Completion allowed after all required criteria are satisfied or waived.
+  privacy_security:
+    - Never store plaintext private plan title, goal, scope, assumptions, decisions, risks, criteria text, verification command text, evaluation prompts, or evidence in durable server storage.
+    - Server-visible plan status, step IDs, criterion IDs, verification IDs, linked task IDs, primary_chat_id, and linked_project_ids are acceptable metadata for routing and filtering; reassess before adding public/team sharing.
+    - User-assigned verification tasks must be explicit and cannot be silently auto-completed by AI.
+    - AI evaluation can satisfy non-critical criteria only when the plan marks that criterion as AI-verifiable; critical user intent, safety, legal, payment, destructive, or high-stakes criteria require deterministic proof or user confirmation.
+    - Anti-drift correction messages must carry metadata distinguishing display role from LLM role to avoid falsifying user-authored chat content.
+    - Active-plan context injection must be bounded and must not leak plans from another user, project, or chat.
+    - Plan completion must never silently waive failed or missing required verification.
+  focus_mode_routing:
+    explicit_plan:
+      syntax: "@plan"
+      behavior:
+        - Always force planning mode.
+        - Choose an app-specific planner when a clear enabled app domain matches.
+        - Fall back to openmates.plan for generic or ambiguous complex workflows.
+    app_specific_examples:
+      - code.project_planner for software projects, features, migrations, debugging plans, specs, tests, and implementation work.
+      - docs.document_planner for documents, policies, guides, reports, and structured writing.
+      - electronics.project_planner for circuits, PCB, firmware/hardware workflows, and manual electronics verification tasks.
+      - social_media.campaign_planner for content calendars, launches, and campaign execution.
+      - research.research_planner for multi-source research and recommendation reports.
+    generic_fallback:
+      - openmates.plan for complex workflows that do not match an existing app-specific planner.
+    clarification_contract:
+      - Ask one question at a time.
+      - Prefer high-value blocking questions.
+      - Stop asking when enough context exists to draft a useful plan.
+      - Present the plan for confirmation before execution unless the user explicitly asks for a quick plan only.
+  anti_drift:
+    levels:
+      - range: "0-39"
+        status: on_track
+        action: continue
+      - range: "40-69"
+        status: slightly_drifting
+        action: hidden_or_low_noise_steer_back
+      - range: "70-89"
+        status: off_track
+        action: system_message_and_steer_back
+      - range: "90-100"
+        status: blocked_or_scope_change
+        action: stop_and_ask_user
+    llm_message_contract:
+      - Corrections are sent to the LLM as user-role messages for steering strength.
+      - Corrections render in the UI as system/status messages.
+      - "Persisted metadata includes origin: system_generated, display_role: system, llm_role: user, plan_id, task_id?, drift_score, and recommended_action."
+  verification_policy:
+    done_rule:
+      - All required acceptance criteria must be satisfied or explicitly waived.
+      - All required verification items must have passing, completed, waived, or user-confirmed evidence.
+      - Required green/final checks block completion.
+      - Red phase is recommended for coding but does not block completion when recorded as passed_unexpectedly, missing_test, skipped_with_reason, or not_applicable.
+    ai_evaluation:
+      output_schema: "{ score, threshold, passed, confidence, criteria_results[], required_fixes[] }"
+      threshold_behavior:
+        - Every required covered criterion must pass its threshold.
+        - A high average score cannot hide a failed required criterion.
+        - Failed evaluation creates a correction and keeps the plan active.
+    deterministic_priority:
+      - Prefer automated tests when available.
+      - Prefer deterministic schema/static/checklist validation over subjective scoring.
+      - Use AI evaluation for qualitative judgment or first-pass review.
+      - Use user confirmation for subjective, physical-world, native-tool, or currently unsupported automation checks.
+  naming:
+    - /v1/tasks remains Celery/background task polling.
+    - /v1/user-tasks remains user-facing product tasks.
+    - /v1/user-plans is the user-facing product plans namespace.
+    - "@plan is a user-friendly explicit planning shorthand, not a replacement for existing @focus syntax."
+
+tests:
+  - id: T-PYTEST-PLANS-API
+    type: pytest
+    file: backend/tests/test_user_plans_api.py
+    command: python3 -m pytest backend/tests/test_user_plans_api.py
+    covers:
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-8
+      - AC-9
+      - AC-17
+    assertions:
+      - unauthenticated plan operations return 401
+      - creating a plan stores encrypted fields plus minimal metadata only
+      - stale plan updates return 409
+      - completion is blocked when required verification evidence is missing
+      - verification task creation links user_tasks to plan_id and verification_id
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: failed_as_expected
+        run_id: "local:d93b:missing user_plan_methods before implementation"
+        timestamp: "2026-06-30T12:07:33Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:f00b:python3 -m pytest backend/tests/test_user_plans_api.py backend/tests/test_plan_focus_routing.py backend/tests/test_plan_anti_drift.py"
+        timestamp: "2026-06-30T12:07:33Z"
+
+  - id: T-PYTEST-PLAN-ROUTING
+    type: pytest
+    file: backend/tests/test_plan_focus_routing.py
+    command: python3 -m pytest backend/tests/test_plan_focus_routing.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+    assertions:
+      - "@plan parses as explicit planning intent"
+      - code-like planning routes to code.project_planner when available
+      - generic complex planning routes to openmates.plan
+      - planner completion clears active planner focus while retaining active plan state
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: failed_as_expected
+        run_id: "local:d93b:missing plan_focus_routing before implementation"
+        timestamp: "2026-06-30T12:07:33Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:f00b:python3 -m pytest backend/tests/test_user_plans_api.py backend/tests/test_plan_focus_routing.py backend/tests/test_plan_anti_drift.py"
+        timestamp: "2026-06-30T12:07:33Z"
+
+  - id: T-PYTEST-ANTI-DRIFT
+    type: pytest
+    file: backend/tests/test_plan_anti_drift.py
+    command: python3 -m pytest backend/tests/test_plan_anti_drift.py
+    covers:
+      - AC-11
+      - AC-12
+      - AC-13
+    assertions:
+      - drift scores map to continue, steer_back, ask_user, and stop actions
+      - correction messages carry display_role system and llm_role user metadata
+      - failed AI evaluation produces a correction message and does not complete the plan
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: failed_as_expected
+        run_id: "local:d93b:missing user_plan_service anti-drift helpers before implementation"
+        timestamp: "2026-06-30T12:07:33Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:f00b:python3 -m pytest backend/tests/test_user_plans_api.py backend/tests/test_plan_focus_routing.py backend/tests/test_plan_anti_drift.py"
+        timestamp: "2026-06-30T12:07:33Z"
+
+  - id: T-CLI-PLANS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/plans.test.ts
+    command: python3 scripts/tests.py run --suite cli --filter plans
+    covers:
+      - AC-6
+      - AC-7
+      - AC-9
+      - AC-18
+    assertions:
+      - CLI can list, create, update, activate, and complete plans through /v1/user-plans
+      - CLI can add acceptance criteria and verification evidence
+      - CLI serializes chat_id and project_id filters
+      - CLI exposes completion blockers when verification evidence is missing
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: failed_as_expected
+        run_id: "local:d93b:client.listUserPlans missing before implementation"
+        timestamp: "2026-06-30T12:07:33Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:f00b:node --test --experimental-strip-types --loader ./tests/loader.mjs tests/plans.test.ts tests/sdk-plans.test.ts"
+        timestamp: "2026-06-30T12:07:33Z"
+
+  - id: T-NPM-SDK-PLANS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    command: python3 scripts/tests.py run --suite cli --filter sdk-plans
+    covers:
+      - AC-6
+      - AC-7
+      - AC-18
+    assertions:
+      - npm SDK exposes plan list/create/update/activate/complete helpers
+      - npm SDK exposes acceptance-criteria and verification-evidence helpers
+      - helper paths match /v1/user-plans contracts
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: failed_as_expected
+        run_id: "local:d93b:client.plans missing before implementation"
+        timestamp: "2026-06-30T12:07:33Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:f00b:node --test --experimental-strip-types --loader ./tests/loader.mjs tests/plans.test.ts tests/sdk-plans.test.ts"
+        timestamp: "2026-06-30T12:07:33Z"
+
+  - id: T-PIP-SDK-PLANS
+    type: pytest
+    file: packages/openmates-python/tests/test_plans.py
+    command: python3 -m pytest packages/openmates-python/tests/test_plans.py
+    covers:
+      - AC-6
+      - AC-7
+      - AC-18
+    assertions:
+      - pip SDK exposes plan list/create/update/activate/complete helpers
+      - pip SDK exposes acceptance-criteria and verification-evidence helpers
+      - helper paths match /v1/user-plans contracts
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: failed_as_expected
+        run_id: "local:d93b:client.plans missing before implementation"
+        timestamp: "2026-06-30T12:07:33Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local:f00b:python3 -m pytest packages/openmates-python/tests/test_plans.py"
+        timestamp: "2026-06-30T12:07:33Z"
+
+  - id: T-E2E-PLANS-CHAT
+    type: playwright
+    file: frontend/apps/web_app/tests/plans-flow.spec.ts
+    command: python3 scripts/tests.py run --spec plans-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-5
+      - AC-10
+      - AC-11
+      - AC-12
+      - AC-13
+      - AC-14
+      - AC-16
+    assertions:
+      - "@plan starts a planner flow and asks one clarifying question"
+      - approved plan appears in chat Tasks tab
+      - chat header shows plan title before execution and task title during execution
+      - failed AI evaluation shows a system/status correction and keeps the plan active
+      - user-confirmed verification task blocks completion until completed or waived
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: failed_as_expected
+        run_id: "local:f00b:red predeploy spec unavailable on deployed commit"
+        timestamp: "2026-06-30T12:16:45Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-PROJECT-PLANS
+    type: playwright
+    file: frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    command: python3 scripts/tests.py run --spec project-plans-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-7
+      - AC-15
+    assertions:
+      - project page shows linked plan cards
+      - plan card opens the plan primary chat or chat settings Tasks tab
+      - project tasks can be filtered by plan
+      - verification tasks appear in project task surfaces
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: failed_as_expected
+        run_id: "github:28443714401:no tests found before spec deployment"
+        timestamp: "2026-06-30T12:20:27Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - docs/specs/tasks-v1/spec.yml for user-facing encrypted task records, task API shape, and chat/project task surfaces.
+    - backend/core/api/app/utils/override_parser.py for @ override parsing.
+    - backend/apps/ai/tasks/ask_skill_task.py and backend/apps/ai/processing/main_processor.py for focus-mode override and active focus prompt injection.
+    - backend/apps/ai/processing/chat_compressor.py plus chat_compression_checkpoints for compression behavior and the need for protected active-plan context.
+    - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte for top-of-chat progress/active-work UI pattern.
+    - frontend/packages/ui/src/components/settings/elements for chat details/settings plan and task sections.
+  architecture: >
+    Implement Plans V1 as a separate encrypted product model and API. Plan focus
+    modes create and refine plans; plan records then drive task creation,
+    verification tasks, active chat/project UI, protected assistant context, and
+    anti-drift checks. Tasks remain the execution units and link back to plan
+    steps and verification records.
+  data_flow:
+    - User sends @plan or a natural-language complex request.
+    - Override/preprocessing detects planning intent and selects an app-specific planner or openmates.plan.
+    - Planner asks one clarifying question at a time until it can draft a plan.
+    - Client encrypts plan content and stores durable plan, steps, criteria, and verification records through /v1/user-plans.
+    - Approved plan creates linked user_tasks for work and verification tasks.
+    - Active-plan context is fetched and injected into future assistant requests separately from message history and compression summaries.
+    - Assistant execution updates task, criteria, verification, and plan status.
+    - Anti-drift checks run after assistant turns or task transitions and can send steering corrections to the LLM while rendering system/status messages in the UI.
+  affected_files:
+    - path: backend/core/directus/schemas/user_plans.yml
+      reason: Durable plan, step, criterion, verification, activity, and artifact collections.
+    - path: backend/core/directus/schemas/user_tasks.yml
+      reason: Add plan_id, plan_step_id, task_type, and verification_id fields.
+    - path: backend/core/api/app/routes/user_plans.py
+      reason: User-facing /v1/user-plans API.
+    - path: backend/core/api/app/services/user_plan_service.py
+      reason: Plan orchestration, completion blockers, verification evidence, and active-plan context.
+    - path: backend/core/api/app/services/directus/user_plan_methods.py
+      reason: Directus storage methods for plans and related records.
+    - path: backend/core/api/app/utils/override_parser.py
+      reason: Add @plan parsing and cleaned-message behavior.
+    - path: backend/apps/openmates/app.yml
+      reason: Add generic openmates.plan focus mode.
+    - path: backend/apps/code/app.yml
+      reason: Ensure code.project_planner can be selected as an app-specific planner for @plan and natural-language routing.
+    - path: backend/apps/ai/processing/preprocessor.py
+      reason: Natural-language plan intent and planner focus routing.
+    - path: backend/apps/ai/tasks/ask_skill_task.py
+      reason: Apply @plan/active-plan context and exit planner focus mode after plan creation/approval.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Inject protected active-plan context and handle anti-drift correction messages.
+    - path: frontend/packages/ui/src/services/userPlanService.ts
+      reason: Client-side encryption/decryption and /v1/user-plans API client.
+    - path: frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
+      reason: Extend active header/preview state to show plan title and current task navigation.
+    - path: frontend/packages/ui/src/components/tasks/TasksPage.svelte
+      reason: Show plan section and verification tasks in task surfaces.
+    - path: frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+      reason: Add project linked plans management surface.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: CLI plan contract helpers.
+    - path: frontend/packages/openmates-cli/src/sdk.ts
+      reason: npm SDK plan facade.
+    - path: packages/openmates-python/openmates/sdk.py
+      reason: pip SDK plan facade.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/plans-v1/spec.yml
+    - python3 scripts/spec_verify.py docs/specs/plans-v1/spec.yml --phase red
+    - CLI contract tests before web E2E.
+    - npm and pip SDK tests before web E2E.
+    - Playwright red/green for chat and project plan flows after deploy.
+    - Apple remote status/build attempt when Apple shared clients or native UI are touched.
+  verification_order:
+    - Backend pytest contracts.
+    - CLI contract tests.
+    - npm SDK contract tests.
+    - pip SDK contract tests.
+    - Web Playwright specs against app.dev.openmates.org after deploy.
+    - Apple remote build/test when Apple files are affected.
+
+tasks:
+  - id: TASK-1
+    title: Add durable plan data and backend API contracts
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-10
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-9
+        - AC-10
+        - AC-16
+        - AC-17
+    expected_files:
+      - backend/core/directus/schemas/user_plans.yml
+      - backend/core/directus/schemas/user_tasks.yml
+      - backend/core/api/app/routes/user_plans.py
+      - backend/core/api/app/services/user_plan_service.py
+      - backend/core/api/app/services/directus/user_plan_methods.py
+      - backend/tests/test_user_plans_api.py
+    verification:
+      - T-PYTEST-PLANS-API
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Add @plan parsing and planner focus routing
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+    expected_files:
+      - backend/core/api/app/utils/override_parser.py
+      - backend/apps/openmates/app.yml
+      - backend/apps/code/app.yml
+      - backend/apps/ai/processing/preprocessor.py
+      - backend/apps/ai/tasks/ask_skill_task.py
+      - backend/tests/test_plan_focus_routing.py
+    verification:
+      - T-PYTEST-PLAN-ROUTING
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Add active-plan context injection and anti-drift steering
+    covers:
+      scenarios:
+        - S-3
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-5
+        - AC-10
+        - AC-11
+        - AC-12
+        - AC-13
+    expected_files:
+      - backend/core/api/app/services/user_plan_service.py
+      - backend/apps/ai/tasks/ask_skill_task.py
+      - backend/apps/ai/processing/main_processor.py
+      - backend/tests/test_plan_anti_drift.py
+    verification:
+      - T-PYTEST-ANTI-DRIFT
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Add CLI and SDK plan contracts
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-6
+        - AC-7
+        - AC-9
+        - AC-18
+    expected_files:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/plans.test.ts
+      - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_plans.py
+    verification:
+      - T-CLI-PLANS
+      - T-NPM-SDK-PLANS
+      - T-PIP-SDK-PLANS
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Add chat plan UI, active header state, and verification task surfaces
+    covers:
+      scenarios:
+        - S-1
+        - S-4
+        - S-6
+        - S-8
+        - S-10
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-7
+        - AC-10
+        - AC-11
+        - AC-14
+        - AC-16
+    expected_files:
+      - frontend/packages/ui/src/services/userPlanService.ts
+      - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
+      - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+      - frontend/apps/web_app/tests/plans-flow.spec.ts
+    verification:
+      - T-E2E-PLANS-CHAT
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Add project plan management surface
+    covers:
+      scenarios:
+        - S-9
+      acceptance_criteria:
+        - AC-15
+    expected_files:
+      - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+      - frontend/packages/ui/src/services/userPlanService.ts
+      - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    verification:
+      - T-E2E-PROJECT-PLANS
+    independently_deployable: false
+
+risks:
+  - Plan scope can become too broad if V1 tries to implement every app-specific planner at once; V1 should add the generic openmates.plan and wire existing code.project_planner first, then add more app planners incrementally.
+  - Anti-drift can be annoying if too sensitive; thresholds must allow intentional user pivots and ask whether to update the plan when scope changes.
+  - AI evaluation can produce false confidence; critical criteria require deterministic checks or user confirmation.
+  - Client-encrypted plan data limits server-side search and routing; V1 should keep server-visible metadata sparse and explicit.
+  - Verification tasks may clutter task boards; UI should visually distinguish work tasks from verification tasks while keeping them assignable and actionable.
+  - Chat header can become overloaded; V1 should only show plan title/current task and navigation, with details in the Tasks tab.
+
+open_questions:
+  - Which app-specific planner focus modes beyond code.project_planner should ship in the first implementation slice versus later app-by-app follow-up specs?
+  - Should @plan in a chat with an existing active plan update the existing plan by default, create a new draft plan, or ask the user which action they want?
+  - Should plan cards on the Project page appear in the first project overview slice or behind an expandable section until there are linked plans?
+  - What is the first acceptable AI evaluation threshold default for generic qualitative checks: 80, 85, or per-plan only?

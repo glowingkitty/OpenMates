@@ -35,12 +35,22 @@ import type {
   WorkflowRunContentRetention,
   WorkflowRunDetail,
   WorkflowSummary,
+  ProjectSourceCreateInput,
+  ProjectSourceRecord,
+  UserPlanCreateInput,
+  UserPlanCriterionRecord,
+  UserPlanRecord,
+  UserPlanStatus,
+  UserPlanUpdateInput,
+  UserPlanVerificationRecord,
   UserTaskCreateInput,
   UserTaskRecord,
   UserTaskStartAIInput,
   UserTaskStatus,
   UserTaskUpdateInput,
 } from "./client.js";
+
+export type { ProjectSourceCreateInput, ProjectSourceRecord } from "./client.js";
 
 const DEFAULT_API_URL = "https://api.openmates.org";
 
@@ -159,7 +169,9 @@ export class OpenMates {
   readonly newChatSuggestions: OpenMatesNewChatSuggestions;
   readonly notifications: OpenMatesNotifications;
   readonly reminders: OpenMatesReminders;
+  readonly projects: OpenMatesProjects;
   readonly settings: OpenMatesSettings;
+  readonly plans: OpenMatesPlans;
   readonly tasks: OpenMatesTasks;
   readonly workflows: OpenMatesWorkflows;
   private readonly apiKey?: string;
@@ -184,7 +196,9 @@ export class OpenMates {
     this.newChatSuggestions = new OpenMatesNewChatSuggestions(this);
     this.notifications = new OpenMatesNotifications(this);
     this.reminders = new OpenMatesReminders(this);
+    this.projects = new OpenMatesProjects(this);
     this.settings = new OpenMatesSettings(this);
+    this.plans = new OpenMatesPlans(this);
     this.tasks = new OpenMatesTasks(this);
     this.workflows = new OpenMatesWorkflows(this);
   }
@@ -794,6 +808,25 @@ export class OpenMatesReminders {
   async delete(id: string, options: ConfirmedMutationOptions): Promise<Record<string, unknown>> { requireConfirmed(options, "Deleting a reminder"); return this.client.delete<Record<string, unknown>>(`/v1/sdk/reminders/${encodeURIComponent(id)}`); }
 }
 
+export class OpenMatesProjects {
+  private readonly client: OpenMates;
+
+  constructor(client: OpenMates) {
+    this.client = client;
+  }
+
+  async listSources(projectId: string): Promise<ProjectSourceRecord[]> {
+    const response = await this.client.get<{ sources?: ProjectSourceRecord[] }>(`/v1/projects/${encodeURIComponent(projectId)}/sources`);
+    return response.sources ?? [];
+  }
+
+  async createSource(projectId: string, input: ProjectSourceCreateInput): Promise<ProjectSourceRecord> {
+    const response = await this.client.request<{ source?: ProjectSourceRecord }>(`/v1/projects/${encodeURIComponent(projectId)}/sources`, input);
+    if (!response.source) throw new OpenMatesApiError(500, { detail: "Project source response missing source" });
+    return response.source;
+  }
+}
+
 export class OpenMatesTasks {
   private readonly client: OpenMates;
 
@@ -826,6 +859,68 @@ export class OpenMatesTasks {
     const response = await this.client.request<{ task?: UserTaskRecord }>(`/v1/user-tasks/${encodeURIComponent(taskId)}/start-ai`, input);
     if (!response.task) throw new OpenMatesApiError(500, { detail: "User task response missing task" });
     return response.task;
+  }
+}
+
+export class OpenMatesPlans {
+  private readonly client: OpenMates;
+
+  constructor(client: OpenMates) {
+    this.client = client;
+  }
+
+  async list(filters: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean } = {}): Promise<UserPlanRecord[]> {
+    const response = await this.client.get<{ plans?: UserPlanRecord[] }>(withQuery("/v1/user-plans", {
+      status: filters.status,
+      chat_id: filters.chatId,
+      project_id: filters.projectId,
+      active_only: filters.activeOnly,
+    }));
+    return response.plans ?? [];
+  }
+
+  async create(input: UserPlanCreateInput): Promise<UserPlanRecord> {
+    const response = await this.client.request<{ plan?: UserPlanRecord }>("/v1/user-plans", input);
+    if (!response.plan) throw new OpenMatesApiError(500, { detail: "User plan response missing plan" });
+    return response.plan;
+  }
+
+  async update(planId: string, input: UserPlanUpdateInput): Promise<UserPlanRecord> {
+    const response = await this.client.patch<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}`, input);
+    if (!response.plan) throw new OpenMatesApiError(500, { detail: "User plan response missing plan" });
+    return response.plan;
+  }
+
+  async activate(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
+    const response = await this.client.request<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/activate`, input);
+    if (!response.plan) throw new OpenMatesApiError(500, { detail: "User plan response missing plan" });
+    return response.plan.primary_chat_id || typeof input.chat_id !== "string"
+      ? response.plan
+      : { ...response.plan, primary_chat_id: input.chat_id };
+  }
+
+  async complete(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
+    const response = await this.client.request<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/complete`, input);
+    if (!response.plan) throw new OpenMatesApiError(500, { detail: "User plan response missing plan" });
+    return response.plan;
+  }
+
+  async createCriterion(planId: string, input: UserPlanCriterionRecord): Promise<UserPlanCriterionRecord> {
+    const response = await this.client.request<{ criterion?: UserPlanCriterionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria`, input);
+    if (!response.criterion) throw new OpenMatesApiError(500, { detail: "User plan criterion response missing criterion" });
+    return response.criterion;
+  }
+
+  async createVerification(planId: string, input: UserPlanVerificationRecord & Record<string, unknown>): Promise<UserPlanVerificationRecord> {
+    const response = await this.client.request<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification`, input);
+    if (!response.verification) throw new OpenMatesApiError(500, { detail: "User plan verification response missing verification" });
+    return response.verification;
+  }
+
+  async addVerificationEvidence(planId: string, verificationId: string, input: Partial<UserPlanVerificationRecord>): Promise<UserPlanVerificationRecord> {
+    const response = await this.client.request<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}/evidence`, input);
+    if (!response.verification) throw new OpenMatesApiError(500, { detail: "User plan verification response missing verification" });
+    return response.verification;
   }
 }
 

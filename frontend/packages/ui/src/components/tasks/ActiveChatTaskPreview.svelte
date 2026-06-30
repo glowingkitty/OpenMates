@@ -12,6 +12,7 @@
     updateUserTask,
     type UserTaskViewModel,
   } from '../../services/userTaskService';
+  import { listUserPlans, type UserPlanViewModel } from '../../services/userPlanService';
   import { notificationStore } from '../../stores/notificationStore';
 
   let {
@@ -23,6 +24,7 @@
   } = $props();
 
   let tasks = $state<UserTaskViewModel[]>([]);
+  let plans = $state<UserPlanViewModel[]>([]);
   let isLoading = $state(false);
 
   const actionableTasks = $derived(tasks.filter((task) => task.status !== 'done'));
@@ -36,15 +38,28 @@
   const currentTaskIndex = $derived(currentTask ? tasks.findIndex((task) => task.task_id === currentTask.task_id) + 1 : 0);
   const doneCount = $derived(tasks.filter((task) => task.status === 'done').length);
   const progressPercent = $derived(tasks.length > 0 ? Math.round((doneCount / tasks.length) * 100) : 0);
+  const currentPlan = $derived(
+    plans.find((plan) => plan.status === 'executing')
+      ?? plans.find((plan) => plan.status === 'active')
+      ?? plans.find((plan) => plan.status === 'awaiting_confirmation')
+      ?? plans.find((plan) => plan.status === 'draft')
+      ?? null,
+  );
 
   async function refreshTasks(): Promise<void> {
     if (!chatId) {
       tasks = [];
+      plans = [];
       return;
     }
     isLoading = true;
     try {
-      tasks = await listUserTasks({ chatId });
+      const [nextTasks, nextPlans] = await Promise.all([
+        listUserTasks({ chatId }),
+        listUserPlans({ chatId, limit: 3 }),
+      ]);
+      tasks = nextTasks;
+      plans = nextPlans;
     } catch (error) {
       console.error('[ActiveChatTaskPreview] Failed to load tasks:', error);
     } finally {
@@ -74,6 +89,11 @@
     if (!detail?.chatId || detail.chatId === chatId) void refreshTasks();
   }
 
+  function handlePlanChange(event: Event): void {
+    const detail = (event as CustomEvent<{ chatId?: string | null }>).detail;
+    if (!detail?.chatId || detail.chatId === chatId) void refreshTasks();
+  }
+
   $effect(() => {
     void chatId;
     void refreshTasks();
@@ -81,10 +101,12 @@
 
   onMount(() => {
     window.addEventListener('openmates-user-tasks-changed', handleTaskChange);
+    window.addEventListener('openmates-user-plans-changed', handlePlanChange);
   });
 
   onDestroy(() => {
     window.removeEventListener('openmates-user-tasks-changed', handleTaskChange);
+    window.removeEventListener('openmates-user-plans-changed', handlePlanChange);
   });
 </script>
 
@@ -104,6 +126,19 @@
       </div>
     </button>
   </div>
+{:else if currentPlan}
+  <button class="active-task-preview plan-preview" type="button" onclick={() => onOpenDetails('tasks')} data-testid="active-chat-plan-preview">
+    <div class="task-preview-copy">
+      <div class="task-meta">
+        <span>Plan</span>
+        <span>{currentPlan.status.replaceAll('_', ' ')}</span>
+      </div>
+      <strong>{currentPlan.title || 'Untitled plan'}</strong>
+      {#if currentPlan.summary || currentPlan.goal}
+        <small>{currentPlan.summary || currentPlan.goal}</small>
+      {/if}
+    </div>
+  </button>
 {:else if isLoading}
   <div class="active-task-preview loading" data-testid="active-chat-task-preview-loading">Loading tasks...</div>
 {/if}
@@ -132,6 +167,10 @@
     justify-content: center;
     color: var(--color-font-secondary);
     cursor: default;
+  }
+
+  .active-task-preview.plan-preview {
+    border-color: color-mix(in srgb, var(--color-primary) 28%, var(--color-grey-20));
   }
 
   .task-check {
@@ -190,6 +229,14 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 0.95rem;
+  }
+
+  small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-font-secondary);
+    font-size: 0.8rem;
   }
 
   .task-progress {
