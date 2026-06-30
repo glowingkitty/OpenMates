@@ -82,8 +82,9 @@ test.describe('Projects remote sources', () => {
 
     await page.goto('/');
     await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
-    await page.getByTestId('message-editor').click();
-    await page.keyboard.type('@E2E');
+    const messageEditor = page.getByTestId('message-editor');
+    await messageEditor.pressSequentially('@E2E', { delay: 50 });
+    await expect(messageEditor).toContainText('@E2E');
     await expect(page.getByTestId('mention-dropdown')).toBeVisible();
     await page.getByTestId('mention-result').filter({ hasText: projectName }).first().click();
 
