@@ -92,8 +92,8 @@ test.describe('Projects remote sources', () => {
     await editableMessage.pressSequentially('@', { delay: 50 });
     await expect(editableMessage).toContainText('@');
     await editableMessage.click();
-    await editableMessage.pressSequentially('E2E', { delay: 50 });
-    await expect(editableMessage).toContainText('@E2E');
+    await editableMessage.pressSequentially('E2', { delay: 50 });
+    await expect(editableMessage).toContainText('@E2');
     await expect(page.getByTestId('mention-dropdown')).toBeVisible();
     await page.getByTestId('mention-result').filter({ hasText: projectName }).first().click();
 
