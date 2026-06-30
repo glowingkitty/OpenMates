@@ -796,6 +796,37 @@
   /* Gradient already set via custom properties from inline styles */
 }
 
+:global(.ProseMirror .generic-mention.mention-project),
+:global(.ProseMirror .generic-mention.mention-project-folder),
+:global(.ProseMirror .generic-mention.mention-project-file) {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  -webkit-text-fill-color: currentColor;
+  background: var(--color-grey-10);
+  color: var(--color-font-primary);
+  border: 1px solid var(--color-grey-30);
+  border-radius: var(--radius-full);
+  padding: 1px var(--spacing-3);
+}
+
+:global(.ProseMirror .project-access-chip) {
+  border: 1px solid var(--color-grey-30);
+  border-radius: var(--radius-full);
+  background: var(--color-grey-0);
+  color: var(--color-font-secondary);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  line-height: 1.2;
+  padding: 1px var(--spacing-3);
+  cursor: pointer;
+}
+
+:global(.ProseMirror .project-access-chip:focus-visible) {
+  outline: 2px solid var(--color-button-primary);
+  outline-offset: 2px;
+}
+
 :global(.embed-wrapper.show-copied::after) {
   content: "Copied!";
   position: absolute;

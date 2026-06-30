@@ -1,6 +1,6 @@
 // frontend/packages/ui/src/components/enter_message/extensions/GenericMentionNode.ts
 //
-// Generic mention node for skills, focus modes, and settings/memories.
+// Generic mention node for skills, focus modes, settings/memories, and Projects.
 // Displays hyphenated name (e.g., "@Code-Get-Docs") but serializes to backend syntax.
 
 import { Node, mergeAttributes } from "@tiptap/core";
@@ -8,13 +8,28 @@ import { Node, mergeAttributes } from "@tiptap/core";
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface GenericMentionNodeOptions {}
 
+export type GenericMentionType =
+  | "skill"
+  | "focus_mode"
+  | "settings_memory"
+  | "settings_memory_entry"
+  | "project"
+  | "project_folder"
+  | "project_file";
+
+export type ProjectMentionAccessMode = "read" | "read_write";
+
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     genericMention: {
       setGenericMention: (options: {
-        mentionType: "skill" | "focus_mode" | "settings_memory" | "settings_memory_entry";
+        mentionType: GenericMentionType;
         displayName: string;
         mentionSyntax: string;
+        mentionId?: string;
+        projectId?: string;
+        projectPath?: string;
+        projectAccessMode?: ProjectMentionAccessMode;
         /** Gradient start color from app config */
         colorStart?: string;
         /** Gradient end color from app config */
@@ -48,6 +63,18 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
       },
       mentionSyntax: {
         default: "",
+      },
+      mentionId: {
+        default: null,
+      },
+      projectId: {
+        default: null,
+      },
+      projectPath: {
+        default: null,
+      },
+      projectAccessMode: {
+        default: null,
       },
       colorStart: {
         default: null,
@@ -92,19 +119,46 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
         ? `--mention-color-start: ${HTMLAttributes.colorStart}; --mention-color-end: ${HTMLAttributes.colorEnd};`
         : "";
 
-    return [
-      "span",
-      mergeAttributes(HTMLAttributes, {
+    const attrs = mergeAttributes(HTMLAttributes, {
         "data-type": "generic-mention",
         "data-mention-type": HTMLAttributes.mentionType,
         "data-display-name": HTMLAttributes.displayName,
         "data-mention-syntax": HTMLAttributes.mentionSyntax,
+        "data-mention-id": HTMLAttributes.mentionId,
+        "data-project-access-mode": HTMLAttributes.projectAccessMode,
         class: `generic-mention ${typeClass}`,
         style: style,
         contenteditable: "false",
-      }),
-      `@${HTMLAttributes.displayName}`,
-    ];
+    });
+
+    if (
+      HTMLAttributes.mentionType === "project" ||
+      HTMLAttributes.mentionType === "project_folder" ||
+      HTMLAttributes.mentionType === "project_file"
+    ) {
+      const accessMode = HTMLAttributes.projectAccessMode === "read_write" ? "read_write" : "read";
+      const accessLabel = accessMode === "read_write" ? "Read & Write" : "Read";
+      return [
+        "span",
+        attrs,
+        ["span", { class: "generic-mention-label" }, `@${HTMLAttributes.displayName}`],
+        [
+          "button",
+          {
+            type: "button",
+            class: "project-access-chip",
+            "data-testid": "project-access-chip",
+            "data-project-access-mode": accessMode,
+            "aria-label": "Toggle Project mention access",
+            "aria-pressed": accessMode === "read_write" ? "true" : "false",
+            tabindex: "0",
+          },
+          accessLabel,
+        ],
+      ];
+    }
+
+    return ["span", attrs, `@${HTMLAttributes.displayName}`];
   },
 
   addCommands() {

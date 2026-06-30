@@ -12,6 +12,7 @@
     import { text } from '@repo/ui';
     import {
         searchMentions,
+        searchProjectMentions,
         getSettingsMemoryEntryResults,
         type AnyMentionResult,
         type MentionType,
@@ -63,13 +64,38 @@
 
     // --- Effects ---
 
+    let searchSequence = 0;
+
+    function mergeMentionResults(baseResults: AnyMentionResult[], projectResults: AnyMentionResult[]): AnyMentionResult[] {
+        const seen = new Set<string>();
+        const merged: AnyMentionResult[] = [];
+        for (const result of [...projectResults, ...baseResults]) {
+            const key = `${result.type}:${result.id}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            merged.push(result);
+        }
+        return merged;
+    }
+
     // Update results when query changes (no second arg = use search limit so settings/memories can appear)
     $effect(() => {
-        results = searchMentions(query);
+        const currentQuery = query;
+        const sequence = ++searchSequence;
+        const baseResults = searchMentions(currentQuery);
+        results = baseResults;
         selectedIndex = 0; // Reset selection when results change
         // Collapse all expanded categories when query changes
         expandedCategories = new Set();
         categoryEntries = new Map();
+
+        if (currentQuery.trim()) {
+            void searchProjectMentions(currentQuery).then((projectResults) => {
+                if (sequence !== searchSequence) return;
+                results = mergeMentionResults(baseResults, projectResults);
+                selectedIndex = 0;
+            });
+        }
     });
 
     // Handle keyboard navigation
@@ -260,6 +286,9 @@
             const translated = $text(result.displayName);
             return translated !== result.displayName ? translated : result.displayName.split('.').pop() || '';
         }
+        if (result.type === 'project' || result.type === 'project_folder' || result.type === 'project_file') {
+            return result.displayName;
+        }
         // For skills, focus modes, and settings categories - resolve translation keys
         if (result.type === 'skill' || result.type === 'focus_mode' || result.type === 'settings_memory') {
             const translated = $text(result.displayName);
@@ -292,6 +321,9 @@
         // For individual entries, subtitle is the entry subtitle value (e.g., "Expert")
         if (result.type === 'settings_memory_entry') {
             return result.subtitle || '';
+        }
+        if (result.type === 'project' || result.type === 'project_folder' || result.type === 'project_file') {
+            return result.subtitle;
         }
         // For skills, focus modes, settings - resolve translation keys
         if (result.subtitle) {
@@ -332,6 +364,10 @@
                 const entryResult = result as SettingsMemoryEntryMentionResult;
                 return `apps/${entryResult.appId}/settings_memories/${entryResult.memoryCategoryId}`;
             }
+            case 'project':
+            case 'project_folder':
+            case 'project_file':
+                return `projects/${result.projectId}`;
             default:
                 return 'main';
         }
@@ -394,6 +430,7 @@
                 <div
                     class="mention-result"
                     data-testid="mention-result"
+                    data-mention-type={result.type}
                     class:selected={getFlatIndex(index) === selectedIndex}
                     role="option"
                     tabindex="-1"
@@ -420,6 +457,10 @@
                         {:else if result.type === 'mate'}
                             <!-- Mate profile -->
                             <div class="mate-profile mate-profile-small {result.iconStyle}"></div>
+                        {:else if result.type === 'project' || result.type === 'project_folder' || result.type === 'project_file'}
+                            <div class="app-icon project-icon">
+                                <span class="mention-icon icon_folder"></span>
+                            </div>
                         {:else}
                             <!-- App skill/focus/memory icon -->
                             <div 
