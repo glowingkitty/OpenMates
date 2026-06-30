@@ -823,7 +823,7 @@ tests:
   - id: T-E2E-PROJECT-REMOTE-SOURCES
     type: playwright
     file: frontend/apps/web_app/tests/projects-remote-sources.spec.ts
-    command: python3 scripts/tests.py run --spec projects-remote-sources.spec.ts
+    command: python3 scripts/tests.py run -- --spec projects-remote-sources.spec.ts
     target: app.dev.openmates.org
     covers:
       - AC-2
@@ -870,6 +870,17 @@ tests:
           - Projects UI renders an attached remote source status card after the source is created through the authenticated Projects API.
         remaining:
           - Virtual remote preview/fullscreen rendering, upload-selected file flow, Project/folder/file mentions, permission prompt, settings write-mode flow, message-local remote diffs, and automated-check first-use prompt.
+      - status: partial_passed
+        timestamp: "2026-06-30"
+        command: "python3 scripts/tests.py run -- --spec projects-remote-sources.spec.ts"
+        run_id: "28459855578"
+        commit: "bee305ac4"
+        result: "1 passed, 0 failed"
+        covered:
+          - Project page gear deep-links to Settings > Projects > selected Project.
+          - Per-Project settings route displays the selected Project name and connected source status.
+        remaining:
+          - Virtual remote preview/fullscreen rendering, upload-selected file flow, Project/folder/file mentions, permission prompt, persisted settings write-mode controls, message-local remote diffs, and automated-check first-use prompt.
 
 implementation_plan:
   existing_patterns:
