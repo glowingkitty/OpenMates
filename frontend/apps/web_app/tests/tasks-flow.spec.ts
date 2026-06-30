@@ -38,7 +38,14 @@ test.describe('Tasks V1 flow', () => {
 		await expect(createdCard).toBeVisible({ timeout: 30000 });
 		await expect(createdCard).toContainText(taskDescription);
 
-		await createdCard.getByTestId('task-move-done').click();
+    await Promise.all([
+      page.waitForResponse((response) =>
+        response.request().method() === 'PATCH' &&
+        response.url().includes('/v1/user-tasks/') &&
+        response.ok()
+      ),
+      createdCard.getByTestId('task-move-done').click(),
+    ]);
 
 		const doneColumn = page.getByTestId('task-column-done');
 		await expect(doneColumn.getByTestId('task-card').filter({ hasText: taskTitle })).toBeVisible({ timeout: 30000 });
