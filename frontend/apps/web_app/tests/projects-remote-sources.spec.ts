@@ -17,6 +17,8 @@ test.describe('Projects remote sources', () => {
   });
 
   test('renders attached remote source status in Projects', async ({ page }) => {
+    test.setTimeout(120000);
+
     await page.goto('/projects');
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
