@@ -85,7 +85,10 @@ test.describe('Projects remote sources', () => {
     const messageEditor = page.getByTestId('message-editor');
     const editableMessage = messageEditor.locator('[contenteditable="true"]');
     await editableMessage.click();
-    await editableMessage.fill('@E2E');
+    await editableMessage.pressSequentially('@', { delay: 50 });
+    await expect(editableMessage).toContainText('@');
+    await editableMessage.click();
+    await editableMessage.pressSequentially('E2E', { delay: 50 });
     await expect(editableMessage).toContainText('@E2E');
     await expect(page.getByTestId('mention-dropdown')).toBeVisible();
     await page.getByTestId('mention-result').filter({ hasText: projectName }).first().click();
