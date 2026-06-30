@@ -837,6 +837,17 @@ tests:
         status: pending
         run_id: ""
         timestamp: ""
+    progress_evidence:
+      - status: partial_passed
+        timestamp: "2026-06-30"
+        command: "python3 scripts/tests.py run -- --spec projects-remote-sources.spec.ts"
+        run_id: "28447578868"
+        commit: "d8f43c38d"
+        result: "1 passed, 0 failed"
+        covered:
+          - Projects UI renders an attached remote source status card after the source is created through the authenticated Projects API.
+        remaining:
+          - Virtual remote preview/fullscreen rendering, upload-selected file flow, Project/folder/file mentions, permission prompt, settings write-mode flow, message-local remote diffs, and automated-check first-use prompt.
 
 implementation_plan:
   existing_patterns:
