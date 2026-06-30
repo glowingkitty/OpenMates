@@ -22,6 +22,12 @@ from backend.apps.ai.processing.quick_tips import (
     sanitize_quick_tip_slug,
     select_hardcoded_quick_tip_slug,
 )
+from backend.apps.ai.processing.task_proposals import (
+    TaskProposal,
+    TaskUpdateProposal,
+    sanitize_task_proposals,
+    sanitize_task_update_proposals,
+)
 from backend.shared.python_utils.learning_mode import (
     filter_learning_mode_suggestions,
     is_learning_mode_enabled,
@@ -185,6 +191,14 @@ class PostProcessingResult(BaseModel):
     quick_tip_slugs: List[str] = Field(
         default_factory=list,
         description="0-1 product quick tip slugs selected from the backend registry; UI copy is loaded client-side from i18n"
+    )
+    task_proposals: List[TaskProposal] = Field(
+        default_factory=list,
+        description="Review-only task proposals for client-side encryption and user confirmation"
+    )
+    task_update_proposals: List[TaskUpdateProposal] = Field(
+        default_factory=list,
+        description="Review-only task update proposals for existing visible tasks"
     )
 
 
@@ -612,6 +626,9 @@ async def handle_postprocessing(
             f"topic suggestions generated (expected 3)"
         )
 
+    task_proposals = sanitize_task_proposals(llm_result.arguments.get("task_proposals", []), task_id)
+    task_update_proposals = sanitize_task_update_proposals(llm_result.arguments.get("task_update_proposals", []), task_id)
+
     if not quick_tips_enabled:
         quick_tip_slugs = []
     else:
@@ -662,6 +679,8 @@ async def handle_postprocessing(
         updated_chat_title=postproc_updated_title,  # New title if conversation drifted (may be None)
         daily_inspiration_topic_suggestions=validated_topic_suggestions,
         quick_tip_slugs=quick_tip_slugs,
+        task_proposals=task_proposals,
+        task_update_proposals=task_update_proposals,
     )
 
     # Validate that we have the required number of suggestions

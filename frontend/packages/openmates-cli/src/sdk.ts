@@ -35,6 +35,11 @@ import type {
   WorkflowRunContentRetention,
   WorkflowRunDetail,
   WorkflowSummary,
+  UserTaskCreateInput,
+  UserTaskRecord,
+  UserTaskStartAIInput,
+  UserTaskStatus,
+  UserTaskUpdateInput,
 } from "./client.js";
 
 const DEFAULT_API_URL = "https://api.openmates.org";
@@ -155,6 +160,7 @@ export class OpenMates {
   readonly notifications: OpenMatesNotifications;
   readonly reminders: OpenMatesReminders;
   readonly settings: OpenMatesSettings;
+  readonly tasks: OpenMatesTasks;
   readonly workflows: OpenMatesWorkflows;
   private readonly apiKey?: string;
   private readonly apiUrl: string;
@@ -179,6 +185,7 @@ export class OpenMates {
     this.notifications = new OpenMatesNotifications(this);
     this.reminders = new OpenMatesReminders(this);
     this.settings = new OpenMatesSettings(this);
+    this.tasks = new OpenMatesTasks(this);
     this.workflows = new OpenMatesWorkflows(this);
   }
 
@@ -785,6 +792,41 @@ export class OpenMatesReminders {
   async list(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/reminders"); }
   async update(id: string, input: Record<string, unknown>): Promise<Record<string, unknown>> { return this.client.patch<Record<string, unknown>>(`/v1/sdk/reminders/${encodeURIComponent(id)}`, input); }
   async delete(id: string, options: ConfirmedMutationOptions): Promise<Record<string, unknown>> { requireConfirmed(options, "Deleting a reminder"); return this.client.delete<Record<string, unknown>>(`/v1/sdk/reminders/${encodeURIComponent(id)}`); }
+}
+
+export class OpenMatesTasks {
+  private readonly client: OpenMates;
+
+  constructor(client: OpenMates) {
+    this.client = client;
+  }
+
+  async list(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string } = {}): Promise<UserTaskRecord[]> {
+    const response = await this.client.get<{ tasks?: UserTaskRecord[] }>(withQuery("/v1/user-tasks", {
+      status: filters.status,
+      chat_id: filters.chatId,
+      project_id: filters.projectId,
+    }));
+    return response.tasks ?? [];
+  }
+
+  async create(input: UserTaskCreateInput): Promise<UserTaskRecord> {
+    const response = await this.client.request<{ task?: UserTaskRecord }>("/v1/user-tasks", input);
+    if (!response.task) throw new OpenMatesApiError(500, { detail: "User task response missing task" });
+    return response.task;
+  }
+
+  async update(taskId: string, input: UserTaskUpdateInput): Promise<UserTaskRecord> {
+    const response = await this.client.patch<{ task?: UserTaskRecord }>(`/v1/user-tasks/${encodeURIComponent(taskId)}`, input);
+    if (!response.task) throw new OpenMatesApiError(500, { detail: "User task response missing task" });
+    return response.task;
+  }
+
+  async startAI(taskId: string, input: UserTaskStartAIInput = {}): Promise<UserTaskRecord> {
+    const response = await this.client.request<{ task?: UserTaskRecord }>(`/v1/user-tasks/${encodeURIComponent(taskId)}/start-ai`, input);
+    if (!response.task) throw new OpenMatesApiError(500, { detail: "User task response missing task" });
+    return response.task;
+  }
 }
 
 export class OpenMatesWorkflows {

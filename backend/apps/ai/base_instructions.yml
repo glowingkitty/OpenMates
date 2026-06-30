@@ -407,6 +407,14 @@ postprocess_response_tool:
           - Max 12 words. No emoji. No clickbait. No generic phrases like "Open this chat", "Check this out", or "View this conversation".
           - Generate in the USER'S SYSTEM LANGUAGE.
           - Do not mention private details beyond the shareable conversation topic.
+
+      9. **task_proposals** and **task_update_proposals**: Optional review-only Tasks V1 suggestions.
+          - Use task_proposals only when the assistant response clearly produced actionable follow-up work the user may want to track.
+          - Use task_update_proposals only when the conversation explicitly refers to an existing visible task ID provided in context.
+          - These are NOT saved by the backend. The client asks the user to review, encrypts accepted task content locally, then commits through /v1/user-tasks.
+          - Keep plaintext concise because it is transient metadata delivered to the current client session.
+          - Allowed status values: backlog, todo, in_progress, blocked, done.
+          - Allowed assignee_type values: user, ai.
     parameters:
       type: "object"
       properties:
@@ -468,6 +476,51 @@ postprocess_response_tool:
         quick_tip_slug:
           type: "string"
           description: "One existing quick-tip slug selected from the available quick_tip_slug values in the system message, or an empty string if no product tip fits. Never invent slugs and never write UI copy."
+        task_proposals:
+          type: "array"
+          description: "Optional review-only task proposals. The backend does not persist these; the client must show them for review, encrypt accepted content locally, and commit through /v1/user-tasks. Max 3."
+          maxItems: 3
+          items:
+            type: "object"
+            properties:
+              title:
+                type: "string"
+                description: "Concise task title, max 160 characters."
+              description:
+                type: "string"
+                description: "Optional task details or context, max 2000 characters."
+              status:
+                type: "string"
+                enum: ["backlog", "todo", "in_progress", "blocked", "done"]
+              assignee_type:
+                type: "string"
+                enum: ["user", "ai"]
+            required:
+              - "title"
+        task_update_proposals:
+          type: "array"
+          description: "Optional review-only updates for existing visible tasks. The client validates visibility before encrypting and committing. Max 3."
+          maxItems: 3
+          items:
+            type: "object"
+            properties:
+              task_id:
+                type: "string"
+                description: "Existing visible user task ID to update."
+              title:
+                type: "string"
+                description: "Optional replacement task title, max 160 characters."
+              description:
+                type: "string"
+                description: "Optional replacement task details, max 2000 characters."
+              status:
+                type: "string"
+                enum: ["backlog", "todo", "in_progress", "blocked", "done"]
+              assignee_type:
+                type: "string"
+                enum: ["user", "ai"]
+            required:
+              - "task_id"
       required:
         - "follow_up_app_skill_suggestions"
         - "follow_up_general_suggestions"

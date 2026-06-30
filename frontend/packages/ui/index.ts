@@ -135,6 +135,9 @@ export {
 export { embedStore } from "./src/services/embedStore"; // Export embed store
 export type { EmbedKeyEntry } from "./src/services/embedStore";
 export * from "./src/services/projectService";
+export * from "./src/services/userTaskService";
+export { default as TasksPage } from "./src/components/tasks/TasksPage.svelte";
+export { default as TaskProposalReview } from "./src/components/tasks/TaskProposalReview.svelte";
 export { handleCodeRunOutputSyncedImpl } from "./src/services/handlersCodeRunOutputs";
 export { handleMessageHighlightAddedImpl } from "./src/services/handlersMessageHighlights";
 export { shareMetadataQueue } from "./src/services/shareMetadataQueue"; // Export share metadata queue service

@@ -112,6 +112,10 @@
     import GuestInterestTags from './GuestInterestTags.svelte';
     import EventEmbedPreview from './embeds/events/EventEmbedPreview.svelte';
     import SavedEmbedContinuePreview from './SavedEmbedContinuePreview.svelte';
+    import ActiveChatTaskPreview from './tasks/ActiveChatTaskPreview.svelte';
+    import TaskProposalReview from './tasks/TaskProposalReview.svelte';
+    import ChatDetailsSettingsPage from './chats/ChatDetailsSettingsPage.svelte';
+    import type { UserTaskProposal, UserTaskUpdateProposal } from '../services/userTaskService';
     import Not404Screen from './Not404Screen.svelte'; // 404 not-found screen shown when user lands on an unknown URL
     import ForkProgressBanner from './chats/ForkProgressBanner.svelte'; // Slim banner shown while a fork is in progress
     import { forkProgressStore } from '../stores/forkProgressStore'; // Global fork progress — used to show banner on source chat
@@ -184,6 +188,7 @@
     type EventListenerCallback = (event: Event) => void;
     type UserProfileRecord = { user_id?: string | null };
     type HiddenChatFlag = { is_hidden?: boolean | null };
+    type ChatDetailsTab = 'tasks' | 'files' | 'usage' | 'share';
 
     type ChatHistoryRef = {
         updateMessages: (messages: ChatMessageModel[], isNewChat?: boolean) => void;
@@ -221,6 +226,9 @@
     };
 
     type EmbedDataRecord = EmbedStoreEntry | EmbedResolverData | Partial<EmbedResolverData>;
+
+    let showChatDetailsSettings = $state(false);
+    let chatDetailsInitialTab = $state<ChatDetailsTab>('tasks');
 
     function mergeFullscreenDecodedContent(
         previousContent: EmbedDecodedContent | null | undefined,
@@ -2241,7 +2249,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     // Handler for post-processing completed event
     async function handlePostProcessingCompleted(event: CustomEvent) {
-        const { chatId, followUpSuggestions: newSuggestions, quickTipSlugs: newQuickTipSlugs } = event.detail;
+        const {
+            chatId,
+            followUpSuggestions: newSuggestions,
+            quickTipSlugs: newQuickTipSlugs,
+            taskProposals = [],
+            taskUpdateProposals = [],
+        } = event.detail;
         console.info('[ActiveChat] 📬 Post-processing completed event received:', {
             chatId,
             currentChatId: currentChat?.chat_id,
@@ -2260,6 +2274,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Always try to reload from database if it's the current chat, even if suggestions aren't in event
         // This handles cases where the event arrives before database is updated
         if (isCurrentChat) {
+            pendingTaskProposals = Array.isArray(taskProposals) && !isPublicChat(chatId) ? taskProposals : [];
+            pendingTaskUpdateProposals = Array.isArray(taskUpdateProposals) && !isPublicChat(chatId) ? taskUpdateProposals : [];
             try {
                 // Small delay to ensure database transaction has completed
                 // Post-processing handler saves to DB, but transaction might not be committed yet
@@ -2358,6 +2374,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         } else {
             console.debug('[ActiveChat] Post-processing completed for different chat, not updating suggestions');
         }
+    }
+
+    function clearPendingTaskProposals(): void {
+        pendingTaskProposals = [];
+        pendingTaskUpdateProposals = [];
     }
 
     // Add handler for closing code fullscreen
@@ -4319,6 +4340,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Track follow-up suggestions for the current chat
     let followUpSuggestions = $state<string[]>([]);
     let dismissedFollowUpSuggestionsKey = $state<string | null>(null);
+    let pendingTaskProposals = $state<UserTaskProposal[]>([]);
+    let pendingTaskUpdateProposals = $state<UserTaskUpdateProposal[]>([]);
 
     let followUpSuggestionsKey = $derived.by(() => {
         if (!currentChat?.chat_id || followUpSuggestions.length === 0) return null;
@@ -7235,46 +7258,24 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         await handleEmbedFullscreen(syntheticEvent as CustomEvent);
     }
 
-    /**
-     * Handler for the share button click.
-     * Opens the settings menu and navigates to the share submenu.
-     * This allows users to share the current chat with various options
-     * like password protection and time limits.
-     */
-    async function handleShareChat() {
-        console.debug("[ActiveChat] Share chat button clicked, opening share settings");
-        
-        // Ensure the current chat ID is set in the activeChatStore
-        // This allows SettingsShare component to access the chat ID
-        if (currentChat?.chat_id) {
-            activeChatStore.setActiveChat(currentChat.chat_id);
-            console.debug("[ActiveChat] Set active chat in store:", currentChat.chat_id);
-        } else {
-            console.warn("[ActiveChat] No current chat available to share");
-        }
-        
-        // CRITICAL: Set settingsMenuVisible to true FIRST
-        // Settings.svelte watches settingsMenuVisible store and will sync isMenuVisible
-        // The deep link effect in Settings.svelte will also ensure the menu is open
-        // This must be set before the deep link to ensure proper sequencing
-        settingsMenuVisible.set(true);
-        
-        // CRITICAL: Also open via panelState for consistency
-        // This ensures the panel state is properly tracked
-        panelState.openSettings();
-        
-        // CRITICAL: Wait for store update to propagate and DOM to update
-        // This ensures the Settings component's effect has time to sync isMenuVisible
-        // and the menu is actually visible in the DOM before setting the deep link
-        await tick();
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Navigate to the share settings submenu
-        // The settingsDeepLink store triggers the Settings component to:
-        // 1. Open the menu if not already open (line 1103 in Settings.svelte)
-        // 2. Navigate to the specified path after a brief delay (line 1117)
-        // Use 'shared/share' to navigate to the share submenu under Shared
-        settingsDeepLink.set('shared/share');
+    function openChatDetailsSettings(tab: ChatDetailsTab = 'tasks') {
+        if (!currentChat?.chat_id) return;
+        activeChatStore.setActiveChat(currentChat.chat_id);
+        chatDetailsInitialTab = tab;
+        showChatDetailsSettings = true;
+    }
+
+    function handleOpenChatDetailsSettingsEvent(event: Event) {
+        const detail = (event as CustomEvent<{ chatId?: string | null; tab?: ChatDetailsTab }>).detail;
+        if (detail?.chatId && currentChat?.chat_id !== detail.chatId) return;
+        (event as CustomEvent).preventDefault();
+        openChatDetailsSettings(detail?.tab ?? 'tasks');
+    }
+
+    /** Open the unified chat details panel directly on the Share tab. */
+    function handleShareChat() {
+        console.debug("[ActiveChat] Share chat button clicked, opening chat details share tab");
+        openChatDetailsSettings('share');
     }
 
     /**
@@ -7973,10 +7974,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          // fields already reflect this chat. Resetting them would blank the title/summary
          // until the async decrypt branch below refills them — a visible flicker. Skip the
          // reset whenever the header is already valid for this chat.
-         const headerAlreadyLoadedForSameChat = isSameActiveChat
-             && !!activeChatDecryptedTitle
-             && !!activeChatDecryptedCategory;
-         if (!(isSameActiveChat && (isNewChatHeaderActive || hasStreamingMessages || headerAlreadyLoadedForSameChat))) {
+          const headerAlreadyLoadedForSameChat = isSameActiveChat
+              && !!activeChatDecryptedTitle
+              && !!activeChatDecryptedCategory;
+          if (!isSameActiveChat) {
+              clearPendingTaskProposals();
+          }
+          if (!(isSameActiveChat && (isNewChatHeaderActive || hasStreamingMessages || headerAlreadyLoadedForSameChat))) {
              resetChatHeaderState();
          } else {
              console.debug('[ActiveChat] loadChat: skipping resetChatHeaderState — same chat, header/streaming active or header already loaded', {
@@ -10541,6 +10545,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         };
         
         skillPreviewService.addEventListener('skillPreviewUpdate', handleSkillPreviewUpdate as EventListenerCallback);
+        window.addEventListener('openmates-open-chat-details', handleOpenChatDetailsSettingsEvent as EventListenerCallback);
 
         // OPE-314: Re-decrypt messages when a chat key becomes available.
         // Handles the race condition where messages render before the master key
@@ -10644,6 +10649,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             chatSyncService.removeEventListener('aiStreamInterrupted', aiStreamInterruptedHandler);
             chatSyncService.removeEventListener('embedUpdated', embedUpdatedHandler);
             skillPreviewService.removeEventListener('skillPreviewUpdate', handleSkillPreviewUpdate as EventListenerCallback);
+            window.removeEventListener('openmates-open-chat-details', handleOpenChatDetailsSettingsEvent as EventListenerCallback);
             unsubscribeKeyReady(); // OPE-314: Remove key-ready re-decrypt listener
             // Remove language change listener
             window.removeEventListener('language-changed', handleLanguageChange);
@@ -10866,6 +10872,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <!-- Right side buttons -->
                         <div class="right-buttons">
                             {#if !showWelcome && $authStore.isAuthenticated && currentChat?.chat_id && !isPublicChat(currentChat.chat_id)}
+                                <div class="new-chat-button-wrapper">
+                                    <button
+                                        class="clickable-icon icon_settings top-button"
+                                        data-testid="chat-details-button"
+                                        aria-label="Chat details"
+                                        onclick={() => openChatDetailsSettings('tasks')}
+                                        use:tooltip
+                                    >
+                                    </button>
+                                </div>
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_reminder top-button"
@@ -11469,6 +11485,20 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         </div>
                     {/if}
 
+                    {#if !showWelcome && $authStore.isAuthenticated && currentChat?.chat_id && !isPublicChat(currentChat.chat_id)}
+                        <ActiveChatTaskPreview
+                            chatId={currentChat.chat_id}
+                            onOpenDetails={openChatDetailsSettings}
+                        />
+                        <TaskProposalReview
+                            chatId={currentChat.chat_id}
+                            proposals={pendingTaskProposals}
+                            updateProposals={pendingTaskUpdateProposals}
+                            on:accepted={clearPendingTaskProposals}
+                            on:dismissed={clearPendingTaskProposals}
+                        />
+                    {/if}
+
                      <ChatHistory
                          bind:this={chatHistoryRef}
                          messageInputHeight={0}
@@ -12023,7 +12053,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     </div>
                 {/await}
             {/if}
-            
+
+            {#if showChatDetailsSettings && currentChat}
+                <ChatDetailsSettingsPage
+                    chat={currentChat}
+                    messages={currentMessages}
+                    initialTab={chatDetailsInitialTab}
+                    onClose={() => { showChatDetailsSettings = false; }}
+                />
+            {/if}
+             
             <!-- Video autoplay is handled by ChatHeader via the autoplayVideo prop.
                  The &autoplay-video deep link sets pendingAutoplayVideo which is
                  passed through ChatHistory → ChatHeader → native requestFullscreen. -->

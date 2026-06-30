@@ -78,6 +78,7 @@ class OpenMates:
         self.notifications = OpenMatesNotifications(self)
         self.reminders = OpenMatesReminders(self)
         self.settings = OpenMatesSettings(self)
+        self.tasks = OpenMatesTasks(self)
         self.workflows = OpenMatesWorkflows(self)
 
     def _run_app_skill(self, app_id: str, skill_id: str, input_data: dict[str, Any]) -> dict[str, Any]:
@@ -562,6 +563,38 @@ class OpenMatesChats:
 
     def incognito(self, message: str) -> ChatResponse:
         return self.send(message, save_to_account=False)
+
+
+class OpenMatesTasks:
+    """Encrypted user tasks SDK namespace."""
+
+    def __init__(self, client: OpenMates):
+        self._client = client
+
+    def list(
+        self,
+        *,
+        status: str | None = None,
+        chat_id: str | None = None,
+        project_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        return self._client._get(
+            _with_query(
+                "/v1/user-tasks",
+                status=status,
+                chat_id=chat_id,
+                project_id=project_id,
+            )
+        ).get("tasks", [])
+
+    def create(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._post("/v1/user-tasks", payload).get("task", {})
+
+    def update(self, task_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._client._patch(f"/v1/user-tasks/{_quote(task_id)}", payload).get("task", {})
+
+    def start_ai(self, task_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._client._post(f"/v1/user-tasks/{_quote(task_id)}/start-ai", payload or {}).get("task", {})
 
 
 class OpenMatesWorkflows:

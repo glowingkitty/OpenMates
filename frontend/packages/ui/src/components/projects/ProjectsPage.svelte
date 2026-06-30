@@ -10,6 +10,7 @@
   import { onMount } from 'svelte';
   import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
   import ProjectBrowserItem from './ProjectBrowserItem.svelte';
+  import TasksPage from '../tasks/TasksPage.svelte';
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import { notificationStore } from '../../stores/notificationStore';
   import { panelState } from '../../stores/panelStateStore';
@@ -331,6 +332,18 @@
             {/each}
           </div>
         {/if}
+      </section>
+
+      <section class="project-section" data-testid="project-tasks-section">
+        <div class="section-title">
+          <div>
+            <h3>Project tasks</h3>
+            <p class="muted">Plan work for this project and hand focused next steps to AI.</p>
+          </div>
+        </div>
+        {#key selectedProject.project_id}
+          <TasksPage projectId={selectedProject.project_id} compact />
+        {/key}
       </section>
     {:else}
       <div class="empty-state large">

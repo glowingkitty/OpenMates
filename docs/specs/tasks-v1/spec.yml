@@ -1,0 +1,971 @@
+id: tasks-v1
+title: Tasks V1
+status: implementing
+
+goal: >
+  Add a privacy-preserving Tasks product surface where users and assistants can
+  create, edit, assign, schedule, and complete durable tasks across chats,
+  sub-chats, and projects. V1 introduces a separate task database model, a
+  central /tasks Kanban page, chat-level task lists, project task filtering, and
+  AI execution that can work through linked tasks sequentially while preserving
+  client-side encryption for long-term task content.
+
+scope:
+  in:
+    - A separate durable Directus task collection for user-facing tasks, distinct from Celery task polling and chat messages.
+    - Privacy-first storage with client-encrypted task title, description, tags, activity text, and AI instruction content for durable storage.
+    - Minimal server-visible task metadata needed for authorization, filtering, scheduling, ordering, and safe execution.
+    - A new product task API namespace under /v1/user-tasks, avoiding collision with /v1/tasks/{task_id} Celery polling.
+    - Central /tasks Kanban page with backlog, todo, in_progress, blocked, and done columns.
+    - Mouse drag-and-drop and touch-friendly Kanban status changes.
+    - Task creation and editing from /tasks, from chat, and from assistant-generated task proposals.
+    - Text and voice creation flow: audio transcript, corrected transcript, AI instruction, then task creation or update.
+    - Tasks linked to one primary chat and zero or more projects for chat task lists and project filtering.
+    - Screenshot-aligned Tasks UI surfaces using the Figma style shown in the conversation: rounded white/grey boards, soft shadows, pill filters, compact task cards, and floating create/assign controls.
+    - A shared task board/card component used by both the central /tasks page and project task sections, with common classes and behavior.
+    - Active chat task preview at the top of the chat showing the currently worked task, progress count, and a click target to open chat task details.
+    - Unified chat details/settings page that uses the settings header pattern and consolidates chat tasks, files, usage details, and share controls.
+    - Replacement of the existing chat share menu/process with the new settings-style chat Share section shown in the provided designs.
+    - AI and user assignees, including AI execution when assigned or scheduled.
+    - AI sequentially working through a chat's AI-assigned tasks, marking blocked when user input or permissions are required.
+    - Due-date scheduling for AI-assigned tasks that survives server restarts.
+    - CLI, npm SDK, and pip SDK task-management contracts before web E2E verification.
+  out:
+    - Replacing Celery /v1/tasks/{task_id} polling for long-running app skills.
+    - Fully customizable Kanban columns in V1.
+    - Multi-assignee tasks in V1.
+    - Server-side full-text search over private task title or description.
+    - Public task sharing, team task boards, or cross-user collaboration beyond a single owner account.
+    - Complex dependency graphs, recurring tasks, or workflow-style automation beyond one due-date trigger.
+    - Native Apple implementation in the first web/API slice, although the spec records expected parity.
+    - Remote filesystem access, code mutation, or high-stakes agentic coding permissions.
+
+context_discovery:
+  github_issues:
+    - "#447 Design planning, tasks, projects, and permissions for agentic coding: primary product direction for chat task lists and /tasks Kanban."
+    - "#442 Design a plan view for multi-step chats: adjacent plan/step model that should link to tasks later."
+    - "#459 Prepare chat storage architecture for agentic coding scale: adjacent scaling concern for future task and agentic-chat volume."
+    - "GitHub MCP issue search returned 401 bad credentials; gh issue list/view was used instead."
+  docs:
+    - docs/specs/simplified-feature-availability/spec.yml
+    - docs/specs/workflows-v1/spec.yml
+    - docs/specs/cli-sub-chat-deep-research/spec.yml
+    - docs/specs/apple-sub-chat-focus-parity/spec.yml
+    - docs/specs/interactive-questions-parity/spec.yml
+    - docs/architecture/apps/rest-api.md
+    - docs/architecture/platforms/cli-package.md
+    - docs/design-guide/settings-ui.md
+    - docs/contributing/guides/spec-driven-development.md
+  code_patterns:
+    - backend/config/backend_config.yml currently enables platform:tasks even though the feature is not implemented.
+    - frontend/packages/openmates-cli/src/server.ts lists platform:tasks as off by default because the Tasks workspace is not implemented yet.
+    - frontend/packages/ui/src/components/Header.svelte can render a /tasks nav link behind platform:tasks.
+    - backend/core/api/app/routes/tasks_api.py owns /v1/tasks/{task_id} for Celery task polling and must not be repurposed.
+    - backend/core/directus/schemas/chats.yml contains parent_id and is_sub_chat for the existing sub-chat tree.
+    - backend/core/directus/schemas/embeds.yml contains hashed_task_id for long-running skill/embed updates, not user-facing tasks.
+    - frontend/packages/ui/src/services/chatSyncService.ts handles sub-chat progress, confirmation, and awaiting_user_input events.
+    - docs/specs/workflows-v1/spec.yml defines durable server-side scheduling patterns that Tasks V1 can reuse for due-date starts.
+    - frontend/packages/ui/src/components/settings/elements provides the canonical settings visual elements for new chat details/settings tabs.
+  tests:
+    - backend/tests/test_feature_availability_service.py
+    - backend/tests/test_feature_availability_enforcement.py
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/apps/web_app/tests/sub-chats-flow.spec.ts
+    - frontend/apps/web_app/tests/sub-chats-real-inference.spec.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+  design_references:
+    - "Conversation screenshot: central Tasks page with white rounded board, grey status columns, pill tags/filters, task cards, AI assignment toggle, and bottom task creation field."
+    - "Conversation screenshot: Project page with blue gradient project hero and a lower task board that reuses the same task card, column, filter, and action styles as /tasks."
+    - "Conversation screenshot: Mobile chat details/settings page with Settings / Chats header, chat hero card, segmented icon tabs, task progress 2/4, task checklist, add task action, and cancel-all-tasks action."
+    - "Conversation screenshots: Chat settings Files tab with Download files action, dev-server/project path, folder/file rows, and per-file download buttons."
+    - "Conversation screenshots: Chat settings Usage tab with Download usage data, grouped usage entries, provider labels, and credit amounts."
+    - "Conversation screenshots: Chat settings Share tab replacing the current share menu, including share toggles, Share chat button, generated-link success state, copy/QR/URL controls, stop sharing, auto-expire status, and Download chat."
+    - "Conversation screenshot: Active chat top task preview pill showing Task 2/4, a progress bar, checkbox, current task title, and navigation/open affordance."
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Tasks/TaskBoardView.swift
+    - apple/OpenMates/Sources/Tasks/TaskDetailView.swift
+    - apple/OpenMates/Sources/Chat/ChatView.swift
+    - apple/OpenMates/Sources/Projects/ProjectDetailView.swift
+    - apple/OpenMates/Sources/Core/Networking/OpenMatesAPIClient.swift
+  parity_expectations:
+    - Apple should eventually list tasks, show chat-linked tasks, filter project tasks, edit status, and start AI-assigned tasks through the same /v1/user-tasks contracts.
+    - Apple must preserve the same client-side encryption model for durable task content.
+    - Apple may defer drag-and-drop Kanban in the first native slice if it exposes equivalent status changes accessibly.
+  verification:
+    - Run or attempt python3 scripts/apple_remote.py status when Apple task UI or shared API clients are implemented.
+    - Run or attempt python3 scripts/apple_remote.py build-ios after web/API contracts are stable.
+  intentional_native_differences:
+    - Native task status changes may use segmented controls or accessible move actions instead of board drag-and-drop.
+
+clarification:
+  rounds:
+    - question: What is the smallest V1 task flow that must work end-to-end?
+      answer: >
+        User asks in chat to plan work, assistant proposes tasks, user edits a
+        task, assistant progresses/completes tasks, and /tasks shows them linked
+        back to the chat. Tasks must also link to projects, be assignable to AI
+        or a specific user identity/hash, support Kanban drag/drop/touch, and
+        support AI creation from text or voice-transcript flow.
+    - question: Should task contents be readable/searchable by the server, or should server-visible fields stay minimal?
+      answer: >
+        Start with the privacy-focused option: client-side encryption and
+        minimal backend metadata only.
+    - question: What task states should V1 support, and should they be fixed or customizable?
+      answer: >
+        Use fixed V1 statuses backlog, todo, in_progress, blocked, and done.
+        Blocked is for tasks requiring user input or another missing condition.
+        Backlog means intentionally parked; manual new tasks should default to
+        todo.
+    - question: What should be the explicit AI-start trigger?
+      answer: >
+        Assigning AI should generally mean execution intent. A task assigned to
+        AI with no due date should start immediately. Moving an AI-capable task
+        to in_progress can also start work after confirmation if no working chat
+        exists.
+    - question: Should each task have one primary source context, or can it belong to multiple contexts?
+      answer: >
+        A task should have one primary linked chat and optional links to multiple
+        projects. Project mentions should be included when the assistant is
+        instructed to work on a project-linked task.
+    - question: For V1, how rich should task details be?
+      answer: >
+        Include title, description, status, assignee, linked chat, linked
+        projects, due date, priority, tags, and activity/history. If a due date
+        is set and AI is assigned, AI should wait until due time using a
+        reliable server-side scheduler that survives restarts.
+  vision_summary: >
+    Tasks V1 is a separate privacy-preserving product model that sits beside
+    chats, projects, and workflows. Tasks appear in chat task lists, project
+    filters, and the central /tasks Kanban board; users and assistants can both
+    edit them, and AI-assigned tasks can start immediately or at a due time.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Assistant creates and updates chat-linked tasks
+    given:
+      - Alice is logged into the web app and has an active chat.
+      - Alice asks the assistant to plan a website launch.
+    when:
+      - The assistant proposes five tasks and Alice accepts them.
+      - Alice edits one task title from the chat task list.
+    then:
+      - Five durable task records are created in the task collection.
+      - Each task is linked to the active chat and visible in that chat's task list.
+      - The edited title is client-encrypted for durable storage and appears correctly after reload.
+
+  - id: S-2
+    title: Central Kanban shows tasks across chats and projects
+    given:
+      - Alice has tasks linked to multiple chats, sub-chats, and projects.
+      - Some tasks are assigned to Alice and some are assigned to AI.
+    when:
+      - Alice opens /tasks.
+      - Alice filters by project and drags a task from todo to backlog on a touch-capable device.
+    then:
+      - The board shows backlog, todo, in_progress, blocked, and done columns.
+      - The project filter shows only tasks linked to that project.
+      - The status change persists and syncs after reload.
+      - The board remains usable with pointer, keyboard, and touch interactions.
+
+  - id: S-3
+    title: Direct task creation supports text and voice instruction flows
+    given:
+      - Alice is on /tasks.
+    when:
+      - Alice creates one task from typed text.
+      - Alice creates another through voice recording, transcript, corrected transcript, and AI task extraction.
+    then:
+      - Both tasks default to todo when no AI execution is requested.
+      - The voice-created task stores only encrypted task content durably.
+      - Alice can review and edit extracted tasks before they are committed.
+
+  - id: S-4
+    title: AI-assigned task starts immediately when no due date exists
+    given:
+      - Alice creates a task from /tasks with assignee set to AI.
+      - The task has no due date and is linked to one project.
+    when:
+      - Alice confirms AI assignment.
+    then:
+      - The task status becomes in_progress.
+      - A working chat is created or selected for the task.
+      - The assistant receives an instruction equivalent to Complete the task plus the linked project mention.
+      - The task links back to the working chat.
+
+  - id: S-5
+    title: AI-assigned due task starts reliably at due time
+    given:
+      - Alice creates a task assigned to AI with a due date in the future.
+      - The server restarts before the due date.
+    when:
+      - The due time arrives.
+    then:
+      - The server-side scheduler claims the due task once.
+      - The task moves to in_progress and starts its working chat.
+      - Duplicate assistant runs are not created after restart or retry.
+
+  - id: S-6
+    title: Chat sequentially works through AI-assigned tasks
+    given:
+      - A chat has three todo tasks assigned to AI.
+      - The chat is not currently working on a task.
+    when:
+      - The first AI task starts.
+    then:
+      - The assistant works on tasks one after another in that chat.
+      - Completed tasks move to done.
+      - The next eligible task starts only after the previous task finishes or blocks.
+
+  - id: S-7
+    title: Task blocks when user input or permission is required
+    given:
+      - The assistant is working on an AI-assigned task.
+    when:
+      - The assistant needs user input, a permission approval, a connected account, file access, or another missing dependency.
+    then:
+      - The task status becomes blocked.
+      - The linked chat or sub-chat records the waiting context.
+      - The central /tasks board shows the blocked task with a clear open-chat action.
+      - When Alice resolves the blocker, the task can resume from the linked chat.
+
+  - id: S-8
+    title: Tasks use privacy-preserving durable storage
+    given:
+      - Alice creates tasks with private titles, descriptions, tags, and activity entries.
+    when:
+      - The backend stores and later lists those tasks.
+    then:
+      - Durable private task content is client-encrypted.
+      - The server stores only minimal metadata needed for ownership, filtering, scheduling, status, ordering, and execution safety.
+      - Temporary AI execution context is Vault-encrypted and expires according to the task execution retention policy.
+
+  - id: S-9
+    title: Screenshot-aligned task surfaces stay visually and structurally consistent
+    given:
+      - Alice has a chat with four tasks where the second task is currently active.
+      - Alice has a project with linked tasks across backlog, todo, in_progress, and done.
+    when:
+      - Alice opens /tasks on desktop.
+      - Alice opens the project page task section.
+      - Alice opens the active chat and clicks the top task preview.
+    then:
+      - /tasks and the project page render task boards with the same shared component classes, card styles, filter pills, column layout, and task actions.
+      - The active chat top area shows a compact current-task preview with current task title, Task 2/4 progress, checkbox, progress bar, and open/next affordance.
+      - Clicking the preview opens the unified chat details/settings page.
+      - The chat details/settings page uses the settings header pattern and exposes Tasks, Files, Usage details, and Share sections as one unified chat management surface.
+      - The mobile layout matches the screenshot intent with a stacked hero card, segmented icon tabs, task checklist, add task action, and cancel-all-tasks action.
+
+  - id: S-10
+    title: Chat settings replaces the existing share menu and unifies chat management
+    given:
+      - Alice opens a chat that has tasks, uploaded/generated files, usage entries, and share controls.
+      - The existing chat share menu/process is still present in the current product.
+    when:
+      - Alice opens chat settings/details from the active-chat task preview or chat actions.
+      - Alice switches between Tasks, Files, Usage details, and Share tabs.
+      - Alice creates a share link, reveals the QR code, reveals the short URL, stops sharing, downloads chat data, downloads files, and downloads usage data.
+    then:
+      - The old standalone share menu/process is replaced by the settings-style Share tab.
+      - The settings page uses canonical settings UI components and the shared settings header pattern rather than one-off inline CSS.
+      - Files, Usage details, and Share tabs match the provided mobile designs and remain usable on desktop.
+      - Existing share behavior, QR/link display, auto-expire, stop sharing, download chat, and privacy options continue to work through the new surface.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Assistant-created tasks are durable records linked to the originating chat and editable by the user from the chat task list.
+  - id: AC-2
+    scenario: S-2
+    text: /tasks renders a central Kanban board with fixed backlog, todo, in_progress, blocked, and done columns, project filtering, and persisted drag/drop or touch status changes.
+  - id: AC-3
+    scenario: S-3
+    text: Users can create tasks directly on /tasks from text and from a voice-to-corrected-transcript-to-AI extraction flow, with review before commit.
+  - id: AC-4
+    scenario: S-4
+    text: Assigning AI to an unscheduled task starts execution immediately by moving the task to in_progress and creating or reusing a working chat.
+  - id: AC-5
+    scenario: S-5
+    text: AI-assigned tasks with due dates start once at due time through a restart-safe server-side scheduler.
+  - id: AC-6
+    scenario: S-6
+    text: A chat with multiple AI-assigned tasks executes them sequentially and does not start the next task until the active task finishes or blocks.
+  - id: AC-7
+    scenario: S-7
+    text: Tasks that need user input, permissions, connected accounts, file access, or dependencies are marked blocked and resume only after the blocker is resolved.
+  - id: AC-8
+    scenario: S-8
+    text: Durable task content uses client-side encryption while AI execution uses only short-lived Vault-encrypted context and minimal server-visible metadata.
+  - id: AC-9
+    scenario: S-2
+    text: Tasks can link to one primary chat and multiple projects, and project pages can filter or list tasks linked to that project.
+  - id: AC-10
+    scenario: S-4
+    text: Project-linked AI task instructions include project mentions/context so the assistant can access relevant project data.
+  - id: AC-11
+    scenario: S-9
+    text: The central /tasks page and project task page reuse the same task board, column, card, pill filter, and action classes so their visual design and behavior remain consistent.
+  - id: AC-12
+    scenario: S-9
+    text: Active chats show a top current-task preview with title, Task N/total count, progress bar, checkbox state, and click behavior that opens chat task details.
+  - id: AC-13
+    scenario: S-9
+    text: Chat-level Tasks, Files, Usage details, and Share controls are unified into one settings-style chat details surface with a shared settings header pattern.
+  - id: AC-14
+    scenario: S-10
+    text: The new chat settings Share tab replaces the existing standalone share menu/process while preserving share link creation, QR code display, short URL display, stop sharing, auto-expire, and download chat behavior.
+  - id: AC-15
+    scenario: S-10
+    text: The chat settings Files and Usage details tabs match the provided designs and support downloading chat files and usage data from the unified settings surface.
+  - id: AC-16
+    scenario: S-10
+    text: Chat settings implementation uses existing canonical settings UI components and shared settings header patterns, with no custom inline settings UI styling.
+
+contracts:
+  api:
+    - route: GET /v1/user-tasks
+      auth: session_or_api_key
+      request: "query: status?, project_id?, chat_id?, assignee?, due_before?, limit?, cursor?"
+      response: "{ tasks: TaskSummary[], next_cursor?: string }"
+      notes:
+        - Does not return decrypted private content; clients decrypt encrypted fields locally.
+        - Supports pagination for central /tasks and project filters.
+    - route: POST /v1/user-tasks
+      auth: session_or_api_key
+      request: "{ encrypted_title, encrypted_description?, status?, assignee, primary_chat_id?, project_ids?, due_at?, priority?, encrypted_tags? }"
+      response: "{ task_id, status, encrypted_fields, metadata }"
+      notes:
+        - Defaults status to todo when no status is provided and no AI execution starts.
+        - Starts AI immediately only when assignment/execution fields request AI work and due_at is absent or already due.
+    - route: PATCH /v1/user-tasks/{task_id}
+      auth: session_or_api_key
+      request: "partial task encrypted fields and metadata with client version"
+      response: "{ task_id, version, updated_at }"
+      notes:
+        - Rejects stale versions with a visible conflict response rather than silently overwriting user or assistant edits.
+    - route: POST /v1/user-tasks/{task_id}/start-ai
+      auth: session_or_api_key
+      request: "{ chat_id?, project_ids?, encrypted_instruction_context }"
+      response: "{ task_id, status: in_progress, chat_id, ai_run_id }"
+      notes:
+        - Creates or reuses a working chat and sends the task execution instruction.
+    - route: POST /v1/user-tasks/extract
+      auth: session_or_api_key
+      request: "{ encrypted_corrected_transcript_or_text, mode: create|update, context_chat_id?, project_ids? }"
+      response: "{ proposed_tasks: ProposedTask[] }"
+      notes:
+        - Returns proposals for user review before POST /v1/user-tasks commits them.
+  data:
+    collections:
+      - name: user_tasks
+        purpose: Durable user-facing task records.
+        server_visible_fields:
+          - id
+          - hashed_user_id
+          - status
+          - assignee_type: ai|user
+          - assignee_hash
+          - primary_chat_id
+          - linked_project_ids
+          - parent_task_id
+          - due_at
+          - priority
+          - position
+          - version
+          - created_at
+          - updated_at
+          - started_at
+          - completed_at
+          - blocked_reason_code
+          - ai_execution_state
+        encrypted_fields:
+          - encrypted_title
+          - encrypted_task_key
+          - encrypted_description
+          - encrypted_tags
+          - encrypted_activity_summary
+          - encrypted_latest_instruction
+      - name: user_task_activity
+        purpose: Append-only activity entries for task changes and AI progress.
+        encrypted_fields:
+          - encrypted_message
+          - encrypted_snapshot
+        server_visible_fields:
+          - id
+          - task_id
+          - actor_type
+          - actor_hash
+          - event_type
+          - created_at
+    statuses:
+      - backlog
+      - todo
+      - in_progress
+      - blocked
+      - done
+    defaults:
+      manual_status: todo
+      parked_status: backlog
+      ai_immediate_status: in_progress
+  websocket:
+    - event: user_task_updated
+      direction: server_to_client
+      payload: "{ task_id, status?, version, updated_at, primary_chat_id?, linked_project_ids? }"
+      behavior:
+        - Active chat task lists and /tasks update without full reload.
+    - event: user_task_execution_started
+      direction: server_to_client
+      payload: "{ task_id, chat_id, ai_run_id }"
+      behavior:
+        - Client opens or highlights the working chat when the user requested AI start.
+    - event: user_task_blocked
+      direction: server_to_client
+      payload: "{ task_id, chat_id, blocked_reason_code, awaiting_user_input_id? }"
+      behavior:
+        - Kanban and chat task list show blocked status and open-chat action.
+  ui_states:
+    - Empty central task board.
+    - Board with many tasks and pagination or lazy loading.
+    - Central /tasks board matching the screenshot style.
+    - Project page task board using the same board/card classes as /tasks.
+    - Task creation from text.
+    - Voice transcript recording, correction, proposal review, and commit.
+    - Chat task list collapsed and expanded.
+    - Active chat top current-task preview collapsed and clicked/opened.
+    - Unified chat details/settings page with tasks, files, usage details, and share sections.
+    - Chat settings Files tab with download files, dev-server/project path, file rows, and per-file download actions.
+    - Chat settings Usage details tab with download CSV/YAML, grouped usage entries, providers, and credit amounts.
+    - Chat settings Share tab before share link creation.
+    - Chat settings Share tab after share link creation with copy, QR, URL, stop sharing, and download chat states.
+    - Project-filtered tasks on project page.
+    - AI assigned and starting.
+    - AI scheduled for due time.
+    - AI in progress.
+    - Blocked waiting for user.
+    - Done.
+    - Edit conflict.
+  privacy_security:
+    - Never store plaintext private task title, description, tags, transcript, or instruction content in durable server storage.
+    - Server-visible linked_project_ids and primary_chat_id are acceptable metadata for filtering and execution; reassess if project IDs become sensitive beyond existing project access assumptions.
+    - Use hashed user identifiers for assignee identity and ownership lookups.
+    - Vault-encrypted AI execution context must have bounded retention and be deleted after task completion, cancellation, or expiration.
+    - AI cannot start project-linked task work unless the user owns the linked projects and the feature is enabled.
+    - Task API must enforce ownership for task, chat, and project links.
+  naming:
+    - /v1/tasks remains Celery/background task polling.
+    - /v1/user-tasks is the user-facing product task API namespace.
+  design:
+    shared_components:
+      - name: TaskBoard
+        used_by:
+          - /tasks central workspace
+          - Project page task section
+          - Chat details/settings Tasks section when wide enough
+        required_classes:
+          - tasks-board
+          - tasks-board-column
+          - task-card
+          - task-filter-pill
+          - task-action-pill
+      - name: TaskCard
+        style_contract:
+          - White rounded card on light grey column background.
+          - Soft shadow and compact typography matching the provided Figma screenshots.
+          - Shows encrypted title, linked project/chat pill, AI assignee affordance, status, and open-chat action when linked.
+      - name: ActiveChatTaskPreview
+        style_contract:
+          - Floating rounded pill in the active chat top area.
+          - Shows task icon, Task N/total, progress bar, checkbox, current task title, and open/next affordance.
+          - Remains usable on mobile without covering message content.
+      - name: ChatDetailsSettingsPage
+        style_contract:
+          - Uses the settings header pattern similar to app settings pages.
+          - Provides a chat hero summary card and segmented icon navigation for Tasks, Files, Usage details, and Share.
+          - Tasks section shows progress, add task, editable checklist rows, drag/reorder, and cancel-all-tasks action.
+          - Files section shows Download files, linked dev-server/project path when available, folder/file rows, file metadata, and per-file download buttons.
+          - Usage details section shows Download usage data with CSV and YAML formats, grouped usage rows, provider names, and credit amounts.
+          - Share section replaces the existing share menu/process and includes share-with-community, password protection, auto-expire, Share chat, generated-link success, copy to clipboard, QR show/hide, URL show/hide, stop sharing, and Download chat.
+          - Uses canonical settings/elements components for rows, sections, toggles, buttons, icon tiles, dividers, and headers instead of custom inline CSS.
+    visual_requirements:
+      - Match the conversation-provided Figma style before inventing new task UI patterns.
+      - Reuse existing design tokens and settings/elements components where the surface is settings-like.
+      - Chat settings surfaces must follow docs/design-guide/settings-ui.md and use canonical settings/elements components.
+      - Do not use custom one-off project task card styles that diverge from the central task board.
+      - Use data-testid attributes for every interactive task control used by tests.
+      - Replacement of the old share menu must be complete enough that users do not have two competing share flows.
+
+tests:
+  - id: T-PYTEST-DATA
+    type: pytest
+    file: backend/tests/test_user_tasks_api.py
+    command: python3 -m pytest backend/tests/test_user_tasks_api.py
+    covers:
+      - AC-1
+      - AC-8
+      - AC-9
+    assertions:
+      - authenticated create stores a user_tasks row with encrypted title and description fields only.
+      - list filters by primary_chat_id and linked_project_ids without decrypting private content.
+      - unauthenticated and wrong-owner task, chat, or project access is rejected.
+      - /v1/tasks Celery polling behavior remains unchanged.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-pytest-2026-06-26"
+        timestamp: "2026-06-26"
+
+  - id: T-PYTEST-SCHED
+    type: pytest
+    file: backend/tests/test_user_tasks_scheduler.py
+    command: python3 -m pytest backend/tests/test_user_tasks_scheduler.py
+    covers:
+      - AC-5
+      - AC-6
+      - AC-7
+    assertions:
+      - due AI tasks are claimed once after restart-safe scheduler recovery.
+      - duplicate scheduler retries do not create duplicate working chats or AI runs.
+      - chat task queues start the next AI task only after the active task finishes or blocks.
+      - awaiting user input marks the task blocked with a reason code.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-pytest-2026-06-26"
+        timestamp: "2026-06-26"
+
+  - id: T-PYTEST-PROPOSALS
+    type: pytest
+    file: backend/tests/test_task_proposals.py
+    command: python3 -m pytest backend/tests/test_task_proposals.py
+    covers:
+      - AC-1
+      - AC-8
+    assertions:
+      - assistant task proposals are bounded before client review.
+      - invalid statuses and assignees are replaced with safe defaults.
+      - update proposals require a visible task ID and at least one proposed change.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-pytest-2026-06-30"
+        timestamp: "2026-06-30"
+
+  - id: T-CLI-TASKS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/tasks.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/tasks.test.ts
+    covers:
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-9
+      - AC-10
+    assertions:
+      - CLI can list, create, update, and start AI tasks through /v1/user-tasks.
+      - CLI preserves encrypted task fields and does not call /v1/tasks for product task management.
+      - project and chat filters are serialized to /v1/user-tasks query parameters.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-node-test-2026-06-26"
+        timestamp: "2026-06-26"
+
+  - id: T-NPM-SDK-TASKS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-tasks.test.ts
+    covers:
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-8
+      - AC-9
+    assertions:
+      - npm SDK exposes tasks.list, tasks.create, tasks.update, and tasks.startAI.
+      - SDK serializes encrypted fields and metadata consistently with CLI.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-node-test-2026-06-26"
+        timestamp: "2026-06-26"
+
+  - id: T-PIP-SDK-TASKS
+    type: pytest
+    file: packages/openmates-python/tests/test_tasks.py
+    command: python3 -m pytest packages/openmates-python/tests/test_tasks.py
+    covers:
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-8
+      - AC-9
+    assertions:
+      - pip SDK exposes tasks.list, tasks.create, tasks.update, and tasks.start_ai with matching payload semantics.
+      - pip SDK does not use the Celery /v1/tasks namespace for product tasks.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-pytest-2026-06-26"
+        timestamp: "2026-06-26"
+
+  - id: T-PLAYWRIGHT-TASKS
+    type: playwright
+    file: frontend/apps/web_app/tests/tasks-flow.spec.ts
+    command: python3 scripts/tests.py run --spec tasks-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-6
+      - AC-7
+      - AC-9
+      - AC-10
+      - AC-11
+      - AC-12
+      - AC-13
+      - AC-14
+      - AC-15
+      - AC-16
+    assertions:
+      - /tasks renders the Kanban board and creates a manual todo task.
+      - drag/drop or touch equivalent moves a task between fixed columns and persists after reload.
+      - chat-created tasks appear in the chat task list and central board.
+      - project filtering shows project-linked tasks.
+      - assigning AI starts a working chat and moves the task to in_progress.
+      - blocked task state opens the linked chat waiting context.
+      - project page task board reuses the same task board and card test IDs/classes as /tasks.
+      - active chat top preview shows current task title and Task N/total count, then opens chat details on click.
+      - chat details/settings surface exposes Tasks, Files, Usage details, and Share sections under the shared settings header pattern.
+      - Share tab creates a link, shows generated-link success, copies to clipboard, toggles QR display, toggles URL display, stops sharing, and downloads chat.
+      - Files tab lists chat files and exposes download actions.
+      - Usage details tab lists grouped usage rows and exposes usage data download.
+      - Chat settings markup uses data-testid hooks and canonical settings component structure instead of CSS class selectors in tests.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-MANUAL-APPLE
+    type: manual
+    covers:
+      - AC-2
+      - AC-8
+      - AC-9
+    assertions:
+      - Apple impact is checked before marking Tasks V1 fully complete.
+      - If no Apple UI is implemented in the first slice, record Apple deferred with affected files and parity expectations.
+      - If shared API client code changes affect Apple, run or attempt python3 scripts/apple_remote.py status and build-ios.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_or_deferred_with_reason
+      evidence:
+        status: passed
+        run_id: "apple-remote-build-ios-2026-06-30"
+        timestamp: "2026-06-30"
+
+implementation_plan:
+  existing_patterns:
+    - backend/core/api/app/routes/tasks_api.py for the namespace to avoid, not to reuse for product tasks.
+    - backend/core/api/app/routes/projects.py and frontend/packages/ui/src/services/projectService.ts for project authorization and encrypted project patterns.
+    - backend/core/directus/schemas/chats.yml for chat/sub-chat link metadata and encryption notes.
+    - backend/core/directus/schemas/embeds.yml for hashed identifiers and encrypted durable content notes.
+    - docs/specs/workflows-v1/spec.yml for restart-safe scheduler and run-history concepts.
+    - frontend/packages/ui/src/components/Header.svelte for platform:tasks navigation gating.
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte for project page integration points.
+    - frontend/packages/ui/src/services/chatSyncService.ts for realtime task/sub-chat event routing patterns.
+    - frontend/packages/ui/src/components/settings/elements for canonical settings-style chat details surfaces.
+    - Conversation-provided Figma screenshots for the task board, project task board, active-chat preview, and chat details task panel visual contracts.
+  architecture: >
+    Add user-facing tasks as a first-class encrypted product model under
+    /v1/user-tasks. The backend owns metadata, authorization, scheduling,
+    realtime fanout, and AI execution orchestration. Clients own encryption,
+    decryption, editing, Kanban presentation, and voice transcript review.
+  data_flow:
+    - User or assistant creates encrypted task content and minimal metadata.
+    - Backend stores user_tasks and optional user_task_activity rows.
+    - /tasks lists metadata plus encrypted fields; clients decrypt locally.
+    - Chat and project pages query by primary_chat_id or linked_project_ids.
+    - The central /tasks page and project page render the same decrypted task view models through shared TaskBoard and TaskCard components.
+    - Active chat derives the current task preview from the linked chat task queue and opens ChatDetailsSettingsPage on click.
+    - AI assignment without due_at creates or reuses a working chat and sends an execution instruction.
+    - AI assignment with due_at is claimed by a restart-safe scheduler at due time.
+    - AI completion, blockage, or user edits update task status and append encrypted activity entries.
+  affected_files:
+    - path: backend/core/directus/schemas/user_tasks.yml
+      reason: New durable task collection and activity collection.
+    - path: backend/core/api/app/routes/user_tasks.py
+      reason: Product task API under /v1/user-tasks.
+    - path: backend/core/api/app/services/user_task_service.py
+      reason: Authorization, metadata filtering, conflict checks, and AI start orchestration.
+    - path: backend/core/api/app/tasks/user_task_scheduler.py
+      reason: Restart-safe due-date task claiming and execution dispatch.
+    - path: backend/core/api/app/services/user_task_scheduler_service.py
+      reason: Testable scheduler logic for due AI task claiming without Celery imports.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Assistant task creation/update and task execution instruction handling.
+    - path: backend/apps/ai/processing/task_proposals.py
+      reason: Bounded review-only assistant task proposals before client encryption and commit.
+    - path: frontend/packages/ui/src/components/tasks/TasksPage.svelte
+      reason: Central Kanban UI.
+    - path: frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+      reason: Shared screenshot-aligned Kanban board for /tasks, project pages, and chat details.
+    - path: frontend/packages/ui/src/components/tasks/TaskCard.svelte
+      reason: Shared task card style and interactions across all task boards.
+    - path: frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
+      reason: Floating current-task preview in active chat.
+    - path: frontend/packages/ui/src/components/tasks/TaskProposalReview.svelte
+      reason: Review and accept assistant task proposals with client-side encrypted commit.
+    - path: frontend/packages/ui/src/components/tasks/ChatTaskList.svelte
+      reason: Chat-level task list and sequential task controls.
+    - path: frontend/packages/ui/src/components/chats/ChatDetailsSettingsPage.svelte
+      reason: Unified settings-style chat management surface for tasks, files, usage details, and share.
+    - path: frontend/packages/ui/src/components/chats/ChatSettingsTasksSection.svelte
+      reason: Settings-style task checklist section for chat details.
+    - path: frontend/packages/ui/src/components/chats/ChatSettingsFilesSection.svelte
+      reason: Settings-style file list and download section for chat details.
+    - path: frontend/packages/ui/src/components/chats/ChatSettingsUsageSection.svelte
+      reason: Settings-style usage details and export section for chat details.
+    - path: frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+      reason: Replacement for existing share menu/process inside unified chat settings.
+    - path: frontend/packages/ui/src/services/userTaskService.ts
+      reason: Encrypted frontend task API client and local decrypt/encrypt helpers.
+    - path: frontend/packages/ui/src/components/settings/elements
+      reason: Existing canonical settings UI components must be reused for chat settings tabs.
+    - path: frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+      reason: Project task filtering integration using the shared TaskBoard/TaskCard components.
+    - path: frontend/packages/ui/src/components/ActiveChat.svelte
+      reason: Mount active chat current-task preview and open chat details surface.
+    - path: frontend/apps/web_app/src/routes/tasks/+page.svelte
+      reason: /tasks route.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: CLI/npm SDK task methods.
+    - path: packages/openmates-python/openmates/client.py
+      reason: pip SDK task methods.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/tasks-v1/spec.yml
+    - python3 scripts/audit_sdk_cli_parity.py after CLI/SDK task methods are added.
+    - Backend pytest red/green for data model, API, scheduler, and AI queue semantics.
+    - CLI, npm SDK, and pip SDK red/green before Playwright.
+    - Deploy before Playwright green because web specs run against app.dev.openmates.org.
+    - Apple remote status/build attempt if shared API client or native task UI is touched.
+  verification_order:
+    - Backend pytest contracts.
+    - CLI contract.
+    - npm SDK contract.
+    - pip SDK contract.
+    - Web Playwright after deploy.
+    - Apple remote check/build when applicable.
+  risks:
+    - Naming confusion between Celery tasks and product user tasks.
+    - Accidentally storing plaintext private task content in server logs, Directus, Redis, or activity rows.
+    - Duplicate AI execution after scheduler restart or websocket retry.
+    - Conflicts between user edits and assistant task updates.
+    - Drag/drop accessibility and touch reliability.
+    - Divergence between /tasks, project task boards, and chat task lists if shared components/classes are not enforced.
+    - Chat details page scope creep while unifying tasks, files, usage details, and share controls.
+    - Regressing existing share behavior while replacing the old share menu/process.
+    - Violating settings UI consistency by implementing chat settings with one-off inline CSS instead of canonical settings components.
+    - Scope creep into full workflows, recurring tasks, or agentic coding permissions.
+  open_questions:
+    - Should priority be server-visible metadata for sorting, or encrypted-only with client-side sorting after fetch?
+    - Should tags be encrypted-only in V1, which limits server-side tag filters, or should there be optional hashed tag filters later?
+    - Should blocked_reason_code use a fixed enum in V1 or be extensible per app/permission type?
+    - Should task activity history be append-only forever, or follow a retention limit per task?
+    - Should AI task execution use the parent chat key for linked chat instructions or create a task-specific key for task context payloads?
+    - Standalone tasks use encrypted_task_key wrapped with the user's master key; linked task execution still needs a final decision on when to reuse chat/project keys for generated chat instructions.
+
+tasks:
+  - id: TASK-1
+    title: Add encrypted task data model and API contracts
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-8
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-8
+        - AC-9
+    expected_files:
+      - backend/core/directus/schemas/user_tasks.yml
+      - backend/core/api/app/routes/user_tasks.py
+      - backend/core/api/app/services/user_task_service.py
+      - backend/apps/ai/processing/task_proposals.py
+      - backend/tests/test_user_tasks_api.py
+      - backend/tests/test_task_proposals.py
+    verification:
+      - T-PYTEST-DATA
+      - T-PYTEST-PROPOSALS
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add scheduler and AI task execution orchestration
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-10
+    expected_files:
+      - backend/core/api/app/tasks/user_task_scheduler.py
+      - backend/core/api/app/services/user_task_scheduler_service.py
+      - backend/apps/ai/processing/main_processor.py
+      - backend/tests/test_user_tasks_scheduler.py
+    verification:
+      - T-PYTEST-SCHED
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Add CLI and SDK user task contracts
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-8
+        - AC-9
+        - AC-10
+    expected_files:
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/tasks.test.ts
+      - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_tasks.py
+    verification:
+      - T-CLI-TASKS
+      - T-NPM-SDK-TASKS
+      - T-PIP-SDK-TASKS
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Add central Tasks UI and chat/project integrations
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-6
+        - AC-7
+        - AC-9
+        - AC-10
+        - AC-11
+        - AC-12
+        - AC-13
+        - AC-14
+        - AC-15
+        - AC-16
+    expected_files:
+      - frontend/apps/web_app/src/routes/tasks/+page.svelte
+      - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+      - frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+      - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+      - frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
+      - frontend/packages/ui/src/components/tasks/ChatTaskList.svelte
+      - frontend/packages/ui/src/components/chats/ChatDetailsSettingsPage.svelte
+      - frontend/packages/ui/src/components/chats/ChatSettingsTasksSection.svelte
+      - frontend/packages/ui/src/components/chats/ChatSettingsFilesSection.svelte
+      - frontend/packages/ui/src/components/chats/ChatSettingsUsageSection.svelte
+      - frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
+      - frontend/packages/ui/src/services/userTaskService.ts
+      - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+      - frontend/packages/ui/src/components/ActiveChat.svelte
+      - frontend/apps/web_app/tests/tasks-flow.spec.ts
+    verification:
+      - T-PLAYWRIGHT-TASKS
+    independently_deployable: false

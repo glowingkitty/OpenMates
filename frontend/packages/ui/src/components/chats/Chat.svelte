@@ -1842,6 +1842,17 @@
     if (!chat) return;
 
     activeChatStore.setActiveChat(chat.chat_id);
+
+    const detailsEvent = new CustomEvent('openmates-open-chat-details', {
+      cancelable: true,
+      detail: { chatId: chat.chat_id, tab: 'share' },
+    });
+    window.dispatchEvent(detailsEvent);
+    if (detailsEvent.defaultPrevented) {
+      showContextMenu = false;
+      return;
+    }
+
     settingsMenuVisible.set(true);
     panelState.openSettings();
 

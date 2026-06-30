@@ -20,6 +20,7 @@ def test_core_ask_skill_request_preserves_runtime_flags() -> None:
             "source": "benchmark",
             "benchmark_run_id": "run-1",
         },
+        user_task_id="task-1",
         connected_account_directory=[{"provider": "calendar"}],
         connected_account_token_refs=[{"turn_token_ref": "ref-1"}],
     )
@@ -27,5 +28,6 @@ def test_core_ask_skill_request_preserves_runtime_flags() -> None:
     dumped = request.model_dump()
     assert dumped["is_incognito"] is True
     assert dumped["benchmark_metadata"]["source"] == "benchmark"
+    assert dumped["user_task_id"] == "task-1"
     assert dumped["connected_account_directory"] == [{"provider": "calendar"}]
     assert dumped["connected_account_token_refs"] == [{"turn_token_ref": "ref-1"}]

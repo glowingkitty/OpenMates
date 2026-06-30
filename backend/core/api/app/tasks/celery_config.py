@@ -167,6 +167,7 @@ TASK_CONFIG = [
     {'name': 'email',       'module': 'backend.core.api.app.tasks.linear_issue_task'},  # Auto-create Linear issues from user reports (routed to email queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.ephemeral_log_promotion_tasks'},  # Promote ephemeral client logs on error to long-retention stream
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 run/event/cleanup tasks
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_scheduler'},  # Tasks V1 due AI task scheduler
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.daily_issue_digest_task'},  # Daily top issue digest
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.newsletter_campaign_task'},  # Scheduled newsletter campaign sender
  ]
@@ -1261,6 +1262,11 @@ app.conf.beat_schedule = {
         'task': 'reminder.process_due_reminders',
         'schedule': timedelta(seconds=60),  # Every 60 seconds
         'options': {'queue': 'reminder'},  # Route to reminder queue
+    },
+    'process-due-ai-user-tasks': {
+        'task': 'user_tasks.process_due_ai_tasks',
+        'schedule': timedelta(seconds=60),
+        'options': {'queue': 'persistence'},
     },
     'password-security-reminders-daily': {
         'task': 'app.tasks.email_tasks.password_security_reminder_email_task.process_password_security_reminders',

@@ -38,6 +38,7 @@ from backend.apps.ai.utils.instruction_loader import load_base_instructions
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
+from backend.apps.ai.processing.plan_focus_routing import route_plan_focus
 from backend.apps.ai.processing.postprocessor import (
     handle_postprocessing,
     PostProcessingResult,
@@ -443,6 +444,77 @@ class ChatNotFoundError(Exception):
     """Custom exception to trigger Celery retry when a chat is not found in the database."""
     pass
 
+
+async def _update_user_task_execution_state(
+    request_data: AskSkillRequest,
+    directus_service: Optional[DirectusService],
+    *,
+    ai_execution_state: str,
+    status: Optional[str] = None,
+    blocked_reason_code: Optional[str] = None,
+    completed_at: Optional[int] = None,
+) -> None:
+    """Best-effort product task state update for AI asks launched from Tasks V1."""
+    user_task_id = getattr(request_data, "user_task_id", None)
+    if not user_task_id or not directus_service:
+        return
+
+    now = int(time.time())
+    patch: dict[str, Any] = {
+        "ai_execution_state": ai_execution_state,
+        "updated_at": now,
+    }
+    if status:
+        patch["status"] = status
+    if blocked_reason_code:
+        patch["blocked_reason_code"] = blocked_reason_code
+    if completed_at is not None:
+        patch["completed_at"] = completed_at
+
+    try:
+        await directus_service.user_task.update_task(user_task_id, request_data.user_id, patch)
+        logger.info(
+            "[Task ID: %s] Updated user task %s execution state to %s",
+            getattr(request_data, "message_id", "unknown"),
+            user_task_id,
+            ai_execution_state,
+        )
+    except Exception as exc:
+        logger.warning(
+            "Failed to update user task %s execution state to %s: %s",
+            user_task_id,
+            ai_execution_state,
+            exc,
+            exc_info=True,
+        )
+
+
+async def _update_user_task_execution_state_with_new_directus(
+    request_data: AskSkillRequest,
+    *,
+    ai_execution_state: str,
+    status: Optional[str] = None,
+    blocked_reason_code: Optional[str] = None,
+    completed_at: Optional[int] = None,
+) -> None:
+    """Update a product task from sync-wrapper failure paths with owned Directus lifecycle."""
+    if not getattr(request_data, "user_task_id", None):
+        return
+
+    directus_service = DirectusService()
+    try:
+        await _update_user_task_execution_state(
+            request_data,
+            directus_service,
+            ai_execution_state=ai_execution_state,
+            status=status,
+            blocked_reason_code=blocked_reason_code,
+            completed_at=completed_at,
+        )
+    finally:
+        await directus_service.close()
+
+
 async def _async_process_ai_skill_ask_task(
     task_id: str, # task_id is still needed
     request_data: AskSkillRequest,
@@ -494,6 +566,13 @@ async def _async_process_ai_skill_ask_task(
             encryption_service=encryption_service_instance 
         )
         logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
+
+        await _update_user_task_execution_state(
+            request_data,
+            directus_service_instance,
+            ai_execution_state="running",
+            status="in_progress",
+        )
 
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Failed to initialize services: {e}", exc_info=True)
@@ -1255,6 +1334,26 @@ async def _async_process_ai_skill_ask_task(
             logger.info(
                 f"[Task ID: {task_id}] USER_OVERRIDE: Set active_focus_id from @focus to '{requested_focus_id}' for this request."
             )
+        elif user_overrides:
+            available_focus_modes = set()
+            for app_id, app_metadata in (discovered_apps_metadata or {}).items():
+                focuses = getattr(app_metadata, "focuses", None) or []
+                for focus in focuses:
+                    focus_id = getattr(focus, "id", None)
+                    if focus_id:
+                        available_focus_modes.add(f"{app_id}-{focus_id}")
+            latest_message = user_overrides.cleaned_message
+            plan_route = route_plan_focus(
+                latest_message,
+                plan_requested=user_overrides.plan_requested,
+                available_focus_modes=available_focus_modes,
+            )
+            if plan_route.should_plan and plan_route.active_focus_id and not request_data.active_focus_id:
+                request_data.active_focus_id = plan_route.active_focus_id
+                logger.info(
+                    f"[Task ID: {task_id}] PLAN_ROUTING: Set active_focus_id='{plan_route.active_focus_id}' "
+                    f"reason={plan_route.reason}"
+                )
 
         # --- Billing preflight validation ---
         # Ensure that we have pricing info configured for the selected provider/model BEFORE we start streaming.
@@ -2056,6 +2155,8 @@ async def _async_process_ai_skill_ask_task(
                 "harmful_response": postprocessing_result.harmful_response,
                 "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,
                 "quick_tip_slugs": postprocessing_result.quick_tip_slugs,
+                "task_proposals": [proposal.model_dump() for proposal in postprocessing_result.task_proposals],
+                "task_update_proposals": [proposal.model_dump() for proposal in postprocessing_result.task_update_proposals],
             }
 
             # OPE-265: Include updated title only when the postprocessor determined a title change is needed
@@ -2186,6 +2287,22 @@ async def _async_process_ai_skill_ask_task(
         log_final_status = "partially completed (interrupted by revocation)"
 
     logger.info(f"[Task ID: {task_id}] AI skill ask task processing finished {log_final_status}.")
+
+    if getattr(request_data, "user_task_id", None):
+        if task_was_soft_limited or task_was_revoked:
+            await _update_user_task_execution_state(
+                request_data,
+                directus_service_instance,
+                ai_execution_state=final_status_message,
+            )
+        else:
+            await _update_user_task_execution_state(
+                request_data,
+                directus_service_instance,
+                ai_execution_state="completed",
+                status="done",
+                completed_at=int(time.time()),
+            )
 
     return {
         "task_id": task_id,
@@ -2331,6 +2448,15 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after soft time limit: {cleanup_err}")
+        try:
+            loop.run_until_complete(_update_user_task_execution_state_with_new_directus(
+                request_data,
+                ai_execution_state="failed",
+                status="blocked",
+                blocked_reason_code="ai_soft_time_limit",
+            ))
+        except Exception as task_update_err:
+            logger.error(f"[Task ID: {task_id}] Error updating user task after soft time limit: {task_update_err}")
         self.update_state(state='FAILURE', meta={
             'exc_type': 'SoftTimeLimitExceeded', 
             'exc_message': 'Task exceeded soft time limit in sync wrapper.',
@@ -2358,6 +2484,15 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after RuntimeError: {cleanup_err}")
+        try:
+            loop.run_until_complete(_update_user_task_execution_state_with_new_directus(
+                request_data,
+                ai_execution_state="failed",
+                status="blocked",
+                blocked_reason_code="ai_runtime_error",
+            ))
+        except Exception as task_update_err:
+            logger.error(f"[Task ID: {task_id}] Error updating user task after RuntimeError: {task_update_err}")
         self.update_state(state='FAILURE', meta={
             'exc_type': 'RuntimeErrorFromAsync', 
             'exc_message': str(e),
@@ -2384,6 +2519,15 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after exception: {cleanup_err}")
+        try:
+            loop.run_until_complete(_update_user_task_execution_state_with_new_directus(
+                request_data,
+                ai_execution_state="failed",
+                status="blocked",
+                blocked_reason_code="ai_unhandled_error",
+            ))
+        except Exception as task_update_err:
+            logger.error(f"[Task ID: {task_id}] Error updating user task after exception: {task_update_err}")
         self.update_state(state='FAILURE', meta={
             'exc_type': str(type(e).__name__), 
             'exc_message': str(e),

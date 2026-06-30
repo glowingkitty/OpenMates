@@ -390,6 +390,51 @@ export class EmbedStore {
     }
   }
 
+  async getUploadedFilesByContentRefs(
+    contentRefs: string[],
+  ): Promise<UploadedFileSearchResult[]> {
+    const uniqueRefs = Array.from(new Set(contentRefs.filter((ref) => ref.startsWith("embed:"))));
+    if (uniqueRefs.length === 0) return [];
+
+    try {
+      const transaction = await chatDB.getTransaction([EMBEDS_STORE_NAME], "readonly");
+      const store = transaction.objectStore(EMBEDS_STORE_NAME);
+      const results: UploadedFileSearchResult[] = [];
+
+      for (const contentRef of uniqueRefs) {
+        const entry = await new Promise<EmbedStoreEntry | undefined>((resolve, reject) => {
+          const request = store.get(contentRef);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        if (!entry || entry.status === "error" || entry.status === "cancelled") continue;
+
+        const embedId = this.extractEmbedIdFromContentRef(contentRef) || entry.embed_id;
+        if (!embedId) continue;
+
+        const searchableNames = await this.getSearchableFileNames({ ...entry, contentRef });
+        const title = searchableNames[0] || entry.metadata?.title || entry.file_path || embedId;
+        const nodeType = this.inferNodeTypeFromFileName(String(title), entry.type || "file");
+        results.push({
+          embedId,
+          contentRef,
+          title: String(title),
+          subtitle: this.getFileSubtitle(nodeType),
+          type: entry.type || "file",
+          nodeType,
+          iconName: this.getFileIconName(nodeType),
+          createdAt: entry.createdAt || 0,
+          updatedAt: entry.updatedAt || entry.createdAt || 0,
+        });
+      }
+
+      return results.sort((a, b) => (b.updatedAt || b.createdAt) - (a.updatedAt || a.createdAt));
+    } catch (error) {
+      console.warn("[EmbedStore] Failed to load uploaded files by content refs:", error);
+      return [];
+    }
+  }
+
   private normalizeEmbedId(embedId: string): string {
     return embedId.startsWith("embed:")
       ? embedId.slice("embed:".length)

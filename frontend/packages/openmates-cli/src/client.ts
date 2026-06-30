@@ -270,6 +270,50 @@ export interface WorkflowNodeRun {
   credit_cost?: number;
 }
 
+export type UserTaskStatus = "backlog" | "todo" | "in_progress" | "blocked" | "done";
+export type UserTaskAssigneeType = "ai" | "user";
+
+export interface UserTaskRecord {
+  task_id: string;
+  encrypted_task_key?: string | null;
+  encrypted_title: string;
+  encrypted_description?: string | null;
+  encrypted_tags?: string | null;
+  encrypted_activity_summary?: string | null;
+  encrypted_latest_instruction?: string | null;
+  status: UserTaskStatus;
+  assignee_type: UserTaskAssigneeType;
+  assignee_hash?: string | null;
+  primary_chat_id?: string | null;
+  linked_project_ids?: string[] | null;
+  parent_task_id?: string | null;
+  due_at?: number | null;
+  priority?: number;
+  position?: number;
+  version?: number;
+  created_at?: number;
+  updated_at?: number;
+  started_at?: number | null;
+  completed_at?: number | null;
+  blocked_reason_code?: string | null;
+  ai_execution_state?: string | null;
+}
+
+export type UserTaskCreateInput = Omit<UserTaskRecord, "version" | "started_at" | "completed_at" | "blocked_reason_code" | "ai_execution_state"> & {
+  version?: number;
+};
+
+export type UserTaskUpdateInput = Partial<Omit<UserTaskRecord, "task_id" | "created_at">> & {
+  version?: number;
+};
+
+export type UserTaskStartAIInput = UserTaskUpdateInput & {
+  plaintext_title?: string;
+  plaintext_description?: string;
+  plaintext_latest_instruction?: string;
+  plaintext_chat_title?: string;
+};
+
 export interface WorkflowRunDetail {
   id: string;
   workflow_id: string;
@@ -4396,6 +4440,66 @@ export class OpenMatesClient {
       throw new Error(`Workflow ${action} failed with HTTP ${response.status}`);
     }
     return response.data.workflow;
+  }
+
+  // -------------------------------------------------------------------------
+  // User tasks
+  // -------------------------------------------------------------------------
+
+  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string } = {}): Promise<UserTaskRecord[]> {
+    this.requireSession();
+    const params = new URLSearchParams();
+    if (filters.status) params.set("status", filters.status);
+    if (filters.chatId) params.set("chat_id", filters.chatId);
+    if (filters.projectId) params.set("project_id", filters.projectId);
+    const query = params.toString();
+    const response = await this.http.get<{ tasks?: UserTaskRecord[] }>(
+      `/v1/user-tasks${query ? `?${query}` : ""}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`User task list failed with HTTP ${response.status}`);
+    }
+    return response.data.tasks ?? [];
+  }
+
+  async createUserTask(input: UserTaskCreateInput): Promise<UserTaskRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ task?: UserTaskRecord }>(
+      "/v1/user-tasks",
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.task) {
+      throw new Error(`User task create failed with HTTP ${response.status}`);
+    }
+    return response.data.task;
+  }
+
+  async updateUserTask(taskId: string, input: UserTaskUpdateInput): Promise<UserTaskRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ task?: UserTaskRecord }>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}`,
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.task) {
+      throw new Error(`User task update failed with HTTP ${response.status}`);
+    }
+    return response.data.task;
+  }
+
+  async startUserTaskWithAI(taskId: string, input: UserTaskStartAIInput = {}): Promise<UserTaskRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ task?: UserTaskRecord }>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}/start-ai`,
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.task) {
+      throw new Error(`User task AI start failed with HTTP ${response.status}`);
+    }
+    return response.data.task;
   }
 
   // -------------------------------------------------------------------------

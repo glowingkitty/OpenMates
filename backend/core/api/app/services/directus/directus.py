@@ -30,6 +30,7 @@ from backend.core.api.app.services.directus.usage import UsageMethods # Correcte
 from backend.core.api.app.services.directus.analytics_methods import AnalyticsMethods
 from backend.core.api.app.services.directus.embed_methods import EmbedMethods # Import EmbedMethods class
 from backend.core.api.app.services.directus.project_methods import ProjectMethods
+from backend.core.api.app.services.directus.user_task_methods import UserTaskMethods
 from backend.core.api.app.services.directus.admin_methods import AdminMethods # Import AdminMethods class
 
 from backend.core.api.app.services.directus.health_event_methods import HealthEventMethods # Import HealthEventMethods class
@@ -98,6 +99,7 @@ class DirectusService:
         self.chat = ChatMethods(self) # Initialize ChatMethods
         self.embed = EmbedMethods(self) # Initialize EmbedMethods
         self.project = ProjectMethods(self) # Initialize ProjectMethods
+        self.user_task = UserTaskMethods(self) # Initialize Tasks V1 user-facing task methods
         self.admin = AdminMethods(self) # Initialize AdminMethods
         self.health_event = HealthEventMethods(self) # Initialize HealthEventMethods for historical health tracking
 
