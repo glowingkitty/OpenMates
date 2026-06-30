@@ -81,6 +81,10 @@ test.describe('Projects remote sources', () => {
     await page.getByTestId('icon-button-close').click();
 
     await page.goto('/');
+    const newChatButton = page.getByTestId('new-chat-button');
+    if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await newChatButton.click();
+    }
     await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
     const messageEditor = page.getByTestId('message-editor');
     const editableMessage = messageEditor.locator('[contenteditable="true"]');
