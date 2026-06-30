@@ -881,6 +881,19 @@ tests:
           - Per-Project settings route displays the selected Project name and connected source status.
         remaining:
           - Virtual remote preview/fullscreen rendering, upload-selected file flow, Project/folder/file mentions, permission prompt, persisted settings write-mode controls, message-local remote diffs, and automated-check first-use prompt.
+      - status: partial_passed
+        timestamp: "2026-06-30"
+        command: "python3 scripts/tests.py run -- --spec projects-remote-sources.spec.ts"
+        run_id: "28461843731"
+        commit: "d0e0cd6"
+        result: "1 passed, 0 failed"
+        covered:
+          - Settings > Projects loads persisted Project settings through GET /v1/projects/{project_id}/settings.
+          - Per-Project settings can save the V1 supported Auto approve safe writes mode and display the saved write policy.
+        notes:
+          - Dev API was restarted after deploy so the new GET settings route returned 401 without auth instead of 405.
+        remaining:
+          - Virtual remote preview/fullscreen rendering, upload-selected file flow, Project/folder/file mentions, permission prompt, message-local remote diffs, and automated-check first-use prompt.
 
 implementation_plan:
   existing_patterns:
