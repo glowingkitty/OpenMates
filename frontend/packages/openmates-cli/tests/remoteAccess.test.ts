@@ -10,10 +10,19 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { chmodSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { classifyProjectFileRisk } from "../src/projectFileRisk.ts";
-import { resolveRemoteCachePath, searchRemoteSource } from "../src/remoteAccess.ts";
+import {
+  listRemoteAccessSources,
+  resolveRemoteCachePath,
+  runRgCommand,
+  searchRemoteSource,
+  searchStoredRemoteAccessSource,
+  startRemoteAccessSource,
+} from "../src/remoteAccess.ts";
 
 describe("Project remote-access bridge primitives", () => {
   it("stores preview cache under ~/.openmates/remote-cache/<source-id> by default", () => {
@@ -50,9 +59,123 @@ describe("Project remote-access bridge primitives", () => {
     });
 
     assert.equal(seen[0]?.cwd, "/workspace/repo");
-    assert.deepEqual(seen[0]?.args, ["--json", "--line-number", "--", "Project", "."]);
+    const args = seen[0]?.args ?? [];
+    assert.deepEqual(args.slice(0, 2), ["--json", "--line-number"]);
+    assert.ok(args.includes("!.env"));
+    assert.ok(args.includes("!**/*.png"));
+    assert.deepEqual(args.slice(-3), ["--", "Project", "."]);
     assert.deepEqual(result.matches.map((match) => match.path), ["src/App.svelte", "src/Second.svelte"]);
     assert.equal(result.omitted, 1);
     assert.equal(result.excluded, 1);
+  });
+
+  it("persists local source metadata and searches stored sources", async () => {
+    const home = join(tmpdir(), `openmates-remote-access-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const repo = join(home, "repo");
+    mkdirSync(repo, { recursive: true });
+    try {
+      const source = startRemoteAccessSource({
+        sourceId: "source-1",
+        projectId: "project-1",
+        rootPath: repo,
+        sourceType: "local_git_repository",
+        displayName: "Local repo",
+        homeDirectory: home,
+      });
+
+      assert.equal(source.cachePath, join(home, ".openmates", "remote-cache", "source-1"));
+      assert.deepEqual(listRemoteAccessSources(home).map((entry) => entry.sourceId), ["source-1"]);
+
+      const result = await searchStoredRemoteAccessSource({
+        sourceId: "source-1",
+        query: "Project",
+        homeDirectory: home,
+        runRg: async () => JSON.stringify({ type: "match", data: { path: { text: "src/App.ts" }, line_number: 2, lines: { text: "Project" } } }),
+      });
+
+      assert.equal(result.matches[0]?.path, "src/App.ts");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("fails visibly for missing source roots and corrupt local metadata", () => {
+    const home = join(tmpdir(), `openmates-remote-access-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(join(home, ".openmates"), { recursive: true });
+    try {
+      assert.throws(
+        () => startRemoteAccessSource({ sourceId: "source-1", rootPath: join(home, "missing"), homeDirectory: home }),
+        /does not exist or is not a directory/,
+      );
+      assert.throws(() => resolveRemoteCachePath("../escape", home), /Remote source ID/);
+      assert.throws(
+        () => startRemoteAccessSource({ sourceId: "bad/source", rootPath: home, homeDirectory: home }),
+        /Remote source ID/,
+      );
+      writeFileSync(join(home, ".openmates", "remote-sources.json"), "not json\n");
+      assert.throws(() => listRemoteAccessSources(home), /Failed to read remote source store/);
+      writeFileSync(join(home, ".openmates", "remote-sources.json"), `${JSON.stringify({ sources: [{}] })}\n`);
+      assert.throws(() => listRemoteAccessSources(home), /Remote source record 0 is invalid/);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("treats rg exit code 1 as an empty result instead of a command failure", async () => {
+    const home = join(tmpdir(), `openmates-remote-access-rg-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const repo = join(home, "repo");
+    const bin = join(home, "bin");
+    mkdirSync(repo, { recursive: true });
+    mkdirSync(bin, { recursive: true });
+    const fakeRg = join(bin, "rg");
+    writeFileSync(fakeRg, "#!/usr/bin/env node\nprocess.exit(1);\n");
+    chmodSync(fakeRg, 0o755);
+    const originalPath = process.env.PATH;
+    process.env.PATH = `${bin}:${originalPath ?? ""}`;
+    try {
+      assert.equal(await runRgCommand(["missing"], repo), "");
+    } finally {
+      process.env.PATH = originalPath;
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("stops real rg output after the requested match cap", async () => {
+    const home = join(tmpdir(), `openmates-remote-access-rg-cap-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const repo = join(home, "repo");
+    const bin = join(home, "bin");
+    mkdirSync(repo, { recursive: true });
+    mkdirSync(bin, { recursive: true });
+    const fakeRg = join(bin, "rg");
+    writeFileSync(
+      fakeRg,
+      `#!/usr/bin/env node
+let index = 0;
+const timer = setInterval(() => {
+  index += 1;
+  console.log(JSON.stringify({ type: "match", data: { path: { text: "src/" + index + ".ts" }, line_number: index, lines: { text: "Project" } } }));
+  if (index >= 10) {
+    clearInterval(timer);
+  }
+}, 10);
+`,
+    );
+    chmodSync(fakeRg, 0o755);
+    const originalPath = process.env.PATH;
+    process.env.PATH = `${bin}:${originalPath ?? ""}`;
+    try {
+      const lines = (await runRgCommand(["Project"], repo, 2)).split("\n").filter(Boolean);
+      assert.equal(lines.length, 2);
+    } finally {
+      process.env.PATH = originalPath;
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects invalid search limits so caps cannot be bypassed", async () => {
+    await assert.rejects(
+      () => searchRemoteSource({ query: "Project", sourceRoot: "/workspace/repo", maxResults: Number.NaN, runRg: async () => "" }),
+      /positive integer/,
+    );
   });
 });

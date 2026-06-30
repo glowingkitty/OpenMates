@@ -11,7 +11,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -279,6 +279,68 @@ describe("benchmark command", () => {
     ]);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /--confirm-spend-credits/);
+  });
+});
+
+describe("remote-access command", () => {
+  it("is listed in global help and prints contextual help", () => {
+    assert.match(runCli(["help"]), /openmates remote-access \[--help\]/);
+    const output = runCli(["remote-access", "--help"]);
+    assert.match(output, /remote-access start --path <folder>/);
+    assert.match(output, /remote-access search --source <id> <query>/);
+  });
+
+  it("starts, lists, and searches a local source without network access", () => {
+    const tempHome = join(tmpdir(), `openmates-cli-remote-access-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const repo = join(tempHome, "repo");
+    const bin = join(tempHome, "bin");
+    mkdirSync(repo, { recursive: true });
+    mkdirSync(bin, { recursive: true });
+    const fakeRg = join(bin, "rg");
+    writeFileSync(
+      fakeRg,
+      `#!/usr/bin/env node\nconsole.log(${JSON.stringify(JSON.stringify({ type: "match", data: { path: { text: "src/App.ts" }, line_number: 7, lines: { text: "Project source" } } }))});\n`,
+    );
+    chmodSync(fakeRg, 0o755);
+    const env = { HOME: tempHome, USERPROFILE: tempHome, PATH: `${bin}:${process.env.PATH ?? ""}` };
+
+    try {
+      const missingEncryptedMetadata = spawnSync(
+        "node",
+        ["dist/cli.js", "remote-access", "start", "--path", repo, "--source-id", "source-missing", "--project", "project-1"],
+        { cwd: PACKAGE_ROOT, encoding: "utf-8", env: { ...process.env, TERM: "dumb", ...env }, timeout: 15_000 },
+      );
+      assert.notEqual(missingEncryptedMetadata.status, 0);
+      assert.match(missingEncryptedMetadata.stderr, /requires --local-only or both --encrypted-display-name and --encrypted-metadata/);
+
+      const startOutput = runCli(
+        ["remote-access", "start", "--path", repo, "--source-id", "source-1", "--project", "project-1", "--local-only", "--json"],
+        env,
+      );
+      const started = JSON.parse(startOutput) as { source: { sourceId: string; rootPath: string; cachePath: string } };
+      assert.equal(started.source.sourceId, "source-1");
+      assert.equal(started.source.rootPath, repo);
+      assert.equal(started.source.cachePath, join(tempHome, ".openmates", "remote-cache", "source-1"));
+
+      const statusOutput = runCli(["remote-access", "status", "--json"], env);
+      const status = JSON.parse(statusOutput) as { sources: Array<{ sourceId: string; status: string }> };
+      assert.deepEqual(status.sources.map((source) => source.sourceId), ["source-1"]);
+      assert.equal(status.sources[0]?.status, "connected");
+
+      const searchOutput = runCli(["remote-access", "search", "--source", "source-1", "Project", "--json"], env);
+      const search = JSON.parse(searchOutput) as { matches: Array<{ path: string; line: number; snippet: string }> };
+      assert.deepEqual(search.matches, [{ path: "src/App.ts", line: 7, snippet: "Project source" }]);
+
+      const invalidLimit = spawnSync(
+        "node",
+        ["dist/cli.js", "remote-access", "search", "--source", "source-1", "Project", "--limit", "NaN"],
+        { cwd: PACKAGE_ROOT, encoding: "utf-8", env: { ...process.env, TERM: "dumb", ...env }, timeout: 15_000 },
+      );
+      assert.notEqual(invalidLimit.status, 0);
+      assert.match(invalidLimit.stderr, /--limit must be a positive integer/);
+    } finally {
+      rmSync(tempHome, { recursive: true, force: true });
+    }
   });
 });
 
@@ -2255,6 +2317,7 @@ describe("documented CLI command reference", () => {
         "benchmark",
         "embeds",
         "mentions",
+        "remote-access",
         "inspirations",
         "newchatsuggestions",
         "server",
@@ -2275,7 +2338,7 @@ describe("documented CLI command reference", () => {
     const readme = readRepoText("frontend/packages/openmates-cli/README.md");
     const help = runCli(["--help"]);
     docAssert("cli-npm-readme-onboarding-matches-command-surface", () => {
-      for (const command of ["login", "signup", "chats", "apps", "settings", "benchmark", "server", "docs"]) {
+      for (const command of ["login", "signup", "chats", "apps", "settings", "benchmark", "server", "docs", "remote-access"]) {
         assert.ok(help.includes(command), `expected help to mention ${command}`);
         assert.ok(readme.includes(`openmates ${command}`), `expected README to include openmates ${command}`);
       }

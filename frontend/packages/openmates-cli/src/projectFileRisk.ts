@@ -65,6 +65,8 @@ const BUILT_IN_PATTERNS: Array<{ reason: string; patterns: string[] }> = [
   { reason: "migration_schema_or_ci_file", patterns: MIGRATION_SCHEMA_CI_PATTERNS },
 ];
 
+export const PROJECT_HIGH_RISK_GLOBS = BUILT_IN_PATTERNS.flatMap((group) => group.patterns);
+
 export function classifyProjectFileRisk(path: string, userProtectedPatterns: string[] = []): ProjectFileRiskResult {
   const normalizedPath = normalizePath(path);
   const reasons: string[] = [];

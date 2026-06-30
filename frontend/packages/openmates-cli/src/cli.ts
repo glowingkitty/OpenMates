@@ -40,6 +40,7 @@ import { createInterface } from "node:readline/promises";
 import { realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname } from "node:path";
+import { randomUUID } from "node:crypto";
 import WebSocket from "ws";
 
 import {
@@ -77,6 +78,13 @@ import {
 import { buildAssistantFeedbackDecision } from "./feedback.js";
 import { handleBenchmark, printBenchmarkHelp } from "./benchmark.js";
 import { defaultModeForStreams, printProgrammaticQuickstart, runTui } from "./tui.js";
+import {
+  listRemoteAccessSources,
+  runRgCommand,
+  searchStoredRemoteAccessSource,
+  startRemoteAccessSource,
+  type RemoteAccessSourceRecord,
+} from "./remoteAccess.js";
 
 type SignupRequiredResult = {
   status: "signup_required";
@@ -200,6 +208,10 @@ async function main(): Promise<void> {
       printBenchmarkHelp();
       return;
     }
+    if (command === "remote-access") {
+      printRemoteAccessHelp();
+      return;
+    }
     printHelp();
     return;
   }
@@ -307,7 +319,138 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "remote-access") {
+    await handleRemoteAccess(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
   throw new Error(`Unknown command '${command}'. Run 'openmates help'.`);
+}
+
+async function handleRemoteAccess(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printRemoteAccessHelp();
+    return;
+  }
+
+  if (subcommand === "start") {
+    const rootPath = typeof flags.path === "string" ? flags.path : rest[0];
+    if (!rootPath) {
+      throw new Error("Missing source path. Usage: openmates remote-access start --path <folder>");
+    }
+    const sourceId = typeof flags["source-id"] === "string" ? flags["source-id"] : randomUUID();
+    const projectId = typeof flags.project === "string" ? flags.project : undefined;
+    validateRemoteSourceRegistrationFlags(projectId, flags);
+    const sourceType = parseRemoteAccessSourceType(flags.type);
+    const displayName = typeof flags.name === "string" ? flags.name : sourceId;
+    const source = startRemoteAccessSource({ sourceId, projectId, rootPath, sourceType, displayName });
+    await maybeRegisterRemoteSource(client, source, flags);
+    if (flags.json === true) {
+      printJson({ source });
+    } else {
+      console.log(`Remote source attached: ${source.sourceId}`);
+      console.log(`Root: ${source.rootPath}`);
+      console.log(`Cache: ${source.cachePath}`);
+    }
+    return;
+  }
+
+  if (subcommand === "status" || subcommand === "list") {
+    const sources = listRemoteAccessSources();
+    if (flags.json === true) {
+      printJson({ sources });
+    } else if (sources.length === 0) {
+      console.log("No remote sources attached.");
+    } else {
+      for (const source of sources) {
+        console.log(`${source.sourceId}\t${source.status}\t${source.rootPath}`);
+      }
+    }
+    return;
+  }
+
+  if (subcommand === "search") {
+    const sourceId = typeof flags.source === "string" ? flags.source : rest[0];
+    const query = typeof flags.source === "string" ? rest.join(" ").trim() : rest.slice(1).join(" ").trim();
+    if (!sourceId || !query) {
+      throw new Error("Missing source or query. Usage: openmates remote-access search --source <id> <query>");
+    }
+    const maxResults = parsePositiveIntegerFlag(flags.limit, "--limit");
+    const result = await searchStoredRemoteAccessSource({ sourceId, query, maxResults, runRg: runRgCommand });
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      for (const match of result.matches) {
+        console.log(`${match.path}:${match.line}: ${match.snippet.trim()}`);
+      }
+      if (result.excluded > 0 || result.omitted > 0) {
+        console.log(`Excluded ${result.excluded}, omitted ${result.omitted}.`);
+      }
+    }
+    return;
+  }
+
+  throw new Error(`Unknown remote-access command '${subcommand}'. Run 'openmates remote-access --help'.`);
+}
+
+function parsePositiveIntegerFlag(value: string | boolean | undefined, flagName: string): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") {
+    throw new Error(`${flagName} requires a positive integer value`);
+  }
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0 || String(parsed) !== value) {
+    throw new Error(`${flagName} must be a positive integer`);
+  }
+  return parsed;
+}
+
+function parseRemoteAccessSourceType(value: string | boolean | undefined): RemoteAccessSourceRecord["sourceType"] {
+  if (value === undefined) return "local_folder";
+  if (value === "local_folder" || value === "local_git_repository") {
+    return value;
+  }
+  throw new Error("--type must be one of local_folder or local_git_repository for the local remote-access bridge");
+}
+
+async function maybeRegisterRemoteSource(
+  client: OpenMatesClient,
+  source: RemoteAccessSourceRecord,
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!source.projectId || flags["local-only"] === true) return;
+  const encryptedDisplayName = flags["encrypted-display-name"];
+  const encryptedMetadata = flags["encrypted-metadata"];
+  if (typeof encryptedDisplayName !== "string" || typeof encryptedMetadata !== "string") {
+    throw new Error("Missing encrypted Project source metadata after registration validation");
+  }
+  const timestamp = Math.floor(Date.now() / 1000);
+  await client.createProjectSource(source.projectId, {
+    source_id: source.sourceId,
+    source_type: source.sourceType,
+    encrypted_display_name: encryptedDisplayName,
+    encrypted_metadata: encryptedMetadata,
+    capabilities: ["read", "search", "import"],
+    status: source.status,
+    created_at: timestamp,
+    updated_at: timestamp,
+  });
+}
+
+function validateRemoteSourceRegistrationFlags(
+  projectId: string | undefined,
+  flags: Record<string, string | boolean>,
+): void {
+  if (!projectId || flags["local-only"] === true) return;
+  if (typeof flags["encrypted-display-name"] === "string" && typeof flags["encrypted-metadata"] === "string") return;
+  throw new Error(
+    "remote-access start with --project requires --local-only or both --encrypted-display-name and --encrypted-metadata",
+  );
 }
 
 function shouldInitializeRedactor(
@@ -6164,6 +6307,7 @@ Commands:
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
   openmates feedback [--help]                Assistant response feedback helpers
   openmates benchmark [--help]               Run real model benchmarks with usage tagged as benchmark spend
+  openmates remote-access [--help]           Attach and search local Project sources
   openmates server [--help]                   Server management (install, start, stop, ...)
   openmates docs [--help]                     Browse, search, and download documentation
   openmates e2e provision-auth-accounts       Provision local E2E auth-account artifacts
@@ -6173,6 +6317,22 @@ Flags:
   --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
   --api-key <key> Optional API key override (or set OPENMATES_API_KEY)
   --help          Show contextual help for any command`);
+}
+
+function printRemoteAccessHelp(): void {
+  console.log(`Remote access commands:
+  openmates remote-access start --path <folder> [--source-id <id>] [--project <id>] [--type <type>] [--local-only] [--json]
+  openmates remote-access status [--json]
+  openmates remote-access search --source <id> <query> [--limit <n>] [--json]
+
+Source types:
+  local_folder, local_git_repository
+
+Security:
+  Source metadata is stored locally under ~/.openmates/remote-sources.json.
+  Preview cache defaults to ~/.openmates/remote-cache/<source-id>.
+  Search is read-only, runs rg inside the approved source root, and excludes
+  high-risk, binary, and out-of-root paths by default.`);
 }
 
 function printConnectedAccountsHelp(): void {

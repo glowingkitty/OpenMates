@@ -31,6 +31,7 @@ openmates settings account export data --json
 openmates learning-mode status --json
 openmates settings memories list --json
 openmates docs list
+openmates remote-access start --path ./my-repo --source-id repo-1 --local-only
 openmates benchmark model google/gemini-3.5-flash --dry-run --json
 openmates server install
 ```
@@ -53,6 +54,8 @@ After `openmates server install`, fresh CLI commands default to that self-hosted
 ## Safety Limits
 
 Predefined settings commands are supported; raw `settings get/post/patch/delete` passthrough is intentionally unavailable. High-risk or browser-only flows such as passkey management, password changes, API key creation, device approvals, and card checkout stay in the web app. The code-level guard is `BLOCKED_SETTINGS_MUTATE_PATHS` in `src/client.ts`.
+
+`openmates remote-access` is a local Project source bridge. It stores source metadata under `~/.openmates/remote-sources.json`, searches with `rg` inside the approved source root, and does not upload repository files by default.
 
 ## SDK
 

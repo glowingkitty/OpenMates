@@ -81,6 +81,7 @@ In a normal terminal, plain `openmates` enters the full-screen chat UI. Use `/ex
 | `settings`, `learning-mode` | Predefined settings commands, Learning Mode controls, invoices, notifications, mates, newsletter, memories | [settings.md](./settings.md) |
 | `benchmark` | Run real product-path model benchmarks, comparisons, and judged case suites | [benchmarks.md](./benchmarks.md) |
 | `embeds`, `mentions` | View embeds, create share links, search mentions | [embeds-and-sharing.md](./embeds-and-sharing.md) |
+| `remote-access` | Attach and search local Project sources without uploading repository files | [remote-access.md](./remote-access.md) |
 | `inspirations`, `newchatsuggestions` | Daily inspirations and personalized suggestions | [chats.md](./chats.md) |
 | `docs` | Browse, search, show, and download documentation | [docs.md](./docs.md) |
 | `server` | Install, start, stop, update a self-hosted instance | [server-management.md](./server-management.md) |
@@ -120,6 +121,7 @@ All files are created with strict permissions (`0o600` owner read/write only, di
 - [Settings](./settings.md) -- account, billing, notifications, mates, newsletter, and memories management
 - [Benchmark Commands](./benchmarks.md) -- model benchmark suites, comparison mode, and judge scoring
 - [Embeds & Sharing](./embeds-and-sharing.md) -- embed viewing and share links
+- [Remote Access](./remote-access.md) -- local Project source bridge commands
 - [Docs Commands](./docs.md) -- browsing and downloading documentation from the terminal
 - [Server Management](./server-management.md) -- self-hosted server administration
 - [CLI Standards](../../contributing/standards/cli.md) -- development standards for CLI contributors

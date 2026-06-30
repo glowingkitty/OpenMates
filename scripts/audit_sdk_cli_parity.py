@@ -29,6 +29,7 @@ EXCLUSION_REASONS = {
     "cli-terminal-tui": "Terminal rendering is CLI-only.",
     "server-ops": "Self-host server operations stay CLI-only.",
     "e2e-provisioning": "Local test-account artifact tooling stays CLI-only.",
+    "local-remote-access": "Local Project source bridge commands operate on user-approved local paths and stay CLI-only.",
     "browser-high-risk": "Browser-only or high-risk account/security flow.",
 }
 
@@ -51,6 +52,7 @@ TOP_LEVEL_CLASSIFICATION = {
     "feedback": "feedback.assistantResponse / feedback.assistant_response",
     "benchmark": "benchmark.*",
     "workflows": "workflows.*",
+    "remote-access": "local-remote-access",
     "server": "server-ops",
     "docs": "docs.*",
     "e2e": "e2e-provisioning",

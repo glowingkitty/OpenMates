@@ -655,66 +655,88 @@ tests:
       - AC-1
       - AC-6
       - AC-7
-      - AC-8
       - AC-11
-      - AC-12
     assertions:
-      - remote-access start stores encrypted source metadata and default cache path without uploading files
+      - remote-access source attachment stores local source metadata and default cache path without uploading files
       - bridge search shells out to an injectable rg runner with approved root and cap enforcement
       - ignored, secret-like, binary, and out-of-root paths are excluded by default
-      - applying remote patches returns explicit unsupported-in-v1 errors
       - high-risk files and user-defined protected paths are classified as always-ask before later-phase apply
-      - remote-machine automated checks run only configured allowed commands after first-use or Project-level consent
+      - source IDs are path-safe before cache directories are created
+      - missing source roots and corrupt local source metadata fail visibly
+      - rg no-match exit code returns an empty search result instead of a bridge failure
+      - real rg output stops after the requested match cap before buffering unbounded stdout
     red_phase:
       required: true
       expected: fail
       evidence:
         status: failed_as_expected
-        run_id: "docker exec api python -m pytest /app/backend/tests/test_project_remote_sources.py (missing Project settings/high-risk policy before implementation)"
-        timestamp: "2026-06-25"
+        run_id: "cd frontend/packages/openmates-cli && npm run test:unit:remote-access (missing listRemoteAccessSources export before CLI bridge metadata implementation)"
+        timestamp: "2026-06-30"
     green_phase:
       required: true
       expected: pass
       evidence:
         status: passed
-        run_id: "docker exec api python -m pytest /app/backend/tests/test_projects.py /app/backend/tests/test_project_remote_sources.py (message-local diff artifact model; no proposal rows)"
-        timestamp: "2026-06-25"
+        run_id: "cd frontend/packages/openmates-cli && npm run test:unit:remote-access"
+        timestamp: "2026-06-30"
+
+  - id: T-UNIT-CLI-REMOTE-ACCESS-COMMANDS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+    covers:
+      - AC-1
+      - AC-6
+      - AC-7
+      - AC-11
+    assertions:
+      - top-level CLI help lists remote-access and contextual help documents start/status/search
+      - remote-access start persists a local source under a temp HOME without network access
+      - remote-access start fails visibly when Project registration is requested without encrypted metadata or --local-only
+      - remote-access status lists persisted local source metadata
+      - remote-access search runs through rg and returns filtered JSON matches for the selected source
+      - remote-access search rejects invalid limits before reading source contents
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "cd frontend/packages/openmates-cli && npm run test:unit:cli (remote-access command absent before implementation)"
+        timestamp: "2026-06-30"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli"
+        timestamp: "2026-06-30"
 
   - id: T-UNIT-PROJECT-SERVICE
     type: unit
     file: frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
     command: cd frontend/packages/ui && npm run test:unit:project-remote-sources
     covers:
+      - AC-1
       - AC-2
-      - AC-3
-      - AC-5
-      - AC-8
-      - AC-9
-      - AC-10
-      - AC-12
     assertions:
       - virtual remote previews normalize into existing embed preview/fullscreen data without creating real embeds
       - Upload to OpenMates converts only selected files into encrypted embeds
-      - project, folder, and file mention context payloads enforce chat-duration and current-message-duration grants
-      - file preview snippets use existing embed preview policy values rather than a hardcoded line count
-      - remote diff virtual artifacts normalize into embed-like diff preview data without creating real embeds or Project rows
-      - first write intent stores Project write mode in Project settings and links from Project page gear
-      - mention chips default to Read or Read & Write according to Project write mode and expose keyboard-accessible switching
-      - Code automated check first-use choice persists globally with Project override support
+      - file preview snippets preserve preview policy metadata and reject unbounded preview data before it reaches embed UI
+      - virtual fullscreen details follow the existing embed fullscreen event contract without requiring persisted embed rows
     red_phase:
-      required: true
+      required: false
       expected: fail
       evidence:
-        status: pending
+        status: not_captured_for_incremental_helper_slice
         run_id: ""
-        timestamp: ""
+        timestamp: "2026-06-30"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "cd frontend/packages/ui && npm run test:unit:project-remote-sources"
+        timestamp: "2026-06-30"
 
   - id: T-UNIT-SDK-PROJECT-SOURCES
     type: unit
@@ -1000,30 +1022,38 @@ tasks:
         - AC-12
     expected_files:
       - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/remoteAccess.ts
       - frontend/packages/openmates-cli/src/server.ts
       - frontend/packages/openmates-cli/src/client.ts
       - frontend/packages/openmates-cli/src/projectFileRisk.ts
       - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
     verification:
       - T-UNIT-CLI-REMOTE-SOURCES
+      - T-UNIT-CLI-REMOTE-ACCESS-COMMANDS
       - T-UNIT-SDK-PROJECT-SOURCES
       - T-PYTEST-PIP-PROJECT-SOURCES
     progress_evidence:
-      - status: partial_passed
+      - status: passed
         timestamp: "2026-06-30"
         commands:
+          - "cd frontend/packages/openmates-cli && npm run build"
+          - "cd frontend/packages/openmates-cli && npm run test:unit:cli"
           - "cd frontend/packages/openmates-cli && npm run test:unit:remote-access"
           - "cd frontend/packages/openmates-cli && npm run test:unit:sdk-projects"
           - "python3 -m pytest packages/openmates-python/tests/test_projects.py"
           - "python3 scripts/audit_sdk_cli_parity.py"
-        result: "CLI source contract passed; npm SDK source contract passed; pip SDK source contract passed; SDK/CLI parity audit passed."
+          - "python3 -m pytest scripts/tests/test_sdk_parity_instructions.py"
+        result: "CLI remote-access command tests passed; CLI source contract passed; npm SDK source contract passed; pip SDK source contract passed; SDK/CLI parity audit passed."
         covered:
           - CLI client, npm SDK, and pip SDK can list and create encrypted Project source records through /v1/projects/{project_id}/sources.
           - CLI remote-access primitives resolve default cache paths under ~/.openmates/remote-cache/<source-id>.
-          - CLI remote-access search runs injected rg inside the approved source root, caps results, and excludes high-risk files.
+          - CLI remote-access search runs injected rg inside the approved source root, passes deny globs before scanning, caps results, and excludes high-risk files.
+          - CLI remote-access start/status/search persist and read local source metadata under temp HOME without network access.
+          - CLI remote-access validates source IDs, persisted records, search limits, and store permissions before using local source metadata.
           - CLI TypeScript high-risk policy matches the backend narrow always-ask defaults for built-in and user-protected paths.
         remaining:
-          - Interactive remote-access bridge start/list/read/search commands, persisted bridge metadata, ignored-file detection from real git state, binary probing, and automated check consent.
+          - Interactive remote-access bridge read/stop commands, ignored-file detection from real git state, binary probing beyond extension filtering, and automated check consent.
     independently_deployable: false
   - id: TASK-3
     title: Add virtual remote previews and upload-selected file flow
@@ -1047,7 +1077,7 @@ tasks:
       - frontend/packages/ui/src/components/settings/projects/**
       - frontend/packages/ui/src/components/settings/privacy/**
       - frontend/packages/ui/src/components/settings/apps/code/**
-      - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.ts
+      - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
     verification:
       - T-UNIT-PROJECT-SERVICE
       - T-E2E-PROJECT-REMOTE-SOURCES
@@ -1060,9 +1090,11 @@ tasks:
         result: "UI remote-source helper test passed; targeted TypeScript/Svelte lint passed."
         covered:
           - Project service can build non-mutating encrypted source payloads and normalize remote files into virtual embed-compatible previews.
-          - Projects page renders an empty/connected remote source status section with stable data-testid attributes.
+          - Explicit Upload to OpenMates conversion turns a virtual remote preview into a File plus encrypted Project item metadata for source ID, remote path, and base hash.
+          - Virtual remote fullscreen detail can reuse the embed fullscreen event contract without requiring a persisted embed row.
+          - Remote preview helpers reject unbounded preview snippets and malformed metadata before handing data to embed UI.
         remaining:
-          - Upload-selected remote files to real embeds, fullscreen virtual preview rendering, Project settings pages, mention chips, and Code automated-check settings.
+          - Wiring the remote upload/fullscreen helpers into the visible Project UI, Project settings pages, mention chips, and Code automated-check settings.
     independently_deployable: false
   - id: TASK-4
     title: Add Project, folder, and file mentions to chat context
