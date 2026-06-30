@@ -76,8 +76,20 @@ test.describe('Projects remote sources', () => {
     await expect(projectSettings).toContainText('Project write policy saved.');
     await expect(projectSettings).toContainText('Auto approve safe writes');
 
-    page.once('dialog', (dialog) => dialog.accept());
     await page.getByTestId('icon-button-close').click();
+
+    await page.getByTestId('message-editor').click();
+    await page.keyboard.type('@E2E');
+    await expect(page.getByTestId('mention-dropdown')).toBeVisible();
+    await page.getByTestId('mention-result').filter({ hasText: projectName }).first().click();
+
+    const editor = page.getByTestId('message-editor');
+    await expect(editor.locator('[data-mention-type="project"]')).toBeVisible();
+    await expect(editor.getByTestId('project-access-chip')).toContainText('Read & Write');
+    await editor.getByTestId('project-access-chip').press('Enter');
+    await expect(editor.getByTestId('project-access-chip')).toContainText('Read');
+
+    page.once('dialog', (dialog) => dialog.accept());
     await page.getByTestId('project-delete-button').click();
     await expect(page.getByTestId('project-card').filter({ hasText: projectName })).toHaveCount(0);
   });

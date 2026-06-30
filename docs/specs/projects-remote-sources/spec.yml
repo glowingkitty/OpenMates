@@ -20,6 +20,7 @@ scope:
     - Settings placement for global assistant-action defaults under Settings > Privacy & Security, with Project-specific permissions under Settings > Projects > <project name> and quick access from the Project page gear icon.
     - Privacy setting for project-data access with Always ask support, plus project-mention consent behavior for less restrictive modes.
     - Non-mutating remote diff proposals for existing remote files, stored inside the encrypted assistant message as message-local virtual artifacts and rendered like embed previews/fullscreen diffs without creating real embeds, Project rows, or modifying the remote filesystem.
+    - Read-only Project share links for encrypted Project metadata and explicitly selected Project records, using URL-fragment key material and optional password protection matching the existing chat/embed share-link pattern.
     - Two-mode Project write policy for future remote writes: Always ask before writes, or Auto approve safe writes with deterministic high-risk file protections.
     - Code app automated check settings with first-use prompt, supporting isolated E2B checks or remote-machine checks as separate consent from write permission.
     - Zero-knowledge storage for Project metadata and remote-source metadata in OpenMates backend, with remote search/read executed by the client or CLI bridge.
@@ -31,6 +32,7 @@ scope:
     - Sending raw recursive file trees, entire repositories, or unlimited file contents to the assistant.
     - Server-side decryption of Project metadata, remote-source metadata, preview cache contents, or user file contents.
     - Repo-local cache or `.gitignore` mutation without an explicit user approval step.
+    - Sharing remote-source runtime access, CLI bridge credentials, local/private paths, execution grants, repository remotes, or any permission to search/read/mutate the recipient's or sender's filesystem.
 
 context_discovery:
   github_issues:
@@ -362,6 +364,27 @@ v1_product_model:
         behavior: >
           Requires first-use or Project-level consent and runs only configured
           allowed check commands, not arbitrary assistant-generated shell.
+  project_share_payload:
+    description: >
+      A read-only exported Project bundle that lets recipients decrypt selected
+      encrypted Project metadata and Project-linked records without giving the
+      backend the Project key. The decrypt authority comes from the share URL
+      fragment key and optional password, following the existing chat/embed
+      share-link contract. Runtime remote-source access is never included.
+    includes:
+      - project_id
+      - encrypted_project_metadata
+      - encrypted_project_key_for_share
+      - selected encrypted project item records
+      - optional encrypted task, plan, and uploaded-embed key details for selected records
+      - generated_at and duration_seconds
+      - password_protected flag
+    excludes:
+      - URL fragment key or optional password sent to the backend
+      - raw Project, task, plan, chat, or embed keys
+      - decrypted Project metadata or file paths
+      - CLI bridge credentials, connected-device identifiers, SSH/remotes, repo URLs, local paths, tokens, or source runtime grants
+      - background sync, search/read permission, write permission, or command/test execution authority
 
 contracts:
   cli:
@@ -409,6 +432,16 @@ contracts:
         - 401 when unauthenticated.
         - 403 when the user cannot edit the Project.
         - 400 for unsupported write mode or unsafe permission weakening request.
+    - route: POST /v1/projects/{project_id}/share-bundles
+      request: "encrypted share payload metadata, selected project record ids, password_protected?, expires_at?"
+      response: "share bundle id or short-link token; client appends URL fragment key locally"
+      errors:
+        - 401 when unauthenticated.
+        - 403 when the user cannot view/share the Project.
+        - 400 when selected records include remote-source runtime grants, plaintext paths, connected-device credentials, or unsupported execution permissions.
+      notes:
+        - The backend stores or serves only encrypted payloads and server-visible expiration metadata.
+        - The URL fragment key, optional password, raw Project key, and decrypted Project fields are never sent to the backend.
   frontend:
     - surface: Projects page
       behavior: >
@@ -608,6 +641,21 @@ scenarios:
       - The selection is stored in Settings > Apps > Code with a Project-specific override under Settings > Projects > project name.
       - Non-executing diff checks can run without extra consent, while E2B checks and remote-machine check commands follow the selected consent mode.
 
+  - id: S-13
+    title: User shares a read-only Project bundle without remote-source runtime access
+    given:
+      - Alice owns an encrypted Project with uploaded embeds, linked tasks, linked plans, and an attached remote source.
+      - Alice chooses to share Project metadata and selected Project records with optional password protection.
+    when:
+      - OpenMates creates the Project share link.
+      - Bob opens the link.
+    then:
+      - Bob can decrypt only the selected encrypted Project metadata and selected records using key material from the URL fragment and optional password.
+      - Bob receives read-only Project context, not owner/edit access.
+      - The backend never receives the URL fragment key, optional password, raw Project key, raw linked record keys, or decrypted Project fields.
+      - Remote-source runtime access is excluded: Bob cannot use Alice's CLI bridge, local paths, repository remotes, source grants, search/read permissions, write permissions, check commands, tokens, or connected-device credentials.
+      - Existing chat and embed share links continue to work without format changes.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -645,6 +693,9 @@ acceptance_criteria:
   - id: AC-12
     scenario: S-12
     text: Automated code checks are governed by Code app settings with Project overrides and a first-use prompt that distinguishes E2B sandbox checks from remote-machine checks.
+  - id: AC-13
+    scenario: S-13
+    text: Project sharing uses URL-fragment key material for read-only selected encrypted Project data and never shares remote-source runtime access or server-readable raw keys.
 
 tests:
   - id: T-UNIT-CLI-REMOTE-SOURCES
@@ -797,6 +848,7 @@ tests:
       - AC-8
       - AC-9
       - AC-11
+      - AC-13
     assertions:
       - project source routes require auth and Project edit access
       - source and preview metadata size caps are enforced
@@ -805,6 +857,7 @@ tests:
       - apply-patch and command capabilities are not accepted for V1 grants
       - Project settings reject unsupported write modes and unsafe permission weakening requests
       - high-risk file policy marks built-in and user-defined patterns as always-ask by default
+      - Project share bundle creation rejects plaintext paths, source runtime grants, connected-device credentials, and server-readable raw keys
     red_phase:
       required: true
       expected: fail
@@ -835,6 +888,7 @@ tests:
       - AC-9
       - AC-10
       - AC-12
+      - AC-13
     assertions:
       - Projects UI shows attached remote source status and virtual remote previews
       - selected remote files can be uploaded while unselected files remain virtual
@@ -845,6 +899,7 @@ tests:
       - Project/folder/file mention chips expose Read and Read & Write states without CSS-class selectors
       - remote diff virtual artifacts render in embed-like preview/fullscreen UI without applying the patch or creating Project rows
       - automated checks first-use prompt offers Not now, isolated cloud sandbox, and remote machine choices
+      - Project share link opens selected encrypted Project records read-only without exposing remote-source runtime access
     red_phase:
       required: true
       expected: fail
