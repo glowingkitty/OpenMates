@@ -7,6 +7,8 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+const BASE_URL = process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org';
+const API_BASE_URL = process.env.PLAYWRIGHT_TEST_API_URL || BASE_URL.replace('://app.dev.', '://api.dev.').replace('://app.', '://api.');
 
 test.describe('Projects remote sources', () => {
   test.beforeEach(async ({ page }) => {
@@ -27,19 +29,19 @@ test.describe('Projects remote sources', () => {
     await expect(page.getByTestId('project-card').filter({ hasText: projectName }).first()).toBeVisible();
 
     const sourceId = `source-${Date.now()}`;
-    const projectId = await page.evaluate(async (name) => {
-      const response = await fetch('/v1/projects', { credentials: 'include' });
+    const projectId = await page.evaluate(async ({ name, apiBaseUrl }) => {
+      const response = await fetch(`${apiBaseUrl}/v1/projects`, { credentials: 'include' });
       if (!response.ok) throw new Error(`Project list failed: ${response.status}`);
       const data = await response.json();
       const projects = Array.isArray(data.projects) ? data.projects : [];
       const latest = projects.sort((a, b) => (b.created_at ?? 0) - (a.created_at ?? 0))[0];
       if (!latest?.project_id) throw new Error(`Could not resolve project id for ${name}`);
       return latest.project_id;
-    }, projectName);
+    }, { name: projectName, apiBaseUrl: API_BASE_URL });
 
-    await page.evaluate(async ({ projectId, sourceId }) => {
+    await page.evaluate(async ({ apiBaseUrl, projectId, sourceId }) => {
       const timestamp = Math.floor(Date.now() / 1000);
-      const response = await fetch(`/v1/projects/${encodeURIComponent(projectId)}/sources`, {
+      const response = await fetch(`${apiBaseUrl}/v1/projects/${encodeURIComponent(projectId)}/sources`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -55,7 +57,7 @@ test.describe('Projects remote sources', () => {
         }),
       });
       if (!response.ok) throw new Error(`Project source create failed: ${response.status} ${await response.text()}`);
-    }, { projectId, sourceId });
+    }, { apiBaseUrl: API_BASE_URL, projectId, sourceId });
 
     await page.reload();
     await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 30000 });
