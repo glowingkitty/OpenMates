@@ -78,6 +78,8 @@ test.describe('Projects remote sources', () => {
 
     await page.getByTestId('icon-button-close').click();
 
+    await page.goto('/');
+    await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
     await page.getByTestId('message-editor').click();
     await page.keyboard.type('@E2E');
     await expect(page.getByTestId('mention-dropdown')).toBeVisible();
@@ -89,6 +91,10 @@ test.describe('Projects remote sources', () => {
     await editor.getByTestId('project-access-chip').press('Enter');
     await expect(editor.getByTestId('project-access-chip')).toContainText('Read');
 
+    await page.goto('/projects');
+    const projectCard = page.getByTestId('project-card').filter({ hasText: projectName }).first();
+    await expect(projectCard).toBeVisible({ timeout: 30000 });
+    await projectCard.click();
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByTestId('project-delete-button').click();
     await expect(page.getByTestId('project-card').filter({ hasText: projectName })).toHaveCount(0);
