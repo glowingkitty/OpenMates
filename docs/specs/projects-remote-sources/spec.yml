@@ -1,0 +1,1006 @@
+id: projects-remote-sources
+title: Projects Remote Sources And Assistant Context V1
+status: implementing
+
+goal: >
+  Let users attach local or remote folders and repositories to encrypted
+  OpenMates Projects, browse and preview their files without bulk-uploading them,
+  mention projects, folders, and files in chat, and allow the assistant to search
+  or read approved project context through a privacy-preserving CLI bridge.
+
+scope:
+  in:
+    - Remote source attachment from OpenMates CLI to an existing Project or a newly created Project.
+    - Local/remote folder and repository browsing from Projects UI using bounded remote metadata, not automatic file upload.
+    - Remote file and folder previews rendered through the existing embed preview/fullscreen system as virtual remote previews.
+    - Explicit Upload to OpenMates for selected individual files and multi-select file batches, creating normal encrypted OpenMates embeds only for selected files.
+    - Project, folder, and file mentions in normal chat, including backend parser support and client-decrypted cleartext context payloads for explicit mentions.
+    - Assistant project maps, folder maps, file previews, and search/read operations using user-consented project context and V1 `rg`/ripgrep search on the source machine.
+    - Remote-machine preview/cache storage by default at `~/.openmates/remote-cache/<source-id>/`, with optional repo-local `.openmates/preview-cache/` only after explicit user approval.
+    - Settings placement for global assistant-action defaults under Settings > Privacy & Security, with Project-specific permissions under Settings > Projects > <project name> and quick access from the Project page gear icon.
+    - Privacy setting for project-data access with Always ask support, plus project-mention consent behavior for less restrictive modes.
+    - Non-mutating remote diff proposals for existing remote files, stored inside the encrypted assistant message as message-local virtual artifacts and rendered like embed previews/fullscreen diffs without creating real embeds, Project rows, or modifying the remote filesystem.
+    - Two-mode Project write policy for future remote writes: Always ask before writes, or Auto approve safe writes with deterministic high-risk file protections.
+    - Code app automated check settings with first-use prompt, supporting isolated E2B checks or remote-machine checks as separate consent from write permission.
+    - Zero-knowledge storage for Project metadata and remote-source metadata in OpenMates backend, with remote search/read executed by the client or CLI bridge.
+    - Later-phase architecture placeholders for applying remote patches and running commands without implementing remote-source mutations in V1.
+  out:
+    - Applying assistant patches, shell commands, package installs, git mutations, or any remote-source filesystem mutation in V1.
+    - Folder upload, background sync, bidirectional sync, or automatic mirror upload of repositories to OpenMates in V1.
+    - Creating real OpenMates embeds for every remote file by default.
+    - Sending raw recursive file trees, entire repositories, or unlimited file contents to the assistant.
+    - Server-side decryption of Project metadata, remote-source metadata, preview cache contents, or user file contents.
+    - Repo-local cache or `.gitignore` mutation without an explicit user approval step.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 Bad credentials."
+    - "gh issue list fallback found #447 Agentic coding/projects/permissions planning."
+    - "gh issue list fallback found #442 Plan view for multi-step chats."
+    - "gh issue list fallback found closed #140 Reference files/projects/folders in regular chat."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/platforms/cli-package.md
+    - docs/architecture/code-mapping.yml
+    - docs/specs/calendar-permission-management/spec.yml
+    - docs/specs/connected-account-cli-import/spec.yml
+    - docs/specs/tasks-v1/spec.yml
+    - docs/specs/workflows-v1/spec.yml
+    - docs/specs/simplified-feature-availability/spec.yml
+    - docs/architecture/apps/action-confirmation.md
+    - docs/architecture/platforms/cli-feature-parity.md
+    - vaults/memory/Areas/engineering/features/Permission management.md
+    - vaults/memory/Resources/research/e2b-auto-lint-code-embeds.md
+    - vaults/memory/Resources/research/e2b-repo-codebase-qa.md
+  code_patterns:
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/services/directus/project_methods.py
+    - backend/core/directus/schemas/projects.yml
+    - backend/core/directus/schemas/project_folders.yml
+    - backend/core/directus/schemas/project_items.yml
+    - backend/core/directus/schemas/project_shares.yml
+    - backend/core/directus/schemas/embed_keys.yml
+    - frontend/packages/ui/src/services/projectService.ts
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+    - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+    - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+    - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    - frontend/packages/ui/src/services/mentionedSettingsMemoriesCleartext.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - backend/core/api/app/utils/override_parser.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/base_app.py
+    - frontend/packages/openmates-cli/src/mentions.ts
+    - frontend/packages/openmates-cli/src/fileEmbed.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/client.ts
+  tests:
+    - backend/tests/test_projects.py
+    - frontend/apps/web_app/tests/projects-flow.spec.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+  external_research:
+    - "Aider repo map: Tree-sitter symbol extraction, ranked compact context, and token budgets for codebase-aware assistance."
+    - "Sourcegraph context retrieval patterns: retrieval and ranking with strict context budgets instead of raw repository dumps."
+    - "Claude Code public workflow analyses: directory snapshots, git status, Glob/Grep/Read tools, and memory/context compaction patterns."
+    - "ripgrep is the preferred V1 implementation primitive for fast local file listing and search."
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/**/Chat*
+    - apple/OpenMates/Sources/**/Embeds*
+    - apple/OpenMates/Sources/**/Projects*
+  parity_expectations:
+    - Apple chat should eventually render project, folder, and file mentions consistently with web chat once the API and encrypted payload contracts exist.
+    - Apple embed surfaces should eventually render remote file/folder virtual previews consistently with existing embed preview/fullscreen behavior.
+    - Initial V1 implementation may be web plus CLI first, but contracts must remain platform-neutral and avoid web-only assumptions.
+  verification:
+    - Apple affected for chat mention and preview rendering parity. On Linux, use `python3 scripts/apple_remote.py status` and then `build-ios` or `test-ios` after implementation unless Apple work is explicitly deferred.
+  intentional_native_differences:
+    - Native app may not host the CLI bridge itself in V1; it can consume synced encrypted Project metadata and remote-preview records once available.
+
+clarification:
+  rounds:
+    - question: Should V1 upload individual files, folders, both, or only attach sources without uploads?
+      answer: V1 Upload to OpenMates should support individual files and multi-select files. Folder upload and sync can be designed for later, but should not be implemented in V1.
+    - question: Where should remote preview metadata and snippets be cached by default?
+      answer: Keep preview files and metadata on the remote machine by default for scalability. Use `~/.openmates/remote-cache/<source-id>/`; repo-local `.openmates/preview-cache/` is opt-in only.
+    - question: How much project context should be sent to the assistant for project or folder mentions?
+      answer: "Use a tiered model: project/folder maps with file and folder counts, line counts, depth-limited tree, git/recency signals, ranked symbols/signatures, omitted summaries, and strict caps. Do not send full contents unless specific file reads or bounded snippets are approved."
+    - question: How long should mention-based access last?
+      answer: A specific file mention grants access for the current message. A project or folder mention grants structure/map access for the current chat. Broader reads/search are allowed by project mention unless privacy settings say Always ask.
+    - question: Should V1 include assistant write/patch/command execution?
+      answer: No. V1 should be read/preview/import-only. Writes, patches, commands, and remote mutations are later-phase but the architecture should reserve a permission model for them.
+    - question: For existing remote files, should the assistant still generate diffs even if V1 cannot write to the remote source?
+      answer: Yes. Existing remote files should be edited as unified diff proposals rendered through embed-like preview/fullscreen UI. A remote diff proposal is a message-local virtual artifact stored inside the encrypted assistant message, not a real embed or separate Project row unless the user explicitly saves/uploads it. It must not mutate the remote filesystem in V1.
+    - question: Where should remote Project write and action settings live?
+      answer: Global defaults belong under Settings > Privacy & Security > Assistant actions. Project-specific permissions belong under Settings > Projects > project name, with a gear icon on Project pages as quick access. Code-specific automated checks belong under Settings > Apps > Code, with Project-level overrides in the Project settings page.
+    - question: Which write permission modes should V1 expose for Projects?
+      answer: Keep the mental model simple with only Always ask before writes and Auto approve safe writes. Do not implement Auto decide in V1; reserve it for later after deterministic policies, audit logs, undo, and user feedback are solid.
+    - question: How should mentions express read versus write intent?
+      answer: Show a visible Read / Read & Write switch on Project, folder, and file mention/access chips. If Project mode is Auto approve safe writes, mentions default to Read & Write except protected files. If Project mode is Always ask before writes, mentions default to Read. The switch should be keyboard accessible, including Tab navigation.
+    - question: Should OpenMates prompt for automated code checks after assistant code changes?
+      answer: Yes. On first assistant code creation or update in a Project, ask whether to enable automated checks. Choices are Not now, isolated E2B sandbox with no remote-machine performance impact but code disclosure to the sandbox, or remote-machine checks with better privacy but local CPU/disk impact. This setting is separate from write permission.
+  vision_summary: >
+    Projects should become the privacy-preserving workspace boundary for code and
+    document context. Attaching a folder or repository should not upload it by
+    default; OpenMates stores encrypted Project/source metadata, while the local
+    or remote CLI bridge performs search, map, and read operations after user
+    consent. The UI should feel like existing embeds for previews and fullscreen
+    reading, but remote files remain virtual until the user explicitly uploads
+    selected files to OpenMates. Mentioning a Project is a meaningful consent
+    signal for that chat unless the user chooses Always ask. Future write support
+    should keep a simple two-mode Project policy: Always ask before writes or Auto
+    approve safe writes. High-risk files still require explicit approval by
+    default, and automated code checks are a separate Code app / Project setting
+    rather than an implicit part of read or write access.
+  approved_by_user: true
+
+v1_product_model:
+  project_source:
+    description: >
+      A Project can have zero or more attached sources. A source points to a local
+      or remote folder/repository reachable by a user-controlled CLI bridge. The
+      server stores only encrypted display metadata and opaque source IDs; it does
+      not store file paths or raw trees in plaintext.
+    source_types:
+      - local_folder
+      - local_git_repository
+      - remote_folder
+      - remote_git_repository
+    source_state:
+      - connected
+      - offline
+      - permission_required
+      - revoked
+  virtual_remote_preview:
+    description: >
+      A virtual preview is embed-compatible UI data for a file or folder that has
+      not been uploaded as an OpenMates embed. It can render through existing
+      UnifiedEmbed preview/fullscreen primitives with a remote-source badge and
+      source status. It includes bounded metadata and snippets only.
+    metadata:
+      - source_id
+      - remote_item_id
+      - encrypted_display_path
+      - encrypted_display_name
+      - kind
+      - language
+      - size_bytes
+      - line_count
+      - mtime
+      - content_hash
+      - git_status
+      - preview_policy
+      - safety_flags
+  project_map:
+    description: >
+      The bounded assistant-visible structure for a Project or folder mention.
+      It is computed by the CLI bridge from allowed sources and sent as explicit
+      client-decrypted context for the current turn or chat according to the
+      permission mode.
+    includes:
+      - file_count
+      - folder_count
+      - total_line_count_estimate
+      - depth_limited_tree
+      - git_branch_and_status_summary
+      - recent_files
+      - dirty_files
+      - ranked_symbols_and_signatures
+      - omitted_paths_summary
+      - search_capabilities
+    excludes:
+      - raw recursive tree without caps
+      - full file contents by default
+      - ignored files unless explicitly included by user approval
+      - secrets, env files, and binary blobs unless explicitly uploaded or approved
+  privacy_modes:
+    always_ask:
+      behavior: >
+        Project/folder/file mention creates a pending permission request before
+        the assistant receives project maps, search results, or file previews.
+    ask_for_broad_access:
+      behavior: >
+        Specific file mentions can be read for the current message. Project or
+        folder mentions grant map access for the current chat, but broad searches
+        or multiple file reads can prompt when risk thresholds are exceeded.
+    allow_for_mentions:
+      behavior: >
+        Mentioning a Project/folder/file is enough consent for bounded maps,
+        searches, and reads within that Project for the current chat, subject to
+        hard caps and secret filters.
+  settings_surfaces:
+    global_assistant_actions:
+      path: Settings > Privacy & Security > Assistant actions
+      behavior: >
+        Stores global defaults for assistant autonomy across OpenMates, including
+        default Project write mode for new Projects and global protected path
+        patterns. This is not Code-app-specific because the same model will later
+        apply to other high-risk assistant actions.
+    project_settings:
+      path: Settings > Projects > <project name>
+      behavior: >
+        Stores Project-specific remote source permissions, read/write mode,
+        protected path patterns, connected source settings, automated check
+        overrides, audit history, revocation controls, and source status. Project
+        pages expose a gear icon that deep-links here instead of duplicating a
+        separate settings UI inside the Project page.
+    code_app_checks:
+      path: Settings > Apps > Code > Automated checks
+      behavior: >
+        Stores global Code app defaults for lint/test/check behavior after
+        assistant-created or assistant-updated code. Project settings can override
+        these defaults per Project/source.
+  write_permission_modes:
+    always_ask:
+      label: Always ask before writes
+      default_for_new_projects: true
+      behavior: >
+        Project, folder, and file mentions default to Read. User can toggle a
+        visible Read / Read & Write switch to grant write permission for the
+        requested scope and duration. Applying remote diffs remains a later-phase
+        action and must show an approval card before any write.
+    auto_approve_safe_writes:
+      label: Auto approve safe writes
+      behavior: >
+        Project, folder, and file mentions default to Read & Write except
+        protected files. Deterministic checks, source-root bounds, base-hash
+        checks, patch size limits, and high-risk file rules still apply. This mode
+        does not grant shell command execution, package install, test execution,
+        git mutation, or high-risk file writes by itself.
+    auto_decide:
+      status: reserved_later
+      behavior: >
+        Not implemented in V1. A future version may add Auto decide only after
+        deterministic rules, audit receipts, undo/rollback, and user feedback are
+        mature. LLM risk scoring must not be the sole authority for remote writes.
+  high_risk_files:
+    built_in_always_ask:
+      - .env
+      - .env.*
+      - "*.pem"
+      - "*.key"
+      - id_rsa
+      - id_ed25519
+      - .npmrc
+      - .pypirc
+      - .netrc
+      - .ssh/**
+      - .gitignore
+      - .gitattributes
+      - .gitmodules
+      - .github/workflows/**
+      - Caddyfile
+      - nginx.conf
+      - Dockerfile
+      - docker-compose*.yml
+      - k8s/**
+      - helm/**
+      - terraform/**
+      - "*.tf"
+      - package.json
+      - package-lock.json
+      - pnpm-lock.yaml
+      - yarn.lock
+      - bun.lockb
+      - pnpm-workspace.yaml
+      - pyproject.toml
+      - Cargo.toml
+      - go.mod
+      - migrations/**
+      - schema.sql
+      - backend/core/directus/schemas/**
+      - paths containing auth, encryption, billing, privacy, permission, compliance, or security
+      - files matched by .gitignore
+      - binary files
+      - symlink targets
+      - deletes, renames, executable-bit changes, chmod changes, and binary edits
+    behavior: >
+      Built-in high-risk files require explicit user approval before write by
+      default, even when the Project uses Auto approve safe writes. The default
+      list must stay intentionally narrow and focused on secrets, deployment,
+      dependency execution, auth/security/privacy/compliance, schema/migration,
+      CI, and filesystem-boundary risk so the warning remains meaningful.
+    user_defined:
+      behavior: >
+        Users can add global or Project-specific protected path patterns. These
+        patterns only add restrictions. They can require permission for folders,
+        file types, or individual paths that matter to the user.
+  repo_policy_config:
+    path: .openmates/permissions.yml
+    behavior: >
+      Optional repo-local config may declare protected paths, safe editable paths,
+      project warnings, and suggested check commands. It may add restrictions and
+      suggestions but must not silently enable auto-approve, disable global or
+      Project high-risk rules, grant command execution, or weaken user settings.
+      Importing broader permissions from repo config requires explicit user
+      approval.
+  remote_diff_virtual_artifact:
+    description: >
+      A non-mutating diff artifact for an existing remote file. It is serialized
+      inside the encrypted assistant message and rendered like an embed
+      preview/fullscreen diff, but it does not create a normal OpenMates embed,
+      Project database row, or write to the remote filesystem. If the user later
+      uploads the file to OpenMates, future edits use normal embed diff history
+      for that uploaded embed.
+    fields:
+      - project_ref
+      - source_ref
+      - remote_item_ref
+      - display_path label
+      - unified_diff
+      - base_hash, mtime, and line_count metadata
+      - local UI status such as proposed, stale, applied, rejected, or failed
+  automated_code_checks:
+    first_use_prompt:
+      trigger: First assistant-created or assistant-updated code in a Project.
+      choices:
+        - Not now
+        - Use isolated cloud sandbox
+        - Use my remote machine
+      behavior: >
+        The prompt explains that isolated E2B checks avoid remote-machine
+        performance impact but send relevant code/config to an OpenMates-managed
+        sandbox, while remote-machine checks keep code on the user's machine but
+        consume local CPU/disk. The chosen default is stored in Code app settings
+        with a Project override.
+    phases:
+      - phase: non_executing_checks
+        behavior: >
+          Always allowed for proposed diffs: patch applies, base hash matches,
+          high-risk file detection, path policy, and secret-like pattern scan.
+      - phase: e2b_checks
+        behavior: >
+          Requires first-use or Project-level consent for private code because
+          relevant code/config leaves the user's machine for an isolated sandbox.
+      - phase: remote_machine_checks
+        behavior: >
+          Requires first-use or Project-level consent and runs only configured
+          allowed check commands, not arbitrary assistant-generated shell.
+
+contracts:
+  cli:
+    - command: openmates remote-access start
+      behavior: >
+        Starts an authenticated local bridge, lets the user select folders or
+        repositories, attach each source to an existing or new Project, and choose
+        session-only or persistent bridge metadata. It prints redacted source
+        status and never prints sensitive file content.
+    - command: openmates remote-access status
+      behavior: >
+        Lists attached source aliases, Project names, connection state, cache
+        location, and last index time without printing raw private paths unless
+        the local user explicitly asks for verbose local diagnostics.
+    - command: openmates remote-access stop
+      behavior: >
+        Stops the bridge and marks sources offline for assistant access without
+        deleting encrypted Project metadata.
+  api:
+    - route: POST /v1/projects/{project_id}/sources
+      request: "encrypted source metadata, source type, opaque source id, capabilities"
+      response: "source id, status, created_at"
+      errors:
+        - 401 when unauthenticated.
+        - 403 when the user cannot edit the Project.
+        - 400 for unsupported source type or malformed encrypted metadata.
+    - route: POST /v1/projects/context-grants
+      request: "project id, source ids, mention type, requested access, encrypted grant metadata"
+      response: "grant id, mode, expires_at, required user action"
+      errors:
+        - 401 when unauthenticated.
+        - 403 when Project access is unavailable.
+        - 409 when source is offline and no cached preview can satisfy the request.
+    - route: POST /v1/projects/remote-previews
+      request: "encrypted preview metadata and bounded encrypted snippet for a virtual remote item"
+      response: "preview id, status"
+      errors:
+        - 401 when unauthenticated.
+        - 403 when Project access is unavailable.
+        - 413 when snippet or metadata exceeds preview caps.
+    - route: PATCH /v1/projects/{project_id}/settings
+      request: "encrypted Project permission settings, protected path patterns, automated check override"
+      response: "project id, updated_at"
+      errors:
+        - 401 when unauthenticated.
+        - 403 when the user cannot edit the Project.
+        - 400 for unsupported write mode or unsafe permission weakening request.
+  frontend:
+    - surface: Projects page
+      behavior: >
+        Shows local Project items and attached remote sources in one Project
+        browser. Remote files/folders render as virtual previews and show offline,
+        stale, or permission-required states. Upload to OpenMates is available for
+        selected files only in V1.
+    - surface: chat composer mentions
+      behavior: >
+        Adds Project, folder, and file mention types without breaking existing
+        model, mate, skill, focus, memory, settings, and embed mentions. Mentions
+        serialize into backend-parseable tokens and a client-decrypted context
+        payload similar to settings/memory mention payloads.
+    - surface: Settings > Privacy & Security > Assistant actions
+      behavior: >
+        Shows global defaults for assistant action autonomy, including default
+        Project write mode for new Projects and global protected path patterns.
+    - surface: Settings > Projects > <project name>
+      behavior: >
+        Shows Project-specific permission mode, protected paths, connected remote
+        sources, automated Code check override, audit history, revocation, and
+        source status. Project page gear links here.
+    - surface: Settings > Apps > Code > Automated checks
+      behavior: >
+        Shows global automated-check defaults and first-use prompt behavior for
+        assistant code creation or updates.
+  assistant_context:
+    - name: project_map
+      behavior: Bounded structure and ranking context for a Project or folder mention.
+    - name: remote_search_results
+      behavior: "rg search matches with file path labels, line numbers, surrounding snippets, and omitted-result counts."
+    - name: remote_file_preview
+      behavior: Bounded preview snippets matching existing embed preview line/count behavior rather than a hardcoded line count.
+    - name: uploaded_remote_embed
+      behavior: Normal encrypted OpenMates embed created only after explicit Upload to OpenMates for selected files.
+    - name: remote_diff_virtual_artifact
+      behavior: Non-mutating unified diff proposal for an existing remote file, stored inside the encrypted assistant message, rendered like an embed preview/fullscreen diff, and never applied to the remote filesystem in V1.
+  privacy_security:
+    - Backend stores remote-source metadata, preview metadata, and Project item metadata only as encrypted blobs or opaque hashes.
+    - Raw private paths, file contents, git remotes, environment variable values, and ignored file contents are not logged or sent to the LLM by default.
+    - Secret-like files and ignored files require explicit user selection or approval before preview, upload, or assistant read.
+    - Repo-local cache and `.gitignore` edits require explicit approval and must be reversible.
+    - Project grants are scoped by Project/source/item, access kind, chat or turn duration, caps, and privacy mode.
+    - Repo-local permission config may add restrictions and suggestions but cannot silently grant write permission, command execution, or weaken user/global settings.
+    - Automated E2B checks for private Project code require explicit first-use or Project-level consent because relevant code/config leaves the user's machine.
+
+scenarios:
+  - id: S-1
+    title: User attaches a remote repository to a Project
+    given:
+      - Alice is logged into OpenMates CLI.
+      - Alice has a local or remote repository reachable from the machine running CLI.
+    when:
+      - Alice runs `openmates remote-access start` and chooses the repository.
+      - Alice attaches it to an existing Project or creates a new Project.
+    then:
+      - OpenMates stores encrypted source metadata linked to the Project.
+      - The CLI initializes default cache storage under `~/.openmates/remote-cache/<source-id>/`.
+      - No repository files are uploaded to OpenMates automatically.
+      - The Projects UI shows the source as connected and browseable when the bridge is online.
+
+  - id: S-2
+    title: User previews remote files and uploads selected files only
+    given:
+      - Alice has a Project with a connected remote source.
+    when:
+      - Alice browses the source in Projects and opens a file preview.
+      - Alice selects two files and chooses Upload to OpenMates.
+    then:
+      - The file preview renders through the existing embed preview/fullscreen system as a virtual remote preview.
+      - The preview snippet follows the current embed preview line/count policy and includes line count, language, size, hash, and mtime metadata.
+      - Only the two selected files are uploaded and converted into encrypted OpenMates embeds.
+      - Other remote files remain virtual and are not copied to OpenMates storage.
+
+  - id: S-3
+    title: User mentions a Project and assistant receives bounded context
+    given:
+      - Alice has a Project with an attached repository source.
+      - Alice's project-data privacy mode is Allow for mentions.
+    when:
+      - Alice asks a chat question that mentions the Project.
+    then:
+      - The client treats the Project mention as consent for bounded project map access for the current chat.
+      - The CLI bridge computes a capped Project map using file counts, folder counts, line counts, depth-limited tree, git status, recent and dirty files, ranked symbols, and omitted summaries.
+      - The assistant receives the Project map, not a raw recursive tree or full file contents.
+      - Broader reads and searches stay within configured caps and Project boundaries.
+
+  - id: S-4
+    title: Always ask blocks project reads until approval
+    given:
+      - Alice has set project-data access to Always ask.
+      - Alice mentions a Project in chat.
+    when:
+      - The assistant needs a Project map, search, or file preview.
+    then:
+      - OpenMates creates a permission prompt before sending Project data to the assistant.
+      - The prompt explains the source, access kind, duration, and approximate data volume.
+      - If Alice rejects the request, no Project map, search result, or file preview is sent to the assistant.
+      - If Alice approves, the grant is scoped to the approved Project/source/access kind and duration.
+
+  - id: S-5
+    title: User mentions a specific remote file for current message access
+    given:
+      - Alice has a connected remote source in a Project.
+      - Alice mentions one specific remote file in a chat message.
+    when:
+      - The assistant needs to answer using that file.
+    then:
+      - OpenMates grants access to the specific file for the current message only, unless privacy settings require approval.
+      - The assistant receives a bounded remote file preview or a capped read result, not unlimited file content.
+      - Follow-up turns require another file mention or an existing broader Project/folder grant.
+
+  - id: S-6
+    title: Assistant searches a mentioned Project through the CLI bridge
+    given:
+      - Alice has mentioned a Project and the bridge is online.
+      - The Project grant allows bounded search.
+    when:
+      - The assistant needs to find references to a symbol or phrase.
+    then:
+      - The bridge runs `rg` within approved source roots and returns capped matches with file labels, line numbers, snippets, and omitted-result counts.
+      - Ignored files, secret-like files, binary files, and paths outside the approved source are excluded unless explicitly approved.
+      - The backend never performs plaintext filesystem search and never sees decrypted Project metadata beyond client-provided approved context.
+
+  - id: S-7
+    title: Offline source degrades without leaking data
+    given:
+      - Alice has a Project with a previously connected remote source.
+      - The CLI bridge is offline.
+    when:
+      - Alice opens the Project or mentions it in chat.
+    then:
+      - The UI shows the source as offline and can show only locally available encrypted/stale preview metadata allowed by policy.
+      - Assistant search/read operations fail with an actionable source-offline message instead of silently falling back to stale broad context.
+      - No backend job attempts to read the remote source directly.
+
+  - id: S-8
+    title: Assistant creates message-local remote diff proposals
+    given:
+      - Alice has attached a repository source to a Project.
+    when:
+      - Alice asks the assistant to edit an existing remote file in that source.
+    then:
+      - The assistant outputs a unified diff targeting the remote file reference.
+      - OpenMates serializes the remote diff proposal inside the encrypted assistant message and renders it through embed-like preview/fullscreen diff UI.
+      - The proposal is not stored as a normal OpenMates embed or a separate Project database row unless Alice explicitly saves or uploads it.
+      - No remote file is modified and no shell command is executed.
+      - If Alice asks to apply the patch, V1 explains that applying remote diffs is a later-phase capability.
+
+  - id: S-9
+    title: First write intent asks for Project write mode
+    given:
+      - Alice has a new remote Project with no write-mode setting.
+      - Alice mentions a folder in chat and asks the assistant to update files in that folder.
+    when:
+      - The assistant proposes the first remote file edit for that Project.
+    then:
+      - OpenMates asks whether the Project should use Always ask before writes or Auto approve safe writes.
+      - Always ask before writes is the recommended default.
+      - The choice is stored under Settings > Projects > project name and can inherit from Settings > Privacy & Security > Assistant actions for future Projects.
+      - The Project page gear links to the same settings page.
+
+  - id: S-10
+    title: Mention chip exposes Read and Read & Write access
+    given:
+      - Alice has a remote Project in Auto approve safe writes mode.
+    when:
+      - Alice mentions a Project, folder, or file in the chat composer.
+    then:
+      - The mention/access chip defaults to Read & Write except protected files.
+      - Alice can toggle the chip to Read, or back to Read & Write, using visible controls and keyboard navigation.
+      - Built-in high-risk files and user-protected paths still require explicit write approval before later-phase apply.
+      - If the Project mode is Always ask before writes, the same chip defaults to Read.
+
+  - id: S-11
+    title: High-risk files require explicit approval by default
+    given:
+      - Alice's Project is in Auto approve safe writes mode.
+      - The assistant proposes edits to src/App.svelte, Caddyfile, .env.example, .gitignore, and package.json.
+    when:
+      - OpenMates classifies the proposed remote diff bundle.
+    then:
+      - src/App.svelte can be considered safe if it passes path, hash, patch-size, and secret-scan checks.
+      - Caddyfile, .env.example, .gitignore, and package.json are marked high-risk and require explicit approval before any later-phase apply.
+      - Files matched by .gitignore, binary edits, deletes, renames, symlink target edits, chmod changes, and paths outside the approved source root cannot be auto-applied.
+      - User-defined global and Project-specific protected patterns add more always-ask paths.
+
+  - id: S-12
+    title: User chooses automated checks after assistant code changes
+    given:
+      - Alice has a remote Project and the assistant has created or updated code for the first time in that Project.
+    when:
+      - OpenMates asks whether to run automated checks after assistant code changes.
+    then:
+      - Alice can choose Not now, Use isolated cloud sandbox, or Use my remote machine.
+      - The prompt explains the privacy and performance tradeoff for E2B versus remote-machine checks.
+      - The selection is stored in Settings > Apps > Code with a Project-specific override under Settings > Projects > project name.
+      - Non-executing diff checks can run without extra consent, while E2B checks and remote-machine check commands follow the selected consent mode.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: CLI remote-access start can attach a folder or repository source to an encrypted Project without uploading repository files by default.
+  - id: AC-2
+    scenario: S-2
+    text: Projects UI can browse and preview remote files as virtual embed-compatible previews, and Upload to OpenMates creates encrypted embeds only for selected files.
+  - id: AC-3
+    scenario: S-3
+    text: Project mentions provide bounded assistant context maps with counts, git/recency signals, ranked symbols, and omitted summaries instead of raw trees or full contents.
+  - id: AC-4
+    scenario: S-4
+    text: The project-data Always ask privacy mode prevents any assistant project map, search result, or file preview from being sent before explicit approval.
+  - id: AC-5
+    scenario: S-5
+    text: Specific remote file mentions grant current-message-only capped file access unless the user's privacy setting requires approval.
+  - id: AC-6
+    scenario: S-6
+    text: Assistant search uses a bounded CLI bridge `rg` workflow inside approved source roots and excludes ignored, secret-like, binary, and out-of-scope paths by default.
+  - id: AC-7
+    scenario: S-7
+    text: Offline remote sources show explicit offline/stale states and do not trigger backend plaintext source access or silent stale broad-context fallback.
+  - id: AC-8
+    scenario: S-8
+    text: V1 can create non-mutating remote diff proposals for existing remote files as message-local virtual artifacts, rendered through embed-like diff UI, without modifying remote sources or creating real embeds or Project rows by default.
+  - id: AC-9
+    scenario: S-9
+    text: First remote write intent for a Project asks the user to choose Always ask before writes or Auto approve safe writes, storing the choice in Project settings with global defaults under Privacy & Security.
+  - id: AC-10
+    scenario: S-10
+    text: Project, folder, and file mention chips expose a keyboard-accessible Read / Read & Write switch whose default follows the Project write mode while preserving protected-file restrictions.
+  - id: AC-11
+    scenario: S-11
+    text: Built-in and user-defined high-risk files, gitignored files, binary edits, deletes, renames, chmod changes, symlink target edits, and out-of-root paths cannot be auto-applied by default.
+  - id: AC-12
+    scenario: S-12
+    text: Automated code checks are governed by Code app settings with Project overrides and a first-use prompt that distinguishes E2B sandbox checks from remote-machine checks.
+
+tests:
+  - id: T-UNIT-CLI-REMOTE-SOURCES
+    type: unit
+    file: frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test:unit:remote-access
+    covers:
+      - AC-1
+      - AC-6
+      - AC-7
+      - AC-8
+      - AC-11
+      - AC-12
+    assertions:
+      - remote-access start stores encrypted source metadata and default cache path without uploading files
+      - bridge search shells out to an injectable rg runner with approved root and cap enforcement
+      - ignored, secret-like, binary, and out-of-root paths are excluded by default
+      - applying remote patches returns explicit unsupported-in-v1 errors
+      - high-risk files and user-defined protected paths are classified as always-ask before later-phase apply
+      - remote-machine automated checks run only configured allowed commands after first-use or Project-level consent
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_project_remote_sources.py (missing Project settings/high-risk policy before implementation)"
+        timestamp: "2026-06-25"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "docker exec api python -m pytest /app/backend/tests/test_projects.py /app/backend/tests/test_project_remote_sources.py (message-local diff artifact model; no proposal rows)"
+        timestamp: "2026-06-25"
+
+  - id: T-UNIT-PROJECT-SERVICE
+    type: unit
+    file: frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.ts
+    command: cd frontend/packages/ui && npm run test:unit:project-remote-sources
+    covers:
+      - AC-2
+      - AC-3
+      - AC-5
+      - AC-8
+      - AC-9
+      - AC-10
+      - AC-12
+    assertions:
+      - virtual remote previews normalize into existing embed preview/fullscreen data without creating real embeds
+      - Upload to OpenMates converts only selected files into encrypted embeds
+      - project, folder, and file mention context payloads enforce chat-duration and current-message-duration grants
+      - file preview snippets use existing embed preview policy values rather than a hardcoded line count
+      - remote diff virtual artifacts normalize into embed-like diff preview data without creating real embeds or Project rows
+      - first write intent stores Project write mode in Project settings and links from Project page gear
+      - mention chips default to Read or Read & Write according to Project write mode and expose keyboard-accessible switching
+      - Code automated check first-use choice persists globally with Project override support
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PYTEST-PROJECT-SOURCES
+    type: pytest
+    file: backend/tests/test_project_remote_sources.py
+    command: docker exec api python -m pytest /app/backend/tests/test_project_remote_sources.py
+    covers:
+      - AC-1
+      - AC-4
+      - AC-7
+      - AC-8
+      - AC-9
+      - AC-11
+    assertions:
+      - project source routes require auth and Project edit access
+      - source and preview metadata size caps are enforced
+      - context grant routes return approval-required for Always ask
+      - offline source states do not enqueue backend filesystem reads
+      - apply-patch and command capabilities are not accepted for V1 grants
+      - Project settings reject unsupported write modes and unsafe permission weakening requests
+      - high-risk file policy marks built-in and user-defined patterns as always-ask by default
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-PROJECT-REMOTE-SOURCES
+    type: playwright
+    file: frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    command: python3 scripts/tests.py run --spec projects-remote-sources.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-7
+      - AC-8
+      - AC-9
+      - AC-10
+      - AC-12
+    assertions:
+      - Projects UI shows attached remote source status and virtual remote previews
+      - selected remote files can be uploaded while unselected files remain virtual
+      - chat composer can mention a Project, folder, and remote file using data-testid selectors
+      - Always ask shows a permission prompt before assistant Project context is sent
+      - offline source state is visible and actionable
+      - first write intent opens Project write-mode choice and stores the setting under Settings > Projects
+      - Project/folder/file mention chips expose Read and Read & Write states without CSS-class selectors
+      - remote diff virtual artifacts render in embed-like preview/fullscreen UI without applying the patch or creating Project rows
+      - automated checks first-use prompt offers Not now, isolated cloud sandbox, and remote machine choices
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - Current Projects API and client encryption model in `projects.py`, Directus project schemas, and `projectService.ts`.
+    - Explicit cleartext mention payload pattern in `mentionedSettingsMemoriesCleartext.ts`.
+    - CLI file mention and encrypted file embed creation in `mentions.ts`, `fileEmbed.ts`, and `cli.ts`.
+    - Connected account permission modes and approval-prompt model from `calendar-permission-management`.
+    - Workflow countdown/approval split for safe versus high-risk actions from `workflows-v1`.
+    - Embed diff editing architecture in `embed-diff-editing.md`, `stream_consumer.py`, and `embed_diff_service.py`.
+    - Existing UnifiedEmbed preview/fullscreen rendering for uploaded embeds.
+  architecture: >
+    Extend Projects with encrypted remote source records and virtual remote preview
+    records. The CLI bridge remains the only component that touches local or
+    remote filesystem plaintext. The web app and backend coordinate encrypted
+    metadata, mention serialization, approval/grant state, and assistant context
+    envelopes. Main processor receives bounded client-decrypted Project context,
+    can request more context only through approved bridge operations, and can
+    create non-mutating, message-local remote diff virtual artifacts for existing
+    remote files. Applying those diffs and running commands remain later-phase capabilities guarded by
+    Project write mode, high-risk file classification, source-root/base-hash
+    checks, and explicit approval.
+  data_flow:
+    - User starts CLI bridge and attaches source to Project.
+    - CLI indexes bounded source metadata and writes local cache under the default remote cache path.
+    - Client stores encrypted Project source metadata through Projects API.
+    - Projects UI requests virtual previews from the bridge and renders them with existing embed preview components.
+    - Chat composer serializes Project/folder/file mentions and sends encrypted/cleartext approved context payloads according to privacy mode.
+    - Backend parser recognizes project mention tokens and `AskSkillRequest` carries Project context references to main processor.
+    - Main processor uses Project map/search/read context only within grant scopes and caps.
+    - When asked to edit an existing remote file, assistant emits a unified diff that is serialized into the encrypted assistant message as a virtual artifact instead of a real embed mutation or Project row.
+    - First remote write intent prompts for Project write mode and persists the choice under Settings > Projects > project name.
+    - Mention chips expose Read and Read & Write access. Defaults follow Project write mode, while protected files stay always-ask.
+    - First assistant code creation/update prompts for automated checks and persists the choice in Code app settings with Project override.
+  affected_files:
+    - path: backend/core/directus/schemas/project_sources.yml
+      reason: New encrypted Project remote source records.
+    - path: backend/core/directus/schemas/project_remote_previews.yml
+      reason: New virtual remote preview metadata records if persistent preview metadata is stored server-side.
+    - path: backend/core/api/app/routes/projects.py
+      reason: Source, preview, context-grant, and settings API routes.
+    - path: backend/core/api/app/services/directus/project_methods.py
+      reason: Directus helpers for source, preview, and settings records.
+    - path: backend/shared/python_utils/project_file_risk.py
+      reason: Deterministic high-risk file/path classification shared by backend and tests.
+    - path: backend/core/api/app/utils/override_parser.py
+      reason: Project/folder/file mention parsing.
+    - path: backend/core/api/app/schemas/ai_skill_schemas.py
+      reason: AskSkillRequest Project context fields.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Bounded Project context injection and remote diff virtual artifact instruction/routing.
+    - path: backend/apps/ai/tasks/stream_consumer.py
+      reason: Route remote diff fences to message-local virtual artifact rendering while keeping embed diffs on the existing embed path.
+    - path: frontend/packages/ui/src/services/projectService.ts
+      reason: Remote source, virtual preview, upload-selected, Project settings, and grant workflows.
+    - path: frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+      reason: Remote source browsing, settings gear quick link, and upload-selected UI.
+    - path: frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+      reason: Virtual remote preview states.
+    - path: frontend/packages/ui/src/components/settings/projects/**
+      reason: Project-specific permission, protected path, remote source, and automated check settings.
+    - path: frontend/packages/ui/src/components/settings/privacy/**
+      reason: Global Privacy & Security assistant-action defaults.
+    - path: frontend/packages/ui/src/components/settings/apps/code/**
+      reason: Code app automated check settings and first-use prompt defaults.
+    - path: frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+      reason: Project/folder/file mention search.
+    - path: frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+      reason: Mention rendering for Projects.
+    - path: frontend/packages/ui/src/components/enter_message/ProjectAccessChip.svelte
+      reason: Read and Read & Write switch for Project/folder/file mentions.
+    - path: frontend/packages/ui/src/services/sendersChatMessages.ts
+      reason: Send approved Project context payloads with chat messages.
+    - path: frontend/packages/openmates-cli/src/server.ts
+      reason: Remote access bridge server.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Remote access bridge client/API calls.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: remote-access commands.
+    - path: frontend/packages/openmates-cli/src/projectFileRisk.ts
+      reason: CLI-side high-risk file/path classification and allowed-check-command enforcement.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/projects-remote-sources/spec.yml
+    - cd frontend/packages/openmates-cli && npm run test:unit:remote-access
+    - cd frontend/packages/ui && npm run test:unit:project-remote-sources
+    - docker exec api python -m pytest /app/backend/tests/test_project_remote_sources.py
+    - python3 scripts/tests.py run --spec projects-remote-sources.spec.ts after deploy for green phase
+    - python3 scripts/apple_remote.py status plus build-ios or test-ios if Apple parity work is included in the implementation slice
+  verification_order:
+    - CLI bridge/unit contract first
+    - UI service unit contract second
+    - Backend pytest contract third
+    - Web Playwright after deploy fourth
+    - Apple remote build/test fifth when native surfaces are touched
+
+tasks:
+  - id: TASK-1
+    title: Add encrypted Project remote source backend contract
+    covers:
+      scenarios:
+        - S-1
+        - S-4
+        - S-7
+        - S-8
+        - S-9
+        - S-11
+      acceptance_criteria:
+        - AC-1
+        - AC-4
+        - AC-7
+        - AC-8
+        - AC-9
+        - AC-11
+    expected_files:
+      - backend/core/directus/schemas/project_sources.yml
+      - backend/core/api/app/routes/projects.py
+      - backend/core/api/app/services/directus/project_methods.py
+      - backend/shared/python_utils/project_file_risk.py
+      - backend/tests/test_project_remote_sources.py
+    verification:
+      - T-PYTEST-PROJECT-SOURCES
+    progress_evidence:
+      - status: partial_passed
+        timestamp: "2026-06-30"
+        command: "docker exec api python -m pytest /app/backend/tests/test_project_remote_sources.py /app/backend/tests/test_projects.py"
+        result: "14 passed"
+        covered:
+          - Project source create/list helpers store only hashed ownership fields plus encrypted source display metadata.
+          - Project source API routes require Project access before create/list.
+          - Project source requests reject mutating V1 capabilities such as apply_patch.
+          - Project settings, high-risk file policy, and no remote diff proposal rows remain covered.
+        remaining:
+          - Context grants, preview metadata caps, offline-source behavior, and unsupported apply/command grants.
+    independently_deployable: false
+  - id: TASK-2
+    title: Add CLI remote access bridge read/search primitives
+    covers:
+      scenarios:
+        - S-1
+        - S-6
+        - S-7
+        - S-8
+        - S-11
+        - S-12
+      acceptance_criteria:
+        - AC-1
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-11
+        - AC-12
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/server.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/projectFileRisk.ts
+      - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    verification:
+      - T-UNIT-CLI-REMOTE-SOURCES
+    independently_deployable: false
+  - id: TASK-3
+    title: Add virtual remote previews and upload-selected file flow
+    covers:
+      scenarios:
+        - S-2
+        - S-7
+        - S-8
+        - S-9
+        - S-12
+      acceptance_criteria:
+        - AC-2
+        - AC-7
+        - AC-8
+        - AC-9
+        - AC-12
+    expected_files:
+      - frontend/packages/ui/src/services/projectService.ts
+      - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+      - frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
+      - frontend/packages/ui/src/components/settings/projects/**
+      - frontend/packages/ui/src/components/settings/privacy/**
+      - frontend/packages/ui/src/components/settings/apps/code/**
+      - frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.ts
+    verification:
+      - T-UNIT-PROJECT-SERVICE
+      - T-E2E-PROJECT-REMOTE-SOURCES
+    independently_deployable: false
+  - id: TASK-4
+    title: Add Project, folder, and file mentions to chat context
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-10
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-10
+    expected_files:
+      - frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+      - frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte
+      - frontend/packages/ui/src/components/enter_message/ProjectAccessChip.svelte
+      - frontend/packages/ui/src/message_parsing/serializers.ts
+      - frontend/packages/ui/src/services/sendersChatMessages.ts
+      - backend/core/api/app/utils/override_parser.py
+      - backend/core/api/app/schemas/ai_skill_schemas.py
+      - backend/apps/ai/processing/main_processor.py
+    verification:
+      - T-UNIT-PROJECT-SERVICE
+      - T-PYTEST-PROJECT-SOURCES
+      - T-E2E-PROJECT-REMOTE-SOURCES
+    independently_deployable: false

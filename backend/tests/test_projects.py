@@ -12,7 +12,7 @@ import pytest
 from backend.core.api.app.services.directus.project_methods import ProjectMethods, hash_id
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_project_reference_counts_group_by_project() -> None:
     directus = SimpleNamespace()
     directus.get_items = AsyncMock(
@@ -31,7 +31,7 @@ async def test_project_reference_counts_group_by_project() -> None:
     directus.get_items.assert_awaited_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_remove_items_for_target_hashes_filters_by_user_and_type() -> None:
     directus = SimpleNamespace()
     directus.get_items = AsyncMock(return_value=[])
@@ -51,7 +51,7 @@ async def test_remove_items_for_target_hashes_filters_by_user_and_type() -> None
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.anyio
 async def test_remove_items_for_target_hashes_decrements_each_project_count() -> None:
     directus = SimpleNamespace()
     directus.get_items = AsyncMock(
