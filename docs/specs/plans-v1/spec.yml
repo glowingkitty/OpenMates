@@ -1,6 +1,6 @@
 id: plans-v1
 title: Plans V1
-status: implementing
+status: verified
 
 goal: >
   Add a durable privacy-preserving Plans product model that lets users and
@@ -856,9 +856,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "github:28447144080:python3 scripts/tests.py run -- --spec plans-flow.spec.ts"
+        timestamp: "2026-06-30T13:16:54Z"
 
   - id: T-E2E-PROJECT-PLANS
     type: playwright
@@ -884,9 +884,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "github:28447548978:python3 scripts/tests.py run -- --spec project-plans-flow.spec.ts"
+        timestamp: "2026-06-30T13:23:40Z"
 
 implementation_plan:
   existing_patterns:
