@@ -29,6 +29,8 @@
     "test:unit:server": "node --test --experimental-strip-types tests/server.test.ts",
     "test:unit:workflows": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workflows.test.ts",
     "test:unit:sdk-workflows": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-workflows.test.ts",
+    "test:unit:remote-access": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/remoteSources.test.ts tests/remoteAccess.test.ts",
+    "test:unit:sdk-projects": "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-projects.test.ts",
     "test:unit:billing": "node --test tests/billing.test.ts",
     "test:unit:account-delete": "node --test tests/account-delete.test.ts",
     "test:unit:cli": "node --test tests/cli.test.ts",

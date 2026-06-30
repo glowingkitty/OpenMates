@@ -682,7 +682,7 @@ tests:
 
   - id: T-UNIT-PROJECT-SERVICE
     type: unit
-    file: frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.ts
+    file: frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js
     command: cd frontend/packages/ui && npm run test:unit:project-remote-sources
     covers:
       - AC-2
@@ -715,6 +715,54 @@ tests:
         status: pending
         run_id: ""
         timestamp: ""
+
+  - id: T-UNIT-SDK-PROJECT-SOURCES
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk-projects.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test:unit:sdk-projects
+    covers:
+      - AC-1
+    assertions:
+      - npm SDK exposes Project source create/list methods for encrypted source metadata.
+      - npm SDK uses /v1/projects/{project_id}/sources without plaintext source metadata.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk-projects.test.ts (missing client.projects namespace)"
+        timestamp: "2026-06-30"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "cd frontend/packages/openmates-cli && npm run test:unit:sdk-projects"
+        timestamp: "2026-06-30"
+
+  - id: T-PYTEST-PIP-PROJECT-SOURCES
+    type: pytest
+    file: packages/openmates-python/tests/test_projects.py
+    command: python3 -m pytest packages/openmates-python/tests/test_projects.py
+    covers:
+      - AC-1
+    assertions:
+      - pip SDK exposes Project source create/list methods for encrypted source metadata.
+      - pip SDK uses /v1/projects/{project_id}/sources without plaintext source metadata.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "python3 -m pytest packages/openmates-python/tests/test_projects.py (missing client.projects namespace)"
+        timestamp: "2026-06-30"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 -m pytest packages/openmates-python/tests/test_projects.py"
+        timestamp: "2026-06-30"
 
   - id: T-PYTEST-PROJECT-SOURCES
     type: pytest
@@ -947,6 +995,24 @@ tasks:
       - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
     verification:
       - T-UNIT-CLI-REMOTE-SOURCES
+      - T-UNIT-SDK-PROJECT-SOURCES
+      - T-PYTEST-PIP-PROJECT-SOURCES
+    progress_evidence:
+      - status: partial_passed
+        timestamp: "2026-06-30"
+        commands:
+          - "cd frontend/packages/openmates-cli && npm run test:unit:remote-access"
+          - "cd frontend/packages/openmates-cli && npm run test:unit:sdk-projects"
+          - "python3 -m pytest packages/openmates-python/tests/test_projects.py"
+          - "python3 scripts/audit_sdk_cli_parity.py"
+        result: "CLI source contract passed; npm SDK source contract passed; pip SDK source contract passed; SDK/CLI parity audit passed."
+        covered:
+          - CLI client, npm SDK, and pip SDK can list and create encrypted Project source records through /v1/projects/{project_id}/sources.
+          - CLI remote-access primitives resolve default cache paths under ~/.openmates/remote-cache/<source-id>.
+          - CLI remote-access search runs injected rg inside the approved source root, caps results, and excludes high-risk files.
+          - CLI TypeScript high-risk policy matches the backend narrow always-ask defaults for built-in and user-protected paths.
+        remaining:
+          - Interactive remote-access bridge start/list/read/search commands, persisted bridge metadata, ignored-file detection from real git state, binary probing, and automated check consent.
     independently_deployable: false
   - id: TASK-3
     title: Add virtual remote previews and upload-selected file flow
@@ -974,6 +1040,18 @@ tasks:
     verification:
       - T-UNIT-PROJECT-SERVICE
       - T-E2E-PROJECT-REMOTE-SOURCES
+    progress_evidence:
+      - status: partial_passed
+        timestamp: "2026-06-30"
+        commands:
+          - "cd frontend/packages/ui && npm run test:unit:project-remote-sources"
+          - "./scripts/lint_changed.sh --ts --svelte --path frontend/packages/ui/src/services/projectRemoteSources.ts --path frontend/packages/ui/src/services/projectService.ts --path frontend/packages/ui/src/components/projects/ProjectsPage.svelte --path frontend/packages/ui/src/services/__tests__/projectRemoteSources.test.js"
+        result: "UI remote-source helper test passed; targeted TypeScript/Svelte lint passed."
+        covered:
+          - Project service can build non-mutating encrypted source payloads and normalize remote files into virtual embed-compatible previews.
+          - Projects page renders an empty/connected remote source status section with stable data-testid attributes.
+        remaining:
+          - Upload-selected remote files to real embeds, fullscreen virtual preview rendering, Project settings pages, mention chips, and Code automated-check settings.
     independently_deployable: false
   - id: TASK-4
     title: Add Project, folder, and file mentions to chat context

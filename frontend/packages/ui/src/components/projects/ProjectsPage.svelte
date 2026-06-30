@@ -21,10 +21,12 @@
     createProject,
     deleteProject,
     getProjectContents,
+    listProjectSources,
     listProjects,
     uploadFileToProject,
     type ProjectFolderViewModel,
     type ProjectItemViewModel,
+    type ProjectSourceViewModel,
     type ProjectViewModel,
   } from '../../services/projectService';
 
@@ -34,6 +36,7 @@
   let selectedProject = $state<ProjectViewModel | null>(null);
   let folders = $state<ProjectFolderViewModel[]>([]);
   let items = $state<ProjectItemViewModel[]>([]);
+  let sources = $state<ProjectSourceViewModel[]>([]);
   let isLoading = $state(true);
   let isSaving = $state(false);
   let newProjectName = $state('');
@@ -84,14 +87,19 @@
     if (!selectedProject) {
       folders = [];
       items = [];
+      sources = [];
       currentFolder = null;
       currentFolderHash = null;
       folderHashes = new Map();
       return;
     }
-    const contents = await getProjectContents(selectedProject);
+    const [contents, projectSources] = await Promise.all([
+      getProjectContents(selectedProject),
+      listProjectSources(selectedProject),
+    ]);
     folders = contents.folders;
     items = contents.items;
+    sources = projectSources;
     folderHashes = new Map(await Promise.all(contents.folders.map(async (folder) => [folder.folder_id, await computeSHA256(folder.folder_id)] as const)));
     if (currentFolder && !contents.folders.some((folder) => folder.folder_id === currentFolder?.folder_id)) {
       currentFolder = null;
@@ -329,6 +337,39 @@
             {/each}
             {#each browserItems as item (item.project_item_id)}
               <ProjectBrowserItem {item} {viewMode} />
+            {/each}
+          </div>
+        {/if}
+      </section>
+
+      <section class="project-section" data-testid="project-remote-sources-section">
+        <div class="section-title">
+          <div>
+            <h3>Remote sources</h3>
+            <p class="muted">Connected folders and repositories stay on your machine unless you upload selected files.</p>
+          </div>
+          <button class="settings-gear-button" type="button" data-testid="project-settings-button" aria-label="Open project settings">
+            Settings
+          </button>
+        </div>
+        {#if sources.length === 0}
+          <div class="empty-state compact" data-testid="project-remote-sources-empty">
+            <h3>No remote sources connected</h3>
+            <p>Use the OpenMates CLI remote-access bridge to attach a folder or repository.</p>
+          </div>
+        {:else}
+          <div class="source-list" data-testid="project-remote-sources-list">
+            {#each sources as source (source.source_id)}
+              <article class="source-card" data-testid="project-remote-source-card" data-status={source.status}>
+                <div>
+                  <span class="source-kind">{source.source_type.replaceAll('_', ' ')}</span>
+                  <strong>{source.displayName || source.source_id}</strong>
+                  {#if typeof source.metadata.root === 'string'}
+                    <small>{source.metadata.root}</small>
+                  {/if}
+                </div>
+                <span class="source-status">{source.status.replaceAll('_', ' ')}</span>
+              </article>
             {/each}
           </div>
         {/if}
@@ -750,6 +791,50 @@
     max-width: 520px;
     margin: 12vh auto;
     text-align: center;
+  }
+
+  .empty-state.compact {
+    box-shadow: none;
+  }
+
+  .settings-gear-button {
+    background: var(--color-grey-10);
+    color: var(--color-font-primary);
+  }
+
+  .source-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .source-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--color-grey-20);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-0);
+  }
+
+  .source-card div {
+    display: grid;
+    gap: 4px;
+  }
+
+  .source-kind,
+  .source-status {
+    color: var(--color-font-secondary);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .source-status {
+    padding: 5px 8px;
+    border-radius: var(--radius-3);
+    background: var(--color-grey-10);
   }
 
   .load-error {

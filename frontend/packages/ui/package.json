@@ -49,6 +49,7 @@
     "lint": "eslint .",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:unit:project-remote-sources": "node --test --experimental-strip-types src/services/__tests__/projectRemoteSources.test.js",
     "test:coverage": "vitest run --coverage",
     "generate-apps-metadata": "node scripts/generate-apps-metadata.js",
     "generate-embed-registry": "node scripts/generate-embed-registry.js",
