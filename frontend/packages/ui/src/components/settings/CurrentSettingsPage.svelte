@@ -164,6 +164,7 @@
 
     const SETTINGS_VIEW_ICON_OVERRIDES: Record<string, string> = {
         'learning-mode/setup': 'study',
+        'projects': 'project',
     };
 
     function showSettingsView(viewName, event) {

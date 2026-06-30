@@ -14,6 +14,7 @@
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import { notificationStore } from '../../stores/notificationStore';
   import { panelState } from '../../stores/panelStateStore';
+  import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { userProfile } from '../../stores/userProfile';
   import { computeSHA256 } from '../../message_parsing/utils';
   import {
@@ -213,6 +214,12 @@
     panelState.openChats();
   }
 
+  function openSelectedProjectSettings(): void {
+    if (!selectedProject) return;
+    panelState.openSettings();
+    settingsDeepLink.set(`projects/${selectedProject.project_id}`);
+  }
+
   onMount(() => {
     void refreshProjects();
     void loadDefaultInspirations({ surface: 'projects', allowIndexedDB: false });
@@ -348,7 +355,7 @@
             <h3>Remote sources</h3>
             <p class="muted">Connected folders and repositories stay on your machine unless you upload selected files.</p>
           </div>
-          <button class="settings-gear-button" type="button" data-testid="project-settings-button" aria-label="Open project settings">
+          <button class="settings-gear-button" type="button" data-testid="project-settings-button" aria-label="Open project settings" onclick={openSelectedProjectSettings}>
             Settings
           </button>
         </div>

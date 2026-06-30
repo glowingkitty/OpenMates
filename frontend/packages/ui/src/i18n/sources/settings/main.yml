@@ -238,6 +238,198 @@ team:
   sv: Team
   he: צוות
   verified_by_human: []
+projects:
+  context: Settings menu entry for project settings
+  en: Projects
+  de: Projekte
+  zh: 项目
+  es: Proyectos
+  fr: Projets
+  pt: Projetos
+  ru: Проекты
+  ja: プロジェクト
+  ko: 프로젝트
+  it: Progetti
+  tr: Projeler
+  vi: Dự án
+  id: Proyek
+  pl: Projekty
+  nl: Projecten
+  ar: المشاريع
+  hi: प्रोजेक्ट
+  th: โปรเจ็กต์
+  cs: Projekty
+  sv: Projekt
+  he: פרויקטים
+  verified_by_human: []
+projects.description:
+  context: Description for Settings > Projects
+  en: Manage project-specific remote source permissions, write policies, and automation checks.
+  de: Verwalte projektspezifische Remote-Quellenberechtigungen, Schreibregeln und automatische Prüfungen.
+  zh: 管理项目专属的远程来源权限、写入策略和自动化检查。
+  es: Gestiona permisos de fuentes remotas, políticas de escritura y comprobaciones automáticas por proyecto.
+  fr: Gérez les autorisations de sources distantes, les règles d’écriture et les vérifications automatiques par projet.
+  pt: Gerencie permissões de fontes remotas, políticas de escrita e verificações automáticas por projeto.
+  ru: Управляйте разрешениями удалённых источников, правилами записи и автоматическими проверками для проекта.
+  ja: プロジェクトごとのリモートソース権限、書き込みポリシー、自動チェックを管理します。
+  ko: 프로젝트별 원격 소스 권한, 쓰기 정책, 자동 검사를 관리합니다.
+  it: Gestisci autorizzazioni delle sorgenti remote, criteri di scrittura e controlli automatici per progetto.
+  tr: Projeye özel uzak kaynak izinlerini, yazma politikalarını ve otomatik kontrolleri yönetin.
+  vi: Quản lý quyền nguồn từ xa, chính sách ghi và kiểm tra tự động theo từng dự án.
+  id: Kelola izin sumber jarak jauh, kebijakan tulis, dan pemeriksaan otomatis per proyek.
+  pl: Zarządzaj uprawnieniami zdalnych źródeł, zasadami zapisu i automatycznymi kontrolami dla projektu.
+  nl: Beheer projectspecifieke externe bronrechten, schrijfbeleid en automatische controles.
+  ar: إدارة أذونات المصادر البعيدة وسياسات الكتابة والفحوصات التلقائية لكل مشروع.
+  hi: प्रोजेक्ट-विशिष्ट रिमोट स्रोत अनुमतियां, लिखने की नीतियां और स्वचालित जांच प्रबंधित करें।
+  th: จัดการสิทธิ์แหล่งข้อมูลระยะไกล นโยบายการเขียน และการตรวจสอบอัตโนมัติของแต่ละโปรเจ็กต์
+  cs: Spravujte oprávnění vzdálených zdrojů, zásady zápisu a automatické kontroly pro jednotlivé projekty.
+  sv: Hantera projektspecifika fjärrkällbehörigheter, skrivpolicyer och automatiska kontroller.
+  he: ניהול הרשאות מקורות מרוחקים, מדיניות כתיבה ובדיקות אוטומטיות לכל פרויקט.
+  verified_by_human: []
+projects.project_settings:
+  context: Title for a single Project settings page
+  en: Project settings
+  de: Projekteinstellungen
+  zh: 项目设置
+  es: Ajustes del proyecto
+  fr: Paramètres du projet
+  pt: Configurações do projeto
+  ru: Настройки проекта
+  ja: プロジェクト設定
+  ko: 프로젝트 설정
+  it: Impostazioni progetto
+  tr: Proje ayarları
+  vi: Cài đặt dự án
+  id: Pengaturan proyek
+  pl: Ustawienia projektu
+  nl: Projectinstellingen
+  ar: إعدادات المشروع
+  hi: प्रोजेक्ट सेटिंग्स
+  th: การตั้งค่าโปรเจ็กต์
+  cs: Nastavení projektu
+  sv: Projektinställningar
+  he: הגדרות פרויקט
+  verified_by_human: []
+projects.load_error_title:
+  context: Project settings load failure title
+  en: Could not load Projects
+  de: Projekte konnten nicht geladen werden
+  zh: 无法加载项目
+  es: No se pudieron cargar los proyectos
+  fr: Impossible de charger les projets
+  pt: Não foi possível carregar os projetos
+  ru: Не удалось загрузить проекты
+  ja: プロジェクトを読み込めませんでした
+  ko: 프로젝트를 불러올 수 없습니다
+  it: Impossibile caricare i progetti
+  tr: Projeler yüklenemedi
+  vi: Không thể tải dự án
+  id: Tidak dapat memuat proyek
+  pl: Nie udało się wczytać projektów
+  nl: Kan projecten niet laden
+  ar: تعذر تحميل المشاريع
+  hi: प्रोजेक्ट लोड नहीं हो सके
+  th: โหลดโปรเจ็กต์ไม่ได้
+  cs: Projekty se nepodařilo načíst
+  sv: Kunde inte läsa in projekt
+  he: לא ניתן לטעון פרויקטים
+  verified_by_human: []
+projects.load_error:
+  context: Project settings load failure message
+  en: Please try again. Your encrypted project data was not changed.
+  de: Bitte versuche es erneut. Deine verschlüsselten Projektdaten wurden nicht geändert.
+  zh: 请重试。你的加密项目数据未被更改。
+  es: Inténtalo de nuevo. Tus datos cifrados del proyecto no cambiaron.
+  fr: Réessayez. Vos données de projet chiffrées n’ont pas été modifiées.
+  pt: Tente novamente. Seus dados criptografados do projeto não foram alterados.
+  ru: Попробуйте ещё раз. Зашифрованные данные проекта не изменялись.
+  ja: もう一度お試しください。暗号化されたプロジェクトデータは変更されていません。
+  ko: 다시 시도하세요. 암호화된 프로젝트 데이터는 변경되지 않았습니다.
+  it: Riprova. I dati crittografati del progetto non sono stati modificati.
+  tr: Lütfen tekrar deneyin. Şifrelenmiş proje verileriniz değiştirilmedi.
+  vi: Vui lòng thử lại. Dữ liệu dự án đã mã hóa của bạn chưa bị thay đổi.
+  id: Coba lagi. Data proyek terenkripsi Anda tidak diubah.
+  pl: Spróbuj ponownie. Zaszyfrowane dane projektu nie zostały zmienione.
+  nl: Probeer het opnieuw. Je versleutelde projectgegevens zijn niet gewijzigd.
+  ar: حاول مرة أخرى. لم يتم تغيير بيانات مشروعك المشفرة.
+  hi: कृपया फिर से कोशिश करें। आपका एन्क्रिप्टेड प्रोजेक्ट डेटा बदला नहीं गया।
+  th: โปรดลองอีกครั้ง ข้อมูลโปรเจ็กต์ที่เข้ารหัสของคุณไม่ได้ถูกเปลี่ยนแปลง
+  cs: Zkuste to znovu. Vaše šifrovaná data projektu nebyla změněna.
+  sv: Försök igen. Dina krypterade projektdata ändrades inte.
+  he: נסו שוב. נתוני הפרויקט המוצפנים שלך לא שונו.
+  verified_by_human: []
+projects.loading_title:
+  context: Project settings loading title
+  en: Loading Projects
+  de: Projekte werden geladen
+  zh: 正在加载项目
+  es: Cargando proyectos
+  fr: Chargement des projets
+  pt: Carregando projetos
+  ru: Загрузка проектов
+  ja: プロジェクトを読み込み中
+  ko: 프로젝트 불러오는 중
+  it: Caricamento progetti
+  tr: Projeler yükleniyor
+  vi: Đang tải dự án
+  id: Memuat proyek
+  pl: Wczytywanie projektów
+  nl: Projecten laden
+  ar: جارٍ تحميل المشاريع
+  hi: प्रोजेक्ट लोड हो रहे हैं
+  th: กำลังโหลดโปรเจ็กต์
+  cs: Načítání projektů
+  sv: Läser in projekt
+  he: טוען פרויקטים
+  verified_by_human: []
+projects.loading_description:
+  context: Project settings loading description
+  en: Decrypting your project list on this device.
+  de: Deine Projektliste wird auf diesem Gerät entschlüsselt.
+  zh: 正在此设备上解密你的项目列表。
+  es: Descifrando tu lista de proyectos en este dispositivo.
+  fr: Déchiffrement de votre liste de projets sur cet appareil.
+  pt: Descriptografando sua lista de projetos neste dispositivo.
+  ru: Расшифровываем список проектов на этом устройстве.
+  ja: このデバイスでプロジェクト一覧を復号しています。
+  ko: 이 기기에서 프로젝트 목록을 복호화하는 중입니다.
+  it: Decifro l’elenco dei progetti su questo dispositivo.
+  tr: Proje listeniz bu cihazda çözülüyor.
+  vi: Đang giải mã danh sách dự án trên thiết bị này.
+  id: Mendekripsi daftar proyek Anda di perangkat ini.
+  pl: Odszyfrowywanie listy projektów na tym urządzeniu.
+  nl: Je projectlijst wordt op dit apparaat ontsleuteld.
+  ar: يتم فك تشفير قائمة مشاريعك على هذا الجهاز.
+  hi: इस डिवाइस पर आपकी प्रोजेक्ट सूची डिक्रिप्ट की जा रही है।
+  th: กำลังถอดรหัสรายการโปรเจ็กต์ของคุณบนอุปกรณ์นี้
+  cs: Dešifruji seznam projektů na tomto zařízení.
+  sv: Dekrypterar din projektlista på den här enheten.
+  he: מפענח את רשימת הפרויקטים שלך במכשיר הזה.
+  verified_by_human: []
+projects.retry:
+  context: Retry button in Projects settings
+  en: Retry
+  de: Erneut versuchen
+  zh: 重试
+  es: Reintentar
+  fr: Réessayer
+  pt: Tentar novamente
+  ru: Повторить
+  ja: 再試行
+  ko: 다시 시도
+  it: Riprova
+  tr: Yeniden dene
+  vi: Thử lại
+  id: Coba lagi
+  pl: Spróbuj ponownie
+  nl: Opnieuw proberen
+  ar: إعادة المحاولة
+  hi: फिर कोशिश करें
+  th: ลองอีกครั้ง
+  cs: Zkusit znovu
+  sv: Försök igen
+  he: נסה שוב
+  verified_by_human: []
 incognito:
   context: Incognito mode toggle
   en: Incognito

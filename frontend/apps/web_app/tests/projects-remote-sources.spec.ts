@@ -66,7 +66,15 @@ test.describe('Projects remote sources', () => {
     await expect(page.getByTestId('project-remote-source-card').filter({ hasText: sourceId })).toBeVisible();
     await expect(page.getByTestId('project-remote-source-card').filter({ hasText: 'connected' })).toBeVisible();
 
+    await page.getByTestId('project-settings-button').click();
+    const projectSettings = page.locator(`[data-testid="settings-menu"][data-active-view="projects/${projectId}"]`);
+    await expect(projectSettings).toBeVisible({ timeout: 10000 });
+    await expect(projectSettings.getByTestId('project-settings-page')).toBeVisible();
+    await expect(projectSettings.getByTestId('project-settings-title')).toContainText(projectName);
+    await expect(projectSettings.getByTestId('project-settings-source-card').filter({ hasText: sourceId })).toBeVisible();
+
     page.once('dialog', (dialog) => dialog.accept());
+    await page.getByTestId('icon-button-close').click();
     await page.getByTestId('project-delete-button').click();
     await expect(page.getByTestId('project-card').filter({ hasText: projectName })).toHaveCount(0);
   });
