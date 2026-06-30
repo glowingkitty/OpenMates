@@ -93,6 +93,18 @@ export interface ProjectSourceRecord extends ProjectSourceCreatePayload {
   id?: string;
 }
 
+export interface ProjectSettingsRecord {
+  write_mode: ProjectWriteMode;
+  encrypted_settings?: string | null;
+  updated_at?: number | null;
+}
+
+export interface ProjectSettingsViewModel {
+  writeMode: ProjectWriteMode;
+  settings: Record<string, unknown>;
+  encrypted: ProjectSettingsRecord;
+}
+
 export interface ProjectSourceViewModel {
   source_id: string;
   source_type: ProjectSourceType;
@@ -236,12 +248,17 @@ export async function createProjectSource(
   return decryptProjectSource(data.source, project.projectKey);
 }
 
+export async function getProjectSettings(project: ProjectViewModel): Promise<ProjectSettingsViewModel> {
+  const data = await requestJson<{ settings: ProjectSettingsRecord }>(`/v1/projects/${project.project_id}/settings`);
+  return decryptProjectSettings(data.settings, project.projectKey);
+}
+
 export async function updateProjectSettings(
   project: ProjectViewModel,
   writeMode: ProjectWriteMode,
   settings: Record<string, unknown> = {},
-): Promise<void> {
-  await requestJson(`/v1/projects/${project.project_id}/settings`, {
+): Promise<ProjectSettingsViewModel> {
+  const data = await requestJson<{ settings: ProjectSettingsRecord }>(`/v1/projects/${project.project_id}/settings`, {
     method: "PATCH",
     body: JSON.stringify({
       write_mode: writeMode,
@@ -249,6 +266,7 @@ export async function updateProjectSettings(
       updated_at: nowSeconds(),
     }),
   });
+  return decryptProjectSettings(data.settings, project.projectKey);
 }
 
 export async function deleteProject(projectId: string): Promise<void> {
@@ -267,6 +285,22 @@ async function decryptProjectSource(source: ProjectSourceRecord, projectKey: Uin
     status: source.status ?? "connected",
     encrypted: source,
   };
+}
+
+async function decryptProjectSettings(settings: ProjectSettingsRecord, projectKey: Uint8Array): Promise<ProjectSettingsViewModel> {
+  const settingsText = await decryptOptional(settings.encrypted_settings, projectKey);
+  return {
+    writeMode: normalizeProjectWriteMode(settings.write_mode),
+    settings: parseProjectMetadata(settingsText, "settings"),
+    encrypted: {
+      ...settings,
+      write_mode: normalizeProjectWriteMode(settings.write_mode),
+    },
+  };
+}
+
+function normalizeProjectWriteMode(writeMode: unknown): ProjectWriteMode {
+  return writeMode === "auto_approve_safe_writes" ? "auto_approve_safe_writes" : "always_ask";
 }
 
 export async function getProjectContents(project: ProjectViewModel): Promise<{

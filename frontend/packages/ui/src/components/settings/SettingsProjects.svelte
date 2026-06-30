@@ -13,6 +13,7 @@
     import { text } from '@repo/ui';
     import {
         SettingsButton,
+        SettingsButtonGroup,
         SettingsCard,
         SettingsDetailRow,
         SettingsInfoBox,
@@ -23,9 +24,12 @@
     import {
         listProjects,
         listProjectSources,
+        getProjectSettings,
+        updateProjectSettings,
         type ProjectSourceViewModel,
         type ProjectViewModel,
     } from '../../services/projectService';
+    import type { ProjectWriteMode } from '../../services/projectRemoteSources';
 
     let { activeSettingsView = 'projects' }: { activeSettingsView?: string } = $props();
 
@@ -33,8 +37,12 @@
 
     let projects = $state<ProjectViewModel[]>([]);
     let sources = $state<ProjectSourceViewModel[]>([]);
+    let writeMode = $state<ProjectWriteMode>('always_ask');
     let isLoading = $state(true);
+    let isSavingSettings = $state(false);
     let loadError = $state('');
+    let saveError = $state('');
+    let saveMessage = $state('');
     let loadedRoute = $state('');
 
     let selectedProjectId = $derived(activeSettingsView.match(/^projects\/([^/]+)$/)?.[1] ?? null);
@@ -56,14 +64,51 @@
             const project = selectedProjectId
                 ? nextProjects.find((candidate) => candidate.project_id === selectedProjectId)
                 : null;
-            sources = project ? await listProjectSources(project) : [];
+            if (project) {
+                const [projectSources, projectSettings] = await Promise.all([
+                    listProjectSources(project),
+                    getProjectSettings(project),
+                ]);
+                sources = projectSources;
+                writeMode = projectSettings.writeMode;
+            } else {
+                sources = [];
+                writeMode = 'always_ask';
+            }
         } catch (error) {
             console.error('[SettingsProjects] Failed to load Projects settings:', error);
             loadError = $text('settings.projects.load_error');
             sources = [];
+            writeMode = 'always_ask';
         } finally {
             isLoading = false;
         }
+    }
+
+    async function saveWriteMode(nextWriteMode: ProjectWriteMode): Promise<void> {
+        if (!selectedProject || isSavingSettings) return;
+        isSavingSettings = true;
+        saveError = '';
+        saveMessage = '';
+        try {
+            const updated = await updateProjectSettings(selectedProject, nextWriteMode, {
+                protected_path_patterns: [],
+                automated_checks: 'not_configured',
+            });
+            writeMode = updated.writeMode;
+            saveMessage = 'Project write policy saved.';
+        } catch (error) {
+            console.error('[SettingsProjects] Failed to save Project write mode:', error);
+            saveError = 'Could not save Project write policy. Please try again.';
+        } finally {
+            isSavingSettings = false;
+        }
+    }
+
+    function writeModeLabel(mode: ProjectWriteMode): string {
+        return mode === 'auto_approve_safe_writes'
+            ? 'Auto approve safe writes'
+            : 'Always ask before writes';
     }
 
     function openProject(project: ProjectViewModel): void {
@@ -99,9 +144,39 @@
             <SettingsCard>
                 <SettingsDetailRow label="Name" value={selectedProject.name || 'Untitled project'} highlight />
                 <SettingsDetailRow label="Items" value={`${selectedProject.encrypted.item_count ?? 0}`} />
-                <SettingsDetailRow label="Write policy" value="Always ask before writes" />
+                <SettingsDetailRow label="Write policy" value={writeModeLabel(writeMode)} />
                 <SettingsDetailRow label="Automated checks" value="Not configured" muted />
             </SettingsCard>
+            <SettingsButtonGroup align="left">
+                <SettingsButton
+                    variant={writeMode === 'always_ask' ? 'primary' : 'secondary'}
+                    disabled={isSavingSettings || writeMode === 'always_ask'}
+                    loading={isSavingSettings && writeMode !== 'always_ask'}
+                    dataTestid="project-settings-write-mode-always-ask"
+                    onClick={() => void saveWriteMode('always_ask')}
+                >
+                    Always ask
+                </SettingsButton>
+                <SettingsButton
+                    variant={writeMode === 'auto_approve_safe_writes' ? 'primary' : 'secondary'}
+                    disabled={isSavingSettings || writeMode === 'auto_approve_safe_writes'}
+                    loading={isSavingSettings && writeMode !== 'auto_approve_safe_writes'}
+                    dataTestid="project-settings-write-mode-safe-writes"
+                    onClick={() => void saveWriteMode('auto_approve_safe_writes')}
+                >
+                    Auto approve safe writes
+                </SettingsButton>
+            </SettingsButtonGroup>
+            {#if saveMessage}
+                <SettingsInfoBox type="success">
+                    <p>{saveMessage}</p>
+                </SettingsInfoBox>
+            {/if}
+            {#if saveError}
+                <SettingsInfoBox type="warning">
+                    <p>{saveError}</p>
+                </SettingsInfoBox>
+            {/if}
 
             <SettingsSectionHeading title="Connected sources" icon="project" />
             {#if sources.length === 0}

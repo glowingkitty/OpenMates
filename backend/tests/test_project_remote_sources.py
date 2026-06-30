@@ -18,6 +18,7 @@ from backend.core.api.app.routes.projects import (
     ProjectSourceCreateRequest,
     ProjectSettingsUpdateRequest,
     create_project_source,
+    get_project_settings,
     list_project_sources,
     update_project_settings,
 )
@@ -246,6 +247,88 @@ async def test_list_project_sources_route_returns_owned_sources() -> None:
     )
 
     assert response == {"sources": [{"source_id": "source-1"}]}
+
+
+@pytest.mark.anyio
+async def test_get_project_settings_returns_default_without_row() -> None:
+    directus = SimpleNamespace()
+    directus.project = SimpleNamespace(
+        get_project=AsyncMock(return_value={"id": "project-row-1"}),
+        get_project_settings=AsyncMock(return_value=None),
+    )
+
+    response = await get_project_settings(
+        request=make_request("GET"),
+        project_id="project-1",
+        current_user=SimpleNamespace(id="user-1"),
+        directus_service=directus,
+    )
+
+    assert response == {
+        "settings": {
+            "write_mode": "always_ask",
+            "encrypted_settings": None,
+            "updated_at": None,
+        }
+    }
+
+
+@pytest.mark.anyio
+async def test_get_project_settings_requires_project_access() -> None:
+    directus = SimpleNamespace()
+    directus.project = SimpleNamespace(
+        get_project=AsyncMock(return_value=None),
+        get_project_settings=AsyncMock(),
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await get_project_settings(
+            request=make_request("GET"),
+            project_id="project-1",
+            current_user=SimpleNamespace(id="user-1"),
+            directus_service=directus,
+        )
+
+    assert exc_info.value.status_code == 404
+    directus.project.get_project_settings.assert_not_called()
+
+
+@pytest.mark.anyio
+async def test_update_project_settings_returns_sanitized_row() -> None:
+    directus = SimpleNamespace()
+    directus.project = SimpleNamespace(
+        get_project=AsyncMock(return_value={"id": "project-row-1"}),
+        upsert_project_settings=AsyncMock(
+            return_value={
+                "id": "settings-row-1",
+                "hashed_project_id": hash_id("project-1"),
+                "hashed_user_id": hash_id("user-1"),
+                "write_mode": "auto_approve_safe_writes",
+                "encrypted_settings": "encrypted-settings",
+                "updated_at": 123,
+            }
+        ),
+    )
+
+    response = await update_project_settings(
+        request=make_request("PATCH"),
+        project_id="project-1",
+        body=ProjectSettingsUpdateRequest(
+            write_mode="auto_approve_safe_writes",
+            encrypted_settings="encrypted-settings",
+            updated_at=123,
+        ),
+        current_user=SimpleNamespace(id="user-1"),
+        directus_service=directus,
+    )
+
+    assert response == {
+        "settings": {
+            "write_mode": "auto_approve_safe_writes",
+            "encrypted_settings": "encrypted-settings",
+            "updated_at": 123,
+        }
+    }
 
 
 @pytest.mark.anyio

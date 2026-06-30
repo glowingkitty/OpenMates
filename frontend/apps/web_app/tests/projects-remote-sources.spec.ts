@@ -72,6 +72,9 @@ test.describe('Projects remote sources', () => {
     await expect(projectSettings.getByTestId('project-settings-page')).toBeVisible();
     await expect(projectSettings.getByTestId('project-settings-title')).toContainText(projectName);
     await expect(projectSettings.getByTestId('project-settings-source-card').filter({ hasText: sourceId })).toBeVisible();
+    await projectSettings.getByTestId('project-settings-write-mode-safe-writes').click();
+    await expect(projectSettings).toContainText('Project write policy saved.');
+    await expect(projectSettings).toContainText('Auto approve safe writes');
 
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByTestId('icon-button-close').click();

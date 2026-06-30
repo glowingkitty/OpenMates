@@ -23,6 +23,7 @@ router = APIRouter(prefix="/v1/projects", tags=["Projects"], dependencies=[Depen
 PROJECT_SOURCE_ID_MAX_LENGTH = 128
 PROJECT_SOURCE_CIPHERTEXT_MAX_LENGTH = 128_000
 PROJECT_SOURCE_CAPABILITIES_MAX_COUNT = 8
+PROJECT_SETTINGS_DEFAULT_WRITE_MODE = "always_ask"
 
 
 def get_directus_service(request: Request) -> DirectusService:
@@ -135,6 +136,20 @@ class ProjectSettingsUpdateRequest(BaseModel):
     updated_at: int
 
 
+def serialize_project_settings(settings: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not settings:
+        return {
+            "write_mode": PROJECT_SETTINGS_DEFAULT_WRITE_MODE,
+            "encrypted_settings": None,
+            "updated_at": None,
+        }
+    return {
+        "write_mode": settings.get("write_mode") or PROJECT_SETTINGS_DEFAULT_WRITE_MODE,
+        "encrypted_settings": settings.get("encrypted_settings"),
+        "updated_at": settings.get("updated_at"),
+    }
+
+
 @router.get("")
 @limiter.limit("60/minute")
 async def list_projects(
@@ -229,6 +244,22 @@ async def create_project_source(
     return {"source": source}
 
 
+@router.get("/{project_id}/settings")
+@limiter.limit("60/minute")
+async def get_project_settings(
+    request: Request,
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    project = await directus_service.project.get_project(project_id, current_user.id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    settings = await directus_service.project.get_project_settings(project_id, current_user.id)
+    return {"settings": serialize_project_settings(settings)}
+
+
 @router.patch("/{project_id}/settings")
 @limiter.limit("30/minute")
 async def update_project_settings(
@@ -249,7 +280,7 @@ async def update_project_settings(
     )
     if not settings:
         raise HTTPException(status_code=500, detail="Failed to update project settings")
-    return {"settings": settings}
+    return {"settings": serialize_project_settings(settings)}
 
 
 @router.delete("/{project_id}")
