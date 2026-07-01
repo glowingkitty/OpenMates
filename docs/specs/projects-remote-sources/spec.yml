@@ -370,13 +370,16 @@ v1_product_model:
       encrypted Project metadata and Project-linked records without giving the
       backend the Project key. The decrypt authority comes from the share URL
       fragment key and optional password, following the existing chat/embed
-      share-link contract. Runtime remote-source access is never included.
+      share-link contract. Existing Project/task/plan/embed keys are wrapped for
+      this bundle by the share fragment key; sharing does not create new durable
+      record keys or server-readable share wrappers. Runtime remote-source access
+      is never included.
     includes:
       - project_id
       - encrypted_project_metadata
-      - encrypted_project_key_for_share
+      - existing_project_key_wrapped_by_share_key
       - selected encrypted project item records
-      - optional encrypted task, plan, and uploaded-embed key details for selected records
+      - optional existing task, plan, and uploaded-embed keys wrapped by the share key for selected records
       - generated_at and duration_seconds
       - password_protected flag
     excludes:
@@ -650,9 +653,9 @@ scenarios:
       - OpenMates creates the Project share link.
       - Bob opens the link.
     then:
-      - Bob can decrypt only the selected encrypted Project metadata and selected records using key material from the URL fragment and optional password.
+      - Bob can decrypt only the selected encrypted Project metadata and selected records using existing Project/task/plan/embed keys wrapped by key material from the URL fragment and optional password.
       - Bob receives read-only Project context, not owner/edit access.
-      - The backend never receives the URL fragment key, optional password, raw Project key, raw linked record keys, or decrypted Project fields.
+      - The backend never receives the URL fragment key, optional password, raw existing Project key, raw linked record keys, or decrypted Project fields.
       - Remote-source runtime access is excluded: Bob cannot use Alice's CLI bridge, local paths, repository remotes, source grants, search/read permissions, write permissions, check commands, tokens, or connected-device credentials.
       - Existing chat and embed share links continue to work without format changes.
 
@@ -695,7 +698,7 @@ acceptance_criteria:
     text: Automated code checks are governed by Code app settings with Project overrides and a first-use prompt that distinguishes E2B sandbox checks from remote-machine checks.
   - id: AC-13
     scenario: S-13
-    text: Project sharing uses URL-fragment key material for read-only selected encrypted Project data and never shares remote-source runtime access or server-readable raw keys.
+    text: Project sharing wraps existing Project/task/plan/embed keys with URL-fragment key material for read-only selected encrypted Project data and never shares remote-source runtime access, new durable record keys, durable share wrappers, or server-readable raw keys.
 
 tests:
   - id: T-UNIT-CLI-REMOTE-SOURCES

@@ -91,9 +91,6 @@ test.describe('Projects remote sources', () => {
     await editableMessage.click();
     await editableMessage.pressSequentially('@', { delay: 50 });
     await expect(editableMessage).toContainText('@');
-    await editableMessage.click();
-    await editableMessage.pressSequentially('E', { delay: 50 });
-    await expect(editableMessage).toContainText('@E');
     await expect(page.getByTestId('mention-dropdown')).toBeVisible();
     await page.getByTestId('mention-result').filter({ hasText: projectName }).first().click();
 

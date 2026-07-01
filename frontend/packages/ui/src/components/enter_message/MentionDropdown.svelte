@@ -89,13 +89,11 @@
         expandedCategories = new Set();
         categoryEntries = new Map();
 
-        if (currentQuery.trim()) {
-            void searchProjectMentions(currentQuery).then((projectResults) => {
-                if (sequence !== searchSequence) return;
-                results = mergeMentionResults(baseResults, projectResults);
-                selectedIndex = 0;
-            });
-        }
+        void searchProjectMentions(currentQuery).then((projectResults) => {
+            if (sequence !== searchSequence) return;
+            results = mergeMentionResults(baseResults, projectResults);
+            selectedIndex = 0;
+        });
     });
 
     // Handle keyboard navigation
