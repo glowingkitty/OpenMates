@@ -482,7 +482,7 @@ test.describe('Anonymous free chat', () => {
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		const reloadedSecondAnswer = page.getByTestId('message-assistant').filter({ hasText: 'Anonymous answer 2' });
-		await page.getByRole('button', { name: 'Scroll to bottom' }).click();
+		await reloadedSecondAnswer.scrollIntoViewIfNeeded();
 		await expect(reloadedSecondAnswer).toBeVisible({
 			timeout: 10000
 		});
