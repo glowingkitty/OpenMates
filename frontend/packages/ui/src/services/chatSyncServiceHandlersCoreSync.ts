@@ -10,6 +10,11 @@ import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
 import {
+  filterPersistableSyncedMessages,
+  filterPersistableSyncedMessagesWithSkipped,
+  markSyncedMessagesDeferred,
+} from "./chatSyncMessageKeyGuard";
+import {
   hasEncryptedChatKeyMismatch,
   mergeServerChatWithLocal,
 } from "./chatSyncMerge";
@@ -156,7 +161,7 @@ export async function handleInitialSyncResponseImpl(
       );
     }
 
-    const messagesToSave: Message[] = payload.chats_to_add_or_update.flatMap(
+    const candidateMessagesToSave: Message[] = payload.chats_to_add_or_update.flatMap(
       (chat) =>
         (chat.messages || []).map((msg) => {
           // Handle missing message_id - check if msg has 'id' property (legacy format)
@@ -167,6 +172,24 @@ export async function handleInitialSyncResponseImpl(
             message_id: messageId,
           };
         }),
+    );
+    const encryptedChatKeysByChatId = new Map(
+      chatsToUpdate.map((chat) => [chat.chat_id, chat.encrypted_chat_key]),
+    );
+    const messageFilter = await filterPersistableSyncedMessagesWithSkipped(
+      candidateMessagesToSave,
+      encryptedChatKeysByChatId,
+      "Initial sync",
+    );
+    const messagesToSave = messageFilter.messages;
+    const chatsToStore = await Promise.all(
+      chatsToUpdate.map(async (chat) => {
+        if (!messageFilter.skippedChatIds.has(chat.chat_id)) {
+          return chat;
+        }
+        const existingChat = await chatDB.getChat(chat.chat_id);
+        return { ...chat, messages_v: existingChat?.messages_v ?? 0 };
+      }),
     );
 
     // NOW create the transaction after all async preparation work
@@ -221,7 +244,7 @@ export async function handleInitialSyncResponseImpl(
     // This function now returns a promise that resolves when all operations are queued.
     // The transaction will auto-commit after this.
     await chatDB.batchProcessChatData(
-      chatsToUpdate,
+      chatsToStore,
       messagesToSave,
       payload.chat_ids_to_delete || [],
       [],
@@ -229,7 +252,7 @@ export async function handleInitialSyncResponseImpl(
     );
 
     // Correctly save the server_timestamp from the payload
-    if (payload.server_timestamp) {
+    if (payload.server_timestamp && messageFilter.skippedChatIds.size === 0) {
       // This should ideally be part of the same transaction if possible,
       // but userDB seems to be a separate class. For now, this is acceptable.
       await userDB.updateUserData({
@@ -535,7 +558,19 @@ export async function handlePhase1bChatContentImpl(
       }
 
       if (preparedMessages.length > 0) {
-        await chatDB.batchSaveMessages(preparedMessages);
+        const messageFilter = await filterPersistableSyncedMessagesWithSkipped(
+          preparedMessages,
+          new Map([[chatData.chat_id, undefined]]),
+          "Phase 1b content sync",
+        );
+        const persistableMessages = messageFilter.messages;
+        if (messageFilter.skippedChatIds.has(chatData.chat_id)) {
+          await markSyncedMessagesDeferred(chatData.chat_id, "Phase 1b content sync");
+          continue;
+        }
+        if (persistableMessages.length > 0) {
+          await chatDB.batchSaveMessages(persistableMessages);
+        }
       }
 
       // Update messages_v on the chat object
@@ -870,8 +905,18 @@ export async function handleChatContentBatchResponseImpl(
         continue;
       }
 
+      const persistableMessages = await filterPersistableSyncedMessages(
+        preparedMessages,
+        new Map([[chatId, undefined]]),
+        "On-demand content batch sync",
+      );
+      if (persistableMessages.length === 0) {
+        await markSyncedMessagesDeferred(chatId, "On-demand content batch sync");
+        continue;
+      }
+
       // Save messages to IndexedDB
-      await chatDB.batchSaveMessages(preparedMessages);
+      await chatDB.batchSaveMessages(persistableMessages);
 
       // Update chat record: set messages_v from server response and update timestamp
       const chat = await chatDB.getChat(chatId);
@@ -901,7 +946,7 @@ export async function handleChatContentBatchResponseImpl(
       }
 
       console.info(
-        `[ChatSyncService:CoreSync] Batch response: Saved ${preparedMessages.length} messages for chat ${chatId}`,
+        `[ChatSyncService:CoreSync] Batch response: Saved ${persistableMessages.length} messages for chat ${chatId}`,
       );
     } catch (error) {
       console.error(
