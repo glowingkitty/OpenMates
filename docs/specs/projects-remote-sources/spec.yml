@@ -963,6 +963,33 @@ tests:
           - The inserted Project-related mention chip exposes keyboard-focusable Read and Read & Write access states.
         remaining:
           - Virtual remote preview/fullscreen rendering, upload-selected file flow, complete Project/folder/file mention coverage, permission prompt, message-local remote diffs, and automated-check first-use prompt.
+      - status: failed
+        timestamp: "2026-07-01"
+        command: "python3 scripts/tests.py run -- --spec projects-remote-sources.spec.ts"
+        run_id: "28517263189"
+        commit: "21a6f41"
+        result: "0 passed, 1 failed"
+        covered:
+          - Projects UI renders an encrypted remote-source virtual preview card from client-decrypted source metadata.
+          - The preview card displays bounded code snippet metadata and explicit Upload to OpenMates action.
+        failed_at:
+          - Opening the remote preview fullscreen timed out because /projects does not mount ActiveChat, the component that listens for document-level embedfullscreen events.
+        remaining:
+          - Projects-local virtual preview fullscreen, upload-selected file verification, complete Project/folder/file mention coverage, permission prompt, message-local remote diffs, and automated-check first-use prompt.
+      - status: failed
+        timestamp: "2026-07-01"
+        command: "python3 scripts/tests.py run -- --spec projects-remote-sources.spec.ts"
+        run_id: "28518118980"
+        commit: "76bea17"
+        result: "0 passed, 1 failed"
+        covered:
+          - Projects-local virtual preview fullscreen state opens after clicking Open preview.
+          - Virtual remote preview content is mapped into existing Code fullscreen fields.
+        failed_at:
+          - The Playwright assertion for `embed-fullscreen-overlay` hit a strict-mode violation because the local Projects wrapper and nested UnifiedEmbedFullscreen both exposed the same data-testid.
+          - Upload-selected file behavior was not reached in this run.
+        remaining:
+          - Remove duplicate fullscreen test id or target the nested overlay, then verify upload-selected file flow. Complete Project/folder/file mention coverage, permission prompt, message-local remote diffs, and automated-check first-use prompt remain unverified.
 
 implementation_plan:
   existing_patterns:
