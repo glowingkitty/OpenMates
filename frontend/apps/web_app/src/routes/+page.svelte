@@ -26,6 +26,7 @@
 		getStepFromPath, // Import getStepFromPath to parse step from hash
 		isSignupPath, // Import isSignupPath helper
 		checkAuth,
+		anonymousChatStorage,
 		// types
 		type Chat,
 		// services
@@ -623,6 +624,43 @@
 		// These are new chats that exist only in sessionStorage (not IndexedDB) - created when user types in a new chat
 		// Without this check, navigating to a draft chat would fail and fall back to the default chat
 		if (!$authStore.isAuthenticated) {
+			if (chatId.startsWith('anonymous-')) {
+				const loadAnonymousChat = async (retries = 20): Promise<void> => {
+					const anonymousChat = await anonymousChatStorage.getChat(chatId);
+					if (!anonymousChat) {
+						activeChatStore.clearActiveChat();
+						return;
+					}
+
+					if (activeChat) {
+						console.debug(`[+page.svelte] Found anonymous chat for non-auth deep link:`, chatId);
+						activeChat.loadChat(anonymousChat, { scrollToLatestResponse, messageId });
+						lastLoadedChatId = anonymousChat.chat_id;
+
+						const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
+							detail: { chat: anonymousChat },
+							bubbles: true,
+							composed: true
+						});
+						window.dispatchEvent(globalChatSelectedEvent);
+
+						if (embedId) {
+							await handleEmbedDeepLink(embedId, true);
+						}
+						return;
+					} else if (retries > 0) {
+						const delay = retries > 10 ? 50 : 100;
+						await new Promise((resolve) => setTimeout(resolve, delay));
+						return loadAnonymousChat(retries - 1);
+					} else {
+						console.error(`[+page.svelte] activeChat component not ready for anonymous chat`);
+					}
+				};
+
+				await loadAnonymousChat();
+				return;
+			}
+
 			const sessionDraft = loadSessionStorageDraft(chatId);
 			if (sessionDraft) {
 				console.debug(`[+page.svelte] Found sessionStorage draft for non-auth user:`, chatId);

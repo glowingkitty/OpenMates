@@ -104,6 +104,7 @@ export * from "./src/demo_chats"; // Export demo chat data and helpers
 
 // Services
 export { chatDB, cryptoReady } from "./src/services/db"; // Export chat database + crypto init promise
+export { anonymousChatStorage } from "./src/services/anonymousChatStorage"; // Export anonymous chat storage for route-level deep-link restore
 export { userDB } from "./src/services/userDB"; // Export user database
 export { chatSyncService } from "./src/services/chatSyncService"; // Export chat sync service
 export { webSocketService } from "./src/services/websocketService"; // Export WebSocket service for auth error handling
