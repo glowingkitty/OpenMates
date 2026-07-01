@@ -57,7 +57,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@toon-format/toon": "2.1.0",
+    "@toon-format/toon": "2.3.0",
     "ahocorasick": "1.0.2",
     "qrcode-terminal": "^0.12.0",
     "tweetnacl": "^1.0.3",
@@ -65,11 +65,11 @@
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
-    "@types/node": "^24.5.0",
+    "@types/node": "^25.9.3",
     "@types/qrcode-terminal": "^0.12.2",
     "@types/ws": "^8.18.1",
-    "eslint": "^9.35.0",
+    "eslint": "^10.5.0",
     "tsup": "^8.5.0",
-    "typescript": "^5.9.2"
+    "typescript": "^6.0.3"
   }
 }
