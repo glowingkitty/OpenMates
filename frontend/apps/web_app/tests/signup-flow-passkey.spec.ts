@@ -272,7 +272,7 @@ test('completes passkey signup flow with email', async ({
 		logSignupCheckpoint('Selected passkey signup path.');
 
 		// Signup now finishes immediately after account creation; security and billing setup live in Settings.
-		await page.waitForURL(/chat/);
+		await expect(page.getByTestId('profile-container')).toBeVisible({ timeout: 30000 });
 		await takeStepScreenshot(page, 'chat');
 		logSignupCheckpoint('Arrived in chat after passkey signup.');
 
