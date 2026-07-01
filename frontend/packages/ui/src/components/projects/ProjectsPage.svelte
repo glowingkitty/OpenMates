@@ -9,6 +9,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
+  import CodeEmbedFullscreen from '../embeds/code/CodeEmbedFullscreen.svelte';
   import ProjectBrowserItem from './ProjectBrowserItem.svelte';
   import ProjectRemotePreviewCard from './ProjectRemotePreviewCard.svelte';
   import TasksPage from '../tasks/TasksPage.svelte';
@@ -35,6 +36,7 @@
     buildRemoteFileUploadCandidate,
     buildVirtualRemoteFullscreenDetail,
     normalizeRemoteFilePreview,
+    type VirtualRemoteFullscreenDetail,
     type VirtualRemoteFilePreview,
   } from '../../services/projectRemoteSources';
 
@@ -61,6 +63,7 @@
   let currentFolder = $state<ProjectFolderViewModel | null>(null);
   let currentFolderHash = $state<string | null>(null);
   let folderHashes = $state(new Map<string, string>());
+  let activeRemoteFullscreen = $state<VirtualRemoteFullscreenDetail | null>(null);
 
   let sortedProjects = $derived([...projects].sort((a, b) => (b.encrypted.created_at || 0) - (a.encrypted.created_at || 0)));
   let recentProjects = $derived(sortedProjects.slice(0, 8));
@@ -219,10 +222,11 @@
   }
 
   function openRemotePreview(preview: VirtualRemoteFilePreview): void {
-    document.dispatchEvent(new CustomEvent('embedfullscreen', {
-      detail: buildVirtualRemoteFullscreenDetail(preview),
-      bubbles: true,
-    }));
+    activeRemoteFullscreen = buildVirtualRemoteFullscreenDetail(preview);
+  }
+
+  function closeRemotePreview(): void {
+    activeRemoteFullscreen = null;
   }
 
   function getRemotePreviewEntries(source: ProjectSourceViewModel): RemotePreviewEntry[] {
@@ -594,6 +598,20 @@
       </section>
     </main>
   </section>
+{/if}
+
+{#if activeRemoteFullscreen}
+  <div class="projects-remote-fullscreen" data-testid="embed-fullscreen-overlay">
+    <CodeEmbedFullscreen
+      data={{
+        decodedContent: activeRemoteFullscreen.decodedContent,
+        attrs: activeRemoteFullscreen.attrs,
+        embedData: activeRemoteFullscreen.embedData,
+      }}
+      embedId={activeRemoteFullscreen.embedId}
+      onClose={closeRemotePreview}
+    />
+  </div>
 {/if}
 
 <style>
@@ -976,6 +994,13 @@
     padding: 5px 8px;
     border-radius: var(--radius-3);
     background: var(--color-grey-10);
+  }
+
+  .projects-remote-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-index-modal);
+    background: var(--color-grey-0);
   }
 
   .load-error {

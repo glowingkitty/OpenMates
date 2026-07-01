@@ -100,7 +100,13 @@ export interface RemoteFileUploadCandidateInput {
 export interface VirtualRemoteFullscreenDetail {
   embedId: string;
   embedData: VirtualRemoteFilePreview["embed"] & { app_id: "code"; skill_id: "code" };
-  decodedContent: VirtualRemoteFilePreview["embed"]["content"];
+  decodedContent: VirtualRemoteFilePreview["embed"]["content"] & {
+    app_id: "code";
+    skill_id: "code";
+    code: string;
+    filename: string;
+    line_count?: number;
+  };
   embedType: "code-code";
   attrs: {
     type: "code-code";
@@ -260,7 +266,14 @@ export function buildVirtualRemoteFullscreenDetail(preview: VirtualRemoteFilePre
       app_id: "code",
       skill_id: "code",
     },
-    decodedContent: preview.embed.content,
+    decodedContent: {
+      ...preview.embed.content,
+      app_id: "code",
+      skill_id: "code",
+      code: preview.embed.content.snippet,
+      filename: preview.embed.content.display_name,
+      ...(preview.embed.content.line_count !== undefined ? { line_count: preview.embed.content.line_count } : {}),
+    },
     embedType: "code-code",
     attrs: {
       type: "code-code",
