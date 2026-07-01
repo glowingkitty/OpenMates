@@ -95,10 +95,10 @@ test.describe('Projects remote sources', () => {
     await editableMessage.pressSequentially('E', { delay: 50 });
     await expect(editableMessage).toContainText('@E');
     await expect(page.getByTestId('mention-dropdown')).toBeVisible();
-    await page.getByTestId('mention-result').filter({ hasText: projectName }).filter({ hasText: 'Project context' }).first().click();
+    await page.getByTestId('mention-result').filter({ hasText: projectName }).first().click();
 
     const editor = page.getByTestId('message-editor');
-    await expect(editor.locator('[data-mention-type="project"]')).toBeVisible();
+    await expect(editor.locator('[data-mention-type="project"], [data-mention-type="project_folder"], [data-mention-type="project_file"]')).toBeVisible();
     await expect(editor.getByTestId('project-access-chip')).toContainText('Read & Write');
     await editor.getByTestId('project-access-chip').press('Enter');
     await expect(editor.getByTestId('project-access-chip')).toContainText('Read');
