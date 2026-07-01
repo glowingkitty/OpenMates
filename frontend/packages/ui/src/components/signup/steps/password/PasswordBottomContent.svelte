@@ -108,6 +108,8 @@
     let localIsFormValid = $derived(isFormValid);
     
     let isLoading = $state(false);
+    const AUTH_POLL_ATTEMPTS = 15;
+    const AUTH_POLL_TIMEOUT_MS = 15000;
     
     // Handle form submission
     async function handleContinue() {
@@ -289,7 +291,7 @@
                 console.debug('[PasswordBottomContent] Verifying auth state after account creation...');
                 try {
                     // Poll to verify authentication and user data is loaded
-                    const authSuccess = await pollAuthState(10, 4000); // 10 attempts, 4 seconds total
+                    const authSuccess = await pollAuthState(AUTH_POLL_ATTEMPTS, AUTH_POLL_TIMEOUT_MS);
                     if (authSuccess) {
                         console.debug('[PasswordBottomContent] Auth state confirmed successfully');
                     } else {

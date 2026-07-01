@@ -217,10 +217,9 @@ test('completes password signup, login with password, and delete account via ema
 	await passwordInputs.nth(1).fill(signupPassword);
 
 	await page.locator('#signup-password-continue').click();
-	// Signup now finishes immediately after password account creation.
-	await expect(page.getByRole('button', { name: /logout/i }).or(page.getByTestId('profile-container'))).toBeVisible({
-		timeout: 30000
-	});
+	// Signup now finishes immediately after password account creation. The profile
+	// container also exists in guest chrome, so require the authenticated chat editor.
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'chat-after-signup');
 
 	// Logout
@@ -236,9 +235,8 @@ test('completes password signup, login with password, and delete account via ema
 		await logoutItem.click();
 	}
 
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 10000
-	});
+	await expect(page.getByRole('button', { name: /login/i })).toBeVisible({ timeout: 30000 });
+	await expect(page.getByTestId('profile-container')).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'logged-out');
 	await page.goto(getE2EDebugUrl('/'));
 	await page.waitForLoadState('load');
@@ -372,12 +370,11 @@ test('completes password signup, login with password, and delete account via ema
 	await deleteOtpInput.fill(deleteVerificationCode);
 	logSignupCheckpoint('Entered action verification code to confirm deletion.');
 
-	// Wait for redirect to demo chat after account deletion.
-	// The deletion flow sets a brief success message then navigates away,
-	// so we wait for the redirect rather than the transient success message.
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 10000
-	});
+	// Confirm logout after deletion. Logged-out home clears the chat hash; the
+	// profile container remains visible as guest chrome, so the Login CTA proves
+	// the unauthenticated shell.
+	await expect(page.getByRole('button', { name: /login/i })).toBeVisible({ timeout: 30000 });
+	await expect(page.getByTestId('profile-container')).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'delete-account-redirected');
 	logSignupCheckpoint('Account deleted and redirected to demo chat.');
 
