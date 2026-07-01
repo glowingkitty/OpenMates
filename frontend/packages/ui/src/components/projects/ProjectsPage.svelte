@@ -10,6 +10,7 @@
   import { onMount } from 'svelte';
   import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
   import ProjectBrowserItem from './ProjectBrowserItem.svelte';
+  import ProjectRemotePreviewCard from './ProjectRemotePreviewCard.svelte';
   import TasksPage from '../tasks/TasksPage.svelte';
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import { notificationStore } from '../../stores/notificationStore';
@@ -30,6 +31,18 @@
     type ProjectSourceViewModel,
     type ProjectViewModel,
   } from '../../services/projectService';
+  import {
+    buildRemoteFileUploadCandidate,
+    buildVirtualRemoteFullscreenDetail,
+    normalizeRemoteFilePreview,
+    type VirtualRemoteFilePreview,
+  } from '../../services/projectRemoteSources';
+
+  interface RemotePreviewEntry {
+    preview: VirtualRemoteFilePreview;
+    uploadContent: string | Blob | null;
+    sourceLabel: string;
+  }
 
   let { variant = 'main' }: { variant?: 'main' | 'sidebar' } = $props();
 
@@ -184,6 +197,102 @@
       isSaving = false;
       input.value = '';
     }
+  }
+
+  async function handleUploadRemotePreview(entry: RemotePreviewEntry): Promise<void> {
+    if (!selectedProject || !entry.uploadContent || isSaving) return;
+    isSaving = true;
+    try {
+      const candidate = buildRemoteFileUploadCandidate({
+        preview: entry.preview,
+        content: entry.uploadContent,
+      });
+      await uploadFileToProject(selectedProject, candidate.file, candidate.metadata);
+      await refreshSelectedProject();
+      notificationStore.success('Remote file uploaded to OpenMates');
+    } catch (error) {
+      console.error('[ProjectsPage] Failed to upload remote preview to project:', error);
+      notificationStore.error('Failed to upload remote file');
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  function openRemotePreview(preview: VirtualRemoteFilePreview): void {
+    document.dispatchEvent(new CustomEvent('embedfullscreen', {
+      detail: buildVirtualRemoteFullscreenDetail(preview),
+      bubbles: true,
+    }));
+  }
+
+  function getRemotePreviewEntries(source: ProjectSourceViewModel): RemotePreviewEntry[] {
+    const candidates = getRemotePreviewCandidates(source.metadata);
+    return candidates.flatMap((candidate) => {
+      try {
+        const preview = normalizeRemoteFilePreview({
+          sourceId: source.source_id,
+          path: getString(candidate, 'path') || getString(candidate, 'remote_path'),
+          displayName: getString(candidate, 'displayName') || getString(candidate, 'display_name') || getString(candidate, 'path') || source.displayName || source.source_id,
+          remoteItemId: getString(candidate, 'remoteItemId') || getString(candidate, 'remote_item_id'),
+          kind: getPreviewKind(candidate),
+          language: getString(candidate, 'language') || 'text',
+          snippet: getString(candidate, 'snippet'),
+          baseHash: getString(candidate, 'baseHash') || getString(candidate, 'base_hash'),
+          sizeBytes: getNumber(candidate, 'sizeBytes') ?? getNumber(candidate, 'size_bytes'),
+          lineCount: getNumber(candidate, 'lineCount') ?? getNumber(candidate, 'line_count'),
+          mtime: getString(candidate, 'mtime'),
+          contentHash: getString(candidate, 'contentHash') || getString(candidate, 'content_hash'),
+          gitStatus: getString(candidate, 'gitStatus') || getString(candidate, 'git_status'),
+          previewPolicy: getString(candidate, 'previewPolicy') || getString(candidate, 'preview_policy'),
+          safetyFlags: getStringArray(candidate, 'safetyFlags') ?? getStringArray(candidate, 'safety_flags') ?? [],
+        });
+        return [{
+          preview,
+          uploadContent: getUploadContent(candidate),
+          sourceLabel: source.displayName || source.source_id,
+        }];
+      } catch (error) {
+        console.warn('[ProjectsPage] Ignoring invalid remote preview metadata:', error);
+        return [];
+      }
+    });
+  }
+
+  function getRemotePreviewCandidates(metadata: Record<string, unknown>): Record<string, unknown>[] {
+    const previewFiles = metadata.preview_files ?? metadata.previewFiles ?? metadata.remote_previews;
+    if (Array.isArray(previewFiles)) return previewFiles.filter(isRecord);
+    const preview = metadata.preview ?? metadata.remote_preview;
+    return isRecord(preview) ? [preview] : [];
+  }
+
+  function getPreviewKind(candidate: Record<string, unknown>): 'file' | 'folder' {
+    return getString(candidate, 'kind') === 'folder' ? 'folder' : 'file';
+  }
+
+  function getUploadContent(candidate: Record<string, unknown>): string | Blob | null {
+    const content = candidate.full_content ?? candidate.fullContent ?? candidate.content;
+    if (typeof content === 'string') return content;
+    if (typeof Blob !== 'undefined' && content instanceof Blob) return content;
+    return null;
+  }
+
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+  }
+
+  function getString(candidate: Record<string, unknown>, key: string): string {
+    const value = candidate[key];
+    return typeof value === 'string' ? value : '';
+  }
+
+  function getNumber(candidate: Record<string, unknown>, key: string): number | undefined {
+    const value = candidate[key];
+    return Number.isInteger(value) && Number(value) >= 0 ? Number(value) : undefined;
+  }
+
+  function getStringArray(candidate: Record<string, unknown>, key: string): string[] | undefined {
+    const value = candidate[key];
+    return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : undefined;
   }
 
   function selectProject(project: ProjectViewModel): void {
@@ -368,14 +477,28 @@
           <div class="source-list" data-testid="project-remote-sources-list">
             {#each sources as source (source.source_id)}
               <article class="source-card" data-testid="project-remote-source-card" data-status={source.status}>
-                <div>
-                  <span class="source-kind">{source.source_type.replaceAll('_', ' ')}</span>
-                  <strong>{source.displayName || source.source_id}</strong>
-                  {#if typeof source.metadata.root === 'string'}
-                    <small>{source.metadata.root}</small>
-                  {/if}
+                <div class="source-card-header">
+                  <div class="source-summary">
+                    <span class="source-kind">{source.source_type.replaceAll('_', ' ')}</span>
+                    <strong>{source.displayName || source.source_id}</strong>
+                    {#if typeof source.metadata.root === 'string'}
+                      <small>{source.metadata.root}</small>
+                    {/if}
+                  </div>
+                  <span class="source-status">{source.status.replaceAll('_', ' ')}</span>
                 </div>
-                <span class="source-status">{source.status.replaceAll('_', ' ')}</span>
+                <div class="source-previews">
+                  {#each getRemotePreviewEntries(source) as previewEntry (previewEntry.preview.embed.embed_id)}
+                    <ProjectRemotePreviewCard
+                      preview={previewEntry.preview}
+                      sourceLabel={previewEntry.sourceLabel}
+                      canUpload={!!previewEntry.uploadContent}
+                      isUploading={isSaving}
+                      onOpenFullscreen={() => openRemotePreview(previewEntry.preview)}
+                      onUpload={() => void handleUploadRemotePreview(previewEntry)}
+                    />
+                  {/each}
+                </div>
               </article>
             {/each}
           </div>
@@ -815,9 +938,7 @@
   }
 
   .source-card {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
     gap: 16px;
     padding: 14px 16px;
     border: 1px solid var(--color-grey-20);
@@ -825,9 +946,22 @@
     background: var(--color-grey-0);
   }
 
-  .source-card div {
+  .source-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .source-summary {
     display: grid;
     gap: 4px;
+  }
+
+  .source-previews {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
   }
 
   .source-kind,
