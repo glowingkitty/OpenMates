@@ -952,6 +952,17 @@ tests:
           - Dev API was restarted after deploy so the new GET settings route returned 401 without auth instead of 405.
         remaining:
           - Virtual remote preview/fullscreen rendering, upload-selected file flow, Project/folder/file mentions, permission prompt, message-local remote diffs, and automated-check first-use prompt.
+      - status: partial_passed
+        timestamp: "2026-07-01"
+        command: "python3 scripts/tests.py run -- --spec projects-remote-sources.spec.ts"
+        run_id: "28515274588"
+        commit: "715904a"
+        result: "1 passed, 0 failed"
+        covered:
+          - Chat composer default @ dropdown includes Project-related mention results without requiring brittle post-trigger typing.
+          - The inserted Project-related mention chip exposes keyboard-focusable Read and Read & Write access states.
+        remaining:
+          - Virtual remote preview/fullscreen rendering, upload-selected file flow, complete Project/folder/file mention coverage, permission prompt, message-local remote diffs, and automated-check first-use prompt.
 
 implementation_plan:
   existing_patterns:
