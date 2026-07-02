@@ -1786,6 +1786,7 @@
 					if (
 						hashChatId &&
 						!isPublicChat(hashChatId) &&
+						!isAnonymousChatId(hashChatId) &&
 						!isShareLinkHash &&
 						!isSharedChatRedirect
 					) {
