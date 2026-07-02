@@ -1080,7 +1080,19 @@
   
   // Get unread count from store for this chat
   let unreadCount = $derived($unreadMessagesStore.unreadCounts.get(chat?.chat_id || '') || 0);
-  let chatForContextMenu = $derived(chat ? { ...chat, unread_count: unreadCount } : undefined);
+  let pinnedOverride = $state<boolean | null>(null);
+  let pinnedOverrideChatId = $state<string | null>(null);
+
+  $effect(() => {
+    const currentChatId = chat?.chat_id ?? null;
+    if (currentChatId !== pinnedOverrideChatId) {
+      pinnedOverrideChatId = currentChatId;
+      pinnedOverride = null;
+    }
+  });
+
+  let isPinned = $derived(pinnedOverride ?? !!chat?.pinned);
+  let chatForContextMenu = $derived(chat ? { ...chat, pinned: isPinned, unread_count: unreadCount } : undefined);
   
   // Flag to temporarily suppress auto-clear when user manually marks as unread
   // This prevents the effect from immediately clearing the unread state
@@ -1662,8 +1674,7 @@
       const updatedChat = { ...snapshotChatForStorage(), pinned: true };
       await chatDB.updateChat(updatedChat);
 
-      // Note: We don't mutate the chat prop here - the parent component will update it
-      // when it receives the LOCAL_CHAT_LIST_CHANGED_EVENT and refreshes from the database
+      pinnedOverride = true;
 
       // Mark cache as dirty and refresh the list
       chatListCache.markDirty();
@@ -1710,8 +1721,7 @@
       const updatedChat = { ...snapshotChatForStorage(), pinned: false };
       await chatDB.updateChat(updatedChat);
 
-      // Note: We don't mutate the chat prop here - the parent component will update it
-      // when it receives the LOCAL_CHAT_LIST_CHANGED_EVENT and refreshes from the database
+      pinnedOverride = false;
 
       // Mark cache as dirty and refresh the list
       chatListCache.markDirty();
@@ -2260,7 +2270,7 @@
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <span class="chat-title" data-testid="chat-title">{@html $text('common.untitled_chat')}</span>
               {/if}
-              {#if chat.pinned}
+              {#if isPinned}
                 <span class="pin-indicator" data-testid="pin-indicator">
                   <span class="clickable-icon icon_pin" title="Pinned"></span>
                 </span>
