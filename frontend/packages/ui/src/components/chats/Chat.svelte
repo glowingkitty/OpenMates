@@ -65,6 +65,10 @@
     /** Pre-highlighted HTML string for the chat title (used in search results to show <mark> tags). When provided, overrides the normal title rendering. */
     highlightedTitle?: string | null;
   } = $props();
+
+  function snapshotChatForStorage(): Chat {
+    return $state.snapshot(chat) as Chat;
+  }
   
   // Check if this chat is selected
   let isSelected = $derived(chat ? selectedChatIds.has(chat.chat_id) : false);
@@ -1654,7 +1658,7 @@
       console.debug('[Chat] Pinning chat:', chatIdToPin);
 
       // Update the chat in IndexedDB - pass full chat object with updated pinned status
-      const updatedChat = { ...chat, pinned: true };
+      const updatedChat = { ...snapshotChatForStorage(), pinned: true };
       await chatDB.updateChat(updatedChat);
 
       // Note: We don't mutate the chat prop here - the parent component will update it
@@ -1702,7 +1706,7 @@
       console.debug('[Chat] Unpinning chat:', chatIdToUnpin);
 
       // Update the chat in IndexedDB - pass full chat object with updated pinned status
-      const updatedChat = { ...chat, pinned: false };
+      const updatedChat = { ...snapshotChatForStorage(), pinned: false };
       await chatDB.updateChat(updatedChat);
 
       // Note: We don't mutate the chat prop here - the parent component will update it
@@ -1763,7 +1767,7 @@
       unreadMessagesStore.incrementUnread(chatIdToMarkUnread);
 
       // Update the chat in IndexedDB
-      const updatedChat = { ...chat, unread_count: newUnreadCount };
+      const updatedChat = { ...snapshotChatForStorage(), unread_count: newUnreadCount };
       await chatDB.updateChat(updatedChat);
 
       // Mark cache as dirty and refresh the list
@@ -1809,7 +1813,7 @@
       unreadMessagesStore.clearUnread(chatIdToMarkRead);
 
       // Update the chat in IndexedDB
-      const updatedChat = { ...chat, unread_count: newUnreadCount };
+      const updatedChat = { ...snapshotChatForStorage(), unread_count: newUnreadCount };
       await chatDB.updateChat(updatedChat);
 
       // Mark cache as dirty and refresh the list
