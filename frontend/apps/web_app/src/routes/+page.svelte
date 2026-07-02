@@ -628,6 +628,18 @@
 				const loadAnonymousChat = async (retries = 20): Promise<void> => {
 					const anonymousChat = await anonymousChatStorage.getChat(chatId);
 					if (!anonymousChat) {
+						if (retries > 0) {
+							const delay = retries > 15 ? 50 : retries > 10 ? 100 : 200;
+							console.debug(
+								`[+page.svelte] Anonymous chat ${chatId} not found yet, retrying in ${delay}ms (${retries} retries left)`
+							);
+							await new Promise((resolve) => setTimeout(resolve, delay));
+							return loadAnonymousChat(retries - 1);
+						}
+
+						console.warn(
+							`[+page.svelte] Anonymous chat ${chatId} not found after retries`
+						);
 						activeChatStore.clearActiveChat();
 						return;
 					}
