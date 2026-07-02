@@ -1080,6 +1080,7 @@
   
   // Get unread count from store for this chat
   let unreadCount = $derived($unreadMessagesStore.unreadCounts.get(chat?.chat_id || '') || 0);
+  let chatForContextMenu = $derived(chat ? { ...chat, unread_count: unreadCount } : undefined);
   
   // Flag to temporarily suppress auto-clear when user manually marks as unread
   // This prevents the effect from immediately clearing the unread state
@@ -2312,7 +2313,7 @@
     x={contextMenuX}
     y={contextMenuY}
     show={showContextMenu}
-    chat={chat}
+    chat={chatForContextMenu}
     hideDelete={isDemoChat(chat.chat_id) && (!$authStore.isAuthenticated || $websocketStatus.status !== 'connected')}
     selectMode={selectMode}
     selectedChatIds={selectedChatIds}
