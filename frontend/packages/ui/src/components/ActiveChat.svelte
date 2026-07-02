@@ -8991,6 +8991,43 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
+    async function restoreAnonymousHashChatOnMount(): Promise<void> {
+        const hashChatId = activeChatStore.getChatIdFromHash();
+        if ($authStore.isAuthenticated || currentChat?.chat_id || !isAnonymousChatId(hashChatId)) return;
+
+        showWelcome = false;
+        activeChatStore.setWithoutHashUpdate(hashChatId);
+
+        const now = Math.floor(Date.now() / 1000);
+        const fallbackChat: Chat = {
+            chat_id: hashChatId,
+            encrypted_title: null,
+            messages_v: 0,
+            title_v: 0,
+            draft_v: 0,
+            encrypted_draft_md: null,
+            encrypted_draft_preview: null,
+            last_edited_overall_timestamp: now,
+            unread_count: 0,
+            created_at: now,
+            updated_at: now,
+            processing_metadata: false,
+            waiting_for_metadata: false,
+            is_anonymous: true,
+            category: 'general_knowledge',
+            icon: 'sparkles'
+        };
+
+        try {
+            const anonymousChat = await anonymousChatStorage.getChat(hashChatId);
+            await loadChat(anonymousChat ?? fallbackChat);
+            console.debug('[ActiveChat] Restored anonymous hash chat during mount:', hashChatId);
+        } catch (error) {
+            console.warn('[ActiveChat] Failed to restore anonymous hash chat during mount; loading shell:', error);
+            await loadChat(fallbackChat);
+        }
+    }
+
     onMount(() => {
         const initialize = async () => {
             // Initialize app but skip auth initialization since it's already done in +page.svelte
@@ -9030,6 +9067,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 temporaryChatId = crypto.randomUUID();
                 console.debug("[ActiveChat] Generated temporary chat ID for draft saving:", temporaryChatId);
             }
+
+            await restoreAnonymousHashChatOnMount();
 
             if (!$authStore.isAuthenticated) {
                 const guestTopicPreferences = topicPreferencesStore.loadGuest();
