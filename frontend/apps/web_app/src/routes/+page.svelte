@@ -107,6 +107,30 @@
 	const EDGE_SWIPE_VERTICAL_CANCEL_PX = 48;
 	const AUTH_DEEP_LINK_LOCAL_FALLBACK_DELAY_MS = 12_000;
 	const PAIR_LOGIN_HASH_PATTERN = /^#pair=[A-Za-z0-9]{6}$/i;
+	const ANONYMOUS_RELOAD_CATEGORY = 'general_knowledge';
+	const ANONYMOUS_RELOAD_ICON = 'sparkles';
+
+	function createAnonymousReloadChat(chatId: string): Chat {
+		const now = Math.floor(Date.now() / 1000);
+		return {
+			chat_id: chatId,
+			encrypted_title: null,
+			messages_v: 0,
+			title_v: 0,
+			draft_v: 0,
+			encrypted_draft_md: null,
+			encrypted_draft_preview: null,
+			last_edited_overall_timestamp: now,
+			unread_count: 0,
+			created_at: now,
+			updated_at: now,
+			processing_metadata: false,
+			waiting_for_metadata: false,
+			is_anonymous: true,
+			category: ANONYMOUS_RELOAD_CATEGORY,
+			icon: ANONYMOUS_RELOAD_ICON
+		};
+	}
 
 	async function waitForLocaleTextStores(): Promise<void> {
 		await waitLocale();
@@ -639,9 +663,27 @@
 						}
 
 						console.warn(
-							`[+page.svelte] Anonymous chat ${chatId} not found after retries`
+							`[+page.svelte] Anonymous chat ${chatId} not found after retries; loading session shell`
 						);
-						activeChatStore.clearActiveChat();
+						const anonymousShellChat = createAnonymousReloadChat(chatId);
+						if (activeChat) {
+							activeChat.loadChat(anonymousShellChat, { scrollToLatestResponse, messageId });
+							lastLoadedChatId = anonymousShellChat.chat_id;
+
+							const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
+								detail: { chat: anonymousShellChat },
+								bubbles: true,
+								composed: true
+							});
+							window.dispatchEvent(globalChatSelectedEvent);
+
+							if (embedId) {
+								await handleEmbedDeepLink(embedId, true);
+							}
+							return;
+						}
+
+						console.error(`[+page.svelte] activeChat component not ready for anonymous shell`);
 						return;
 					}
 
