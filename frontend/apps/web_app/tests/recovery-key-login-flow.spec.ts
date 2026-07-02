@@ -187,15 +187,16 @@ test('sets up recovery key in settings and logs in with recovery key', async ({
 	await takeStepScreenshot(page, 'auth-password');
 	logCheckpoint('Submitted password in SecurityAuth.');
 
-	// If 2FA required in SecurityAuth, enter OTP
+	// SecurityAuth requires 2FA for this account; wait for it before expecting key generation.
 	const authTfaInput = authModal.getByTestId('tfa-input');
-	const authTfaVisible = await authTfaInput.isVisible({ timeout: 5000 }).catch(() => false);
-	if (authTfaVisible) {
-		const authOtp = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
-		await authTfaInput.fill(authOtp);
-		// Auto-submits on 6 digits
-		logCheckpoint('Entered OTP in SecurityAuth.');
-	}
+	await expect(authTfaInput).toBeVisible({ timeout: 20000 });
+	const authOtp = generateTotp(OPENMATES_TEST_ACCOUNT_OTP_KEY);
+	await authTfaInput.click();
+	await authTfaInput.fill('');
+	await authTfaInput.pressSequentially(authOtp, { delay: 30 });
+	// Auto-submits on 6 digits
+	await expect(authModal).toBeHidden({ timeout: 30000 });
+	logCheckpoint('Entered OTP in SecurityAuth.');
 
 	// Wait for generating step to pass and save step to appear
 	const saveContainer = page.getByTestId('save-container');
