@@ -8993,7 +8993,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     async function restoreAnonymousHashChatOnMount(): Promise<void> {
         const hashChatId = activeChatStore.getChatIdFromHash();
-        if ($authStore.isAuthenticated || currentChat?.chat_id || !isAnonymousChatId(hashChatId)) return;
+        if ($authStore.isAuthenticated || !isAnonymousChatId(hashChatId) || currentChat?.chat_id === hashChatId) return;
 
         showWelcome = false;
         activeChatStore.setWithoutHashUpdate(hashChatId);
