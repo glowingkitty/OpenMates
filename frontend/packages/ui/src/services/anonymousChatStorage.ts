@@ -25,10 +25,10 @@ import {
   unwrapAnonymousChatKey,
   wrapAnonymousChatKey,
 } from "./anonymousChatKeyWrapping";
+import { ANONYMOUS_CHAT_PREFIX, isAnonymousChatId } from "./anonymousChatIds";
 
 const LEGACY_ANONYMOUS_PAYLOAD_STORAGE = "openmates_anonymous_chats_v1";
 const ANONYMOUS_ID_STORAGE = "openmates_anonymous_id";
-const ANONYMOUS_CHAT_PREFIX = "anonymous-";
 const ANONYMOUS_FEATURE_NOTICE_KEY = "chat.anonymous_free_usage.feature_notice";
 const DEFAULT_ANONYMOUS_CATEGORY = "general_knowledge";
 const DEFAULT_ANONYMOUS_ICON = "sparkles";
@@ -271,7 +271,7 @@ class AnonymousChatStorage {
     await this.ensureDatabaseReady();
 
     const now = Math.floor(Date.now() / 1000);
-    const existingChat = params.currentChatId?.startsWith(ANONYMOUS_CHAT_PREFIX)
+    const existingChat = isAnonymousChatId(params.currentChatId)
       ? await chatDB.getChat(params.currentChatId)
       : null;
     const isNewChat = !existingChat?.is_anonymous;

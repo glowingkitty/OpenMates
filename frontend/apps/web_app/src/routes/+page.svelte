@@ -27,6 +27,7 @@
 		isSignupPath, // Import isSignupPath helper
 		checkAuth,
 		anonymousChatStorage,
+		isAnonymousChatId,
 		// types
 		type Chat,
 		// services
@@ -624,7 +625,7 @@
 		// These are new chats that exist only in sessionStorage (not IndexedDB) - created when user types in a new chat
 		// Without this check, navigating to a draft chat would fail and fall back to the default chat
 		if (!$authStore.isAuthenticated) {
-			if (chatId.startsWith('anonymous-')) {
+			if (isAnonymousChatId(chatId)) {
 				const loadAnonymousChat = async (retries = 20): Promise<void> => {
 					const anonymousChat = await anonymousChatStorage.getChat(chatId);
 					if (!anonymousChat) {
@@ -1862,7 +1863,12 @@
 				// in IndexedDB (sharedChatKeyStorage), so the chat CAN be decrypted without master key.
 				// sharedChatRedirectId was read from sessionStorage at the start of onMount.
 				const isSharedRedirect = sharedChatRedirectId === originalHashChatId;
-				if (isForcedLogout && !isPublicChat(originalHashChatId) && !isSharedRedirect) {
+				if (
+					isForcedLogout &&
+					!isPublicChat(originalHashChatId) &&
+					!isSharedRedirect &&
+					!isAnonymousChatId(originalHashChatId)
+				) {
 					console.debug(
 						`[+page.svelte] Forced logout in progress - skipping encrypted chat hash ${originalHashChatId}, returning to new chat`
 					);

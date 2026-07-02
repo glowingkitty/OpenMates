@@ -21,6 +21,7 @@ import {
 import { get } from "svelte/store";
 import { forcedLogoutInProgress } from "../../stores/signupState";
 import { websocketStatus } from "../../stores/websocketStatusStore";
+import { isAnonymousChatId } from "../anonymousChatIds";
 
 // ---------------------------------------------------------------------------
 // Cached chat version map — populated during loadChatKeysFromDatabase cursor
@@ -698,10 +699,10 @@ export async function decryptMessageFields(
   message: Message,
   chatId: string,
 ): Promise<Message> {
-  // CRITICAL: Skip decryption entirely during forced logout (missing master key scenario)
+  // CRITICAL: Skip decryption during forced logout for account-encrypted chats only.
   // This prevents errors when the app tries to decrypt chats that can't be decrypted anymore
-  // because the master key is gone. The forced logout will navigate to demo-for-everyone.
-  if (get(forcedLogoutInProgress)) {
+  // because the master key is gone. Anonymous chats use the session-wrapped chat key.
+  if (get(forcedLogoutInProgress) && !isAnonymousChatId(chatId)) {
     console.debug(
       `[ChatDatabase] Skipping message decryption during forced logout for chat: ${chatId}`,
     );

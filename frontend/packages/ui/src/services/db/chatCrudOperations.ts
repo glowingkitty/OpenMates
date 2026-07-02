@@ -22,6 +22,7 @@ import { chatKeysEqual } from "../chatKeyConsistency";
 import { get } from "svelte/store";
 import { forcedLogoutInProgress, isLoggingOut } from "../../stores/signupState";
 import { isPublicChat } from "../../demo_chats/convertToChat";
+import { isAnonymousChatId } from "../anonymousChatIds";
 
 // Type for ChatDatabase instance to avoid circular import
 // Only includes properties/methods needed by this module.
@@ -452,9 +453,13 @@ export async function addChat(
     `[ChatDatabase] addChat called for chat ${chat.chat_id} with transaction: ${!!transaction}`,
   );
 
-  // CRITICAL: During forced logout (missing master key), only allow adding public chats
-  // Refuse to save encrypted user chats since they cannot be decrypted later without the master key
-  if (get(forcedLogoutInProgress) && !isPublicChat(chat.chat_id ?? "")) {
+  // CRITICAL: During forced logout (missing master key), only allow adding public or anonymous chats.
+  // Refuse to save encrypted user chats since they cannot be decrypted later without the master key.
+  if (
+    get(forcedLogoutInProgress) &&
+    !isPublicChat(chat.chat_id ?? "") &&
+    !isAnonymousChatId(chat.chat_id)
+  ) {
     console.error(
       `[ChatDatabase] Refusing to addChat during forced logout - chat ${chat.chat_id}`,
     );
@@ -991,9 +996,13 @@ export async function getChat(
   chat_id: string,
   transaction?: IDBTransaction,
 ): Promise<Chat | null> {
-  // CRITICAL: During forced logout (missing master key), only allow loading public chats
-  // Encrypted user chats cannot be decrypted without the master key, so return null to prevent errors
-  if (get(forcedLogoutInProgress) && !isPublicChat(chat_id)) {
+  // CRITICAL: During forced logout (missing master key), only allow loading public or anonymous chats.
+  // Encrypted user chats cannot be decrypted without the master key, so return null to prevent errors.
+  if (
+    get(forcedLogoutInProgress) &&
+    !isPublicChat(chat_id) &&
+    !isAnonymousChatId(chat_id)
+  ) {
     console.debug(
       `[ChatDatabase] Skipping getChat for encrypted chat ${chat_id} during forced logout - returning null`,
     );
