@@ -2431,21 +2431,29 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Add state for message input height using $state
     let messageInputHeight = $state(0);
 
-    function getInitialPublicChatFromStore(): Chat | null {
+    function getInitialActiveChatIdFromStore(): string | null {
+        if (typeof window === 'undefined') return null;
+        return get(activeChatStore);
+    }
+
+    function getInitialPublicChatFromStore(activeChatId = getInitialActiveChatIdFromStore()): Chat | null {
         if (typeof window === 'undefined') return null;
 
-        const activeChatId = get(activeChatStore);
         if (!activeChatId || !isPublicChat(activeChatId)) return null;
 
         return getPublicChatForNavigation(activeChatId);
     }
 
-    const initialPublicChat = getInitialPublicChatFromStore();
+    const initialActiveChatId = getInitialActiveChatIdFromStore();
+    const initialPublicChat = getInitialPublicChatFromStore(initialActiveChatId);
+    const initialAnonymousChatId = initialActiveChatId && isAnonymousChatId(initialActiveChatId)
+        ? initialActiveChatId
+        : null;
     const initialPublicMessages = initialPublicChat
         ? getDemoMessages(initialPublicChat.chat_id, DEMO_CHATS, LEGAL_CHATS)
         : [];
 
-    let showWelcome = $state(!initialPublicChat);
+    let showWelcome = $state(!initialPublicChat && !initialAnonymousChatId);
     let pendingAutoplayVideo = $state(false);
 
     // ─── Resume Last Chat ───────────────────────────────────────────────
@@ -9063,8 +9071,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // 6. No existing sessionStorage drafts (user has unsaved work)
             const isInNewChatMode = get(phasedSyncState).currentActiveChatId === NEW_CHAT_SENTINEL;
             const hasSessionStorageDrafts = getAllDraftChatIdsWithDrafts().length > 0;
+            const activeChatIdAtStartup = get(activeChatStore);
+            const hashChatIdAtStartup = activeChatStore.getChatIdFromHash();
+            const hasAnonymousStartupChat =
+                (!!activeChatIdAtStartup && isAnonymousChatId(activeChatIdAtStartup)) ||
+                (!!hashChatIdAtStartup && isAnonymousChatId(hashChatIdAtStartup));
             
-            if (!$authStore.isAuthenticated && !currentChat?.chat_id && !$activeChatStore && !$isInSignupProcess && !isInNewChatMode && !hasSessionStorageDrafts) {
+            if (!$authStore.isAuthenticated && !currentChat?.chat_id && !$activeChatStore && !$isInSignupProcess && !isInNewChatMode && !hasSessionStorageDrafts && !hasAnonymousStartupChat) {
                 console.debug("[ActiveChat] [NON-AUTH] Fallback: Showing logged-out welcome screen");
                 showWelcome = true;
                 currentChat = null;
