@@ -95,6 +95,7 @@
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { anonymousChatStorage } from '../services/anonymousChatStorage';
+    import { isAnonymousChatId } from '../services/anonymousChatIds';
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
     import { setEmbedPIIState, resetEmbedPIIState } from '../stores/embedPIIStore'; // Update embed PII state for preview/fullscreen components
@@ -809,6 +810,13 @@
                 // CRITICAL: Also check if this is a sessionStorage draft chat (non-auth user's unsaved work)
                 // Draft chats are valid for non-authenticated users and should NOT be overwritten with demo-for-everyone
                 const isSessionStorageDraft = loadSessionStorageDraft(currentChat.chat_id) !== null;
+                const isAnonymousChat = currentChat.is_anonymous || isAnonymousChatId(currentChat.chat_id);
+
+                if (isAnonymousChat && !$isLoggingOut) {
+                    // Anonymous chats are valid logged-out chats and use the anonymous session key.
+                    console.debug('[ActiveChat] Auth state effect - keeping anonymous chat:', currentChat.chat_id);
+                    return;
+                }
                 
                 if (isSessionStorageDraft && !$isLoggingOut) {
                     // This is a sessionStorage draft - don't clear it, it's the user's unsaved work
