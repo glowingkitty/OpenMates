@@ -6270,6 +6270,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             showWelcome = false;
             return;
         }
+        if (currentChat?.is_anonymous || (currentChat?.chat_id && isAnonymousChatId(currentChat.chat_id))) {
+            showWelcome = false;
+            return;
+        }
         showWelcome = !hasMessages;
     }
 
