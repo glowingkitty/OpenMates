@@ -8582,10 +8582,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // This ensures public chats (demo + legal, like welcome chat) show their content immediately
         // CRITICAL: For public chats, always hide welcome screen if chat is loaded
         // (even if messages are empty, we still want to show the chat interface)
-        if (currentChat?.chat_id && isPublicChat(currentChat.chat_id)) {
-            // Public chats should always show their content, never the welcome screen
+        if (currentChat?.chat_id && (isPublicChat(currentChat.chat_id) || currentChat.is_anonymous || isAnonymousChatId(currentChat.chat_id))) {
+            // Public and anonymous chats should always show the chat surface, never the guest welcome screen.
             showWelcome = false;
-            console.debug(`[ActiveChat] Public chat loaded: forcing showWelcome=false for ${currentChat.chat_id}`);
+            console.debug(`[ActiveChat] Public/anonymous chat loaded: forcing showWelcome=false for ${currentChat.chat_id}`);
         } else {
             // For real chats, show welcome only if there are no messages
             showWelcome = currentMessages.length === 0;
