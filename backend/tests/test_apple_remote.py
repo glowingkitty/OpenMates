@@ -206,12 +206,93 @@ def test_upload_testflight_ios_command_can_allow_external_testing() -> None:
     assert command.endswith(" 0")
 
 
+def test_upload_testflight_ios_command_can_inject_api_key_args() -> None:
+    command = apple_remote.upload_testflight_ios_command(
+        internal_only=True,
+        api_key_path="~/AuthKey_TEST.p8",
+        api_key_id="KEYID",
+        api_issuer_id="ISSUERID",
+    )
+
+    assert "APP_STORE_CONNECT_API_KEY_PATH='~/AuthKey_TEST.p8'" in command
+    assert "APP_STORE_CONNECT_API_KEY_ID=KEYID" in command
+    assert "APP_STORE_CONNECT_API_ISSUER_ID=ISSUERID" in command
+
+
 def test_upload_testflight_ios_script_preflights_signing() -> None:
     script = apple_remote.TESTFLIGHT_IOS_SCRIPT
 
     assert "preflight_signing" in script
     assert "distribution_identity=missing" in script
+    assert "iPhone Distribution:" in script
+    assert "probe_identity = distribution_identity_name or development_identity" in script
     assert "openmates-codesign-preflight" in script
+    assert "CODE_SIGN_IDENTITY=iPhone Distribution" not in script
+    assert "DEVELOPMENT_TEAM=Z9B2YFKN2X" in script
+    assert "CODE_SIGN_IDENTITY=iPhone Developer" in script
+    assert "use_build_keychain_if_present" in script
+    assert "*keychain_args" in script
+    assert "OTHER_CODE_SIGN_FLAGS=--keychain" in script
+    assert "clean_openmates_provisioning_profiles" in script
+    assert "UserData" in script
+    assert "org.openmates.app" in script
+    assert "openmates-build.keychain-db" in script
+
+
+def test_ensure_ios_distribution_certificate_command_checks_by_default() -> None:
+    command = apple_remote.ensure_ios_distribution_certificate_command(create=False)
+
+    assert "ENSURE_IOS_DISTRIBUTION_CERTIFICATE_SCRIPT" not in command
+    assert command.endswith(" 0 IOS_DISTRIBUTION")
+
+
+def test_ensure_ios_distribution_certificate_command_can_create() -> None:
+    command = apple_remote.ensure_ios_distribution_certificate_command(
+        create=True,
+        api_key_path="~/AuthKey_TEST.p8",
+        api_key_id="KEYID",
+        api_issuer_id="ISSUERID",
+    )
+
+    assert "IOS_DISTRIBUTION" in command
+    assert "APP_STORE_CONNECT_API_KEY_PATH" in command
+    assert "APP_STORE_CONNECT_API_KEY_ID=KEYID" in command
+    assert command.endswith(" 1 IOS_DISTRIBUTION")
+
+
+def test_ensure_ios_development_certificate_command_can_create() -> None:
+    command = apple_remote.ensure_ios_distribution_certificate_command(
+        create=True,
+        api_key_path="~/AuthKey_TEST.p8",
+        api_key_id="KEYID",
+        api_issuer_id="ISSUERID",
+        certificate_type="IOS_DEVELOPMENT",
+    )
+
+    assert "IOS_DEVELOPMENT" in command
+    assert "APP_STORE_CONNECT_API_KEY_ID=KEYID" in command
+    assert command.endswith(" 1 IOS_DEVELOPMENT")
+
+
+def test_ensure_ios_distribution_certificate_script_uses_certificate_api() -> None:
+    script = apple_remote.ENSURE_IOS_DISTRIBUTION_CERTIFICATE_SCRIPT
+
+    assert "https://api.appstoreconnect.apple.com/v1/certificates" in script
+    assert "certificateType" in script
+    assert "IOS_DISTRIBUTION" in script
+    assert "IOS_DEVELOPMENT" in script
+    assert "iPhone Distribution:" in script
+    assert "Apple Development:" in script
+    assert "iPhone Developer:" in script
+    assert "der_ecdsa_to_raw_jws_signature" in script
+    assert "build_keychain" in script
+    assert "existing_build_keychain_args" in script
+    assert "openmates-build.keychain-db" in script
+    assert "apple-build-keychain-password" in script
+    assert "set-key-partition-list" in script
+    assert "security" in script
+    assert "import" in script
+    assert script.index("private_key_import") < script.index("response = create_certificate")
 
 
 def test_install_ios_device_script_reports_paid_team_hint() -> None:

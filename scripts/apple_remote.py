@@ -245,6 +245,7 @@ import sys
 import tempfile
 
 internal_only = sys.argv[1] == "1"
+build_keychain_path = None
 
 
 def auth_args():
@@ -254,7 +255,7 @@ def auth_args():
     if key_path and key_id and issuer_id:
         return [
             "-authenticationKeyPath",
-            key_path,
+            os.path.expanduser(key_path),
             "-authenticationKeyID",
             key_id,
             "-authenticationKeyIssuerID",
@@ -276,9 +277,34 @@ def print_tail(label, text, tmp_dir=None, limit=160):
         print(line)
 
 
+def parse_keychain_list(output):
+    keychains = []
+    for line in output.splitlines():
+        cleaned = line.strip().strip('"')
+        if cleaned:
+            keychains.append(cleaned)
+    return keychains
+
+
+def use_build_keychain_if_present():
+    global build_keychain_path
+    password_path = pathlib.Path.home() / ".config" / "openmates" / "apple-build-keychain-password"
+    keychain = pathlib.Path.home() / "Library" / "Keychains" / "openmates-build.keychain-db"
+    if not password_path.exists() or not keychain.exists():
+        return []
+    password = password_path.read_text(encoding="utf-8").strip()
+    unlock = subprocess.run(["security", "unlock-keychain", "-p", password, str(keychain)], capture_output=True, text=True, timeout=30)
+    if unlock.returncode != 0:
+        print_tail("build_keychain_unlock", unlock.stdout + unlock.stderr, limit=80)
+        sys.exit(unlock.returncode)
+    build_keychain_path = str(keychain)
+    return [build_keychain_path]
+
+
 def preflight_signing():
+    keychain_args = use_build_keychain_if_present()
     identities = subprocess.run(
-        ["security", "find-identity", "-v", "-p", "codesigning"],
+        ["security", "find-identity", "-v", "-p", "codesigning", *keychain_args],
         capture_output=True,
         text=True,
         timeout=30,
@@ -289,19 +315,28 @@ def preflight_signing():
 
     identity_lines = identities.stdout.splitlines()
     development_identity = next((line.split('"')[0].split(")", 1)[-1].strip() for line in identity_lines if "Apple Development:" in line), "")
-    distribution_identity = any("Apple Distribution:" in line for line in identity_lines)
+    distribution_identity_name = next(
+        (
+            line.split('"')[0].split(")", 1)[-1].strip()
+            for line in identity_lines
+            if "Apple Distribution:" in line or "iPhone Distribution:" in line
+        ),
+        "",
+    )
+    distribution_identity = bool(distribution_identity_name)
 
     if not distribution_identity:
         print("distribution_identity=missing")
         print("hint=Create or download an Apple Distribution certificate in Xcode before TestFlight upload.")
 
-    if development_identity:
+    probe_identity = distribution_identity_name or development_identity
+    if probe_identity:
         probe_dir = tempfile.mkdtemp(prefix="openmates-codesign-preflight-")
         probe_path = pathlib.Path(probe_dir) / "probe"
         try:
             subprocess.run(["cp", "/bin/ls", str(probe_path)], check=True, capture_output=True, text=True, timeout=30)
             probe = subprocess.run(
-                ["codesign", "--force", "--sign", development_identity, "--timestamp=none", str(probe_path)],
+                ["codesign", "--force", "--sign", probe_identity, "--timestamp=none", str(probe_path)],
                 capture_output=True,
                 text=True,
                 timeout=60,
@@ -319,7 +354,40 @@ def preflight_signing():
     print("preflight_status=passed")
 
 
+def clean_openmates_provisioning_profiles():
+    profile_dirs = [
+        pathlib.Path.home() / "Library" / "MobileDevice" / "Provisioning Profiles",
+        pathlib.Path.home() / "Library" / "Developer" / "Xcode" / "UserData" / "Provisioning Profiles",
+    ]
+    backup_dir = pathlib.Path(tempfile.mkdtemp(prefix="openmates-profiles-backup-"))
+    moved = 0
+    existing_dirs = [profiles_dir for profiles_dir in profile_dirs if profiles_dir.exists()]
+    if not existing_dirs:
+        print("provisioning_profile_cleanup=profiles_dir_missing")
+        return
+    for profiles_dir in existing_dirs:
+        for profile in profiles_dir.glob("*.mobileprovision"):
+            decoded = subprocess.run(["security", "cms", "-D", "-i", str(profile)], capture_output=True, timeout=30)
+            if decoded.returncode != 0:
+                continue
+            try:
+                data = plistlib.loads(decoded.stdout)
+            except Exception:
+                continue
+            entitlements = data.get("Entitlements", {}) if isinstance(data, dict) else {}
+            app_identifier = str(entitlements.get("application-identifier", ""))
+            profile_name = str(data.get("Name", "")) if isinstance(data, dict) else ""
+            if ".org.openmates.app" not in app_identifier and "org.openmates.app" not in profile_name:
+                continue
+            target = backup_dir / profile.name
+            profile.replace(target)
+            moved += 1
+    print(f"provisioning_profile_cleanup=moved:{moved}")
+
+
+
 preflight_signing()
+clean_openmates_provisioning_profiles()
 
 
 derived = tempfile.mkdtemp(prefix="openmates-testflight-")
@@ -354,8 +422,12 @@ archive_cmd = [
     str(archive_path),
     "-allowProvisioningUpdates",
     *common_auth_args,
+    "DEVELOPMENT_TEAM=Z9B2YFKN2X",
+    "CODE_SIGN_IDENTITY=iPhone Developer",
     "archive",
 ]
+if build_keychain_path:
+    archive_cmd.insert(-1, f"OTHER_CODE_SIGN_FLAGS=--keychain {build_keychain_path}")
 
 print("archive_status=started")
 archive = subprocess.run(archive_cmd, capture_output=True, text=True, timeout=1800)
@@ -459,6 +531,295 @@ for target in requested:
         path.unlink()
     print(f"clean_{target}=removed")
 print("clean_status=passed")
+'''
+
+
+ENSURE_IOS_DISTRIBUTION_CERTIFICATE_SCRIPT = r'''
+import base64
+import json
+import os
+import pathlib
+import shutil
+import secrets
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.error
+import urllib.request
+
+create = sys.argv[1] == "1"
+certificate_type = sys.argv[2] if len(sys.argv) > 2 else "IOS_DISTRIBUTION"
+team_id = "Z9B2YFKN2X"
+if certificate_type == "IOS_DISTRIBUTION":
+    identity_label = "distribution_identity"
+    identity_markers = ("Apple Distribution:", "iPhone Distribution:")
+    certificate_common_name = "OpenMates iOS Distribution"
+elif certificate_type == "IOS_DEVELOPMENT":
+    identity_label = "development_identity"
+    identity_markers = ("Apple Development:", "iPhone Developer:")
+    certificate_common_name = "OpenMates iOS Development"
+else:
+    print(f"unsupported_certificate_type={certificate_type}")
+    sys.exit(2)
+
+
+def print_tail(label, text, tmp_dir=None, limit=80):
+    print(f"{label}=failed")
+    sanitized = text
+    if tmp_dir:
+        sanitized = sanitized.replace(tmp_dir, "<macos-peer-tmp>")
+    api_key_path = os.environ.get("APP_STORE_CONNECT_API_KEY_PATH")
+    if api_key_path:
+        sanitized = sanitized.replace(api_key_path, "<app-store-connect-api-key>")
+    for line in sanitized.splitlines()[-limit:]:
+        print(line)
+
+
+def parse_keychain_list(output):
+    keychains = []
+    for line in output.splitlines():
+        cleaned = line.strip().strip('"')
+        if cleaned:
+            keychains.append(cleaned)
+    return keychains
+
+
+def build_keychain():
+    config_dir = pathlib.Path.home() / ".config" / "openmates"
+    config_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    password_path = config_dir / "apple-build-keychain-password"
+    if password_path.exists():
+        password = password_path.read_text(encoding="utf-8").strip()
+    else:
+        password = secrets.token_urlsafe(32)
+        password_path.write_text(password, encoding="utf-8")
+        password_path.chmod(0o600)
+
+    keychain = pathlib.Path.home() / "Library" / "Keychains" / "openmates-build.keychain-db"
+    if not keychain.exists():
+        create_keychain = subprocess.run(["security", "create-keychain", "-p", password, str(keychain)], capture_output=True, text=True, timeout=30)
+        if create_keychain.returncode != 0:
+            print_tail("build_keychain_create", create_keychain.stdout + create_keychain.stderr)
+            sys.exit(create_keychain.returncode)
+
+    unlock = subprocess.run(["security", "unlock-keychain", "-p", password, str(keychain)], capture_output=True, text=True, timeout=30)
+    if unlock.returncode != 0:
+        print_tail("build_keychain_unlock", unlock.stdout + unlock.stderr)
+        sys.exit(unlock.returncode)
+
+    settings = subprocess.run(["security", "set-keychain-settings", "-lut", "21600", str(keychain)], capture_output=True, text=True, timeout=30)
+    if settings.returncode != 0:
+        print_tail("build_keychain_settings", settings.stdout + settings.stderr)
+        sys.exit(settings.returncode)
+
+    current = subprocess.run(["security", "list-keychains", "-d", "user"], capture_output=True, text=True, timeout=30)
+    existing = parse_keychain_list(current.stdout) if current.returncode == 0 else []
+    ordered = [str(keychain), *[item for item in existing if item != str(keychain)]]
+    search_list = subprocess.run(["security", "list-keychains", "-d", "user", "-s", *ordered], capture_output=True, text=True, timeout=30)
+    if search_list.returncode != 0:
+        print_tail("build_keychain_search_list", search_list.stdout + search_list.stderr)
+        sys.exit(search_list.returncode)
+
+    return keychain, password
+
+
+def existing_build_keychain_args():
+    password_path = pathlib.Path.home() / ".config" / "openmates" / "apple-build-keychain-password"
+    keychain = pathlib.Path.home() / "Library" / "Keychains" / "openmates-build.keychain-db"
+    if not keychain.exists() or not password_path.exists():
+        return []
+    password = password_path.read_text(encoding="utf-8").strip()
+    unlock = subprocess.run(["security", "unlock-keychain", "-p", password, str(keychain)], capture_output=True, text=True, timeout=30)
+    if unlock.returncode != 0:
+        print_tail("build_keychain_unlock", unlock.stdout + unlock.stderr)
+        sys.exit(unlock.returncode)
+    return [str(keychain)]
+
+
+def has_requested_identity():
+    keychain_args = existing_build_keychain_args()
+    identities = subprocess.run(
+        ["security", "find-identity", "-v", "-p", "codesigning", *keychain_args],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if identities.returncode != 0:
+        print_tail("identity_check", identities.stdout + identities.stderr)
+        sys.exit(identities.returncode)
+    return any(any(marker in line for marker in identity_markers) for line in identities.stdout.splitlines())
+
+
+def require_env(name):
+    value = os.environ.get(name)
+    if not value:
+        print(f"missing_env={name}")
+        sys.exit(2)
+    return value
+
+
+def b64url(data):
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def der_ecdsa_to_raw_jws_signature(der_signature):
+    if len(der_signature) < 8 or der_signature[0] != 0x30:
+        raise ValueError("Unexpected ECDSA signature format")
+    index = 2
+    if der_signature[1] & 0x80:
+        length_bytes = der_signature[1] & 0x7F
+        index = 2 + length_bytes
+    if der_signature[index] != 0x02:
+        raise ValueError("Missing ECDSA R integer")
+    r_length = der_signature[index + 1]
+    r_start = index + 2
+    r = der_signature[r_start:r_start + r_length].lstrip(b"\x00")
+    s_index = r_start + r_length
+    if der_signature[s_index] != 0x02:
+        raise ValueError("Missing ECDSA S integer")
+    s_length = der_signature[s_index + 1]
+    s_start = s_index + 2
+    s = der_signature[s_start:s_start + s_length].lstrip(b"\x00")
+    return r.rjust(32, b"\x00") + s.rjust(32, b"\x00")
+
+
+def app_store_connect_jwt(key_path, key_id, issuer_id):
+    now = int(time.time())
+    header = {"alg": "ES256", "kid": key_id, "typ": "JWT"}
+    payload = {"iss": issuer_id, "iat": now, "exp": now + 1200, "aud": "appstoreconnect-v1"}
+    signing_input = ".".join([
+        b64url(json.dumps(header, separators=(",", ":")).encode("utf-8")),
+        b64url(json.dumps(payload, separators=(",", ":")).encode("utf-8")),
+    ])
+    signer = subprocess.run(
+        ["openssl", "dgst", "-sha256", "-sign", key_path, "-binary"],
+        input=signing_input.encode("ascii"),
+        capture_output=True,
+        timeout=30,
+    )
+    if signer.returncode != 0:
+        print_tail("jwt_signing", signer.stderr.decode("utf-8", "replace"))
+        sys.exit(signer.returncode)
+    try:
+        signature = der_ecdsa_to_raw_jws_signature(signer.stdout)
+    except ValueError as exc:
+        print(f"jwt_signing=failed:{exc}")
+        sys.exit(1)
+    return f"{signing_input}.{b64url(signature)}"
+
+
+def create_certificate(csr_content):
+    key_path = os.path.expanduser(require_env("APP_STORE_CONNECT_API_KEY_PATH"))
+    key_id = require_env("APP_STORE_CONNECT_API_KEY_ID")
+    issuer_id = require_env("APP_STORE_CONNECT_API_ISSUER_ID")
+    token = app_store_connect_jwt(key_path, key_id, issuer_id)
+    body = json.dumps({
+        "data": {
+            "type": "certificates",
+            "attributes": {
+                "certificateType": certificate_type,
+                "csrContent": csr_content,
+            },
+        }
+    }).encode("utf-8")
+    request = urllib.request.Request(
+        "https://api.appstoreconnect.apple.com/v1/certificates",
+        data=body,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body_text = exc.read().decode("utf-8", "replace")
+        print(f"certificate_create_http_status={exc.code}")
+        print_tail("certificate_create", body_text)
+        if exc.code == 403:
+            print("hint=App Store Connect API key needs certificate access, or an Account Holder/Admin must create the Apple Distribution certificate.")
+        if exc.code == 409:
+            print("hint=Apple may already have the maximum active distribution certificates; revoke an unused one or download/import an existing certificate with its private key.")
+        sys.exit(1)
+
+
+if has_requested_identity():
+    print(f"{identity_label}=present")
+    sys.exit(0)
+
+print(f"{identity_label}=missing")
+if not create:
+    print(f"hint=Run with --create to generate a local private key, request an {certificate_type} certificate, and import both into the Mac build keychain.")
+    sys.exit(1)
+
+tmp_dir = tempfile.mkdtemp(prefix="openmates-ios-distribution-cert-")
+try:
+    private_key = pathlib.Path(tmp_dir) / "openmates-ios-distribution.key"
+    csr_path = pathlib.Path(tmp_dir) / "openmates-ios-signing.csr"
+    cert_path = pathlib.Path(tmp_dir) / "openmates-ios-signing.cer"
+
+    keygen = subprocess.run(["openssl", "genrsa", "-out", str(private_key), "2048"], capture_output=True, text=True, timeout=30)
+    if keygen.returncode != 0:
+        print_tail("private_key_create", keygen.stdout + keygen.stderr, tmp_dir)
+        sys.exit(keygen.returncode)
+
+    csr = subprocess.run(
+        ["openssl", "req", "-new", "-key", str(private_key), "-out", str(csr_path), "-subj", f"/CN={certificate_common_name}/OU={team_id}/O=OpenMates"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if csr.returncode != 0:
+        print_tail("csr_create", csr.stdout + csr.stderr, tmp_dir)
+        sys.exit(csr.returncode)
+
+    keychain, keychain_password = build_keychain()
+    import_key = subprocess.run(
+        ["security", "import", str(private_key), "-k", str(keychain), "-T", "/usr/bin/codesign", "-T", "/usr/bin/xcodebuild", "-T", "/usr/bin/security"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if import_key.returncode != 0:
+        print_tail("private_key_import", import_key.stdout + import_key.stderr, tmp_dir)
+        print("hint=The dedicated OpenMates build keychain could not import the private key.")
+        sys.exit(import_key.returncode)
+
+    partition_list = subprocess.run(
+        ["security", "set-key-partition-list", "-S", "apple-tool:,apple:,codesign:", "-s", "-k", keychain_password, str(keychain)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if partition_list.returncode != 0:
+        print_tail("private_key_partition_list", partition_list.stdout + partition_list.stderr, tmp_dir)
+        sys.exit(partition_list.returncode)
+
+    response = create_certificate(csr_path.read_text(encoding="utf-8"))
+    certificate_content = response.get("data", {}).get("attributes", {}).get("certificateContent")
+    if not certificate_content:
+        print("certificate_create=missing_certificate_content")
+        sys.exit(1)
+    cert_path.write_bytes(base64.b64decode(certificate_content))
+
+    import_cert = subprocess.run(["security", "import", str(cert_path), "-k", str(keychain)], capture_output=True, text=True, timeout=60)
+    if import_cert.returncode != 0:
+        print_tail("certificate_import", import_cert.stdout + import_cert.stderr, tmp_dir)
+        sys.exit(import_cert.returncode)
+finally:
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+
+if has_requested_identity():
+    print("certificate_create=passed")
+    print(f"{identity_label}=present")
+    sys.exit(0)
+
+print("certificate_create=imported_but_identity_missing")
+print("hint=Open Keychain Access and verify the Apple signing certificate is paired with its private key.")
+sys.exit(1)
 '''
 
 
@@ -610,6 +971,12 @@ def strip_command_separator(parts: Sequence[str]) -> list[str]:
     return list(parts)
 
 
+def add_app_store_connect_api_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--api-key-path", help="Remote Mac path to the App Store Connect API .p8 key")
+    parser.add_argument("--api-key-id", help="App Store Connect API key ID")
+    parser.add_argument("--api-issuer-id", help="App Store Connect API issuer ID")
+
+
 def repo_command(config: RemoteConfig, parts: Sequence[str]) -> str:
     if not config.repo_path:
         raise AppleRemoteError("Set OPENMATES_APPLE_REPO_PATH or local repo_path for repo commands")
@@ -684,13 +1051,67 @@ def install_ios_device_command(
     return shell_join(parts)
 
 
-def upload_testflight_ios_command(internal_only: bool) -> str:
-    return shell_join([
+def app_store_connect_env_prefix(
+    command: str,
+    *,
+    api_key_path: str | None,
+    api_key_id: str | None,
+    api_issuer_id: str | None,
+) -> str:
+    env_parts: list[str] = []
+    if api_key_path:
+        env_parts.append(f"APP_STORE_CONNECT_API_KEY_PATH={shlex.quote(api_key_path)}")
+    if api_key_id:
+        env_parts.append(f"APP_STORE_CONNECT_API_KEY_ID={shlex.quote(api_key_id)}")
+    if api_issuer_id:
+        env_parts.append(f"APP_STORE_CONNECT_API_ISSUER_ID={shlex.quote(api_issuer_id)}")
+    if not env_parts:
+        return command
+    return " ".join([*env_parts, command])
+
+
+def upload_testflight_ios_command(
+    internal_only: bool,
+    *,
+    api_key_path: str | None = None,
+    api_key_id: str | None = None,
+    api_issuer_id: str | None = None,
+) -> str:
+    command = shell_join([
         "python3",
         "-c",
         TESTFLIGHT_IOS_SCRIPT,
         "1" if internal_only else "0",
     ])
+    return app_store_connect_env_prefix(
+        command,
+        api_key_path=api_key_path,
+        api_key_id=api_key_id,
+        api_issuer_id=api_issuer_id,
+    )
+
+
+def ensure_ios_distribution_certificate_command(
+    create: bool,
+    *,
+    api_key_path: str | None = None,
+    api_key_id: str | None = None,
+    api_issuer_id: str | None = None,
+    certificate_type: str = "IOS_DISTRIBUTION",
+) -> str:
+    command = shell_join([
+        "python3",
+        "-c",
+        ENSURE_IOS_DISTRIBUTION_CERTIFICATE_SCRIPT,
+        "1" if create else "0",
+        certificate_type,
+    ])
+    return app_store_connect_env_prefix(
+        command,
+        api_key_path=api_key_path,
+        api_key_id=api_key_id,
+        api_issuer_id=api_issuer_id,
+    )
 
 
 def xcode_cache_report_command() -> str:
@@ -755,6 +1176,29 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Do not mark the uploaded build as internal-testing-only",
     )
+    add_app_store_connect_api_args(testflight_parser)
+
+    certificate_parser = subparsers.add_parser(
+        "ensure-ios-distribution-certificate",
+        help="Check or create the local Apple Distribution certificate needed for TestFlight signing",
+    )
+    certificate_parser.add_argument(
+        "--create",
+        action="store_true",
+        help="Create a durable Apple Developer distribution certificate via App Store Connect API and import it into the Mac keychain",
+    )
+    add_app_store_connect_api_args(certificate_parser)
+
+    development_certificate_parser = subparsers.add_parser(
+        "ensure-ios-development-certificate",
+        help="Check or create a local Apple Development certificate in the build keychain for SSH archives",
+    )
+    development_certificate_parser.add_argument(
+        "--create",
+        action="store_true",
+        help="Create a durable Apple Developer development certificate via App Store Connect API and import it into the Mac build keychain",
+    )
+    add_app_store_connect_api_args(development_certificate_parser)
 
     simctl_parser = subparsers.add_parser("simctl", help="Run xcrun simctl remotely")
     simctl_parser.add_argument("simctl_args", nargs=argparse.REMAINDER)
@@ -819,7 +1263,41 @@ def main(argv: Sequence[str] | None = None) -> int:
                 repo_command(config, [
                     "bash",
                     "-lc",
-                    upload_testflight_ios_command(not args.external_capable),
+                    upload_testflight_ios_command(
+                        not args.external_capable,
+                        api_key_path=args.api_key_path,
+                        api_key_id=args.api_key_id,
+                        api_issuer_id=args.api_issuer_id,
+                    ),
+                ]),
+            )
+        if args.command == "ensure-ios-distribution-certificate":
+            return run_remote(
+                config,
+                repo_command(config, [
+                    "bash",
+                    "-lc",
+                    ensure_ios_distribution_certificate_command(
+                        args.create,
+                        api_key_path=args.api_key_path,
+                        api_key_id=args.api_key_id,
+                        api_issuer_id=args.api_issuer_id,
+                    ),
+                ]),
+            )
+        if args.command == "ensure-ios-development-certificate":
+            return run_remote(
+                config,
+                repo_command(config, [
+                    "bash",
+                    "-lc",
+                    ensure_ios_distribution_certificate_command(
+                        args.create,
+                        api_key_path=args.api_key_path,
+                        api_key_id=args.api_key_id,
+                        api_issuer_id=args.api_issuer_id,
+                        certificate_type="IOS_DEVELOPMENT",
+                    ),
                 ]),
             )
         if args.command == "simctl":
