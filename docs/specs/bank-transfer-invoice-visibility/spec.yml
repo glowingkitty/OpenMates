@@ -1,6 +1,6 @@
 id: bank-transfer-invoice-visibility
 title: Bank Transfer Invoice Visibility
-status: implementing
+status: verified
 
 goal: >
   Let users see the required SEPA bank-transfer reference for credit purchases
@@ -120,7 +120,7 @@ acceptance_criteria:
     scenario: S-3
     text: The web invoice UI renders pending and completed bank-transfer references and shows invoice-generating state when no document exists.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids:
@@ -260,12 +260,16 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
+        status: skipped_with_reason
+        summary: "Red browser phase was not run before implementation because the user explicitly asked to deploy and test after code was already implemented; backend contract red phase captured the missing API behavior."
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: pending
+        status: passed
+        run_id: "GitHub Actions 28680041066"
+        timestamp: "2026-07-03"
+        summary: "python3 scripts/tests.py run -- --spec settings-buy-credits-bank-transfer.spec.ts passed against a1d9061f8 after Vercel deployment dpl_E1Y4BpEjDSHsbY1qzHaeovAnkbjL reached READY."
 
 implementation_plan:
   existing_patterns:
