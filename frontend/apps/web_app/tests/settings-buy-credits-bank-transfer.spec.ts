@@ -231,21 +231,19 @@ test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view
 	await expect(page.getByTestId('bank-transfer-back')).not.toBeVisible();
 	log('No back button shown (correct for bank-transfer-only tier).');
 
-	await page.getByTestId('bank-transfer-continue-btn').click();
-	log('Continued to app after starting bank transfer.');
+	await page.getByTestId('icon-button-close').click();
+	await expect(page.locator('[data-testid="settings-menu"].visible')).not.toBeVisible({ timeout: 5000 });
+	log('Closed settings after verifying bank-transfer details.');
 
-	const profileAfterContinue = page.getByTestId('profile-container');
-	await expect(profileAfterContinue).toBeVisible({ timeout: 10000 });
-	await profileAfterContinue.click();
+	await profileContainer.click();
+	const reopenedSettingsMenu = page.locator('[data-testid="settings-menu"].visible');
+	await expect(reopenedSettingsMenu).toBeVisible({ timeout: 8000 });
 
-	const settingsMenuAfterContinue = page.locator('[data-testid="settings-menu"].visible');
-	await expect(settingsMenuAfterContinue).toBeVisible({ timeout: 8000 });
-
-	const billingAfterContinue = settingsMenuAfterContinue
+	const billingAfterReopen = reopenedSettingsMenu
 		.locator('[data-testid="menu-item"][role="menuitem"]')
 		.filter({ hasText: /billing/i });
-	await expect(billingAfterContinue).toBeVisible({ timeout: 10000 });
-	await billingAfterContinue.click();
+	await expect(billingAfterReopen).toBeVisible({ timeout: 10000 });
+	await billingAfterReopen.click();
 
 	const invoicesItem = page
 		.locator('[data-testid="settings-menu"].visible')
