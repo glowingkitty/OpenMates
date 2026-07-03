@@ -616,6 +616,22 @@ def repo_command(config: RemoteConfig, parts: Sequence[str]) -> str:
     return f"cd {shlex.quote(config.repo_path)} && {shell_join(parts)}"
 
 
+def sync_repo_command(branch: str) -> str:
+    if not re.fullmatch(r"[A-Za-z0-9._/-]+", branch):
+        raise AppleRemoteError(f"Invalid branch name for sync-repo: {branch}")
+    quoted_branch = shlex.quote(branch)
+    return " && ".join([
+        f"git fetch origin {quoted_branch}",
+        "git reset --hard",
+        "git clean -fd",
+        f"git checkout -B {quoted_branch} origin/{quoted_branch}",
+        f"git reset --hard origin/{quoted_branch}",
+        "git clean -fd",
+        "git status --short",
+        "git rev-parse --short HEAD",
+    ])
+
+
 def build_ios_command(simulator: str) -> str:
     return shell_join([
         "xcodebuild",
@@ -710,6 +726,9 @@ def build_parser() -> argparse.ArgumentParser:
     repo_parser = subparsers.add_parser("repo", help="Run a command in the remote repo checkout")
     repo_parser.add_argument("repo_command", nargs=argparse.REMAINDER)
 
+    sync_parser = subparsers.add_parser("sync-repo", help="Force-sync the remote repo checkout to origin/<branch>")
+    sync_parser.add_argument("--branch", default="dev")
+
     build_parser_ = subparsers.add_parser("build-ios", help="Build OpenMates_iOS remotely")
     build_parser_.add_argument("--simulator", default="iPhone 17")
 
@@ -768,6 +787,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             if not remote_command:
                 raise AppleRemoteError("repo requires a command after --")
             return run_remote(config, repo_command(config, remote_command), allow_destructive=args.allow_destructive)
+        if args.command == "sync-repo":
+            return run_remote(
+                config,
+                repo_command(config, ["bash", "-lc", sync_repo_command(args.branch)]),
+                allow_destructive=True,
+            )
         if args.command == "build-ios":
             return run_remote(config, repo_command(config, ["bash", "-lc", build_ios_command(args.simulator)]))
         if args.command == "test-ios":

@@ -110,6 +110,24 @@ def test_repo_command_quotes_repo_path() -> None:
     assert command == "cd '/tmp/Open Mates' && git status --short"
 
 
+def test_sync_repo_command_force_syncs_to_origin_branch() -> None:
+    command = apple_remote.sync_repo_command("dev")
+
+    assert "git fetch origin dev" in command
+    assert "git reset --hard origin/dev" in command
+    assert "git clean -fd" in command
+    assert command.endswith("git rev-parse --short HEAD")
+
+
+def test_sync_repo_command_rejects_shell_metacharacters() -> None:
+    try:
+        apple_remote.sync_repo_command("dev;rm-rf")
+    except apple_remote.AppleRemoteError as exc:
+        assert "Invalid branch" in str(exc)
+    else:
+        raise AssertionError("Expected AppleRemoteError")
+
+
 def test_strips_optional_command_separator() -> None:
     assert apple_remote.strip_command_separator(["--", "git", "status"]) == ["git", "status"]
     assert apple_remote.strip_command_separator(["git", "status"]) == ["git", "status"]
