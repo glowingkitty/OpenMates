@@ -174,6 +174,7 @@ def test_upload_testflight_ios_command_uses_app_store_connect_upload() -> None:
 
     assert "OpenMates_iOS" in command
     assert "app-store-connect" in command
+    assert "Z9B2YFKN2X" in command
     assert "destination" in command
     assert "upload" in command
     assert "testFlightInternalTestingOnly" in command

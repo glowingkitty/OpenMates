@@ -285,7 +285,7 @@ export_options = {
     "method": "app-store-connect",
     "manageAppVersionAndBuildNumber": True,
     "signingStyle": "automatic",
-    "teamID": "3QCDAKVQFU",
+    "teamID": "Z9B2YFKN2X",
     "testFlightInternalTestingOnly": internal_only,
     "uploadSymbols": True,
 }
