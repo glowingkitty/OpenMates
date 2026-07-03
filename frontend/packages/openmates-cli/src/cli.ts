@@ -5686,6 +5686,11 @@ function printGenericObject(value: unknown, indent = 0): void {
       return;
     }
 
+    if (Array.isArray(obj.invoices)) {
+      printInvoicesResponse(obj.invoices as Array<Record<string, unknown>>);
+      return;
+    }
+
     for (const [k, v] of Object.entries(obj)) {
       if (v === null || v === undefined) continue;
       if (Array.isArray(v)) {
@@ -5739,29 +5744,7 @@ function printBillingResponse(obj: Record<string, unknown>): void {
 
   // Invoices
   const invoices = obj.invoices as Array<Record<string, unknown>> | undefined;
-  if (Array.isArray(invoices) && invoices.length > 0) {
-    process.stdout.write(
-      `\n  \x1b[1mInvoices\x1b[0m  \x1b[2m(${invoices.length})\x1b[0m\n\n`,
-    );
-    for (const inv of invoices) {
-      const date = str(inv.date) ?? "—";
-      const amt = str(inv.amount) ?? "—";
-      const creditsP = inv.credits_purchased ?? "—";
-      const refund = str(inv.refund_status);
-      const refundTag =
-        refund && refund !== "none" ? `  \x1b[33m[${refund}]\x1b[0m` : "";
-      const giftTag = inv.is_gift_card ? "  \x1b[35m[gift card]\x1b[0m" : "";
-      const transferStatus = str(inv.transaction_status);
-      const transferTag = transferStatus ? `  \x1b[36m[${transferStatus}]\x1b[0m` : "";
-      process.stdout.write(
-        `    ${date}  \x1b[2m€${amt}\x1b[0m  ${creditsP} credits${refundTag}${giftTag}${transferTag}\n`,
-      );
-      const bankTransferReference = str(inv.bank_transfer_reference);
-      if (bankTransferReference) {
-        kv("      Bank transfer reference", bankTransferReference, 30);
-      }
-    }
-  }
+  if (Array.isArray(invoices) && invoices.length > 0) printInvoicesResponse(invoices);
 
   // Print remaining unknown keys
   const shown = new Set([
@@ -5777,6 +5760,35 @@ function printBillingResponse(obj: Record<string, unknown>): void {
   for (const [k, v] of Object.entries(obj)) {
     if (!shown.has(k) && v !== null && v !== undefined) {
       kv(k, typeof v === "object" ? JSON.stringify(v) : String(v));
+    }
+  }
+}
+
+function printInvoicesResponse(invoices: Array<Record<string, unknown>>): void {
+  if (invoices.length === 0) {
+    process.stdout.write("\n  \x1b[1mInvoices\x1b[0m  \x1b[2m(0)\x1b[0m\n");
+    return;
+  }
+
+  process.stdout.write(
+    `\n  \x1b[1mInvoices\x1b[0m  \x1b[2m(${invoices.length})\x1b[0m\n\n`,
+  );
+  for (const inv of invoices) {
+    const date = str(inv.date) ?? "—";
+    const amt = str(inv.amount) ?? "—";
+    const creditsP = inv.credits_purchased ?? "—";
+    const refund = str(inv.refund_status);
+    const refundTag =
+      refund && refund !== "none" ? `  \x1b[33m[${refund}]\x1b[0m` : "";
+    const giftTag = inv.is_gift_card ? "  \x1b[35m[gift card]\x1b[0m" : "";
+    const transferStatus = str(inv.transaction_status);
+    const transferTag = transferStatus ? `  \x1b[36m[${transferStatus}]\x1b[0m` : "";
+    process.stdout.write(
+      `    ${date}  \x1b[2m€${amt}\x1b[0m  ${creditsP} credits${refundTag}${giftTag}${transferTag}\n`,
+    );
+    const bankTransferReference = str(inv.bank_transfer_reference);
+    if (bankTransferReference) {
+      kv("      Bank transfer reference", bankTransferReference, 30);
     }
   }
 }

@@ -115,6 +115,98 @@ async function runCliWithEmptyCacheSession(
   }
 }
 
+async function withBillingInvoicesMockApi<T>(
+  run: (params: {
+    apiUrl: string;
+    requests: Array<{ method: string; url: string }>;
+    tempHome: string;
+  }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Array<{ method: string; url: string }> = [];
+  const tempHome = join(
+    tmpdir(),
+    `openmates-cli-billing-invoices-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  );
+  const stateDir = join(tempHome, ".openmates");
+  mkdirSync(stateDir, { recursive: true });
+
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method === "GET" && request.url === "/v1/payments/invoices") {
+        assert.match(String(request.headers.cookie ?? ""), /auth_refresh_token=refresh-token/);
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, {
+          invoices: [
+            {
+              id: "bt_pending_invoice_test",
+              order_id: "bt_pending_invoice_test",
+              date: "2026-07-03",
+              amount: "10000",
+              credits_purchased: 110000,
+              filename: "",
+              is_gift_card: false,
+              refunded_at: null,
+              refund_status: null,
+              currency: "eur",
+              provider: "bank_transfer",
+              bank_transfer_reference: "OM-CLI-PENDING",
+              transaction_status: "pending",
+              document_status: "pending_bank_transfer",
+            },
+            {
+              id: "invoice_completed_bank_transfer_test",
+              order_id: "bt_completed_invoice_test",
+              date: "2026-07-02",
+              amount: "2000",
+              credits_purchased: 21000,
+              filename: "Invoice_2026_07_02.pdf",
+              is_gift_card: false,
+              refunded_at: null,
+              refund_status: "none",
+              currency: "eur",
+              provider: "bank_transfer",
+              bank_transfer_reference: "OM-CLI-COMPLETED",
+              transaction_status: "completed",
+              document_status: "ready",
+            },
+          ],
+        });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, requests, tempHome });
+  } finally {
+    server.closeAllConnections();
+    server.close();
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
 function readRepoText(path: string): string {
   return readFileSync(join(REPO_ROOT, path), "utf-8");
 }
@@ -2134,6 +2226,23 @@ describe("settings command surface", () => {
       assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
         "POST /v1/settings/issues",
         "GET /v1/settings/issues/K7M2Q/status",
+      ]);
+    });
+  });
+
+  it("prints bank-transfer references in invoice list output", async () => {
+    await withBillingInvoicesMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const output = await runCliAsync(
+        ["settings", "billing", "invoices", "list", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      assert.match(output, /Bank transfer reference/);
+      assert.match(output, /OM-CLI-PENDING/);
+      assert.match(output, /OM-CLI-COMPLETED/);
+      assert.match(output, /\[pending\]/);
+      assert.match(output, /\[completed\]/);
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "GET /v1/payments/invoices",
       ]);
     });
   });
