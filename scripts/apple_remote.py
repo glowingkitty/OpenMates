@@ -116,6 +116,9 @@ def print_tail(label, text, device_id, app_path=None, limit=160):
 
 def print_build_failure_hint(text):
     lowered = text.lower()
+    if "personal development teams" in lowered and "associated domains" in lowered:
+        print("build_failure_hint=paid_team_not_selected_in_xcode")
+        print("build_failure_action=select_paid_development_team_or_add_app_store_connect_api_key_on_macos_peer")
     if "errsecinternalcomponent" in lowered or "user interaction is not allowed" in lowered:
         print("build_failure_hint=keychain_codesign_access_required")
         print("build_failure_action=unlock_login_keychain_and_allow_codesign_on_macos_peer")

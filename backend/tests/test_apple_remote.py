@@ -187,6 +187,13 @@ def test_upload_testflight_ios_command_can_allow_external_testing() -> None:
     assert command.endswith(" 0")
 
 
+def test_install_ios_device_script_reports_paid_team_hint() -> None:
+    script = apple_remote.INSTALL_IOS_DEVICE_SCRIPT
+
+    assert "paid_team_not_selected_in_xcode" in script
+    assert "personal development teams" in script
+
+
 def test_xcode_cache_clean_rejects_unknown_target() -> None:
     try:
         apple_remote.xcode_cache_clean_command(["derived-data", "unknown-cache"])
