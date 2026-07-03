@@ -72,7 +72,7 @@ targets:
         INFOPLIST_FILE: OpenMates/Resources/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app
-        CODE_SIGN_ENTITLEMENTS: OpenMates/Resources/OpenMates.entitlements
+        CODE_SIGN_ENTITLEMENTS: OpenMates/Resources/OpenMatesPasskey.entitlements
       configs:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
@@ -83,13 +83,17 @@ targets:
           SWIFT_OPTIMIZATION_LEVEL: -Owholemodule
           OPENMATES_DEV_WEBCREDENTIALS: webcredentials:app.dev.openmates.org
     entitlements:
-      path: OpenMates/Resources/OpenMates.entitlements
+      path: OpenMates/Resources/OpenMatesPasskey.entitlements
       properties:
         keychain-access-groups:
           - $(AppIdentifierPrefix)$(CFBundleIdentifier)
           - $(AppIdentifierPrefix)org.openmates.app
         com.apple.security.application-groups:
           - group.org.openmates.app
+        com.apple.developer.associated-domains:
+          - webcredentials:openmates.org
+          - $(OPENMATES_DEV_WEBCREDENTIALS)
+          - webcredentials:app.openmates.org
     info:
       path: OpenMates/Resources/Info.plist
       properties:

@@ -92,8 +92,8 @@ sys.exit(0 if devices else 3)
 INSTALL_IOS_DEVICE_SCRIPT = r'''
 import json
 import os
-import plistlib
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -107,10 +107,21 @@ device_index = int(sys.argv[4]) if len(sys.argv) > 4 and sys.argv[4] else None
 def print_tail(label, text, device_id, app_path=None, limit=160):
     print(f"{label}=failed")
     sanitized = text.replace(device_id, "<device-id>")
+    sanitized = re.sub(r"\b[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}\b", "<device-id>", sanitized)
     if app_path:
         sanitized = sanitized.replace(app_path, "<app-bundle>")
     for line in sanitized.splitlines()[-limit:]:
         print(line)
+
+
+def print_build_failure_hint(text):
+    lowered = text.lower()
+    if "errsecinternalcomponent" in lowered or "user interaction is not allowed" in lowered:
+        print("build_failure_hint=keychain_codesign_access_required")
+        print("build_failure_action=unlock_login_keychain_and_allow_codesign_on_macos_peer")
+    if "developer disk image could not be mounted" in lowered:
+        print("build_failure_hint=developer_disk_image_mount_failed")
+        print("build_failure_action=unlock_device_keep_awake_then_retry_or_update_xcode_device_support")
 
 
 fd, path = tempfile.mkstemp(suffix=".json")
@@ -164,14 +175,7 @@ if with_associated_domains:
     entitlements_override = pathlib.Path("apple/OpenMates/Resources/OpenMatesPasskey.entitlements")
     print("associated_domains=enabled_for_passkey_build")
 else:
-    source_entitlements = pathlib.Path("apple/OpenMates/Resources/OpenMates.entitlements")
-    entitlements_override = pathlib.Path(derived) / "OpenMatesWithoutAssociatedDomains.entitlements"
-    with source_entitlements.open("rb") as handle:
-        entitlements = plistlib.load(handle)
-    entitlements.pop("com.apple.developer.associated-domains", None)
-    with entitlements_override.open("wb") as handle:
-        plistlib.dump(entitlements, handle)
-    print("associated_domains=disabled_for_default_device_build")
+    print("associated_domains=project_default")
 
 build_cmd = [
     "xcodebuild",
@@ -182,7 +186,7 @@ build_cmd = [
     "-configuration",
     configuration,
     "-destination",
-    f"id={device_id}",
+    "generic/platform=iOS",
     "-derivedDataPath",
     derived,
 ]
@@ -195,7 +199,9 @@ build_cmd.append("build")
 print("build_status=started")
 build = subprocess.run(build_cmd, capture_output=True, text=True, timeout=1800)
 if build.returncode != 0:
-    print_tail("build_status", build.stdout + build.stderr, device_id)
+    build_output = build.stdout + build.stderr
+    print_tail("build_status", build_output, device_id)
+    print_build_failure_hint(build_output)
     sys.exit(build.returncode)
 
 products = pathlib.Path(derived) / "Build" / "Products" / f"{configuration}-iphoneos"
@@ -221,6 +227,113 @@ if install.returncode != 0:
 
 print("install_status=passed")
 for line in (install.stdout + install.stderr).replace(device_id, "<device-id>").replace(app, "<app-bundle>").splitlines()[-20:]:
+    print(line)
+'''
+
+
+TESTFLIGHT_IOS_SCRIPT = r'''
+import os
+import pathlib
+import plistlib
+import re
+import subprocess
+import sys
+import tempfile
+
+internal_only = sys.argv[1] == "1"
+
+
+def auth_args():
+    key_path = os.environ.get("APP_STORE_CONNECT_API_KEY_PATH")
+    key_id = os.environ.get("APP_STORE_CONNECT_API_KEY_ID")
+    issuer_id = os.environ.get("APP_STORE_CONNECT_API_ISSUER_ID")
+    if key_path and key_id and issuer_id:
+        return [
+            "-authenticationKeyPath",
+            key_path,
+            "-authenticationKeyID",
+            key_id,
+            "-authenticationKeyIssuerID",
+            issuer_id,
+        ]
+    return []
+
+
+def print_tail(label, text, tmp_dir=None, limit=160):
+    print(f"{label}=failed")
+    sanitized = text
+    if tmp_dir:
+        sanitized = sanitized.replace(tmp_dir, "<macos-peer-tmp>")
+    api_key_path = os.environ.get("APP_STORE_CONNECT_API_KEY_PATH")
+    if api_key_path:
+        sanitized = sanitized.replace(api_key_path, "<app-store-connect-api-key>")
+    sanitized = re.sub(r"/Users/[^\s]+", "<macos-peer-path>", sanitized)
+    for line in sanitized.splitlines()[-limit:]:
+        print(line)
+
+
+derived = tempfile.mkdtemp(prefix="openmates-testflight-")
+archive_path = pathlib.Path(derived) / "OpenMates.xcarchive"
+export_path = pathlib.Path(derived) / "export"
+export_options_path = pathlib.Path(derived) / "ExportOptions.plist"
+
+export_options = {
+    "destination": "upload",
+    "method": "app-store-connect",
+    "manageAppVersionAndBuildNumber": True,
+    "signingStyle": "automatic",
+    "teamID": "3QCDAKVQFU",
+    "testFlightInternalTestingOnly": internal_only,
+    "uploadSymbols": True,
+}
+with export_options_path.open("wb") as handle:
+    plistlib.dump(export_options, handle)
+
+common_auth_args = auth_args()
+archive_cmd = [
+    "xcodebuild",
+    "-project",
+    "apple/OpenMates.xcodeproj",
+    "-scheme",
+    "OpenMates_iOS",
+    "-configuration",
+    "Release",
+    "-destination",
+    "generic/platform=iOS",
+    "-archivePath",
+    str(archive_path),
+    "-allowProvisioningUpdates",
+    *common_auth_args,
+    "archive",
+]
+
+print("archive_status=started")
+archive = subprocess.run(archive_cmd, capture_output=True, text=True, timeout=1800)
+if archive.returncode != 0:
+    print_tail("archive_status", archive.stdout + archive.stderr, derived)
+    sys.exit(archive.returncode)
+print("archive_status=passed")
+
+export_cmd = [
+    "xcodebuild",
+    "-exportArchive",
+    "-archivePath",
+    str(archive_path),
+    "-exportPath",
+    str(export_path),
+    "-exportOptionsPlist",
+    str(export_options_path),
+    "-allowProvisioningUpdates",
+    *common_auth_args,
+]
+
+print("upload_status=started")
+export = subprocess.run(export_cmd, capture_output=True, text=True, timeout=1800)
+if export.returncode != 0:
+    print_tail("upload_status", export.stdout + export.stderr, derived)
+    sys.exit(export.returncode)
+print("upload_status=passed")
+for line in (export.stdout + export.stderr).replace(derived, "<macos-peer-tmp>").splitlines()[-40:]:
     print(line)
 '''
 
@@ -505,6 +618,15 @@ def install_ios_device_command(
     return shell_join(parts)
 
 
+def upload_testflight_ios_command(internal_only: bool) -> str:
+    return shell_join([
+        "python3",
+        "-c",
+        TESTFLIGHT_IOS_SCRIPT,
+        "1" if internal_only else "0",
+    ])
+
+
 def xcode_cache_report_command() -> str:
     return shell_join(["python3", "-c", XCODE_CACHE_REPORT_SCRIPT])
 
@@ -558,6 +680,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Use passkey/webcredentials Associated Domains entitlements for paid-team builds",
     )
 
+    testflight_parser = subparsers.add_parser("upload-testflight-ios", help="Archive and upload OpenMates_iOS to TestFlight")
+    testflight_parser.add_argument(
+        "--external-capable",
+        action="store_true",
+        help="Do not mark the uploaded build as internal-testing-only",
+    )
+
     simctl_parser = subparsers.add_parser("simctl", help="Run xcrun simctl remotely")
     simctl_parser.add_argument("simctl_args", nargs=argparse.REMAINDER)
 
@@ -607,6 +736,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                         args.with_associated_domains,
                         args.device_index,
                     ),
+                ]),
+            )
+        if args.command == "upload-testflight-ios":
+            return run_remote(
+                config,
+                repo_command(config, [
+                    "bash",
+                    "-lc",
+                    upload_testflight_ios_command(not args.external_capable),
                 ]),
             )
         if args.command == "simctl":

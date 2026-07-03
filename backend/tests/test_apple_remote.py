@@ -143,10 +143,18 @@ def test_install_ios_device_command_uses_configuration_and_provisioning_flag() -
 
     assert "OpenMates_iOS" in command
     assert "Debug" in command
-    assert "com.apple.developer.associated-domains" in command
-    assert "associated_domains=disabled_for_default_device_build" in command
+    assert "generic/platform=iOS" in command
+    assert "com.apple.developer.associated-domains" not in command
+    assert "associated_domains=project_default" in command
     assert " 1" in command
     assert command.endswith(" Debug 1 0")
+
+
+def test_install_ios_device_script_imports_redaction_dependencies() -> None:
+    script = apple_remote.INSTALL_IOS_DEVICE_SCRIPT
+
+    assert "import re" in script
+    assert "re.sub" in script
 
 
 def test_install_ios_device_command_can_enable_associated_domains_for_passkeys() -> None:
@@ -159,6 +167,24 @@ def test_install_ios_device_command_can_enable_associated_domains_for_passkeys()
     assert "OpenMatesPasskey.entitlements" in command
     assert "associated_domains=enabled_for_passkey_build" in command
     assert command.endswith(" Debug 1 1")
+
+
+def test_upload_testflight_ios_command_uses_app_store_connect_upload() -> None:
+    command = apple_remote.upload_testflight_ios_command(internal_only=True)
+
+    assert "OpenMates_iOS" in command
+    assert "app-store-connect" in command
+    assert "destination" in command
+    assert "upload" in command
+    assert "testFlightInternalTestingOnly" in command
+    assert command.endswith(" 1")
+
+
+def test_upload_testflight_ios_command_can_allow_external_testing() -> None:
+    command = apple_remote.upload_testflight_ios_command(internal_only=False)
+
+    assert "testFlightInternalTestingOnly" in command
+    assert command.endswith(" 0")
 
 
 def test_xcode_cache_clean_rejects_unknown_target() -> None:
