@@ -225,8 +225,8 @@ tests:
         summary: "Local Vitest is forbidden by repo policy; Svelte changed-file lint passed during lint_changed.sh before unrelated pre-existing Python lint stopped the full script."
   - id: T-UNIT-CLI-BT-INVOICES
     type: unit
-    file: frontend/packages/openmates-cli/src/client.ts
-    command: python3 scripts/audit_sdk_cli_parity.py
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && node --test tests/cli.test.ts
     covers:
       - AC-4
     assertions:
@@ -243,19 +243,20 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "python3 scripts/audit_sdk_cli_parity.py"
+        run_id: "cd frontend/packages/openmates-cli && npm run build && node --test tests/cli.test.ts; python3 scripts/audit_sdk_cli_parity.py"
         timestamp: "2026-07-03"
-        summary: "sdk-cli-parity: 59 parity entries checked."
+        summary: "CLI command test passed 130/130 including invoice-list output with OM-CLI-PENDING and OM-CLI-COMPLETED; sdk-cli-parity checked 59 entries."
   - id: T-PLAYWRIGHT-BT-INVOICES
     type: playwright
     file: frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
-    command: python3 scripts/tests.py run --spec settings-buy-credits-bank-transfer.spec.ts
+    command: python3 scripts/tests.py run -- --spec settings-buy-credits-bank-transfer.spec.ts
     target: app.dev.openmates.org
     covers:
       - AC-3
     assertions:
-      - started bank transfer can be found from Billing > Invoices.
-      - invoice row shows the OM reference.
+      - Pending bank-transfer invoice row shows the mocked OM reference.
+      - Completed bank-transfer invoice row shows the mocked OM reference.
+      - Pending/generating invoice rows show the expected status and disabled document state.
     red_phase:
       required: true
       expected: fail
@@ -267,9 +268,9 @@ tests:
       expected: pass_after_deploy
       evidence:
         status: passed
-        run_id: "GitHub Actions 28680041066"
+        run_id: "GitHub Actions 28683249118"
         timestamp: "2026-07-03"
-        summary: "python3 scripts/tests.py run -- --spec settings-buy-credits-bank-transfer.spec.ts passed against a1d9061f8 after Vercel deployment dpl_E1Y4BpEjDSHsbY1qzHaeovAnkbjL reached READY."
+        summary: "python3 scripts/tests.py run -- --spec settings-buy-credits-bank-transfer.spec.ts passed against eb5b91131 after Vercel deployment dpl_UnKF22hmabRmB1nmGPzQov1VyqTf reached READY. The spec asserts both pending and completed mocked OM references in Billing > Invoices."
 
 implementation_plan:
   existing_patterns:
@@ -301,7 +302,7 @@ implementation_plan:
     - python3 scripts/spec_validate.py docs/specs/bank-transfer-invoice-visibility/spec.yml
     - python3 -m pytest backend/tests/test_bank_transfer_invoice_visibility.py
     - python3 scripts/audit_sdk_cli_parity.py
-    - python3 scripts/tests.py run --spec settings-buy-credits-bank-transfer.spec.ts after deploy if web E2E is requested.
+    - python3 scripts/tests.py run -- --spec settings-buy-credits-bank-transfer.spec.ts after deploy if web E2E is requested.
   verification_order:
     - Backend pytest first.
     - SDK/CLI parity audit second.
