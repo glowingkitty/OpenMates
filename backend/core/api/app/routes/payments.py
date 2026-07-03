@@ -191,6 +191,9 @@ class InvoiceResponse(BaseModel):
     refund_status: Optional[str] = None  # Status of refund: 'none', 'pending', 'completed', 'failed'
     currency: Optional[str] = None  # ISO currency code lowercase (e.g. "usd", "eur"). Null for legacy invoices.
     provider: Optional[str] = None  # Payment provider/mode, e.g. stripe or stripe_managed.
+    bank_transfer_reference: Optional[str] = None  # User-facing OM reference for SEPA bank transfers.
+    transaction_status: Optional[str] = None  # pending / completed for bank-transfer rows.
+    document_status: Optional[str] = None  # ready / pending_bank_transfer / generating.
 
 class InvoicesListResponse(BaseModel):
     invoices: List[InvoiceResponse]
@@ -4731,6 +4734,28 @@ async def get_invoices(
     logger.info(f"Fetching invoices for user {current_user.id}")
 
     try:
+        def _format_date_for_invoice(value: Any) -> tuple[str, str]:
+            if value:
+                try:
+                    if isinstance(value, str):
+                        parsed_date = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                    elif hasattr(value, 'isoformat'):
+                        parsed_date = value
+                    else:
+                        parsed_date = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+                    return parsed_date.strftime("%Y-%m-%d"), parsed_date.strftime("%Y_%m_%d")
+                except Exception as date_parse_error:
+                    logger.warning(
+                        f"Failed to parse invoice date value {value}: {date_parse_error}. Using fallback."
+                    )
+                    date_str = str(value)
+                    if len(date_str) >= 10:
+                        display_date = date_str[:10]
+                        return display_date, display_date.replace('-', '_')
+
+            logger.error(f"Could not parse date for invoice response. Date value: {value}")
+            return "1970-01-01", "1970_01_01"
+
         # Create user ID hash for lookup (same method used during invoice creation)
         user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
 
@@ -4747,18 +4772,42 @@ async def get_invoices(
             }
         )
 
+        bank_transfer_rows = await directus_service.get_items(
+            collection="pending_bank_transfers",
+            params={
+                "filter": {
+                    "user_id": {"_eq": str(current_user.id)},
+                    "status": {"_in": ["pending", "completed"]},
+                },
+                "sort": "-created_at",
+                "limit": 50,
+            },
+        )
+        bank_transfer_rows = [
+            transfer for transfer in (bank_transfer_rows or [])
+            if transfer.get("user_id") == str(current_user.id)
+            and transfer.get("status") in {"pending", "completed"}
+            and transfer.get("order_type", "credit_purchase") == "credit_purchase"
+        ]
+        bank_transfers_by_order_id = {
+            transfer.get("order_id"): transfer
+            for transfer in bank_transfer_rows
+            if transfer.get("order_id")
+        }
+
         if not invoices_data:
-            logger.info(f"No invoices found for user {current_user.id}")
-            return InvoicesListResponse(invoices=[])
+            logger.info(f"No invoice documents found for user {current_user.id}")
 
         vault_key_id = current_user.vault_key_id
-        if not vault_key_id:
+        if invoices_data and not vault_key_id:
             logger.error(f"Vault key ID missing for user {current_user.id}")
             raise HTTPException(status_code=500, detail="User encryption key not found")
 
         processed_invoices = []
 
-        for invoice in invoices_data:
+        invoice_order_ids = set()
+
+        for invoice in (invoices_data or []):
             try:
                 # Decrypt invoice data
                 # Check if required encrypted fields exist and are not empty before attempting decryption
@@ -4791,50 +4840,7 @@ async def get_invoices(
                 # Format the date first (needed for both display and filename generation)
                 # Date is stored as ISO format string from datetime.now(timezone.utc).isoformat()
                 # Directus may return it as a string or datetime object
-                invoice_date = invoice.get("date")
-                formatted_date = None
-                date_str_filename = None
-                
-                if invoice_date:
-                    from datetime import datetime
-                    try:
-                        # Handle string format (ISO format from Directus)
-                        if isinstance(invoice_date, str):
-                            # Normalize timezone indicators (Z or +00:00)
-                            date_str = invoice_date.replace('Z', '+00:00')
-                            # Parse ISO format string
-                            parsed_date = datetime.fromisoformat(date_str)
-                        # Handle datetime object (if Directus returns it as object)
-                        elif hasattr(invoice_date, 'isoformat'):
-                            parsed_date = invoice_date
-                        else:
-                            # Try to convert to string and parse
-                            date_str = str(invoice_date)
-                            parsed_date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                        
-                        # Format for display (YYYY-MM-DD)
-                        formatted_date = parsed_date.strftime("%Y-%m-%d")
-                        # Format for filename (YYYY_MM_DD)
-                        date_str_filename = parsed_date.strftime("%Y_%m_%d")
-                    except Exception as date_parse_error:
-                        logger.warning(
-                            f"Failed to parse invoice date for invoice {invoice.get('id', 'unknown')}: {invoice_date}. "
-                            f"Error: {date_parse_error}. Using fallback."
-                        )
-                        # Fallback: try to extract date from string
-                        date_str = str(invoice_date)
-                        if len(date_str) >= 10:
-                            formatted_date = date_str[:10]  # Take first 10 chars (YYYY-MM-DD)
-                            date_str_filename = formatted_date.replace('-', '_')
-                        else:
-                            formatted_date = None
-                            date_str_filename = None
-                
-                # If date parsing failed completely, use a fallback
-                if not formatted_date:
-                    logger.error(f"Could not parse date for invoice {invoice.get('id', 'unknown')}. Date value: {invoice_date}")
-                    formatted_date = "1970-01-01"  # Fallback date
-                    date_str_filename = "1970_01_01"
+                formatted_date, date_str_filename = _format_date_for_invoice(invoice.get("date"))
 
                 # Handle filename - use date-based generation for older invoices that don't have encrypted_filename
                 filename = None
@@ -4874,9 +4880,12 @@ async def get_invoices(
                         )
                         # Non-blocking — frontend will fall back to default currency
 
+                order_id = invoice.get("order_id")
+                bank_transfer = bank_transfers_by_order_id.get(order_id)
+
                 processed_invoices.append(InvoiceResponse(
                     id=invoice["id"],
-                    order_id=invoice.get("order_id"),
+                    order_id=order_id,
                     date=formatted_date,
                     amount=amount,
                     credits_purchased=int(credits_purchased),
@@ -4886,7 +4895,12 @@ async def get_invoices(
                     refund_status=refund_status,
                     currency=currency_code,
                     provider=invoice.get("provider"),
+                    bank_transfer_reference=bank_transfer.get("reference") if bank_transfer else None,
+                    transaction_status=bank_transfer.get("status") if bank_transfer else None,
+                    document_status="ready",
                 ))
+                if order_id:
+                    invoice_order_ids.add(order_id)
 
             except Exception as e:
                 logger.error(
@@ -4894,6 +4908,36 @@ async def get_invoices(
                     exc_info=True
                 )
                 continue
+
+        for transfer in bank_transfer_rows:
+            order_id = transfer.get("order_id", "")
+            if not order_id or order_id in invoice_order_ids:
+                continue
+
+            status = transfer.get("status", "pending")
+            transfer_date, _ = _format_date_for_invoice(
+                transfer.get("completed_at") or transfer.get("created_at") or transfer.get("expires_at")
+            )
+            document_status = "pending_bank_transfer" if status == "pending" else "generating"
+
+            processed_invoices.append(InvoiceResponse(
+                id=order_id,
+                order_id=order_id,
+                date=transfer_date,
+                amount=str(transfer.get("amount_expected_cents", 0)),
+                credits_purchased=int(transfer.get("credits_amount", 0)),
+                filename="",
+                is_gift_card=False,
+                refunded_at=None,
+                refund_status=None,
+                currency=(transfer.get("currency") or "eur").lower(),
+                provider="bank_transfer",
+                bank_transfer_reference=transfer.get("reference"),
+                transaction_status=status,
+                document_status=document_status,
+            ))
+
+        processed_invoices.sort(key=lambda item: item.date, reverse=True)
 
         logger.info(f"Successfully fetched {len(processed_invoices)} invoices for user {current_user.id}")
         return InvoicesListResponse(invoices=processed_invoices)

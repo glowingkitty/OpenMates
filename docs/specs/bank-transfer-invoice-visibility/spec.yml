@@ -1,0 +1,342 @@
+id: bank-transfer-invoice-visibility
+title: Bank Transfer Invoice Visibility
+status: implementing
+
+goal: >
+  Let users see the required SEPA bank-transfer reference for credit purchases
+  from Billing > Invoices while a transfer is pending and after it completes,
+  without exposing internal support-only order identifiers as the primary ID.
+
+scope:
+  in:
+    - Pending credit-purchase bank transfers appear in the invoices list.
+    - Completed credit-purchase bank transfers keep showing their OM reference on the invoice row.
+    - Completed bank transfers without a generated invoice yet appear as invoice-generating rows.
+    - Web, CLI, npm SDK, and pip SDK invoice contracts include the OM reference when present.
+  out:
+    - Expired bank-transfer rows in the invoices list.
+    - Admin-review bank-transfer rows in the invoices list.
+    - Support-contribution bank transfers.
+    - Changing the SEPA reference format or matching logic.
+    - Changing PDF invoice content.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP returned 401. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"bank transfer invoice billing transaction status\" --state all --limit 10` found no matching issue."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/cli-signup-billing-provisioning/spec.yml
+    - docs/specs/sdk-cli-parity-v1/spec.yml
+    - docs/specs/apple-settings-billing-parity/spec.yml
+  code_patterns:
+    - backend/core/api/app/routes/payments.py
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - frontend/packages/ui/src/components/settings/billing/SettingsInvoices.svelte
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+  tests:
+    - backend/tests/test_bank_transfer_invoice_visibility.py
+    - frontend/packages/openmates-cli/src/client.test.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This slice changes web/CLI billing invoice visibility only; native billing remains StoreKit-oriented per apple-settings-billing-parity.
+  verification:
+    - Apple not affected.
+  intentional_native_differences:
+    - Apple does not own the web SEPA bank-transfer invoice table in this slice.
+
+clarification:
+  rounds:
+    - question: Which bank-transfer ID should be visible to users?
+      answer: The user-facing OM reference required in the transfer description, not the internal bt_ order ID.
+    - question: Which statuses should appear under invoices?
+      answer: Pending and completed transfer references only.
+  vision_summary: >
+    Billing > Invoices should become the single place where a user can recover
+    the OM reference for a started bank-transfer credit purchase. Pending rows
+    show the reference before funds arrive, completed rows keep the reference
+    after the invoice exists, and expired/admin-review rows stay out of this view.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Pending bank transfer appears under invoices
+    given:
+      - Alice has started a SEPA credit purchase.
+      - The matching pending_bank_transfers row has status pending and reference OM-ACCT-12345678.
+    when:
+      - Alice opens Billing > Invoices.
+    then:
+      - Alice sees an invoice-list row for the pending transfer.
+      - The row shows Bank transfer reference OM-ACCT-12345678.
+      - The row does not offer invoice download or refund actions.
+  - id: S-2
+    title: Completed bank transfer keeps its reference on the invoice row
+    given:
+      - Alice has a completed bank-transfer credit purchase.
+      - The matching invoice row has order_id equal to the completed pending_bank_transfers order_id.
+    when:
+      - Alice opens Billing > Invoices.
+    then:
+      - Alice sees one invoice row, not duplicate transfer and invoice rows.
+      - The invoice row shows Bank transfer reference OM-ACCT-12345678.
+      - The invoice row keeps normal completed invoice download and refund behavior.
+  - id: S-3
+    title: Completed transfer waits for invoice generation
+    given:
+      - Alice has a completed bank-transfer credit purchase.
+      - The completed pending_bank_transfers row exists but the invoice row has not been created yet.
+    when:
+      - Alice opens Billing > Invoices.
+    then:
+      - Alice sees a completed transfer row with Bank transfer reference OM-ACCT-12345678.
+      - The row clearly indicates that the invoice is still generating.
+      - The row does not offer invoice download or refund actions until the invoice exists.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The invoices API includes pending credit-purchase bank transfers with the user-facing OM reference and disabled document actions.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BT-INVOICES
+  - id: AC-2
+    scenario: S-2
+    text: The invoices API enriches completed bank-transfer invoices with the OM reference and suppresses duplicate synthetic rows.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BT-INVOICES
+  - id: AC-3
+    scenario: S-3
+    text: The web invoice UI renders pending and completed bank-transfer references and shows invoice-generating state when no document exists.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-BT-INVOICES
+      - T-UNIT-BT-INVOICES-UI
+  - id: AC-4
+    scenario: S-2
+    text: CLI and SDK invoice list contracts expose the bank_transfer_reference field when the API returns it.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-UNIT-CLI-BT-INVOICES
+
+assumptions:
+  - id: A-1
+    text: The pending_bank_transfers.reference field is already the correct user-facing OM transfer reference.
+    category: billing
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/payments.py
+        summary: create_bank_transfer_order generates references as OM-{account_id}-{order_id_short} and returns them to the user.
+  - id: A-2
+    text: Completed bank-transfer invoices can be matched to pending_bank_transfers by order_id.
+    category: billing
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+        summary: Directus invoice payload stores order_id from the bank-transfer order.
+
+contracts:
+  api:
+    - route: GET /v1/payments/invoices
+      response: >
+        { invoices: [{ id, order_id, date, amount, credits_purchased, filename,
+        provider, bank_transfer_reference?, transaction_status?, document_status? }] }
+      notes:
+        - bank_transfer_reference is the OM reference, not the internal bt_ order id.
+        - Pending and completed credit_purchase rows are included; expired/admin_review/support rows are excluded.
+  data:
+    - invoices.order_id joins to pending_bank_transfers.order_id.
+    - Synthetic rows use id/order_id from the bank-transfer order and filename empty or null.
+  ui_states:
+    - Pending transfer with reference and no download/refund buttons.
+    - Completed transfer with invoice generating state and no download/refund buttons.
+    - Completed invoice with reference and normal invoice actions.
+  privacy_security:
+    - Only rows for the authenticated user's Directus user id or hashed invoice user id are returned.
+    - The API must not leak support contribution rows or other users' references.
+
+tests:
+  - id: T-PYTEST-BT-INVOICES
+    type: pytest
+    file: backend/tests/test_bank_transfer_invoice_visibility.py
+    command: python3 -m pytest backend/tests/test_bank_transfer_invoice_visibility.py
+    covers:
+      - AC-1
+      - AC-2
+    assertions:
+      - pending credit_purchase bank transfers become invoice response rows with bank_transfer_reference.
+      - completed bank-transfer invoice rows are enriched with bank_transfer_reference.
+      - expired and admin_review bank transfers are excluded.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: ".venv/bin/python3 -m pytest backend/tests/test_bank_transfer_invoice_visibility.py"
+        timestamp: "2026-07-03"
+        summary: "Failed with KeyError: 'bt_pending' before implementation because invoices API returned only the existing invoice row."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: ".venv/bin/python3 -m pytest backend/tests/test_bank_transfer_invoice_visibility.py"
+        timestamp: "2026-07-03"
+        summary: "2 passed. Covers pending/completed reference rows, legacy rows without order_type, and pending rows without invoice vault keys."
+  - id: T-UNIT-BT-INVOICES-UI
+    type: unit
+    file: frontend/packages/ui/src/components/settings/billing/SettingsInvoices.svelte
+    command: python3 scripts/tests.py run --suite vitest
+    covers:
+      - AC-3
+    assertions:
+      - invoice rows display bank_transfer_reference when present.
+      - pending/generating rows disable invoice download and refund actions.
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        summary: Vitest is suite-level in this repo; targeted Svelte component coverage is represented by Playwright plus static review.
+    green_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: skipped_with_reason
+        summary: "Local Vitest is forbidden by repo policy; Svelte changed-file lint passed during lint_changed.sh before unrelated pre-existing Python lint stopped the full script."
+  - id: T-UNIT-CLI-BT-INVOICES
+    type: unit
+    file: frontend/packages/openmates-cli/src/client.ts
+    command: python3 scripts/audit_sdk_cli_parity.py
+    covers:
+      - AC-4
+    assertions:
+      - CLI/SDK invoice typings include bank_transfer_reference.
+      - CLI rendering surfaces the reference when present.
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        summary: "No separate red audit exists for adding an optional response field; backend contract test covered the missing behavior red phase."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/audit_sdk_cli_parity.py"
+        timestamp: "2026-07-03"
+        summary: "sdk-cli-parity: 59 parity entries checked."
+  - id: T-PLAYWRIGHT-BT-INVOICES
+    type: playwright
+    file: frontend/apps/web_app/tests/settings-buy-credits-bank-transfer.spec.ts
+    command: python3 scripts/tests.py run --spec settings-buy-credits-bank-transfer.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-3
+    assertions:
+      - started bank transfer can be found from Billing > Invoices.
+      - invoice row shows the OM reference.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+
+implementation_plan:
+  existing_patterns:
+    - backend/core/api/app/routes/payments.py get_invoices decrypts invoice rows for the current user.
+    - pending_bank_transfers is the durable store and cache misses fall back to Directus.
+    - SettingsInvoices.svelte already supports synthetic processing rows for just-completed card payments.
+  architecture: >
+    Keep /v1/payments/invoices as the single read API for the invoice screen.
+    Fetch pending/completed credit_purchase bank transfers for the user, enrich
+    matching invoice rows by order_id, and add synthetic rows only when no invoice
+    exists yet.
+  data_flow:
+    - User starts a SEPA credit purchase and gets an OM reference.
+    - pending_bank_transfers stores status pending and the reference.
+    - The invoice API merges invoice rows with pending/completed transfer rows.
+    - Web/CLI render bank_transfer_reference when present.
+  affected_files:
+    - path: backend/core/api/app/routes/payments.py
+      reason: API contract and merge logic.
+    - path: backend/tests/test_bank_transfer_invoice_visibility.py
+      reason: Backend contract coverage.
+    - path: frontend/packages/ui/src/components/settings/billing/SettingsInvoices.svelte
+      reason: Web rendering.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: CLI/SDK invoice type.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: CLI rendering.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/bank-transfer-invoice-visibility/spec.yml
+    - python3 -m pytest backend/tests/test_bank_transfer_invoice_visibility.py
+    - python3 scripts/audit_sdk_cli_parity.py
+    - python3 scripts/tests.py run --spec settings-buy-credits-bank-transfer.spec.ts after deploy if web E2E is requested.
+  verification_order:
+    - Backend pytest first.
+    - SDK/CLI parity audit second.
+    - Web Playwright after deploy when green evidence is needed.
+
+tasks:
+  - id: TASK-1
+    title: Implement bank-transfer invoice API contract
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+    expected_files:
+      - backend/core/api/app/routes/payments.py
+      - backend/tests/test_bank_transfer_invoice_visibility.py
+    verification:
+      - T-PYTEST-BT-INVOICES
+  - id: TASK-2
+    title: Render bank-transfer references in web and CLI invoices
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+    expected_files:
+      - frontend/packages/ui/src/components/settings/billing/SettingsInvoices.svelte
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+    verification:
+      - T-UNIT-CLI-BT-INVOICES
+      - T-PLAYWRIGHT-BT-INVOICES

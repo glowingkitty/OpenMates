@@ -2784,6 +2784,54 @@ bank_transfer_awaiting:
   sv: Väntar på din banköverföring... Krediter läggs till när de mottagits (1-2 arbetsdagar).
   he: ממתינים להעברה הבנקאית שלך... זיכויים יתווספו עם הקבלה (1-2 ימי עסקים).
   verified_by_human: []
+bank_transfer_status_pending:
+  context: Short status label shown on invoice rows for started bank-transfer credit purchases that are not received yet
+  en: Pending bank transfer
+  de: Ausstehende Überweisung
+  zh: 待处理的银行转账
+  es: Transferencia bancaria pendiente
+  fr: Virement bancaire en attente
+  pt: Transferência bancária pendente
+  ru: Банковский перевод ожидается
+  ja: 保留中の銀行振込
+  ko: 대기 중인 은행 송금
+  it: Bonifico bancario in sospeso
+  tr: Bekleyen banka havalesi
+  vi: Chuyển khoản ngân hàng đang chờ
+  id: Transfer bank tertunda
+  pl: Oczekujący przelew bankowy
+  nl: Bankoverschrijving in behandeling
+  ar: تحويل بنكي معلق
+  hi: लंबित बैंक ट्रांसफर
+  th: การโอนเงินผ่านธนาคารที่รอดำเนินการ
+  cs: Čekající bankovní převod
+  sv: Väntande banköverföring
+  he: העברה בנקאית ממתינה
+  verified_by_human: []
+bank_transfer_status_completed:
+  context: Short status label shown on invoice rows for completed bank-transfer credit purchases
+  en: Bank transfer completed
+  de: Überweisung abgeschlossen
+  zh: 银行转账已完成
+  es: Transferencia bancaria completada
+  fr: Virement bancaire terminé
+  pt: Transferência bancária concluída
+  ru: Банковский перевод завершен
+  ja: 銀行振込が完了しました
+  ko: 은행 송금 완료
+  it: Bonifico bancario completato
+  tr: Banka havalesi tamamlandı
+  vi: Chuyển khoản ngân hàng đã hoàn tất
+  id: Transfer bank selesai
+  pl: Przelew bankowy zakończony
+  nl: Bankoverschrijving voltooid
+  ar: اكتمل التحويل البنكي
+  hi: बैंक ट्रांसफर पूरा हुआ
+  th: การโอนเงินผ่านธนาคารเสร็จสมบูรณ์
+  cs: Bankovní převod dokončen
+  sv: Banköverföring slutförd
+  he: ההעברה הבנקאית הושלמה
+  verified_by_human: []
 bank_transfer_awaiting_support:
   context: Status message shown while waiting for a support contribution bank transfer — no credits are involved
   en: Waiting for your bank transfer... We'll send a confirmation email once received (1-2 business days).

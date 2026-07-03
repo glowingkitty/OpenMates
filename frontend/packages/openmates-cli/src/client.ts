@@ -1366,6 +1366,9 @@ export interface InvoiceListItem {
   refund_status?: string | null;
   currency?: string | null;
   provider?: string | null;
+  bank_transfer_reference?: string | null;
+  transaction_status?: string | null;
+  document_status?: string | null;
 }
 
 export interface DownloadedDocument {

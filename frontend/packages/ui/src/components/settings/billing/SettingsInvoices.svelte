@@ -26,6 +26,9 @@ Invoices Settings - View and download past invoices
         refund_status?: string | null;  // Status of refund: 'none', 'pending', 'completed', 'failed'
         currency?: string | null;  // ISO currency code lowercase (e.g. "usd", "eur"). Null for legacy invoices.
         provider?: string | null;  // Payment provider/mode, e.g. stripe or stripe_managed.
+        bank_transfer_reference?: string | null;  // User-facing OM reference for SEPA bank transfers.
+        transaction_status?: string | null;  // pending / completed for bank-transfer rows.
+        document_status?: string | null;  // ready / pending_bank_transfer / generating.
     }
 
     const PENDING_INVOICE_REFRESH_MS = 5000;
@@ -149,6 +152,28 @@ Invoices Settings - View and download past invoices
             : $text('settings.billing.invoices_download_credit_note');
     }
 
+    function isPendingBankTransfer(invoice: Invoice): boolean {
+        return invoice.document_status === 'pending_bank_transfer';
+    }
+
+    function isInvoiceGenerating(invoice: Invoice): boolean {
+        return invoice.document_status === 'generating' || (!invoice.filename && !isPendingBankTransfer(invoice));
+    }
+
+    function isInvoiceDocumentReady(invoice: Invoice): boolean {
+        return !!invoice.filename && !isPendingBankTransfer(invoice) && !isInvoiceGenerating(invoice);
+    }
+
+    function bankTransferStatusLabel(invoice: Invoice): string {
+        if (invoice.transaction_status === 'pending') {
+            return $text('settings.billing.bank_transfer_status_pending');
+        }
+        if (invoice.transaction_status === 'completed') {
+            return $text('settings.billing.bank_transfer_status_completed');
+        }
+        return invoice.transaction_status || '';
+    }
+
     // Fetch invoices from API
     async function fetchInvoices() {
         isLoading = true;
@@ -268,6 +293,10 @@ Invoices Settings - View and download past invoices
         try {
             // Don't show refund button if already refunded
             if (isInvoiceRefunded(invoice)) {
+                return false;
+            }
+
+            if (!isInvoiceDocumentReady(invoice)) {
                 return false;
             }
             
@@ -698,6 +727,11 @@ Invoices Settings - View and download past invoices
                                     {$text('settings.billing.invoices_gift_card_badge')}
                                 </span>
                             {/if}
+                            {#if invoice.transaction_status}
+                                <span class="transfer-status-badge" data-testid="invoice-bank-transfer-status">
+                                    {bankTransferStatusLabel(invoice)}
+                                </span>
+                            {/if}
                         </div>
                         <div class="invoice-details">
                             <span class="invoice-amount">{formatAmount(invoice.amount, invoice.currency)}</span>
@@ -705,10 +739,20 @@ Invoices Settings - View and download past invoices
                                 {formatCredits(invoice.credits_purchased)} {$text('common.credits')}
                             </span>
                         </div>
+                        {#if invoice.bank_transfer_reference}
+                            <div class="invoice-reference" data-testid="invoice-bank-transfer-reference">
+                                <span class="invoice-reference-label">{$text('settings.billing.bank_transfer_reference')}</span>
+                                <code>{invoice.bank_transfer_reference}</code>
+                            </div>
+                        {/if}
                     </div>
 
                     <div class="invoice-actions">
-                        {#if isInvoiceRefunded(invoice)}
+                        {#if isPendingBankTransfer(invoice)}
+                            <span class="invoice-status-note" data-testid="invoice-bank-transfer-pending">
+                                {$text('settings.billing.bank_transfer_status_pending')}
+                            </span>
+                        {:else if isInvoiceRefunded(invoice)}
                             <!-- When refunded, show Download Invoice and Download Credit Note buttons -->
                             <button
                                 class="download-button"
@@ -743,7 +787,7 @@ Invoices Settings - View and download past invoices
                             {/if}
                         {:else}
                             <!-- When not refunded, show Download (or Processing) and Refund buttons -->
-                            {#if !invoice.filename}
+                            {#if isInvoiceGenerating(invoice)}
                                 <!-- Invoice PDF is still being generated (optimistic/pending invoice) -->
                                 <button
                                     class="download-button processing"
@@ -931,10 +975,45 @@ Invoices Settings - View and download past invoices
         letter-spacing: 0.5px;
     }
 
+    .transfer-status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: var(--spacing-2) var(--spacing-5);
+        background: var(--color-grey-20);
+        color: var(--color-grey-80);
+        border: 1px solid var(--color-grey-30);
+        border-radius: var(--radius-5);
+        font-size: var(--font-size-tiny);
+        font-weight: 600;
+    }
+
     .invoice-details {
         display: flex;
         gap: var(--spacing-8);
         align-items: center;
+    }
+
+    .invoice-reference {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-4);
+        flex-wrap: wrap;
+        color: var(--color-grey-60);
+        font-size: var(--font-size-xs);
+    }
+
+    .invoice-reference-label {
+        font-weight: 500;
+    }
+
+    .invoice-reference code {
+        padding: var(--spacing-2) var(--spacing-4);
+        background: var(--color-grey-0);
+        border: 1px solid var(--color-grey-20);
+        border-radius: var(--radius-2);
+        color: var(--color-grey-100);
+        font-family: var(--font-family-mono, monospace);
+        font-size: var(--font-size-xs);
     }
 
     .invoice-amount {
@@ -953,6 +1032,12 @@ Invoices Settings - View and download past invoices
         align-items: center;
         gap: var(--spacing-4);
         width: 100%;
+    }
+
+    .invoice-status-note {
+        color: var(--color-grey-60);
+        font-size: var(--font-size-xs);
+        font-weight: 500;
     }
 
     .download-button {

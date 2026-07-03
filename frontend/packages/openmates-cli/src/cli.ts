@@ -5751,9 +5751,15 @@ function printBillingResponse(obj: Record<string, unknown>): void {
       const refundTag =
         refund && refund !== "none" ? `  \x1b[33m[${refund}]\x1b[0m` : "";
       const giftTag = inv.is_gift_card ? "  \x1b[35m[gift card]\x1b[0m" : "";
+      const transferStatus = str(inv.transaction_status);
+      const transferTag = transferStatus ? `  \x1b[36m[${transferStatus}]\x1b[0m` : "";
       process.stdout.write(
-        `    ${date}  \x1b[2m€${amt}\x1b[0m  ${creditsP} credits${refundTag}${giftTag}\n`,
+        `    ${date}  \x1b[2m€${amt}\x1b[0m  ${creditsP} credits${refundTag}${giftTag}${transferTag}\n`,
       );
+      const bankTransferReference = str(inv.bank_transfer_reference);
+      if (bankTransferReference) {
+        kv("      Bank transfer reference", bankTransferReference, 30);
+      }
     }
   }
 
