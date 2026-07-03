@@ -1,0 +1,107 @@
+saved_recipes:
+  context: Nutrition memory category name for recipes saved by the user
+  en: Saved recipes
+  de: Gespeicherte Rezepte
+  zh: 已保存的食谱
+  es: Recetas guardadas
+  fr: Recettes enregistrées
+  pt: Receitas salvas
+  ru: Сохраненные рецепты
+  ja: 保存したレシピ
+  ko: 저장된 레시피
+  it: Ricette salvate
+  tr: Kaydedilen tarifler
+  vi: Công thức đã lưu
+  id: Resep tersimpan
+  pl: Zapisane przepisy
+  nl: Opgeslagen recepten
+  ar: الوصفات المحفوظة
+  hi: सहेजी गई रेसिपी
+  th: สูตรอาหารที่บันทึกไว้
+  cs: Uložené recepty
+  sv: Sparade recept
+  he: מתכונים שמורים
+  verified_by_human:
+    - en
+    - de
+
+saved_recipes.description:
+  context: Nutrition memory category description for recipes saved by the user
+  en: Recipes you have saved for cooking again later.
+  de: Rezepte, die du gespeichert hast, um sie später wieder zu kochen.
+  zh: 您保存的食谱，方便以后再次烹饪。
+  es: Recetas que guardaste para volver a cocinarlas más tarde.
+  fr: Recettes que vous avez enregistrées pour les refaire plus tard.
+  pt: Receitas que você salvou para cozinhar novamente mais tarde.
+  ru: Рецепты, которые вы сохранили, чтобы приготовить их позже снова.
+  ja: 後でもう一度作るために保存したレシピです。
+  ko: 나중에 다시 만들기 위해 저장한 레시피입니다.
+  it: Ricette che hai salvato per cucinarle di nuovo in seguito.
+  tr: Daha sonra tekrar pişirmek için kaydettiğiniz tarifler.
+  vi: Các công thức bạn đã lưu để nấu lại sau.
+  id: Resep yang Anda simpan untuk dimasak lagi nanti.
+  pl: Przepisy zapisane do ponownego ugotowania później.
+  nl: Recepten die je hebt opgeslagen om later opnieuw te koken.
+  ar: وصفات حفظتها لطهيها مرة أخرى لاحقًا.
+  hi: वे रेसिपी जिन्हें आपने बाद में फिर से पकाने के लिए सहेजा है।
+  th: สูตรอาหารที่คุณบันทึกไว้เพื่อทำอีกครั้งในภายหลัง
+  cs: Recepty uložené pro pozdější opětovné vaření.
+  sv: Recept som du har sparat för att laga igen senare.
+  he: מתכונים ששמרת כדי להכין שוב מאוחר יותר.
+  verified_by_human:
+    - en
+    - de
+
+meal_plan:
+  context: Nutrition memory category name for the user's meal plan
+  en: Meal plan
+  de: Essensplan
+  zh: 膳食计划
+  es: Plan de comidas
+  fr: Plan de repas
+  pt: Plano de refeições
+  ru: План питания
+  ja: 食事プラン
+  ko: 식단 계획
+  it: Piano pasti
+  tr: Yemek planı
+  vi: Kế hoạch bữa ăn
+  id: Rencana makan
+  pl: Plan posiłków
+  nl: Maaltijdplan
+  ar: خطة الوجبات
+  hi: भोजन योजना
+  th: แผนมื้ออาหาร
+  cs: Jídelní plán
+  sv: Måltidsplan
+  he: תוכנית ארוחות
+  verified_by_human:
+    - en
+    - de
+
+meal_plan.description:
+  context: Nutrition memory category description for the user's meal plan
+  en: Meal ideas, schedules, and dietary preferences you want to remember.
+  de: Essensideen, Zeitpläne und Ernährungswünsche, die du dir merken möchtest.
+  zh: 您想记住的餐食想法、安排和饮食偏好。
+  es: Ideas de comidas, horarios y preferencias dietéticas que quieres recordar.
+  fr: Idées de repas, horaires et préférences alimentaires à retenir.
+  pt: Ideias de refeições, horários e preferências alimentares que você quer lembrar.
+  ru: Идеи блюд, расписания и пищевые предпочтения, которые вы хотите запомнить.
+  ja: 覚えておきたい食事のアイデア、予定、食事の好みです。
+  ko: 기억하고 싶은 식사 아이디어, 일정, 식단 선호입니다.
+  it: Idee per i pasti, programmi e preferenze alimentari da ricordare.
+  tr: Hatırlamak istediğiniz yemek fikirleri, programlar ve beslenme tercihleri.
+  vi: Ý tưởng bữa ăn, lịch trình và sở thích ăn uống bạn muốn ghi nhớ.
+  id: Ide makanan, jadwal, dan preferensi diet yang ingin Anda ingat.
+  pl: Pomysły na posiłki, harmonogramy i preferencje dietetyczne do zapamiętania.
+  nl: Maaltijdideeën, planningen en dieetvoorkeuren die je wilt onthouden.
+  ar: أفكار وجبات وجداول وتفضيلات غذائية تريد تذكرها.
+  hi: भोजन के विचार, कार्यक्रम और आहार प्राथमिकताएँ जिन्हें आप याद रखना चाहते हैं।
+  th: ไอเดียมื้ออาหาร ตารางเวลา และความชอบด้านอาหารที่คุณต้องการจดจำ
+  cs: Nápady na jídla, rozvrhy a stravovací preference, které si chcete pamatovat.
+  sv: Måltidsidéer, scheman och kostpreferenser som du vill komma ihåg.
+  he: רעיונות לארוחות, לוחות זמנים והעדפות תזונה שברצונך לזכור.
+  verified_by_human:
+    - en
+    - de

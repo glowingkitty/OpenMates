@@ -141,7 +141,7 @@ test.describe('Projects remote sources', () => {
     await expect(remotePreview).toBeVisible();
     await expect(remotePreview).toContainText('remoteDemo');
     await remotePreview.getByTestId('project-remote-preview-open').click();
-    const fullscreenOverlay = page.getByTestId('embed-fullscreen-overlay');
+    const fullscreenOverlay = page.getByTestId('project-remote-fullscreen-overlay');
     await expect(fullscreenOverlay).toBeVisible({ timeout: 10000 });
     await expect(fullscreenOverlay).toContainText('remote-demo.ts');
     await closeFullscreen(page, fullscreenOverlay);

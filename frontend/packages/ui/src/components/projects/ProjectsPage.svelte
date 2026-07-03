@@ -601,7 +601,7 @@
 {/if}
 
 {#if activeRemoteFullscreen}
-  <div class="projects-remote-fullscreen" data-testid="embed-fullscreen-overlay">
+  <div class="projects-remote-fullscreen" data-testid="project-remote-fullscreen-overlay">
     <CodeEmbedFullscreen
       data={{
         decodedContent: activeRemoteFullscreen.decodedContent,
