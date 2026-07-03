@@ -1801,7 +1801,7 @@ struct MainAppView: View {
                     thumbnailUrl: first.video?.thumbnailUrl,
                     updatedAt: Date()
                 )
-                if let defaults = UserDefaults(suiteName: "group.org.openmates.app"),
+                if let defaults = UserDefaults(suiteName: OpenMatesSharedEnvironment.appGroupIdentifier),
                    let encoded = try? JSONEncoder().encode(widgetData) {
                     defaults.set(encoded, forKey: "widget_daily_inspiration")
                 }

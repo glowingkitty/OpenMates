@@ -7,7 +7,7 @@
 import Foundation
 
 enum OpenMatesSharedEnvironment {
-    static let appGroupIdentifier = "group.org.openmates.app"
+    static let appGroupIdentifier = "group.org.openmates.app.shared"
     static let sharedKeychainAccessGroup = "$(AppIdentifierPrefix)org.openmates.app"
 
     static var defaults: UserDefaults {

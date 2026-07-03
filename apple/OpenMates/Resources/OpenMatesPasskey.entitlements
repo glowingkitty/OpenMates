@@ -9,7 +9,7 @@
 	</array>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.org.openmates.app</string>
+		<string>group.org.openmates.app.shared</string>
 	</array>
 	<key>com.apple.developer.associated-domains</key>
 	<array>

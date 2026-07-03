@@ -90,7 +90,7 @@ targets:
           - $(AppIdentifierPrefix)$(CFBundleIdentifier)
           - $(AppIdentifierPrefix)org.openmates.app
         com.apple.security.application-groups:
-          - group.org.openmates.app
+          - group.org.openmates.app.shared
         com.apple.developer.associated-domains:
           - webcredentials:openmates.org
           - $(OPENMATES_DEV_WEBCREDENTIALS)
@@ -158,7 +158,7 @@ targets:
           - $(AppIdentifierPrefix)$(CFBundleIdentifier)
           - $(AppIdentifierPrefix)org.openmates.app
         com.apple.security.application-groups:
-          - group.org.openmates.app
+          - group.org.openmates.app.shared
 
   # macOS share extension — share URLs and text from Mac apps into OpenMates chats
   OpenMatesShareExtension_macOS:
@@ -184,7 +184,7 @@ targets:
           - $(AppIdentifierPrefix)$(CFBundleIdentifier)
           - $(AppIdentifierPrefix)org.openmates.app
         com.apple.security.application-groups:
-          - group.org.openmates.app
+          - group.org.openmates.app.shared
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
   # WidgetKit extension — Daily Inspiration home screen widget
@@ -207,7 +207,7 @@ targets:
           - $(AppIdentifierPrefix)$(CFBundleIdentifier)
           - $(AppIdentifierPrefix)org.openmates.app
         com.apple.security.application-groups:
-          - group.org.openmates.app
+          - group.org.openmates.app.shared
 
   OpenMatesUITests:
     type: bundle.ui-testing
