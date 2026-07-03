@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import httpx
@@ -19,6 +20,75 @@ TOKEN_EXCHANGE_TIMEOUT_SECONDS = 15.0
 GOOGLE_OAUTH_SECRET_PATHS = ("kv/data/providers/google", "kv/data/providers/google_calendar")
 GOOGLE_OAUTH_CLIENT_ID_SECRET_KEYS = ("oauth_client_id", "client_id")
 GOOGLE_OAUTH_CLIENT_SECRET_SECRET_KEYS = ("oauth_client_secret", "client_secret")
+MAX_PROVIDER_ERROR_DESCRIPTION_LENGTH = 240
+
+logger = logging.getLogger(__name__)
+
+
+class GoogleOAuthTokenExchangeError(RuntimeError):
+    """Sanitized Google OAuth token exchange failure."""
+
+    def __init__(
+        self,
+        *,
+        operation: str,
+        status_code: int,
+        provider_error: str | None,
+        provider_error_description: str | None,
+    ) -> None:
+        self.operation = operation
+        self.status_code = status_code
+        self.provider_error = provider_error
+        self.provider_error_description = provider_error_description
+        message = f"Google OAuth {operation} failed with HTTP {status_code}"
+        if provider_error:
+            message += f": {provider_error}"
+        if provider_error_description:
+            message += f" ({provider_error_description})"
+        super().__init__(message)
+
+
+def _sanitize_provider_error_value(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    sanitized = " ".join(value.split()).strip()
+    if not sanitized:
+        return None
+    return sanitized[:MAX_PROVIDER_ERROR_DESCRIPTION_LENGTH]
+
+
+def _provider_token_error(response: httpx.Response) -> tuple[str | None, str | None]:
+    try:
+        payload = response.json()
+    except ValueError:
+        return None, None
+    if not isinstance(payload, dict):
+        return None, None
+    return (
+        _sanitize_provider_error_value(payload.get("error")),
+        _sanitize_provider_error_value(payload.get("error_description")),
+    )
+
+
+def _raise_for_google_token_error(response: httpx.Response, *, operation: str) -> None:
+    if not response.is_error:
+        response.raise_for_status()
+        return
+
+    provider_error, provider_error_description = _provider_token_error(response)
+    logger.warning(
+        "Google OAuth %s failed: status=%s provider_error=%s provider_error_description=%s",
+        operation,
+        response.status_code,
+        provider_error or "unknown",
+        provider_error_description or "unknown",
+    )
+    raise GoogleOAuthTokenExchangeError(
+        operation=operation,
+        status_code=response.status_code,
+        provider_error=provider_error,
+        provider_error_description=provider_error_description,
+    )
 
 
 async def _first_vault_value(
@@ -69,7 +139,7 @@ async def exchange_google_refresh_token(
                 "grant_type": "refresh_token",
             },
         )
-        response.raise_for_status()
+        _raise_for_google_token_error(response, operation="refresh token exchange")
         payload = response.json()
 
     result: dict[str, Any] = {"access_token": payload.get("access_token")}
@@ -104,5 +174,5 @@ async def exchange_google_authorization_code(
                 "redirect_uri": redirect_uri,
             },
         )
-        response.raise_for_status()
+        _raise_for_google_token_error(response, operation="authorization code exchange")
         return response.json()
