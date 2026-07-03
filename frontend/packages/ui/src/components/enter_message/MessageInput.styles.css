@@ -454,11 +454,15 @@
   box-sizing: border-box;
   color: var(--color-font-primary);
   line-height: 1.6;
-  caret-color: var(--color-primary);
+  caret-color: transparent;
   /* Prevent double-tap-to-zoom on the contenteditable editor on mobile.
      Without this, quickly tapping to position cursor or tapping after sending
      a message can trigger iOS/Firefox zoom-in. */
   touch-action: manipulation;
+}
+
+.message-field.focused :global(.ProseMirror) {
+  caret-color: var(--color-primary);
 }
 
 :global(.ProseMirror p) {
