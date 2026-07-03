@@ -239,6 +239,7 @@ import os
 import pathlib
 import plistlib
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -273,6 +274,52 @@ def print_tail(label, text, tmp_dir=None, limit=160):
     sanitized = re.sub(r"/Users/[^\s]+", "<macos-peer-path>", sanitized)
     for line in sanitized.splitlines()[-limit:]:
         print(line)
+
+
+def preflight_signing():
+    identities = subprocess.run(
+        ["security", "find-identity", "-v", "-p", "codesigning"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if identities.returncode != 0:
+        print_tail("preflight_status", identities.stdout + identities.stderr, limit=80)
+        sys.exit(identities.returncode)
+
+    identity_lines = identities.stdout.splitlines()
+    development_identity = next((line.split('"')[0].split(")", 1)[-1].strip() for line in identity_lines if "Apple Development:" in line), "")
+    distribution_identity = any("Apple Distribution:" in line for line in identity_lines)
+
+    if not distribution_identity:
+        print("distribution_identity=missing")
+        print("hint=Create or download an Apple Distribution certificate in Xcode before TestFlight upload.")
+
+    if development_identity:
+        probe_dir = tempfile.mkdtemp(prefix="openmates-codesign-preflight-")
+        probe_path = pathlib.Path(probe_dir) / "probe"
+        try:
+            subprocess.run(["cp", "/bin/ls", str(probe_path)], check=True, capture_output=True, text=True, timeout=30)
+            probe = subprocess.run(
+                ["codesign", "--force", "--sign", development_identity, "--timestamp=none", str(probe_path)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+        finally:
+            shutil.rmtree(probe_dir, ignore_errors=True)
+        if probe.returncode != 0:
+            print_tail("preflight_status", probe.stdout + probe.stderr, probe_dir, limit=80)
+            print("hint=Allow codesign private-key access in Keychain Access or archive once from Xcode and choose Always Allow.")
+            sys.exit(probe.returncode)
+
+    if not distribution_identity:
+        sys.exit(1)
+
+    print("preflight_status=passed")
+
+
+preflight_signing()
 
 
 derived = tempfile.mkdtemp(prefix="openmates-testflight-")

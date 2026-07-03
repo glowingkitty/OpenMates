@@ -77,7 +77,7 @@ targets:
       configs:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
-          OPENMATES_DEV_WEBCREDENTIALS: webcredentials:app.dev.openmates.org?mode=developer
+          OPENMATES_DEV_WEBCREDENTIALS: webcredentials:app.dev.openmates.org
           # StoreKit testing configuration for sandbox purchases
           STOREKIT_CONFIGURATION: OpenMates/Resources/OpenMates.storekit
         Release:

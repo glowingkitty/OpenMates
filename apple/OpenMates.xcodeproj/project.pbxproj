@@ -2413,7 +2413,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				OPENMATES_DEV_WEBCREDENTIALS = "webcredentials:app.dev.openmates.org?mode=developer";
+				OPENMATES_DEV_WEBCREDENTIALS = "webcredentials:app.dev.openmates.org";
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app;
 				PRODUCT_NAME = OpenMates;
 				SDKROOT = iphoneos;
@@ -2568,7 +2568,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				OPENMATES_DEV_WEBCREDENTIALS = "webcredentials:app.dev.openmates.org?mode=developer";
+				OPENMATES_DEV_WEBCREDENTIALS = "webcredentials:app.dev.openmates.org";
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app;
 				PRODUCT_NAME = OpenMates;
 				SDKROOT = macosx;

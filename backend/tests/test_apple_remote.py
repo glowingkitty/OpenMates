@@ -188,6 +188,14 @@ def test_upload_testflight_ios_command_can_allow_external_testing() -> None:
     assert command.endswith(" 0")
 
 
+def test_upload_testflight_ios_script_preflights_signing() -> None:
+    script = apple_remote.TESTFLIGHT_IOS_SCRIPT
+
+    assert "preflight_signing" in script
+    assert "distribution_identity=missing" in script
+    assert "openmates-codesign-preflight" in script
+
+
 def test_install_ios_device_script_reports_paid_team_hint() -> None:
     script = apple_remote.INSTALL_IOS_DEVICE_SCRIPT
 
