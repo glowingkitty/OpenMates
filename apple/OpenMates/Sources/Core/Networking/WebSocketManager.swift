@@ -362,7 +362,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                     .messageQueued(
                         chatId: chatId,
                         taskId: msg.stringField("task_id"),
-                        userMessageId: msg.stringField("user_message_id")
+                        userMessageId: msg.stringField("user_message_id"),
+                        message: msg.stringField("message")
                     ),
                     for: chatId
                 )

@@ -77,6 +77,7 @@ enum AppStrings {
     static var startTyping: String { L("chat.start_typing") }
     static var aiResponding: String { L("chat.ai_responding") }
     static var stopResponse: String { L("chat.stop_response") }
+    static var messageQueued: String { L("enter_message.message_queued") }
     static var loadEarlierMessages: String { L("chat.load_earlier") }
     static var selectChatOrNew: String { L("chat.select_or_new") }
     static var whatToHelpWith: String { L("chat.what_to_help_with") }

@@ -67,10 +67,11 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
     func testQueuedCancelAndTypingEndedStatesAreIdempotent() {
         var state = ChatStreamingLifecycleState()
 
-        state.apply(.messageQueued(chatId: "chat-1", taskId: "task-1", userMessageId: "user-2"))
+        state.apply(.messageQueued(chatId: "chat-1", taskId: "task-1", userMessageId: "user-2", message: "Queued text"))
         XCTAssertEqual(state.phase, .queued)
         XCTAssertEqual(state.taskId, "task-1")
         XCTAssertEqual(state.userMessageId, "user-2")
+        XCTAssertEqual(state.queuedMessageText, "Queued text")
 
         state.apply(.cancelRequested(chatId: "chat-1", taskId: "task-1"))
         XCTAssertEqual(state.phase, .cancelling)
@@ -82,6 +83,7 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         state.reset()
         XCTAssertEqual(state.phase, .idle)
         XCTAssertNil(state.taskId)
+        XCTAssertNil(state.queuedMessageText)
     }
 
     func testCancelAITaskPayloadMatchesWebContract() {

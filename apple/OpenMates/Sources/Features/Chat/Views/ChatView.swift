@@ -1272,7 +1272,7 @@ struct ChatView: View {
                             .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     }
                     .buttonStyle(.plain)
-                    .disabled((messageText.isEmpty && !viewModel.hasPendingComposerEmbeds) || viewModel.isStreaming)
+                    .disabled(messageText.isEmpty && !viewModel.hasPendingComposerEmbeds)
                     .opacity((messageText.isEmpty && !viewModel.hasPendingComposerEmbeds) ? 0.6 : 1.0)
                     .accessibilityLabel(AppStrings.sendMessage)
                     .accessibilityHint(AppStrings.typeMessage)
@@ -1286,6 +1286,20 @@ struct ChatView: View {
                 .padding(.bottom, .spacing6)
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("action-buttons")
+            }
+
+            if let queuedMessageText = viewModel.streamingLifecycle.queuedMessageText {
+                Text(queuedMessageText)
+                    .font(.omXs)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.fontSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing2)
+                    .background(Color.grey10)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                    .padding(.horizontal, .spacing5)
+                    .accessibilityIdentifier("queued-message-indicator")
             }
 
             if let recordPermissionHintText {

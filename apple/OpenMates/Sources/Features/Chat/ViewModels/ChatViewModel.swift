@@ -29,6 +29,7 @@ struct ChatStreamingLifecycleState: Equatable {
     var preprocessingStep: String?
     var thinkingContent = ""
     var isThinkingStreaming = false
+    var queuedMessageText: String?
     var errorMessage: String?
 
     var isActive: Bool {
@@ -101,6 +102,7 @@ struct ChatStreamingLifecycleState: Equatable {
             self.messageId = messageId
             phase = .completed
             isThinkingStreaming = false
+            queuedMessageText = nil
 
         case .typingEnded(let chatId, let messageId):
             self.chatId = chatId
@@ -109,11 +111,13 @@ struct ChatStreamingLifecycleState: Equatable {
                 phase = .completed
             }
             isThinkingStreaming = false
+            queuedMessageText = nil
 
-        case .messageQueued(let chatId, let taskId, let userMessageId):
+        case .messageQueued(let chatId, let taskId, let userMessageId, let message):
             self.chatId = chatId
             self.taskId = taskId ?? self.taskId
             self.userMessageId = userMessageId ?? self.userMessageId
+            queuedMessageText = message
             phase = .queued
 
         case .cancelRequested(let chatId, let taskId):
@@ -121,16 +125,19 @@ struct ChatStreamingLifecycleState: Equatable {
             self.taskId = taskId ?? self.taskId
             phase = .cancelling
             isThinkingStreaming = false
+            queuedMessageText = nil
 
         case .postProcessingCompleted(let chatId, let taskId, _, _, _, _, _):
             self.chatId = chatId
             self.taskId = taskId
             phase = .completed
+            queuedMessageText = nil
 
         case .error(let message):
             phase = .error
             errorMessage = message
             isThinkingStreaming = false
+            queuedMessageText = nil
         }
     }
 
@@ -182,6 +189,7 @@ final class ChatViewModel: ObservableObject {
     private let sendPipeline = ChatSendPipeline()
     private weak var wsManager: WebSocketManager?
     private weak var chatStore: ChatStore?
+    private var queuedMessageClearTask: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
     private var embedHydrationTask: Task<Void, Never>?
     private var loadGeneration = 0
@@ -876,6 +884,8 @@ final class ChatViewModel: ObservableObject {
             }
         }
         streamTask?.cancel()
+        queuedMessageClearTask?.cancel()
+        queuedMessageClearTask = nil
         isStreaming = false
         streamingContent = ""
         streamingMessageId = nil
@@ -988,18 +998,22 @@ final class ChatViewModel: ObservableObject {
 
         case .messageReady(_, _):
             isStreaming = false
+            streamingLifecycle.queuedMessageText = nil
 
         case .preprocessingStep(_, _, _):
             isStreaming = true
 
         case .typingEnded(_, _):
             isStreaming = false
+            streamingLifecycle.queuedMessageText = nil
 
-        case .messageQueued(_, _, _):
+        case .messageQueued(_, _, _, let message):
             isStreaming = true
+            showQueuedMessage(message)
 
         case .cancelRequested(_, _):
             isStreaming = false
+            streamingLifecycle.queuedMessageText = nil
 
         case .postProcessingCompleted(let chatId, _, let followUps, let newSuggestions, let summary, let tags, let updatedTitle):
             guard chat?.id == chatId else { return }
@@ -1016,10 +1030,24 @@ final class ChatViewModel: ObservableObject {
                     chatStore: chatStore
                 )
             }
+            streamingLifecycle.queuedMessageText = nil
 
         case .error(let msg):
             error = msg
             isStreaming = false
+            streamingLifecycle.queuedMessageText = nil
+        }
+    }
+
+    private func showQueuedMessage(_ message: String?) {
+        let trimmed = message?.trimmingCharacters(in: .whitespacesAndNewlines)
+        streamingLifecycle.queuedMessageText = (trimmed?.isEmpty == false) ? trimmed : AppStrings.messageQueued
+        queuedMessageClearTask?.cancel()
+        queuedMessageClearTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(7))
+            guard !Task.isCancelled else { return }
+            streamingLifecycle.queuedMessageText = nil
+            queuedMessageClearTask = nil
         }
     }
 
