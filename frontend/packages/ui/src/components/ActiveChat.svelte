@@ -8996,10 +8996,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     let restoringAnonymousHashChat = $state(false);
+    let anonymousHashEmptyRestoreAttemptedFor = $state<string | null>(null);
 
     async function restoreAnonymousHashChatOnMount(): Promise<void> {
         const hashChatId = activeChatStore.getChatIdFromHash();
-        if ($authStore.isAuthenticated || !isAnonymousChatId(hashChatId) || currentChat?.chat_id === hashChatId) return;
+        if ($authStore.isAuthenticated || !isAnonymousChatId(hashChatId)) return;
+        if (currentChat?.chat_id === hashChatId && currentMessages.length > 0) return;
 
         showWelcome = false;
         activeChatStore.setWithoutHashUpdate(hashChatId);
@@ -9035,17 +9037,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     $effect(() => {
+        if (
+            anonymousHashEmptyRestoreAttemptedFor &&
+            (currentChat?.chat_id !== anonymousHashEmptyRestoreAttemptedFor || currentMessages.length > 0)
+        ) {
+            anonymousHashEmptyRestoreAttemptedFor = null;
+        }
+    });
+
+    $effect(() => {
         const hashChatId = activeChatStore.getChatIdFromHash();
+        const sameHashChatMissingMessages =
+            currentChat?.chat_id === hashChatId &&
+            currentMessages.length === 0 &&
+            anonymousHashEmptyRestoreAttemptedFor !== hashChatId;
         const shouldRestoreAnonymousHash =
             !$authStore.isAuthenticated &&
-            showWelcome &&
-            !currentChat?.chat_id &&
+            ((showWelcome && !currentChat?.chat_id) || sameHashChatMissingMessages) &&
             isAnonymousChatId(hashChatId) &&
             !restoringAnonymousHashChat;
 
         if (!shouldRestoreAnonymousHash) return;
 
         restoringAnonymousHashChat = true;
+        if (sameHashChatMissingMessages) {
+            anonymousHashEmptyRestoreAttemptedFor = hashChatId;
+        }
         restoreAnonymousHashChatOnMount()
             .catch((error) => {
                 console.warn('[ActiveChat] Failed to restore anonymous hash chat after welcome reset:', error);
