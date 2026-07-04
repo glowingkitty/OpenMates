@@ -11,17 +11,12 @@ final class AnonymousChatStreamingParityTests: XCTestCase {
     func testAnonymousStreamingUsesSharedLifecycleReducer() {
         var state = ChatStreamingLifecycleState()
 
-        state.apply(.processingStarted(
+        state.apply(.taskInitiated(chatId: "anonymous-chat-1", taskId: "task-1", userMessageId: "user-1"))
+        state.apply(.preprocessingStep(chatId: "anonymous-chat-1", step: "anonymous_request_started", data: nil))
+        state.apply(.thinkingChunk(
             chatId: "anonymous-chat-1",
             messageId: "assistant-1",
-            taskId: "task-1",
-            message: "Processing"
-        ))
-        state.apply(.thinkingUpdate(
-            chatId: "anonymous-chat-1",
-            messageId: "assistant-1",
-            text: "Thinking",
-            isStreaming: true
+            content: "Thinking"
         ))
         state.apply(.chunk(
             chatId: "anonymous-chat-1",
@@ -37,17 +32,20 @@ final class AnonymousChatStreamingParityTests: XCTestCase {
 
         XCTAssertEqual(state.phase, .streaming)
         XCTAssertEqual(state.messageId, "assistant-1")
-        XCTAssertEqual(state.latestThinkingText, "Thinking")
+        XCTAssertEqual(state.thinkingContent, "Thinking")
         XCTAssertTrue(state.isThinkingStreaming)
         XCTAssertTrue(state.isActive)
 
-        state.apply(.final(
+        state.apply(.chunk(
             chatId: "anonymous-chat-1",
             messageId: "assistant-1",
+            sequence: 2,
             content: "Final anonymous response",
+            isFinal: true,
             userMessageId: "user-1",
             category: "ai",
-            modelName: "model-1"
+            modelName: "model-1",
+            rejectionReason: nil
         ))
 
         XCTAssertEqual(state.phase, .completed)
