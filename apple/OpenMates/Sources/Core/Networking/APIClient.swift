@@ -5,7 +5,7 @@
 import Foundation
 
 /// Wrapper for sending pre-serialized JSON data without re-encoding through JSONEncoder.
-struct JSONRawBody: Encodable {
+struct JSONRawBody: Encodable, Sendable {
     let data: Data
     func encode(to encoder: any Encoder) throws {
         var container = encoder.singleValueContainer()

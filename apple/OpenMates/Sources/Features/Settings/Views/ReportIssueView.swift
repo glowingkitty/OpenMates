@@ -280,11 +280,12 @@ struct ReportIssueView: View {
                     consoleLogs: NativeClientLogCollector.shared.logsAsText(limit: 100),
                     runtimeDebugState: IssueReportPayloadBuilder.runtimeDebugState()
                 )
+                let payloadData = try JSONSerialization.data(withJSONObject: payload)
 
                 let response: IssueReportResponse = try await APIClient.shared.request(
                     .post,
                     path: "/v1/settings/issues",
-                    body: payload
+                    body: JSONRawBody(data: payloadData)
                 )
 
                 let reference = response.shortIssueId ?? response.issueId ?? ""
@@ -310,12 +311,19 @@ struct ReportIssueView: View {
         #if DEBUG
         uiTestIssueLogPayloadText = Self.uiTestIssueLogDebugText(payload)
         #endif
+        let payloadData: Data
+        do {
+            payloadData = try JSONSerialization.data(withJSONObject: payload)
+        } catch {
+            NativeClientLogCollector.shared.record(level: .error, category: "report_issue", message: "Issue log serialization failed: \(error.localizedDescription)")
+            return
+        }
 
         do {
             let _: Data = try await APIClient.shared.request(
                 .post,
                 path: "/v1/settings/issue-logs",
-                body: payload
+                body: JSONRawBody(data: payloadData)
             )
         } catch {
             NativeClientLogCollector.shared.record(level: .warning, category: "report_issue", message: "Issue log upload failed: \(error.localizedDescription)")
