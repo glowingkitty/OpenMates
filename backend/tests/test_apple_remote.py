@@ -313,6 +313,19 @@ def test_ensure_apple_distribution_certificate_command_uses_modern_distribution_
     assert command.endswith(" 1 DISTRIBUTION")
 
 
+def test_ensure_mac_installer_distribution_certificate_command_uses_installer_type() -> None:
+    command = apple_remote.ensure_ios_distribution_certificate_command(
+        True,
+        certificate_type="MAC_INSTALLER_DISTRIBUTION",
+    )
+    parser = apple_remote.build_parser()
+
+    args = parser.parse_args(["ensure-mac-installer-distribution-certificate", "--create"])
+
+    assert command.endswith(" 1 MAC_INSTALLER_DISTRIBUTION")
+    assert args.create is True
+
+
 def test_ensure_ios_distribution_certificate_script_uses_certificate_api() -> None:
     script = apple_remote.ENSURE_IOS_DISTRIBUTION_CERTIFICATE_SCRIPT
 
@@ -320,6 +333,9 @@ def test_ensure_ios_distribution_certificate_script_uses_certificate_api() -> No
     assert "certificateType" in script
     assert "IOS_DISTRIBUTION" in script
     assert "DISTRIBUTION" in script
+    assert "MAC_INSTALLER_DISTRIBUTION" in script
+    assert "3rd Party Mac Developer Installer" in script
+    assert "/usr/bin/productbuild" in script
     assert "IOS_DEVELOPMENT" in script
     assert "DEVELOPMENT" in script
     assert "iPhone Distribution:" in script

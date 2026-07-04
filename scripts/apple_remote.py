@@ -462,6 +462,18 @@ def preflight_signing():
         print("distribution_identity=missing")
         print("hint=Create or download an Apple Distribution certificate in Xcode before TestFlight upload.")
 
+    if target_platform == "macos":
+        installer_certificate = subprocess.run(
+            ["security", "find-certificate", "-a", "-c", "3rd Party Mac Developer Installer", *keychain_args],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if installer_certificate.returncode != 0 or "3rd Party Mac Developer Installer" not in installer_certificate.stdout:
+            print("installer_distribution_identity=missing")
+            print("hint=Run ensure-mac-installer-distribution-certificate --create before macOS TestFlight upload.")
+            sys.exit(1)
+
     probe_identity = distribution_identity_name or development_identity
     if probe_identity:
         probe_dir = tempfile.mkdtemp(prefix="openmates-codesign-preflight-")
@@ -852,6 +864,10 @@ elif certificate_type == "DISTRIBUTION":
     identity_label = "distribution_identity"
     identity_markers = ("Apple Distribution:",)
     certificate_common_name = "OpenMates Apple Distribution"
+elif certificate_type == "MAC_INSTALLER_DISTRIBUTION":
+    identity_label = "installer_distribution_identity"
+    identity_markers = ("3rd Party Mac Developer Installer", "Mac Installer Distribution")
+    certificate_common_name = "OpenMates Mac Installer Distribution"
 elif certificate_type == "DEVELOPMENT":
     identity_label = "development_identity"
     identity_markers = ("Apple Development:",)
@@ -940,6 +956,17 @@ def existing_build_keychain_args():
 
 def has_requested_identity():
     keychain_args = existing_build_keychain_args()
+    if certificate_type == "MAC_INSTALLER_DISTRIBUTION":
+        certificate = subprocess.run(
+            ["security", "find-certificate", "-a", "-c", "3rd Party Mac Developer Installer", *keychain_args],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if certificate.returncode not in (0, 44):
+            print_tail("identity_check", certificate.stdout + certificate.stderr)
+            sys.exit(certificate.returncode)
+        return any(marker in certificate.stdout for marker in identity_markers)
     identities = subprocess.run(
         ["security", "find-identity", "-v", "-p", "codesigning", *keychain_args],
         capture_output=True,
@@ -1079,7 +1106,7 @@ try:
 
     keychain, keychain_password = build_keychain()
     import_key = subprocess.run(
-        ["security", "import", str(private_key), "-k", str(keychain), "-T", "/usr/bin/codesign", "-T", "/usr/bin/xcodebuild", "-T", "/usr/bin/security"],
+        ["security", "import", str(private_key), "-k", str(keychain), "-T", "/usr/bin/codesign", "-T", "/usr/bin/productbuild", "-T", "/usr/bin/xcodebuild", "-T", "/usr/bin/security"],
         capture_output=True,
         text=True,
         timeout=60,
@@ -1808,6 +1835,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_app_store_connect_api_args(apple_distribution_certificate_parser)
 
+    mac_installer_certificate_parser = subparsers.add_parser(
+        "ensure-mac-installer-distribution-certificate",
+        help="Check or create a Mac Installer Distribution certificate in the build keychain",
+    )
+    mac_installer_certificate_parser.add_argument(
+        "--create",
+        action="store_true",
+        help="Create a durable Mac Installer Distribution certificate via App Store Connect API and import it into the Mac build keychain",
+    )
+    add_app_store_connect_api_args(mac_installer_certificate_parser)
+
     development_certificate_parser = subparsers.add_parser(
         "ensure-ios-development-certificate",
         help="Check or create a local Apple Development certificate in the build keychain for SSH archives",
@@ -1959,6 +1997,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                         api_key_id=args.api_key_id,
                         api_issuer_id=args.api_issuer_id,
                         certificate_type="DISTRIBUTION",
+                    ),
+                ]),
+            )
+        if args.command == "ensure-mac-installer-distribution-certificate":
+            return run_remote(
+                config,
+                repo_command(config, [
+                    "bash",
+                    "-lc",
+                    ensure_ios_distribution_certificate_command(
+                        args.create,
+                        api_key_path=args.api_key_path,
+                        api_key_id=args.api_key_id,
+                        api_issuer_id=args.api_issuer_id,
+                        certificate_type="MAC_INSTALLER_DISTRIBUTION",
                     ),
                 ]),
             )
