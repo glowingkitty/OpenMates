@@ -307,17 +307,17 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertEqual(metricKit.first?["report_type"] as? String, "diagnostic")
     }
 
-    func testNativeMetricKitAndDisplayLinkLifecycleHooksStart() async {
+    func testNativeMetricKitAndDisplayLinkLifecycleHooksStart() {
         NativeMetricKitReporter.shared.resetForTests()
         NativeMetricKitReporter.shared.start()
         XCTAssertTrue(NativeMetricKitReporter.shared.isStartedForTests())
 
-        await NativePerformanceMonitor.shared.startSampling()
+        NativePerformanceMonitor.shared.startSampling()
         #if os(iOS)
-        let isSampling = await NativePerformanceMonitor.shared.isSamplingForTests()
+        let isSampling = NativePerformanceMonitor.shared.isSamplingForTests()
         XCTAssertTrue(isSampling)
         #endif
-        await NativePerformanceMonitor.shared.stopSampling()
+        NativePerformanceMonitor.shared.stopSampling()
     }
 
     func testReconnectBannerHasDebounceBeforeUserFacingWarning() {

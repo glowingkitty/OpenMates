@@ -144,7 +144,7 @@ struct OpenMatesApp: App {
                 .environment(\.layoutDirection, locManager.currentLanguage.layoutDirection)
                 .task {
                     NativeDiagnostics.info("Apple app runtime starting", category: "app_lifecycle")
-                    await NativePerformanceMonitor.shared.startSampling()
+                    NativePerformanceMonitor.shared.startSampling()
                     #if DEBUG
                     if ProcessInfo.processInfo.arguments.contains("--openmates-keychain-self-test") {
                         KeychainHelper.debugSelfTest()
