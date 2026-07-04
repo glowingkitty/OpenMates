@@ -151,6 +151,17 @@ Remote verification flow:
     `ssh_failed`, `project_not_found`, or `xcode_build_failed`. Keep private
     connection details in local shell history or operator notes, not repo files.
 
+For cross-client work, prefer the parity wrapper from the repo root so Apple
+verification is sequenced after CLI/SDK and web evidence:
+
+```bash
+python3 scripts/verify_parity.py --run --web-spec <name>.spec.ts --apple build
+```
+
+Use `--apple test --only-testing "OpenMatesUITests/<testName>"` when a targeted
+native test exists. Use `--apple skip --skip-apple "Apple not affected"` only
+when the changed surface has no Apple counterpart.
+
 Validated 2026-06-08 from the Linux dev server: a configured SSH alias reached
 a Tailscale Mac, `xcodebuild -version` responded, sanitized project lookup found
 the checkout, `xcodebuild -showBuildSettings` worked, and a generic

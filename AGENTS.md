@@ -78,6 +78,7 @@ Architecture decisions: write once in `docs/architecture/`, reference in code.
 - For Playwright and Vitest, follow `.claude/rules/testing.md`; do not run local test commands that the repo forbids.
 - For `*.spec.ts` Playwright verification, deploy the change to `dev` first, wait for the deployment to be live, then run the spec. Do not run E2E specs against undeployed local code.
 - For shared product behavior exposed outside the browser, verify CLI plus npm SDK and pip SDK contracts before web Playwright. Run `python3 scripts/audit_sdk_cli_parity.py` when touching CLI commands, SDK facades, app skills, settings-backed chat behavior, embeds, billing, notifications, or benchmark behavior.
+- For cross-client changes, prefer `python3 scripts/verify_parity.py --run --web-spec <spec>.spec.ts --apple build` to enforce the CLI/SDK → web → Apple order and write evidence. Use explicit `--skip-web` or `--apple skip --skip-apple "reason"` only when the surface is truly unaffected.
 - For changed code, run the smallest relevant lint/test/build command that proves the change.
 - If verification is not run, state why.
 

@@ -3286,9 +3286,12 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     if to_commit:
         files_arg = " ".join(f'"{f}"' for f in sorted(to_commit))
         print("== COMMANDS ==")
+        print("python3 scripts/verify_parity.py --run --web-spec <spec>.spec.ts --apple build")
         print(f"git add {files_arg}")
         print('git commit -m "<type>: <description>"')
         print("git push origin dev")
+        print("# To hard-gate deploy on the latest parity evidence:")
+        print('python3 scripts/sessions.py deploy --session <id> --title "..." --require-parity')
 
     print()
     print("== END DEPLOYMENT PLAN ==")
@@ -3424,6 +3427,18 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     # 1c. Test enforcement gate — warn if related specs exist but weren't run
     skip_tests_reason = getattr(args, "skip_tests_reason", None)
     _run_test_enforcement_gate(to_commit, skip_tests_reason)
+
+    if getattr(args, "require_parity", False):
+        print("Checking latest parity evidence...")
+        rc, stdout, stderr = _run_cmd([sys.executable, "scripts/verify_parity.py", "--check", "--no-skips"])
+        if rc != 0:
+            print("PARITY GATE FAILED — run python3 scripts/verify_parity.py --run before deploying.", file=sys.stderr)
+            if stdout:
+                print(stdout, file=sys.stderr)
+            if stderr:
+                print(stderr, file=sys.stderr)
+            sys.exit(1)
+        print("Parity evidence: PASSED")
 
     # 1d. Pytest gate — hard-block on failing related pytest unit tests
     _run_pytest_gate(to_commit, skip_reason=skip_tests_reason, no_verify=no_verify)
@@ -5822,6 +5837,12 @@ def main() -> None:
         metavar="REASON",
         help="Skip test enforcement gate with an explicit reason "
         "(e.g., 'hotfix, will add test in follow-up'). Reason is logged.",
+    )
+    p_deploy.add_argument(
+        "--require-parity",
+        action="store_true",
+        dest="require_parity",
+        help="Require a fresh no-skip scripts/verify_parity.py summary before deploy.",
     )
 
     # lint (run linter on tracked files without deploying)

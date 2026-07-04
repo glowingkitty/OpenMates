@@ -35,6 +35,20 @@ is clearly browser-only, such as selector changes, layout/screenshot diffs,
 pointer-event overlays, or Svelte-only rendering. Do not mark Apple
 `not affected` unless there is no native counterpart.
 
+Use the parity verifier when a change spans shared product behavior or multiple
+clients:
+
+```bash
+python3 scripts/verify_parity.py --run --web-spec <name>.spec.ts --apple build
+python3 scripts/verify_parity.py --check --no-skips
+```
+
+The verifier runs static CLI/npm SDK/pip SDK parity first, then dispatches CLI
+and web checks through `scripts/tests.py`, then runs Apple verification through
+`scripts/apple_remote.py`. It writes JSON evidence to `test-results/parity/` and
+never runs local Playwright or Vitest directly. If a phase is not applicable,
+record an explicit reason with `--skip-web` or `--apple skip --skip-apple`.
+
 ### Cross-App Parity Order
 
 For chat, AI pipeline, settings-backed chat behavior, app skills, embeds, sync,
