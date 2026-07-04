@@ -7,6 +7,50 @@
 import CryptoKit
 import Foundation
 
+struct BackgroundChatStoragePayload {
+    let chatId: String
+    let messageId: String
+    let encryptedContent: String
+    let createdAtUnix: Int
+    let encryptedChatKey: String
+    let messagesV: Int
+    let titleV: Int
+    let taskId: String
+    let encryptedSenderName: String
+    let encryptedTitle: String?
+    let encryptedIcon: String?
+    let encryptedChatCategory: String?
+    let encryptedUserCategory: String?
+
+    var dictionary: [String: Any] {
+        var payload: [String: Any] = [
+            "chat_id": chatId,
+            "message_id": messageId,
+            "encrypted_content": encryptedContent,
+            "created_at": createdAtUnix,
+            "encrypted_chat_key": encryptedChatKey,
+            "versions": [
+                "messages_v": messagesV,
+                "title_v": titleV,
+                "last_edited_overall_timestamp": createdAtUnix
+            ],
+            "task_id": taskId,
+            "encrypted_sender_name": encryptedSenderName
+        ]
+        if let encryptedTitle { payload["encrypted_title"] = encryptedTitle }
+        if let encryptedIcon { payload["encrypted_icon"] = encryptedIcon }
+        if let encryptedChatCategory { payload["encrypted_chat_category"] = encryptedChatCategory }
+        if let encryptedUserCategory { payload["encrypted_category"] = encryptedUserCategory }
+        return payload
+    }
+}
+
+enum BackgroundChatStorageContract {
+    static func shouldSendEncryptedStoragePackage(afterInboundEventType eventType: String) -> Bool {
+        eventType != "message_queued"
+    }
+}
+
 actor BackgroundChatSender {
     struct DestinationChat: Identifiable, Decodable {
         let id: String
@@ -341,7 +385,7 @@ actor BackgroundChatSender {
                 if candidate.userMessageId == nil || candidate.userMessageId == userMessageId {
                     metadata = candidate
                 }
-            case "message_queued":
+            case "message_queued" where !BackgroundChatStorageContract.shouldSendEncryptedStoragePackage(afterInboundEventType: inbound.type):
                 return nil
             default:
                 break
@@ -399,24 +443,21 @@ actor BackgroundChatSender {
         let encryptedSenderName = try await crypto.encryptContent("user", key: key)
         let encryptedUserCategory = try await encryptOptional(metadata.category, key: key)
 
-        var payload: [String: Any] = [
-            "chat_id": chatId,
-            "message_id": messageId,
-            "encrypted_content": encryptedContent,
-            "created_at": createdAtUnix,
-            "encrypted_chat_key": encryptedChatKey,
-            "versions": [
-                "messages_v": messagesV,
-                "title_v": encryptedTitle == nil ? currentTitleV : currentTitleV + 1,
-                "last_edited_overall_timestamp": createdAtUnix
-            ],
-            "task_id": taskId,
-            "encrypted_sender_name": encryptedSenderName
-        ]
-        if let encryptedTitle { payload["encrypted_title"] = encryptedTitle }
-        if let encryptedIcon { payload["encrypted_icon"] = encryptedIcon }
-        if let encryptedChatCategory { payload["encrypted_chat_category"] = encryptedChatCategory }
-        if let encryptedUserCategory { payload["encrypted_category"] = encryptedUserCategory }
+        let payload = BackgroundChatStoragePayload(
+            chatId: chatId,
+            messageId: messageId,
+            encryptedContent: encryptedContent,
+            createdAtUnix: createdAtUnix,
+            encryptedChatKey: encryptedChatKey,
+            messagesV: messagesV,
+            titleV: encryptedTitle == nil ? currentTitleV : currentTitleV + 1,
+            taskId: taskId,
+            encryptedSenderName: encryptedSenderName,
+            encryptedTitle: encryptedTitle,
+            encryptedIcon: encryptedIcon,
+            encryptedChatCategory: encryptedChatCategory,
+            encryptedUserCategory: encryptedUserCategory
+        ).dictionary
 
         try await ws.send(type: "encrypted_chat_metadata", payload: payload)
     }
