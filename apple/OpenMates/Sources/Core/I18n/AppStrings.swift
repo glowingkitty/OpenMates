@@ -195,6 +195,7 @@ enum AppStrings {
     static var allAppsFilterSkills: String { L("settings.app_store.all_apps.filter_skills") }
     static var allAppsSortNewest: String { L("settings.app_store.all_apps.sort_by_newest") }
     static var allAppsSortName: String { L("settings.app_store.all_apps.sort_by_name_asc") }
+    static var allAppsSortNameDesc: String { L("settings.app_store.all_apps.sort_by_name_desc") }
     static var appStoreSkills: String { L("settings.app_store.skills.title") }
     static var appStoreFocusModes: String { L("settings.app_store.focus_modes.title") }
     static var appStoreMemories: String { L("settings.app_store.settings_memories.title") }

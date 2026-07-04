@@ -21,15 +21,15 @@ final class SettingsFullParityTests: XCTestCase {
 
     func testAppMetadataDecoderPreservesWebFields() throws {
         let data = Data(Self.metadataFixture.utf8)
-        let response = try JSONDecoder().decode(SettingsAppsFullView.AppsMetadataResponse.self, from: data)
+        let response = try Self.metadataDecoder.decode(SettingsAppsFullView.AppsMetadataResponse.self, from: data)
 
         let weather = try XCTUnwrap(response.apps["weather"])
         XCTAssertEqual(weather.id, "weather")
         XCTAssertEqual(weather.category, "personal")
-        XCTAssertEqual(weather.providers, ["OpenWeather"])
+        XCTAssertEqual(weather.providers?.map(\.displayName), ["OpenWeather"])
         XCTAssertEqual(weather.lastUpdated, "2026-05-01")
         XCTAssertEqual(weather.skills.first?.id, "forecast")
-        XCTAssertEqual(weather.skills.first?.providers, ["OpenWeather"])
+        XCTAssertEqual(weather.skills.first?.providers?.map(\.displayName), ["OpenWeather"])
         XCTAssertNotNil(weather.skills.first?.pricing?["per_call"])
         XCTAssertEqual(weather.focusModes.first?.id, "travel_weather")
         XCTAssertEqual(weather.settingsAndMemories.first?.id, "home_location")
@@ -37,7 +37,7 @@ final class SettingsFullParityTests: XCTestCase {
 
     func testAppStoreCategoryFilterSortAndAIExclusionContracts() throws {
         let data = Data(Self.metadataFixture.utf8)
-        let response = try JSONDecoder().decode(SettingsAppsFullView.AppsMetadataResponse.self, from: data)
+        let response = try Self.metadataDecoder.decode(SettingsAppsFullView.AppsMetadataResponse.self, from: data)
         let weather = try XCTUnwrap(response.apps["weather"])
         let docs = try XCTUnwrap(response.apps["docs"])
 
@@ -48,8 +48,17 @@ final class SettingsFullParityTests: XCTestCase {
             ["top_picks", "most_used", "new_apps", "for_work", "for_everyday_life"]
         )
         XCTAssertEqual(SettingsAppsFullView.allAppsFilterKeys, ["all", "settings_memories", "focus_modes", "skills"])
-        XCTAssertEqual(SettingsAppsFullView.allAppsSortKeys, ["newest", "name"])
+        XCTAssertEqual(SettingsAppsFullView.allAppsSortKeys, ["newest", "name_asc", "name_desc"])
         XCTAssertTrue(SettingsAppsFullView.appStoreExcludedAppIDs.contains("ai"))
+
+        let categorized = Dictionary(uniqueKeysWithValues: SettingsAppsFullView.categorizeApps([
+            SettingsAppsFullView.appInfo(from: weather),
+            SettingsAppsFullView.appInfo(from: docs),
+        ]).map { ($0.key, $0.apps.map(\.id)) })
+        XCTAssertTrue(categorized["top_picks"]?.contains("weather") == true)
+        XCTAssertTrue(categorized["new_apps"]?.contains("weather") == true)
+        XCTAssertTrue(categorized["for_everyday_life"]?.contains("weather") == true)
+        XCTAssertTrue(categorized["for_work"]?.contains("docs") == true)
     }
 
     func testAppleCreditProductsMatchKnownCreditTiers() {
@@ -155,7 +164,9 @@ final class SettingsFullParityTests: XCTestCase {
           "name": "Weather",
           "description": "Forecasts and weather alerts",
           "category": "personal",
-          "providers": ["OpenWeather"],
+          "providers": [
+            {"name": "OpenWeather", "display_name": "OpenWeather", "no_api_key": false}
+          ],
           "last_updated": "2026-05-01",
           "skills": [
             {
@@ -163,7 +174,9 @@ final class SettingsFullParityTests: XCTestCase {
               "name": "Weather Forecast",
               "description": "Get a forecast",
               "pricing": {"per_call": 1},
-              "providers": ["OpenWeather"]
+              "providers": [
+                {"name": "OpenWeather", "display_name": "OpenWeather", "no_api_key": false}
+              ]
             }
           ],
           "focus_modes": [
@@ -195,4 +208,10 @@ final class SettingsFullParityTests: XCTestCase {
       }
     }
     """
+
+    private static let metadataDecoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return decoder
+    }()
 }

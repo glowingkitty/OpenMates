@@ -35,6 +35,7 @@ final class SettingsAppsParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-all-apps-filter-settings-memories", in: app, timeout: 3))
         XCTAssertTrue(waitForElement("settings-all-apps-sort-newest", in: app, timeout: 3))
         XCTAssertTrue(waitForElement("settings-all-apps-sort-name", in: app, timeout: 3))
+        XCTAssertTrue(waitForElement("settings-all-apps-sort-name-desc", in: app, timeout: 3))
 
         app.descendants(matching: .any)["settings-all-apps-filter-focus-modes"].tap()
         XCTAssertTrue(waitForElement("settings-all-app-row-weather", in: app, timeout: 5))
@@ -60,7 +61,7 @@ final class SettingsAppsParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-apps-row", in: app, timeout: 5))
         app.descendants(matching: .any)["settings-apps-row"].tap()
         XCTAssertTrue(waitForElement("app-card-weather", in: app, timeout: 5))
-        app.descendants(matching: .any)["app-card-weather"].tap()
+        app.descendants(matching: .any).matching(identifier: "app-card-weather").firstMatch.tap()
         XCTAssertTrue(waitForElement("settings-app-skill-row-forecast", in: app, timeout: 5))
         app.descendants(matching: .any)["settings-app-skill-row-forecast"].tap()
         XCTAssertTrue(waitForElement("settings-skill-detail-page", in: app, timeout: 5))
