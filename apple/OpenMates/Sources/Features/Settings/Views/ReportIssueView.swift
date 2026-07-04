@@ -87,7 +87,9 @@ struct ReportIssueView: View {
             #endif
         }
         .onAppear {
+            #if DEBUG
             seedUITestReportIssueLogsIfNeeded()
+            #endif
         }
         .onChange(of: screenshotItem) { _, newItem in
             loadScreenshot(newItem)
