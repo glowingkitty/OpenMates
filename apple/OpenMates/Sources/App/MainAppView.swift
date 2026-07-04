@@ -3142,7 +3142,7 @@ private enum WorkspaceDestination: String, CaseIterable, Identifiable {
         }
     }
 
-    var label: String {
+    @MainActor var label: String {
         switch self {
         case .chat:
             return AppStrings.chat
@@ -3490,7 +3490,7 @@ private struct WorkspacePlaceholderView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: .spacing7) {
+            VStack(spacing: .spacing8) {
                 ZStack {
                     Circle()
                         .fill(LinearGradient.primary)
@@ -3528,7 +3528,7 @@ private struct WorkspacePlaceholderView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, .spacing10)
-            .padding(.vertical, .spacing14)
+            .padding(.vertical, .spacing16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.grey0)
