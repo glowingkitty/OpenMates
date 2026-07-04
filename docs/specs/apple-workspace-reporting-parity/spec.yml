@@ -1,6 +1,6 @@
 id: apple-workspace-reporting-parity
 title: Apple Workspace Switcher And Reporting Parity
-status: draft
+status: verified
 
 goal: >
   Bring the Apple app shell closer to the rendered web app by enabling the
@@ -211,7 +211,7 @@ acceptance_criteria:
     scenario: S-1
     text: Apple workspace switcher entries for Projects, Plans, Tasks, and Workflows are enabled and navigate to native screens or polished placeholders/read-only first-slice destinations.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -220,7 +220,7 @@ acceptance_criteria:
     scenario: S-2
     text: Compact workspace selection uses native iOS dropdown selection from the existing custom workspace button and introduces no custom dropdown overlay UI.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -230,7 +230,7 @@ acceptance_criteria:
     scenario: S-3
     text: Compact header logo and header invite/referral gift affordance match the confirmed rendered web source and route users to invite/referral sharing for signup free-credit benefits.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -240,7 +240,7 @@ acceptance_criteria:
     scenario: S-4
     text: Apple report issue UI uses OpenMates primitives, submits to /v1/settings/issues with compatible safe context, and shows the backend issue reference.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -251,7 +251,7 @@ acceptance_criteria:
     scenario: S-5
     text: Apple native logging supports admin/dev, debug-session, default diagnostic, and issue-time modes while preserving web-equivalent privacy restrictions and non-blocking failure behavior.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -261,7 +261,7 @@ acceptance_criteria:
     scenario: S-6
     text: Apple reconnect/offline banner is localized, token-styled, testable, and suppresses transient reconnect noise.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -271,7 +271,7 @@ acceptance_criteria:
     scenario: S-7
     text: Apple welcome resume cards and new-chat suggestions match rendered web responsive structure and behavior within documented native tolerances.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -394,9 +394,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: c8a3-apple-parity-audit
+        timestamp: "2026-07-04"
 
   - id: T-APPLE-WORKSPACE-UI
     type: manual
@@ -421,9 +421,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-macos-peer-chatflow-2026-07-04
+        timestamp: "2026-07-04"
 
   - id: T-APPLE-HEADER-INVITE-UI
     type: manual
@@ -447,9 +447,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-macos-peer-settingsbilling-2026-07-04
+        timestamp: "2026-07-04"
 
   - id: T-APPLE-REPORT-UI
     type: manual
@@ -473,9 +473,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-macos-peer-settingsfull-ui-2026-07-04
+        timestamp: "2026-07-04"
 
   - id: T-APPLE-REPORT-UNIT
     type: manual
@@ -500,9 +500,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-macos-peer-settingsfull-unit-2026-07-04
+        timestamp: "2026-07-04"
 
   - id: T-APPLE-LOGGING-UNIT
     type: manual
@@ -527,9 +527,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-macos-peer-settingsfull-unit-2026-07-04
+        timestamp: "2026-07-04"
 
   - id: T-APPLE-NETWORK-UNIT
     type: manual
@@ -553,9 +553,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-macos-peer-settingsfull-unit-2026-07-04
+        timestamp: "2026-07-04"
 
   - id: T-APPLE-WELCOME-UI
     type: manual
@@ -579,9 +579,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-macos-peer-chatflow-2026-07-04
+        timestamp: "2026-07-04"
 
   - id: T-APPLE-BUILD
     type: build
@@ -610,9 +610,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-macos-peer-build-ios-2026-07-04
+        timestamp: "2026-07-04"
 
 verifications:
   - id: V-USER-SPEC-APPROVAL
@@ -693,7 +693,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Confirm rendered web source for header invite/referral gift affordance
-    status: pending
+    status: done
     phase: checking_assumptions
     covers:
       scenarios:
@@ -715,7 +715,7 @@ tasks:
 
   - id: TASK-2
     title: Enable Apple workspace navigation with placeholder/read-only destinations
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -741,7 +741,7 @@ tasks:
 
   - id: TASK-3
     title: Align compact header logo and invite/referral affordance
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -768,7 +768,7 @@ tasks:
 
   - id: TASK-4
     title: Replace Apple report issue UI and endpoint mapping
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -796,7 +796,7 @@ tasks:
 
   - id: TASK-5
     title: Add native log collector and privacy-safe forwarding modes
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -821,7 +821,7 @@ tasks:
 
   - id: TASK-6
     title: Fix reconnect banner localization, debounce, and testability
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
