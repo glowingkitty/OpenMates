@@ -326,7 +326,10 @@ private extension Chat {
             budgetLimit: incoming.budgetLimit ?? budgetLimit,
             budgetSpent: incoming.budgetSpent ?? budgetSpent,
             encryptedActiveFocusId: incoming.encryptedActiveFocusId ?? encryptedActiveFocusId,
-            activeFocusId: incoming.activeFocusId ?? activeFocusId
+            activeFocusId: incoming.activeFocusId ?? activeFocusId,
+            isPrivate: incoming.isPrivate ?? isPrivate,
+            isHidden: incoming.isHidden ?? isHidden,
+            isHiddenCandidate: incoming.isHiddenCandidate ?? isHiddenCandidate
         )
     }
 
@@ -358,7 +361,10 @@ private extension Chat {
             budgetLimit: budgetLimit,
             budgetSpent: budgetSpent,
             encryptedActiveFocusId: encryptedActiveFocusId,
-            activeFocusId: activeFocusId
+            activeFocusId: activeFocusId,
+            isPrivate: isPrivate,
+            isHidden: isHidden,
+            isHiddenCandidate: isHiddenCandidate
         )
     }
 
@@ -390,7 +396,10 @@ private extension Chat {
             budgetLimit: budgetLimit,
             budgetSpent: budgetSpent,
             encryptedActiveFocusId: encryptedActiveFocusId,
-            activeFocusId: activeFocusId
+            activeFocusId: activeFocusId,
+            isPrivate: isPrivate,
+            isHidden: isHidden,
+            isHiddenCandidate: isHiddenCandidate
         )
     }
 }

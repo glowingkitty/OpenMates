@@ -52,8 +52,10 @@ final class ChatKeyManager: ObservableObject {
     /// Called at startup after the master key is loaded from Keychain.
     func loadChatKeys(from chats: [(chatId: String, encryptedChatKey: String)], masterKey: SymmetricKey) async {
         let crypto = CryptoManager.shared
+        let batchSize = 20
 
-        for (chatId, encryptedChatKey) in chats {
+        for (index, entry) in chats.enumerated() {
+            let (chatId, encryptedChatKey) = entry
             do {
                 let chatKey = try await crypto.unwrapChatKey(
                     encryptedChatKeyBase64: encryptedChatKey,
@@ -65,6 +67,9 @@ final class ChatKeyManager: ObservableObject {
                 }
             } catch {
                 print("[ChatKeyManager] Failed to unwrap key for chat \(chatId.prefix(8)): \(error)")
+            }
+            if (index + 1).isMultiple(of: batchSize) {
+                await Task.yield()
             }
         }
 

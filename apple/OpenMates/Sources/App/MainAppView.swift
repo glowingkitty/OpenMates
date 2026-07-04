@@ -187,6 +187,12 @@ struct MainAppView: View {
     private static let foregroundInteractionGraceSeconds: TimeInterval = 2.0
     private static let workspaceTabsEnabled = true
 
+    private enum MetadataDecryptionScope {
+        case all
+        case visibleOnly
+        case none
+    }
+
     private var shouldShowWorkspaceSwitcher: Bool {
         #if DEBUG
         let forcedForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-show-workspace-tabs")
@@ -473,6 +479,7 @@ struct MainAppView: View {
         if chatId != nil {
             lastForegroundInteractionAt = Date()
             selectedWorkspace = .chat
+            Task { await decryptVisibleChatMetadata(reason: "selection") }
         }
         Task { await announceActiveChat(chatId) }
     }
@@ -1661,8 +1668,9 @@ struct MainAppView: View {
         visibleUserChatLimit = Self.initialUserChatLimit
         loadDemoChats(selectDefault: false)
 
-        let bridge = appSession.prepareAuthenticatedRuntime()
+        let bridge = appSession.prepareAuthenticatedRuntime(lastOpenedChatId: authManager.currentUser?.lastOpened)
         syncBridge = bridge
+        await decryptVisibleChatMetadata(reason: "offlineColdLoad")
 
         Task { await authManager.validateSessionAfterOfflineBootstrap() }
         Task { await loadAccountTopicPreferences() }
@@ -1705,21 +1713,8 @@ struct MainAppView: View {
             let path = limit.map { "/v1/chats?limit=\($0)" } ?? "/v1/chats"
             let response: ChatListResponse = try await APIClient.shared.request(.get, path: path)
 
-            // Load master key from Keychain and unwrap per-chat keys
-            if let userId = authManager.currentUser?.id {
-                await loadChatKeys(chats: response.chats, userId: userId)
-            }
+            await upsertSyncedChats(response.chats, metadataDecryption: .all)
 
-            // Decrypt chat titles and upsert into store
-            var decryptedChats: [Chat] = []
-            for var chat in response.chats {
-                chat = await decryptChatMetadata(chat)
-                decryptedChats.append(chat)
-            }
-            chatStore.upsertChats(decryptedChats)
-
-            // Defer full-text Spotlight indexing so login remains responsive.
-            SpotlightIndexer.shared.scheduleIndexChats(decryptedChats, reason: "restFallback")
             NativeSyncPerfLog.info(
                 "phase=restInitialLoad chats=\(response.chats.count) limit=\(limit ?? 0) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
             )
@@ -1904,7 +1899,7 @@ struct MainAppView: View {
                 let response: ChatListResponse = try await APIClient.shared.request(
                     .get, path: "/v1/chats?offset=\(offset)&limit=20"
                 )
-                await upsertSyncedChats(response.chats)
+                await upsertSyncedChats(response.chats, metadataDecryption: .visibleOnly)
             } catch {
                 print("[MainApp] Failed to load more chats: \(error)")
             }
@@ -1915,10 +1910,12 @@ struct MainAppView: View {
     private func showMoreUserChats() {
         if visibleUserChatLimit < userChatCountForDisplayLimit {
             visibleUserChatLimit += Self.showMoreUserChatIncrement
+            Task { await decryptVisibleChatMetadata(reason: "showMoreLocal") }
             return
         }
         loadMoreChats()
         visibleUserChatLimit += Self.showMoreUserChatIncrement
+        Task { await decryptVisibleChatMetadata(reason: "showMoreRemote") }
     }
 
     private func pinChat(_ chat: Chat) {
@@ -2510,7 +2507,10 @@ struct MainAppView: View {
                 let start = NativeSyncPerfLog.now()
                 let envelope = try syncDecoder.decode(WSEnvelope<Phase1SyncPayload>.self, from: raw)
                 guard let payload = envelope.payload ?? envelope.data else { return }
-                await upsertSyncedChats(([payload.chatDetails].compactMap { $0 }) + (payload.recentChatMetadata ?? []))
+                await upsertSyncedChats(
+                    ([payload.chatDetails].compactMap { $0 }) + (payload.recentChatMetadata ?? []),
+                    metadataDecryption: .all
+                )
                 await updateSyncedSuggestions(payload.newChatSuggestions ?? [])
                 NativeSyncPerfLog.info(
                     "phase=phase1a recent=\(payload.recentChatMetadata?.count ?? 0) suggestions=\(payload.newChatSuggestions?.count ?? 0) processMs=\(NativeSyncPerfLog.ms(since: start))"
@@ -2588,7 +2588,10 @@ struct MainAppView: View {
                 let envelope = try syncDecoder.decode(WSEnvelope<PhaseBulkSyncPayload>.self, from: raw)
                 guard let payload = envelope.payload ?? envelope.data else { return }
                 totalChatCount = payload.totalChatCount ?? totalChatCount
-                await upsertSyncedChats((payload.chats ?? []).compactMap(\.chatDetails))
+                await upsertSyncedChats(
+                    (payload.chats ?? []).compactMap(\.chatDetails),
+                    metadataDecryption: .visibleOnly
+                )
                 await updateSyncedSuggestions(payload.newChatSuggestions ?? [])
                 NativeSyncPerfLog.info(
                     "phase=metadataSync type=\(type) chats=\(payload.chats?.count ?? 0) total=\(totalChatCount) processMs=\(NativeSyncPerfLog.ms(since: start))"
@@ -2758,24 +2761,83 @@ struct MainAppView: View {
         return decoder
     }
 
-    private func upsertSyncedChats(_ chats: [Chat]) async {
+    private func upsertSyncedChats(
+        _ chats: [Chat],
+        metadataDecryption: MetadataDecryptionScope
+    ) async {
+        guard !chats.isEmpty else { return }
+        let start = NativeSyncPerfLog.now()
+        chatStore.upsertChats(chats)
+
+        switch metadataDecryption {
+        case .all:
+            await decryptAndUpsertChatMetadata(chats, reason: "all")
+        case .visibleOnly:
+            let visibleIds = visibleChatIdsForMetadataDecryption()
+            let visibleChats = chats.filter { visibleIds.contains($0.id) }
+            await decryptAndUpsertChatMetadata(visibleChats, reason: "visibleOnly")
+        case .none:
+            break
+        }
+
+        let searchableUserChats = chatStore.sortedChats.filter { publicChatGroup(for: $0.id) == nil }
+        SpotlightIndexer.shared.scheduleIndexChats(
+            searchableUserChats,
+            reason: "syncMetadata",
+            metadataProvider: { chat in
+                await decryptChatMetadataEnsuringKey(chat)
+            }
+        )
+        NativeSyncPerfLog.info(
+            "phase=upsertSyncedChats chats=\(chats.count) metadataDecryption=\(metadataDecryption) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
+        )
+    }
+
+    private func decryptVisibleChatMetadata(reason: String) async {
+        let visibleIds = visibleChatIdsForMetadataDecryption()
+        let chats = chatStore.chats.filter { visibleIds.contains($0.id) }
+        await decryptAndUpsertChatMetadata(chats, reason: reason)
+    }
+
+    private func visibleChatIdsForMetadataDecryption() -> Set<String> {
+        var ids = Set<String>()
+        if let selectedChatId {
+            ids.insert(selectedChatId)
+        }
+        if let lastOpened = authManager.currentUser?.lastOpened,
+           !lastOpened.isEmpty,
+           lastOpened != "/chat/new" {
+            ids.insert(lastOpened)
+        }
+        filteredPinnedChats.forEach { ids.insert($0.id) }
+        visibleFilteredUnpinnedChats.forEach { ids.insert($0.id) }
+        return ids
+    }
+
+    private func decryptAndUpsertChatMetadata(_ chats: [Chat], reason: String) async {
         guard !chats.isEmpty else { return }
         let start = NativeSyncPerfLog.now()
         if let userId = authManager.currentUser?.id {
             await loadChatKeys(chats: chats, userId: userId)
         }
-
-        var indexedChats: [Chat] = []
-        for var chat in chats {
-            chat = await decryptChatMetadata(chat)
-            indexedChats.append(chat)
+        var decryptedChats: [Chat] = []
+        decryptedChats.reserveCapacity(chats.count)
+        for (index, chat) in chats.enumerated() {
+            let decrypted = await decryptChatMetadataEnsuringKey(chat)
+            decryptedChats.append(decrypted)
+            if (index + 1).isMultiple(of: 10) {
+                await Task.yield()
+            }
         }
-        chatStore.upsertChats(indexedChats)
-        let searchableUserChats = chatStore.sortedChats.filter { publicChatGroup(for: $0.id) == nil }
-        SpotlightIndexer.shared.scheduleIndexChats(searchableUserChats, reason: "syncMetadata")
+        chatStore.upsertChats(decryptedChats)
         NativeSyncPerfLog.info(
-            "phase=upsertSyncedChats chats=\(chats.count) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
+            "phase=decryptChatMetadata reason=\(reason) chats=\(chats.count) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
         )
+    }
+
+    private func decryptChatMetadataEnsuringKey(_ chat: Chat) async -> Chat {
+        await loadChatKeyIfNeeded(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey)
+        return await decryptChatMetadata(chat)
     }
 
     private func decryptChatMetadata(_ chat: Chat) async -> Chat {
@@ -3777,7 +3839,11 @@ enum WelcomeScreenState {
         guard let lastOpened, !lastOpened.isEmpty, lastOpened != "/chat/new", !isPublicChat(lastOpened) else {
             return nil
         }
-        return chats.first { $0.id == lastOpened && $0.isArchived != true }
+        return chats.first {
+            $0.id == lastOpened &&
+            $0.isArchived != true &&
+            !$0.isHiddenFromNormalSurfaces
+        }
     }
 
     static func recentChats(from chats: [Chat], excluding resumeChatId: String?) -> [Chat] {
@@ -3785,6 +3851,7 @@ enum WelcomeScreenState {
             .filter { chat in
                 chat.isArchived != true &&
                 chat.id != resumeChatId &&
+                !chat.isHiddenFromNormalSurfaces &&
                 !isPublicChat(chat.id)
             }
             .sorted { lhs, rhs in

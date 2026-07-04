@@ -54,6 +54,9 @@ struct Chat: Identifiable, Decodable, Sendable {
     let budgetSpent: Double?
     let encryptedActiveFocusId: String?
     var activeFocusId: String?
+    let isPrivate: Bool?
+    let isHidden: Bool?
+    let isHiddenCandidate: Bool?
 
     init(
         id: String,
@@ -82,7 +85,10 @@ struct Chat: Identifiable, Decodable, Sendable {
         budgetLimit: Double? = nil,
         budgetSpent: Double? = nil,
         encryptedActiveFocusId: String? = nil,
-        activeFocusId: String? = nil
+        activeFocusId: String? = nil,
+        isPrivate: Bool? = nil,
+        isHidden: Bool? = nil,
+        isHiddenCandidate: Bool? = nil
     ) {
         self.id = id
         self.title = title
@@ -111,6 +117,9 @@ struct Chat: Identifiable, Decodable, Sendable {
         self.budgetSpent = budgetSpent
         self.encryptedActiveFocusId = encryptedActiveFocusId
         self.activeFocusId = activeFocusId
+        self.isPrivate = isPrivate
+        self.isHidden = isHidden
+        self.isHiddenCandidate = isHiddenCandidate
     }
 
     init(from decoder: Decoder) throws {
@@ -156,6 +165,12 @@ struct Chat: Identifiable, Decodable, Sendable {
             ?? container.decodeIfPresent(String.self, forKey: .encryptedActiveFocusIdSnake)
         activeFocusId = try container.decodeIfPresent(String.self, forKey: .activeFocusId)
             ?? container.decodeIfPresent(String.self, forKey: .activeFocusIdSnake)
+        isPrivate = try container.decodeIfPresent(Bool.self, forKey: .isPrivate)
+            ?? container.decodeIfPresent(Bool.self, forKey: .isPrivateSnake)
+        isHidden = try container.decodeIfPresent(Bool.self, forKey: .isHidden)
+            ?? container.decodeIfPresent(Bool.self, forKey: .isHiddenSnake)
+        isHiddenCandidate = try container.decodeIfPresent(Bool.self, forKey: .isHiddenCandidate)
+            ?? container.decodeIfPresent(Bool.self, forKey: .isHiddenCandidateSnake)
     }
 
     private static func decodeFlexibleDateString(
@@ -226,10 +241,20 @@ struct Chat: Identifiable, Decodable, Sendable {
         case encryptedActiveFocusIdSnake = "encrypted_active_focus_id"
         case activeFocusId
         case activeFocusIdSnake = "active_focus_id"
+        case isPrivate
+        case isPrivateSnake = "is_private"
+        case isHidden
+        case isHiddenSnake = "is_hidden"
+        case isHiddenCandidate
+        case isHiddenCandidateSnake = "is_hidden_candidate"
     }
 
     var displayTitle: String {
         title ?? "New Chat"
+    }
+
+    var isHiddenFromNormalSurfaces: Bool {
+        isHidden == true || isHiddenCandidate == true
     }
 
     var lastMessageDate: Date? {

@@ -76,12 +76,12 @@ final class AppSessionCoordinator: ObservableObject {
 
     private init() {}
 
-    func prepareAuthenticatedRuntime() -> OfflineSyncBridge {
+    func prepareAuthenticatedRuntime(lastOpenedChatId: String?) -> OfflineSyncBridge {
         let bridge = offlineBridge()
         chatStore.setBridge(bridge)
 
         if !didLoadFromDisk {
-            bridge.loadFromDisk()
+            bridge.loadFromDisk(lastOpenedChatId: lastOpenedChatId)
             didLoadFromDisk = true
         }
 
