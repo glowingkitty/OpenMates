@@ -267,7 +267,7 @@ if target_platform == "ios":
     certificate_type_filter = "IOS_DISTRIBUTION"
     profile_extension = "mobileprovision"
     bundle_id_platform = "IOS"
-    archive_without_signing = False
+    archive_without_signing = True
     BUNDLE_IDS = (
         "org.openmates.app",
         "org.openmates.app.share",
@@ -728,6 +728,9 @@ def stamp_unsigned_macos_archive_entitlements():
 
 
 preflight_signing()
+clean_openmates_provisioning_profiles()
+sync_bundle_capabilities()
+create_or_download_app_store_profiles()
 
 
 derived = tempfile.mkdtemp(prefix="openmates-testflight-")
@@ -782,13 +785,6 @@ if archive.returncode != 0:
     sys.exit(archive.returncode)
 print("archive_status=passed")
 stamp_unsigned_macos_archive_entitlements()
-
-clean_openmates_provisioning_profiles()
-sync_bundle_capabilities()
-create_or_download_app_store_profiles()
-export_options["provisioningProfiles"] = profile_names
-with export_options_path.open("wb") as handle:
-    plistlib.dump(export_options, handle)
 
 export_cmd = [
     "xcodebuild",
@@ -1737,6 +1733,36 @@ def upload_testflight_macos_command(
     )
 
 
+def deploy_latest_testflight_command(
+    branch: str,
+    internal_only: bool,
+    platform: str,
+    *,
+    api_key_path: str | None = None,
+    api_key_id: str | None = None,
+    api_issuer_id: str | None = None,
+) -> str:
+    if platform not in {"both", "ios", "macos"}:
+        raise AppleRemoteError(f"Unsupported TestFlight platform: {platform}")
+
+    commands = [sync_repo_command(branch)]
+    if platform in {"both", "ios"}:
+        commands.append(upload_testflight_ios_command(
+            internal_only,
+            api_key_path=api_key_path,
+            api_key_id=api_key_id,
+            api_issuer_id=api_issuer_id,
+        ))
+    if platform in {"both", "macos"}:
+        commands.append(upload_testflight_macos_command(
+            internal_only,
+            api_key_path=api_key_path,
+            api_key_id=api_key_id,
+            api_issuer_id=api_issuer_id,
+        ))
+    return " && ".join(commands)
+
+
 def ensure_ios_distribution_certificate_command(
     create: bool,
     *,
@@ -1873,6 +1899,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not mark the uploaded build as internal-testing-only",
     )
     add_app_store_connect_api_args(testflight_macos_parser)
+
+    deploy_testflight_parser = subparsers.add_parser(
+        "deploy-latest-testflight",
+        help="Force-sync the remote checkout and upload latest iOS and macOS builds to TestFlight",
+    )
+    deploy_testflight_parser.add_argument("--branch", default="dev", help="Remote origin branch to deploy, default: dev")
+    deploy_testflight_parser.add_argument("--platform", choices=["both", "ios", "macos"], default="both")
+    deploy_testflight_parser.add_argument(
+        "--external-capable",
+        action="store_true",
+        help="Do not mark uploaded builds as internal-testing-only",
+    )
+    add_app_store_connect_api_args(deploy_testflight_parser)
 
     certificate_parser = subparsers.add_parser(
         "ensure-ios-distribution-certificate",
@@ -2016,6 +2055,23 @@ def main(argv: Sequence[str] | None = None) -> int:
                         api_issuer_id=args.api_issuer_id,
                     ),
                 ]),
+            )
+        if args.command == "deploy-latest-testflight":
+            return run_remote(
+                config,
+                repo_command(config, [
+                    "bash",
+                    "-lc",
+                    deploy_latest_testflight_command(
+                        args.branch,
+                        not args.external_capable,
+                        args.platform,
+                        api_key_path=args.api_key_path,
+                        api_key_id=args.api_key_id,
+                        api_issuer_id=args.api_issuer_id,
+                    ),
+                ]),
+                allow_destructive=True,
             )
         if args.command == "ensure-ios-distribution-certificate":
             return run_remote(
