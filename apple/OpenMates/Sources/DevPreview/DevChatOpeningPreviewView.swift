@@ -49,6 +49,7 @@ struct DevChatOpeningPreviewView: View {
                 if seeded {
                     ChatView(
                         chatId: fixture.chat.id,
+                        bannerState: reportFormBannerState,
                         initialChat: fixture.chat,
                         initialMessages: initialWindow,
                         initialEmbeds: [],
@@ -169,6 +170,20 @@ struct DevChatOpeningPreviewView: View {
     private var isUITestVisualSnapshotEnabled: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-visual-snapshot")
             || ProcessInfo.processInfo.environment["UI_TEST_VISUAL_SNAPSHOT"] == "1"
+    }
+
+    private var isUITestChatReportFormEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-chat-report-form")
+            || ProcessInfo.processInfo.environment["UI_TEST_CHAT_REPORT_FORM"] == "1"
+    }
+
+    private var reportFormBannerState: ChatBannerState? {
+        guard isUITestChatReportFormEnabled else { return nil }
+        return .loaded(
+            title: fixture.chat.displayTitle,
+            appId: fixture.chat.category ?? "ai",
+            summary: fixture.chat.chatSummary
+        )
     }
 
     private func responsiveMetricsLabel(width: CGFloat) -> String {

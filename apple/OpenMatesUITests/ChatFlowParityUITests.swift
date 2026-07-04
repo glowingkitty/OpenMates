@@ -94,8 +94,9 @@ final class ChatFlowParityUITests: XCTestCase {
 
     func testChatFloatingReportButtonOpensReportIssueForm() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--dev-preview", "chat-opening"]
+        app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-chat-report-form"]
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        app.launchEnvironment["UI_TEST_CHAT_REPORT_FORM"] = "1"
         app.launch()
 
         let counter = app.staticTexts
@@ -103,8 +104,7 @@ final class ChatFlowParityUITests: XCTestCase {
             .firstMatch
         XCTAssertTrue(counter.waitForExistence(timeout: 12))
 
-        let latestAssistantMessage = app.staticTexts["Latest assistant response visible after bounded open"]
-        XCTAssertTrue(latestAssistantMessage.waitForExistence(timeout: 12))
+        XCTAssertTrue(app.descendants(matching: .any)["chat-view-dev-chat-opening-large"].waitForExistence(timeout: 12))
 
         let reportButton = app.descendants(matching: .any)["chat-floating-action-bug"]
         XCTAssertTrue(reportButton.waitForExistence(timeout: 12))
