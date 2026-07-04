@@ -1194,6 +1194,113 @@ sys.exit(1)
 '''
 
 
+APP_STORE_BUILDS_SCRIPT = r'''
+import base64
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.parse
+import urllib.request
+
+bundle_id = sys.argv[1]
+
+
+def require_env(name):
+    value = os.environ.get(name)
+    if not value:
+        print(f"missing_env={name}")
+        sys.exit(2)
+    return value
+
+
+def b64url(data):
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def der_ecdsa_to_raw_jws_signature(der_signature):
+    index = 2
+    if der_signature[1] & 0x80:
+        index = 2 + (der_signature[1] & 0x7F)
+    r_length = der_signature[index + 1]
+    r_start = index + 2
+    r = der_signature[r_start:r_start + r_length].lstrip(b"\x00")
+    s_index = r_start + r_length
+    s_length = der_signature[s_index + 1]
+    s_start = s_index + 2
+    s = der_signature[s_start:s_start + s_length].lstrip(b"\x00")
+    return r.rjust(32, b"\x00") + s.rjust(32, b"\x00")
+
+
+def app_store_connect_jwt():
+    now = int(time.time())
+    key_path = os.path.expanduser(require_env("APP_STORE_CONNECT_API_KEY_PATH"))
+    header = {"alg": "ES256", "kid": require_env("APP_STORE_CONNECT_API_KEY_ID"), "typ": "JWT"}
+    payload = {"iss": require_env("APP_STORE_CONNECT_API_ISSUER_ID"), "iat": now, "exp": now + 1200, "aud": "appstoreconnect-v1"}
+    signing_input = ".".join([
+        b64url(json.dumps(header, separators=(",", ":")).encode("utf-8")),
+        b64url(json.dumps(payload, separators=(",", ":")).encode("utf-8")),
+    ])
+    signer = subprocess.run(
+        ["openssl", "dgst", "-sha256", "-sign", key_path, "-binary"],
+        input=signing_input.encode("ascii"),
+        capture_output=True,
+        timeout=30,
+        check=True,
+    )
+    return f"{signing_input}.{b64url(der_ecdsa_to_raw_jws_signature(signer.stdout))}"
+
+
+def asc_get(path):
+    request = urllib.request.Request(
+        f"https://api.appstoreconnect.apple.com/v1/{path}",
+        headers={"Authorization": f"Bearer {app_store_connect_jwt()}"},
+    )
+    with urllib.request.urlopen(request, timeout=60) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+apps_query = urllib.parse.urlencode({"filter[bundleId]": bundle_id, "limit": "1"})
+apps = asc_get(f"apps?{apps_query}").get("data", [])
+print(f"apps={len(apps)}")
+if not apps:
+    sys.exit(0)
+
+app_id = apps[0].get("id")
+print(f"app_id={app_id}")
+builds_query = urllib.parse.urlencode({
+    "filter[app]": app_id,
+    "include": "preReleaseVersion",
+    "limit": "10",
+    "sort": "-uploadedDate",
+})
+response = asc_get(f"builds?{builds_query}")
+included = response.get("included", [])
+pre_release_versions = {
+    item.get("id"): item.get("attributes", {})
+    for item in included
+    if item.get("type") == "preReleaseVersions"
+}
+builds = response.get("data", [])
+print(f"builds={len(builds)}")
+for build in builds:
+    attributes = build.get("attributes", {})
+    pre_release_id = build.get("relationships", {}).get("preReleaseVersion", {}).get("data", {}).get("id")
+    pre_release = pre_release_versions.get(pre_release_id, {})
+    print(
+        "build="
+        f"{build.get('id')} "
+        f"version={attributes.get('version')} "
+        f"buildNumber={attributes.get('buildNumber')} "
+        f"processingState={attributes.get('processingState')} "
+        f"uploadedDate={attributes.get('uploadedDate')} "
+        f"platform={pre_release.get('platform')} "
+        f"train={pre_release.get('version')}"
+    )
+'''
+
+
 class AppleRemoteError(RuntimeError):
     """Raised for expected operator/configuration errors."""
 
@@ -1506,6 +1613,27 @@ def revoke_apple_certificate_command(
     )
 
 
+def app_store_builds_command(
+    bundle_id: str,
+    *,
+    api_key_path: str | None = None,
+    api_key_id: str | None = None,
+    api_issuer_id: str | None = None,
+) -> str:
+    command = shell_join([
+        "python3",
+        "-c",
+        APP_STORE_BUILDS_SCRIPT,
+        bundle_id,
+    ])
+    return app_store_connect_env_prefix(
+        command,
+        api_key_path=api_key_path,
+        api_key_id=api_key_id,
+        api_issuer_id=api_issuer_id,
+    )
+
+
 def xcode_cache_report_command() -> str:
     return shell_join(["python3", "-c", XCODE_CACHE_REPORT_SCRIPT])
 
@@ -1598,6 +1726,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     revoke_certificate_parser.add_argument("--sha1", required=True, help="Certificate SHA-1 fingerprint to revoke")
     add_app_store_connect_api_args(revoke_certificate_parser)
+
+    app_store_builds_parser = subparsers.add_parser(
+        "app-store-builds",
+        help="List recent App Store Connect builds and processing state for a bundle ID",
+    )
+    app_store_builds_parser.add_argument("--bundle-id", default="org.openmates.app")
+    add_app_store_connect_api_args(app_store_builds_parser)
 
     simctl_parser = subparsers.add_parser("simctl", help="Run xcrun simctl remotely")
     simctl_parser.add_argument("simctl_args", nargs=argparse.REMAINDER)
@@ -1707,6 +1842,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "-lc",
                     revoke_apple_certificate_command(
                         args.sha1,
+                        api_key_path=args.api_key_path,
+                        api_key_id=args.api_key_id,
+                        api_issuer_id=args.api_issuer_id,
+                    ),
+                ]),
+            )
+        if args.command == "app-store-builds":
+            return run_remote(
+                config,
+                repo_command(config, [
+                    "bash",
+                    "-lc",
+                    app_store_builds_command(
+                        args.bundle_id,
                         api_key_path=args.api_key_path,
                         api_key_id=args.api_key_id,
                         api_issuer_id=args.api_issuer_id,

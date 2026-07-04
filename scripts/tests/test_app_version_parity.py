@@ -9,6 +9,7 @@ the same public version across clients and package managers.
 from __future__ import annotations
 
 import json
+import plistlib
 import re
 import tomllib
 from pathlib import Path
@@ -32,3 +33,17 @@ def test_public_app_versions_match_root_package_version() -> None:
     xcode_project = (ROOT / "apple/OpenMates.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
     xcode_versions = set(re.findall(r"MARKETING_VERSION = ([^;]+);", xcode_project))
     assert xcode_versions == {canonical_version}
+
+
+def test_apple_app_store_metadata_is_upload_ready() -> None:
+    apple_project = (ROOT / "apple/project.yml").read_text(encoding="utf-8")
+    project_build_number = re.search(r"CURRENT_PROJECT_VERSION:\s+(\d+)", apple_project)
+    assert project_build_number is not None
+    assert int(project_build_number.group(1)) >= 2
+
+    xcode_project = (ROOT / "apple/OpenMates.xcodeproj/project.pbxproj").read_text(encoding="utf-8")
+    xcode_build_numbers = set(re.findall(r"CURRENT_PROJECT_VERSION = (\d+);", xcode_project))
+    assert xcode_build_numbers == {project_build_number.group(1)}
+
+    info_plist = plistlib.loads((ROOT / "apple/OpenMates/Resources/Info.plist").read_bytes())
+    assert info_plist["NSMicrophoneUsageDescription"]

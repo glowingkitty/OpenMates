@@ -331,6 +331,20 @@ def test_revoke_apple_certificate_script_matches_fingerprint() -> None:
     assert "list_only" in script
 
 
+def test_app_store_builds_command_queries_builds_for_bundle_id() -> None:
+    command = apple_remote.app_store_builds_command(
+        "org.openmates.app",
+        api_key_path="~/AuthKey_TEST.p8",
+        api_key_id="KEYID",
+        api_issuer_id="ISSUERID",
+    )
+
+    assert "APP_STORE_CONNECT_API_KEY_ID=KEYID" in command
+    assert "org.openmates.app" in command
+    assert "preReleaseVersion" in command
+    assert "processingState" in command
+
+
 def test_install_ios_device_script_reports_paid_team_hint() -> None:
     script = apple_remote.INSTALL_IOS_DEVICE_SCRIPT
 

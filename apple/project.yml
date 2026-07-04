@@ -16,7 +16,7 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     MARKETING_VERSION: "0.13.0"
-    CURRENT_PROJECT_VERSION: 1
+    CURRENT_PROJECT_VERSION: 2
     DEVELOPMENT_TEAM: Z9B2YFKN2X
     CODE_SIGN_STYLE: Automatic
     SWIFT_STRICT_CONCURRENCY: complete
@@ -108,6 +108,7 @@ targets:
           - org.openmates.app.viewChat
           - org.openmates.app.composeChat
           - org.openmates.app.browseChats
+        NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
