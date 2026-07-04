@@ -803,8 +803,10 @@ struct ChatView: View {
                 .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .accessibilityIdentifier(accessibilityIdentifier ?? "chat-floating-action-\(icon)")
+        .accessibilityAddTraits(.isButton)
     }
 
     // MARK: - Streaming banner
