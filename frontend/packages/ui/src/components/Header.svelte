@@ -1064,7 +1064,7 @@
     .workspace-tab:hover .workspace-icon,
     .workspace-tab:focus-visible .workspace-icon,
     .workspace-tab.active .workspace-icon {
-        background: var(--color-grey-0);
+        background: #fff;
     }
 
     .chat-icon {
@@ -1121,10 +1121,10 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: var(--spacing-4);
-            min-width: 10.25rem;
-            height: 4rem;
-            padding: 0 var(--spacing-6);
+            gap: var(--spacing-3);
+            width: 7.5rem;
+            height: 2.75rem;
+            padding: 0 var(--spacing-4);
             border-radius: 3.25rem;
             background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
             filter: drop-shadow(0 0.25rem 0.25rem rgba(0, 0, 0, 0.12));
@@ -1150,9 +1150,9 @@
         }
 
         .workspace-select-icon {
-            width: 2rem;
-            height: 2rem;
-            background: var(--color-grey-0);
+            width: 1.35rem;
+            height: 1.35rem;
+            background: #fff;
             -webkit-mask-size: contain;
             mask-size: contain;
             -webkit-mask-position: center;
@@ -1165,14 +1165,14 @@
         .workspace-select-chevron {
             width: 0;
             height: 0;
-            border-left: 0.85rem solid transparent;
-            border-right: 0.85rem solid transparent;
-            border-top: 0.85rem solid color-mix(in srgb, var(--color-grey-0) 70%, transparent);
+            border-left: 0.55rem solid transparent;
+            border-right: 0.55rem solid transparent;
+            border-top: 0.55rem solid #fff;
             pointer-events: none;
         }
 
         .workspace-select-shell:focus-within {
-            outline: 0.125rem solid var(--color-grey-0);
+            outline: 0.125rem solid #fff;
             outline-offset: 0.125rem;
         }
     }
