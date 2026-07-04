@@ -13,6 +13,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import * as vscode from "vscode";
 
+import { getSafeBundledAssetSegments } from "./assetPaths.js";
 import { handleWebviewMessage } from "./bridge.js";
 import { getReconnectPolicy } from "./state.js";
 import { getWebviewHtml, type WebviewSmokeLoginConfig } from "./webviewHtml.js";
@@ -318,11 +319,7 @@ async function readBundledAppHtml(extensionUri: vscode.Uri): Promise<string | un
 }
 
 function resolveBundledAssetUri(webview: vscode.Webview, extensionUri: vscode.Uri, assetPath: string): string {
-  const safeSegments = assetPath
-    .replace(/^\/+/, "")
-    .split(/[/?#]/)[0]
-    .split("/")
-    .filter((segment) => segment && segment !== ".." && segment !== ".");
+  const safeSegments = getSafeBundledAssetSegments(assetPath);
   return webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "media", "app", ...safeSegments)).toString();
 }
 
