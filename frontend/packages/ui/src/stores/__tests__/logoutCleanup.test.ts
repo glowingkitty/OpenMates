@@ -63,14 +63,20 @@ vi.mock("../chatNavigationStore", () => ({
   ),
 }));
 
+vi.mock("../activeChatStore", () => ({
+  activeChatStore: {
+    clearActiveChat: vi.fn(() => cleanupCalls.push("activeChatStore.clearActiveChat")),
+  },
+}));
+
 vi.mock("../../services/sharedChatKeyStorage", () => ({
   clearAllSharedChatKeys: vi.fn(async () =>
     cleanupCalls.push("clearAllSharedChatKeys"),
   ),
 }));
 
-vi.mock("../phasedSyncStateStore", () => {
-  const { writable } = require("svelte/store");
+vi.mock("../phasedSyncStateStore", async () => {
+  const { writable } = await import("svelte/store");
   const store = writable({
     initialSyncCompleted: false,
     phase1ChatId: null,
@@ -151,8 +157,8 @@ vi.mock("../../config/api", () => ({
   },
 }));
 
-vi.mock("../userProfile", () => {
-  const { writable } = require("svelte/store");
+vi.mock("../userProfile", async () => {
+  const { writable } = await import("svelte/store");
   const defaultProfile = {
     username: null,
     profile_image_url: null,
@@ -180,8 +186,8 @@ vi.mock("../twoFAState", () => ({
   resetTwoFAData: vi.fn(),
 }));
 
-vi.mock("../signupState", () => {
-  const { writable } = require("svelte/store");
+vi.mock("../signupState", async () => {
+  const { writable } = await import("svelte/store");
   return {
     currentSignupStep: { set: vi.fn() },
     isInSignupProcess: { set: vi.fn() },
@@ -218,8 +224,8 @@ vi.mock("../../services/pendingChatDeletions", () => ({
   clearAllPendingChatDeletions: vi.fn(),
 }));
 
-vi.mock("svelte-i18n", () => {
-  const { writable } = require("svelte/store");
+vi.mock("svelte-i18n", async () => {
+  const { writable } = await import("svelte/store");
   return {
     locale: writable("en"),
   };
@@ -261,6 +267,7 @@ describe("logout cleanup completeness", () => {
     expect(cleanupCalls).toContain("chatDB.clearAllChatKeys");
     expect(cleanupCalls).toContain("clearAllSessionStorageDrafts");
     expect(cleanupCalls).toContain("resetChatNavigationList");
+    expect(cleanupCalls).toContain("activeChatStore.clearActiveChat");
     expect(cleanupCalls).toContain("phasedSyncState.reset");
     expect(cleanupCalls).toContain("aiTypingStore.reset");
     expect(cleanupCalls).toContain("dailyInspirationStore.reset");
