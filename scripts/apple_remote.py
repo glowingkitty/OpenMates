@@ -252,16 +252,40 @@ import urllib.parse
 import urllib.request
 
 internal_only = sys.argv[1] == "1"
+target_platform = sys.argv[2] if len(sys.argv) > 2 else "ios"
 build_keychain_path = None
 distribution_identity_name = ""
 distribution_identity_sha1 = ""
 profile_names = {}
-BUNDLE_IDS = (
-    "org.openmates.app",
-    "org.openmates.app.share",
-    "org.openmates.app.notification-service",
-    "org.openmates.app.widget",
-)
+if target_platform == "ios":
+    scheme_name = "OpenMates_iOS"
+    archive_filename = "OpenMates.xcarchive"
+    archive_destination = "generic/platform=iOS"
+    profile_type = "IOS_APP_STORE"
+    certificate_type_filter = "IOS_DISTRIBUTION"
+    profile_extension = "mobileprovision"
+    archive_without_signing = False
+    BUNDLE_IDS = (
+        "org.openmates.app",
+        "org.openmates.app.share",
+        "org.openmates.app.notification-service",
+        "org.openmates.app.widget",
+    )
+elif target_platform == "macos":
+    scheme_name = "OpenMates_macOS"
+    archive_filename = "OpenMatesMac.xcarchive"
+    archive_destination = "generic/platform=macOS"
+    profile_type = "MAC_APP_STORE"
+    certificate_type_filter = "DISTRIBUTION"
+    profile_extension = "provisionprofile"
+    archive_without_signing = True
+    BUNDLE_IDS = (
+        "org.openmates.app",
+        "org.openmates.app.share-macos",
+    )
+else:
+    print(f"unsupported_target_platform={target_platform}")
+    sys.exit(2)
 
 
 def auth_args():
@@ -423,7 +447,10 @@ def preflight_signing():
 
     identity_lines = identities.stdout.splitlines()
     development_identity = next((line.split('"')[0].split(")", 1)[-1].strip() for line in identity_lines if "Apple Development:" in line or "iPhone Developer:" in line), "")
-    distribution_identity_line = next((line for line in identity_lines if "Apple Distribution:" in line or "iPhone Distribution:" in line), "")
+    if target_platform == "macos":
+        distribution_identity_line = next((line for line in identity_lines if "Apple Distribution:" in line), "")
+    else:
+        distribution_identity_line = next((line for line in identity_lines if "Apple Distribution:" in line or "iPhone Distribution:" in line), "")
     if distribution_identity_line:
         distribution_identity_sha1 = distribution_identity_line.split()[1].upper()
         distribution_identity_name = distribution_identity_line.split('"')[1]
@@ -464,7 +491,7 @@ def sha1_for_der_base64(content):
 
 
 def matching_distribution_certificate_id():
-    query = urllib.parse.urlencode({"filter[certificateType]": "IOS_DISTRIBUTION", "limit": "200"})
+    query = urllib.parse.urlencode({"filter[certificateType]": certificate_type_filter, "limit": "200"})
     response = asc_request(f"certificates?{query}")
     for certificate in response.get("data", []):
         content = certificate.get("attributes", {}).get("certificateContent")
@@ -554,14 +581,14 @@ def create_or_download_app_store_profiles():
     profiles_dir = pathlib.Path.home() / "Library" / "MobileDevice" / "Provisioning Profiles"
     profiles_dir.mkdir(parents=True, exist_ok=True)
     for identifier in BUNDLE_IDS:
-        profile_name = f"OpenMates App Store {identifier}"
+        profile_name = f"OpenMates {target_platform} App Store {identifier}"
         delete_existing_profile(profile_name)
         response = asc_request("profiles", method="POST", body={
             "data": {
                 "type": "profiles",
                 "attributes": {
                     "name": profile_name,
-                    "profileType": "IOS_APP_STORE",
+                    "profileType": profile_type,
                 },
                 "relationships": {
                     "bundleId": {"data": {"type": "bundleIds", "id": bundle_id_record_id(identifier)}},
@@ -575,7 +602,7 @@ def create_or_download_app_store_profiles():
         if not profile_content or not profile_uuid:
             print(f"profile_create=missing_content:{identifier}")
             sys.exit(1)
-        profile_path = profiles_dir / f"{profile_uuid}.mobileprovision"
+        profile_path = profiles_dir / f"{profile_uuid}.{profile_extension}"
         profile_path.write_bytes(base64.b64decode(profile_content))
         profile_names[identifier] = profile_uuid
         print(f"profile_create=passed:{identifier}")
@@ -593,7 +620,7 @@ def clean_openmates_provisioning_profiles():
         print("provisioning_profile_cleanup=profiles_dir_missing")
         return
     for profiles_dir in existing_dirs:
-        for profile in profiles_dir.glob("*.mobileprovision"):
+        for profile in [*profiles_dir.glob("*.mobileprovision"), *profiles_dir.glob("*.provisionprofile")]:
             decoded = subprocess.run(["security", "cms", "-D", "-i", str(profile)], capture_output=True, timeout=30)
             if decoded.returncode != 0:
                 continue
@@ -617,7 +644,7 @@ preflight_signing()
 
 
 derived = tempfile.mkdtemp(prefix="openmates-testflight-")
-archive_path = pathlib.Path(derived) / "OpenMates.xcarchive"
+archive_path = pathlib.Path(derived) / archive_filename
 export_path = pathlib.Path(derived) / "export"
 export_options_path = pathlib.Path(derived) / "ExportOptions.plist"
 
@@ -641,19 +668,22 @@ archive_cmd = [
     "-project",
     "apple/OpenMates.xcodeproj",
     "-scheme",
-    "OpenMates_iOS",
+    scheme_name,
     "-configuration",
     "Release",
     "-destination",
-    "generic/platform=iOS",
+    archive_destination,
     "-archivePath",
     str(archive_path),
-    "-allowProvisioningUpdates",
-    *common_auth_args,
     "DEVELOPMENT_TEAM=Z9B2YFKN2X",
     "archive",
 ]
-if build_keychain_path:
+if archive_without_signing:
+    archive_cmd.insert(-1, "CODE_SIGNING_ALLOWED=NO")
+else:
+    archive_cmd.insert(-2, "-allowProvisioningUpdates")
+    archive_cmd[-2:-2] = common_auth_args
+if build_keychain_path and not archive_without_signing:
     archive_cmd.insert(-1, f"OTHER_CODE_SIGN_FLAGS=--keychain {build_keychain_path}")
 
 print("archive_status=started")
@@ -801,6 +831,10 @@ if certificate_type == "IOS_DISTRIBUTION":
     identity_label = "distribution_identity"
     identity_markers = ("Apple Distribution:", "iPhone Distribution:")
     certificate_common_name = "OpenMates iOS Distribution"
+elif certificate_type == "DISTRIBUTION":
+    identity_label = "distribution_identity"
+    identity_markers = ("Apple Distribution:",)
+    certificate_common_name = "OpenMates Apple Distribution"
 elif certificate_type == "DEVELOPMENT":
     identity_label = "development_identity"
     identity_markers = ("Apple Development:",)
@@ -1276,6 +1310,13 @@ builds_query = urllib.parse.urlencode({
     "sort": "-uploadedDate",
 })
 response = asc_get(f"builds?{builds_query}")
+if not response.get("data"):
+    relationship_query = urllib.parse.urlencode({
+        "include": "preReleaseVersion",
+        "limit": "10",
+        "sort": "-uploadedDate",
+    })
+    response = asc_get(f"apps/{app_id}/builds?{relationship_query}")
 included = response.get("included", [])
 pre_release_versions = {
     item.get("id"): item.get("attributes", {})
@@ -1569,6 +1610,28 @@ def upload_testflight_ios_command(
     )
 
 
+def upload_testflight_macos_command(
+    internal_only: bool,
+    *,
+    api_key_path: str | None = None,
+    api_key_id: str | None = None,
+    api_issuer_id: str | None = None,
+) -> str:
+    command = shell_join([
+        "python3",
+        "-c",
+        TESTFLIGHT_IOS_SCRIPT,
+        "1" if internal_only else "0",
+        "macos",
+    ])
+    return app_store_connect_env_prefix(
+        command,
+        api_key_path=api_key_path,
+        api_key_id=api_key_id,
+        api_issuer_id=api_issuer_id,
+    )
+
+
 def ensure_ios_distribution_certificate_command(
     create: bool,
     *,
@@ -1698,6 +1761,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_app_store_connect_api_args(testflight_parser)
 
+    testflight_macos_parser = subparsers.add_parser("upload-testflight-macos", help="Archive and upload OpenMates_macOS to TestFlight")
+    testflight_macos_parser.add_argument(
+        "--external-capable",
+        action="store_true",
+        help="Do not mark the uploaded build as internal-testing-only",
+    )
+    add_app_store_connect_api_args(testflight_macos_parser)
+
     certificate_parser = subparsers.add_parser(
         "ensure-ios-distribution-certificate",
         help="Check or create the local Apple Distribution certificate needed for TestFlight signing",
@@ -1708,6 +1779,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Create a durable Apple Developer distribution certificate via App Store Connect API and import it into the Mac keychain",
     )
     add_app_store_connect_api_args(certificate_parser)
+
+    apple_distribution_certificate_parser = subparsers.add_parser(
+        "ensure-apple-distribution-certificate",
+        help="Check or create a cross-platform Apple Distribution certificate in the build keychain",
+    )
+    apple_distribution_certificate_parser.add_argument(
+        "--create",
+        action="store_true",
+        help="Create a durable Apple Distribution certificate via App Store Connect API and import it into the Mac build keychain",
+    )
+    add_app_store_connect_api_args(apple_distribution_certificate_parser)
 
     development_certificate_parser = subparsers.add_parser(
         "ensure-ios-development-certificate",
@@ -1805,6 +1887,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                     ),
                 ]),
             )
+        if args.command == "upload-testflight-macos":
+            return run_remote(
+                config,
+                repo_command(config, [
+                    "bash",
+                    "-lc",
+                    upload_testflight_macos_command(
+                        not args.external_capable,
+                        api_key_path=args.api_key_path,
+                        api_key_id=args.api_key_id,
+                        api_issuer_id=args.api_issuer_id,
+                    ),
+                ]),
+            )
         if args.command == "ensure-ios-distribution-certificate":
             return run_remote(
                 config,
@@ -1831,6 +1927,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                         api_key_id=args.api_key_id,
                         api_issuer_id=args.api_issuer_id,
                         certificate_type="DEVELOPMENT",
+                    ),
+                ]),
+            )
+        if args.command == "ensure-apple-distribution-certificate":
+            return run_remote(
+                config,
+                repo_command(config, [
+                    "bash",
+                    "-lc",
+                    ensure_ios_distribution_certificate_command(
+                        args.create,
+                        api_key_path=args.api_key_path,
+                        api_key_id=args.api_key_id,
+                        api_issuer_id=args.api_issuer_id,
+                        certificate_type="DISTRIBUTION",
                     ),
                 ]),
             )

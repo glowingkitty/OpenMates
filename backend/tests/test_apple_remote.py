@@ -219,6 +219,21 @@ def test_upload_testflight_ios_command_can_inject_api_key_args() -> None:
     assert "APP_STORE_CONNECT_API_ISSUER_ID=ISSUERID" in command
 
 
+def test_upload_testflight_macos_command_uses_mac_app_store_export() -> None:
+    command = apple_remote.upload_testflight_macos_command(internal_only=True)
+    script = apple_remote.TESTFLIGHT_IOS_SCRIPT
+
+    assert "OpenMates_macOS" in script
+    assert "generic/platform=macOS" in script
+    assert "MAC_APP_STORE" in script
+    assert "DISTRIBUTION" in script
+    assert "CODE_SIGNING_ALLOWED=NO" in script
+    assert "provisionprofile" in script
+    assert "org.openmates.app.share-macos" in script
+    assert "app-store-connect" in command
+    assert command.endswith(" 1 macos")
+
+
 def test_upload_testflight_ios_script_preflights_signing() -> None:
     script = apple_remote.TESTFLIGHT_IOS_SCRIPT
 
@@ -287,12 +302,22 @@ def test_ensure_ios_development_certificate_command_uses_modern_development_type
     assert command.endswith(" 1 DEVELOPMENT")
 
 
+def test_ensure_apple_distribution_certificate_command_uses_modern_distribution_type() -> None:
+    command = apple_remote.ensure_ios_distribution_certificate_command(
+        True,
+        certificate_type="DISTRIBUTION",
+    )
+
+    assert command.endswith(" 1 DISTRIBUTION")
+
+
 def test_ensure_ios_distribution_certificate_script_uses_certificate_api() -> None:
     script = apple_remote.ENSURE_IOS_DISTRIBUTION_CERTIFICATE_SCRIPT
 
     assert "https://api.appstoreconnect.apple.com/v1/certificates" in script
     assert "certificateType" in script
     assert "IOS_DISTRIBUTION" in script
+    assert "DISTRIBUTION" in script
     assert "IOS_DEVELOPMENT" in script
     assert "DEVELOPMENT" in script
     assert "iPhone Distribution:" in script
