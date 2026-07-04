@@ -1661,7 +1661,7 @@ struct MainAppView: View {
         visibleUserChatLimit = Self.initialUserChatLimit
         loadDemoChats(selectDefault: false)
 
-        let bridge = appSession.prepareAuthenticatedRuntime(lastOpenedChatId: authManager.currentUser?.lastOpened)
+        let bridge = appSession.prepareAuthenticatedRuntime()
         syncBridge = bridge
 
         Task { await authManager.validateSessionAfterOfflineBootstrap() }
