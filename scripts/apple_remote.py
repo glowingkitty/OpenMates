@@ -1754,6 +1754,25 @@ def app_store_connect_api_options(
     }
 
 
+def require_app_store_connect_api_options(options: dict[str, str | None], command_name: str) -> None:
+    missing = [
+        label
+        for label, value in (
+            ("api_key_path", options.get("api_key_path")),
+            ("api_key_id", options.get("api_key_id")),
+            ("api_issuer_id", options.get("api_issuer_id")),
+        )
+        if not value
+    ]
+    if missing:
+        raise AppleRemoteError(
+            f"{command_name} requires App Store Connect API settings: {', '.join(missing)}. "
+            "Set app_store_connect_api_key_path, app_store_connect_api_key_id, and "
+            "app_store_connect_api_issuer_id in ~/.config/openmates/apple-remote.json, "
+            "or pass --api-key-path/--api-key-id/--api-issuer-id."
+        )
+
+
 def repo_command(config: RemoteConfig, parts: Sequence[str]) -> str:
     if not config.repo_path:
         raise AppleRemoteError("Set OPENMATES_APPLE_REPO_PATH or local repo_path for repo commands")
@@ -2212,6 +2231,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 ]),
             )
         if args.command == "deploy-latest-testflight":
+            require_app_store_connect_api_options(api_options, "deploy-latest-testflight")
             return run_remote(
                 config,
                 repo_command(config, [

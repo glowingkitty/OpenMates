@@ -86,3 +86,13 @@ def test_app_store_connect_options_resolve_from_config() -> None:
         "api_key_id": "CONFIGKEY",
         "api_issuer_id": "CONFIGISSUER",
     }
+
+
+def test_deploy_latest_requires_complete_app_store_connect_options() -> None:
+    apple_remote = load_apple_remote()
+
+    with pytest.raises(apple_remote.AppleRemoteError, match="deploy-latest-testflight requires App Store Connect API settings"):
+        apple_remote.require_app_store_connect_api_options(
+            {"api_key_path": None, "api_key_id": "KEY", "api_issuer_id": "ISSUER"},
+            "deploy-latest-testflight",
+        )
