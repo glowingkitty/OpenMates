@@ -9,6 +9,7 @@ import XCTest
 final class ChatManagementSharingParityUITests: XCTestCase {
     private let fixtureShareURL = "https://app.dev.openmates.org/s/Abc123XY#testKey"
     private let fixtureSafariURL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    private let recentChatSeedPrompt = "Share extension recent chat destination seed"
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -78,6 +79,7 @@ final class ChatManagementSharingParityUITests: XCTestCase {
 
         let app = RealAccountUITestSupport.launchApp()
         RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: recentChatSeedPrompt)
         app.terminate()
 
         let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
@@ -104,6 +106,14 @@ final class ChatManagementSharingParityUITests: XCTestCase {
             (messageInput.value as? String ?? messageInput.label).contains("youtube.com/watch"),
             "Expected the shared Safari URL to be prefilled in the editable message input."
         )
+
+        let recentChat = safari.descendants(matching: .any)["share-extension-chat-destination"]
+        XCTAssertTrue(
+            recentChat.waitForExistence(timeout: 20),
+            "Expected at least one selectable recent chat destination. Status: \(safari.staticTexts["share-extension-status"].label)"
+        )
+        recentChat.tap()
+        XCTAssertEqual(recentChat.value as? String, "Selected")
 
         messageInput.tap()
         messageInput.typeText("\nSummarize this video for me")

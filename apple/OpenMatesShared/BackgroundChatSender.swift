@@ -51,6 +51,14 @@ enum BackgroundChatStorageContract {
     }
 }
 
+enum BackgroundChatHTTPContract {
+    static func makeEncoder() -> JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        return encoder
+    }
+}
+
 actor BackgroundChatSender {
     struct DestinationChat: Identifiable, Decodable {
         let id: String
@@ -244,7 +252,7 @@ actor BackgroundChatSender {
 
     private let crypto = CryptoManager.shared
     private let decoder: JSONDecoder
-    private let encoder = JSONEncoder()
+    private let encoder = BackgroundChatHTTPContract.makeEncoder()
     private let session: URLSession
     private var chatKeyCache: [String: SymmetricKey] = [:]
 

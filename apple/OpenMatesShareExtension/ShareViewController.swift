@@ -8,6 +8,14 @@ import UIKit
 import UniformTypeIdentifiers
 
 final class ShareViewController: UIViewController {
+    fileprivate enum Layout {
+        static let chatRowHeight: CGFloat = 50
+        static let maxVisibleChatRows = 5
+        static let selectedBorderWidth: CGFloat = 1
+        static let selectedBackgroundAlpha: CGFloat = 0.12
+        static let cellCornerRadius: CGFloat = 10
+    }
+
     private var sharedParts: [SharedPart] = []
     private var recentChats: [BackgroundChatSender.DestinationChat] = []
     private var selectedChat: BackgroundChatSender.DestinationChat?
@@ -152,7 +160,7 @@ final class ShareViewController: UIViewController {
         chatTableView.delegate = self
         chatTableView.register(ChatDestinationCell.self, forCellReuseIdentifier: ChatDestinationCell.reuseIdentifier)
         chatTableView.isScrollEnabled = false
-        chatTableView.rowHeight = 50
+        chatTableView.rowHeight = Layout.chatRowHeight
         chatTableView.separatorStyle = .none
         chatTableView.backgroundColor = .clear
         stackView.addArrangedSubview(chatTableView)
@@ -245,7 +253,9 @@ final class ShareViewController: UIViewController {
                     spinner.stopAnimating()
                     statusLabel.text = chats.isEmpty ? "New Chat is ready." : "Choose a recent chat or keep New Chat selected."
                     recentChats = chats
-                    tableHeightConstraint?.constant = CGFloat(chats.count) * 50
+                    let visibleRows = min(chats.count, Layout.maxVisibleChatRows)
+                    tableHeightConstraint?.constant = CGFloat(visibleRows) * Layout.chatRowHeight
+                    chatTableView.isScrollEnabled = chats.count > Layout.maxVisibleChatRows
                     chatTableView.reloadData()
                 }
             } catch {
@@ -268,6 +278,7 @@ final class ShareViewController: UIViewController {
         }
         selectedIndexPath = nil
         updateNewChatSelection(true)
+        chatTableView.reloadData()
     }
 
     @objc private func sendTapped() {
@@ -330,7 +341,8 @@ extension ShareViewController: UITableViewDataSource, UITableViewDelegate {
             withIdentifier: ChatDestinationCell.reuseIdentifier,
             for: indexPath
         ) as! ChatDestinationCell
-        cell.configure(title: recentChats[indexPath.row].displayTitle)
+        let chat = recentChats[indexPath.row]
+        cell.configure(title: chat.displayTitle, isSelected: selectedChat?.id == chat.id)
         return cell
     }
 
@@ -338,6 +350,7 @@ extension ShareViewController: UITableViewDataSource, UITableViewDelegate {
         selectedChat = recentChats[indexPath.row]
         selectedIndexPath = indexPath
         updateNewChatSelection(false)
+        tableView.reloadData()
     }
 }
 
@@ -350,6 +363,8 @@ private final class ChatDestinationCell: UITableViewCell {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         selectionStyle = .none
         backgroundColor = .clear
+        contentView.layer.cornerRadius = ShareViewController.Layout.cellCornerRadius
+        contentView.layer.masksToBounds = true
 
         titleLabel.font = .systemFont(ofSize: 15, weight: .medium)
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -366,7 +381,14 @@ private final class ChatDestinationCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func configure(title: String) {
+    func configure(title: String, isSelected: Bool) {
         titleLabel.text = title
+        accessibilityIdentifier = "share-extension-chat-destination"
+        accessibilityLabel = title
+        accessibilityValue = isSelected ? "Selected" : "Not selected"
+        isAccessibilityElement = true
+        contentView.backgroundColor = isSelected ? .systemBlue.withAlphaComponent(ShareViewController.Layout.selectedBackgroundAlpha) : .secondarySystemBackground
+        contentView.layer.borderColor = isSelected ? UIColor.systemBlue.cgColor : UIColor.clear.cgColor
+        contentView.layer.borderWidth = isSelected ? ShareViewController.Layout.selectedBorderWidth : 0
     }
 }

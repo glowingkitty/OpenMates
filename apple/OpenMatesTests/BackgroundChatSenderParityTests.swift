@@ -8,6 +8,33 @@ import XCTest
 @testable import OpenMates
 
 final class BackgroundChatSenderParityTests: XCTestCase {
+    private struct SessionProbe: Encodable {
+        let sessionId: String
+        let deviceInfo: DeviceInfoProbe
+    }
+
+    private struct DeviceInfoProbe: Encodable {
+        let os: String
+        let deviceModel: String
+        let appVersion: String
+    }
+
+    func testBackgroundHTTPEncoderUsesBackendSnakeCaseContract() throws {
+        let probe = SessionProbe(
+            sessionId: "session-1",
+            deviceInfo: DeviceInfoProbe(os: "iOS", deviceModel: "iPhone", appVersion: "1.0")
+        )
+        let data = try BackgroundChatHTTPContract.makeEncoder().encode(probe)
+        let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let deviceInfo = try XCTUnwrap(payload["device_info"] as? [String: String])
+
+        XCTAssertEqual(payload["session_id"] as? String, "session-1")
+        XCTAssertNil(payload["sessionId"])
+        XCTAssertEqual(deviceInfo["device_model"], "iPhone")
+        XCTAssertEqual(deviceInfo["app_version"], "1.0")
+        XCTAssertNil(deviceInfo["deviceModel"])
+    }
+
     func testEncryptedStoragePayloadContainsOnlyEncryptedDurableContentAndVersions() throws {
         let payload = BackgroundChatStoragePayload(
             chatId: "chat-1",
