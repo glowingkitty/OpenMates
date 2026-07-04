@@ -118,6 +118,30 @@ projects:
   sv: Projekt
   he: פרויקטים
   verified_by_human: []
+plans:
+  context: Navigation item for plans section
+  en: Plans
+  de: Pläne
+  zh: 计划
+  es: Planes
+  fr: Plans
+  pt: Planos
+  ru: Планы
+  ja: プラン
+  ko: 계획
+  it: Piani
+  tr: Planlar
+  vi: Kế hoạch
+  id: Rencana
+  pl: Plany
+  nl: Plannen
+  ar: الخطط
+  hi: योजनाएँ
+  th: แผน
+  cs: Plány
+  sv: Planer
+  he: תוכניות
+  verified_by_human: []
 workflows:
   context: Navigation item for workflow management
   en: Workflows

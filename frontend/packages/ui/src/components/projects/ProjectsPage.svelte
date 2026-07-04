@@ -229,6 +229,14 @@
     activeRemoteFullscreen = null;
   }
 
+  function handleRemoteFullscreenClick(event: MouseEvent): void {
+    if (!activeRemoteFullscreen) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('[data-testid="embed-minimize"]')) {
+      closeRemotePreview();
+    }
+  }
+
   function getRemotePreviewEntries(source: ProjectSourceViewModel): RemotePreviewEntry[] {
     const candidates = getRemotePreviewCandidates(source.metadata);
     return candidates.flatMap((candidate) => {
@@ -599,6 +607,8 @@
     </main>
   </section>
 {/if}
+
+<svelte:window onclick={handleRemoteFullscreenClick} />
 
 {#if activeRemoteFullscreen}
   <div class="projects-remote-fullscreen" data-testid="project-remote-fullscreen-overlay">
