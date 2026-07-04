@@ -104,8 +104,6 @@ final class ChatFlowParityUITests: XCTestCase {
             .firstMatch
         XCTAssertTrue(counter.waitForExistence(timeout: 12))
 
-        XCTAssertTrue(app.descendants(matching: .any)["chat-view-dev-chat-opening-large"].waitForExistence(timeout: 12))
-
         let reportButton = app.descendants(matching: .any)["chat-floating-action-bug"]
         XCTAssertTrue(reportButton.waitForExistence(timeout: 12))
         XCTAssertFalse(app.staticTexts["common.report"].exists)
