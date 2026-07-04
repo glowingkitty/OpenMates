@@ -67,6 +67,13 @@ async function openForEveryoneIntroChat(page: any) {
 
 async function readDailyInspirationPhrase(page: any): Promise<string> {
 	const phrase = page.getByTestId('daily-inspiration-phrase');
+	for (let attempt = 0; attempt < 5; attempt += 1) {
+		if (await phrase.isVisible({ timeout: 1000 }).catch(() => false)) break;
+
+		const nextButton = page.getByTestId('daily-inspiration-next');
+		if (!(await nextButton.isVisible({ timeout: 1000 }).catch(() => false))) break;
+		await nextButton.click();
+	}
 	await expect(phrase).toBeVisible({ timeout: 15000 });
 	const text = (await phrase.textContent())?.trim() ?? '';
 	expect(text.length, 'Daily inspiration phrase should be non-empty').toBeGreaterThan(0);
