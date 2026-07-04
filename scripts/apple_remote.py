@@ -264,6 +264,7 @@ if target_platform == "ios":
     profile_type = "IOS_APP_STORE"
     certificate_type_filter = "IOS_DISTRIBUTION"
     profile_extension = "mobileprovision"
+    bundle_id_platform = "IOS"
     archive_without_signing = False
     BUNDLE_IDS = (
         "org.openmates.app",
@@ -278,6 +279,7 @@ elif target_platform == "macos":
     profile_type = "MAC_APP_STORE"
     certificate_type_filter = "DISTRIBUTION"
     profile_extension = "provisionprofile"
+    bundle_id_platform = "MAC_OS"
     archive_without_signing = True
     BUNDLE_IDS = (
         "org.openmates.app",
@@ -506,8 +508,23 @@ def bundle_id_record_id(identifier):
     response = asc_request(f"bundleIds?{query}")
     data = response.get("data", [])
     if not data:
-        print(f"profile_create=bundle_id_missing:{identifier}")
-        sys.exit(1)
+        name = "OpenMates" if identifier == "org.openmates.app" else f"OpenMates {identifier.rsplit('.', 1)[-1]}"
+        created = asc_request("bundleIds", method="POST", body={
+            "data": {
+                "type": "bundleIds",
+                "attributes": {
+                    "identifier": identifier,
+                    "name": name,
+                    "platform": bundle_id_platform,
+                },
+            }
+        })
+        bundle_id = created.get("data", {}).get("id")
+        if not bundle_id:
+            print(f"profile_create=bundle_id_missing:{identifier}")
+            sys.exit(1)
+        print(f"bundle_id_create=passed:{identifier}")
+        return bundle_id
     return data[0].get("id")
 
 
