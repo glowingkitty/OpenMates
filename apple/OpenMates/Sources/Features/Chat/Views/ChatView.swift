@@ -774,8 +774,8 @@ struct ChatView: View {
                 chatFloatingAction(icon: "share", label: AppStrings.share, accessibilityIdentifier: "chat-share-button") {
                     onShareChat?()
                 }
-                chatFloatingAction(icon: "bug", label: AppStrings.report) {
-                    ToastManager.shared.show(AppStrings.report, type: .info)
+                chatFloatingAction(icon: "bug", label: AppStrings.settingsReportIssue) {
+                    onReportIssue?(.assistantResponseQuality())
                 }
             }
 

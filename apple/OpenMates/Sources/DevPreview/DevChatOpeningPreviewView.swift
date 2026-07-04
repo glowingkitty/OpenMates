@@ -21,6 +21,7 @@ struct DevChatOpeningPreviewView: View {
     @StateObject private var chatStore = ChatStore()
     @StateObject private var uiTestRecorder = VoiceRecorder()
     @State private var seeded = false
+    @State private var reportIssuePrefill: ReportIssuePrefill?
 
     init(forceRecordingOverlay: Bool = false) {
         self.forceRecordingOverlay = forceRecordingOverlay
@@ -51,7 +52,8 @@ struct DevChatOpeningPreviewView: View {
                         initialChat: fixture.chat,
                         initialMessages: initialWindow,
                         initialEmbeds: [],
-                        chatStore: chatStore
+                        chatStore: chatStore,
+                        onReportIssue: { reportIssuePrefill = $0 }
                     )
                 } else {
                     ProgressView()
@@ -72,6 +74,18 @@ struct DevChatOpeningPreviewView: View {
                 .frame(height: 400)
                 .padding(.horizontal, .spacing4)
                 .padding(.bottom, .spacing3)
+            }
+
+            if let reportIssuePrefill {
+                ReportIssueView(prefill: reportIssuePrefill)
+                    .frame(maxWidth: 360)
+                    .frame(maxHeight: .infinity)
+                    .background(Color.grey20)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                    .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 0)
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing8)
+                    .accessibilityIdentifier("dev-report-issue-overlay")
             }
         }
         .background(Color.grey0.ignoresSafeArea())

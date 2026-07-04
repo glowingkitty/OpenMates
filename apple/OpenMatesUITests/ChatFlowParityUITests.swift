@@ -92,6 +92,25 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Seeded chat-flow parity hierarchy")
     }
 
+    func testChatFloatingReportButtonOpensReportIssueForm() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "chat-opening"]
+        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        app.launch()
+
+        let reportButton = app.buttons["chat-floating-action-bug"]
+        XCTAssertTrue(reportButton.waitForExistence(timeout: 12))
+        XCTAssertFalse(app.staticTexts["common.report"].exists)
+
+        reportButton.tap()
+
+        XCTAssertTrue(app.descendants(matching: .any)["dev-report-issue-overlay"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["settings-report-issue-form"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["common.report"].exists)
+
+        attachScreenshot(name: "Chat floating report opens report form")
+    }
+
     func testVisualChatFlowSurfaceUsesProductChromeOnly() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-visual-snapshot"]
