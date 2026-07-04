@@ -77,12 +77,18 @@ struct ReportIssueView: View {
             }
 
             #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("--ui-test-report-issue-success"),
-               let uiTestIssueLogPayloadText {
-                Text(uiTestIssueLogPayloadText)
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-report-issue-success") {
+                Text(uiTestStatusText)
                     .font(.omMicro)
                     .foregroundStyle(Color.fontTertiary)
-                    .accessibilityIdentifier("report-issue-debug-log-payload")
+                    .accessibilityIdentifier("report-issue-debug-status")
+
+                if let uiTestIssueLogPayloadText {
+                    Text(uiTestIssueLogPayloadText)
+                        .font(.omMicro)
+                        .foregroundStyle(Color.fontTertiary)
+                        .accessibilityIdentifier("report-issue-debug-log-payload")
+                }
             }
             #endif
         }
@@ -331,6 +337,16 @@ struct ReportIssueView: View {
     }
 
     #if DEBUG
+    private var uiTestStatusText: String {
+        [
+            "title_count=\(title.trimmingCharacters(in: .whitespacesAndNewlines).count)",
+            "is_valid=\(isValid)",
+            "is_submitting=\(isSubmitting)",
+            "submitted=\(submittedIssueReference ?? "")",
+            "error=\(error ?? "")",
+        ].joined(separator: "\n")
+    }
+
     private func seedUITestReportIssueLogsIfNeeded() {
         guard ProcessInfo.processInfo.arguments.contains("--ui-test-seed-report-logs") else { return }
         let environment = ProcessInfo.processInfo.environment
