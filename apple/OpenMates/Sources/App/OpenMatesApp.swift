@@ -129,6 +129,7 @@ struct OpenMatesApp: App {
 
     init() {
         FontRegistration.registerFonts()
+        NativeMetricKitReporter.shared.start()
     }
 
     var body: some Scene {
@@ -142,6 +143,8 @@ struct OpenMatesApp: App {
                 .preferredColorScheme(themeManager.resolvedScheme)
                 .environment(\.layoutDirection, locManager.currentLanguage.layoutDirection)
                 .task {
+                    NativeDiagnostics.info("Apple app runtime starting", category: "app_lifecycle")
+                    await NativePerformanceMonitor.shared.startSampling()
                     #if DEBUG
                     if ProcessInfo.processInfo.arguments.contains("--openmates-keychain-self-test") {
                         KeychainHelper.debugSelfTest()
@@ -152,6 +155,10 @@ struct OpenMatesApp: App {
                 }
                 .onChange(of: authManager.state) { _, newState in
                     if case .authenticated = newState {
+                        NativeLogForwarder.shared.startDefaultTelemetry()
+                        Task {
+                            await NativeLogForwarder.shared.syncActiveDebugSession()
+                        }
                         Task {
                             let _ = await pushManager.requestPermission()
                         }
@@ -161,6 +168,9 @@ struct OpenMatesApp: App {
                            supported != locManager.currentLanguage {
                             Task { await locManager.setLanguage(supported) }
                         }
+                    } else {
+                        NativeLogForwarder.shared.stopDefaultTelemetry()
+                        NativeLogForwarder.shared.stopDebugSession()
                     }
                 }
                 #if os(macOS)

@@ -6,6 +6,12 @@
 
 import Foundation
 import OSLog
+#if os(iOS)
+import UIKit
+#endif
+#if canImport(MetricKit)
+import MetricKit
+#endif
 
 enum NativeClientLogLevel: String {
     case debug
@@ -15,19 +21,30 @@ enum NativeClientLogLevel: String {
 }
 
 struct NativeClientLogEntry: Equatable {
+    let sequence: Int
     let timestamp: Date
     let level: NativeClientLogLevel
     let category: String
     let message: String
 
-    func payload() -> [String: Any] {
+    func forwardingPayload() -> [String: Any] {
         [
-            "timestamp": NativeDiagnosticsDateFormatter.string(from: timestamp),
-            "level": level.rawValue,
-            "category": category,
-            "message": message,
+            "timestamp": Int(timestamp.timeIntervalSince1970 * 1000),
+            "level": level.forwardingValue,
+            "message": "[\(category)] \(message)",
             "source": "apple_native",
         ]
+    }
+}
+
+private extension NativeClientLogLevel {
+    var forwardingValue: String {
+        switch self {
+        case .debug: return "debug"
+        case .info: return "info"
+        case .warning: return "warn"
+        case .error: return "error"
+        }
     }
 }
 
@@ -75,17 +92,20 @@ final class NativeClientLogCollector: @unchecked Sendable {
 
     private let lock = NSLock()
     private var entries: [NativeClientLogEntry] = []
+    private var nextSequence = 1
 
     private init() {}
 
     func record(level: NativeClientLogLevel, category: String, message: String) {
+        lock.lock()
         let entry = NativeClientLogEntry(
+            sequence: nextSequence,
             timestamp: Date(),
             level: level,
             category: Self.sanitize(category),
             message: Self.sanitize(message)
         )
-        lock.lock()
+        nextSequence += 1
         entries.append(entry)
         pruneLocked()
         lock.unlock()
@@ -94,6 +114,7 @@ final class NativeClientLogCollector: @unchecked Sendable {
     func resetForTests() {
         lock.lock()
         entries.removeAll()
+        nextSequence = 1
         lock.unlock()
     }
 
@@ -107,6 +128,19 @@ final class NativeClientLogCollector: @unchecked Sendable {
             return Self.priority(entry.level) >= Self.priority(minimumLevel)
         }
         return Array(filtered.suffix(max(0, limit)))
+    }
+
+    func entriesAfter(sequence: Int, limit: Int, minimumLevel: NativeClientLogLevel? = nil) -> [NativeClientLogEntry] {
+        lock.lock()
+        let snapshot = entries
+        lock.unlock()
+
+        let filtered = snapshot.filter { entry in
+            guard entry.sequence > sequence else { return false }
+            guard let minimumLevel else { return true }
+            return Self.priority(entry.level) >= Self.priority(minimumLevel)
+        }
+        return Array(filtered.prefix(max(0, limit)))
     }
 
     func logsAsText(limit: Int) -> String {
@@ -250,6 +284,11 @@ struct NativeIssueContext {
     let actionHistory: String
 }
 
+struct NativeDebugSessionResponse: Decodable {
+    let active: Bool
+    let debuggingId: String?
+}
+
 final class NativeIssueContextProvider: @unchecked Sendable {
     static let shared = NativeIssueContextProvider()
 
@@ -303,6 +342,9 @@ final class NativePerformanceMonitor: @unchecked Sendable {
 
     private let lock = NSLock()
     private var frameDurationsMS: [Int] = []
+    #if os(iOS)
+    @MainActor private var displayLinkProbe: NativeDisplayLinkProbe?
+    #endif
 
     private init() {}
 
@@ -343,6 +385,35 @@ final class NativePerformanceMonitor: @unchecked Sendable {
         lock.unlock()
     }
 
+    @MainActor
+    func startSampling() {
+        #if os(iOS)
+        guard displayLinkProbe == nil else { return }
+        let probe = NativeDisplayLinkProbe { [weak self] durationMS in
+            self?.recordFrame(durationMS: durationMS)
+        }
+        displayLinkProbe = probe
+        probe.start()
+        #endif
+    }
+
+    @MainActor
+    func stopSampling() {
+        #if os(iOS)
+        displayLinkProbe?.stop()
+        displayLinkProbe = nil
+        #endif
+    }
+
+    @MainActor
+    func isSamplingForTests() -> Bool {
+        #if os(iOS)
+        return displayLinkProbe != nil
+        #else
+        return false
+        #endif
+    }
+
     static func systemState() -> [String: Any] {
         var state: [String: Any] = [
             "thermal_state": String(describing: ProcessInfo.processInfo.thermalState),
@@ -354,14 +425,48 @@ final class NativePerformanceMonitor: @unchecked Sendable {
     }
 }
 
-final class NativeMetricKitReporter: @unchecked Sendable {
+#if os(iOS)
+@MainActor
+private final class NativeDisplayLinkProbe {
+    private var displayLink: CADisplayLink?
+    private var previousTimestamp: CFTimeInterval?
+    private let onFrame: @Sendable (Int) -> Void
+
+    init(onFrame: @escaping @Sendable (Int) -> Void) {
+        self.onFrame = onFrame
+    }
+
+    func start() {
+        guard displayLink == nil else { return }
+        let link = CADisplayLink(target: self, selector: #selector(tick(_:)))
+        link.add(to: .main, forMode: .common)
+        displayLink = link
+    }
+
+    func stop() {
+        displayLink?.invalidate()
+        displayLink = nil
+        previousTimestamp = nil
+    }
+
+    @objc private func tick(_ link: CADisplayLink) {
+        defer { previousTimestamp = link.timestamp }
+        guard let previousTimestamp else { return }
+        let durationMS = Int((link.timestamp - previousTimestamp) * 1000)
+        onFrame(durationMS)
+    }
+}
+#endif
+
+final class NativeMetricKitReporter: NSObject, @unchecked Sendable {
     static let shared = NativeMetricKitReporter()
     private static let maxSummaries = 12
 
     private let lock = NSLock()
     private var summaries: [[String: Any]] = []
+    private var hasStarted = false
 
-    private init() {}
+    private override init() {}
 
     func recordSummary(_ summary: [String: Any]) {
         let sanitized = NativeClientLogCollector.sanitizeValue(summary) as? [String: Any] ?? [:]
@@ -371,6 +476,33 @@ final class NativeMetricKitReporter: @unchecked Sendable {
             summaries.removeFirst(summaries.count - Self.maxSummaries)
         }
         lock.unlock()
+    }
+
+    func start() {
+        lock.lock()
+        guard !hasStarted else {
+            lock.unlock()
+            return
+        }
+        hasStarted = true
+        lock.unlock()
+
+        #if canImport(MetricKit)
+        MXMetricManager.shared.add(self)
+        #endif
+    }
+
+    func stop() {
+        lock.lock()
+        let wasStarted = hasStarted
+        hasStarted = false
+        lock.unlock()
+
+        #if canImport(MetricKit)
+        if wasStarted {
+            MXMetricManager.shared.remove(self)
+        }
+        #endif
     }
 
     func latestSummaries() -> [[String: Any]] {
@@ -389,15 +521,66 @@ final class NativeMetricKitReporter: @unchecked Sendable {
     func resetForTests() {
         lock.lock()
         summaries.removeAll()
+        hasStarted = false
         lock.unlock()
+    }
+
+    func isStartedForTests() -> Bool {
+        lock.lock()
+        let started = hasStarted
+        lock.unlock()
+        return started
     }
 }
 
-enum NativeLogForwarder {
+#if canImport(MetricKit)
+extension NativeMetricKitReporter: MXMetricManagerSubscriber {
+    func didReceive(_ payloads: [MXMetricPayload]) {
+        for payload in payloads {
+            recordMetricKitPayload(type: "metric", payload: payload.dictionaryRepresentation())
+        }
+    }
+
+    func didReceive(_ payloads: [MXDiagnosticPayload]) {
+        for payload in payloads {
+            recordMetricKitPayload(type: "diagnostic", payload: payload.dictionaryRepresentation())
+        }
+    }
+
+    private func recordMetricKitPayload(type: String, payload: [AnyHashable: Any]) {
+        recordSummary([
+            "report_type": type,
+            "received_at": NativeDiagnosticsDateFormatter.string(from: Date()),
+            "payload_keys": payload.keys.map { String(describing: $0) }.sorted(),
+        ])
+    }
+}
+#endif
+
+final class NativeLogForwarder: @unchecked Sendable {
+    static let shared = NativeLogForwarder()
+    private static let defaultFlushIntervalNanoseconds: UInt64 = 30_000_000_000
+
+    private let lock = NSLock()
+    private var defaultTelemetryTask: Task<Void, Never>?
+    private var debugSessionTask: Task<Void, Never>?
+    private var lastDefaultTelemetrySequence = 0
+    private var lastDebugSessionSequence = 0
+    private let sessionPseudonym = UUID().uuidString.lowercased()
+
+    private init() {}
+
     static func debugSessionPayload(debuggingID: String) -> [String: Any] {
+        debugSessionPayload(
+            debuggingID: debuggingID,
+            entries: NativeClientLogCollector.shared.entriesSnapshot(limit: 50)
+        )
+    }
+
+    static func debugSessionPayload(debuggingID: String, entries: [NativeClientLogEntry]) -> [String: Any] {
         [
             "debugging_id": NativeClientLogCollector.sanitize(debuggingID),
-            "logs": NativeClientLogCollector.shared.entriesSnapshot(limit: 50).map { $0.payload() },
+            "logs": entries.map { $0.forwardingPayload() },
             "metadata": defaultMetadata(pageURL: "apple://native"),
         ]
     }
@@ -405,19 +588,163 @@ enum NativeLogForwarder {
     static func defaultTelemetryPayload(
         isAuthenticated: Bool,
         optedOut: Bool,
-        installPseudonym: String = NativeInstallPseudonym.value
+        installPseudonym: String = UUID().uuidString.lowercased()
     ) -> [String: Any]? {
         guard isAuthenticated, !optedOut else { return nil }
-        let logs = NativeClientLogCollector.shared.entriesSnapshot(limit: 50, minimumLevel: .warning).map { $0.payload() }
+        let entries = NativeClientLogCollector.shared.entriesSnapshot(limit: 50, minimumLevel: .warning)
+        return defaultTelemetryPayload(entries: entries, sessionPseudonym: installPseudonym)
+    }
+
+    static func defaultTelemetryPayload(entries: [NativeClientLogEntry], sessionPseudonym: String) -> [String: Any]? {
+        let logs = entries.map { $0.forwardingPayload() }
         guard !logs.isEmpty else { return nil }
+        let backendSessionID = backendUUID(sessionPseudonym)
         return [
             "logs": logs,
             "metadata": [
-                "source": "apple_native",
                 "userAgent": NativeDeviceInfo.userAgent,
-                "installPseudonym": NativeClientLogCollector.sanitize(installPseudonym),
+                "pageUrl": "apple://native",
+                "tabId": backendSessionID,
             ],
+            "session_pseudonym": backendSessionID,
         ]
+    }
+
+    func startDefaultTelemetry(intervalNanoseconds: UInt64 = defaultFlushIntervalNanoseconds) {
+        lock.lock()
+        if defaultTelemetryTask != nil {
+            lock.unlock()
+            return
+        }
+        defaultTelemetryTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.flushDefaultTelemetry()
+                try? await Task.sleep(nanoseconds: intervalNanoseconds)
+            }
+        }
+        lock.unlock()
+    }
+
+    func stopDefaultTelemetry() {
+        lock.lock()
+        defaultTelemetryTask?.cancel()
+        defaultTelemetryTask = nil
+        lock.unlock()
+    }
+
+    func startDebugSession(debuggingID: String, intervalNanoseconds: UInt64 = defaultFlushIntervalNanoseconds) {
+        let safeDebuggingID = NativeClientLogCollector.sanitize(debuggingID)
+        lock.lock()
+        debugSessionTask?.cancel()
+        debugSessionTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.flushDebugSession(debuggingID: safeDebuggingID)
+                try? await Task.sleep(nanoseconds: intervalNanoseconds)
+            }
+        }
+        lock.unlock()
+    }
+
+    func stopDebugSession() {
+        lock.lock()
+        debugSessionTask?.cancel()
+        debugSessionTask = nil
+        lock.unlock()
+    }
+
+    func syncActiveDebugSession() async {
+        do {
+            let response: NativeDebugSessionResponse = try await APIClient.shared.request(
+                .get,
+                path: "/v1/settings/debug-session"
+            )
+            if response.active, let debuggingID = response.debuggingId, !debuggingID.isEmpty {
+                startDebugSession(debuggingID: debuggingID)
+            } else {
+                stopDebugSession()
+            }
+        } catch {
+            NativeClientLogCollector.shared.record(
+                level: .warning,
+                category: "native_log_forwarder",
+                message: "Checking active debug session failed: \(error.localizedDescription)"
+            )
+        }
+    }
+
+    func flushDefaultTelemetry() async {
+        guard !NativeDiagnosticsPreferences.defaultTelemetryOptedOut else { return }
+        let lastSequence = readLastDefaultTelemetrySequence()
+        let entries = NativeClientLogCollector.shared.entriesAfter(sequence: lastSequence, limit: 50, minimumLevel: .warning)
+        guard let payload = Self.defaultTelemetryPayload(entries: entries, sessionPseudonym: sessionPseudonym) else { return }
+        await post(path: "/v1/client-logs", payload: payload)
+        updateLastDefaultTelemetrySequence(entries.last?.sequence ?? lastSequence)
+    }
+
+    func flushDebugSession(debuggingID: String) async {
+        let lastSequence = readLastDebugSessionSequence()
+        let entries = NativeClientLogCollector.shared.entriesAfter(sequence: lastSequence, limit: 50)
+        guard !entries.isEmpty else { return }
+        let payload = Self.debugSessionPayload(debuggingID: debuggingID, entries: entries)
+        await post(path: "/v1/settings/debug-logs", payload: payload)
+        updateLastDebugSessionSequence(entries.last?.sequence ?? lastSequence)
+    }
+
+    func resetForTests() {
+        lock.lock()
+        defaultTelemetryTask?.cancel()
+        debugSessionTask?.cancel()
+        defaultTelemetryTask = nil
+        debugSessionTask = nil
+        lastDefaultTelemetrySequence = 0
+        lastDebugSessionSequence = 0
+        lock.unlock()
+    }
+
+    func isDefaultTelemetryRunningForTests() -> Bool {
+        lock.lock()
+        let running = defaultTelemetryTask != nil
+        lock.unlock()
+        return running
+    }
+
+    private func post(path: String, payload: [String: Any]) async {
+        do {
+            let data = try JSONSerialization.data(withJSONObject: payload)
+            let _: Data = try await APIClient.shared.request(.post, path: path, body: JSONRawBody(data: data))
+        } catch {
+            NativeClientLogCollector.shared.record(
+                level: .warning,
+                category: "native_log_forwarder",
+                message: "Forwarding to \(path) failed: \(error.localizedDescription)"
+            )
+        }
+    }
+
+    private func readLastDefaultTelemetrySequence() -> Int {
+        lock.lock()
+        let value = lastDefaultTelemetrySequence
+        lock.unlock()
+        return value
+    }
+
+    private func updateLastDefaultTelemetrySequence(_ sequence: Int) {
+        lock.lock()
+        lastDefaultTelemetrySequence = max(lastDefaultTelemetrySequence, sequence)
+        lock.unlock()
+    }
+
+    private func readLastDebugSessionSequence() -> Int {
+        lock.lock()
+        let value = lastDebugSessionSequence
+        lock.unlock()
+        return value
+    }
+
+    private func updateLastDebugSessionSequence(_ sequence: Int) {
+        lock.lock()
+        lastDebugSessionSequence = max(lastDebugSessionSequence, sequence)
+        lock.unlock()
     }
 
     private static func defaultMetadata(pageURL: String) -> [String: String] {
@@ -426,6 +753,35 @@ enum NativeLogForwarder {
             "pageUrl": NativeClientLogCollector.sanitize(pageURL),
             "tabId": NativeInstallPseudonym.value,
         ]
+    }
+
+    private static func backendUUID(_ value: String) -> String {
+        UUID(uuidString: value)?.uuidString.lowercased() ?? UUID().uuidString.lowercased()
+    }
+}
+
+private enum NativeInstallPseudonym {
+    private static let key = "openmates.nativeInstallPseudonym"
+
+    static var value: String {
+        if let existing = UserDefaults.standard.string(forKey: key), UUID(uuidString: existing) != nil {
+            return existing.lowercased()
+        }
+        let created = UUID().uuidString.lowercased()
+        UserDefaults.standard.set(created, forKey: key)
+        return created
+    }
+}
+
+enum NativeDiagnosticsPreferences {
+    private static let defaultTelemetryOptOutKey = "openmates.defaultTelemetryOptedOut"
+
+    static var defaultTelemetryOptedOut: Bool {
+        UserDefaults.standard.bool(forKey: defaultTelemetryOptOutKey)
+    }
+
+    static func setDefaultTelemetryOptedOut(_ optedOut: Bool) {
+        UserDefaults.standard.set(optedOut, forKey: defaultTelemetryOptOutKey)
     }
 }
 
@@ -439,10 +795,6 @@ private enum NativeDeviceInfo {
         return "OpenMates-Apple"
         #endif
     }
-}
-
-private enum NativeInstallPseudonym {
-    static let value = "apple-" + String(UUID().uuidString.prefix(8))
 }
 
 private enum NativeDiagnosticsDateFormatter {

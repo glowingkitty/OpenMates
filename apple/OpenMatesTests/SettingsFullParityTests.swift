@@ -252,6 +252,8 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertNotNil(debugPayload["metadata"] as? [String: String])
         let debugLogs = try XCTUnwrap(debugPayload["logs"] as? [[String: Any]])
         XCTAssertEqual(debugLogs.count, 3)
+        XCTAssertTrue(debugLogs.allSatisfy { ($0["timestamp"] as? Int ?? 0) > 0 })
+        XCTAssertTrue(debugLogs.contains { ($0["level"] as? String) == "warn" })
         XCTAssertFalse(String(describing: debugPayload).contains("user@example.org"))
         XCTAssertFalse(String(describing: debugPayload).contains("token=secret"))
 
@@ -260,14 +262,29 @@ final class SettingsFullParityTests: XCTestCase {
         let telemetryPayload = try XCTUnwrap(NativeLogForwarder.defaultTelemetryPayload(
             isAuthenticated: true,
             optedOut: false,
-            installPseudonym: "install-anonymous"
+            installPseudonym: "11111111-2222-4333-8444-555555555555"
         ))
         let telemetryLogs = try XCTUnwrap(telemetryPayload["logs"] as? [[String: Any]])
         XCTAssertEqual(telemetryLogs.count, 2)
         XCTAssertFalse(telemetryLogs.contains { ($0["level"] as? String) == "info" })
+        XCTAssertTrue(telemetryLogs.contains { ($0["level"] as? String) == "warn" })
+        XCTAssertTrue(telemetryLogs.contains { ($0["level"] as? String) == "error" })
+        XCTAssertEqual(telemetryPayload["session_pseudonym"] as? String, "11111111-2222-4333-8444-555555555555")
+        XCTAssertEqual((telemetryPayload["metadata"] as? [String: String])?["tabId"], "11111111-2222-4333-8444-555555555555")
         XCTAssertFalse(String(describing: telemetryPayload).contains("user@example.org"))
         XCTAssertFalse(String(describing: telemetryPayload).contains("token=secret"))
         XCTAssertFalse(String(describing: telemetryPayload).contains("user_id"))
+    }
+
+    func testNativeLogForwarderStartsAndStopsDefaultTelemetryLoop() {
+        NativeLogForwarder.shared.resetForTests()
+        XCTAssertFalse(NativeLogForwarder.shared.isDefaultTelemetryRunningForTests())
+
+        NativeLogForwarder.shared.startDefaultTelemetry(intervalNanoseconds: 60_000_000_000)
+        XCTAssertTrue(NativeLogForwarder.shared.isDefaultTelemetryRunningForTests())
+
+        NativeLogForwarder.shared.stopDefaultTelemetry()
+        XCTAssertFalse(NativeLogForwarder.shared.isDefaultTelemetryRunningForTests())
     }
 
     func testNativePerformanceAndMetricKitSummariesExposeAvailabilityAndFrameMetrics() throws {
@@ -288,6 +305,19 @@ final class SettingsFullParityTests: XCTestCase {
         NativeMetricKitReporter.shared.recordSummary(["report_type": "diagnostic", "category": "cpu"])
         let metricKit = NativeMetricKitReporter.shared.latestSummaries()
         XCTAssertEqual(metricKit.first?["report_type"] as? String, "diagnostic")
+    }
+
+    func testNativeMetricKitAndDisplayLinkLifecycleHooksStart() async {
+        NativeMetricKitReporter.shared.resetForTests()
+        NativeMetricKitReporter.shared.start()
+        XCTAssertTrue(NativeMetricKitReporter.shared.isStartedForTests())
+
+        await NativePerformanceMonitor.shared.startSampling()
+        #if os(iOS)
+        let isSampling = await NativePerformanceMonitor.shared.isSamplingForTests()
+        XCTAssertTrue(isSampling)
+        #endif
+        await NativePerformanceMonitor.shared.stopSampling()
     }
 
     func testReconnectBannerHasDebounceBeforeUserFacingWarning() {
