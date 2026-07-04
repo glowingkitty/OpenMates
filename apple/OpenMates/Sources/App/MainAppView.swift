@@ -3273,8 +3273,12 @@ private struct OpenMatesWebHeader: View {
     private var headerLogo: some View {
         if horizontalSizeClass == .compact && showWorkspaceSwitcher {
             Button(action: { onSelectWorkspace(.chat) }) {
-                Icon("openmates", size: 25)
-                    .foregroundStyle(LinearGradient.primary)
+                Image("openmates")
+                    .renderingMode(.original)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 25, height: 25)
+                    .accessibilityIdentifier("compact-logo-image")
                     .frame(width: 38, height: 38)
                     .background(Color.grey10)
                     .clipShape(RoundedRectangle(cornerRadius: .radius4))

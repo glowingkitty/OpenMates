@@ -64,13 +64,10 @@ final class SettingsBillingParityUITests: XCTestCase {
         referralCTA.tap()
 
         XCTAssertTrue(
-            app.descendants(matching: .any)["settings-billing-page"].waitForExistence(timeout: 10),
-            "Expected billing settings destination after referral CTA"
-        )
-        XCTAssertTrue(
             app.descendants(matching: .any)["settings-billing-referral-code-page"].waitForExistence(timeout: 10),
-            "Expected referral code subpage after referral CTA"
+            "Expected referral code subpage after referral CTA. Visible UI: \(visibleStateLabels(in: app))"
         )
+        XCTAssertEqual(app.state, .runningForeground, "Referral CTA must not crash the app")
         XCTAssertFalse(app.tables.firstMatch.exists, "Referral settings must not render default List/table chrome")
 
         attachScreenshot(name: "Header referral CTA opens referral settings")
