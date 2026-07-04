@@ -162,6 +162,12 @@ actor APIClient {
     }
 
     private func execute(_ request: URLRequest) async throws -> Data {
+        #if DEBUG
+        if let stubbedData = Self.uiTestIssueReportResponse(for: request) {
+            return stubbedData
+        }
+        #endif
+
         let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -178,6 +184,28 @@ actor APIClient {
 
         return data
     }
+
+    #if DEBUG
+    private static func uiTestIssueReportResponse(for request: URLRequest) -> Data? {
+        guard ProcessInfo.processInfo.arguments.contains("--ui-test-report-issue-success") else {
+            return nil
+        }
+        guard request.httpMethod == HTTPMethod.post.rawValue,
+              let path = request.url?.path else {
+            return nil
+        }
+
+        if path.hasSuffix("/v1/settings/issues") {
+            return Data(
+                #"{"success":true,"message":"UI test issue created","issue_id":"issue-ios-ui-test","short_issue_id":"OPE-IOS-UI-TEST","screenshot_uploaded":false}"#.utf8
+            )
+        }
+        if path.hasSuffix("/v1/settings/issue-logs") {
+            return Data(#"{"success":true}"#.utf8)
+        }
+        return nil
+    }
+    #endif
 }
 
 // MARK: - Supporting types

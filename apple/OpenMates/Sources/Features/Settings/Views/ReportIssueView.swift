@@ -46,6 +46,7 @@ struct ReportIssueView: View {
     @State private var isSubmitting = false
     @State private var submittedIssueReference: String?
     @State private var error: String?
+    @State private var uiTestIssueLogPayloadText: String?
 
     private var titleValidationError: String? {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -74,6 +75,19 @@ struct ReportIssueView: View {
             } else {
                 formView
             }
+
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-report-issue-success"),
+               let uiTestIssueLogPayloadText {
+                Text(uiTestIssueLogPayloadText)
+                    .font(.omMicro)
+                    .foregroundStyle(Color.fontTertiary)
+                    .accessibilityIdentifier("report-issue-debug-log-payload")
+            }
+            #endif
+        }
+        .onAppear {
+            seedUITestReportIssueLogsIfNeeded()
         }
         .onChange(of: screenshotItem) { _, newItem in
             loadScreenshot(newItem)
@@ -293,6 +307,9 @@ struct ReportIssueView: View {
             issueId: issueId,
             pageURL: "apple://settings/report_issue"
         )
+        #if DEBUG
+        uiTestIssueLogPayloadText = Self.uiTestIssueLogDebugText(payload)
+        #endif
 
         do {
             let _: Data = try await APIClient.shared.request(
@@ -304,6 +321,29 @@ struct ReportIssueView: View {
             NativeClientLogCollector.shared.record(level: .warning, category: "report_issue", message: "Issue log upload failed: \(error.localizedDescription)")
         }
     }
+
+    #if DEBUG
+    private func seedUITestReportIssueLogsIfNeeded() {
+        guard ProcessInfo.processInfo.arguments.contains("--ui-test-seed-report-logs") else { return }
+        let environment = ProcessInfo.processInfo.environment
+        let simulatorName = environment["SIMULATOR_DEVICE_NAME"] ?? "unknown-simulator"
+        let simulatorModel = environment["SIMULATOR_MODEL_IDENTIFIER"] ?? "unknown-model"
+        NativeClientLogCollector.shared.record(
+            level: .warning,
+            category: "ui_test_simulator",
+            message: "Report issue simulator diagnostic from \(simulatorName) \(simulatorModel) for tester@example.org token=secret"
+        )
+    }
+
+    private static func uiTestIssueLogDebugText(_ payload: [String: Any]) -> String {
+        [
+            "issue_id=\(payload["issue_id"] as? String ?? "")",
+            "page_url=\(payload["page_url"] as? String ?? "")",
+            "user_agent=\(payload["user_agent"] as? String ?? "")",
+            "logs_text=\(payload["logs_text"] as? String ?? "")",
+        ].joined(separator: "\n")
+    }
+    #endif
 }
 
 private struct ReportIssueTextArea: View {
@@ -433,13 +473,25 @@ enum IssueReportPayloadBuilder {
 
     static func deviceInfo() -> [String: Any] {
         #if os(iOS)
-        return [
+        let environment = ProcessInfo.processInfo.environment
+        var info: [String: Any] = [
             "userAgent": "OpenMates-Apple/iOS",
             "viewportWidth": 0,
             "viewportHeight": 0,
             "isTouchEnabled": true,
             "systemVersion": ProcessInfo.processInfo.operatingSystemVersionString,
         ]
+        if let simulatorName = environment["SIMULATOR_DEVICE_NAME"] {
+            info["simulatorDeviceName"] = NativeClientLogCollector.sanitize(simulatorName)
+        }
+        if let simulatorModel = environment["SIMULATOR_MODEL_IDENTIFIER"] {
+            info["simulatorModelIdentifier"] = NativeClientLogCollector.sanitize(simulatorModel)
+        }
+        if let simulatorRuntime = environment["SIMULATOR_RUNTIME_VERSION"] {
+            info["simulatorRuntimeVersion"] = NativeClientLogCollector.sanitize(simulatorRuntime)
+        }
+        info["isSimulator"] = environment["SIMULATOR_DEVICE_NAME"] != nil
+        return info
         #elseif os(macOS)
         let frame = NSScreen.main?.frame ?? .zero
         return [

@@ -97,6 +97,30 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertTrue(logs.contains("<email>"))
     }
 
+    func testIssueReportPayloadIncludesNativeDeviceDiagnostics() throws {
+        let payload = IssueReportPayloadBuilder.makePayload(
+            title: "Simulator diagnostics",
+            issueType: .bugReport,
+            userFlow: "Opened report issue",
+            expectedBehaviour: "Device context is included",
+            actualBehaviour: "Need native diagnostics",
+            screenshotData: nil,
+            consoleLogs: "native simulator log",
+            runtimeDebugState: IssueReportPayloadBuilder.runtimeDebugState(),
+            language: "en"
+        )
+
+        let deviceInfo = try XCTUnwrap(payload["device_info"] as? [String: Any])
+        XCTAssertEqual(deviceInfo["userAgent"] as? String, "OpenMates-Apple/iOS")
+        XCTAssertEqual(deviceInfo["isTouchEnabled"] as? Bool, true)
+        XCTAssertNotNil(deviceInfo["systemVersion"] as? String)
+
+        if ProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] != nil {
+            XCTAssertEqual(deviceInfo["isSimulator"] as? Bool, true)
+            XCTAssertNotNil(deviceInfo["simulatorDeviceName"] as? String)
+        }
+    }
+
     func testNativeClientLogCollectorBuildsIssueLogPayloadWithRedaction() {
         NativeClientLogCollector.shared.resetForTests()
         NativeClientLogCollector.shared.record(
