@@ -269,11 +269,17 @@
             return $text('login.login');
         }
 
+        // Keep the mobile header CTA short so unauthenticated users still have
+        // an accessible signup/login entry point without overlapping header chrome.
+        if (isMobile) {
+            return $text('signup.sign_up');
+        }
+
         if ($signupFreeTestingCreditsPromotion?.active) {
             return $text('signup.test_for_free');
         }
 
-        return isMobile ? $text('signup.sign_up') : $text('header.login_signup');
+        return $text('header.login_signup');
     });
 
     // Update menu toggle logic to consider the logging out state as well
@@ -1176,8 +1182,5 @@
             outline-offset: 0.125rem;
         }
 
-        .right-section {
-            display: none;
-        }
     }
 </style>
