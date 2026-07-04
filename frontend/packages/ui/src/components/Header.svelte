@@ -1175,5 +1175,9 @@
             outline: 0.125rem solid #fff;
             outline-offset: 0.125rem;
         }
+
+        .right-section {
+            display: none;
+        }
     }
 </style>
