@@ -127,6 +127,7 @@ async function getSidebarChats(
 			!text.includes('+') &&
 			!text.includes('=') &&
 			text !== 'Unnamed chat' &&
+			text !== 'Untitled chat' &&
 			text.toLowerCase() !== 'processing'
 		) {
 			chats.push({ chatId, title: text });
@@ -149,6 +150,23 @@ async function clickChatById(
 	await expect(chatItem).toBeVisible({ timeout: 10000 });
 	await chatItem.click();
 	logStep(`Clicked chat id: "${chatId}"`);
+	// Wait for chat to load (messages appear)
+	await page.waitForTimeout(3000);
+}
+
+/**
+ * Click a chat from the recent-cards carousel by its stable data-chat-id.
+ */
+async function clickRecentCardById(
+	page: any,
+	chatId: string,
+	logStep: (...args: any[]) => void
+): Promise<void> {
+	const container = page.getByTestId('recent-chats-scroll-container');
+	const card = container.locator(`[data-chat-id="${chatId}"]`).first();
+	await expect(card).toBeVisible({ timeout: 10000 });
+	await card.click();
+	logStep(`Clicked recent chat card id: "${chatId}"`);
 	// Wait for chat to load (messages appear)
 	await page.waitForTimeout(3000);
 }
@@ -343,14 +361,13 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	await performLogin(page, logStep, takeStepScreenshot);
 	await takeStepScreenshot(page, '01-logged-in');
 
-	// Get sidebar chats — need at least 2 real chats
+	// Get sidebar chats — need at least 1 real chat to seed the resume-card flow.
 	const sidebarChats = await getSidebarChats(page, logStep, 10);
 	logStep(`Available chats: ${JSON.stringify(sidebarChats.slice(0, 5))}`);
-	expect(sidebarChats.length).toBeGreaterThanOrEqual(2);
+	expect(sidebarChats.length).toBeGreaterThanOrEqual(1);
 
 	const chatA = sidebarChats[0];
-	const chatB = sidebarChats[1];
-	logStep(`Chat A: "${chatA.title}" (${chatA.chatId}), Chat B: "${chatB.title}" (${chatB.chatId})`);
+	logStep(`Chat A: "${chatA.title}" (${chatA.chatId})`);
 
 	// =========================================================================
 	// PHASE 2: Open chat A → New Chat → verify resume card shows chat A
@@ -388,6 +405,12 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	expect(dupes1).toEqual([]);
 	logStep('PASS: No duplicate cards found.');
 
+	const chatB = allCards1.find(
+		(card) => card.chatId && card.chatId !== chatA.chatId && card.title !== 'Untitled chat'
+	);
+	expect(chatB, 'Expected a second recent chat card to open for phase 3').toBeTruthy();
+	logStep(`Chat B from recent cards: "${chatB?.title}" (${chatB?.chatId})`);
+
 	await takeStepScreenshot(page, '02-verified');
 
 	// =========================================================================
@@ -395,13 +418,7 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	// =========================================================================
 	logStep('Phase 3: Opening chat B...');
 
-	// Open sidebar, click chat B
-	const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
-	await expect(menuToggle).toBeVisible({ timeout: 5000 });
-	await menuToggle.click();
-	await page.waitForTimeout(2000);
-
-	await clickChatById(page, chatB.chatId, logStep);
+	await clickRecentCardById(page, chatB!.chatId!, logStep);
 	const chatB_visibleTitle = await getVisibleChatHeaderTitle(page);
 	await takeStepScreenshot(page, '03-chat-b-opened');
 
