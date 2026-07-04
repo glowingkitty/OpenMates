@@ -289,11 +289,11 @@ struct ReportIssueView: View {
                 )
 
                 let reference = response.shortIssueId ?? response.issueId ?? ""
+                submittedIssueReference = reference.isEmpty ? AppStrings.done : reference
+                NativeClientLogCollector.shared.record(level: .info, category: "report_issue", message: "Native issue report submitted")
                 if let issueId = response.issueId {
                     await sendIssueLogs(issueId: issueId)
                 }
-                submittedIssueReference = reference.isEmpty ? AppStrings.done : reference
-                NativeClientLogCollector.shared.record(level: .info, category: "report_issue", message: "Native issue report submitted")
             } catch {
                 NativeClientLogCollector.shared.record(level: .error, category: "report_issue", message: error.localizedDescription)
                 self.error = error.localizedDescription
