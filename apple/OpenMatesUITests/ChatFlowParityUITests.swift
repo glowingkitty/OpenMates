@@ -103,6 +103,9 @@ final class ChatFlowParityUITests: XCTestCase {
             .firstMatch
         XCTAssertTrue(counter.waitForExistence(timeout: 12))
 
+        let latestAssistantMessage = app.staticTexts["Latest assistant response visible after bounded open"]
+        XCTAssertTrue(latestAssistantMessage.waitForExistence(timeout: 12))
+
         let reportButton = app.descendants(matching: .any)["chat-floating-action-bug"]
         XCTAssertTrue(reportButton.waitForExistence(timeout: 12))
         XCTAssertFalse(app.staticTexts["common.report"].exists)
