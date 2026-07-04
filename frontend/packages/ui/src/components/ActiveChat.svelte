@@ -8995,6 +8995,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
+    let restoringAnonymousHashChat = $state(false);
+
     async function restoreAnonymousHashChatOnMount(): Promise<void> {
         const hashChatId = activeChatStore.getChatIdFromHash();
         if ($authStore.isAuthenticated || !isAnonymousChatId(hashChatId) || currentChat?.chat_id === hashChatId) return;
@@ -9031,6 +9033,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             await loadChat(fallbackChat);
         }
     }
+
+    $effect(() => {
+        const hashChatId = activeChatStore.getChatIdFromHash();
+        const shouldRestoreAnonymousHash =
+            !$authStore.isAuthenticated &&
+            showWelcome &&
+            !currentChat?.chat_id &&
+            isAnonymousChatId(hashChatId) &&
+            !restoringAnonymousHashChat;
+
+        if (!shouldRestoreAnonymousHash) return;
+
+        restoringAnonymousHashChat = true;
+        restoreAnonymousHashChatOnMount()
+            .catch((error) => {
+                console.warn('[ActiveChat] Failed to restore anonymous hash chat after welcome reset:', error);
+            })
+            .finally(() => {
+                restoringAnonymousHashChat = false;
+            });
+    });
 
     onMount(() => {
         const initialize = async () => {
