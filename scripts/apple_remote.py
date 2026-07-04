@@ -235,17 +235,33 @@ for line in (install.stdout + install.stderr).replace(device_id, "<device-id>").
 
 
 TESTFLIGHT_IOS_SCRIPT = r'''
+import base64
+import json
 import os
 import pathlib
 import plistlib
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
 
 internal_only = sys.argv[1] == "1"
 build_keychain_path = None
+distribution_identity_name = ""
+distribution_identity_sha1 = ""
+profile_names = {}
+BUNDLE_IDS = (
+    "org.openmates.app",
+    "org.openmates.app.share",
+    "org.openmates.app.notification-service",
+    "org.openmates.app.widget",
+)
 
 
 def auth_args():
@@ -277,6 +293,88 @@ def print_tail(label, text, tmp_dir=None, limit=160):
         print(line)
 
 
+def b64url(data):
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def der_ecdsa_to_raw_jws_signature(der_signature):
+    if len(der_signature) < 8 or der_signature[0] != 0x30:
+        raise ValueError("Unexpected ECDSA signature format")
+    index = 2
+    if der_signature[1] & 0x80:
+        length_bytes = der_signature[1] & 0x7F
+        index = 2 + length_bytes
+    if der_signature[index] != 0x02:
+        raise ValueError("Missing ECDSA R integer")
+    r_length = der_signature[index + 1]
+    r_start = index + 2
+    r = der_signature[r_start:r_start + r_length].lstrip(b"\x00")
+    s_index = r_start + r_length
+    if der_signature[s_index] != 0x02:
+        raise ValueError("Missing ECDSA S integer")
+    s_length = der_signature[s_index + 1]
+    s_start = s_index + 2
+    s = der_signature[s_start:s_start + s_length].lstrip(b"\x00")
+    return r.rjust(32, b"\x00") + s.rjust(32, b"\x00")
+
+
+def app_store_connect_jwt():
+    key_path = os.path.expanduser(os.environ.get("APP_STORE_CONNECT_API_KEY_PATH", ""))
+    key_id = os.environ.get("APP_STORE_CONNECT_API_KEY_ID")
+    issuer_id = os.environ.get("APP_STORE_CONNECT_API_ISSUER_ID")
+    if not key_path or not key_id or not issuer_id:
+        print("profile_create=missing_app_store_connect_api_auth")
+        sys.exit(2)
+    now = int(time.time())
+    header = {"alg": "ES256", "kid": key_id, "typ": "JWT"}
+    payload = {"iss": issuer_id, "iat": now, "exp": now + 1200, "aud": "appstoreconnect-v1"}
+    signing_input = ".".join([
+        b64url(json.dumps(header, separators=(",", ":")).encode("utf-8")),
+        b64url(json.dumps(payload, separators=(",", ":")).encode("utf-8")),
+    ])
+    signer = subprocess.run(
+        ["openssl", "dgst", "-sha256", "-sign", key_path, "-binary"],
+        input=signing_input.encode("ascii"),
+        capture_output=True,
+        timeout=30,
+    )
+    if signer.returncode != 0:
+        print_tail("jwt_signing", signer.stderr.decode("utf-8", "replace"), limit=80)
+        sys.exit(signer.returncode)
+    signature = der_ecdsa_to_raw_jws_signature(signer.stdout)
+    return f"{signing_input}.{b64url(signature)}"
+
+
+def asc_request(path, method="GET", body=None):
+    data = None if body is None else json.dumps(body).encode("utf-8")
+    request = urllib.request.Request(
+        f"https://api.appstoreconnect.apple.com/v1/{path}",
+        data=data,
+        headers={
+            "Authorization": f"Bearer {app_store_connect_jwt()}",
+            "Content-Type": "application/json",
+        },
+        method=method,
+    )
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                content = response.read().decode("utf-8")
+                return json.loads(content) if content else {}
+        except urllib.error.HTTPError as exc:
+            body_text = exc.read().decode("utf-8", "replace")
+            print(f"asc_http_status={exc.code}")
+            print_tail("asc_request", body_text, limit=120)
+            sys.exit(1)
+        except (TimeoutError, socket.timeout, urllib.error.URLError):
+            if attempt == 2:
+                print("asc_request=timeout")
+                sys.exit(1)
+            time.sleep(3)
+    print("asc_request=failed")
+    sys.exit(1)
+
+
 def parse_keychain_list(output):
     keychains = []
     for line in output.splitlines():
@@ -297,11 +395,21 @@ def use_build_keychain_if_present():
     if unlock.returncode != 0:
         print_tail("build_keychain_unlock", unlock.stdout + unlock.stderr, limit=80)
         sys.exit(unlock.returncode)
+    partition_list = subprocess.run(
+        ["security", "set-key-partition-list", "-S", "apple-tool:,apple:,codesign:", "-s", "-k", password, str(keychain)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if partition_list.returncode != 0:
+        print_tail("build_keychain_partition_list", partition_list.stdout + partition_list.stderr, limit=80)
+        sys.exit(partition_list.returncode)
     build_keychain_path = str(keychain)
     return [build_keychain_path]
 
 
 def preflight_signing():
+    global distribution_identity_name, distribution_identity_sha1
     keychain_args = use_build_keychain_if_present()
     identities = subprocess.run(
         ["security", "find-identity", "-v", "-p", "codesigning", *keychain_args],
@@ -314,15 +422,11 @@ def preflight_signing():
         sys.exit(identities.returncode)
 
     identity_lines = identities.stdout.splitlines()
-    development_identity = next((line.split('"')[0].split(")", 1)[-1].strip() for line in identity_lines if "Apple Development:" in line), "")
-    distribution_identity_name = next(
-        (
-            line.split('"')[0].split(")", 1)[-1].strip()
-            for line in identity_lines
-            if "Apple Distribution:" in line or "iPhone Distribution:" in line
-        ),
-        "",
-    )
+    development_identity = next((line.split('"')[0].split(")", 1)[-1].strip() for line in identity_lines if "Apple Development:" in line or "iPhone Developer:" in line), "")
+    distribution_identity_line = next((line for line in identity_lines if "Apple Distribution:" in line or "iPhone Distribution:" in line), "")
+    if distribution_identity_line:
+        distribution_identity_sha1 = distribution_identity_line.split()[1].upper()
+        distribution_identity_name = distribution_identity_line.split('"')[1]
     distribution_identity = bool(distribution_identity_name)
 
     if not distribution_identity:
@@ -352,6 +456,129 @@ def preflight_signing():
         sys.exit(1)
 
     print("preflight_status=passed")
+
+
+def sha1_for_der_base64(content):
+    der = base64.b64decode(content)
+    return subprocess.run(["shasum", "-a", "1"], input=der, capture_output=True, timeout=30).stdout.decode("utf-8").split()[0].upper()
+
+
+def matching_distribution_certificate_id():
+    query = urllib.parse.urlencode({"filter[certificateType]": "IOS_DISTRIBUTION", "limit": "200"})
+    response = asc_request(f"certificates?{query}")
+    for certificate in response.get("data", []):
+        content = certificate.get("attributes", {}).get("certificateContent")
+        if content and sha1_for_der_base64(content) == distribution_identity_sha1:
+            return certificate.get("id")
+    print("profile_create=matching_distribution_certificate_missing")
+    sys.exit(1)
+
+
+def bundle_id_record_id(identifier):
+    query = urllib.parse.urlencode({"filter[identifier]": identifier, "limit": "1"})
+    response = asc_request(f"bundleIds?{query}")
+    data = response.get("data", [])
+    if not data:
+        print(f"profile_create=bundle_id_missing:{identifier}")
+        sys.exit(1)
+    return data[0].get("id")
+
+
+def capability_attributes(capability_type):
+    attributes = {"capabilityType": capability_type}
+    return attributes
+
+
+def existing_capability_id(bundle_id, capability_type):
+    response = asc_request(f"bundleIds/{bundle_id}/bundleIdCapabilities")
+    for capability in response.get("data", []):
+        if capability.get("attributes", {}).get("capabilityType") == capability_type:
+            return capability.get("id")
+    return None
+
+
+def enable_bundle_capability(bundle_id, capability_type):
+    capability_id = existing_capability_id(bundle_id, capability_type)
+    if capability_id:
+        asc_request(f"bundleIdCapabilities/{capability_id}", method="PATCH", body={
+            "data": {
+                "type": "bundleIdCapabilities",
+                "id": capability_id,
+                "attributes": capability_attributes(capability_type),
+            }
+        })
+        return
+    asc_request("bundleIdCapabilities", method="POST", body={
+        "data": {
+            "type": "bundleIdCapabilities",
+            "attributes": capability_attributes(capability_type),
+            "relationships": {"bundleId": {"data": {"type": "bundleIds", "id": bundle_id}}},
+        }
+    })
+
+
+def sync_bundle_capabilities():
+    for identifier in BUNDLE_IDS:
+        bundle_id = bundle_id_record_id(identifier)
+        enable_bundle_capability(bundle_id, "APP_GROUPS")
+        print(f"capability_sync=passed:{identifier}:APP_GROUPS")
+        if identifier == "org.openmates.app":
+            enable_bundle_capability(bundle_id, "ASSOCIATED_DOMAINS")
+            print(f"capability_sync=passed:{identifier}:ASSOCIATED_DOMAINS")
+
+
+def existing_profile(profile_name):
+    query = urllib.parse.urlencode({"filter[name]": profile_name, "limit": "1"})
+    response = asc_request(f"profiles?{query}")
+    data = response.get("data", [])
+    if not data:
+        return None
+    profile_id = data[0].get("id")
+    if not profile_id:
+        return None
+    return asc_request(f"profiles/{profile_id}")
+
+
+def delete_existing_profile(profile_name):
+    query = urllib.parse.urlencode({"filter[name]": profile_name, "limit": "200"})
+    response = asc_request(f"profiles?{query}")
+    for profile in response.get("data", []):
+        profile_id = profile.get("id")
+        if not profile_id:
+            continue
+        asc_request(f"profiles/{profile_id}", method="DELETE")
+
+
+def create_or_download_app_store_profiles():
+    certificate_id = matching_distribution_certificate_id()
+    profiles_dir = pathlib.Path.home() / "Library" / "MobileDevice" / "Provisioning Profiles"
+    profiles_dir.mkdir(parents=True, exist_ok=True)
+    for identifier in BUNDLE_IDS:
+        profile_name = f"OpenMates App Store {identifier}"
+        delete_existing_profile(profile_name)
+        response = asc_request("profiles", method="POST", body={
+            "data": {
+                "type": "profiles",
+                "attributes": {
+                    "name": profile_name,
+                    "profileType": "IOS_APP_STORE",
+                },
+                "relationships": {
+                    "bundleId": {"data": {"type": "bundleIds", "id": bundle_id_record_id(identifier)}},
+                    "certificates": {"data": [{"type": "certificates", "id": certificate_id}]},
+                },
+            }
+        })
+        attributes = response.get("data", {}).get("attributes", {})
+        profile_content = attributes.get("profileContent")
+        profile_uuid = attributes.get("uuid") or response.get("data", {}).get("id")
+        if not profile_content or not profile_uuid:
+            print(f"profile_create=missing_content:{identifier}")
+            sys.exit(1)
+        profile_path = profiles_dir / f"{profile_uuid}.mobileprovision"
+        profile_path.write_bytes(base64.b64decode(profile_content))
+        profile_names[identifier] = profile_uuid
+        print(f"profile_create=passed:{identifier}")
 
 
 def clean_openmates_provisioning_profiles():
@@ -387,7 +614,6 @@ def clean_openmates_provisioning_profiles():
 
 
 preflight_signing()
-clean_openmates_provisioning_profiles()
 
 
 derived = tempfile.mkdtemp(prefix="openmates-testflight-")
@@ -399,7 +625,9 @@ export_options = {
     "destination": "upload",
     "method": "app-store-connect",
     "manageAppVersionAndBuildNumber": True,
-    "signingStyle": "automatic",
+    "provisioningProfiles": profile_names,
+    "signingCertificate": distribution_identity_name,
+    "signingStyle": "manual",
     "teamID": "Z9B2YFKN2X",
     "testFlightInternalTestingOnly": internal_only,
     "uploadSymbols": True,
@@ -423,7 +651,6 @@ archive_cmd = [
     "-allowProvisioningUpdates",
     *common_auth_args,
     "DEVELOPMENT_TEAM=Z9B2YFKN2X",
-    "CODE_SIGN_IDENTITY=iPhone Developer",
     "archive",
 ]
 if build_keychain_path:
@@ -435,6 +662,13 @@ if archive.returncode != 0:
     print_tail("archive_status", archive.stdout + archive.stderr, derived)
     sys.exit(archive.returncode)
 print("archive_status=passed")
+
+clean_openmates_provisioning_profiles()
+sync_bundle_capabilities()
+create_or_download_app_store_profiles()
+export_options["provisioningProfiles"] = profile_names
+with export_options_path.open("wb") as handle:
+    plistlib.dump(export_options, handle)
 
 export_cmd = [
     "xcodebuild",
@@ -452,7 +686,19 @@ export_cmd = [
 print("upload_status=started")
 export = subprocess.run(export_cmd, capture_output=True, text=True, timeout=1800)
 if export.returncode != 0:
-    print_tail("upload_status", export.stdout + export.stderr, derived)
+    export_output = export.stdout + export.stderr
+    print_tail("upload_status", export_output, derived)
+    distribution_log_dirs = [pathlib.Path(derived)]
+    for match in re.findall(r'Created bundle at path "([^"]+)"', export_output):
+        distribution_log_dirs.append(pathlib.Path(match))
+    for log_dir in distribution_log_dirs:
+        for log_path in log_dir.glob("**/*.log"):
+            try:
+                log_text = log_path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            if "requires a provisioning profile" in log_text or "Provisioning" in log_text:
+                print_tail("export_log", log_text, derived, limit=220)
     sys.exit(export.returncode)
 print("upload_status=passed")
 for line in (export.stdout + export.stderr).replace(derived, "<macos-peer-tmp>").splitlines()[-40:]:
@@ -555,9 +801,13 @@ if certificate_type == "IOS_DISTRIBUTION":
     identity_label = "distribution_identity"
     identity_markers = ("Apple Distribution:", "iPhone Distribution:")
     certificate_common_name = "OpenMates iOS Distribution"
+elif certificate_type == "DEVELOPMENT":
+    identity_label = "development_identity"
+    identity_markers = ("Apple Development:",)
+    certificate_common_name = "OpenMates Apple Development"
 elif certificate_type == "IOS_DEVELOPMENT":
     identity_label = "development_identity"
-    identity_markers = ("Apple Development:", "iPhone Developer:")
+    identity_markers = ("iPhone Developer:",)
     certificate_common_name = "OpenMates iOS Development"
 else:
     print(f"unsupported_certificate_type={certificate_type}")
@@ -819,6 +1069,127 @@ if has_requested_identity():
 
 print("certificate_create=imported_but_identity_missing")
 print("hint=Open Keychain Access and verify the Apple signing certificate is paired with its private key.")
+sys.exit(1)
+'''
+
+
+REVOKE_APPLE_CERTIFICATE_SCRIPT = r'''
+import base64
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+target_sha1 = sys.argv[1].replace(":", "").upper()
+list_only = target_sha1 == "LIST"
+
+
+def require_env(name):
+    value = os.environ.get(name)
+    if not value:
+        print(f"missing_env={name}")
+        sys.exit(2)
+    return value
+
+
+def b64url(data):
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def der_ecdsa_to_raw_jws_signature(der_signature):
+    if len(der_signature) < 8 or der_signature[0] != 0x30:
+        raise ValueError("Unexpected ECDSA signature format")
+    index = 2
+    if der_signature[1] & 0x80:
+        length_bytes = der_signature[1] & 0x7F
+        index = 2 + length_bytes
+    if der_signature[index] != 0x02:
+        raise ValueError("Missing ECDSA R integer")
+    r_length = der_signature[index + 1]
+    r_start = index + 2
+    r = der_signature[r_start:r_start + r_length].lstrip(b"\x00")
+    s_index = r_start + r_length
+    if der_signature[s_index] != 0x02:
+        raise ValueError("Missing ECDSA S integer")
+    s_length = der_signature[s_index + 1]
+    s_start = s_index + 2
+    s = der_signature[s_start:s_start + s_length].lstrip(b"\x00")
+    return r.rjust(32, b"\x00") + s.rjust(32, b"\x00")
+
+
+def app_store_connect_jwt(key_path, key_id, issuer_id):
+    now = int(time.time())
+    header = {"alg": "ES256", "kid": key_id, "typ": "JWT"}
+    payload = {"iss": issuer_id, "iat": now, "exp": now + 1200, "aud": "appstoreconnect-v1"}
+    signing_input = ".".join([
+        b64url(json.dumps(header, separators=(",", ":")).encode("utf-8")),
+        b64url(json.dumps(payload, separators=(",", ":")).encode("utf-8")),
+    ])
+    signer = subprocess.run(
+        ["openssl", "dgst", "-sha256", "-sign", os.path.expanduser(key_path), "-binary"],
+        input=signing_input.encode("ascii"),
+        capture_output=True,
+        timeout=30,
+    )
+    if signer.returncode != 0:
+        print("jwt_signing=failed")
+        sys.exit(signer.returncode)
+    signature = der_ecdsa_to_raw_jws_signature(signer.stdout)
+    return f"{signing_input}.{b64url(signature)}"
+
+
+def api_request(token, method, path):
+    request = urllib.request.Request(
+        f"https://api.appstoreconnect.apple.com{path}",
+        headers={"Authorization": f"Bearer {token}"},
+        method=method,
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            body = response.read()
+            return json.loads(body.decode("utf-8")) if body else {}
+    except urllib.error.HTTPError as exc:
+        print(f"api_http_status={exc.code}")
+        print(exc.read().decode("utf-8", "replace"))
+        sys.exit(1)
+
+
+token = app_store_connect_jwt(
+    require_env("APP_STORE_CONNECT_API_KEY_PATH"),
+    require_env("APP_STORE_CONNECT_API_KEY_ID"),
+    require_env("APP_STORE_CONNECT_API_ISSUER_ID"),
+)
+
+query = urllib.parse.urlencode({"limit": "200"})
+certificates = api_request(token, "GET", f"/v1/certificates?{query}").get("data", [])
+for certificate in certificates:
+    attributes = certificate.get("attributes", {})
+    content = attributes.get("certificateContent")
+    if not content:
+        continue
+    der = base64.b64decode(content)
+    sha1 = hashlib.sha1(der).hexdigest().upper()
+    if list_only:
+        print(f"certificate={sha1} type={attributes.get('certificateType', 'unknown')} name={attributes.get('name', attributes.get('displayName', 'unknown'))}")
+        continue
+    if sha1 != target_sha1:
+        continue
+    certificate_id = certificate.get("id")
+    certificate_type = attributes.get("certificateType", "unknown")
+    api_request(token, "DELETE", f"/v1/certificates/{certificate_id}")
+    print(f"certificate_revoked={target_sha1}")
+    print(f"certificate_type={certificate_type}")
+    sys.exit(0)
+
+if list_only:
+    sys.exit(0)
+
+print(f"certificate_not_found={target_sha1}")
 sys.exit(1)
 '''
 
@@ -1114,6 +1485,27 @@ def ensure_ios_distribution_certificate_command(
     )
 
 
+def revoke_apple_certificate_command(
+    sha1: str,
+    *,
+    api_key_path: str | None = None,
+    api_key_id: str | None = None,
+    api_issuer_id: str | None = None,
+) -> str:
+    command = shell_join([
+        "python3",
+        "-c",
+        REVOKE_APPLE_CERTIFICATE_SCRIPT,
+        sha1,
+    ])
+    return app_store_connect_env_prefix(
+        command,
+        api_key_path=api_key_path,
+        api_key_id=api_key_id,
+        api_issuer_id=api_issuer_id,
+    )
+
+
 def xcode_cache_report_command() -> str:
     return shell_join(["python3", "-c", XCODE_CACHE_REPORT_SCRIPT])
 
@@ -1199,6 +1591,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Create a durable Apple Developer development certificate via App Store Connect API and import it into the Mac build keychain",
     )
     add_app_store_connect_api_args(development_certificate_parser)
+
+    revoke_certificate_parser = subparsers.add_parser(
+        "revoke-apple-certificate",
+        help="Revoke one Apple Developer certificate by SHA-1 fingerprint via App Store Connect API",
+    )
+    revoke_certificate_parser.add_argument("--sha1", required=True, help="Certificate SHA-1 fingerprint to revoke")
+    add_app_store_connect_api_args(revoke_certificate_parser)
 
     simctl_parser = subparsers.add_parser("simctl", help="Run xcrun simctl remotely")
     simctl_parser.add_argument("simctl_args", nargs=argparse.REMAINDER)
@@ -1296,7 +1695,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                         api_key_path=args.api_key_path,
                         api_key_id=args.api_key_id,
                         api_issuer_id=args.api_issuer_id,
-                        certificate_type="IOS_DEVELOPMENT",
+                        certificate_type="DEVELOPMENT",
+                    ),
+                ]),
+            )
+        if args.command == "revoke-apple-certificate":
+            return run_remote(
+                config,
+                repo_command(config, [
+                    "bash",
+                    "-lc",
+                    revoke_apple_certificate_command(
+                        args.sha1,
+                        api_key_path=args.api_key_path,
+                        api_key_id=args.api_key_id,
+                        api_issuer_id=args.api_issuer_id,
                     ),
                 ]),
             )

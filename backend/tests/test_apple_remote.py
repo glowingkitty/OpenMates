@@ -229,11 +229,12 @@ def test_upload_testflight_ios_script_preflights_signing() -> None:
     assert "openmates-codesign-preflight" in script
     assert "CODE_SIGN_IDENTITY=iPhone Distribution" not in script
     assert "DEVELOPMENT_TEAM=Z9B2YFKN2X" in script
-    assert "CODE_SIGN_IDENTITY=iPhone Developer" in script
+    assert "CODE_SIGN_IDENTITY=" not in script
     assert "use_build_keychain_if_present" in script
     assert "*keychain_args" in script
     assert "OTHER_CODE_SIGN_FLAGS=--keychain" in script
     assert "clean_openmates_provisioning_profiles" in script
+    assert script.index("create_or_download_app_store_profiles()") < script.rindex("plistlib.dump(export_options")
     assert "UserData" in script
     assert "org.openmates.app" in script
     assert "openmates-build.keychain-db" in script
@@ -274,6 +275,18 @@ def test_ensure_ios_development_certificate_command_can_create() -> None:
     assert command.endswith(" 1 IOS_DEVELOPMENT")
 
 
+def test_ensure_ios_development_certificate_command_uses_modern_development_type() -> None:
+    parser = apple_remote.build_parser()
+    args = parser.parse_args(["ensure-ios-development-certificate", "--create"])
+
+    command = apple_remote.ensure_ios_distribution_certificate_command(
+        args.create,
+        certificate_type="DEVELOPMENT",
+    )
+
+    assert command.endswith(" 1 DEVELOPMENT")
+
+
 def test_ensure_ios_distribution_certificate_script_uses_certificate_api() -> None:
     script = apple_remote.ENSURE_IOS_DISTRIBUTION_CERTIFICATE_SCRIPT
 
@@ -281,6 +294,7 @@ def test_ensure_ios_distribution_certificate_script_uses_certificate_api() -> No
     assert "certificateType" in script
     assert "IOS_DISTRIBUTION" in script
     assert "IOS_DEVELOPMENT" in script
+    assert "DEVELOPMENT" in script
     assert "iPhone Distribution:" in script
     assert "Apple Development:" in script
     assert "iPhone Developer:" in script
@@ -293,6 +307,28 @@ def test_ensure_ios_distribution_certificate_script_uses_certificate_api() -> No
     assert "security" in script
     assert "import" in script
     assert script.index("private_key_import") < script.index("response = create_certificate")
+
+
+def test_revoke_apple_certificate_command_targets_sha1() -> None:
+    command = apple_remote.revoke_apple_certificate_command(
+        "F9AB",
+        api_key_path="~/AuthKey_TEST.p8",
+        api_key_id="KEYID",
+        api_issuer_id="ISSUERID",
+    )
+
+    assert "F9AB" in command
+    assert "APP_STORE_CONNECT_API_KEY_ID=KEYID" in command
+    assert "DELETE" in command
+
+
+def test_revoke_apple_certificate_script_matches_fingerprint() -> None:
+    script = apple_remote.REVOKE_APPLE_CERTIFICATE_SCRIPT
+
+    assert "hashlib.sha1" in script
+    assert "/v1/certificates" in script
+    assert "certificate_revoked" in script
+    assert "list_only" in script
 
 
 def test_install_ios_device_script_reports_paid_team_hint() -> None:
