@@ -231,7 +231,7 @@ def test_upload_testflight_macos_command_uses_mac_app_store_export() -> None:
     assert '"platform": bundle_id_platform' in script
     assert "CODE_SIGNING_ALLOWED=NO" in script
     assert "provisionprofile" in script
-    assert "org.openmates.app.share-macos" in script
+    assert "org.openmates.app.share.macos" in script
     assert "app-store-connect" in command
     assert command.endswith(" 1 macos")
 

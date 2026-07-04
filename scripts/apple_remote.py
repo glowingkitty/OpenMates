@@ -283,7 +283,7 @@ elif target_platform == "macos":
     archive_without_signing = True
     BUNDLE_IDS = (
         "org.openmates.app",
-        "org.openmates.app.share-macos",
+        "org.openmates.app.share.macos",
     )
 else:
     print(f"unsupported_target_platform={target_platform}")

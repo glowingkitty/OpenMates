@@ -176,7 +176,7 @@ targets:
     settings:
       base:
         INFOPLIST_FILE: OpenMatesShareExtensionMacOS/Info.plist
-        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.share-macos
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.share.macos
         CODE_SIGN_ENTITLEMENTS: OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements
         SWIFT_VERSION: "6.0"
     entitlements:
