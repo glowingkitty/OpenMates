@@ -250,7 +250,7 @@ struct NativeIssueContext {
     let actionHistory: String
 }
 
-final class NativeIssueContextProvider {
+final class NativeIssueContextProvider: @unchecked Sendable {
     static let shared = NativeIssueContextProvider()
 
     private init() {}
