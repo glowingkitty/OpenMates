@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+from argparse import Namespace
 from pathlib import Path
 
 import pytest
@@ -63,3 +64,23 @@ def test_deploy_latest_testflight_rejects_unknown_platform() -> None:
 
     with pytest.raises(apple_remote.AppleRemoteError):
         apple_remote.deploy_latest_testflight_command("dev", True, "watchos")
+
+
+def test_app_store_connect_options_resolve_from_config() -> None:
+    apple_remote = load_apple_remote()
+
+    options = apple_remote.app_store_connect_api_options(
+        Namespace(api_key_path=None, api_key_id=None, api_issuer_id=None),
+        {
+            "app_store_connect_api_key_path": "/remote/AuthKey.p8",
+            "app_store_connect_api_key_id": "CONFIGKEY",
+            "app_store_connect_api_issuer_id": "CONFIGISSUER",
+        },
+        env={},
+    )
+
+    assert options == {
+        "api_key_path": "/remote/AuthKey.p8",
+        "api_key_id": "CONFIGKEY",
+        "api_issuer_id": "CONFIGISSUER",
+    }

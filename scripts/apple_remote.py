@@ -1597,6 +1597,40 @@ def add_app_store_connect_api_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--api-issuer-id", help="App Store Connect API issuer ID")
 
 
+def first_config_value(config: dict[str, str], *keys: str) -> str | None:
+    for key in keys:
+        value = config.get(key)
+        if value:
+            return value
+    return None
+
+
+def app_store_connect_api_options(
+    args: argparse.Namespace,
+    local_config: dict[str, str],
+    *,
+    env: dict[str, str] | None = None,
+) -> dict[str, str | None]:
+    env = env if env is not None else dict(os.environ)
+    return {
+        "api_key_path": (
+            getattr(args, "api_key_path", None)
+            or env.get("APP_STORE_CONNECT_API_KEY_PATH")
+            or first_config_value(local_config, "app_store_connect_api_key_path", "api_key_path")
+        ),
+        "api_key_id": (
+            getattr(args, "api_key_id", None)
+            or env.get("APP_STORE_CONNECT_API_KEY_ID")
+            or first_config_value(local_config, "app_store_connect_api_key_id", "api_key_id")
+        ),
+        "api_issuer_id": (
+            getattr(args, "api_issuer_id", None)
+            or env.get("APP_STORE_CONNECT_API_ISSUER_ID")
+            or first_config_value(local_config, "app_store_connect_api_issuer_id", "api_issuer_id")
+        ),
+    }
+
+
 def repo_command(config: RemoteConfig, parts: Sequence[str]) -> str:
     if not config.repo_path:
         raise AppleRemoteError("Set OPENMATES_APPLE_REPO_PATH or local repo_path for repo commands")
@@ -1989,7 +2023,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        config = resolve_remote_config()
+        local_config = load_local_config()
+        config = resolve_remote_config(local_config=local_config)
+        api_options = app_store_connect_api_options(args, local_config)
         if args.command == "status":
             return print_status(config)
         if args.command == "run":
@@ -2036,9 +2072,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "-lc",
                     upload_testflight_ios_command(
                         not args.external_capable,
-                        api_key_path=args.api_key_path,
-                        api_key_id=args.api_key_id,
-                        api_issuer_id=args.api_issuer_id,
+                        **api_options,
                     ),
                 ]),
             )
@@ -2050,9 +2084,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "-lc",
                     upload_testflight_macos_command(
                         not args.external_capable,
-                        api_key_path=args.api_key_path,
-                        api_key_id=args.api_key_id,
-                        api_issuer_id=args.api_issuer_id,
+                        **api_options,
                     ),
                 ]),
             )
@@ -2066,9 +2098,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         args.branch,
                         not args.external_capable,
                         args.platform,
-                        api_key_path=args.api_key_path,
-                        api_key_id=args.api_key_id,
-                        api_issuer_id=args.api_issuer_id,
+                        **api_options,
                     ),
                 ]),
                 allow_destructive=True,
@@ -2081,9 +2111,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "-lc",
                     ensure_ios_distribution_certificate_command(
                         args.create,
-                        api_key_path=args.api_key_path,
-                        api_key_id=args.api_key_id,
-                        api_issuer_id=args.api_issuer_id,
+                        **api_options,
                     ),
                 ]),
             )
@@ -2095,9 +2123,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "-lc",
                     ensure_ios_distribution_certificate_command(
                         args.create,
-                        api_key_path=args.api_key_path,
-                        api_key_id=args.api_key_id,
-                        api_issuer_id=args.api_issuer_id,
+                        **api_options,
                         certificate_type="DEVELOPMENT",
                     ),
                 ]),
@@ -2110,9 +2136,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "-lc",
                     ensure_ios_distribution_certificate_command(
                         args.create,
-                        api_key_path=args.api_key_path,
-                        api_key_id=args.api_key_id,
-                        api_issuer_id=args.api_issuer_id,
+                        **api_options,
                         certificate_type="DISTRIBUTION",
                     ),
                 ]),
@@ -2125,9 +2149,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "-lc",
                     ensure_ios_distribution_certificate_command(
                         args.create,
-                        api_key_path=args.api_key_path,
-                        api_key_id=args.api_key_id,
-                        api_issuer_id=args.api_issuer_id,
+                        **api_options,
                         certificate_type="MAC_INSTALLER_DISTRIBUTION",
                     ),
                 ]),
@@ -2140,9 +2162,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "-lc",
                     revoke_apple_certificate_command(
                         args.sha1,
-                        api_key_path=args.api_key_path,
-                        api_key_id=args.api_key_id,
-                        api_issuer_id=args.api_issuer_id,
+                        **api_options,
                     ),
                 ]),
             )
@@ -2154,9 +2174,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "-lc",
                     app_store_builds_command(
                         args.bundle_id,
-                        api_key_path=args.api_key_path,
-                        api_key_id=args.api_key_id,
-                        api_issuer_id=args.api_issuer_id,
+                        **api_options,
                     ),
                 ]),
             )
