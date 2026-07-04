@@ -170,7 +170,7 @@ struct ReportIssueView: View {
 
                     Button {
                         screenshotData = nil
-                        screenshotPreview = nil
+                        self.screenshotPreview = nil
                         screenshotItem = nil
                     } label: {
                         Label {
@@ -435,10 +435,10 @@ enum IssueReportPayloadBuilder {
         #if os(iOS)
         return [
             "userAgent": "OpenMates-Apple/iOS",
-            "viewportWidth": Int(UIScreen.main.bounds.width),
-            "viewportHeight": Int(UIScreen.main.bounds.height),
+            "viewportWidth": 0,
+            "viewportHeight": 0,
             "isTouchEnabled": true,
-            "systemVersion": UIDevice.current.systemVersion,
+            "systemVersion": ProcessInfo.processInfo.operatingSystemVersionString,
         ]
         #elseif os(macOS)
         let frame = NSScreen.main?.frame ?? .zero
