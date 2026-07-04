@@ -1,0 +1,1086 @@
+id: apple-chat-streaming-parity
+title: Apple Chat Streaming Messaging And Persistence Parity
+status: approved
+
+goal: >
+  Make Apple chat sends behave like web chat sends across streaming, processing
+  state, encrypted persistence, interruption recovery, cancellation, queued
+  messages, and cross-client visibility. Authenticated Apple sends are the first
+  implementation priority, but unauthenticated anonymous Apple chats must also
+  reach the same full streaming lifecycle parity rather than remaining a separate
+  final-response-only path.
+
+scope:
+  in:
+    - Authenticated foreground sends from `ChatView` and `ChatViewModel`.
+    - Authenticated background notification replies from `MainAppView` and `ChatSendPipeline`.
+    - Authenticated share-extension/background sends from `BackgroundChatSender`.
+    - Unauthenticated Apple anonymous free-usage sends, including local encrypted storage and promotion after signup.
+    - Web-equivalent processing phases, typing metadata, thinking/preprocessing display, streaming chunks, finalization, follow-up suggestions, and post-processing state where Apple has the same product surface.
+    - Durable Apple recovery for final assistant responses that could not send `ai_response_completed` because the socket/app lifecycle interrupted the send.
+    - Correct `messages_v` advancement for Apple user messages, assistant messages, pending responses, and promoted anonymous messages.
+    - Apple Stop/cancel and queued-message behavior matching existing backend/WebSocket contracts.
+    - Streaming scroll stability matching web behavior: no forced bottom auto-scroll during streamed chunk growth, and manual scroll position is preserved.
+    - Cross-client verification that Apple-created chats are fully visible and decryptable in OpenMates CLI.
+    - Cross-client verification that CLI-created chats load in Apple and can continue receiving streamed Apple responses.
+  out:
+    - Backend/API contract changes unless implementation proves an existing backend contract is missing or incompatible; if that happens, stop and ask for user confirmation before editing backend behavior.
+    - Replacing the zero-knowledge encryption model or storing private chat content durably in plaintext.
+    - Rewriting the whole Apple app shell or transcript implementation to UIKit unless profiling or tests prove SwiftUI cannot meet parity.
+    - Using the web app as the cross-client verifier for this spec; web remains the behavior source of truth, while CLI is the requested cross-client verification surface.
+    - Changing CLI, npm SDK, or pip SDK public contracts except for tests/fixtures needed to verify existing chat behavior.
+    - Committing private account credentials, private chat IDs, raw logs with identifiers, remote Mac details, or anonymous local identifiers.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search failed with 401 Bad credentials."
+    - "gh issue list --repo glowingkitty/OpenMates --search 'Apple chat streaming persistence' --state all --limit 10 returned no matches."
+    - "gh issue list --repo glowingkitty/OpenMates --search 'Apple native chat parity' --state all --limit 10 returned no matches."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/apple/streaming-parity.md
+    - docs/architecture/apple/message-processing-parity.md
+    - docs/architecture/apple/sync-parity.md
+    - docs/architecture/apple/parity-matrix.md
+    - docs/architecture/messaging/message-processing.md
+    - docs/architecture/data/sync.md
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    - docs/specs/apple-chat-management-sharing-parity/spec.yml
+    - docs/specs/apple-sub-chat-focus-parity/spec.yml
+    - docs/specs/anonymous-streaming-ui/spec.yml
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+    - .claude/rules/apple-ui.md
+    - .claude/rules/testing.md
+  code_patterns:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/pendingAIResponses.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/PendingAssistantResponseQueue.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/AITypingIndicator.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+  tests:
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/message-sync.spec.ts
+    - frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    - frontend/apps/web_app/tests/connection-resilience.spec.ts
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/SubChatProcessingTests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Shared/Components/AITypingIndicator.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - apple/OpenMatesTests/AnonymousChatStreamingParityTests.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/ChatStreamingLifecycleParityUITests.swift
+    - apple/OpenMatesUITests/ChatStreamingInterruptionParityUITests.swift
+    - apple/OpenMatesUITests/ChatAnonymousStreamingParityUITests.swift
+    - apple/OpenMatesUITests/ChatCliCrossClientParityUITests.swift
+  parity_expectations:
+    - The rendered web app and web chat source remain the behavior source of truth for processing phases, typing, chunk rendering, thinking, cancellation, queued-message UX, final persistence, and scroll stability.
+    - Native UI must use OpenMates primitives and generated tokens; no new stock `List`, `Form`, default `Menu`, default `.sheet`, or native product chrome for chat processing states.
+    - Apple may use native storage APIs instead of IndexedDB, but storage semantics must match web: client-side encrypted local persistence, durable retry queues for outbound encrypted assistant completion, and no plaintext durable private content.
+    - All Apple chat send entry points must share the same reducer/persistence contract as far as possible instead of duplicating lifecycle-specific behavior.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatSendPipelineParityTests"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatStreamingLifecycleParityTests"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/AnonymousChatStreamingParityTests"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/BackgroundChatSenderParityTests"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatStreamingLifecycleParityUITests"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatStreamingInterruptionParityUITests"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatAnonymousStreamingParityUITests"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatCliCrossClientParityUITests"
+  intentional_native_differences:
+    - Native simulator verification uses XCTest/XCUITest rather than Playwright.
+    - Apple uses SwiftData/App Group storage rather than IndexedDB/localStorage, but must expose equivalent persistence/retry behavior.
+    - Native notification permission and share-extension UI are OS-owned where Apple platform rules require system surfaces.
+
+clarification:
+  rounds:
+    - question: Should this spec target all authenticated Apple chat sends, including foreground chat, background notification replies, and share-extension sends, or only the foreground path?
+      answer: It should target all chat sends, both not authenticated and authenticated, with authenticated focused first.
+    - question: For unauthenticated Apple chats, should this spec require full streaming lifecycle parity now, or only no-regression plus compatible architecture?
+      answer: Full streaming lifecycle parity is required; the Apple app must fill parity gaps with the web app.
+    - question: Are backend/API changes allowed if needed for anonymous streaming events, pending-response recovery, queued-message replay, and cancellation semantics?
+      answer: Backend changes are not expected. Apple changes should be enough; ask for confirmation if backend changes appear necessary.
+    - question: Should Apple-created chats be verified from web under the same account, or is Apple-only verification enough?
+      answer: Apple-created chats should be verified to also show up fully in the OpenMates CLI.
+    - question: Should the spec also require web-created chats to load/stream/recover in Apple, or only Apple-created chats matching web behavior and appearing in CLI?
+      answer: Also test that OpenMates CLI-created chats load and stream to the Apple app.
+  vision_summary: >
+    Apple chat must behave like web chat across the full send lifecycle and across
+    every Apple entry point. Authenticated foreground/background/share sends are
+    prioritized first, but anonymous Apple chats must also use the full streaming
+    lifecycle. Cross-client proof is CLI-based: Apple-created chats must be fully
+    visible in CLI, and CLI-created chats must load and continue streaming in Apple.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Authenticated Apple foreground send follows web lifecycle
+    given:
+      - Alice is authenticated in the Apple app with an unlocked master key and an active WebSocket.
+      - Alice opens a normal encrypted chat or starts a new authenticated chat.
+    when:
+      - Alice sends `Kyoto and Osaka quick tip test` from the Apple composer.
+    then:
+      - The user bubble appears immediately and is encrypted for durable local storage.
+      - Apple shows web-equivalent sending, processing, typing, streaming, and final states.
+      - The assistant bubble streams progressively in one message row, then finalizes without duplicate assistant messages.
+      - Apple sends encrypted user storage and encrypted assistant completion with correct version metadata.
+
+  - id: S-2
+    title: Apple persists and flushes completed assistant responses after interruption
+    given:
+      - Alice sends a message from Apple and the assistant final chunk arrives locally.
+      - The WebSocket or app lifecycle interrupts before `ai_response_completed` reaches the server.
+    when:
+      - Alice returns online or foregrounds/reopens the app.
+    then:
+      - Apple retains only encrypted or reference-based pending completion state durably.
+      - Apple retries `ai_response_completed` before or alongside the next sync so server `messages_v` advances correctly.
+      - The pending item is removed only after storage confirmation or equivalent successful send.
+      - The UI does not remain stuck in streaming or typing state.
+
+  - id: S-3
+    title: Apple recovers interrupted mid-stream responses
+    given:
+      - Alice sends a message from Apple and receives one or more streaming chunks.
+      - The app backgrounds, network drops, or WebSocket reconnects before the final chunk.
+    when:
+      - Apple reconnects or restarts and syncs that chat.
+    then:
+      - Partial local content is preserved in encrypted local storage or replaced by authoritative pending/synced content.
+      - Orphaned streaming state is cleared deterministically.
+      - The final server response appears once when delivered by sync or pending-response event.
+      - No duplicate user or assistant messages are created.
+
+  - id: S-4
+    title: Apple stop and queued-message behavior matches web contracts
+    given:
+      - Alice has an active Apple AI task in a chat.
+    when:
+      - Alice taps Stop, or sends another message while the active task is still running.
+    then:
+      - Stop sends the existing backend cancellation payload and immediately updates local UI optimistically.
+      - Cancellation acknowledgment clears typing, processing, active task, and streaming state idempotently.
+      - A second message during an active task shows a composer-local queued-message state equivalent to web.
+      - The queued state auto-clears or transitions when the active task ends.
+
+  - id: S-5
+    title: Apple background notification replies and share-extension sends use the shared lifecycle
+    given:
+      - Alice is authenticated and has a chat available to notification reply or the share extension.
+    when:
+      - Alice sends a notification reply or shares text/URL into OpenMates from an OS-owned share surface.
+    then:
+      - The send uses the same encrypted message, version, metadata, and retry semantics as foreground chat where platform runtime allows it.
+      - If extension/background runtime ends after processing starts, foreground Apple can finish encrypted metadata or assistant-completion handoff later.
+      - CLI can later load the resulting chat and decrypt user and assistant messages.
+
+  - id: S-6
+    title: Anonymous Apple chat uses full streaming lifecycle parity
+    given:
+      - Alice is not authenticated and anonymous free usage is available.
+      - Alice starts an anonymous Apple chat.
+    when:
+      - Alice sends `Explain Madrid in one paragraph`.
+    then:
+      - Apple shows the same processing, typing, streaming chunk, finalization, and follow-up lifecycle as authenticated chat where the anonymous backend provides equivalent data.
+      - Anonymous user and assistant messages are encrypted locally with the anonymous chat key and survive app restart.
+      - Anonymous sends never persist plaintext private content server-side.
+      - After signup/login, promotion preserves the anonymous chat transcript, generated metadata, and message order in authenticated encrypted storage.
+
+  - id: S-7
+    title: Apple-created authenticated chats are fully visible in CLI
+    given:
+      - Alice creates and completes an authenticated Apple chat.
+      - The Apple app has completed assistant persistence and any pending retry flush.
+    when:
+      - The OpenMates CLI syncs the same account.
+    then:
+      - CLI lists the Apple-created chat with generated title/category metadata.
+      - CLI loads and decrypts user and assistant messages in the correct order.
+      - CLI sees no version drift, duplicate rows, missing assistant response, or undecryptable message.
+
+  - id: S-8
+    title: CLI-created chats load and continue streaming in Apple
+    given:
+      - Alice creates a chat from OpenMates CLI and receives at least one assistant response.
+    when:
+      - Alice opens the same account in Apple and sends a follow-up message in the CLI-created chat.
+    then:
+      - Apple loads the CLI-created chat, decrypts existing messages and metadata, and renders the latest transcript.
+      - Apple can send a follow-up in that chat and stream/finalize the response with the same lifecycle as an Apple-created chat.
+      - CLI can resync and see the Apple follow-up without version drift or duplicate messages.
+
+  - id: S-9
+    title: Apple processing, thinking, and scroll UI match web behavior
+    given:
+      - Alice sends an Apple message that triggers preprocessing and a model with thinking output.
+      - The chat transcript is scrollable enough to observe scroll behavior.
+    when:
+      - The response progresses from sending through final assistant content.
+    then:
+      - Apple surfaces preprocessing, typing metadata, model/provider/region where available, thinking chunks, and final completion with OpenMates-native UI.
+      - Apple does not auto-scroll to the bottom on every streaming chunk.
+      - If Alice manually scrolls during streaming, Apple preserves that position within a small tolerance.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Authenticated foreground Apple sends follow the web-equivalent lifecycle and persist encrypted user and assistant messages with correct version metadata.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-SWIFT-PIPELINE-001
+      - T-APPLE-E2E-AUTH-001
+  - id: AC-2
+    scenario: S-2
+    text: Apple durably queues completed assistant responses that could not send `ai_response_completed`, flushes them on recovery, and removes them only after success.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-SWIFT-PIPELINE-001
+      - T-APPLE-E2E-RECOVERY-001
+  - id: AC-3
+    scenario: S-3
+    text: Apple clears orphaned stream state after reconnect or cold boot and reconciles partial local content with authoritative server responses without duplicates.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-SWIFT-STREAM-001
+      - T-APPLE-E2E-RECOVERY-001
+  - id: AC-4
+    scenario: S-4
+    text: Apple Stop sends backend cancellation, clears active task UI optimistically, and handles `message_queued` in composer-local UI rather than as a generic notification.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-SWIFT-STREAM-001
+      - T-APPLE-E2E-AUTH-001
+  - id: AC-5
+    scenario: S-5
+    text: Notification replies and share-extension sends use the shared encrypted send/version/retry lifecycle where platform runtime permits, with foreground handoff for unfinished storage work.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-SWIFT-BACKGROUND-001
+      - T-APPLE-E2E-BACKGROUND-001
+  - id: AC-6
+    scenario: S-6
+    text: Anonymous Apple sends use the same visible streaming lifecycle as authenticated sends, persist encrypted local chunks/final messages, and promote cleanly after signup.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-SWIFT-ANON-001
+      - T-APPLE-E2E-ANON-001
+  - id: AC-7
+    scenario: S-7
+    text: CLI can list, load, and decrypt Apple-created authenticated chats after Apple assistant persistence completes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-CROSS-001
+  - id: AC-8
+    scenario: S-8
+    text: Apple can load CLI-created chats, send streamed follow-ups in them, and CLI can resync those follow-ups without duplicates or version drift.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-CLI-CROSS-001
+      - T-APPLE-E2E-CLI-001
+  - id: AC-9
+    scenario: S-9
+    text: Apple surfaces preprocessing, typing metadata, thinking content, and scroll-stable streaming behavior matching web source-of-truth behavior.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-SWIFT-STREAM-001
+      - T-APPLE-E2E-SCROLL-001
+  - id: AC-10
+    scenario: S-1
+    text: Apple never uploads or stores content encrypted with a chat key that does not match the wrapped `encrypted_chat_key` being sent for that chat.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-SWIFT-PIPELINE-001
+  - id: AC-11
+    scenario: S-2
+    text: No implementation stores private user messages, assistant responses, chat keys, anonymous identifiers, or raw credentials in committed logs, specs, or unencrypted durable storage.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-LINT-PRIVACY-001
+  - id: AC-12
+    scenario: S-1
+    text: Backend/API behavior remains unchanged unless a documented implementation blocker is found and the user explicitly approves a backend contract change.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: user_confirmation
+    verification_ids:
+      - V-BACKEND-GATE
+
+assumptions:
+  - id: A-1
+    text: Existing backend WebSocket events are sufficient for Apple parity, including `chat_message_added`, `encrypted_chat_metadata`, `ai_task_initiated`, `ai_typing_started`, `ai_message_update`, `thinking_chunk`, `thinking_complete`, `ai_message_ready`, `post_processing_completed`, `message_queued`, `ai_typing_ended`, `ai_task_cancel_requested`, `pending_ai_response`, `ai_background_response_completed`, and `ai_response_storage_confirmed`.
+    category: backend
+    required_before: implementation
+    status: unchecked
+    evidence:
+      - source: apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+        summary: Native currently routes these events, but not all are applied to UI/state.
+  - id: A-2
+    text: CLI can authenticate against the same dev account and load/decrypt chats created by Apple without adding new CLI public commands.
+    category: cli
+    required_before: task_execution
+    status: unchecked
+    evidence:
+      - source: frontend/packages/openmates-cli/tests/client.test.ts
+        summary: Existing tests cover pending AI response storage and encrypted message loading semantics.
+  - id: A-3
+    text: Anonymous backend response shape can be adapted in Apple without backend changes to drive the same native streaming reducer, even if the transport still returns final JSON for the first implementation slice.
+    category: anonymous
+    required_before: implementation
+    status: unchecked
+    evidence:
+      - source: apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+        summary: Native anonymous service currently uses a separate final-response HTTP path.
+
+contracts:
+  websocket:
+    - event: chat_message_added
+      direction: apple_to_server
+      apple_behavior:
+        - Send plaintext user message only through the existing AI-processing WebSocket contract.
+        - Locally store the user message encrypted before or atomically with the outbound send.
+        - On send failure caused by connectivity, queue a retryable encrypted/local action rather than silently losing the user message.
+    - event: encrypted_chat_metadata
+      direction: apple_to_server
+      apple_behavior:
+        - Send encrypted user storage after preprocessing/typing metadata supplies the assistant task id and any generated metadata.
+        - Use `messages_v` for the user-message version and `title_v` only when generated metadata changed.
+        - Guard that cached chat key and wrapped encrypted chat key match before uploading encrypted content.
+    - event: ai_response_completed
+      direction: apple_to_server
+      apple_behavior:
+        - Encrypt assistant/system completion with the local chat key.
+        - Send `versions.messages_v` advanced beyond the current stored user-message version.
+        - Queue a durable retry item if the WebSocket is unavailable or send fails.
+    - event: pending_ai_response
+      direction: server_to_apple
+      apple_behavior:
+        - Apply the authoritative response even when a stale local streaming row with the same message id exists.
+        - Replace partial or processing content with complete content and persist encrypted storage if needed.
+    - event: ai_background_response_completed
+      direction: server_to_apple
+      apple_behavior:
+        - Apply the completed assistant response for inactive/background chats without requiring an active `ChatViewModel` subscription.
+        - Notify only through privacy-safe native notification surfaces when the app is not active in that chat.
+    - event: cancel_ai_task
+      direction: apple_to_server
+      apple_behavior:
+        - Send existing cancellation payload with `task_id` and `chat_id` when Stop is tapped.
+        - Do not invent an Apple-only cancellation event.
+    - event: message_queued
+      direction: server_to_apple
+      apple_behavior:
+        - Show queued text in the composer/input surface for the current chat.
+        - Do not surface it as a generic app notification.
+  data:
+    - Apple must introduce or reuse a durable pending assistant-response queue that stores only message ids/chat ids or already encrypted local records, never plaintext private content.
+    - Apple streaming chunks should be persisted often enough to recover from app termination or WebSocket loss, following the web principle of first/final/periodic chunk persistence.
+    - "`ChatStore` and related persistence must update or retain `messagesV` consistently with server-authoritative sync and not clobber newer values with stale local writes."
+    - Background and share-extension sends must record enough encrypted handoff state for the main app to finish metadata or assistant completion when extension runtime ends.
+    - Anonymous chats must use anonymous-local encryption before signup, then re-wrap and promote into authenticated encrypted storage without plaintext durable history.
+  ui_states:
+    - Sending user message.
+    - Processing/preprocessing steps.
+    - Typing with mate/model/provider/region where available.
+    - Thinking/reasoning content streaming and complete.
+    - Assistant chunks streaming in a single row.
+    - Post-processing/follow-up suggestions.
+    - Queued message while another task is active.
+    - Cancellation requested, cancelled, timed out, completed, and error.
+    - Offline/awaiting connection and retrying send.
+    - Anonymous free-usage unavailable and signup-gated file/upload features.
+  privacy_security:
+    - Do not store private chat content, AI responses, raw chat keys, anonymous identifiers, tokens, credentials, or share URL keys in committed files or unencrypted durable storage.
+    - Client-side encryption remains local to Apple or CLI. Server/CLI verification must prove decryptability without exposing plaintext in committed artifacts.
+    - Logs must include enough context for debugging while redacting private identifiers and content.
+    - Backend changes are forbidden by default; if a missing backend contract is discovered, implementation stops for explicit user confirmation.
+
+tests:
+  - id: T-SWIFT-PIPELINE-001
+    type: unit
+    file: apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatSendPipelineParityTests"
+    covers:
+      - AC-1
+      - AC-2
+      - AC-10
+    assertions:
+      - User send payload uses existing `chat_message_added` and encrypted storage uses `encrypted_chat_metadata`.
+      - Completed assistant persistence sends `ai_response_completed` with `messages_v` advanced past the user-message version.
+      - Failed assistant completion send records a durable pending item without plaintext content.
+      - Cached chat key and incoming `encrypted_chat_key` mismatch aborts encrypted writes and sends no WebSocket payload.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-SWIFT-STREAM-001
+    type: unit
+    file: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatStreamingLifecycleParityTests"
+    covers:
+      - AC-3
+      - AC-4
+      - AC-9
+    assertions:
+      - Streaming reducer transitions through sending, processing, typing, streaming, final, cancellation, and error states.
+      - Thinking and preprocessing events update visible native state instead of being ignored.
+      - Final, interrupted, and pending response events clear orphaned streaming state idempotently.
+      - "`message_queued` updates composer-local queued state."
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-SWIFT-BACKGROUND-001
+    type: unit
+    file: apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/BackgroundChatSenderParityTests"
+    covers:
+      - AC-5
+    assertions:
+      - Notification/share sends use the same message id, encrypted content, generated metadata, and version payload conventions as foreground sends.
+      - Missing `ai_typing_started` or extension timeout records a safe foreground handoff instead of silently dropping storage work.
+      - "`message_queued` from a background send does not falsely report successful processing start."
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-SWIFT-ANON-001
+    type: unit
+    file: apple/OpenMatesTests/AnonymousChatStreamingParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/AnonymousChatStreamingParityTests"
+    covers:
+      - AC-6
+    assertions:
+      - Anonymous send uses the same native lifecycle reducer as authenticated send.
+      - Anonymous local persistence encrypts user, assistant, chunks, final content, metadata, and follow-up state with the anonymous chat key.
+      - Anonymous promotion re-wraps keys and preserves message order, metadata, and transcript without plaintext durable storage.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-CLI-CROSS-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/client.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts tests/ws.test.ts
+    covers:
+      - AC-7
+      - AC-8
+    assertions:
+      - CLI can load/decrypt an Apple-created chat fixture or live-dev artifact after Apple assistant persistence completes.
+      - CLI-created chat fixtures expose encrypted metadata/messages that Apple can load and continue.
+      - Pending AI response and `messages_v` contract remains compatible with existing CLI behavior.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-E2E-AUTH-001
+    type: unit
+    file: apple/OpenMatesUITests/ChatStreamingLifecycleParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatStreamingLifecycleParityUITests"
+    covers:
+      - AC-1
+      - AC-4
+    assertions:
+      - Real-account Apple foreground send shows processing, typing, streaming, final, follow-up, and no duplicate assistant message.
+      - Stop sends cancellation and clears UI without backend task continuing to append chunks.
+      - Sending while an active task runs shows queued composer state.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-E2E-RECOVERY-001
+    type: unit
+    file: apple/OpenMatesUITests/ChatStreamingInterruptionParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatStreamingInterruptionParityUITests"
+    covers:
+      - AC-2
+      - AC-3
+    assertions:
+      - Backgrounding or reconnecting during/final-after streaming does not leave a stuck spinner.
+      - Final response appears once after recovery.
+      - Pending assistant completion flushes before the next sync comparison can lock in stale `messages_v`.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-E2E-BACKGROUND-001
+    type: unit
+    file: apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/BackgroundChatNotificationUITests"
+    covers:
+      - AC-5
+    assertions:
+      - Background notification path still shows privacy-safe notification after a real chat send.
+      - Notification reply or share-extension handoff can be verified by a companion targeted test before completion.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-E2E-ANON-001
+    type: unit
+    file: apple/OpenMatesUITests/ChatAnonymousStreamingParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatAnonymousStreamingParityUITests"
+    covers:
+      - AC-6
+    assertions:
+      - Signed-out Apple anonymous send shows full processing, typing, streaming, final, and local persistence lifecycle.
+      - Restarting the app restores anonymous transcript from encrypted local storage.
+      - Signup/login promotion preserves anonymous transcript in authenticated chat storage.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-E2E-CLI-001
+    type: unit
+    file: apple/OpenMatesUITests/ChatCliCrossClientParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatCliCrossClientParityUITests"
+    covers:
+      - AC-8
+    assertions:
+      - Apple loads a CLI-created chat and decrypts existing messages.
+      - Apple sends a follow-up in the CLI-created chat and streams/finalizes it.
+      - CLI can resync and observe the Apple follow-up without duplicate messages or stale version metadata.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-E2E-SCROLL-001
+    type: unit
+    file: apple/OpenMatesUITests/ChatScrollStreamingParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatScrollStreamingParityUITests"
+    covers:
+      - AC-9
+    assertions:
+      - Apple scroll position remains stable during streaming chunk growth.
+      - Manual scroll-up during streaming is preserved.
+      - Mate/avatar/name positioning stays stable while assistant content grows.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-LINT-PRIVACY-001
+    type: lint
+    file: scripts/code_quality_guard.py
+    command: python3 scripts/code_quality_guard.py
+    covers:
+      - AC-11
+    assertions:
+      - Staged changes do not include likely secrets, private identifiers, generated-file edits, or broad unsafe suppressions.
+      - New pending queues and tests avoid committed plaintext private content and credentials.
+    red_phase:
+      required: false
+      expected: pass_existing
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-WEB-SOURCE-001
+    type: playwright
+    file: frontend/apps/web_app/tests/chat-scroll-streaming.spec.ts
+    command: python3 scripts/tests.py run --spec chat-scroll-streaming.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-9
+    assertions:
+      - Web source-of-truth streaming scroll behavior remains documented and green.
+      - Apple scroll parity test assertions remain aligned with web behavior.
+    red_phase:
+      required: false
+      expected: pass_existing
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+verifications:
+  - id: V-BACKEND-GATE
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-12
+    status: pending
+    evidence:
+      status: ""
+      summary: "If implementation discovers a backend/API contract gap, stop and ask the user before editing backend behavior."
+      timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - Web `ActiveChat.svelte` owns processing phase, typing, chunk, thinking, final, and post-processing UI behavior.
+    - Web `pendingAIResponses.ts` stores only message id and chat id for failed assistant-completion retry.
+    - Web `sendCompletedAIResponseImpl` increments `messages_v` for assistant completion and does not write stale values back locally.
+    - Apple `StreamingClient` already buffers events per chat, but `ChatViewModel` ignores thinking/preprocessing and keeps partial chunks transient.
+    - Apple `OfflineSyncBridge` has offline action replay, but foreground send does not use it on WebSocket send failure.
+    - Apple anonymous chat currently uses a separate final JSON HTTP path and must be adapted into the shared native lifecycle.
+  architecture: >
+    Introduce a small native chat lifecycle reducer/state model shared by
+    foreground authenticated, anonymous, background reply, and share-extension
+    sends. Keep WebSocket/backend contracts unchanged by default. Add durable
+    encrypted/reference-only queues for pending assistant completion and unfinished
+    background/share handoff, correct version math in `ChatSendPipeline`, and make
+    foreground recovery flush queues before or with sync. Wire currently-routed
+    WebSocket events into explicit Apple state instead of falling back to generic
+    reloads. Anonymous transport may adapt final/stream-compatible responses into
+    the same reducer until the backend exposes identical streaming frames.
+  data_flow:
+    - User sends from Apple foreground, notification reply, share extension, or anonymous composer.
+    - Shared send path creates a local encrypted user message, advances local message version, and sends existing backend WebSocket/API payload.
+    - Processing/typing/preprocessing/thinking events update shared lifecycle state and visible UI.
+    - Streaming chunks update one assistant message and persist encrypted first/final/periodic content for recovery.
+    - Final assistant content encrypts locally, appends once, advances assistant `messages_v`, sends `ai_response_completed`, and queues retry if unavailable.
+    - Foreground/reconnect/cold boot flushes pending assistant completions and background handoffs before stale sync can lock in lower versions.
+    - CLI sync loads Apple-created encrypted chat data; Apple sync loads CLI-created encrypted chat data and can continue the same chat.
+  affected_files:
+    - path: apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      reason: Main foreground lifecycle reducer, chunk persistence, cancellation, queued-message state, anonymous send unification.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      reason: Processing/typing/thinking/queued/scroll UI parity.
+    - path: apple/OpenMates/Sources/App/MainAppView.swift
+      reason: Foreground recovery, pending flush, background completion application, active chat resubscription.
+    - path: apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+      reason: Route currently ignored events into explicit native lifecycle handlers where needed.
+    - path: apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+      reason: Ensure stream event buffering and replay supports recovery without duplicates.
+    - path: apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+      reason: Message/version merge and partial/final replacement semantics.
+    - path: apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+      reason: Durable pending assistant response and background/share handoff queues.
+    - path: apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+      reason: Offline send replay and recovery flush sequencing.
+    - path: apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+      reason: Anonymous shared lifecycle adaptation, encrypted local chunk/final persistence, promotion parity.
+    - path: apple/OpenMatesShared/BackgroundChatSender.swift
+      reason: Share-extension/background send handoff and metadata timeout durability.
+    - path: apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+      reason: New deterministic payload/version/key/retry tests.
+    - path: apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+      reason: New deterministic reducer and lifecycle tests.
+    - path: apple/OpenMatesTests/AnonymousChatStreamingParityTests.swift
+      reason: New anonymous lifecycle and promotion tests.
+    - path: apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+      reason: New background/share handoff tests.
+    - path: apple/OpenMatesUITests/ChatStreamingLifecycleParityUITests.swift
+      reason: New live-dev authenticated lifecycle test.
+    - path: apple/OpenMatesUITests/ChatStreamingInterruptionParityUITests.swift
+      reason: New interruption/recovery test.
+    - path: apple/OpenMatesUITests/ChatAnonymousStreamingParityUITests.swift
+      reason: New anonymous lifecycle test.
+    - path: apple/OpenMatesUITests/ChatCliCrossClientParityUITests.swift
+      reason: New CLI-created chat Apple continuation test.
+    - path: apple/OpenMatesUITests/ChatScrollStreamingParityUITests.swift
+      reason: New Apple scroll stability test.
+    - path: frontend/packages/openmates-cli/tests/client.test.ts
+      reason: Extend CLI proof for Apple-created and CLI-created cross-client chat artifacts where practical.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/apple-chat-streaming-parity/spec.yml
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatSendPipelineParityTests"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatStreamingLifecycleParityTests"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/AnonymousChatStreamingParityTests"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/BackgroundChatSenderParityTests"
+    - cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts tests/ws.test.ts
+    - python3 scripts/audit_sdk_cli_parity.py
+    - python3 scripts/tests.py run --spec chat-scroll-streaming.spec.ts
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatStreamingLifecycleParityUITests"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatStreamingInterruptionParityUITests"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatAnonymousStreamingParityUITests"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatCliCrossClientParityUITests"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatScrollStreamingParityUITests"
+    - python3 scripts/code_quality_guard.py
+    - python3 scripts/spec_verify.py docs/specs/apple-chat-streaming-parity/spec.yml
+  verification_order:
+    - Spec validation first.
+    - Deterministic Apple unit tests red before implementation.
+    - CLI cross-client contract tests red before implementation.
+    - Implement authenticated foreground slice first.
+    - Implement recovery/pending/cancel/queued/scroll slice second.
+    - Implement background/share handoff slice third.
+    - Implement anonymous lifecycle parity fourth.
+    - Run CLI/SDK parity audit before web and Apple live E2E green evidence.
+    - Run web source-of-truth spec after deploy where required.
+    - Run Apple remote live E2E tests last.
+
+tasks:
+  - id: TASK-1
+    title: Add deterministic native chat pipeline contract tests
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-10
+    expected_files:
+      - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+      - apple/OpenMates/Sources/Core/Persistence/PendingAssistantResponseQueue.swift
+    verification:
+      - T-SWIFT-PIPELINE-001
+    blockers:
+      - Remote Apple test evidence requires committing and pushing this slice so the Mac checkout can build the new Swift files.
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add native lifecycle reducer and streaming state tests
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+        - S-9
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-9
+    expected_files:
+      - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    verification:
+      - T-SWIFT-STREAM-001
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Implement authenticated foreground lifecycle persistence and recovery
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-9
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-9
+        - AC-10
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates/Sources/Core/Persistence/PendingAssistantResponseQueue.swift
+      - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+      - apple/OpenMates/Sources/App/MainAppView.swift
+    verification:
+      - T-SWIFT-PIPELINE-001
+      - T-SWIFT-STREAM-001
+      - T-APPLE-E2E-AUTH-001
+      - T-APPLE-E2E-RECOVERY-001
+      - T-APPLE-E2E-SCROLL-001
+    blockers:
+      - Remote Apple build/test evidence requires committing and pushing this slice so the Mac checkout can build the new Swift files.
+    follow_up_tasks: []
+    independently_deployable: true
+
+  - id: TASK-4
+    title: Implement background reply and share-extension handoff parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-5
+      acceptance_criteria:
+        - AC-5
+    expected_files:
+      - apple/OpenMatesShared/BackgroundChatSender.swift
+      - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+      - apple/OpenMatesUITests/BackgroundChatNotificationUITests.swift
+    verification:
+      - T-SWIFT-BACKGROUND-001
+      - T-APPLE-E2E-BACKGROUND-001
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+  - id: TASK-5
+    title: Implement anonymous Apple full streaming lifecycle parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-6
+    expected_files:
+      - apple/OpenMates/Sources/Core/Services/AnonymousFreeUsageService.swift
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMatesTests/AnonymousChatStreamingParityTests.swift
+      - apple/OpenMatesUITests/ChatAnonymousStreamingParityUITests.swift
+    verification:
+      - T-SWIFT-ANON-001
+      - T-APPLE-E2E-ANON-001
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+  - id: TASK-6
+    title: Add CLI cross-client Apple chat verification
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-7
+        - AC-8
+    expected_files:
+      - frontend/packages/openmates-cli/tests/client.test.ts
+      - apple/OpenMatesUITests/ChatCliCrossClientParityUITests.swift
+    verification:
+      - T-CLI-CROSS-001
+      - T-APPLE-E2E-CLI-001
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-7
+    title: Final parity verification and privacy guardrails
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+        - S-8
+        - S-9
+      acceptance_criteria:
+        - AC-11
+        - AC-12
+    expected_files:
+      - docs/specs/apple-chat-streaming-parity/spec.yml
+    verification:
+      - T-LINT-PRIVACY-001
+      - V-BACKEND-GATE
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false

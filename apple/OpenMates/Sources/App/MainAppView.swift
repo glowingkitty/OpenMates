@@ -80,6 +80,7 @@ struct MainAppView: View {
     @State private var visibleUserChatLimit = Self.initialUserChatLimit
     @State private var syncProcessingTask: Task<Void, Never>?
     @State private var backgroundSyncFlushTask: Task<Void, Never>?
+    @State private var pendingAssistantResponseFlushTask: Task<Void, Never>?
     @State private var isBackgroundSyncFlushInProgress = false
     @State private var pendingBackgroundSyncContent = PendingSyncedContent()
     @State private var lastForegroundInteractionAt = Date.distantPast
@@ -522,7 +523,7 @@ struct MainAppView: View {
         guard newValue == .active, isAuthenticated, didBootstrapAuthenticatedSession else { return }
         switch wsManager.connectionState {
         case .connected, .connecting, .reconnecting:
-            break
+            schedulePendingAssistantResponseFlush()
         case .disconnected:
             connectWebSocket()
         }
@@ -617,6 +618,8 @@ struct MainAppView: View {
         syncProcessingTask = nil
         backgroundSyncFlushTask?.cancel()
         backgroundSyncFlushTask = nil
+        pendingAssistantResponseFlushTask?.cancel()
+        pendingAssistantResponseFlushTask = nil
         isBackgroundSyncFlushInProgress = false
         pendingBackgroundSyncContent = PendingSyncedContent()
         appSession.resetTransientRuntime()
@@ -1986,6 +1989,25 @@ struct MainAppView: View {
                 clientSuggestionsCount: syncedNewChatSuggestions.count
             )
         )
+        schedulePendingAssistantResponseFlush()
+    }
+
+    private func schedulePendingAssistantResponseFlush() {
+        guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
+        guard !PendingAssistantResponseQueue.shared.all().isEmpty else { return }
+        pendingAssistantResponseFlushTask?.cancel()
+        pendingAssistantResponseFlushTask = Task { @MainActor in
+            for _ in 0..<20 {
+                guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
+                if wsManager.connectionState == .connected { break }
+                try? await Task.sleep(nanoseconds: 250_000_000)
+            }
+            guard wsManager.connectionState == .connected else { return }
+            await ChatSendPipeline().flushPendingAssistantResponses(
+                wsManager: wsManager,
+                chatStore: chatStore
+            )
+        }
     }
 
     private func sendScrollPositionUpdate(chatId: String, messageId: String) {
