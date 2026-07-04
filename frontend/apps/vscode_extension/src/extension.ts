@@ -48,6 +48,7 @@ export function deactivate(): void {
 interface OpenOpenMatesOptions {
   smokeLogin?: WebviewSmokeLoginConfig;
   onSmokeLoginResult?: (message: Record<string, unknown>) => void;
+  forceBootstrap?: boolean;
 }
 
 async function openOpenMates(context: vscode.ExtensionContext, options: OpenOpenMatesOptions = {}): Promise<void> {
@@ -63,7 +64,7 @@ async function openOpenMates(context: vscode.ExtensionContext, options: OpenOpen
     },
   );
   const nonce = crypto.randomBytes(16).toString("base64");
-  const bundledAppHtml = await readBundledAppHtml(context.extensionUri);
+  const bundledAppHtml = options.forceBootstrap ? undefined : await readBundledAppHtml(context.extensionUri);
   const scriptUri = panel.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, "media", "openmates-vscode.js"));
   panel.webview.html = getWebviewHtml({
     nonce,
@@ -120,6 +121,7 @@ async function runLoginSmoke(context: vscode.ExtensionContext): Promise<Record<s
     const timeout = setTimeout(() => reject(new Error("VS Code webview login smoke timed out.")), SMOKE_LOGIN_TIMEOUT_MS);
     openOpenMates(context, {
       smokeLogin,
+      forceBootstrap: process.env.OPENMATES_VSCODE_SMOKE_USE_BOOTSTRAP === "1",
       onSmokeLoginResult: (message) => {
         clearTimeout(timeout);
         if (message.ok === true) {

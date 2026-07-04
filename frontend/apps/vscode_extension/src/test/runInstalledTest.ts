@@ -63,6 +63,7 @@ await runTests({
   ],
   extensionTestsEnv: {
     OPENMATES_VSCODE_ENABLE_SMOKE_LOGIN: "1",
+    OPENMATES_VSCODE_SMOKE_USE_BOOTSTRAP: "1",
     OPENMATES_VSCODE_API_BASE_URL: process.env.OPENMATES_VSCODE_API_BASE_URL || "https://api.dev.openmates.org",
     OPENMATES_TEST_ACCOUNT_EMAIL: smokeEnv.email,
     OPENMATES_TEST_ACCOUNT_PASSWORD: smokeEnv.password,
