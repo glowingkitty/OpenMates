@@ -40,7 +40,13 @@ const {
 	createStepScreenshotter,
 	getTestAccount
 } = require('./signup-flow-helpers');
-const { loginToTestAccount, startNewChat, sendMessage, deleteActiveChat } = require('./helpers/chat-test-helpers');
+const {
+	loginToTestAccount,
+	startNewChat,
+	sendMessage,
+	deleteActiveChat,
+	waitForAssistantMessage
+} = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 /**
@@ -131,6 +137,14 @@ async function touchTap(page: any, selector: string): Promise<void> {
 	await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
 }
 
+async function waitForAssistantIdle(page: any, logCheckpoint: (message: string) => void): Promise<void> {
+	await waitForAssistantMessage(page, { which: 'first', timeout: 120000, logCheckpoint });
+	await expect(page.getByTestId('typing-indicator')).not.toBeVisible({ timeout: 60000 });
+	await expect(page.getByTestId('stop-processing-button')).not.toBeVisible({ timeout: 60000 });
+	await page.waitForTimeout(500);
+	logCheckpoint('Assistant stream idle before touch selection.');
+}
+
 /**
  * Assert that two rects overlap "meaningfully" — used to verify the rendered
  * highlight box lines up with the original selection rather than drifting to
@@ -200,6 +214,7 @@ test('message highlights on touch devices (iPad Pro 11) — selection toolbar + 
 	const seedText =
 		'The quick brown fox jumps over the lazy dog near the old bridge today.';
 	await sendMessage(page, seedText, logCheckpoint, takeStepScreenshot, 'touch-seed');
+	await waitForAssistantIdle(page, logCheckpoint);
 
 	const userMsg = page.locator(SELECTORS.userMessageContent).first();
 	await expect(userMsg).toBeVisible({ timeout: 15000 });
