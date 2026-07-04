@@ -491,16 +491,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: "not-run-before-implementation"
+        timestamp: "2026-07-04T20:59:15+02:00"
+        summary: "The deterministic Apple pipeline test was added during TASK-1; remote Mac execution required committing the new Swift files first."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "apple_remote test-ios OpenMatesTests/ChatSendPipelineParityTests @ 10c119e"
+        timestamp: "2026-07-04T20:59:15+02:00"
+        summary: "Remote iPhone 17 simulator executed 5 tests with 0 failures; xcodebuild reported TEST SUCCEEDED."
 
   - id: T-SWIFT-STREAM-001
     type: unit
@@ -919,7 +921,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add deterministic native chat pipeline contract tests
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -934,8 +936,7 @@ tasks:
       - apple/OpenMates/Sources/Core/Persistence/PendingAssistantResponseQueue.swift
     verification:
       - T-SWIFT-PIPELINE-001
-    blockers:
-      - Remote Apple test evidence requires committing and pushing this slice so the Mac checkout can build the new Swift files.
+    blockers: []
     follow_up_tasks: []
     independently_deployable: false
 
@@ -991,8 +992,7 @@ tasks:
       - T-APPLE-E2E-AUTH-001
       - T-APPLE-E2E-RECOVERY-001
       - T-APPLE-E2E-SCROLL-001
-    blockers:
-      - Remote Apple build/test evidence requires committing and pushing this slice so the Mac checkout can build the new Swift files.
+    blockers: []
     follow_up_tasks: []
     independently_deployable: true
 
