@@ -1,6 +1,6 @@
 id: apple-native-diagnostics-parity
 title: Apple Native Diagnostics And Report Issue Parity
-status: implementing
+status: verified
 
 goal: >
   Make Apple issue reports and debug-log sharing at least as useful as the web
@@ -200,7 +200,7 @@ acceptance_criteria:
     scenario: S-1
     text: Apple report issue payloads include native diagnostics fields comparable to web report issue fields, plus native-only frame/MetricKit summaries.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -210,7 +210,7 @@ acceptance_criteria:
     scenario: S-1
     text: Diagnostics redaction prevents automatic capture of plaintext messages, keys, tokens, cookies, private paths, full share fragments, request/response bodies, and raw typed text.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -219,7 +219,7 @@ acceptance_criteria:
     scenario: S-2
     text: Existing `NativeSyncPerfLog` entries are bridged into the issue/debug log ring buffer without removing unified logging.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -228,7 +228,7 @@ acceptance_criteria:
     scenario: S-3
     text: Apple action history captures stable route/control actions and excludes user-entered text.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -237,7 +237,7 @@ acceptance_criteria:
     scenario: S-4
     text: Apple debug-session forwarding builds backend-compatible `/v1/settings/debug-logs` batches with `debugging_id`, sanitized logs, and metadata.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -246,7 +246,7 @@ acceptance_criteria:
     scenario: S-5
     text: Apple default telemetry sends only anonymized warn/error diagnostics to `/v1/client-logs` when enabled and authenticated.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -255,7 +255,7 @@ acceptance_criteria:
     scenario: S-6
     text: Apple report-time performance context includes frame pacing summary, thermal/low-power state, and latest MetricKit summaries or explicit absence.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -264,7 +264,7 @@ acceptance_criteria:
     scenario: S-7
     text: Apple agent instructions require the new diagnostics/metrics APIs for future product logging and performance instrumentation.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: manual
     verification_ids:
@@ -345,9 +345,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "apple_remote_test_ios_SettingsFullParityTests_14_pass"
+        timestamp: "2026-07-04T22:30:11Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 14 tests."
 
   - id: T-APPLE-UNIT-002
     type: unit
@@ -370,9 +371,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "apple_remote_test_ios_SettingsFullParityTests_14_pass"
+        timestamp: "2026-07-04T22:30:11Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 14 tests."
 
   - id: T-APPLE-UNIT-003
     type: unit
@@ -395,9 +397,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "apple_remote_test_ios_SettingsFullParityTests_14_pass"
+        timestamp: "2026-07-04T22:30:11Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 14 tests."
 
   - id: T-APPLE-UNIT-004
     type: unit
@@ -422,9 +425,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "apple_remote_test_ios_SettingsFullParityTests_14_pass"
+        timestamp: "2026-07-04T22:30:11Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 14 tests."
 
   - id: T-APPLE-UNIT-005
     type: unit
@@ -448,9 +452,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "apple_remote_test_ios_SettingsFullParityTests_14_pass"
+        timestamp: "2026-07-04T22:30:11Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 14 tests."
 
   - id: T-APPLE-UI-001
     type: unit
@@ -474,9 +479,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "apple_remote_ui_SettingsFullParityUITests_report_issue_pass"
+        timestamp: "2026-07-04T22:30:11Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesUITests/SettingsFullParityUITests/testReportIssueSubmissionSucceedsAndUploadsSimulatorLogs passed."
 
   - id: T-STATIC-001
     type: manual
@@ -499,9 +505,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "spec_validate_static_review"
+        timestamp: "2026-07-04T22:30:11Z"
+        summary: "Apple diagnostics instructions in apple/AGENTS.md and .claude/rules/apple-ui.md include NativeDiagnostics, performance helpers, and privacy boundaries."
 
 verifications:
   - id: V-APPLE-BUILD-001
@@ -511,22 +518,22 @@ verifications:
     covers:
       - AC-1
       - AC-8
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: "python3 scripts/apple_remote.py build-ios --simulator \"iPhone 17\""
-      timestamp: ""
+      status: passed
+      summary: "python3 scripts/apple_remote.py build-ios --simulator \"iPhone 17\" succeeded after commit 14d1b42."
+      timestamp: "2026-07-04T22:30:11Z"
   - id: V-PRIVACY-REVIEW-001
     kind: artifact_review
     phase: final
     required_for_done: true
     covers:
       - AC-2
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: "Review changed diagnostics payloads for prohibited fields before deploy."
-      timestamp: ""
+      status: passed
+      summary: "Changed diagnostics sanitize emails, tokens, share keys, private paths, UUIDs, and long blobs; tests verify seeded sensitive values are absent from issue/debug/telemetry payloads."
+      timestamp: "2026-07-04T22:30:11Z"
 
 implementation_plan:
   existing_patterns:
