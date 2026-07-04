@@ -6,6 +6,7 @@
 
 import Foundation
 
+@MainActor
 struct PendingAssistantResponseQueue {
     struct Entry: Codable, Equatable {
         let messageId: String
