@@ -13,9 +13,9 @@
   },
   "devDependencies": {
     "@types/markdown-it": "^14.1.2",
-    "prettier": "^3.8.4",
+    "prettier": "^3.9.4",
     "prettier-plugin-svelte": "^3.4.1",
-    "turbo": "2.9.18"
+    "turbo": "2.10.2"
   },
   "packageManager": "pnpm@10.23.0",
   "engines": {
@@ -24,7 +24,7 @@
   "dependencies": {
     "highlight.js": "^11.11.1",
     "lowlight": "^3.3.0",
-    "markdown-it": "^14.2.0"
+    "markdown-it": "^14.3.0"
   },
   "pnpm": {
     "ignoredBuiltDependencies": [
