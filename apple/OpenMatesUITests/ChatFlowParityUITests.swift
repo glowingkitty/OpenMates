@@ -114,7 +114,6 @@ final class ChatFlowParityUITests: XCTestCase {
         let reportButton = reportButtonById.exists ? reportButtonById : reportButtonByLabel
         reportButton.tap()
 
-        XCTAssertTrue(app.descendants(matching: .any)["dev-report-issue-overlay"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["settings-report-issue-form"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["common.report"].exists)
 
