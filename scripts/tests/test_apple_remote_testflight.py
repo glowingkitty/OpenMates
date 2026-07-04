@@ -39,7 +39,17 @@ def test_testflight_profiles_are_prepared_before_archive() -> None:
     assert script.index("if has_app_store_connect_api_auth():") < archive_index
     assert script.index("create_or_download_app_store_profiles()") < archive_index
     assert script.index("load_installed_app_store_profiles()") < archive_index
-    assert 'archive_without_signing = True' in script
+    assert 'archive_without_signing = False' in script
+
+
+def test_ios_archive_entitlements_are_checked_before_upload() -> None:
+    apple_remote = load_apple_remote()
+    script = apple_remote.TESTFLIGHT_IOS_SCRIPT
+
+    assert script.index("assert_ios_archive_passkey_entitlements()") < script.index('print("upload_status=started")')
+    assert "webcredentials:openmates.org" in script
+    assert "com.apple.developer.associated-domains" in script
+    assert "APP_GROUP_IDENTIFIER" in script
 
 
 def test_deploy_latest_testflight_syncs_then_uploads_both_platforms() -> None:

@@ -267,7 +267,7 @@ if target_platform == "ios":
     certificate_type_filter = "IOS_DISTRIBUTION"
     profile_extension = "mobileprovision"
     bundle_id_platform = "IOS"
-    archive_without_signing = True
+    archive_without_signing = False
     BUNDLE_IDS = (
         "org.openmates.app",
         "org.openmates.app.share",
@@ -841,6 +841,33 @@ def stamp_unsigned_macos_archive_entitlements():
     print("archive_entitlements_stamp=passed")
 
 
+def assert_ios_archive_passkey_entitlements():
+    if target_platform != "ios":
+        return
+    app_binary = archive_path / "Products" / "Applications" / "OpenMates.app" / "OpenMates"
+    entitlements = subprocess.run(
+        ["codesign", "-d", "--entitlements", ":-", str(app_binary)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if entitlements.returncode != 0:
+        print_tail("archive_entitlements_check", entitlements.stdout + entitlements.stderr, derived, limit=120)
+        sys.exit(entitlements.returncode)
+    text = entitlements.stdout + entitlements.stderr
+    required = {
+        "associated_domains": "com.apple.developer.associated-domains",
+        "openmates_webcredentials": "webcredentials:openmates.org",
+        "app_group": APP_GROUP_IDENTIFIER,
+    }
+    missing = [name for name, marker in required.items() if marker not in text]
+    if missing:
+        print(f"archive_entitlements_check=missing:{','.join(missing)}")
+        print("hint=iOS archive is not signed with OpenMates passkey/app-group entitlements; do not upload this build.")
+        sys.exit(1)
+    print("archive_entitlements_check=passed")
+
+
 
 preflight_signing()
 if has_app_store_connect_api_auth():
@@ -908,6 +935,7 @@ if archive.returncode != 0:
     sys.exit(archive.returncode)
 print("archive_status=passed")
 stamp_unsigned_macos_archive_entitlements()
+assert_ios_archive_passkey_entitlements()
 
 export_cmd = [
     "xcodebuild",
