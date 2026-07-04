@@ -36,7 +36,9 @@ final class ChatFlowParityUITests: XCTestCase {
         openWorkspace("projects", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-projects"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-return-to-chats"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["projects-nav-link"].value as? String == "Disabled")
+        let switcher = app.descendants(matching: .any)["workspace-switcher"]
+        XCTAssertTrue(switcher.isEnabled)
+        XCTAssertEqual(switcher.label, "Projects")
 
         openWorkspace("tasks", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-tasks"].waitForExistence(timeout: 5))
