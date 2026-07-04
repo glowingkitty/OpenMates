@@ -278,6 +278,23 @@ vi.mock("../../services/pendingAIResponses", () => ({
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
+function createStorageMock(): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() {
+      return values.size;
+    },
+    clear: vi.fn(() => values.clear()),
+    getItem: vi.fn((key: string) => values.get(key) ?? null),
+    key: vi.fn((index: number) => Array.from(values.keys())[index] ?? null),
+    removeItem: vi.fn((key: string) => values.delete(key)),
+    setItem: vi.fn((key: string, value: string) => values.set(key, value)),
+  };
+}
+
+vi.stubGlobal("localStorage", createStorageMock());
+vi.stubGlobal("sessionStorage", createStorageMock());
+
 import { checkAuth } from "../authSessionActions";
 import { authStore } from "../authState";
 
