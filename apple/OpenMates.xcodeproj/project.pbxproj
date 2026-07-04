@@ -2472,7 +2472,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.share.macos;
+				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.sharemacos;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
 			};
@@ -2519,7 +2519,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.share.macos;
+				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.sharemacos;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
 			};

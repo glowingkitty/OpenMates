@@ -284,7 +284,7 @@ elif target_platform == "macos":
     archive_without_signing = True
     BUNDLE_IDS = (
         "org.openmates.app",
-        "org.openmates.app.share.macos",
+        "org.openmates.app.sharemacos",
     )
 else:
     print(f"unsupported_target_platform={target_platform}")
@@ -586,6 +586,9 @@ def sync_bundle_capabilities():
         bundle_id = bundle_id_record_id(identifier)
         enable_bundle_capability(bundle_id, "APP_GROUPS")
         print(f"capability_sync=passed:{identifier}:APP_GROUPS")
+        if target_platform == "macos":
+            enable_bundle_capability(bundle_id, "APP_SANDBOX")
+            print(f"capability_sync=passed:{identifier}:APP_SANDBOX")
         if identifier == "org.openmates.app":
             enable_bundle_capability(bundle_id, "ASSOCIATED_DOMAINS")
             print(f"capability_sync=passed:{identifier}:ASSOCIATED_DOMAINS")
