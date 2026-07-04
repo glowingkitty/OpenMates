@@ -5,7 +5,6 @@
 
 import XCTest
 
-@MainActor
 final class ChatShellResponsiveParityUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
