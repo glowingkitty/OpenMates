@@ -98,7 +98,12 @@ final class ChatFlowParityUITests: XCTestCase {
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
         app.launch()
 
-        let reportButton = app.buttons["chat-floating-action-bug"]
+        let counter = app.staticTexts
+            .containing(NSPredicate(format: "label CONTAINS %@", "initial-window-count=50"))
+            .firstMatch
+        XCTAssertTrue(counter.waitForExistence(timeout: 12))
+
+        let reportButton = app.descendants(matching: .any)["chat-floating-action-bug"]
         XCTAssertTrue(reportButton.waitForExistence(timeout: 12))
         XCTAssertFalse(app.staticTexts["common.report"].exists)
 
