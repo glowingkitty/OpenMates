@@ -56,11 +56,7 @@ final class SettingsFullParityUITests: XCTestCase {
         enterText("The UI test verifies the native issue-log payload.", into: "report-issue-actual", in: app)
 
         app.descendants(matching: .any)["report-issue-submit"].tap()
-        let reference = app.descendants(matching: .any)["report-issue-reference"]
-        if !reference.waitForExistence(timeout: 10) {
-            let status = app.staticTexts["report-issue-debug-status"].label
-            XCTFail("Expected report issue success reference. Status: \(status)")
-        }
+        XCTAssertTrue(waitForElement("report-issue-reference", in: app, timeout: 10))
         XCTAssertTrue(app.staticTexts["report-issue-reference"].label.contains("OPE-IOS-UI-TEST"))
 
         let logPayload = app.staticTexts["report-issue-debug-log-payload"]
@@ -106,6 +102,10 @@ final class SettingsFullParityUITests: XCTestCase {
         let scrollView = app.scrollViews.firstMatch
         for _ in 0..<6 where scrollView.exists {
             scrollView.swipeUp()
+            if element.waitForExistence(timeout: 1) { return true }
+        }
+        for _ in 0..<6 where scrollView.exists {
+            scrollView.swipeDown()
             if element.waitForExistence(timeout: 1) { return true }
         }
         return false
