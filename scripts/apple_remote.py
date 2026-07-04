@@ -258,6 +258,7 @@ distribution_identity_name = ""
 distribution_identity_sha1 = ""
 installer_identity_sha1 = ""
 profile_names = {}
+APP_GROUP_IDENTIFIER = "group.org.openmates.app.shared"
 if target_platform == "ios":
     scheme_name = "OpenMates_iOS"
     archive_filename = "OpenMates.xcarchive"
@@ -613,6 +614,23 @@ def delete_existing_profile(profile_name):
         asc_request(f"profiles/{profile_id}", method="DELETE")
 
 
+def assert_profile_supports_app_group(identifier, profile_path):
+    decoded = subprocess.run(["security", "cms", "-D", "-i", str(profile_path)], capture_output=True, timeout=30)
+    if decoded.returncode != 0:
+        print(f"profile_app_group=decode_failed:{identifier}")
+        print_tail("profile_decode", decoded.stderr.decode("utf-8", "replace"), limit=80)
+        sys.exit(decoded.returncode)
+    data = plistlib.loads(decoded.stdout)
+    entitlements = data.get("Entitlements", {}) if isinstance(data, dict) else {}
+    app_groups = entitlements.get("com.apple.security.application-groups", [])
+    if APP_GROUP_IDENTIFIER not in app_groups:
+        print(f"profile_app_group=missing:{identifier}:{APP_GROUP_IDENTIFIER}")
+        print("manual_action=assign_app_group_to_bundle_id_in_apple_developer_portal")
+        print("manual_path=Certificates, Identifiers & Profiles > Identifiers > App IDs > bundle ID > App Groups")
+        sys.exit(1)
+    print(f"profile_app_group=passed:{identifier}")
+
+
 def create_or_download_app_store_profiles():
     certificate_id = matching_distribution_certificate_id()
     profiles_dir = pathlib.Path.home() / "Library" / "MobileDevice" / "Provisioning Profiles"
@@ -641,6 +659,7 @@ def create_or_download_app_store_profiles():
             sys.exit(1)
         profile_path = profiles_dir / f"{profile_uuid}.{profile_extension}"
         profile_path.write_bytes(base64.b64decode(profile_content))
+        assert_profile_supports_app_group(identifier, profile_path)
         profile_names[identifier] = profile_uuid
         print(f"profile_create=passed:{identifier}")
 

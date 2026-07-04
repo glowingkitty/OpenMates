@@ -236,6 +236,8 @@ def test_upload_testflight_macos_command_uses_mac_app_store_export() -> None:
     assert "CODE_SIGNING_ALLOWED=NO" in script
     assert "provisionprofile" in script
     assert "org.openmates.app.sharemacos" in script
+    assert "profile_app_group=missing" in script
+    assert "assign_app_group_to_bundle_id_in_apple_developer_portal" in script
     assert "app-store-connect" in command
     assert command.endswith(" 1 macos")
 
@@ -259,6 +261,16 @@ def test_upload_testflight_ios_script_preflights_signing() -> None:
     assert "UserData" in script
     assert "org.openmates.app" in script
     assert "openmates-build.keychain-db" in script
+
+
+def test_upload_testflight_script_validates_profile_app_groups_before_export() -> None:
+    script = apple_remote.TESTFLIGHT_IOS_SCRIPT
+
+    assert "APP_GROUP_IDENTIFIER = \"group.org.openmates.app.shared\"" in script
+    assert "assert_profile_supports_app_group(identifier, profile_path)" in script
+    assert script.index("assert_profile_supports_app_group(identifier, profile_path)") < script.index(
+        "plistlib.dump(export_options"
+    )
 
 
 def test_ensure_ios_distribution_certificate_command_checks_by_default() -> None:
