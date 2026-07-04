@@ -575,16 +575,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: "not-run-before-implementation"
+        timestamp: "2026-07-04T23:29:34+02:00"
+        summary: "The deterministic anonymous streaming contract test was added with the promotion payload helper; remote Mac execution required committing the new Swift test and project membership first."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "apple_remote build-ios + test-ios OpenMatesTests/AnonymousChatStreamingParityTests @ b8f7d1c"
+        timestamp: "2026-07-04T23:29:34+02:00"
+        summary: "Remote iPhone 17 simulator build succeeded, then executed 2 anonymous lifecycle and encrypted promotion payload tests with 0 failures; xcodebuild reported TEST SUCCEEDED."
 
   - id: T-CLI-CROSS-001
     type: unit
