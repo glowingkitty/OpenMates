@@ -610,9 +610,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "node --test tests/client.test.ts tests/ws.test.ts @ c615c1b"
+        timestamp: "2026-07-04T23:31:08+02:00"
+        summary: "Local CLI contract suite executed 29 tests with 0 failures, including pending AI response persistence with messages_v advancing from 1 to 2 and AI completion collection when server user_message_id differs from the client message id."
 
   - id: T-APPLE-E2E-AUTH-001
     type: unit
