@@ -44,16 +44,26 @@ test('stop during new chat creation restores the sent message as a draft', async
 		await messageEditor.click();
 		await page.keyboard.type(withMockMarker(visibleDraft, 'chat_flow_capital', 'slow'));
 		await takeStepScreenshot(page, 'draft-typed');
+		await page.route(/\/v1\/user-(tasks|plans)(\?|$)/, async (route: any) => {
+			await page.waitForTimeout(1500);
+			await route.continue();
+		});
 
 		const sendButton = page.locator('[data-action="send-message"]');
 		await expect(sendButton).toBeVisible({ timeout: 15000 });
 		await expect(sendButton).toBeEnabled({ timeout: 5000 });
 		await sendButton.click();
+		const taskLoadingAppeared = page
+			.getByTestId('active-chat-task-preview-loading')
+			.waitFor({ state: 'visible', timeout: 2500 })
+			.then(() => true)
+			.catch(() => false);
 		shouldTryCleanup = true;
 		logCheckpoint('Sent fresh-chat message and waiting for creating-chat state.');
 
 		const chatHeader = page.getByTestId('chat-header-banner');
 		await expect(chatHeader).toContainText(/Creating new chat/i, { timeout: 15000 });
+		expect(await taskLoadingAppeared).toBe(false);
 		const stopButton = page.getByTestId('stop-processing-button');
 		await expect(stopButton).toBeVisible({ timeout: 10000 });
 		await stopButton.click();
