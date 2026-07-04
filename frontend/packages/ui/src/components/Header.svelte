@@ -72,6 +72,7 @@
 
     let isChatsRoute = $derived($page.url.pathname === '/');
     let isProjectsRoute = $derived($page.url.pathname.startsWith('/projects'));
+    let isPlansRoute = $derived($page.url.pathname.startsWith('/plans'));
     let isWorkflowsRoute = $derived($page.url.pathname.startsWith('/workflows'));
     let isTasksRoute = $derived($page.url.pathname.startsWith('/tasks'));
     let disabledFeatures = $derived($featureAvailabilityStore.disabledById);
@@ -80,6 +81,7 @@
     };
     let chatsEnabled = $derived(isWorkspaceFeatureEnabled('platform:chats'));
     let projectsEnabled = $derived(isWorkspaceFeatureEnabled('platform:projects', false));
+    let plansEnabled = $derived($featureAvailabilityStore.initialized && isWorkspaceFeatureEnabled('platform:plans'));
     let workflowsEnabled = $derived(isWorkspaceFeatureEnabled('platform:workflows', false));
     let tasksEnabled = $derived(isWorkspaceFeatureEnabled('platform:tasks', false));
     let webappWorkspaceTabs: WorkspaceTab[] = $derived([
@@ -89,13 +91,36 @@
         ...(projectsEnabled
             ? [{ href: '/projects', testId: 'projects-nav-link', label: $text('navigation.projects'), iconClass: 'project-icon', active: isProjectsRoute, disabled: false }]
             : []),
-        ...(workflowsEnabled
-            ? [{ href: '/workflows', testId: 'workflows-nav-link', label: $text('navigation.workflows'), iconClass: 'workflow-icon', active: isWorkflowsRoute, disabled: false }]
+        ...(plansEnabled
+            ? [{ href: '/plans', testId: 'plans-nav-link', label: $text('navigation.plans'), iconClass: 'plan-icon', active: isPlansRoute, disabled: false }]
             : []),
         ...(tasksEnabled
             ? [{ href: '/tasks', testId: 'tasks-nav-link', label: $text('navigation.tasks'), iconClass: 'task-icon', active: isTasksRoute, disabled: false }]
             : []),
+        ...(workflowsEnabled
+            ? [{ href: '/workflows', testId: 'workflows-nav-link', label: $text('navigation.workflows'), iconClass: 'workflow-icon', active: isWorkflowsRoute, disabled: false }]
+            : []),
     ] satisfies WorkspaceTab[]);
+    let activeWorkspaceIndex = $derived(Math.max(0, webappWorkspaceTabs.findIndex(item => item.active)));
+    let activeWorkspaceTab = $derived(webappWorkspaceTabs[activeWorkspaceIndex] ?? webappWorkspaceTabs[0]);
+    let activeWorkspaceHref = $derived(activeWorkspaceTab?.href ?? '/');
+    let hoveredWorkspaceIndex = $state<number | null>(null);
+    let selectedWorkspaceHref = $state('/');
+
+    $effect(() => {
+        selectedWorkspaceHref = activeWorkspaceHref;
+    });
+
+    const handleWorkspaceSelectChange = async (event: Event) => {
+        const target = event.currentTarget as HTMLSelectElement;
+        const selectedTab = webappWorkspaceTabs.find(item => item.href === target.value);
+        if (!selectedTab || selectedTab.disabled) {
+            selectedWorkspaceHref = activeWorkspaceHref;
+            return;
+        }
+
+        await goto(selectedTab.href, { replaceState: false });
+    };
 
     // Define the type for social links
     type SocialLink = {
@@ -408,8 +433,18 @@
                         <a href="/" class="docs-tab">{$text('common.chat')}</a>
                     </div>
                 {:else if context === 'webapp' && isLoggedIn && webappWorkspaceTabs.length >= 2}
-                    <div class="webapp-center-tabs" aria-label="Workspace switcher">
-                        {#each webappWorkspaceTabs as item}
+                    <div
+                        class="webapp-center-tabs"
+                        aria-label="Workspace switcher"
+                        style="--tab-count: {webappWorkspaceTabs.length}; --active-index: {activeWorkspaceIndex}; --hover-index: {hoveredWorkspaceIndex ?? activeWorkspaceIndex};"
+                    >
+                        <div
+                            class="workspace-hover-pill"
+                            class:visible={hoveredWorkspaceIndex !== null}
+                            aria-hidden="true"
+                        ></div>
+                        <div class="workspace-active-pill" aria-hidden="true"></div>
+                        {#each webappWorkspaceTabs as item, index}
                             {#if item.disabled}
                                 <button
                                     type="button"
@@ -429,11 +464,29 @@
                                     data-testid={item.testId}
                                     aria-label={item.label}
                                     onclick={(e) => handleClick(e, item.href)}
+                                    onmouseenter={() => { hoveredWorkspaceIndex = item.active ? null : index; }}
+                                    onmouseleave={() => { hoveredWorkspaceIndex = null; }}
+                                    onfocus={() => { hoveredWorkspaceIndex = item.active ? null : index; }}
+                                    onblur={() => { hoveredWorkspaceIndex = null; }}
                                 >
                                     <span class={`workspace-icon ${item.iconClass}`} aria-hidden="true"></span>
                                 </a>
                             {/if}
                         {/each}
+                    </div>
+                    <div class="workspace-select-shell" aria-label="Workspace switcher">
+                        <span class={`workspace-select-icon ${activeWorkspaceTab?.iconClass ?? 'chat-icon'}`} aria-hidden="true"></span>
+                        <select
+                            bind:value={selectedWorkspaceHref}
+                            onchange={handleWorkspaceSelectChange}
+                            aria-label="Workspace switcher"
+                            data-testid="workspace-mobile-select"
+                        >
+                            {#each webappWorkspaceTabs as item}
+                                <option value={item.href} disabled={item.disabled}>{item.label}</option>
+                            {/each}
+                        </select>
+                        <span class="workspace-select-chevron" aria-hidden="true"></span>
                     </div>
                 {/if}
 
@@ -883,8 +936,7 @@
     }
 
     /* Docs/Chat tab toggle — centered in header when in docs mode */
-    .docs-tabs,
-    .webapp-center-tabs {
+    .docs-tabs {
         display: flex;
         align-items: center;
         gap: var(--spacing-2);
@@ -897,8 +949,23 @@
         transform: translateX(-50%);
     }
 
-    .docs-tab,
-    .workspace-tab {
+    .webapp-center-tabs {
+        --workspace-tab-width: 4.5rem;
+        --workspace-tab-height: 2.8rem;
+        --workspace-tab-radius: 3.25rem;
+
+        display: flex;
+        align-items: center;
+        background: var(--color-grey-10);
+        border-radius: var(--workspace-tab-radius);
+        filter: drop-shadow(0 0.25rem 0.25rem rgba(0, 0, 0, 0.14));
+        overflow: hidden;
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .docs-tab {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -912,20 +979,53 @@
         white-space: nowrap;
     }
 
+    .workspace-active-pill,
+    .workspace-hover-pill {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: calc(var(--workspace-tab-width) * var(--active-index, 0));
+        width: var(--workspace-tab-width);
+        border-radius: var(--workspace-tab-radius);
+        background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
+        transition:
+            left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+            opacity 0.25s ease;
+        z-index: var(--z-index-base);
+    }
+
+    .workspace-hover-pill {
+        left: calc(var(--workspace-tab-width) * var(--hover-index, 0));
+        opacity: 0;
+        background: linear-gradient(
+            135deg,
+            color-mix(in srgb, var(--color-primary-start) 50%, transparent),
+            color-mix(in srgb, var(--color-primary-end) 50%, transparent)
+        );
+    }
+
+    .workspace-hover-pill.visible {
+        opacity: 1;
+    }
+
     .workspace-tab {
-        appearance: none;
-        width: 44px;
-        height: 44px;
-        min-width: 44px;
-        min-height: 44px;
-        flex: 0 0 44px;
+        all: unset;
+        box-sizing: border-box;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: var(--workspace-tab-width);
+        height: var(--workspace-tab-height);
+        min-width: var(--workspace-tab-width);
+        min-height: var(--workspace-tab-height);
+        flex: 0 0 var(--workspace-tab-width);
         padding: 0;
-        border: 0;
         background: transparent;
         cursor: pointer;
-        box-sizing: border-box;
         font: inherit;
         margin: 0;
+        position: relative;
+        z-index: var(--z-index-raised);
     }
 
     .workspace-tab[aria-disabled="true"] {
@@ -933,13 +1033,16 @@
         opacity: 0.7;
     }
 
-    .docs-tab:hover,
-    .workspace-tab:hover {
+    .workspace-tab:focus-visible {
+        outline: 0.125rem solid var(--color-primary-start);
+        outline-offset: 0.125rem;
+    }
+
+    .docs-tab:hover {
         color: var(--color-font-primary);
     }
 
-    .docs-tab.active,
-    .workspace-tab.active {
+    .docs-tab.active {
         background-color: color-mix(in srgb, var(--color-grey-60) 30%, transparent);
         color: var(--color-font-primary);
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -948,13 +1051,20 @@
     .workspace-icon {
         width: 20px;
         height: 20px;
-        background: var(--color-primary);
+        background: var(--color-grey-70);
         -webkit-mask-size: contain;
         mask-size: contain;
         -webkit-mask-position: center;
         mask-position: center;
         -webkit-mask-repeat: no-repeat;
         mask-repeat: no-repeat;
+        transition: background-color 0.25s ease;
+    }
+
+    .workspace-tab:hover .workspace-icon,
+    .workspace-tab:focus-visible .workspace-icon,
+    .workspace-tab.active .workspace-icon {
+        background: var(--color-grey-0);
     }
 
     .chat-icon {
@@ -967,6 +1077,11 @@
         mask-image: url('@openmates/ui/static/icons/project.svg');
     }
 
+    .plan-icon {
+        -webkit-mask-image: url('@openmates/ui/static/icons/planning.svg');
+        mask-image: url('@openmates/ui/static/icons/planning.svg');
+    }
+
     .workflow-icon {
         -webkit-mask-image: url('@openmates/ui/static/icons/workflow.svg');
         mask-image: url('@openmates/ui/static/icons/workflow.svg');
@@ -977,7 +1092,11 @@
         mask-image: url('@openmates/ui/static/icons/task.svg');
     }
 
-    @media (max-width: 600px) {
+    .workspace-select-shell {
+        display: none;
+    }
+
+    @media (max-width: 730px) {
         nav.webapp {
             min-height: 36px;
         }
@@ -995,11 +1114,24 @@
         }
 
         .webapp-center-tabs {
-            position: absolute;
+            display: none;
+        }
+
+        .workspace-select-shell {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-4);
+            min-width: 10.25rem;
+            height: 4rem;
+            padding: 0 var(--spacing-6);
+            border-radius: 3.25rem;
+            background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
+            filter: drop-shadow(0 0.25rem 0.25rem rgba(0, 0, 0, 0.12));
             left: 50%;
+            position: absolute;
             transform: translateX(-50%);
-            gap: 1px;
-            padding: 2px;
+            z-index: var(--z-index-raised);
         }
 
         .docs-tabs {
@@ -1007,17 +1139,41 @@
             transform: none;
         }
 
-        .workspace-tab {
-            width: 44px;
-            height: 44px;
-            min-width: 44px;
-            min-height: 44px;
-            flex-basis: 44px;
+        .workspace-select-shell select {
+            all: unset;
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            opacity: 0;
         }
 
-        .workspace-icon {
-            width: 18px;
-            height: 18px;
+        .workspace-select-icon {
+            width: 2rem;
+            height: 2rem;
+            background: var(--color-grey-0);
+            -webkit-mask-size: contain;
+            mask-size: contain;
+            -webkit-mask-position: center;
+            mask-position: center;
+            -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+            pointer-events: none;
+        }
+
+        .workspace-select-chevron {
+            width: 0;
+            height: 0;
+            border-left: 0.85rem solid transparent;
+            border-right: 0.85rem solid transparent;
+            border-top: 0.85rem solid color-mix(in srgb, var(--color-grey-0) 70%, transparent);
+            pointer-events: none;
+        }
+
+        .workspace-select-shell:focus-within {
+            outline: 0.125rem solid var(--color-grey-0);
+            outline-offset: 0.125rem;
         }
     }
 </style>

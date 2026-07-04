@@ -29,10 +29,12 @@
     projectId = null,
     chatId = null,
     compact = false,
+    focus = 'tasks',
   }: {
     projectId?: string | null;
     chatId?: string | null;
     compact?: boolean;
+    focus?: 'tasks' | 'plans';
   } = $props();
 
   let tasks = $state<UserTaskViewModel[]>([]);
@@ -52,6 +54,7 @@
   const activeCount = $derived(tasks.filter((task) => task.status === 'in_progress').length);
   const doneCount = $derived(tasks.filter((task) => task.status === 'done').length);
   const activePlans = $derived(plans.filter((plan) => !['completed', 'archived'].includes(plan.status)));
+  const completedPlanCount = $derived(plans.filter((plan) => plan.status === 'completed').length);
 
   function filters(): ListUserTasksFilters {
     return {
@@ -217,18 +220,24 @@
   });
 </script>
 
-<section class="tasks-page" class:compact data-testid={compact ? 'project-tasks-page' : 'tasks-page'}>
+<section class="tasks-page" class:compact data-testid={compact ? 'project-tasks-page' : focus === 'plans' ? 'plans-page' : 'tasks-page'}>
   {#if !compact}
     <header class="tasks-hero">
       <div>
-        <p class="eyebrow">Tasks</p>
-        <h1>Plan work for you and your AI mates.</h1>
-        <p>Create private encrypted tasks, move them through a Kanban flow, and hand focused work to AI when it is ready.</p>
+        <p class="eyebrow">{focus === 'plans' ? 'Plans' : 'Tasks'}</p>
+        <h1>{focus === 'plans' ? 'Coordinate complex work with structured plans.' : 'Plan work for you and your AI mates.'}</h1>
+        <p>{focus === 'plans' ? 'Create private encrypted plans, keep active work aligned, and connect verification tasks when execution starts.' : 'Create private encrypted tasks, move them through a Kanban flow, and hand focused work to AI when it is ready.'}</p>
       </div>
       <div class="task-stats" aria-label="Task summary">
-        <span><strong>{totalCount}</strong> total</span>
-        <span><strong>{activeCount}</strong> active</span>
-        <span><strong>{doneCount}</strong> done</span>
+        {#if focus === 'plans'}
+          <span><strong>{plans.length}</strong> total</span>
+          <span><strong>{activePlans.length}</strong> active</span>
+          <span><strong>{completedPlanCount}</strong> done</span>
+        {:else}
+          <span><strong>{totalCount}</strong> total</span>
+          <span><strong>{activeCount}</strong> active</span>
+          <span><strong>{doneCount}</strong> done</span>
+        {/if}
       </div>
     </header>
   {/if}
