@@ -229,6 +229,8 @@ def test_upload_testflight_macos_command_uses_mac_app_store_export() -> None:
     assert "DISTRIBUTION" in script
     assert "installerSigningCertificate" in script
     assert "distribution_identity_sha1 if target_platform == \"macos\"" in script
+    assert "archive_entitlements_stamp=passed" in script
+    assert "OpenMatesPasskey.entitlements" in script
     assert "bundle_id_create=passed" in script
     assert '"platform": bundle_id_platform' in script
     assert "CODE_SIGNING_ALLOWED=NO" in script

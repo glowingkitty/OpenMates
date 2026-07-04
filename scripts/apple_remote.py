@@ -676,6 +676,37 @@ def clean_openmates_provisioning_profiles():
     print(f"provisioning_profile_cleanup=moved:{moved}")
 
 
+def stamp_unsigned_macos_archive_entitlements():
+    if target_platform != "macos":
+        return
+    app_path = archive_path / "Products" / "Applications" / "OpenMates.app"
+    extension_path = app_path / "Contents" / "PlugIns" / "OpenMatesShareExtension_macOS.appex"
+    targets = (
+        (extension_path, pathlib.Path("apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements")),
+        (app_path, pathlib.Path("apple/OpenMates/Resources/OpenMatesPasskey.entitlements")),
+    )
+    for bundle_path, entitlements_path in targets:
+        sign = subprocess.run(
+            [
+                "codesign",
+                "--force",
+                "--sign",
+                "-",
+                "--entitlements",
+                str(entitlements_path),
+                "--timestamp=none",
+                str(bundle_path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        if sign.returncode != 0:
+            print_tail("archive_entitlements_stamp", sign.stdout + sign.stderr, derived, limit=120)
+            sys.exit(sign.returncode)
+    print("archive_entitlements_stamp=passed")
+
+
 
 preflight_signing()
 
@@ -731,6 +762,7 @@ if archive.returncode != 0:
     print_tail("archive_status", archive.stdout + archive.stderr, derived)
     sys.exit(archive.returncode)
 print("archive_status=passed")
+stamp_unsigned_macos_archive_entitlements()
 
 clean_openmates_provisioning_profiles()
 sync_bundle_capabilities()
