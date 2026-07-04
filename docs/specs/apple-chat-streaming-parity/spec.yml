@@ -548,16 +548,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: "not-run-before-implementation"
+        timestamp: "2026-07-04T23:23:23+02:00"
+        summary: "The deterministic background sender payload test was added with the helper extraction; remote Mac execution required committing the new Swift test and project membership first."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "apple_remote build-ios + test-ios OpenMatesTests/BackgroundChatSenderParityTests @ b14262d"
+        timestamp: "2026-07-04T23:23:23+02:00"
+        summary: "Remote iPhone 17 simulator build succeeded, then executed 2 background sender payload and queued-event contract tests with 0 failures; xcodebuild reported TEST SUCCEEDED."
 
   - id: T-SWIFT-ANON-001
     type: unit
