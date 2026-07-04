@@ -772,8 +772,18 @@ def load_installed_app_store_profiles():
 
 
 def restore_latest_openmates_profile_backup():
+    backup_roots = [pathlib.Path(tempfile.gettempdir()), pathlib.Path("/var/folders")]
+    backups_by_path = {}
+    for root in backup_roots:
+        if not root.exists():
+            continue
+        for dirpath, dirnames, _filenames in os.walk(root):
+            path = pathlib.Path(dirpath)
+            if path.name.startswith("openmates-profiles-backup-"):
+                backups_by_path[str(path)] = path
+                dirnames[:] = []
     backups = sorted(
-        pathlib.Path(tempfile.gettempdir()).glob("openmates-profiles-backup-*"),
+        backups_by_path.values(),
         key=lambda path: path.stat().st_mtime if path.exists() else 0,
         reverse=True,
     )
@@ -783,15 +793,20 @@ def restore_latest_openmates_profile_backup():
     target_dir = provisioning_profile_dirs()[0]
     target_dir.mkdir(parents=True, exist_ok=True)
     restored = 0
-    for profile_path in backups[0].glob(f"*.{profile_extension}"):
-        profile_data = decoded_profile(profile_path)
-        if not profile_data or not profile_bundle_identifier(profile_data):
-            continue
-        target = target_dir / profile_path.name
-        if target.exists():
-            continue
-        profile_path.replace(target)
-        restored += 1
+    restored_identifiers = set()
+    for backup in backups:
+        for profile_path in backup.glob(f"*.{profile_extension}"):
+            profile_data = decoded_profile(profile_path)
+            identifier = profile_bundle_identifier(profile_data) if profile_data else None
+            if not identifier:
+                continue
+            target = target_dir / profile_path.name
+            if not target.exists():
+                profile_path.replace(target)
+                restored += 1
+            restored_identifiers.add(identifier)
+        if all(identifier in restored_identifiers for identifier in BUNDLE_IDS):
+            break
     print(f"provisioning_profile_restore=restored:{restored}")
 
 
