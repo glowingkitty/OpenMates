@@ -413,6 +413,17 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 		.catch(() => false);
 	log(`Editor preview image visible: ${editorPreviewVisible} (TOON may still be in transit)`);
 
+	// The send path requires the embed payload to be resolvable from the local
+	// embed store. The status/title can flip to finished before the decrypted
+	// page preview arrives, so wait for the image-backed payload before sending.
+	const readyPreviewImage = editorEmbedWrapper.first().getByRole('img', { name: /sample\.pdf|PDF page 1/i });
+	await expect(readyPreviewImage).toBeVisible({ timeout: 60000 });
+	await expect(async () => {
+		const src = await readyPreviewImage.getAttribute('src');
+		expect(src, 'PDF preview image should have a resolved src before send').toBeTruthy();
+	}).toPass({ timeout: 10000, intervals: [500] });
+	log('PDF local preview payload is ready before send.');
+
 	log('PDF upload embed verified in editor: filename and page count present.');
 	await screenshot(page, '03-pdf-embed-verified');
 	saveWarnErrorLogs('pdf', 'after_embed_check');
