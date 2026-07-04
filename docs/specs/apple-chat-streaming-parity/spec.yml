@@ -1,6 +1,6 @@
 id: apple-chat-streaming-parity
 title: Apple Chat Streaming Messaging And Persistence Parity
-status: approved
+status: implementing
 
 goal: >
   Make Apple chat sends behave like web chat sends across streaming, processing
@@ -500,8 +500,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "apple_remote test-ios OpenMatesTests/ChatSendPipelineParityTests @ 10c119e"
-        timestamp: "2026-07-04T20:59:15+02:00"
+        run_id: "apple_remote test-ios OpenMatesTests/ChatSendPipelineParityTests @ afa0e64"
+        timestamp: "2026-07-04T21:18:45+02:00"
         summary: "Remote iPhone 17 simulator executed 5 tests with 0 failures; xcodebuild reported TEST SUCCEEDED."
 
   - id: T-SWIFT-STREAM-001
@@ -521,16 +521,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: "not-run-before-implementation"
+        timestamp: "2026-07-04T21:18:45+02:00"
+        summary: "The deterministic Apple lifecycle test was added during TASK-2; remote Mac execution required committing the new Swift files first."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "apple_remote test-ios OpenMatesTests/ChatStreamingLifecycleParityTests @ afa0e64"
+        timestamp: "2026-07-04T21:17:57+02:00"
+        summary: "Remote iPhone 17 simulator executed 5 lifecycle reducer and cancel payload tests with 0 failures; xcodebuild reported TEST SUCCEEDED."
 
   - id: T-SWIFT-BACKGROUND-001
     type: unit
@@ -942,7 +944,7 @@ tasks:
 
   - id: TASK-2
     title: Add native lifecycle reducer and streaming state tests
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
