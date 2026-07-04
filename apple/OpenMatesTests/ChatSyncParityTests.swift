@@ -124,6 +124,22 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertFalse(SpotlightIndexer.isEligibleForSpotlight(publicChat))
     }
 
+    func testSyncClientStateExcludesIncognitoChats() {
+        let store = ChatStore()
+        let saved = makeChat(id: "saved-chat", title: "Saved")
+        let incognito = makeChat(id: IncognitoChatSession.makeChatId(), title: "Private")
+
+        store.performWithoutPersistence {
+            store.upsertChat(saved)
+            store.upsertChat(incognito)
+        }
+
+        let state = store.makeSyncClientState(clientSuggestionsCount: 0)
+        XCTAssertEqual(state.clientChatIds, ["saved-chat"])
+        XCTAssertNotNil(state.clientChatVersions["saved-chat"])
+        XCTAssertFalse(state.clientChatVersions.keys.contains(incognito.id))
+    }
+
     private func makeChat(
         id: String,
         title: String?,

@@ -139,4 +139,50 @@ final class ChatSendPipelineParityTests: XCTestCase {
             "user-1"
         )
     }
+
+    func testIncognitoPayloadUsesRequestScopedHistoryWithoutEncryptedStorageFields() {
+        let pipeline = ChatSendPipeline()
+        let chat = Chat(
+            id: IncognitoChatSession.makeChatId(),
+            title: nil,
+            lastMessageAt: nil,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            isArchived: false,
+            isPinned: false,
+            appId: "ai",
+            encryptedTitle: nil,
+            encryptedChatKey: nil,
+            messagesV: 0,
+            titleV: 0,
+            draftV: 0
+        )
+        let result = pipeline.makeLocalIncognitoUserMessage(
+            content: "Private prompt",
+            in: chat,
+            existingMessages: []
+        )
+
+        let payload = pipeline.incognitoUserMessagePayload(
+            chatId: result.chat.id,
+            message: result.message,
+            messageHistory: [result.message]
+        )
+
+        XCTAssertEqual(payload["chat_id"] as? String, result.chat.id)
+        XCTAssertEqual(payload["is_incognito"] as? Bool, true)
+        XCTAssertNil(payload["encrypted_chat_key"])
+        XCTAssertNil(payload["encrypted_embeds"])
+        XCTAssertNil(payload["encrypted_pii_mappings"])
+
+        let message = payload["message"] as? [String: Any]
+        XCTAssertEqual(message?["content"] as? String, "Private prompt")
+        XCTAssertEqual(message?["message_id"] as? String, result.message.id)
+        XCTAssertNil(message?["encrypted_content"])
+
+        let history = payload["message_history"] as? [[String: Any]]
+        XCTAssertEqual(history?.count, 1)
+        XCTAssertEqual(history?.first?["content"] as? String, "Private prompt")
+        XCTAssertNil(history?.first?["encrypted_content"])
+    }
 }

@@ -85,6 +85,9 @@ struct MainAppView: View {
     @State private var pendingBackgroundSyncContent = PendingSyncedContent()
     @State private var lastForegroundInteractionAt = Date.distantPast
     @State private var queuedNotificationReplies: [NotificationReplyRequest] = []
+    @State private var newChatFocusRequest = 0
+    @State private var chatInputFocusRequest = 0
+    @State private var chatCameraCaptureRequest = 0
 
     init(launchCommand: AppWindowLaunchCommand? = nil) {
         self.launchCommand = launchCommand
@@ -590,6 +593,77 @@ struct MainAppView: View {
         actionChat = nil
     }
 
+    private func openFocusedNewChatScreen(incognito: Bool = false) {
+        openNewChatScreen()
+        incognitoManager.isEnabled = incognito
+        newChatFocusRequest += 1
+    }
+
+    private func openNewChatWithCameraCapture() {
+        guard isAuthenticated else {
+            openFocusedNewChatScreen()
+            showAuthSheet = true
+            return
+        }
+        let chatId = makeTransientChat(isIncognito: false)
+        selectedWorkspace = .chat
+        selectedChatId = chatId
+        showNewChat = false
+        showAuthSheet = false
+        showSearch = false
+        showExplore = false
+        showShareChat = false
+        showHiddenChats = false
+        actionChat = nil
+        incognitoManager.isEnabled = false
+        chatInputFocusRequest += 1
+        chatCameraCaptureRequest += 1
+    }
+
+    private func openIncognitoAskChat() {
+        guard isAuthenticated else {
+            openFocusedNewChatScreen(incognito: true)
+            showAuthSheet = true
+            return
+        }
+        let chatId = makeTransientChat(isIncognito: true)
+        selectedWorkspace = .chat
+        selectedChatId = chatId
+        showNewChat = false
+        showAuthSheet = false
+        showSearch = false
+        showExplore = false
+        showShareChat = false
+        showHiddenChats = false
+        actionChat = nil
+        incognitoManager.isEnabled = true
+        chatInputFocusRequest += 1
+    }
+
+    private func makeTransientChat(isIncognito: Bool) -> String {
+        let now = ChatSendPipeline.isoString(from: Date())
+        let chatId = isIncognito ? IncognitoManager.makeChatId() : UUID().uuidString
+        let chat = Chat(
+            id: chatId,
+            title: nil,
+            lastMessageAt: nil,
+            createdAt: now,
+            updatedAt: now,
+            isArchived: false,
+            isPinned: false,
+            appId: "ai",
+            encryptedTitle: nil,
+            encryptedChatKey: nil,
+            messagesV: 0,
+            titleV: 0,
+            draftV: 0
+        )
+        chatStore.performWithoutPersistence {
+            chatStore.upsertChat(chat)
+        }
+        return chatId
+    }
+
     private func selectWorkspace(_ workspace: WorkspaceDestination) {
         selectedWorkspace = workspace
         showAuthSheet = false
@@ -606,16 +680,22 @@ struct MainAppView: View {
     }
 
     private func openSearchOverlay() {
+        selectedWorkspace = .chat
+        isChatsPanelOpen = true
         showSearch = true
         lastForegroundInteractionAt = Date()
     }
 
     private func handleQuickAction(_ action: AppQuickAction) {
         switch action {
-        case .newChat:
-            openNewChatScreen()
+        case .ask:
+            openFocusedNewChatScreen()
+        case .askAboutPhoto:
+            openNewChatWithCameraCapture()
         case .search:
             openSearchOverlay()
+        case .incognitoAsk:
+            openIncognitoAskChat()
         }
     }
 
@@ -1113,9 +1193,31 @@ struct MainAppView: View {
                 totalChatCount: totalChatCount,
                 serverSuggestions: syncedNewChatSuggestions,
                 accountInterestTagIds: accountInterestTagIds,
+                focusRequest: newChatFocusRequest,
                 onCreateChatWithMessage: { message in
                     let now = ChatSendPipeline.isoString(from: Date())
-                    if isAuthenticated {
+                    if incognitoManager.isEnabled {
+                        let chatId = makeTransientChat(isIncognito: true)
+                        let chat = chatStore.chat(for: chatId)
+                        if let chat {
+                            let result = ChatSendPipeline().makeLocalIncognitoUserMessage(
+                                content: message,
+                                in: chat,
+                                existingMessages: []
+                            )
+                            chatStore.performWithoutPersistence {
+                                chatStore.upsertChat(result.chat)
+                                chatStore.appendMessage(result.message, to: chatId)
+                            }
+                            try await ChatSendPipeline().sendIncognitoUserMessage(
+                                message: result.message,
+                                in: result.chat,
+                                historyMessages: [result.message],
+                                wsManager: wsManager
+                            )
+                        }
+                        return chatId
+                    } else if isAuthenticated {
                         let chatId = UUID().uuidString
                         let chat = Chat(
                             id: chatId,
@@ -1186,6 +1288,8 @@ struct MainAppView: View {
                 initialEmbeds: isPublic ? [] : chatStore.initialEmbedsForVisibleWindow(for: chatId, messages: initialWindow),
                 wsManager: wsManager,
                 chatStore: chatStore,
+                inputFocusRequest: chatInputFocusRequest,
+                cameraCaptureRequest: chatCameraCaptureRequest,
                 isSettingsOpen: !isCompactShell && showSettings,
                 onShareChat: { showShareChat = true },
                 onPreviousChat: previousChatAction(for: chatId),
@@ -1208,6 +1312,8 @@ struct MainAppView: View {
                 initialChat: isAnonymous ? chatStore.chat(for: chatId) : nil,
                 initialMessages: initialWindow,
                 chatStore: isAnonymous ? chatStore : nil,
+                inputFocusRequest: chatInputFocusRequest,
+                cameraCaptureRequest: chatCameraCaptureRequest,
                 isSettingsOpen: !isCompactShell && showSettings,
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
@@ -3957,6 +4063,7 @@ struct NewChatWelcomeView: View {
     let totalChatCount: Int
     let serverSuggestions: [NewChatSuggestionsView.ChatSuggestion]
     let accountInterestTagIds: [InterestTagId]
+    let focusRequest: Int
     let onCreateChatWithMessage: (String) async throws -> String
     let onChatCreated: (String) -> Void
     let onOpenChat: (String) -> Void
@@ -3972,6 +4079,7 @@ struct NewChatWelcomeView: View {
     @State private var guestSelectedInterestTagIds: [InterestTagId] = []
     @State private var appliedGuestInterestTagIds: [InterestTagId] = []
     @State private var isGuestInterestSelectionActive = true
+    @State private var handledFocusRequest = 0
     @FocusState private var isFocused: Bool
 
     private var activeInspiration: DailyInspirationBanner.DailyInspiration? {
@@ -4123,6 +4231,10 @@ struct NewChatWelcomeView: View {
         .task { await loadSuggestions() }
         .onAppear {
             isGuestInterestSelectionActive = !isAuthenticated && appliedGuestInterestTagIds.isEmpty
+            applyFocusRequestIfNeeded()
+        }
+        .onChange(of: focusRequest) { _, _ in
+            applyFocusRequestIfNeeded()
         }
         .onChange(of: serverSuggestions.map(\.id)) { _, _ in
             if !serverSuggestions.isEmpty {
@@ -4323,6 +4435,17 @@ struct NewChatWelcomeView: View {
             suggestions = Self.defaultSuggestions(selected: effectiveInterestTagIds)
         }
         hiddenSuggestionIds.removeAll()
+    }
+
+    private func applyFocusRequestIfNeeded() {
+        guard focusRequest > 0, handledFocusRequest != focusRequest else { return }
+        handledFocusRequest = focusRequest
+        isGuestInterestSelectionActive = false
+        isComposerExpanded = true
+        Task { @MainActor in
+            await Task.yield()
+            isFocused = true
+        }
     }
 
     private func rankedSuggestions(_ source: [NewChatSuggestionsView.ChatSuggestion]) -> [NewChatSuggestionsView.ChatSuggestion] {

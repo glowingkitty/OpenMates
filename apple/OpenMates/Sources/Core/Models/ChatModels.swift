@@ -30,6 +30,18 @@ enum NativeSyncPerfLog {
     }
 }
 
+enum IncognitoChatSession {
+    static let chatIdPrefix = "incognito-"
+
+    static func isIncognitoChatId(_ chatId: String) -> Bool {
+        chatId.hasPrefix(chatIdPrefix)
+    }
+
+    static func makeChatId() -> String {
+        "\(chatIdPrefix)\(UUID().uuidString)"
+    }
+}
+
 struct Chat: Identifiable, Decodable, Sendable {
     let id: String
     var title: String?             // Decrypted title (set client-side after decryption)

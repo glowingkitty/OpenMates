@@ -104,6 +104,8 @@ struct ChatView: View {
     var initialEmbeds: [EmbedRecord] = []
     var wsManager: WebSocketManager? = nil
     var chatStore: ChatStore? = nil
+    var inputFocusRequest = 0
+    var cameraCaptureRequest = 0
     /// Mirrors web `.chat-container.menu-open`; used by the banner header to
     /// collapse from viewport-responsive height to the fixed adjacent-panel height.
     var isSettingsOpen = false
@@ -149,6 +151,8 @@ struct ChatView: View {
     @State private var isAtBottom = false
     @State private var hasRestoredInitialScroll = false
     @State private var isRestoringScroll = false
+    @State private var handledInputFocusRequest = 0
+    @State private var handledCameraCaptureRequest = 0
     @State private var lastReportedVisibleMessageId: String?
     @State private var assistantFeedbackMessageId: String?
     @State private var selectedAssistantRating: Int?
@@ -202,6 +206,10 @@ struct ChatView: View {
                         if effectiveBannerState == nil {
                             chatTopBar
                         }
+                    }
+
+                    if IncognitoChatSession.isIncognitoChatId(chatId) {
+                        incognitoSessionBanner
                     }
 
                     messageList
@@ -283,6 +291,14 @@ struct ChatView: View {
         #endif
         .onAppear {
             applyUITestRecordingOverlayIfNeeded()
+            applyInputFocusRequestIfNeeded()
+            applyCameraCaptureRequestIfNeeded()
+        }
+        .onChange(of: inputFocusRequest) { _, _ in
+            applyInputFocusRequestIfNeeded()
+        }
+        .onChange(of: cameraCaptureRequest) { _, _ in
+            applyCameraCaptureRequestIfNeeded()
         }
         .task(id: chatId) {
             viewModel.configure(wsManager: wsManager, chatStore: chatStore)
@@ -418,6 +434,24 @@ struct ChatView: View {
                 .fill(Color.grey20)
                 .frame(height: 1)
         }
+    }
+
+    private var incognitoSessionBanner: some View {
+        HStack(spacing: .spacing3) {
+            Icon("hidden", size: 14)
+                .accessibilityHidden(true)
+            Text(AppStrings.incognitoModeActive)
+                .font(.omXs)
+                .fontWeight(.medium)
+            Spacer()
+        }
+        .foregroundStyle(Color.fontButton)
+        .padding(.horizontal, .spacing4)
+        .padding(.vertical, .spacing2)
+        .background(Color.grey80)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(AppStrings.incognitoModeActive)
+        .accessibilityIdentifier("incognito-mode-banner")
     }
 
     private func customOverlay<Content: View>(
@@ -1650,6 +1684,26 @@ struct ChatView: View {
                 broadcastToSiblings: broadcastToSiblingSubChats
             )
         }
+    }
+
+    private func applyInputFocusRequestIfNeeded() {
+        guard inputFocusRequest > 0, handledInputFocusRequest != inputFocusRequest else { return }
+        handledInputFocusRequest = inputFocusRequest
+        Task { @MainActor in
+            await Task.yield()
+            isInputFocused = true
+        }
+    }
+
+    private func applyCameraCaptureRequestIfNeeded() {
+        guard cameraCaptureRequest > 0, handledCameraCaptureRequest != cameraCaptureRequest else { return }
+        handledCameraCaptureRequest = cameraCaptureRequest
+        #if os(iOS)
+        Task { @MainActor in
+            await Task.yield()
+            showCameraCapture = true
+        }
+        #endif
     }
 
     private func handleComposerDeferredSend(_ notification: Notification) {

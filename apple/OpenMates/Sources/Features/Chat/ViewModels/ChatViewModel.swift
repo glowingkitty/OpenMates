@@ -681,6 +681,10 @@ final class ChatViewModel: ObservableObject {
         broadcastToSiblings: Bool = false
     ) async {
         guard let currentChat = chat else { return }
+        if IncognitoChatSession.isIncognitoChatId(currentChat.id) {
+            await sendIncognitoMessage(content, in: currentChat)
+            return
+        }
         if AnonymousFreeUsageService.shared.isAnonymousChat(currentChat.id) {
             await sendAnonymousMessage(content, in: currentChat)
             return
@@ -706,6 +710,34 @@ final class ChatViewModel: ObservableObject {
             pendingComposerEmbeds.removeAll()
             isStreaming = true
             streamingContent = ""
+        } catch {
+            self.error = error.localizedDescription
+            isStreaming = false
+        }
+    }
+
+    private func sendIncognitoMessage(_ content: String, in currentChat: Chat) async {
+        guard !hasPendingComposerEmbeds else {
+            ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
+            return
+        }
+        do {
+            let result = sendPipeline.makeLocalIncognitoUserMessage(
+                content: content,
+                in: currentChat,
+                existingMessages: allMessages
+            )
+            chat = result.chat
+            pendingUserMessagesById[result.message.id] = result.message
+            appendOrReplaceTransientMessage(result.message)
+            isStreaming = true
+            streamingContent = ""
+            try await sendPipeline.sendIncognitoUserMessage(
+                message: result.message,
+                in: result.chat,
+                historyMessages: allMessages,
+                wsManager: wsManager
+            )
         } catch {
             self.error = error.localizedDescription
             isStreaming = false
@@ -934,11 +966,13 @@ final class ChatViewModel: ObservableObject {
             }
             if let metadata {
                 Task { @MainActor in
-                    await sendEncryptedUserStorageIfPossible(
-                        chatId: chatId,
-                        assistantMessageId: messageId,
-                        metadata: metadata
-                    )
+                    if !IncognitoChatSession.isIncognitoChatId(chatId) {
+                        await sendEncryptedUserStorageIfPossible(
+                            chatId: chatId,
+                            assistantMessageId: messageId,
+                            metadata: metadata
+                        )
+                    }
                 }
             }
 
@@ -972,7 +1006,11 @@ final class ChatViewModel: ObservableObject {
                     embedRecords[id] = record
                 }
                 let assistantMessage = embedded.messages.first ?? rawAssistantMessage
-                appendOrReplaceLocalMessage(assistantMessage)
+                if IncognitoChatSession.isIncognitoChatId(chatId) {
+                    appendOrReplaceTransientMessage(assistantMessage)
+                } else {
+                    appendOrReplaceLocalMessage(assistantMessage)
+                }
                 followUpSuggestions = extractFollowUpSuggestions(from: allMessages)
                 isStreaming = false
                 streamingContent = ""
@@ -981,10 +1019,12 @@ final class ChatViewModel: ObservableObject {
                 assistantCategoryByMessageId.removeValue(forKey: messageId)
                 assistantModelNameByMessageId.removeValue(forKey: messageId)
                 Task { @MainActor in
-                    await persistCompletedAssistantMessage(
-                        assistantMessage,
-                        userMessageId: userMessageIdByAssistantMessageId[messageId]
-                    )
+                    if !IncognitoChatSession.isIncognitoChatId(chatId) {
+                        await persistCompletedAssistantMessage(
+                            assistantMessage,
+                            userMessageId: userMessageIdByAssistantMessageId[messageId]
+                        )
+                    }
                 }
             } else {
                 let partialAssistantMessage = Message(
@@ -1065,6 +1105,7 @@ final class ChatViewModel: ObservableObject {
         assistantMessageId: String,
         metadata: StreamingClient.ChatMetadata
     ) async {
+        guard !IncognitoChatSession.isIncognitoChatId(chatId) else { return }
         guard chat?.id == chatId else { return }
         let userMessageId = metadata.userMessageId ?? userMessageIdByAssistantMessageId[assistantMessageId]
         guard let userMessageId,
@@ -1086,6 +1127,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func persistCompletedAssistantMessage(_ message: Message, userMessageId: String?) async {
+        guard !IncognitoChatSession.isIncognitoChatId(message.chatId) else { return }
         do {
             let persisted = try await sendPipeline.persistCompletedAssistantMessage(
                 message,
@@ -2831,6 +2873,108 @@ final class ChatSendPipeline {
     struct SendResult {
         let chat: Chat
         let message: Message
+    }
+
+    func makeLocalIncognitoUserMessage(
+        content: String,
+        in chat: Chat,
+        existingMessages: [Message]
+    ) -> SendResult {
+        let now = Date()
+        let createdAt = Self.isoString(from: now)
+        let messageId = "\(chat.id.suffix(10))-\(UUID().uuidString)"
+        let nextMessagesV = max(chat.messagesV ?? existingMessages.count, existingMessages.count) + 1
+        let updatedChat = copyChat(
+            chat,
+            title: chat.title ?? String(content.prefix(64)),
+            lastMessageAt: createdAt,
+            updatedAt: createdAt,
+            messagesV: nextMessagesV
+        )
+        let message = Message(
+            id: messageId,
+            chatId: chat.id,
+            role: .user,
+            content: content,
+            encryptedContent: nil,
+            createdAt: createdAt,
+            updatedAt: nil,
+            appId: nil,
+            isStreaming: false,
+            embedRefs: nil
+        )
+        return SendResult(chat: updatedChat, message: message)
+    }
+
+    func sendIncognitoUserMessage(
+        message: Message,
+        in chat: Chat,
+        historyMessages: [Message],
+        wsManager: WebSocketManager?
+    ) async throws {
+        guard let wsManager else { throw ChatSendError.webSocketUnavailable }
+        try await sendSetActiveChat(chat.id, wsManager: wsManager)
+        try await wsManager.send(WSOutboundMessage(
+            type: "chat_message_added",
+            payload: incognitoUserMessagePayload(
+                chatId: chat.id,
+                message: message,
+                messageHistory: historyMessages
+            )
+        ))
+    }
+
+    func sendIncognitoUserMessage(
+        content: String,
+        in chat: Chat,
+        existingMessages: [Message],
+        wsManager: WebSocketManager?
+    ) async throws {
+        let result = makeLocalIncognitoUserMessage(content: content, in: chat, existingMessages: existingMessages)
+        try await sendIncognitoUserMessage(
+            message: result.message,
+            in: result.chat,
+            historyMessages: existingMessages + [result.message],
+            wsManager: wsManager
+        )
+    }
+
+    func incognitoUserMessagePayload(
+        chatId: String,
+        message: Message,
+        messageHistory: [Message]
+    ) -> [String: Any] {
+        let createdAtUnix = Self.unixSeconds(from: message.createdAt)
+        return [
+            "chat_id": chatId,
+            "is_incognito": true,
+            "message": [
+                "message_id": message.id,
+                "chat_id": chatId,
+                "role": message.role.rawValue,
+                "sender_name": "User",
+                "status": "sent",
+                "content": message.content ?? "",
+                "created_at": createdAtUnix,
+                "chat_has_title": false
+            ],
+            "message_history": incognitoMessageHistoryPayload(messageHistory, fallbackChatId: chatId)
+        ]
+    }
+
+    private func incognitoMessageHistoryPayload(_ messages: [Message], fallbackChatId: String) -> [[String: Any]] {
+        messages.compactMap { message in
+            let content = (message.content ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !content.isEmpty, message.role != .system else { return nil }
+            return [
+                "message_id": message.id,
+                "chat_id": message.chatId.isEmpty ? fallbackChatId : message.chatId,
+                "role": message.role.rawValue,
+                "sender_name": message.role == .user ? "User" : "Assistant",
+                "content": content,
+                "created_at": Self.unixSeconds(from: message.createdAt)
+            ]
+        }
     }
 
     func sendUserMessage(

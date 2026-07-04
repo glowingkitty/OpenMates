@@ -4,6 +4,9 @@
 
 import SwiftUI
 import SwiftData
+#if os(iOS)
+import UIKit
+#endif
 
 struct AppWindowLaunchCommand: Codable, Hashable {
     enum Action: String, Codable, Hashable {
@@ -29,9 +32,68 @@ struct AppWindowLaunchCommand: Codable, Hashable {
 }
 
 enum AppQuickAction: String {
-    case newChat
+    case ask
+    case askAboutPhoto
     case search
+    case incognitoAsk
 }
+
+#if os(iOS)
+extension AppQuickAction {
+    static let askType = "org.openmates.ask"
+    static let legacyNewChatType = "org.openmates.newchat"
+    static let askAboutPhotoType = "org.openmates.ask-about-photo"
+    static let searchType = "org.openmates.search"
+    static let incognitoAskType = "org.openmates.incognito-ask"
+
+    var shortcutType: String {
+        switch self {
+        case .ask:
+            return Self.askType
+        case .askAboutPhoto:
+            return Self.askAboutPhotoType
+        case .search:
+            return Self.searchType
+        case .incognitoAsk:
+            return Self.incognitoAskType
+        }
+    }
+
+    @MainActor
+    static var shortcutItems: [UIApplicationShortcutItem] {
+        [
+            UIApplicationShortcutItem(
+                type: AppQuickAction.ask.shortcutType,
+                localizedTitle: AppStrings.quickActionAsk,
+                localizedSubtitle: nil,
+                icon: UIApplicationShortcutIcon(systemImageName: "square.and.pencil"),
+                userInfo: nil
+            ),
+            UIApplicationShortcutItem(
+                type: AppQuickAction.askAboutPhoto.shortcutType,
+                localizedTitle: AppStrings.quickActionAskAboutPhoto,
+                localizedSubtitle: nil,
+                icon: UIApplicationShortcutIcon(systemImageName: "camera"),
+                userInfo: nil
+            ),
+            UIApplicationShortcutItem(
+                type: AppQuickAction.search.shortcutType,
+                localizedTitle: AppStrings.search,
+                localizedSubtitle: nil,
+                icon: UIApplicationShortcutIcon(systemImageName: "magnifyingglass"),
+                userInfo: nil
+            ),
+            UIApplicationShortcutItem(
+                type: AppQuickAction.incognitoAsk.shortcutType,
+                localizedTitle: AppStrings.quickActionIncognitoAsk,
+                localizedSubtitle: nil,
+                icon: UIApplicationShortcutIcon(systemImageName: "eye.slash"),
+                userInfo: nil
+            )
+        ]
+    }
+}
+#endif
 
 @MainActor
 final class AppQuickActionCenter {
@@ -260,7 +322,20 @@ extension FocusedValues {
 // MARK: - App delegate for push notification token delivery
 
 #if os(iOS)
+@MainActor
 class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        application.shortcutItems = AppQuickAction.shortcutItems
+        return true
+    }
+
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        application.shortcutItems = AppQuickAction.shortcutItems
+    }
+
     func application(
         _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data

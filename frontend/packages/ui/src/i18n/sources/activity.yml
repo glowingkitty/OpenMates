@@ -310,6 +310,21 @@ incognito:
   sv: INKOGNITO
   he: גלישה בסתר
   verified_by_human: []
+quick_action_ask:
+  context: iOS home screen quick action title that opens a new chat with the message input focused
+  en: Ask
+  de: Fragen
+  verified_by_human: []
+quick_action_ask_about_photo:
+  context: iOS home screen quick action title that opens a new chat and launches the camera capture flow
+  en: Ask About Photo
+  de: Nach Foto fragen
+  verified_by_human: []
+quick_action_incognito_ask:
+  context: iOS home screen quick action title that starts a new incognito chat with the message input focused
+  en: Incognito Ask
+  de: Inkognito fragen
+  verified_by_human: []
 intro:
   context: Group title for intro chats
   en: INTRO

@@ -71,7 +71,8 @@ final class ChatStore: ObservableObject {
     }
 
     func makeSyncClientState(clientSuggestionsCount: Int) -> SyncClientState {
-        let versions = chats.reduce(into: [String: [String: Int]]()) { result, chat in
+        let syncableChats = chats.filter { !IncognitoChatSession.isIncognitoChatId($0.id) }
+        let versions = syncableChats.reduce(into: [String: [String: Int]]()) { result, chat in
             var chatVersions: [String: Int] = [:]
             if let messagesV = chat.messagesV {
                 chatVersions["messages_v"] = messagesV
@@ -89,7 +90,7 @@ final class ChatStore: ObservableObject {
         let embedIds = Set(embedsByChat.values.flatMap { $0.keys }).sorted()
         return SyncClientState(
             clientChatVersions: versions,
-            clientChatIds: chats.map(\.id),
+            clientChatIds: syncableChats.map(\.id),
             clientSuggestionsCount: clientSuggestionsCount,
             clientEmbedIds: embedIds
         )

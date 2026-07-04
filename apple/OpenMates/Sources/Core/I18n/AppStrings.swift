@@ -25,6 +25,9 @@ enum AppStrings {
     static var next: String { L("common.next") }
     static var skip: String { L("common.skip") }
     static var search: String { L("activity.search") }
+    static var quickActionAsk: String { L("activity.quick_action_ask") }
+    static var quickActionAskAboutPhoto: String { L("activity.quick_action_ask_about_photo") }
+    static var quickActionIncognitoAsk: String { L("activity.quick_action_incognito_ask") }
     static var retry: String { L("common.retry") }
     static var confirm: String { L("common.confirm") }
     static var edit: String { L("common.edit") }
