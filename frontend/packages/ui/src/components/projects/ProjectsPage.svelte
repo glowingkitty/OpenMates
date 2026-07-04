@@ -608,10 +608,12 @@
   </section>
 {/if}
 
-<svelte:window onclick={handleRemoteFullscreenClick} />
-
 {#if activeRemoteFullscreen}
-  <div class="projects-remote-fullscreen" data-testid="project-remote-fullscreen-overlay">
+  <div
+    class="projects-remote-fullscreen"
+    data-testid="project-remote-fullscreen-overlay"
+    onclickcapture={handleRemoteFullscreenClick}
+  >
     <CodeEmbedFullscreen
       data={{
         decodedContent: activeRemoteFullscreen.decodedContent,

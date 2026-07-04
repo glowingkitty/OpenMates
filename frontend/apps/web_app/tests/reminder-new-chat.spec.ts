@@ -252,7 +252,7 @@ test('reminder — new-chat: reminder fires into a newly created chat', async ({
 	const reminderContent = await page.evaluate(() => (window as any).__newReminderContent).catch(() => null);
 	const reminderTargetType = await page.evaluate(() => (window as any).__newReminderTargetType).catch(() => null);
 	expect(reminderTargetType).toBe('new_chat');
-	expect(reminderContent || '').toContain('reminder test');
+	expect((reminderContent || '').replace(/_/g, ' ')).toContain('new chat reminder test');
 
 	// Navigate to the new chat (direct URL — most reliable approach)
 	// URL format is /#chat-id=<uuid> (hash-based routing)
