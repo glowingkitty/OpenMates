@@ -662,11 +662,6 @@ struct ChatView: View {
                 .onChange(of: viewModel.messages.map(\.id)) { _, _ in
                     restoreInitialScrollIfNeeded(proxy: proxy)
                 }
-                .onChange(of: viewModel.streamingContent) { _, _ in
-                    withAnimation {
-                        proxy.scrollTo("scroll-bottom", anchor: .bottom)
-                    }
-                }
             }
         }
     }

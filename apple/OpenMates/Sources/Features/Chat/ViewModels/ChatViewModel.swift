@@ -7,6 +7,130 @@ import Foundation
 import SwiftUI
 import CryptoKit
 
+enum ChatStreamingLifecyclePhase: Equatable {
+    case idle
+    case sending
+    case processing
+    case typing
+    case thinking
+    case streaming
+    case queued
+    case cancelling
+    case completed
+    case error
+}
+
+struct ChatStreamingLifecycleState: Equatable {
+    var phase: ChatStreamingLifecyclePhase = .idle
+    var chatId: String?
+    var taskId: String?
+    var messageId: String?
+    var userMessageId: String?
+    var preprocessingStep: String?
+    var thinkingContent = ""
+    var isThinkingStreaming = false
+    var errorMessage: String?
+
+    var isActive: Bool {
+        switch phase {
+        case .idle, .completed, .error:
+            return false
+        case .sending, .processing, .typing, .thinking, .streaming, .queued, .cancelling:
+            return true
+        }
+    }
+
+    mutating func apply(_ event: StreamingClient.StreamEvent) {
+        switch event {
+        case .taskInitiated(let chatId, let taskId, let userMessageId):
+            self.chatId = chatId
+            self.taskId = taskId
+            self.userMessageId = userMessageId.isEmpty ? nil : userMessageId
+            phase = .sending
+            errorMessage = nil
+
+        case .preprocessingStep(let chatId, let step, _):
+            self.chatId = chatId
+            preprocessingStep = step
+            phase = .processing
+
+        case .typingStarted(let chatId, let messageId, let metadata):
+            self.chatId = chatId
+            self.messageId = messageId
+            if let userMessageId = metadata?.userMessageId, !userMessageId.isEmpty {
+                self.userMessageId = userMessageId
+            }
+            phase = .typing
+
+        case .thinkingChunk(let chatId, let messageId, let content):
+            self.chatId = chatId
+            self.messageId = messageId
+            thinkingContent = content
+            isThinkingStreaming = true
+            phase = .thinking
+
+        case .thinkingComplete(let chatId, let messageId):
+            self.chatId = chatId
+            self.messageId = messageId
+            isThinkingStreaming = false
+            if phase == .thinking {
+                phase = .typing
+            }
+
+        case .chunk(let chatId, let messageId, _, _, let isFinal, let userMessageId, _, _, _):
+            self.chatId = chatId
+            self.messageId = messageId
+            if let userMessageId, !userMessageId.isEmpty {
+                self.userMessageId = userMessageId
+            }
+            phase = isFinal ? .completed : .streaming
+            if isFinal {
+                isThinkingStreaming = false
+            }
+
+        case .messageReady(let chatId, let messageId):
+            self.chatId = chatId
+            self.messageId = messageId
+            phase = .completed
+            isThinkingStreaming = false
+
+        case .typingEnded(let chatId, let messageId):
+            self.chatId = chatId
+            if let messageId { self.messageId = messageId }
+            if phase == .typing || phase == .thinking || phase == .processing {
+                phase = .completed
+            }
+            isThinkingStreaming = false
+
+        case .messageQueued(let chatId, let taskId, let userMessageId):
+            self.chatId = chatId
+            self.taskId = taskId ?? self.taskId
+            self.userMessageId = userMessageId ?? self.userMessageId
+            phase = .queued
+
+        case .cancelRequested(let chatId, let taskId):
+            self.chatId = chatId
+            self.taskId = taskId ?? self.taskId
+            phase = .cancelling
+            isThinkingStreaming = false
+
+        case .postProcessingCompleted(let chatId, let taskId, _, _, _, _, _):
+            self.chatId = chatId
+            self.taskId = taskId
+            phase = .completed
+
+        case .error(let message):
+            phase = .error
+            errorMessage = message
+            isThinkingStreaming = false
+        }
+    }
+
+    mutating func reset() {
+        self = ChatStreamingLifecycleState()
+    }
+}
+
 @MainActor
 final class ChatViewModel: ObservableObject {
     struct ChatOpeningMetrics: Equatable {
@@ -24,6 +148,7 @@ final class ChatViewModel: ObservableObject {
     @Published var isStreaming = false
     @Published var streamingContent = ""
     @Published var streamingMessageId: String?
+    @Published private(set) var streamingLifecycle = ChatStreamingLifecycleState()
     @Published var followUpSuggestions: [String] = []
     @Published var error: String?
     @Published private(set) var openingMetrics = ChatOpeningMetrics()
@@ -730,10 +855,23 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Stop streaming
 
     func stopStreaming() {
+        let taskId = streamingLifecycle.taskId
+        let chatId = streamingLifecycle.chatId ?? chat?.id
+        if taskId != nil || chatId != nil {
+            streamingLifecycle.apply(.cancelRequested(chatId: chatId ?? "", taskId: taskId))
+            Task { @MainActor in
+                do {
+                    try await sendPipeline.sendCancelAITask(taskId: taskId, chatId: chatId, wsManager: wsManager)
+                } catch {
+                    print("[ChatViewModel] Failed to send AI cancellation for chat \((chatId ?? "unknown").prefix(8)): \(error)")
+                }
+            }
+        }
         streamTask?.cancel()
         isStreaming = false
         streamingContent = ""
         streamingMessageId = nil
+        streamingLifecycle.reset()
     }
 
     // MARK: - Streaming subscription
@@ -750,6 +888,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func handleStreamEvent(_ event: StreamingClient.StreamEvent) {
+        streamingLifecycle.apply(event)
         switch event {
         case .taskInitiated(_, _, _):
             isStreaming = true
@@ -832,17 +971,27 @@ final class ChatViewModel: ObservableObject {
                 isStreaming = true
             }
 
-        case .thinkingChunk(_, _, _):
-            break
+        case .thinkingChunk(_, let messageId, _):
+            streamingMessageId = messageId
+            isStreaming = true
 
         case .thinkingComplete(_, _):
-            break
+            isStreaming = true
 
         case .messageReady(_, _):
             isStreaming = false
 
         case .preprocessingStep(_, _, _):
-            break
+            isStreaming = true
+
+        case .typingEnded(_, _):
+            isStreaming = false
+
+        case .messageQueued(_, _, _):
+            isStreaming = true
+
+        case .cancelRequested(_, _):
+            isStreaming = false
 
         case .postProcessingCompleted(let chatId, _, let followUps, let newSuggestions, let summary, let tags, let updatedTitle):
             guard chat?.id == chatId else { return }
@@ -2779,6 +2928,23 @@ final class ChatSendPipeline {
         var payload: [String: Any] = ["chat_id": chatId]
         if let taskId {
             payload["task_id"] = taskId
+        }
+        return payload
+    }
+
+    func sendCancelAITask(taskId: String?, chatId: String?, wsManager: WebSocketManager?) async throws {
+        guard let wsManager else { throw ChatSendError.webSocketUnavailable }
+        guard let taskId, !taskId.isEmpty else { return }
+        try await wsManager.send(WSOutboundMessage(
+            type: "cancel_ai_task",
+            payload: cancelAITaskPayload(taskId: taskId, chatId: chatId)
+        ))
+    }
+
+    func cancelAITaskPayload(taskId: String, chatId: String?) -> [String: Any] {
+        var payload: [String: Any] = ["task_id": taskId]
+        if let chatId, !chatId.isEmpty {
+            payload["chat_id"] = chatId
         }
         return payload
     }
