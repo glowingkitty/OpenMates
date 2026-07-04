@@ -6,6 +6,7 @@ on:
     paths:
       - "frontend/apps/vscode_extension/**"
       - "frontend/apps/web_app/package.json"
+      - "frontend/apps/web_app/scripts/build-vscode.js"
       - "frontend/apps/web_app/svelte.config.js"
       - "frontend/packages/ui/index.ts"
       - "frontend/packages/ui/src/components/Login.svelte"
@@ -19,6 +20,7 @@ on:
     paths:
       - "frontend/apps/vscode_extension/**"
       - "frontend/apps/web_app/package.json"
+      - "frontend/apps/web_app/scripts/build-vscode.js"
       - "frontend/apps/web_app/svelte.config.js"
       - "frontend/packages/ui/index.ts"
       - "frontend/packages/ui/src/components/Login.svelte"

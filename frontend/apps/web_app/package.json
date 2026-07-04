@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev": "node scripts/process-docs.js && vite dev",
 		"build": "node scripts/process-docs.js && vite build && node scripts/audit-example-seo.js",
-		"build:vscode": "node scripts/process-docs.js && OPENMATES_BUILD_TARGET=vscode vite build",
+		"build:vscode": "node scripts/process-docs.js && node scripts/build-vscode.js",
 		"build:docs": "node scripts/process-docs.js",
 		"audit:seo": "node scripts/audit-example-seo.js",
 		"preview": "vite preview",
