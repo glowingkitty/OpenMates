@@ -147,6 +147,7 @@
 		C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */; };
 		C0FFEE000000000000038002 /* ChatStreamingLifecycleParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */; };
 		C0FFEE000000000000039002 /* BackgroundChatSenderParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000039001 /* BackgroundChatSenderParityTests.swift */; };
+		C0FFEE000000000000040002 /* AnonymousChatStreamingParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000040001 /* AnonymousChatStreamingParityTests.swift */; };
 		C0FFEE000000000000036012 /* WorkflowsParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036011 /* WorkflowsParityTests.swift */; };
 		C0FFEE000000000000036014 /* WorkflowsParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036013 /* WorkflowsParityUITests.swift */; };
 		300707B1BAC8B4FE232B4215 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF95252DD3548D54E1FCF816 /* KeyboardShortcuts.swift */; };
@@ -771,6 +772,7 @@
 		C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSendPipelineParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStreamingLifecycleParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000039001 /* BackgroundChatSenderParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundChatSenderParityTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000040001 /* AnonymousChatStreamingParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnonymousChatStreamingParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000036011 /* WorkflowsParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowsParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000036013 /* WorkflowsParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowsParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000002002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -1335,6 +1337,7 @@
 				C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */,
 				C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */,
 				C0FFEE000000000000039001 /* BackgroundChatSenderParityTests.swift */,
+				C0FFEE000000000000040001 /* AnonymousChatStreamingParityTests.swift */,
 				C0FFEE000000000000012001 /* ChatSyncParityTests.swift */,
 				C0FFEE000000000000013001 /* SubChatProcessingTests.swift */,
 				C0FFEE000000000000015001 /* ChatManagementSharingParityTests.swift */,
@@ -2352,6 +2355,7 @@
 				C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */,
 				C0FFEE000000000000038002 /* ChatStreamingLifecycleParityTests.swift in Sources */,
 				C0FFEE000000000000039002 /* BackgroundChatSenderParityTests.swift in Sources */,
+				C0FFEE000000000000040002 /* AnonymousChatStreamingParityTests.swift in Sources */,
 				C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */,
 				C0FFEE000000000000013004 /* SubChatProcessingTests.swift in Sources */,
 				C0FFEE000000000000015004 /* ChatManagementSharingParityTests.swift in Sources */,

@@ -8,6 +8,37 @@ import Combine
 import CryptoKit
 import Foundation
 
+struct AnonymousChatPromotionPayload {
+    let chatId: String
+    let createdAtUnix: Int
+    let messageHistory: [[String: Any]]
+    let messagesV: Int
+    let titleV: Int
+    let lastEditedOverallTimestamp: Int
+    let encryptedChatKey: String?
+    let encryptedTitle: String?
+    let encryptedIcon: String?
+    let encryptedCategory: String?
+
+    var dictionary: [String: Any] {
+        var payload: [String: Any] = [
+            "chat_id": chatId,
+            "created_at": createdAtUnix,
+            "message_history": messageHistory,
+            "versions": [
+                "messages_v": messagesV,
+                "title_v": titleV,
+                "last_edited_overall_timestamp": lastEditedOverallTimestamp
+            ]
+        ]
+        if let encryptedChatKey { payload["encrypted_chat_key"] = encryptedChatKey }
+        if let encryptedTitle { payload["encrypted_title"] = encryptedTitle }
+        if let encryptedIcon { payload["encrypted_icon"] = encryptedIcon }
+        if let encryptedCategory { payload["encrypted_chat_category"] = encryptedCategory }
+        return payload
+    }
+}
+
 @MainActor
 final class AnonymousFreeUsageService: ObservableObject {
     static let shared = AnonymousFreeUsageService()
@@ -348,21 +379,18 @@ final class AnonymousFreeUsageService: ObservableObject {
     }
 
     private func promotionPayload(chat: Chat, messageHistory: [[String: Any]]) -> [String: Any] {
-        var payload: [String: Any] = [
-            "chat_id": chat.id,
-            "created_at": Self.unixSeconds(from: chat.createdAt),
-            "message_history": messageHistory,
-            "versions": [
-                "messages_v": chat.messagesV ?? messageHistory.count,
-                "title_v": chat.titleV ?? 0,
-                "last_edited_overall_timestamp": Self.unixSeconds(from: chat.lastMessageAt ?? chat.updatedAt ?? chat.createdAt)
-            ]
-        ]
-        if let encryptedChatKey = chat.encryptedChatKey { payload["encrypted_chat_key"] = encryptedChatKey }
-        if let encryptedTitle = chat.encryptedTitle { payload["encrypted_title"] = encryptedTitle }
-        if let encryptedIcon = chat.encryptedIcon { payload["encrypted_icon"] = encryptedIcon }
-        if let encryptedCategory = chat.encryptedCategory { payload["encrypted_chat_category"] = encryptedCategory }
-        return payload
+        AnonymousChatPromotionPayload(
+            chatId: chat.id,
+            createdAtUnix: Self.unixSeconds(from: chat.createdAt),
+            messageHistory: messageHistory,
+            messagesV: chat.messagesV ?? messageHistory.count,
+            titleV: chat.titleV ?? 0,
+            lastEditedOverallTimestamp: Self.unixSeconds(from: chat.lastMessageAt ?? chat.updatedAt ?? chat.createdAt),
+            encryptedChatKey: chat.encryptedChatKey,
+            encryptedTitle: chat.encryptedTitle,
+            encryptedIcon: chat.encryptedIcon,
+            encryptedCategory: chat.encryptedCategory
+        ).dictionary
     }
 
     private func storeAnonymousChatKey(_ key: SymmetricKey, chatId: String) throws {
