@@ -200,10 +200,26 @@ async function closeSidebar(page: any, logStep: (...args: any[]) => void): Promi
  * Returns null if no resume card is visible.
  */
 async function getResumeCardTitle(page: any): Promise<string | null> {
-	// Try large card first, then compact card
+	// Prefer the primary last-opened resume card. The carousel may render
+	// priority/reminder cards before it, and those cards reuse the title test IDs.
+	const primaryResumeCard = page
+		.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]')
+		.first();
+	if (await primaryResumeCard.isVisible({ timeout: 10000 }).catch(() => false)) {
+		const largeTitle = primaryResumeCard.getByTestId('resume-large-title').first();
+		const compactTitle = primaryResumeCard.getByTestId('resume-chat-title').first();
+		if (await largeTitle.isVisible({ timeout: 500 }).catch(() => false)) {
+			return (await largeTitle.textContent())?.trim() || null;
+		}
+		if (await compactTitle.isVisible({ timeout: 500 }).catch(() => false)) {
+			return (await compactTitle.textContent())?.trim() || null;
+		}
+	}
+
+	// Fallback for the edge case where the current resume chat is also promoted
+	// into the priority section, which intentionally suppresses the primary card.
 	const largeTitle = page.getByTestId('resume-large-title').first();
 	const compactTitle = page.getByTestId('resume-chat-title').first();
-
 	if (await largeTitle.isVisible({ timeout: 500 }).catch(() => false)) {
 		return (await largeTitle.textContent())?.trim() || null;
 	}
