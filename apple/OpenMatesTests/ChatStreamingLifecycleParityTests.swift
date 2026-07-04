@@ -111,4 +111,27 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         XCTAssertFalse(state.isThinkingStreaming)
         XCTAssertFalse(state.isActive)
     }
+
+    func testAuthoritativeSyncCompletionClearsActiveStreamingState() {
+        var state = ChatStreamingLifecycleState()
+
+        state.apply(.typingStarted(chatId: "chat-1", messageId: "assistant-1", metadata: nil))
+        state.apply(.chunk(
+            chatId: "chat-1",
+            messageId: "assistant-1",
+            sequence: 1,
+            content: "Partial",
+            isFinal: false,
+            userMessageId: "user-1",
+            category: nil,
+            modelName: nil,
+            rejectionReason: nil
+        ))
+
+        XCTAssertTrue(state.isActive)
+        XCTAssertTrue(state.completeFromAuthoritativeSync(messageId: "assistant-1"))
+        XCTAssertEqual(state.phase, .completed)
+        XCTAssertFalse(state.isActive)
+        XCTAssertFalse(state.completeFromAuthoritativeSync(messageId: "assistant-2"))
+    }
 }

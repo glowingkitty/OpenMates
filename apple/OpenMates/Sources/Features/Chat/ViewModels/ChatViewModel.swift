@@ -144,6 +144,14 @@ struct ChatStreamingLifecycleState: Equatable {
     mutating func reset() {
         self = ChatStreamingLifecycleState()
     }
+
+    mutating func completeFromAuthoritativeSync(messageId authoritativeMessageId: String) -> Bool {
+        guard messageId == authoritativeMessageId else { return false }
+        phase = .completed
+        isThinkingStreaming = false
+        queuedMessageText = nil
+        return true
+    }
 }
 
 @MainActor
@@ -329,9 +337,10 @@ final class ChatViewModel: ObservableObject {
         let referencedIds = Set(embedded.messages.flatMap { $0.embedRefs?.map(\.id) ?? [] })
         let directEmbedRefs = embedded.messages.flatMap { $0.embedRefs ?? [] }.count
         embedRecords = existingRecords.merging(embedded.records) { _, new in new }
-        followUpSuggestions = extractFollowUpSuggestions(from: embedded.messages)
+        let renderedMessages = mergeVisibleMessagesWithActiveStream(embedded.messages, chatId: loadedChat.id)
+        followUpSuggestions = extractFollowUpSuggestions(from: renderedMessages)
 
-        messages = embedded.messages
+        messages = renderedMessages
         hasOlderMessages = chatStore?.hasOlderMessages(for: loadedChat.id, before: embedded.messages.first?.id) ?? (visibleWindowStartIndex > 0)
 
         subscribeToStream(chatId: loadedChat.id)
@@ -1494,6 +1503,50 @@ final class ChatViewModel: ObservableObject {
 
         visibleWindowStartIndex = rawMessages.count - messagesPageSize
         return Array(rawMessages.suffix(messagesPageSize))
+    }
+
+    private func mergeVisibleMessagesWithActiveStream(_ syncedMessages: [Message], chatId: String) -> [Message] {
+        guard isStreaming,
+              let activeMessageId = streamingMessageId else {
+            return syncedMessages
+        }
+
+        if syncedMessages.contains(where: { $0.id == activeMessageId && $0.isStreaming != true }) {
+            clearStreamingStateAfterAuthoritativeSync(messageId: activeMessageId)
+            return syncedMessages
+        }
+
+        guard !syncedMessages.contains(where: { $0.id == activeMessageId }),
+              !streamingContent.isEmpty else {
+            return syncedMessages
+        }
+
+        var mergedMessages = syncedMessages
+        mergedMessages.append(Message(
+            id: activeMessageId,
+            chatId: chatId,
+            role: .assistant,
+            content: streamingContent,
+            encryptedContent: nil,
+            createdAt: createdAtForAssistantMessage(activeMessageId),
+            updatedAt: nil,
+            appId: assistantCategoryByMessageId[activeMessageId] ?? chat?.category ?? chat?.appId,
+            isStreaming: true,
+            embedRefs: nil,
+            modelName: assistantModelNameByMessageId[activeMessageId]
+        ))
+        return mergedMessages.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    private func clearStreamingStateAfterAuthoritativeSync(messageId: String) {
+        guard streamingLifecycle.completeFromAuthoritativeSync(messageId: messageId) else { return }
+        isStreaming = false
+        streamingContent = ""
+        streamingMessageId = nil
+        assistantMessageCreatedAtById.removeValue(forKey: messageId)
+        assistantCategoryByMessageId.removeValue(forKey: messageId)
+        assistantModelNameByMessageId.removeValue(forKey: messageId)
+        userMessageIdByAssistantMessageId.removeValue(forKey: messageId)
     }
 
     private func relatedEmbeds(referencedIds: Set<String>, from embeds: [EmbedRecord]) -> [EmbedRecord] {
