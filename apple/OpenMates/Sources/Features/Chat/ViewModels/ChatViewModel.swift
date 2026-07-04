@@ -40,6 +40,14 @@ struct ChatStreamingLifecycleState: Equatable {
         }
     }
 
+    var shouldShowProcessingDetails: Bool {
+        phase == .processing && preprocessingStep != nil
+    }
+
+    var shouldShowThinkingDetails: Bool {
+        isThinkingStreaming || !thinkingContent.isEmpty
+    }
+
     mutating func apply(_ event: StreamingClient.StreamEvent) {
         switch event {
         case .taskInitiated(let chatId, let taskId, let userMessageId):

@@ -19,15 +19,18 @@ final class ChatStreamingLifecycleParityTests: XCTestCase {
         state.apply(.preprocessingStep(chatId: "chat-1", step: "mate_selected", data: nil))
         XCTAssertEqual(state.phase, .processing)
         XCTAssertEqual(state.preprocessingStep, "mate_selected")
+        XCTAssertTrue(state.shouldShowProcessingDetails)
 
         state.apply(.typingStarted(chatId: "chat-1", messageId: "assistant-1", metadata: nil))
         XCTAssertEqual(state.phase, .typing)
         XCTAssertEqual(state.messageId, "assistant-1")
+        XCTAssertFalse(state.shouldShowProcessingDetails)
 
         state.apply(.thinkingChunk(chatId: "chat-1", messageId: "assistant-1", content: "reasoning"))
         XCTAssertEqual(state.phase, .thinking)
         XCTAssertEqual(state.thinkingContent, "reasoning")
         XCTAssertTrue(state.isThinkingStreaming)
+        XCTAssertTrue(state.shouldShowThinkingDetails)
 
         state.apply(.thinkingComplete(chatId: "chat-1", messageId: "assistant-1"))
         XCTAssertEqual(state.phase, .typing)

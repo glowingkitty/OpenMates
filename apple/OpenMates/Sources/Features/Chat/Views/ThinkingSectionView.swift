@@ -11,8 +11,17 @@ import SwiftUI
 
 struct ThinkingSectionView: View {
     let content: String
+    var isStreaming = false
     @State private var isExpanded = false
     @Environment(\.accessibilityReduceMotion) var reduceMotion
+
+    private var isContentVisible: Bool {
+        isStreaming || isExpanded
+    }
+
+    private var headerText: String {
+        LocalizationManager.shared.text(isStreaming ? "chat.thinking.header_streaming" : "chat.thinking.header_done")
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -26,7 +35,7 @@ struct ThinkingSectionView: View {
                         .foregroundStyle(Color.fontTertiary)
                         .accessibilityHidden(true)
 
-                    Text(LocalizationManager.shared.text("chat.thinking.header_done"))
+                    Text(headerText)
                         .font(.omXs).fontWeight(.medium)
                         .foregroundStyle(Color.fontTertiary)
 
@@ -45,7 +54,7 @@ struct ThinkingSectionView: View {
                 hint: isExpanded ? "Hides the chain-of-thought" : "Shows the AI's reasoning steps"
             )
 
-            if isExpanded {
+            if isContentVisible && !content.isEmpty {
                 Text(content)
                     .font(.omXs)
                     .foregroundStyle(Color.fontSecondary)

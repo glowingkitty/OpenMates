@@ -181,6 +181,14 @@ struct ChatView: View {
         latestAssistantMessageId != nil && !viewModel.isStreaming
     }
 
+    private var activeProcessingSteps: [ProcessingDetailsView.ProcessingStep] {
+        guard viewModel.streamingLifecycle.shouldShowProcessingDetails,
+              let step = viewModel.streamingLifecycle.preprocessingStep else {
+            return []
+        }
+        return [.fromPreprocessing(step)]
+    }
+
     private var introTeaserVideoURL: URL? {
         Bundle.main.url(forResource: "intro-teaser", withExtension: "mp4", subdirectory: "Videos")
             ?? Bundle.main.url(forResource: "intro-teaser", withExtension: "mp4")
@@ -571,7 +579,24 @@ struct ChatView: View {
                                     )
                                 }
 
-                                if viewModel.isStreaming && viewModel.streamingContent.isEmpty {
+                                if !activeProcessingSteps.isEmpty {
+                                    ProcessingDetailsView(steps: activeProcessingSteps, isComplete: false)
+                                        .padding(.leading, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 86 : 0)
+                                        .padding(.trailing, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 12 : 0)
+                                        .id("processing-details")
+                                }
+
+                                if viewModel.streamingLifecycle.shouldShowThinkingDetails {
+                                    ThinkingSectionView(
+                                        content: viewModel.streamingLifecycle.thinkingContent,
+                                        isStreaming: viewModel.streamingLifecycle.isThinkingStreaming
+                                    )
+                                    .padding(.leading, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 86 : 0)
+                                    .padding(.trailing, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 12 : 0)
+                                    .id("thinking-section")
+                                }
+
+                                if viewModel.isStreaming && viewModel.streamingContent.isEmpty && !viewModel.streamingLifecycle.shouldShowThinkingDetails {
                                     StreamingIndicator()
                                         .id("streaming")
                                 }
