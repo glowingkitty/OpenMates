@@ -756,6 +756,8 @@
             followUpSuggestions = [];
             showWelcome = true;
             activeChatStore.clearActiveChat();
+            phasedSyncState.setCurrentActiveChatId(NEW_CHAT_SENTINEL);
+            phasedSyncState.markUserMadeExplicitChoice();
             console.debug("[ActiveChat] Returned to logged-out welcome screen after logout");
         }, 100);
         
@@ -848,6 +850,8 @@
                 
                 // Clear the persistent store
                 activeChatStore.clearActiveChat();
+                phasedSyncState.setCurrentActiveChatId(NEW_CHAT_SENTINEL);
+                phasedSyncState.markUserMadeExplicitChoice();
                 
                 console.debug('[ActiveChat] Auth state backup handler returned to logged-out welcome screen');
             }
@@ -9564,6 +9568,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 currentMessages = [];
                 showWelcome = true;
                 activeChatStore.clearActiveChat();
+                phasedSyncState.setCurrentActiveChatId(NEW_CHAT_SENTINEL);
+                phasedSyncState.markUserMadeExplicitChoice();
                 // Mark phased sync as completed even if handler fails
                 phasedSyncState.markSyncCompleted();
                 console.debug('[ActiveChat] Marked phased sync as completed after logout (error fallback)');
