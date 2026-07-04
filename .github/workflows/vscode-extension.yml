@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - "frontend/apps/vscode_extension/**"
+      - "frontend/apps/web_app/package.json"
       - "frontend/apps/web_app/svelte.config.js"
       - "frontend/packages/ui/index.ts"
       - "frontend/packages/ui/src/components/Login.svelte"
@@ -17,6 +18,7 @@ on:
       - dev
     paths:
       - "frontend/apps/vscode_extension/**"
+      - "frontend/apps/web_app/package.json"
       - "frontend/apps/web_app/svelte.config.js"
       - "frontend/packages/ui/index.ts"
       - "frontend/packages/ui/src/components/Login.svelte"
@@ -57,7 +59,7 @@ jobs:
         run: pnpm --filter openmates-vscode-extension build
 
       - name: Build bundled web app for VS Code
-        run: OPENMATES_BUILD_TARGET=vscode pnpm --filter web_app build
+        run: pnpm --filter web_app build:vscode
 
       - name: Run VS Code Extension Host smoke
         run: xvfb-run -a pnpm --filter openmates-vscode-extension test:vscode
