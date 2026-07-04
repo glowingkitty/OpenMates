@@ -455,7 +455,7 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "node --test --experimental-strip-types tests/*.test.ts (18 passed; includes packaged app asset rewrite, parseable VS Code runtime config, and smoke-credential redaction coverage)"
+        run_id: "node --test --experimental-strip-types tests/*.test.ts (21 passed; includes nested bundled asset path normalization, packaged app asset rewrite, parseable VS Code runtime config, and smoke-credential redaction coverage)"
         timestamp: "2026-07-04"
 
   - id: T-UNIT-VSCODE-AUTH
@@ -480,7 +480,7 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "node --test --experimental-strip-types tests/*.test.ts (18 passed; includes packaged app asset rewrite, parseable VS Code runtime config, and smoke-credential redaction coverage)"
+        run_id: "node --test --experimental-strip-types tests/*.test.ts (21 passed; includes nested bundled asset path normalization, packaged app asset rewrite, parseable VS Code runtime config, and smoke-credential redaction coverage)"
         timestamp: "2026-07-04"
 
   - id: T-UNIT-VSCODE-BRIDGE
@@ -506,7 +506,7 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "node --test --experimental-strip-types tests/*.test.ts (18 passed; includes packaged app asset rewrite, parseable VS Code runtime config, and smoke-credential redaction coverage)"
+        run_id: "node --test --experimental-strip-types tests/*.test.ts (21 passed; includes nested bundled asset path normalization, packaged app asset rewrite, parseable VS Code runtime config, and smoke-credential redaction coverage)"
         timestamp: "2026-07-04"
 
   - id: T-UNIT-VSCODE-STATE
@@ -530,7 +530,7 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "node --test --experimental-strip-types tests/*.test.ts (18 passed; includes packaged app asset rewrite, parseable VS Code runtime config, and smoke-credential redaction coverage)"
+        run_id: "node --test --experimental-strip-types tests/*.test.ts (21 passed; includes nested bundled asset path normalization, packaged app asset rewrite, parseable VS Code runtime config, and smoke-credential redaction coverage)"
         timestamp: "2026-07-04"
 
   - id: T-NO-MUTATION-GUARD
@@ -612,8 +612,8 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: blocked
-        run_id: "Blocked until workflow runs on GitHub Actions with existing slot-1 E2E secrets (OPENMATES_TEST_ACCOUNT_1_EMAIL/PASSWORD/OTP_KEY). Local dummy slot-1 installed-VSIX run installs/activates packaged VSIX, opens the webview, and reaches backend auth via CI-only native bridge; expected failure: otp_required_but_missing for dummy credentials."
+        status: passed
+        run_id: "GitHub Actions VS Code Extension run 28717432377 passed on dev: spec validation, no-mutation audit, CLI remote-access contract tests, extension unit tests, extension build, VS Code-target bundled web app build, Extension Host smoke, packaged internal VSIX, installed-VSIX bootstrap-webview login smoke with slot-1 E2E credentials, and VSIX artifact upload. Normal OpenMates: Open remains bundled-app based; the hidden CI login smoke uses the lightweight bootstrap webview to avoid Electron installed-mode blocking of the 70 MB bundled app document."
         timestamp: "2026-07-04"
 
   - id: T-CLI-REMOTE-ACCESS
