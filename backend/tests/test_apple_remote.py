@@ -227,6 +227,8 @@ def test_upload_testflight_macos_command_uses_mac_app_store_export() -> None:
     assert "generic/platform=macOS" in script
     assert "MAC_APP_STORE" in script
     assert "DISTRIBUTION" in script
+    assert "installerSigningCertificate" in script
+    assert "distribution_identity_sha1 if target_platform == \"macos\"" in script
     assert "bundle_id_create=passed" in script
     assert '"platform": bundle_id_platform' in script
     assert "CODE_SIGNING_ALLOWED=NO" in script

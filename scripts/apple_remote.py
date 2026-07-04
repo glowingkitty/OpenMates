@@ -256,6 +256,7 @@ target_platform = sys.argv[2] if len(sys.argv) > 2 else "ios"
 build_keychain_path = None
 distribution_identity_name = ""
 distribution_identity_sha1 = ""
+installer_identity_sha1 = ""
 profile_names = {}
 if target_platform == "ios":
     scheme_name = "OpenMates_iOS"
@@ -435,7 +436,7 @@ def use_build_keychain_if_present():
 
 
 def preflight_signing():
-    global distribution_identity_name, distribution_identity_sha1
+    global distribution_identity_name, distribution_identity_sha1, installer_identity_sha1
     keychain_args = use_build_keychain_if_present()
     identities = subprocess.run(
         ["security", "find-identity", "-v", "-p", "codesigning", *keychain_args],
@@ -464,7 +465,7 @@ def preflight_signing():
 
     if target_platform == "macos":
         installer_certificate = subprocess.run(
-            ["security", "find-certificate", "-a", "-c", "3rd Party Mac Developer Installer", *keychain_args],
+            ["security", "find-certificate", "-a", "-Z", "-c", "3rd Party Mac Developer Installer", *keychain_args],
             capture_output=True,
             text=True,
             timeout=30,
@@ -472,6 +473,13 @@ def preflight_signing():
         if installer_certificate.returncode != 0 or "3rd Party Mac Developer Installer" not in installer_certificate.stdout:
             print("installer_distribution_identity=missing")
             print("hint=Run ensure-mac-installer-distribution-certificate --create before macOS TestFlight upload.")
+            sys.exit(1)
+        for line in installer_certificate.stdout.splitlines():
+            if line.strip().startswith("SHA-1 hash:"):
+                installer_identity_sha1 = line.split(":", 1)[1].strip().upper()
+                break
+        if not installer_identity_sha1:
+            print("installer_distribution_identity=missing_sha1")
             sys.exit(1)
 
     probe_identity = distribution_identity_name or development_identity
@@ -682,12 +690,14 @@ export_options = {
     "method": "app-store-connect",
     "manageAppVersionAndBuildNumber": True,
     "provisioningProfiles": profile_names,
-    "signingCertificate": distribution_identity_name,
+    "signingCertificate": distribution_identity_sha1 if target_platform == "macos" else distribution_identity_name,
     "signingStyle": "manual",
     "teamID": "Z9B2YFKN2X",
     "testFlightInternalTestingOnly": internal_only,
     "uploadSymbols": True,
 }
+if target_platform == "macos":
+    export_options["installerSigningCertificate"] = installer_identity_sha1
 with export_options_path.open("wb") as handle:
     plistlib.dump(export_options, handle)
 
