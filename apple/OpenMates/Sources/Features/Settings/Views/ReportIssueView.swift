@@ -268,10 +268,11 @@ struct ReportIssueView: View {
         guard isValid else { return }
         isSubmitting = true
         error = nil
-        NativeClientLogCollector.shared.record(level: .info, category: "report_issue", message: "Submitting native issue report")
+        NativeDiagnostics.info("Submitting native issue report", category: "report_issue")
 
         Task {
             do {
+                let context = NativeIssueContextProvider.shared.context()
                 let payload = IssueReportPayloadBuilder.makePayload(
                     title: title,
                     issueType: issueType,
@@ -279,8 +280,9 @@ struct ReportIssueView: View {
                     expectedBehaviour: expectedBehaviour,
                     actualBehaviour: actualBehaviour,
                     screenshotData: screenshotData,
-                    consoleLogs: NativeClientLogCollector.shared.logsAsText(limit: 100),
-                    runtimeDebugState: IssueReportPayloadBuilder.runtimeDebugState()
+                    consoleLogs: context.consoleLogs,
+                    runtimeDebugState: context.runtimeDebugState,
+                    actionHistory: context.actionHistory
                 )
                 let payloadData = try JSONSerialization.data(withJSONObject: payload)
 
@@ -292,12 +294,12 @@ struct ReportIssueView: View {
 
                 let reference = response.shortIssueId ?? response.issueId ?? ""
                 submittedIssueReference = reference.isEmpty ? AppStrings.done : reference
-                NativeClientLogCollector.shared.record(level: .info, category: "report_issue", message: "Native issue report submitted")
+                NativeDiagnostics.info("Native issue report submitted", category: "report_issue")
                 if let issueId = response.issueId {
                     await sendIssueLogs(issueId: issueId)
                 }
             } catch {
-                NativeClientLogCollector.shared.record(level: .error, category: "report_issue", message: error.localizedDescription)
+                NativeDiagnostics.error(error.localizedDescription, category: "report_issue")
                 self.error = error.localizedDescription
                 AccessibilityAnnouncement.announce(error.localizedDescription)
             }
@@ -317,7 +319,7 @@ struct ReportIssueView: View {
         do {
             payloadData = try JSONSerialization.data(withJSONObject: payload)
         } catch {
-            NativeClientLogCollector.shared.record(level: .error, category: "report_issue", message: "Issue log serialization failed: \(error.localizedDescription)")
+            NativeDiagnostics.error("Issue log serialization failed: \(error.localizedDescription)", category: "report_issue")
             return
         }
 
@@ -328,7 +330,7 @@ struct ReportIssueView: View {
                 body: JSONRawBody(data: payloadData)
             )
         } catch {
-            NativeClientLogCollector.shared.record(level: .warning, category: "report_issue", message: "Issue log upload failed: \(error.localizedDescription)")
+            NativeDiagnostics.warning("Issue log upload failed: \(error.localizedDescription)", category: "report_issue")
         }
     }
 
@@ -338,7 +340,7 @@ struct ReportIssueView: View {
         let environment = ProcessInfo.processInfo.environment
         let simulatorName = environment["SIMULATOR_DEVICE_NAME"] ?? "unknown-simulator"
         let simulatorModel = environment["SIMULATOR_MODEL_IDENTIFIER"] ?? "unknown-model"
-        NativeClientLogCollector.shared.record(
+        NativeDiagnostics.record(
             level: .warning,
             category: "ui_test_simulator",
             message: "Report issue simulator diagnostic from \(simulatorName) \(simulatorModel) for tester@example.org token=secret"
@@ -429,6 +431,7 @@ enum IssueReportPayloadBuilder {
         screenshotData: Data?,
         consoleLogs: String,
         runtimeDebugState: [String: Any],
+        actionHistory: String = NativeActionTracker.shared.actionsAsText(limit: 50),
         language: String = Locale.current.language.languageCode?.identifier ?? "en"
     ) -> [String: Any] {
         var payload: [String: Any] = [
@@ -438,7 +441,7 @@ enum IssueReportPayloadBuilder {
             "device_info": deviceInfo(),
             "console_logs": NativeClientLogCollector.sanitize(consoleLogs),
             "runtime_debug_state": runtimeDebugState,
-            "action_history": "native:settings/report_issue",
+            "action_history": NativeClientLogCollector.sanitize(actionHistory.isEmpty ? "native:settings/report_issue" : actionHistory),
             "trace_ids": [],
             "add_to_linear": true,
             "send_email_notification": true,
@@ -474,11 +477,7 @@ enum IssueReportPayloadBuilder {
     }
 
     static func runtimeDebugState() -> [String: Any] {
-        [
-            "platform": "apple_native",
-            "bundle_id": Bundle.main.bundleIdentifier ?? "org.openmates.app",
-            "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
-        ]
+        NativeRuntimeSnapshotProvider.snapshot()
     }
 
     static func deviceInfo() -> [String: Any] {
@@ -520,87 +519,5 @@ enum IssueReportPayloadBuilder {
         NativeClientLogCollector.sanitize(value)
             .replacingOccurrences(of: "<[^>]*>", with: "", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-}
-
-enum NativeClientLogLevel: String {
-    case debug
-    case info
-    case warning
-    case error
-}
-
-struct NativeClientLogEntry: Equatable {
-    let timestamp: Date
-    let level: NativeClientLogLevel
-    let category: String
-    let message: String
-}
-
-final class NativeClientLogCollector: @unchecked Sendable {
-    static let shared = NativeClientLogCollector()
-    private static let maxEntries = 200
-    private let lock = NSLock()
-    private var entries: [NativeClientLogEntry] = []
-
-    private init() {}
-
-    func record(level: NativeClientLogLevel, category: String, message: String) {
-        let entry = NativeClientLogEntry(
-            timestamp: Date(),
-            level: level,
-            category: Self.sanitize(category),
-            message: Self.sanitize(message)
-        )
-        lock.lock()
-        entries.append(entry)
-        if entries.count > Self.maxEntries {
-            entries.removeFirst(entries.count - Self.maxEntries)
-        }
-        lock.unlock()
-    }
-
-    func resetForTests() {
-        lock.lock()
-        entries.removeAll()
-        lock.unlock()
-    }
-
-    func logsAsText(limit: Int) -> String {
-        lock.lock()
-        let snapshot = Array(entries.suffix(max(0, limit)))
-        lock.unlock()
-
-        let formatter = ISO8601DateFormatter()
-        return snapshot.map { entry in
-            "[\(formatter.string(from: entry.timestamp))] [\(entry.level.rawValue.uppercased())] [\(entry.category)] \(entry.message)"
-        }.joined(separator: "\n")
-    }
-
-    func issueLogPayload(issueId: String, pageURL: String) -> [String: Any] {
-        [
-            "issue_id": issueId,
-            "logs_text": logsAsText(limit: 150),
-            "page_url": Self.sanitize(pageURL),
-            "user_agent": "OpenMates-Apple",
-        ]
-    }
-
-    static func sanitize(_ value: String) -> String {
-        var sanitized = value
-        let replacements: [(String, String)] = [
-            (#"#[A-Za-z0-9_-]*key=[^\s\]]+"#, "#key=<redacted>"),
-            (#"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#, "<email>"),
-            (#"(?i)(password|token|secret|api[_-]?key)=([^\s&]+)"#, "$1=<redacted>"),
-            (#"file://[^\s\]]+"#, "file://<redacted>"),
-        ]
-        for (pattern, replacement) in replacements {
-            sanitized = sanitized.replacingOccurrences(
-                of: pattern,
-                with: replacement,
-                options: [.regularExpression, .caseInsensitive]
-            )
-        }
-        return sanitized
     }
 }

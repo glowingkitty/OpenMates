@@ -157,6 +157,139 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertFalse(logs.contains("api_key=secret"))
     }
 
+    func testIssueReportPayloadIncludesNativeDiagnosticsContextAndStrongRedaction() throws {
+        NativeClientLogCollector.shared.resetForTests()
+        NativeActionTracker.shared.resetForTests()
+        NativePerformanceMonitor.shared.resetForTests()
+        NativeMetricKitReporter.shared.resetForTests()
+
+        NativeActionTracker.shared.recordRoute("chat/detail")
+        NativeActionTracker.shared.recordControl("settings/report_issue/open")
+        NativeActionTracker.shared.recordTextInput("my private typed composer text")
+        NativePerformanceMonitor.shared.recordFrame(durationMS: 16)
+        NativePerformanceMonitor.shared.recordFrame(durationMS: 82)
+        NativeMetricKitReporter.shared.recordSummary([
+            "report_type": "metric",
+            "category": "hang",
+            "details": "person@example.org token=secret",
+        ])
+        NativeClientLogCollector.shared.record(
+            level: .warning,
+            category: "diagnostics",
+            message: "share https://example.org/share/chat/abc#key=secret file:///Users/alice/private.txt blob=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        )
+
+        let context = NativeIssueContextProvider.shared.context()
+        let payload = IssueReportPayloadBuilder.makePayload(
+            title: "Diagnostics regression",
+            issueType: .bugReport,
+            userFlow: "Opened chat and report issue #key=secret",
+            expectedBehaviour: "No secrets leak",
+            actualBehaviour: "token=secret /Users/alice/private.txt appeared",
+            screenshotData: nil,
+            consoleLogs: context.consoleLogs,
+            runtimeDebugState: context.runtimeDebugState,
+            actionHistory: context.actionHistory,
+            language: "en"
+        )
+
+        let runtime = try XCTUnwrap(payload["runtime_debug_state"] as? [String: Any])
+        let diagnostics = try XCTUnwrap(runtime["native_diagnostics"] as? [String: Any])
+        XCTAssertNotNil(diagnostics["offline_inspection"] as? [String: Any])
+        XCTAssertNotNil(diagnostics["frame_metrics"] as? [String: Any])
+        XCTAssertNotNil(diagnostics["metric_kit"] as? [[String: Any]])
+
+        let actionHistory = payload["action_history"] as? String ?? ""
+        XCTAssertTrue(actionHistory.contains("chat/detail"))
+        XCTAssertTrue(actionHistory.contains("settings/report_issue/open"))
+        XCTAssertFalse(actionHistory.contains("my private typed composer text"))
+
+        let serialized = try XCTUnwrap(String(data: JSONSerialization.data(withJSONObject: payload), encoding: .utf8))
+        XCTAssertFalse(serialized.contains("person@example.org"))
+        XCTAssertFalse(serialized.contains("token=secret"))
+        XCTAssertFalse(serialized.contains("#key=secret"))
+        XCTAssertFalse(serialized.contains("/Users/alice"))
+        XCTAssertFalse(serialized.contains("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
+        XCTAssertFalse(serialized.contains("my private typed composer text"))
+    }
+
+    func testNativeSyncPerfLogBridgesIntoDiagnosticsAndPreservesWarningsUnderChurn() {
+        NativeClientLogCollector.shared.resetForTests()
+        NativeSyncPerfLog.warning("phase=importantWarning email=person@example.org")
+        for index in 0..<260 {
+            NativeClientLogCollector.shared.record(level: .debug, category: "noise", message: "debug entry \(index)")
+        }
+        NativeSyncPerfLog.info("phase=loadSyncedChatFirstPaint chat=12345678 token=secret")
+
+        let logs = NativeClientLogCollector.shared.logsAsText(limit: 300)
+        XCTAssertTrue(logs.contains("phase=importantWarning"))
+        XCTAssertTrue(logs.contains("phase=loadSyncedChatFirstPaint"))
+        XCTAssertTrue(logs.contains("<email>"))
+        XCTAssertFalse(logs.contains("person@example.org"))
+        XCTAssertFalse(logs.contains("token=secret"))
+    }
+
+    func testNativeActionTrackerRecordsStableActionsAndSuppressesTypedText() {
+        NativeActionTracker.shared.resetForTests()
+        NativeActionTracker.shared.recordRoute("settings/privacy")
+        NativeActionTracker.shared.recordControl("settings/debug_logs/toggle")
+        NativeActionTracker.shared.recordTextInput("raw issue text should not be logged")
+
+        let actions = NativeActionTracker.shared.actionsAsText(limit: 10)
+        XCTAssertTrue(actions.contains("settings/privacy"))
+        XCTAssertTrue(actions.contains("settings/debug_logs/toggle"))
+        XCTAssertFalse(actions.contains("raw issue text should not be logged"))
+    }
+
+    func testNativeLogForwarderBuildsDebugAndDefaultTelemetryPayloads() throws {
+        NativeClientLogCollector.shared.resetForTests()
+        NativeClientLogCollector.shared.record(level: .info, category: "chat", message: "informational message")
+        NativeClientLogCollector.shared.record(level: .warning, category: "sync", message: "warning for user@example.org")
+        NativeClientLogCollector.shared.record(level: .error, category: "api", message: "token=secret")
+
+        let debugPayload = NativeLogForwarder.debugSessionPayload(debuggingID: "dbg-abc123")
+        XCTAssertEqual(debugPayload["debugging_id"] as? String, "dbg-abc123")
+        XCTAssertNotNil(debugPayload["metadata"] as? [String: String])
+        let debugLogs = try XCTUnwrap(debugPayload["logs"] as? [[String: Any]])
+        XCTAssertEqual(debugLogs.count, 3)
+        XCTAssertFalse(String(describing: debugPayload).contains("user@example.org"))
+        XCTAssertFalse(String(describing: debugPayload).contains("token=secret"))
+
+        XCTAssertNil(NativeLogForwarder.defaultTelemetryPayload(isAuthenticated: false, optedOut: false))
+        XCTAssertNil(NativeLogForwarder.defaultTelemetryPayload(isAuthenticated: true, optedOut: true))
+        let telemetryPayload = try XCTUnwrap(NativeLogForwarder.defaultTelemetryPayload(
+            isAuthenticated: true,
+            optedOut: false,
+            installPseudonym: "install-anonymous"
+        ))
+        let telemetryLogs = try XCTUnwrap(telemetryPayload["logs"] as? [[String: Any]])
+        XCTAssertEqual(telemetryLogs.count, 2)
+        XCTAssertFalse(telemetryLogs.contains { ($0["level"] as? String) == "info" })
+        XCTAssertFalse(String(describing: telemetryPayload).contains("user@example.org"))
+        XCTAssertFalse(String(describing: telemetryPayload).contains("token=secret"))
+        XCTAssertFalse(String(describing: telemetryPayload).contains("user_id"))
+    }
+
+    func testNativePerformanceAndMetricKitSummariesExposeAvailabilityAndFrameMetrics() throws {
+        NativePerformanceMonitor.shared.resetForTests()
+        NativeMetricKitReporter.shared.resetForTests()
+
+        let absentMetricKit = NativeMetricKitReporter.shared.latestSummaries()
+        XCTAssertEqual(absentMetricKit.first?["status"] as? String, "unavailable")
+
+        NativePerformanceMonitor.shared.recordFrame(durationMS: 17)
+        NativePerformanceMonitor.shared.recordFrame(durationMS: 70)
+        let frameSummary = NativePerformanceMonitor.shared.summary()
+        XCTAssertEqual(frameSummary["sample_count"] as? Int, 2)
+        XCTAssertEqual(frameSummary["jank_count"] as? Int, 1)
+        XCTAssertEqual(frameSummary["worst_frame_ms"] as? Int, 70)
+        XCTAssertNotNil(frameSummary["average_fps"] as? Double)
+
+        NativeMetricKitReporter.shared.recordSummary(["report_type": "diagnostic", "category": "cpu"])
+        let metricKit = NativeMetricKitReporter.shared.latestSummaries()
+        XCTAssertEqual(metricKit.first?["report_type"] as? String, "diagnostic")
+    }
+
     func testReconnectBannerHasDebounceBeforeUserFacingWarning() {
         XCTAssertGreaterThanOrEqual(NetworkStatusBanner.reconnectDelayNanoseconds, 1_000_000_000)
     }

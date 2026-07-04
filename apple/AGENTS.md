@@ -100,6 +100,12 @@ Prefer:
 
 Performance matters. Avoid expensive work in SwiftUI `body`, including markdown parsing, JSON parsing, image decoding, sorting/filtering large arrays, embed payload normalization, and repeated formatter construction. Cache parsed render data with stable IDs, and keep state scoped narrowly so message-level updates do not invalidate entire screens.
 
+## Native Diagnostics And Logging
+
+Use `NativeDiagnostics` for Apple product diagnostics instead of adding new ad-hoc `print` calls or isolated `Logger` calls. Use `NativeSyncPerfLog` for sync/chat-opening/embed-hydration phase timings so those entries continue to reach unified logging and issue/debug buffers.
+
+Diagnostics must remain privacy-safe: never log message plaintext, encryption keys, auth/session tokens, cookies, push tokens, full share URL fragments, request/response bodies, private file paths, or raw typed text. For performance instrumentation, use the approved diagnostics helpers (`NativePerformanceMonitor`, MetricKit summaries, or signpost-style phase logs) and keep payloads to counts, durations, sanitized categories, and hashed/prefixed identifiers only.
+
 ## Remote Mac Verification
 
 When the active OpenCode session runs on a Linux/dev server, attempt Apple
