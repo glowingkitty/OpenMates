@@ -38,7 +38,8 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount
+	getTestAccount,
+	withMockMarker
 } = require('./signup-flow-helpers');
 const {
 	loginToTestAccount,
@@ -213,7 +214,7 @@ test('message highlights on touch devices (iPad Pro 11) — selection toolbar + 
 
 	const seedText =
 		'The quick brown fox jumps over the lazy dog near the old bridge today.';
-	await sendMessage(page, seedText, logCheckpoint, takeStepScreenshot, 'touch-seed');
+	await sendMessage(page, withMockMarker(seedText, 'test_hello'), logCheckpoint, takeStepScreenshot, 'touch-seed');
 	await waitForAssistantIdle(page, logCheckpoint);
 
 	const userMsg = page.locator(SELECTORS.userMessageContent).first();
