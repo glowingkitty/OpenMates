@@ -530,9 +530,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "apple_remote build-ios + test-ios OpenMatesTests/ChatStreamingLifecycleParityTests @ 103703d"
-        timestamp: "2026-07-04T21:33:13+02:00"
-        summary: "Remote iPhone 17 simulator build succeeded, then executed 5 lifecycle reducer, processing/thinking visibility, queued-message state, and cancel payload tests with 0 failures; xcodebuild reported TEST SUCCEEDED."
+        run_id: "apple_remote build-ios + test-ios OpenMatesTests/ChatStreamingLifecycleParityTests @ 98a81ad"
+        timestamp: "2026-07-04T23:16:20+02:00"
+        summary: "Remote iPhone 17 simulator build succeeded, then executed 6 lifecycle reducer, processing/thinking visibility, queued-message state, cancel payload, and authoritative sync recovery tests with 0 failures; xcodebuild reported TEST SUCCEEDED."
 
   - id: T-SWIFT-BACKGROUND-001
     type: unit
