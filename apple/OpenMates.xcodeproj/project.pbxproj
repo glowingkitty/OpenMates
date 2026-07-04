@@ -142,6 +142,9 @@
 		C0FFEE000000000000034004 /* EmbedDiffEditingParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000034001 /* EmbedDiffEditingParityTests.swift */; };
 		C0FFEE000000000000036003 /* WorkflowModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036001 /* WorkflowModels.swift */; };
 		C0FFEE000000000000036004 /* WorkflowAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036002 /* WorkflowAPI.swift */; };
+		C0FFEE000000000000037002 /* PendingAssistantResponseQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */; };
+		C0FFEE000000000000037003 /* PendingAssistantResponseQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */; };
+		C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */; };
 		C0FFEE000000000000036012 /* WorkflowsParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036011 /* WorkflowsParityTests.swift */; };
 		C0FFEE000000000000036014 /* WorkflowsParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036013 /* WorkflowsParityUITests.swift */; };
 		300707B1BAC8B4FE232B4215 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF95252DD3548D54E1FCF816 /* KeyboardShortcuts.swift */; };
@@ -762,6 +765,8 @@
 		C0FFEE000000000000033001 /* InteractiveQuestionsParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveQuestionsParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000036001 /* WorkflowModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowModels.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000036002 /* WorkflowAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowAPI.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingAssistantResponseQueue.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatSendPipelineParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000036011 /* WorkflowsParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowsParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000036013 /* WorkflowsParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowsParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000002002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -957,6 +962,7 @@
 				0DE92EBE49EBADF171CDC2D6 /* ChatStore.swift */,
 				3097B5CA5DCA16BB86C4AADF /* OfflineStore.swift */,
 				23B6AD3DACC91432F04B1E17 /* OfflineSyncBridge.swift */,
+				C0FFEE000000000000037001 /* PendingAssistantResponseQueue.swift */,
 			);
 			path = Persistence;
 			sourceTree = "<group>";
@@ -1322,6 +1328,7 @@
 			isa = PBXGroup;
 			children = (
 				C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */,
+				C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */,
 				C0FFEE000000000000012001 /* ChatSyncParityTests.swift */,
 				C0FFEE000000000000013001 /* SubChatProcessingTests.swift */,
 				C0FFEE000000000000015001 /* ChatManagementSharingParityTests.swift */,
@@ -1975,6 +1982,7 @@
 				033A6721A553CE34ADB246BA /* OMDesignPrimitives.swift in Sources */,
 				D3FBB64A5CD7FE15DC4EAF62 /* OfflineStore.swift in Sources */,
 				BD39ADEB1143AFB7A91C5EB4 /* OfflineSyncBridge.swift in Sources */,
+				C0FFEE000000000000037002 /* PendingAssistantResponseQueue.swift in Sources */,
 				0FAE66BBAFAEF660A11C0001 /* AnonymousFreeUsageService.swift in Sources */,
 				F2862F8645CA164C75FA6A04 /* OpenMatesApp.swift in Sources */,
 				60648E65A03DA89373DFBB9D /* OpenMatesSharedEnvironment.swift in Sources */,
@@ -2183,6 +2191,7 @@
 				896CD28E397C1F666609BB1E /* OMDesignPrimitives.swift in Sources */,
 				25468B39379E6020F76E58A4 /* OfflineStore.swift in Sources */,
 				02C2F9D9D1747B51FD08AF8F /* OfflineSyncBridge.swift in Sources */,
+				C0FFEE000000000000037003 /* PendingAssistantResponseQueue.swift in Sources */,
 				0FAE66BBAFAEF660A11C0002 /* AnonymousFreeUsageService.swift in Sources */,
 				F24AABC9FF504F337AE8A394 /* OpenMatesApp.swift in Sources */,
 				8EF96D6DF01E60DD1D952AAA /* OpenMatesSharedEnvironment.swift in Sources */,
@@ -2334,6 +2343,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */,
+				C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */,
 				C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */,
 				C0FFEE000000000000013004 /* SubChatProcessingTests.swift in Sources */,
 				C0FFEE000000000000015004 /* ChatManagementSharingParityTests.swift in Sources */,
