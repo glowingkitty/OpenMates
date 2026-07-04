@@ -475,7 +475,7 @@ struct NativeClientLogEntry: Equatable {
     let message: String
 }
 
-final class NativeClientLogCollector {
+final class NativeClientLogCollector: @unchecked Sendable {
     static let shared = NativeClientLogCollector()
     private static let maxEntries = 200
     private let lock = NSLock()
