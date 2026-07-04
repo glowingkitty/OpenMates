@@ -2897,7 +2897,7 @@ final class ChatSendPipeline {
         chatStore: ChatStore?
     ) async throws -> Message {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
-        guard completedAssistantStorageSent.insert(message.id).inserted else { return message }
+        guard !completedAssistantStorageSent.contains(message.id) else { return message }
         guard let chat = chatStore?.chat(for: message.chatId) else { return message }
         let keyMaterial = try await ensureChatKey(chatId: message.chatId, encryptedChatKey: chat.encryptedChatKey)
         let encryptedContent: String
@@ -2926,6 +2926,7 @@ final class ChatSendPipeline {
         )
 
         chatStore?.appendMessage(persisted, to: message.chatId)
+        let localMessageCountAfterAppend = chatStore?.messages(for: message.chatId).count ?? 1
 
         if message.role == .system {
             var systemMessage: [String: Any] = [
@@ -2936,38 +2937,116 @@ final class ChatSendPipeline {
                 "status": "waiting_for_user"
             ]
             if let userMessageId { systemMessage["user_message_id"] = userMessageId }
-            try await wsManager.send(WSOutboundMessage(
-                type: "chat_system_message_added",
-                payload: [
-                    "chat_id": message.chatId,
-                    "message": systemMessage
-                ]
-            ))
-        } else {
-            var messagePayload: [String: Any] = [
-                "message_id": message.id,
-                "chat_id": message.chatId,
-                "role": "assistant",
-                "created_at": createdAtUnix,
-                "status": "synced",
-                "encrypted_content": encryptedContent
-            ]
-            if let userMessageId { messagePayload["user_message_id"] = userMessageId }
-            if let encryptedCategory { messagePayload["encrypted_category"] = encryptedCategory }
-            if let encryptedModelName { messagePayload["encrypted_model_name"] = encryptedModelName }
-            try await wsManager.send(WSOutboundMessage(
-                type: "ai_response_completed",
-                payload: [
-                    "chat_id": message.chatId,
-                    "message": messagePayload,
-                    "versions": [
-                        "messages_v": chat.messagesV ?? chatStore?.messages(for: message.chatId).count ?? 1,
-                        "last_edited_overall_timestamp": createdAtUnix
+            do {
+                try await wsManager.send(WSOutboundMessage(
+                    type: "chat_system_message_added",
+                    payload: [
+                        "chat_id": message.chatId,
+                        "message": systemMessage
                     ]
-                ]
-            ))
+                ))
+                completedAssistantStorageSent.insert(message.id)
+            } catch {
+                throw error
+            }
+        } else {
+            let payload = assistantCompletionPayload(
+                for: persisted,
+                userMessageId: userMessageId,
+                encryptedContent: encryptedContent,
+                encryptedCategory: encryptedCategory,
+                encryptedModelName: encryptedModelName,
+                createdAtUnix: createdAtUnix,
+                currentMessagesV: chat.messagesV,
+                localMessageCountAfterAppendingAssistant: localMessageCountAfterAppend
+            )
+            do {
+                try await wsManager.send(WSOutboundMessage(
+                    type: "ai_response_completed",
+                    payload: payload
+                ))
+                completedAssistantStorageSent.insert(message.id)
+                PendingAssistantResponseQueue.shared.remove(messageId: message.id)
+            } catch {
+                PendingAssistantResponseQueue.shared.add(messageId: message.id, chatId: message.chatId)
+                throw error
+            }
         }
         return persisted
+    }
+
+    func flushPendingAssistantResponses(
+        wsManager: WebSocketManager?,
+        chatStore: ChatStore?,
+        queue: PendingAssistantResponseQueue = .shared
+    ) async {
+        guard let chatStore else { return }
+        for entry in queue.all() {
+            let messages = chatStore.messages(for: entry.chatId)
+            guard let message = messages.first(where: { $0.id == entry.messageId }) else { continue }
+            guard message.role == .assistant || message.role == .system else {
+                queue.remove(messageId: entry.messageId)
+                continue
+            }
+            do {
+                _ = try await persistCompletedAssistantMessage(
+                    message,
+                    userMessageId: inferredUserMessageId(before: message, in: messages),
+                    wsManager: wsManager,
+                    chatStore: chatStore
+                )
+            } catch {
+                print("[ChatSendPipeline] Pending assistant response retry failed for chat \(entry.chatId.prefix(8)) message \(entry.messageId.prefix(8)): \(error)")
+            }
+        }
+    }
+
+    func inferredUserMessageId(before message: Message, in messages: [Message]) -> String? {
+        let sortedMessages = messages.sorted { $0.createdAt < $1.createdAt }
+        guard let messageIndex = sortedMessages.firstIndex(where: { $0.id == message.id }) else { return nil }
+        return sortedMessages[..<messageIndex].last(where: { $0.role == .user })?.id
+    }
+
+    func completedAssistantMessagesVersion(
+        currentMessagesV: Int?,
+        localMessageCountAfterAppendingAssistant: Int
+    ) -> Int {
+        let localVersionBeforeAssistant = max(0, localMessageCountAfterAppendingAssistant - 1)
+        return max(currentMessagesV ?? 0, localVersionBeforeAssistant) + 1
+    }
+
+    func assistantCompletionPayload(
+        for message: Message,
+        userMessageId: String?,
+        encryptedContent: String,
+        encryptedCategory: String?,
+        encryptedModelName: String?,
+        createdAtUnix: Int,
+        currentMessagesV: Int?,
+        localMessageCountAfterAppendingAssistant: Int
+    ) -> [String: Any] {
+        var messagePayload: [String: Any] = [
+            "message_id": message.id,
+            "chat_id": message.chatId,
+            "role": "assistant",
+            "created_at": createdAtUnix,
+            "status": "synced",
+            "encrypted_content": encryptedContent
+        ]
+        if let userMessageId { messagePayload["user_message_id"] = userMessageId }
+        if let encryptedCategory { messagePayload["encrypted_category"] = encryptedCategory }
+        if let encryptedModelName { messagePayload["encrypted_model_name"] = encryptedModelName }
+        return [
+            "chat_id": message.chatId,
+            "message": messagePayload,
+            "versions": [
+                "messages_v": completedAssistantMessagesVersion(
+                    currentMessagesV: currentMessagesV,
+                    localMessageCountAfterAppendingAssistant: localMessageCountAfterAppendingAssistant
+                ),
+                "last_edited_overall_timestamp": createdAtUnix
+            ]
+        ]
     }
 
     func sendPostProcessingMetadata(
@@ -3044,12 +3123,15 @@ final class ChatSendPipeline {
         }
 
         if let key = ChatKeyManager.shared.key(for: chatId) {
-            let encrypted: String
-            if let encryptedChatKey {
-                encrypted = encryptedChatKey
-            } else {
-                encrypted = try await crypto.wrapChatKey(key, masterKey: masterKey)
+            if requiresCachedChatKeyValidation(cachedKeyExists: true, encryptedChatKey: encryptedChatKey),
+               let encryptedChatKey {
+                let wrappedKey = try await crypto.unwrapChatKey(encryptedChatKeyBase64: encryptedChatKey, masterKey: masterKey)
+                guard Self.symmetricKeysEqual(key, wrappedKey) else {
+                    throw ChatSendError.chatKeyMismatch
+                }
+                return (key, encryptedChatKey)
             }
+            let encrypted = try await crypto.wrapChatKey(key, masterKey: masterKey)
             return (key, encrypted)
         }
 
@@ -3062,6 +3144,18 @@ final class ChatSendPipeline {
         let key = await ChatKeyManager.shared.createKeyForNewChat(chatId)
         let encrypted = try await crypto.wrapChatKey(key, masterKey: masterKey)
         return (key, encrypted)
+    }
+
+    func requiresCachedChatKeyValidation(cachedKeyExists: Bool, encryptedChatKey: String?) -> Bool {
+        cachedKeyExists && encryptedChatKey?.isEmpty == false
+    }
+
+    private static func symmetricKeysEqual(_ lhs: SymmetricKey, _ rhs: SymmetricKey) -> Bool {
+        lhs.withUnsafeBytes { leftBytes in
+            rhs.withUnsafeBytes { rightBytes in
+                Data(leftBytes) == Data(rightBytes)
+            }
+        }
     }
 
     private func encryptedEmbeds(
@@ -3253,6 +3347,7 @@ final class ChatSendPipeline {
 private enum ChatSendError: LocalizedError {
     case missingMasterKey
     case webSocketUnavailable
+    case chatKeyMismatch
 
     var errorDescription: String? {
         switch self {
@@ -3260,6 +3355,8 @@ private enum ChatSendError: LocalizedError {
             return "Missing encryption key for this device. Please sign in again."
         case .webSocketUnavailable:
             return "Realtime connection is not ready. Please try again."
+        case .chatKeyMismatch:
+            return "Chat encryption keys are out of sync. Please reload this chat before sending."
         }
     }
 }
