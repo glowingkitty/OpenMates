@@ -49,9 +49,11 @@ struct MainAppView: View {
     @StateObject private var anonymousFreeUsage = AnonymousFreeUsageService.shared
     @State private var syncBridge: OfflineSyncBridge?
     @State private var selectedChatId: String?
+    @State private var selectedWorkspace: WorkspaceDestination = .chat
     @State private var isChatsPanelOpen = false
     @State private var showSettings = false
     @State private var reportIssuePrefill: ReportIssuePrefill?
+    @State private var referralCodeRequest = 0
     @State private var showNewChat = false
     @State private var showExplore = false
     @State private var showSearch = false
@@ -90,6 +92,14 @@ struct MainAppView: View {
     /// Whether the user is currently authenticated
     private var isAuthenticated: Bool {
         authManager.state == .authenticated
+    }
+
+    private var shouldShowAuthenticatedHeaderAffordances: Bool {
+        #if DEBUG
+        return isAuthenticated || ProcessInfo.processInfo.arguments.contains("--ui-test-authenticated-header")
+        #else
+        return isAuthenticated
+        #endif
     }
 
     private var filteredPinnedChats: [Chat] {
@@ -461,6 +471,7 @@ struct MainAppView: View {
     private func selectedChatDidChange(_ oldValue: String?, _ chatId: String?) {
         if chatId != nil {
             lastForegroundInteractionAt = Date()
+            selectedWorkspace = .chat
         }
         Task { await announceActiveChat(chatId) }
     }
@@ -494,6 +505,7 @@ struct MainAppView: View {
 
     private func showNewChatDidChange(_ oldValue: Bool, _ isOpen: Bool) {
         if isOpen {
+            selectedWorkspace = .chat
             Task { await announceActiveChat(nil) }
         }
     }
@@ -559,6 +571,7 @@ struct MainAppView: View {
     }
 
     private func openNewChatScreen() {
+        selectedWorkspace = .chat
         selectedChatId = nil
         showNewChat = true
         showAuthSheet = false
@@ -567,6 +580,21 @@ struct MainAppView: View {
         showShareChat = false
         showHiddenChats = false
         actionChat = nil
+    }
+
+    private func selectWorkspace(_ workspace: WorkspaceDestination) {
+        selectedWorkspace = workspace
+        showAuthSheet = false
+        showSearch = false
+        showExplore = false
+        showShareChat = false
+        showHiddenChats = false
+        actionChat = nil
+        if isCompactShell {
+            withAnimation(.easeInOut(duration: 0.24)) {
+                isChatsPanelOpen = false
+            }
+        }
     }
 
     private func openSearchOverlay() {
@@ -769,13 +797,15 @@ struct MainAppView: View {
     private func activeAppChrome(viewportWidth: CGFloat) -> some View {
         VStack(spacing: 0) {
             OpenMatesWebHeader(
-                isAuthenticated: isAuthenticated || showAuthSheet,
+                isAuthenticated: shouldShowAuthenticatedHeaderAffordances || showAuthSheet,
                 isChatsPanelOpen: isChatsPanelOpen,
                 isSettingsOpen: showSettings,
                 profileUserId: authManager.currentUser?.id,
                 profileImageUrl: authManager.currentUser?.profileImageUrl,
                 onToggleChats: { withAnimation(.easeInOut(duration: 0.2)) { isChatsPanelOpen.toggle() } },
-                onNewChat: { selectedChatId = nil; showNewChat = true },
+                selectedWorkspace: selectedWorkspace,
+                onSelectWorkspace: selectWorkspace,
+                onNewChat: openNewChatScreen,
                 showWorkspaceSwitcher: shouldShowWorkspaceSwitcher,
                 onShareChat: { showShareChat = true },
                 canShareChat: selectedChatId != nil,
@@ -784,6 +814,7 @@ struct MainAppView: View {
                         showSettings.toggle()
                     }
                 },
+                onOpenReferral: openReferralCodeSettings,
                 onOpenAuth: { showAuthSheet = true }
             )
 
@@ -878,7 +909,7 @@ struct MainAppView: View {
     // MARK: - Settings slide panel (web: slides from right, 323px wide, shadow)
 
     private func settingsPanel(width: CGFloat, closesOnExampleChatOpen: Bool) -> some View {
-        SettingsView(reportIssuePrefill: reportIssuePrefill) {
+        SettingsView(reportIssuePrefill: reportIssuePrefill, referralCodeRequest: referralCodeRequest) {
             withAnimation(.easeInOut(duration: 0.3)) {
                 showSettings = false
             }
@@ -902,6 +933,13 @@ struct MainAppView: View {
 
     private func openReportIssue(prefill: ReportIssuePrefill) {
         reportIssuePrefill = prefill
+        withAnimation(.easeInOut(duration: 0.3)) {
+            showSettings = true
+        }
+    }
+
+    private func openReferralCodeSettings() {
+        referralCodeRequest += 1
         withAnimation(.easeInOut(duration: 0.3)) {
             showSettings = true
         }
@@ -1052,7 +1090,11 @@ struct MainAppView: View {
 
     @ViewBuilder
     private var detailContent: some View {
-        if showNewChat || selectedChatId == nil {
+        if selectedWorkspace != .chat {
+            WorkspacePlaceholderView(workspace: selectedWorkspace) {
+                selectedWorkspace = .chat
+            }
+        } else if showNewChat || selectedChatId == nil {
             NewChatWelcomeView(
                 inspirations: dailyInspirations,
                 isAuthenticated: isAuthenticated,
@@ -3076,18 +3118,80 @@ private struct SyncedNewChatSuggestion: Decodable {
 
 // MARK: - Web app header
 
-struct OpenMatesWebHeader: View {
+private enum WorkspaceDestination: String, CaseIterable, Identifiable {
+    case chat
+    case projects
+    case plans
+    case tasks
+    case workflows
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .chat:
+            return "chat"
+        case .projects:
+            return "project"
+        case .plans:
+            return "planning"
+        case .tasks:
+            return "task"
+        case .workflows:
+            return "workflow"
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .chat:
+            return AppStrings.chat
+        case .projects:
+            return AppStrings.projects
+        case .plans:
+            return AppStrings.plans
+        case .tasks:
+            return AppStrings.tasks
+        case .workflows:
+            return AppStrings.workflows
+        }
+    }
+
+    var testId: String {
+        switch self {
+        case .chat:
+            return "chats-nav-link"
+        case .projects:
+            return "projects-nav-link"
+        case .plans:
+            return "plans-nav-link"
+        case .tasks:
+            return "tasks-nav-link"
+        case .workflows:
+            return "workflows-nav-link"
+        }
+    }
+
+    var placeholderIcon: String { icon }
+}
+
+private struct OpenMatesWebHeader: View {
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     let isAuthenticated: Bool
     let isChatsPanelOpen: Bool
     let isSettingsOpen: Bool
     let profileUserId: String?
     let profileImageUrl: String?
     let onToggleChats: () -> Void
+    let selectedWorkspace: WorkspaceDestination
+    let onSelectWorkspace: (WorkspaceDestination) -> Void
     let onNewChat: () -> Void
     let showWorkspaceSwitcher: Bool
     let onShareChat: () -> Void
     let canShareChat: Bool
     let onOpenSettings: () -> Void
+    let onOpenReferral: () -> Void
     let onOpenAuth: () -> Void
 
     var body: some View {
@@ -3107,28 +3211,7 @@ struct OpenMatesWebHeader: View {
                     .accessibilityLabel(LocalizationManager.shared.text("header.toggle_menu"))
                 }
 
-                VStack(alignment: .leading, spacing: 1) {
-                    HStack(spacing: 0) {
-                        // Web: "Open" uses var(--color-primary) gradient as text color
-                        Text("Open")
-                            .font(.omH3)
-                            .fontWeight(.bold)
-                            .foregroundStyle(LinearGradient.primary)
-
-                        Text("Mates")
-                            .font(.omH3)
-                            .fontWeight(.bold)
-                            .foregroundStyle(Color.grey100)
-                    }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(AppStrings.openMatesName)
-
-                    Text(AppStrings.signupVersionTitle)
-                        .font(.omXs)
-                        .foregroundStyle(Color.grey60)
-                        .lineLimit(1)
-                        .accessibilityIdentifier("app-version-label")
-                }
+                headerLogo
 
                 Spacer(minLength: .spacing4)
 
@@ -3149,6 +3232,19 @@ struct OpenMatesWebHeader: View {
                     .accessibilityLabel(AppStrings.signup)
                 }
 
+                if isAuthenticated {
+                    Button(action: onOpenReferral) {
+                        Icon("gift", size: 22)
+                            .foregroundStyle(LinearGradient.primary)
+                            .frame(width: 38, height: 38)
+                            .background(Color.grey10)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("referral-cta")
+                    .accessibilityLabel(AppStrings.getFreeCredits)
+                }
+
                 Button(action: onOpenSettings) {
                     // Web: settings affordance changes into the close affordance while the panel is open.
                     headerSettingsIcon
@@ -3159,7 +3255,11 @@ struct OpenMatesWebHeader: View {
             }
 
             if showWorkspaceSwitcher {
-                WorkspaceSwitcherTabs(onNewChat: onNewChat)
+                WorkspaceSwitcherTabs(
+                    selectedWorkspace: selectedWorkspace,
+                    onSelectWorkspace: onSelectWorkspace,
+                    onNewChat: onNewChat
+                )
                     .zIndex(1)
             }
         }
@@ -3167,6 +3267,45 @@ struct OpenMatesWebHeader: View {
         .padding(.top, .spacing5)
         .padding(.bottom, .spacing3)
         .background(Color.grey0)
+    }
+
+    @ViewBuilder
+    private var headerLogo: some View {
+        if horizontalSizeClass == .compact && showWorkspaceSwitcher {
+            Button(action: { onSelectWorkspace(.chat) }) {
+                Icon("openmates", size: 25)
+                    .foregroundStyle(LinearGradient.primary)
+                    .frame(width: 38, height: 38)
+                    .background(Color.grey10)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("compact-logo-button")
+            .accessibilityLabel(AppStrings.openMatesName)
+        } else {
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 0) {
+                    // Web: "Open" uses var(--color-primary) gradient as text color.
+                    Text("Open")
+                        .font(.omH3)
+                        .fontWeight(.bold)
+                        .foregroundStyle(LinearGradient.primary)
+
+                    Text("Mates")
+                        .font(.omH3)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.grey100)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(AppStrings.openMatesName)
+
+                Text(AppStrings.signupVersionTitle)
+                    .font(.omXs)
+                    .foregroundStyle(Color.grey60)
+                    .lineLimit(1)
+                    .accessibilityIdentifier("app-version-label")
+            }
+        }
     }
 
     @ViewBuilder
@@ -3208,10 +3347,12 @@ struct OpenMatesWebHeader: View {
 }
 
 private struct WorkspaceSwitcherTabs: View {
+    let selectedWorkspace: WorkspaceDestination
+    let onSelectWorkspace: (WorkspaceDestination) -> Void
     let onNewChat: () -> Void
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @State private var hoveredTabId: WorkspaceTabItem.ID?
+    @State private var hoveredTabId: WorkspaceDestination.ID?
 
     private static let tabWidth: CGFloat = 72
     private static let tabHeight: CGFloat = 44.8
@@ -3223,22 +3364,16 @@ private struct WorkspaceSwitcherTabs: View {
         horizontalSizeClass == .compact
     }
 
-    private var tabs: [WorkspaceTabItem] {
-        [
-            WorkspaceTabItem(id: "chat", icon: "chat", label: AppStrings.chat, testId: "chats-nav-link", active: true, disabled: false, action: onNewChat),
-            WorkspaceTabItem(id: "projects", icon: "project", label: AppStrings.projects, testId: "projects-nav-link", active: false, disabled: true, action: {}),
-            WorkspaceTabItem(id: "plans", icon: "planning", label: AppStrings.plans, testId: "plans-nav-link", active: false, disabled: true, action: {}),
-            WorkspaceTabItem(id: "tasks", icon: "task", label: AppStrings.tasks, testId: "tasks-nav-link", active: false, disabled: true, action: {}),
-            WorkspaceTabItem(id: "workflows", icon: "workflow", label: AppStrings.workflows, testId: "workflows-nav-link", active: false, disabled: true, action: {})
-        ]
+    private var tabs: [WorkspaceDestination] {
+        WorkspaceDestination.allCases
     }
 
-    private var activeTab: WorkspaceTabItem {
-        tabs.first { $0.active } ?? tabs[0]
+    private var activeTab: WorkspaceDestination {
+        selectedWorkspace
     }
 
     private var activeIndex: Int {
-        tabs.firstIndex { $0.active } ?? 0
+        tabs.firstIndex(of: selectedWorkspace) ?? 0
     }
 
     private var hoveredIndex: Int? {
@@ -3286,7 +3421,20 @@ private struct WorkspaceSwitcherTabs: View {
     }
 
     private var compactSwitcher: some View {
-        Button(action: activeTab.action) {
+        Menu {
+            ForEach(tabs) { tab in
+                Button {
+                    if tab == .chat {
+                        onSelectWorkspace(.chat)
+                    } else {
+                        onSelectWorkspace(tab)
+                    }
+                } label: {
+                    Text(tab.label)
+                }
+                .accessibilityIdentifier(tab.testId)
+            }
+        } label: {
             HStack(spacing: .spacing3) {
                 Icon(activeTab.icon, size: 21.6)
                     .foregroundStyle(Color.white)
@@ -3305,39 +3453,86 @@ private struct WorkspaceSwitcherTabs: View {
     }
 
     @ViewBuilder
-    private func workspaceTab(_ item: WorkspaceTabItem) -> some View {
-        let tab = Button(action: item.action) {
+    private func workspaceTab(_ item: WorkspaceDestination) -> some View {
+        let isActive = item == selectedWorkspace
+        let isHovered = hoveredTabId == item.id
+        let tab = Button {
+            if item == .chat, isActive {
+                onNewChat()
+            } else {
+                onSelectWorkspace(item)
+            }
+        } label: {
             Icon(item.icon, size: 20)
-                .foregroundStyle(item.active || hoveredTabId == item.id ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.grey70))
+                .foregroundStyle(isActive || isHovered ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.grey70))
                 .frame(width: Self.tabWidth, height: Self.tabHeight)
         }
         .buttonStyle(.plain)
-        .disabled(item.disabled)
-        .opacity(item.disabled ? 0.7 : 1)
         .onHover { isHovering in
             hoveredTabId = isHovering ? item.id : nil
         }
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier(item.testId)
         .accessibilityLabel(item.label)
-        .accessibilityValue(item.disabled ? AppStrings.disabled : "")
         .accessibilityAddTraits(.isButton)
 
-        if item.active {
+        if isActive {
             tab.accessibilityAddTraits(.isSelected)
         } else {
             tab
         }
     }
+}
 
-    private struct WorkspaceTabItem: Identifiable {
-        let id: String
-        let icon: String
-        let label: String
-        let testId: String
-        let active: Bool
-        let disabled: Bool
-        let action: () -> Void
+private struct WorkspacePlaceholderView: View {
+    let workspace: WorkspaceDestination
+    let onReturnToChats: () -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: .spacing7) {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient.primary)
+                        .frame(width: 88, height: 88)
+                    Icon(workspace.placeholderIcon, size: 42)
+                        .foregroundStyle(Color.white)
+                }
+                .accessibilityHidden(true)
+
+                VStack(spacing: .spacing3) {
+                    Text(AppStrings.workspacePreviewEyebrow)
+                        .font(.omXs)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontTertiary)
+                        .textCase(.uppercase)
+                        .tracking(0.8)
+
+                    Text(AppStrings.workspacePreviewTitle(workspace.label))
+                        .font(.omH2)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontPrimary)
+                        .multilineTextAlignment(.center)
+
+                    Text(AppStrings.workspacePreviewBody(workspace.label))
+                        .font(.omP)
+                        .foregroundStyle(Color.fontSecondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: 560)
+                }
+
+                Button(AppStrings.workspacePreviewReturnToChats, action: onReturnToChats)
+                    .buttonStyle(OMPrimaryButtonStyle())
+                    .accessibilityIdentifier("workspace-placeholder-return-to-chats")
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, .spacing10)
+            .padding(.vertical, .spacing14)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.grey0)
+        .accessibilityIdentifier("workspace-placeholder-\(workspace.rawValue)")
     }
 }
 

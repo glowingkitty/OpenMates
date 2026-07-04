@@ -1,0 +1,892 @@
+id: apple-workspace-reporting-parity
+title: Apple Workspace Switcher And Reporting Parity
+status: draft
+
+goal: >
+  Bring the Apple app shell closer to the rendered web app by enabling the
+  workspace switcher entries for Projects, Plans, Tasks, and Workflows as
+  polished first-slice destinations, aligning compact header/logo and invite
+  affordances, and replacing the native issue-reporting/logging gaps with the
+  existing privacy-safe web/backend reporting contracts.
+
+scope:
+  in:
+    - Enable Apple workspace switcher entries for Chats, Projects, Plans, Tasks, and Workflows without presenting them as disabled controls.
+    - Route incomplete Apple workspace entries to polished placeholder or read-only first-slice screens that clearly explain availability and link to the existing workspace product specs.
+    - Replace the compact Apple workspace dropdown placeholder with a native iOS dropdown selection anchored by the existing custom workspace button, matching the web app's styled shell around a native select element.
+    - Match compact web header logo behavior with the rounded-square mate icon affordance and correct tap behavior.
+    - Reproduce the web header invite/referral gift affordance once its exact web source-of-truth is located; it must open the settings path where users share an invite/referral code for free-credit signup benefits.
+    - Add a main chat/header report issue affordance that opens a native OpenMates report form with current chat/reporting context.
+    - Replace ReportIssueView stock NavigationStack/Form/Picker/toolbar product UI with OpenMates settings primitives.
+    - Submit Apple issue reports through /v1/settings/issues and push report-time logs through /v1/settings/issue-logs where authenticated.
+    - Add native privacy-safe log collection/forwarding that mirrors web admin, debug-session, issue-time, and default diagnostic modes where applicable.
+    - Improve reconnect/offline banner UX and instrumentation so transient WebSocket reconnects do not immediately show noisy user-facing banners.
+    - Align welcome resume cards and new-chat suggestions with rendered web responsive behavior using Apple parity tests and source references.
+  out:
+    - Full native implementations of Projects, Plans, Tasks, and Workflows beyond placeholder/read-only first-slice destinations.
+    - Creating new backend reporting endpoints when existing /v1/settings/issues, /v1/settings/issue-logs, /v1/settings/debug-logs, /v1/admin/client-logs, and /v1/client-logs contracts can be used.
+    - Server-side decryption of chat, project, plan, task, workflow, or issue content.
+    - Sending raw private message content, encryption keys, share URL fragments, credentials, device names, hostnames, private filesystem paths, or full screenshots without explicit user action.
+    - Using stock SwiftUI product UI controls for the report issue form, dialogs, banners, or placeholder screens; the compact workspace selector has a narrow explicit native-dropdown exception.
+    - Implementing billing gift-card purchase/redemption flows as part of the header invite/referral affordance.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue lookup failed with 401 Bad credentials in the prior session."
+    - "gh issue list --repo glowingkitty/OpenMates --search 'Apple workspace switcher projects plans tasks workflows report issue debug logs' --state all --limit 20 returned no matches."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/apple-ui-contracts/spec.yml
+    - docs/specs/apple-responsive-shell-parity/spec.yml
+    - docs/specs/projects-remote-sources/spec.yml
+    - docs/specs/plans-v1/spec.yml
+    - docs/specs/tasks-v1/spec.yml
+    - docs/specs/workflows-v1/spec.yml
+    - docs/specs/short-report-issue-ids/spec.yml
+    - docs/specs/simplified-feature-availability/spec.yml
+    - .claude/rules/apple-ui.md
+    - apple/AGENTS.md
+  code_patterns:
+    - apple/OpenMates/Sources/App/MainAppView.swift currently renders WorkspaceSwitcherTabs and hardcodes projects/plans/tasks/workflows disabled.
+    - apple/OpenMates/Sources/App/MainAppView.swift contains welcome cards and suggestions approximating web responsive behavior.
+    - apple/OpenMates/Sources/Shared/Components/NetworkStatusView.swift shows hardcoded English offline/reconnecting banners immediately.
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift uses NavigationStack, Form, Picker, toolbar, hardcoded English strings, and posts to /v1/issues/report.
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift and SettingsSubPages.swift already contain gift-card settings surfaces, but the header invite/referral gift affordance source still needs exact web mapping.
+    - frontend/packages/ui/src/components/Header.svelte is the web source for workspace tabs, compact select shell, mobile logo icon, and header layout.
+    - frontend/packages/ui/src/components/ActiveChat.svelte is the web source for report issue entry behavior from chat context.
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte and frontend/packages/ui/src/services/issueReportSubmission.ts are the web issue form and payload sources.
+    - frontend/packages/ui/src/services/clientLogForwarder.ts and logCollector.ts define web admin/debug/ephemeral/E2E log forwarding modes.
+    - backend/core/api/app/routes/settings.py owns /v1/settings/issues, /v1/settings/issue-logs, and /v1/settings/debug-logs.
+    - backend/core/api/app/routes/admin_client_logs.py owns /v1/admin/client-logs.
+    - backend/core/api/app/routes/client_logs_ephemeral.py owns /v1/client-logs and server-side sanitization.
+  tests:
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift already checks workspace-switcher and workspace nav identifiers.
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift covers shell responsive behavior.
+    - apple/OpenMatesUITests/SettingsBillingParityUITests.swift and SettingsBillingStoreKitParityUITests.swift cover billing/settings surfaces.
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift covers settings shell behavior.
+    - apple/OpenMatesTests/SettingsFullParityTests.swift and SettingsBillingParityTests.swift are candidates for native settings/reporting unit coverage.
+    - frontend/apps/web_app/tests/report-issue-flow.spec.ts covers web report issue behavior.
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Shared/Components/NetworkStatusView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatShellResponsiveParityUITests.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    - apple/OpenMatesUITests/SettingsBillingParityUITests.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+  parity_expectations:
+    - The rendered web app remains the source of truth for header layout, workspace switcher behavior, compact logo treatment, report issue entry placement, and welcome-card/suggestion responsive values.
+    - Apple must use custom OpenMates primitives and generated design tokens, not stock product UI controls, except for the compact workspace native selection explicitly requested to match web select behavior.
+    - Workspace entries are enabled as navigation affordances, but incomplete workspaces can land on polished placeholder/read-only screens until their native product specs are implemented.
+    - Native diagnostic logging must preserve the same privacy model as web logging: explicit consent for debug sessions, admin/dev-only identified live logs, default warn/error telemetry without user identity, and issue-time logs tied only to a submitted issue.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatFlowParityUITests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsFullParityUITests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsBillingParityUITests
+  intentional_native_differences:
+    - Apple can use a native iOS dropdown selection for compact workspace selection because the web app also uses a native select inside a custom styled shell at small viewports.
+    - Placeholder workspace destinations may be native read-only explanatory screens even when web has a richer implementation; deeper parity remains governed by the existing Projects, Plans, Tasks, and Workflows specs.
+    - OS-owned screenshot/photo attachment pickers may remain native, but the surrounding report form and confirmation UI must use OpenMates primitives.
+
+  clarification:
+  rounds:
+    - question: For Apple Projects, Plans, Tasks, and Workflows, what should the first enabled version do?
+      answer: Show all tabs/dropdown entries now, but route incomplete workspaces to polished coming-soon/read-only screens while deeper native parity is phased in.
+    - question: When you mentioned the Apple gift button, what should the spec require?
+      answer: Reproduce the same logic and UI elements from the web app involving the header gift/invite affordance; it should link to the settings path where users can share their invite code so they and new users can receive free credits on signup.
+    - question: Should the compact workspace selector use a custom OpenMates overlay or native dropdown selection?
+      answer: Use the iOS native dropdown selection on click from the existing custom dropdown button, similar to the web app using a native select. Do not build a custom dropdown overlay UI for this control.
+  vision_summary: >
+    Apple should stop looking partially disabled in the main app shell: workspace
+    entries should be reachable, compact navigation should use native selection
+    from the custom button, and header/reporting affordances should match the web
+    source of truth. Reporting and diagnostics should be useful for support while
+    preserving existing privacy guarantees and avoiding stock SwiftUI product UI.
+  approved_by_user: false
+
+scenarios:
+  - id: S-1
+    title: User opens enabled workspace entries from the Apple header
+    given:
+      - Alice is authenticated in the Apple app.
+      - The workspace switcher is visible in regular-width header layout.
+    when:
+      - Alice taps Projects, Plans, Tasks, and Workflows.
+    then:
+      - Each entry is enabled and reachable, not disabled or dimmed as unavailable.
+      - Complete native workspaces open their native screen.
+      - Incomplete native workspaces open polished placeholder or read-only screens that explain the current Apple status and point to the matching product area.
+      - Returning to Chats restores the chat/new-chat surface without data loss.
+
+  - id: S-2
+    title: Compact Apple workspace switcher opens native selection
+    given:
+      - Alice uses the Apple app on a compact iPhone layout.
+      - The header shows the active workspace pill.
+    when:
+      - Alice taps the workspace switcher.
+    then:
+      - The existing custom gradient workspace button opens native iOS dropdown selection.
+      - The native selection lists Chats, Projects, Plans, Tasks, and Workflows.
+      - The active workspace is selected visually and accessibly.
+      - Choosing a workspace navigates to that destination.
+      - No additional custom dropdown overlay UI is introduced beyond the existing custom button shell.
+
+  - id: S-3
+    title: Compact header logo and invite gift affordance match web intent
+    given:
+      - Alice is using a compact Apple layout.
+      - Alice is authenticated where the web app would show the invite/referral gift affordance.
+    when:
+      - Alice looks at and taps the compact header logo and gift/invite affordance.
+    then:
+      - The logo uses the rounded-square mate icon treatment and behavior derived from the rendered web header.
+      - The gift/invite affordance uses the same icon, label, visibility rules, and settings destination as the web app after the exact source component is confirmed.
+      - The destination lets Alice share her invite/referral code for signup free-credit benefits.
+      - Billing gift-card purchase/redemption screens are not introduced as a substitute for the header invite/referral flow.
+
+  - id: S-4
+    title: User reports an issue from active chat context on Apple
+    given:
+      - Alice is using the Apple app with an active chat or new-chat surface.
+      - The report issue entry is visible from the same app context where web exposes reporting.
+    when:
+      - Alice opens Report issue, enters a short description, optionally attaches screenshot/context, and submits.
+    then:
+      - The form uses OpenMates settings/page primitives, not stock Form/Picker/NavigationStack toolbar product UI.
+      - The request posts to /v1/settings/issues with the web-compatible title, issue_type, description/context, device_info, runtime_debug_state, action_history, trace_ids, and optional screenshot fields that Apple can safely provide.
+      - The confirmation displays the backend issue reference, preferring short_issue_id when returned.
+      - If Alice is authenticated, report-time native logs are pushed to /v1/settings/issue-logs using the created issue_id.
+
+  - id: S-5
+    title: Native client logging mirrors web privacy modes
+    given:
+      - Alice is authenticated in the Apple app.
+      - Alice may be an admin, may enable a debug session, or may rely on default diagnostics.
+    when:
+      - Native warnings/errors occur, a debug session is active, or Alice submits a report.
+    then:
+      - Admin/dev live logs use /v1/admin/client-logs only when the authenticated user/server mode permits it.
+      - User-enabled debug sessions use /v1/settings/debug-session and /v1/settings/debug-logs with the active debugging_id.
+      - Default diagnostics send warn/error telemetry only to /v1/client-logs with a pseudonymous session id and PII-sanitized messages.
+      - Issue-time logs are attached to submitted reports via /v1/settings/issue-logs.
+      - Logging failures never break the visible app flow, but are visible to developers through native debug logs.
+
+  - id: S-6
+    title: Reconnect banner avoids noisy transient states
+    given:
+      - Alice is online and the WebSocket enters a short reconnecting state during normal lifecycle churn.
+    when:
+      - The reconnect succeeds quickly or the device is truly offline.
+    then:
+      - Short reconnects do not immediately show a scary banner.
+      - Persistent reconnecting and offline states show localized, token-styled OpenMates banners.
+      - The banner exposes stable accessibility identifiers and diagnostic state for tests.
+      - Hardcoded English strings are removed from the product UI.
+
+  - id: S-7
+    title: Welcome cards and suggestions follow rendered web responsive behavior
+    given:
+      - Alice opens the Apple new-chat welcome surface on compact iPhone and regular iPad layouts.
+      - The corresponding web source has rendered welcome/resume cards and new-chat suggestions at comparable viewport widths.
+    when:
+      - The native parity tests inspect visible card widths, spacing, scroll behavior, and suggestion filtering/selection.
+    then:
+      - Apple welcome cards and suggestion chips match the rendered web structure and responsive intent within documented native tolerances.
+      - Interest filtering and suggestion selection remain functional.
+      - Product UI still avoids default List/table chrome.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Apple workspace switcher entries for Projects, Plans, Tasks, and Workflows are enabled and navigate to native screens or polished placeholders/read-only first-slice destinations.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-WORKSPACE-UI
+  - id: AC-2
+    scenario: S-2
+    text: Compact workspace selection uses native iOS dropdown selection from the existing custom workspace button and introduces no custom dropdown overlay UI.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-WORKSPACE-UI
+      - T-APPLE-STATIC-AUDIT
+  - id: AC-3
+    scenario: S-3
+    text: Compact header logo and header invite/referral gift affordance match the confirmed rendered web source and route users to invite/referral sharing for signup free-credit benefits.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-HEADER-INVITE-UI
+      - T-APPLE-STATIC-AUDIT
+  - id: AC-4
+    scenario: S-4
+    text: Apple report issue UI uses OpenMates primitives, submits to /v1/settings/issues with compatible safe context, and shows the backend issue reference.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-REPORT-UI
+      - T-APPLE-REPORT-UNIT
+      - T-APPLE-STATIC-AUDIT
+  - id: AC-5
+    scenario: S-5
+    text: Apple native logging supports admin/dev, debug-session, default diagnostic, and issue-time modes while preserving web-equivalent privacy restrictions and non-blocking failure behavior.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-LOGGING-UNIT
+      - T-APPLE-REPORT-UNIT
+  - id: AC-6
+    scenario: S-6
+    text: Apple reconnect/offline banner is localized, token-styled, testable, and suppresses transient reconnect noise.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-NETWORK-UNIT
+      - T-APPLE-STATIC-AUDIT
+  - id: AC-7
+    scenario: S-7
+    text: Apple welcome resume cards and new-chat suggestions match rendered web responsive structure and behavior within documented native tolerances.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-WELCOME-UI
+
+assumptions:
+  - id: A-1
+    text: The first Apple workspace slice can expose polished placeholders/read-only screens without implementing the full Projects, Plans, Tasks, and Workflows product specs.
+    category: product_scope
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: user clarification
+        summary: User selected "Placeholders first" for Projects, Plans, Tasks, and Workflows.
+  - id: A-2
+    text: The header gift button refers to invite/referral sharing for free-credit signup benefits, not billing gift-card purchase or redemption.
+    category: product_scope
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: user clarification
+        summary: User described the gift button as linking to settings where invite code sharing gives current and new users free credits.
+  - id: A-3
+    text: The exact web source component for the header invite/referral gift affordance still needs to be identified before native visual implementation.
+    category: source_of_truth
+    required_before: implementation
+    status: checking
+    evidence:
+      - source: frontend/packages/ui/src/components/Header.svelte
+        summary: The currently read header source did not show a direct gift/referral control; implementation must locate the actual rendered/source path before mirroring it.
+
+contracts:
+  api:
+    - route: POST /v1/settings/issues
+      request: >
+        { title: string, description?: string, issue_type: bug_report|feature_request,
+        chat_or_embed_url?: string, contact_email?: string, language: string,
+        device_info?: object, console_logs?: string, runtime_debug_state?: object,
+        action_history?: string, screenshot_png_base64?: string, trace_ids?: string[] }
+      response: >
+        { success: boolean, message: string, issue_id?: string, short_issue_id?: string,
+        screenshot_uploaded: boolean }
+      errors:
+        - 400/422 for invalid required fields.
+        - 429 for issue-report rate limit.
+        - 500 for visible backend creation/upload failures.
+    - route: POST /v1/settings/issue-logs
+      request: "{ issue_id: string, logs_text: string, page_url: string, user_agent: string }"
+      response: "{ success: boolean }"
+      errors:
+        - 401 when unauthenticated.
+        - 429 for issue-log rate limit.
+    - route: POST /v1/admin/client-logs
+      request: "{ logs: LogEntry[], metadata?: ClientMetadata }"
+      response: "{ success: boolean }"
+      errors:
+        - 401 when unauthenticated.
+        - 403 for non-admin users outside development mode.
+    - route: POST /v1/settings/debug-logs
+      request: "{ logs: LogEntry[], metadata?: ClientMetadata, debugging_id: string }"
+      response: "{ success: boolean }"
+      errors:
+        - 401 when unauthenticated.
+        - 403 when the debugging_id belongs to a different user.
+    - route: POST /v1/client-logs
+      request: "{ logs: WarnOrErrorLogEntry[], metadata?: ClientMetadata, session_pseudonym: string }"
+      response: "{ success: boolean }"
+      errors:
+        - 401 when unauthenticated.
+        - 422 for invalid log level or session_pseudonym format.
+  data:
+    - Workspace destination state is local UI state until deeper native workspace API slices are implemented.
+    - Placeholder/read-only workspace screens must not invent or persist fake Projects, Plans, Tasks, or Workflows records.
+    - Native log buffers store bounded, sanitized entries in memory or OS-local storage and clear them on logout/session end unless a debug session explicitly remains active.
+    - Invite/referral state must use existing backend/settings data contracts once the web source is confirmed; do not create parallel referral storage.
+  ui_states:
+    - Regular header workspace switcher with enabled tabs.
+    - Compact workspace switcher closed, opened, selected, dismissed, and keyboard/accessibility states.
+    - Workspace placeholder/read-only screen for Projects, Plans, Tasks, and Workflows.
+    - Compact logo state and invite/referral gift affordance visible/hidden states.
+    - Report issue form empty, invalid, submitting, error, and submitted confirmation states.
+    - Debug log sharing inactive, active, expired, and revoked states where surfaced.
+    - Offline, transient reconnect suppressed, persistent reconnect visible, and connected states.
+    - Welcome cards and suggestions at compact and regular viewport equivalents.
+  privacy_security:
+    - Native logs must sanitize emails, UUID-like chat/message/embed identifiers, base64 blobs, long quoted strings, share URL fragments, tokens, and credentials before network submission.
+    - Default diagnostics must send warn/error logs only with a pseudonymous session id, not user id or email.
+    - Admin/dev live logging can include authenticated user context only through the existing backend access policy.
+    - Issue reports must never include chat encryption keys, share URL fragments, raw private message bodies, private device names, private hostnames, or filesystem paths.
+    - Screenshot attachment must require explicit user action or an OS-owned picker/capture flow.
+  i18n:
+    - All new user-visible Apple strings require i18n YML source keys and AppStrings accessors.
+    - Existing hardcoded English in ReportIssueView and NetworkStatusBanner must be replaced when touched.
+  forbidden_native_controls:
+    - Do not use Form, List, NavigationStack chrome, toolbar, system alert/sheet, default Button styling, or Image(systemName:) for app-owned product UI in touched Apple screens; a native Menu/Picker is allowed only for the compact workspace selector exception.
+
+tests:
+  - id: T-APPLE-STATIC-AUDIT
+    type: lint
+    file: scripts/apple_parity_audit.py
+    command: python3 scripts/apple_parity_audit.py
+    covers:
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-6
+    assertions:
+      - touched Apple product UI files do not introduce forbidden stock controls outside the compact workspace native dropdown exception
+      - touched Apple product UI files include web-source comment blocks
+      - touched Apple product UI strings use AppStrings or LocalizationManager accessors
+      - header/reporting/network files use generated tokens or documented web literals
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-WORKSPACE-UI
+    type: manual
+    file: apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatFlowParityUITests
+    covers:
+      - AC-1
+      - AC-2
+    assertions:
+      - projects/plans/tasks/workflows controls are enabled, hittable, and not accessibility-disabled
+      - compact workspace switcher opens native selection listing all workspace entries
+      - choosing each workspace opens the correct native placeholder/read-only screen or implemented screen
+      - returning to chats restores new-chat/chat state
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-HEADER-INVITE-UI
+    type: manual
+    file: apple/OpenMatesUITests/SettingsBillingParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsBillingParityUITests
+    covers:
+      - AC-3
+    assertions:
+      - compact logo matches the confirmed rendered web icon treatment and behavior
+      - header invite/referral gift affordance appears under the same authenticated/eligibility rules as web
+      - tapping gift/invite opens the settings invite/referral sharing destination, not gift-card purchase as a substitute
+      - invite/referral code sharing UI uses localized strings and product primitives
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-REPORT-UI
+    type: manual
+    file: apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsFullParityUITests
+    covers:
+      - AC-4
+    assertions:
+      - report issue entry is reachable from main chat/header context and settings
+      - report issue form uses OpenMates primitives, not default Form/Picker/toolbar chrome
+      - invalid required fields show visible localized validation
+      - submitted confirmation shows short_issue_id when provided
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-REPORT-UNIT
+    type: manual
+    file: apple/OpenMatesTests/SettingsFullParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsFullParityTests
+    covers:
+      - AC-4
+      - AC-5
+    assertions:
+      - report issue payload maps native fields to /v1/settings/issues shape
+      - issue-log push uses created issue_id and /v1/settings/issue-logs
+      - issue payload redacts share fragments and private identifiers
+      - failure responses surface user-visible errors without silent success
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-LOGGING-UNIT
+    type: manual
+    file: apple/OpenMatesTests/SettingsFullParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsFullParityTests
+    covers:
+      - AC-5
+    assertions:
+      - admin/dev log mode targets /v1/admin/client-logs only when allowed
+      - debug session mode creates/checks sessions and posts /v1/settings/debug-logs with debugging_id
+      - default diagnostic mode posts warn/error logs only to /v1/client-logs with a pseudonymous session id
+      - sanitizer removes emails, UUID-like private ids, share fragments, base64 blobs, and long strings
+      - log forwarding failures do not throw into product UI flows
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-NETWORK-UNIT
+    type: manual
+    file: apple/OpenMatesTests/SettingsFullParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsFullParityTests
+    covers:
+      - AC-6
+    assertions:
+      - transient reconnect state under the configured threshold is suppressed
+      - persistent reconnect state shows a localized banner with test identifier
+      - offline state shows a localized banner with test identifier
+      - connected state hides the banner
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-WELCOME-UI
+    type: manual
+    file: apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatFlowParityUITests
+    covers:
+      - AC-7
+    assertions:
+      - compact and regular welcome cards match rendered web widths/spacing within documented tolerance
+      - suggestions carousel/chips match rendered web responsive behavior within documented tolerance
+      - interest filtering and suggestion insertion still work
+      - no default List/table chrome is visible
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-BUILD
+    type: build
+    file: apple/OpenMates.xcodeproj/project.pbxproj
+    command: python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+    assertions:
+      - iOS target compiles after Apple UI, logging, and i18n changes
+      - generated translations and Swift accessors are present
+      - no missing source files or project references
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+verifications:
+  - id: V-USER-SPEC-APPROVAL
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+    status: pending
+    evidence:
+      status: ""
+      summary: "User must approve this spec before implementation begins."
+      timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - frontend/packages/ui/src/components/Header.svelte for rendered workspace/header behavior.
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte for report form states and payload intent.
+    - frontend/packages/ui/src/services/clientLogForwarder.ts and logCollector.ts for logging modes and sanitization behavior.
+    - apple/OpenMates/Sources/App/MainAppView.swift for current Apple header, workspace switcher, welcome cards, and suggestions.
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift and SettingsSubPages.swift for OpenMates settings primitives and routing patterns.
+  architecture: >
+    Implement the Apple shell changes as native UI slices using existing
+    OpenMates primitives. Keep backend contracts unchanged by mapping native
+    reporting/logging payloads onto existing web endpoints. Treat workspace
+    destinations as presentation/navigation state only until each product spec's
+    native API/UI implementation lands.
+  data_flow:
+    - User taps a workspace entry in the header.
+    - MainAppView updates selected workspace state and renders an implemented native screen or a placeholder/read-only screen.
+    - User opens report issue from chat/header/settings context.
+    - Native report form gathers safe fields, sanitized runtime state, optional screenshot, and bounded logs.
+    - APIClient posts /v1/settings/issues and stores returned issue_id/short_issue_id for confirmation.
+    - Authenticated reports push bounded logs to /v1/settings/issue-logs; optional debug/admin/default logging runs independently.
+  affected_files:
+    - path: apple/OpenMates/Sources/App/MainAppView.swift
+      reason: Header workspace switcher, compact logo, invite/referral affordance, report issue entry, welcome parity.
+    - path: apple/OpenMates/Sources/Shared/Components/NetworkStatusView.swift
+      reason: Reconnect/offline banner localization, debounce, and testability.
+    - path: apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+      reason: Replace stock UI and backend endpoint mapping.
+    - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+      reason: Settings/report/invite routing integration.
+    - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+      reason: Confirm invite/referral/gift settings path and avoid billing gift-card substitution.
+    - path: apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+      reason: Add typed string accessors for new Apple UI labels.
+    - path: frontend/packages/ui/src/i18n/sources/**/*.yml
+      reason: Add source translation keys for any missing Apple-visible strings.
+    - path: apple/OpenMatesUITests/ChatFlowParityUITests.swift
+      reason: Workspace, header, welcome, and suggestion UI coverage.
+    - path: apple/OpenMatesUITests/SettingsFullParityUITests.swift
+      reason: Report issue UI coverage.
+    - path: apple/OpenMatesUITests/SettingsBillingParityUITests.swift
+      reason: Invite/referral gift affordance coverage if that path lives under billing/settings.
+    - path: apple/OpenMatesTests/SettingsFullParityTests.swift
+      reason: Payload/logging/banner unit coverage candidates.
+  verification_strategy:
+    - Run red-phase Apple UI/unit tests before implementation when feasible through scripts/apple_remote.py.
+    - Run python3 scripts/apple_parity_audit.py after Apple product UI changes.
+    - Run python3 scripts/apple_remote.py status before native build/test verification.
+    - Run python3 scripts/apple_remote.py build-ios --simulator "iPhone 17" as the minimum native build proof.
+    - Run targeted Apple UI tests after implementation.
+    - Record skipped/blocked Mac evidence only as sanitized failure classes.
+  verification_order:
+    - Web source-of-truth discovery for invite/referral gift affordance.
+    - Static Apple/product UI audit.
+    - Apple unit/payload/sanitization tests.
+    - Apple UI tests for workspace/header/report/welcome flows.
+    - Apple build proof.
+
+tasks:
+  - id: TASK-1
+    title: Confirm rendered web source for header invite/referral gift affordance
+    status: pending
+    phase: checking_assumptions
+    covers:
+      scenarios:
+        - S-3
+      acceptance_criteria:
+        - AC-3
+    expected_files:
+      - frontend/packages/ui/src/components/Header.svelte
+      - frontend/packages/ui/src/components/settings/**
+      - frontend/apps/web_app/tests/**
+    verification:
+      - T-APPLE-HEADER-INVITE-UI
+    verification_ids:
+      - T-APPLE-HEADER-INVITE-UI
+    blockers:
+      - A-3 must be confirmed before native visual implementation.
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Enable Apple workspace navigation with placeholder/read-only destinations
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+    expected_files:
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    verification:
+      - T-APPLE-WORKSPACE-UI
+      - T-APPLE-STATIC-AUDIT
+      - T-APPLE-BUILD
+    verification_ids:
+      - T-APPLE-WORKSPACE-UI
+      - T-APPLE-STATIC-AUDIT
+      - T-APPLE-BUILD
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+  - id: TASK-3
+    title: Align compact header logo and invite/referral affordance
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-3
+      acceptance_criteria:
+        - AC-3
+    expected_files:
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+      - apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift
+      - apple/OpenMatesUITests/SettingsBillingParityUITests.swift
+    verification:
+      - T-APPLE-HEADER-INVITE-UI
+      - T-APPLE-STATIC-AUDIT
+      - T-APPLE-BUILD
+    verification_ids:
+      - T-APPLE-HEADER-INVITE-UI
+      - T-APPLE-STATIC-AUDIT
+      - T-APPLE-BUILD
+    blockers:
+      - TASK-1
+    follow_up_tasks: []
+    independently_deployable: true
+
+  - id: TASK-4
+    title: Replace Apple report issue UI and endpoint mapping
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-4
+      acceptance_criteria:
+        - AC-4
+    expected_files:
+      - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+      - apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift
+      - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+      - apple/OpenMatesTests/SettingsFullParityTests.swift
+    verification:
+      - T-APPLE-REPORT-UI
+      - T-APPLE-REPORT-UNIT
+      - T-APPLE-STATIC-AUDIT
+      - T-APPLE-BUILD
+    verification_ids:
+      - T-APPLE-REPORT-UI
+      - T-APPLE-REPORT-UNIT
+      - T-APPLE-STATIC-AUDIT
+      - T-APPLE-BUILD
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+  - id: TASK-5
+    title: Add native log collector and privacy-safe forwarding modes
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-5
+      acceptance_criteria:
+        - AC-5
+    expected_files:
+      - apple/OpenMates/Sources/Core/**
+      - apple/OpenMates/Sources/Features/Settings/Views/**
+      - apple/OpenMatesTests/SettingsFullParityTests.swift
+    verification:
+      - T-APPLE-LOGGING-UNIT
+      - T-APPLE-REPORT-UNIT
+      - T-APPLE-BUILD
+    verification_ids:
+      - T-APPLE-LOGGING-UNIT
+      - T-APPLE-REPORT-UNIT
+      - T-APPLE-BUILD
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Fix reconnect banner localization, debounce, and testability
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-6
+    expected_files:
+      - apple/OpenMates/Sources/Shared/Components/NetworkStatusView.swift
+      - apple/OpenMatesTests/SettingsFullParityTests.swift
+      - frontend/packages/ui/src/i18n/sources/**/*.yml
+      - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    verification:
+      - T-APPLE-NETWORK-UNIT
+      - T-APPLE-STATIC-AUDIT
+      - T-APPLE-BUILD
+    verification_ids:
+      - T-APPLE-NETWORK-UNIT
+      - T-APPLE-STATIC-AUDIT
+      - T-APPLE-BUILD
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+  - id: TASK-7
+    title: Prove welcome cards and suggestions responsive parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-7
+      acceptance_criteria:
+        - AC-7
+    expected_files:
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    verification:
+      - T-APPLE-WELCOME-UI
+      - T-APPLE-BUILD
+    verification_ids:
+      - T-APPLE-WELCOME-UI
+      - T-APPLE-BUILD
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+open_questions:
+  - id: OQ-1
+    question: Which exact rendered web component currently owns the header invite/referral gift affordance?
+    status: open
+    resolution_needed_before: implementation
+  - id: OQ-2
+    question: Should placeholder workspace screens show links to web routes, or only native explanatory content until native parity is ready?
+    status: open
+    resolution_needed_before: task_execution
+
+risks:
+  - id: R-1
+    risk: Enabling workspace entries could imply full native feature readiness if placeholder copy is vague.
+    mitigation: Use explicit placeholder/read-only copy and link each screen to the relevant product surface/spec intent.
+  - id: R-2
+    risk: Native log forwarding could leak private content if sanitizer rules diverge from web.
+    mitigation: Port web/server sanitizer patterns and cover them with native unit tests before forwarding logs.
+  - id: R-3
+    risk: Reconnect banner debounce could hide real outage feedback.
+    mitigation: Suppress only short reconnect windows and always show offline/persistent reconnect states with test coverage.
+  - id: R-4
+    risk: The invite/referral gift affordance may be confused with existing gift-card billing screens.
+    mitigation: Confirm web source-of-truth first and explicitly route to invite/referral sharing, not gift-card purchase/redemption, unless the web flow says otherwise.

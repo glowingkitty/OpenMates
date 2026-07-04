@@ -1,9 +1,24 @@
-// In-app issue reporting — submit bug reports with title, description, and screenshots.
-// Mirrors the web app's report-issue-flow: form validation, screenshot attachment,
-// and submission to the backend issue tracker endpoint.
+// In-app issue reporting for the Apple app.
+// Mirrors the web SettingsReportIssue.svelte flow and the shared
+// /v1/settings/issues backend contract without using stock product UI chrome.
+// The form collects safe context only: no message plaintext, keys, credentials,
+// private paths, hostnames, or share fragments are included automatically.
 
-import SwiftUI
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+// TS:      frontend/packages/ui/src/services/issueReportSubmission.ts
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
+import Foundation
 import PhotosUI
+import SwiftUI
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 struct ReportIssuePrefill: Equatable {
     let id = UUID()
@@ -20,144 +35,44 @@ struct ReportIssuePrefill: Equatable {
 }
 
 struct ReportIssueView: View {
-    @Environment(\.dismiss) var dismiss
     @State private var title = ""
-    @State private var description = ""
-    @State private var category = "bug"
+    @State private var userFlow = ""
+    @State private var expectedBehaviour = ""
+    @State private var actualBehaviour = ""
+    @State private var issueType: IssueReportPayloadBuilder.IssueType = .bugReport
     @State private var screenshotItem: PhotosPickerItem?
     @State private var screenshotData: Data?
     @State private var screenshotPreview: Image?
     @State private var isSubmitting = false
-    @State private var submitted = false
+    @State private var submittedIssueReference: String?
     @State private var error: String?
 
-    private let categories = [
-        ("bug", "Bug Report"),
-        ("feature", "Feature Request"),
-        ("account", "Account Issue"),
-        ("billing", "Billing Issue"),
-        ("other", "Other")
-    ]
+    private var titleValidationError: String? {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedTitle.isEmpty { return AppStrings.reportIssueTitleRequired }
+        if trimmedTitle.count < 3 { return AppStrings.reportIssueTitleTooShort }
+        return nil
+    }
 
     private var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !description.trimmingCharacters(in: .whitespaces).isEmpty
+        titleValidationError == nil
     }
 
     init(prefill: ReportIssuePrefill? = nil) {
         _title = State(initialValue: prefill?.title ?? "")
-        _category = State(initialValue: prefill?.category ?? "bug")
+        _issueType = State(initialValue: prefill?.category == "feature" ? .featureRequest : .bugReport)
     }
 
     var body: some View {
-        NavigationStack {
-            if submitted {
-                submittedView
+        OMSettingsPage(title: AppStrings.settingsReportIssue, subtitle: AppStrings.reportIssueDescription, showsHeader: false) {
+            Color.clear
+                .frame(height: 0)
+                .accessibilityIdentifier("settings-report-issue-form")
+
+            if let submittedIssueReference {
+                submittedView(reference: submittedIssueReference)
             } else {
                 formView
-            }
-        }
-    }
-
-    // MARK: - Form
-
-    private var formView: some View {
-        Form {
-            Section("Category") {
-                Picker("Category", selection: $category) {
-                    ForEach(categories, id: \.0) { id, name in
-                        Text(name).tag(id)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
-
-            Section("Details") {
-                TextField("Title", text: $title)
-                    .autocorrectionDisabled()
-                    .accessibleInput("Title", hint: LocalizationManager.shared.text("report.title_hint"))
-
-                TextEditor(text: $description)
-                    .frame(minHeight: 120)
-                    .font(.omP)
-                    .accessibilityLabel("Description")
-                    .accessibilityHint(LocalizationManager.shared.text("report.description_hint"))
-                    .overlay(alignment: .topLeading) {
-                        if description.isEmpty {
-                            Text(LocalizationManager.shared.text("report.describe_issue_placeholder"))
-                                .font(.omP)
-                                .foregroundStyle(Color.fontTertiary)
-                                .padding(.top, 8)
-                                .padding(.leading, 4)
-                                .allowsHitTesting(false)
-                                .accessibilityHidden(true)
-                        }
-                    }
-            }
-
-            Section("Screenshot (optional)") {
-                if let screenshotPreview {
-                    screenshotPreview
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 200)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius3))
-                        .accessibilityLabel(LocalizationManager.shared.text("report.screenshot_attached"))
-                        .overlay(alignment: .topTrailing) {
-                            Button {
-                                self.screenshotData = nil
-                                self.screenshotPreview = nil
-                                self.screenshotItem = nil
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.white, Color.error)
-                            }
-                            .padding(.spacing2)
-                            .accessibleButton(LocalizationManager.shared.text("report.remove_screenshot"))
-                        }
-                } else {
-                    PhotosPicker(selection: $screenshotItem, matching: .screenshots) {
-                        Label("Attach Screenshot", systemImage: "camera")
-                    }
-                    .accessibilityLabel("Attach Screenshot")
-                }
-            }
-
-            if let error {
-                Section {
-                    Text(error)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.error)
-                }
-            }
-
-            Section {
-                Button {
-                    submitReport()
-                } label: {
-                    HStack {
-                        Spacer()
-                        if isSubmitting {
-                            ProgressView()
-                        } else {
-                            Text(LocalizationManager.shared.text("report.submit_report"))
-                                .fontWeight(.medium)
-                        }
-                        Spacer()
-                    }
-                }
-                .disabled(!isValid || isSubmitting)
-                .accessibleButton(LocalizationManager.shared.text("report.submit_report"))
-            }
-        }
-        .navigationTitle("Report an Issue")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { dismiss() }
-                    .accessibleButton(AppStrings.cancel)
             }
         }
         .onChange(of: screenshotItem) { _, newItem in
@@ -165,39 +80,155 @@ struct ReportIssueView: View {
         }
     }
 
-    // MARK: - Submitted confirmation
+    private var formView: some View {
+        VStack(alignment: .leading, spacing: .spacing8) {
+            OMSettingsSection(AppStrings.settingsReportIssue, icon: "report_issue") {
+                VStack(alignment: .leading, spacing: .spacing5) {
+                    ReportIssueTextArea(
+                        title: AppStrings.reportIssueTitleLabel,
+                        placeholder: AppStrings.reportIssueTitlePlaceholder,
+                        text: $title,
+                        minHeight: 92,
+                        accessibilityIdentifier: "report-issue-title"
+                    )
 
-    private var submittedView: some View {
-        VStack(spacing: .spacing6) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.green)
-                .accessibilityHidden(true)
+                    if let titleValidationError {
+                        Text(titleValidationError)
+                            .font(.omXs)
+                            .foregroundStyle(Color.error)
+                            .accessibilityIdentifier("report-issue-title-error")
+                    }
 
-            Text(LocalizationManager.shared.text("report.report_submitted"))
-                .font(.omH3).fontWeight(.semibold)
+                    ReportIssueTextArea(
+                        title: AppStrings.reportIssueUserFlowLabel,
+                        placeholder: AppStrings.reportIssueUserFlowPlaceholder,
+                        hint: AppStrings.reportIssueUserFlowHint,
+                        text: $userFlow,
+                        accessibilityIdentifier: "report-issue-user-flow"
+                    )
 
-            Text(LocalizationManager.shared.text("report.thank_you_message"))
-                .font(.omP)
-                .foregroundStyle(Color.fontSecondary)
-                .multilineTextAlignment(.center)
+                    ReportIssueTextArea(
+                        title: AppStrings.reportIssueExpectedLabel,
+                        placeholder: AppStrings.reportIssueExpectedPlaceholder,
+                        hint: AppStrings.reportIssueExpectedHint,
+                        text: $expectedBehaviour,
+                        accessibilityIdentifier: "report-issue-expected"
+                    )
 
-            Button("Done") { dismiss() }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.buttonPrimary)
-                .accessibleButton(AppStrings.done)
+                    ReportIssueTextArea(
+                        title: AppStrings.reportIssueActualLabel,
+                        placeholder: AppStrings.reportIssueActualPlaceholder,
+                        hint: AppStrings.reportIssueActualHint,
+                        text: $actualBehaviour,
+                        accessibilityIdentifier: "report-issue-actual"
+                    )
+                }
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing4)
+            }
+
+            screenshotSection
+
+            if let error {
+                Text(error)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.error)
+                    .padding(.horizontal, .spacing5)
+                    .accessibilityIdentifier("report-issue-error")
+            }
+
+            Button {
+                submitReport()
+            } label: {
+                if isSubmitting {
+                    ProgressView()
+                        .accessibilityLabel(AppStrings.reportIssueSubmitting)
+                } else {
+                    Text(AppStrings.reportIssueSubmitButton)
+                }
+            }
+            .buttonStyle(OMPrimaryButtonStyle())
+            .disabled(!isValid || isSubmitting)
+            .accessibilityIdentifier("report-issue-submit")
         }
-        .padding(.spacing8)
-        .onAppear {
-            AccessibilityAnnouncement.announce(LocalizationManager.shared.text("report.report_submitted"))
-        }
-        .navigationTitle("Report an Issue")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
     }
 
-    // MARK: - Actions
+    private var screenshotSection: some View {
+        OMSettingsSection(AppStrings.reportIssueScreenshotLabel, icon: "image") {
+            VStack(alignment: .leading, spacing: .spacing4) {
+                Text(AppStrings.reportIssueScreenshotHint)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+
+                if let screenshotPreview {
+                    screenshotPreview
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                        .accessibilityIdentifier("report-issue-screenshot-preview")
+
+                    Button {
+                        screenshotData = nil
+                        screenshotPreview = nil
+                        screenshotItem = nil
+                    } label: {
+                        Label {
+                            Text(AppStrings.reportIssueScreenshotRemove)
+                        } icon: {
+                            Icon("close", size: 16)
+                        }
+                    }
+                    .buttonStyle(OMSecondaryButtonStyle())
+                    .accessibilityIdentifier("report-issue-remove-screenshot")
+                } else {
+                    PhotosPicker(selection: $screenshotItem, matching: .images) {
+                        HStack(spacing: .spacing3) {
+                            Icon("image", size: 18)
+                            Text(AppStrings.reportIssueScreenshotUploadButton)
+                        }
+                    }
+                    .buttonStyle(OMSecondaryButtonStyle())
+                    .accessibilityIdentifier("report-issue-attach-screenshot")
+                }
+            }
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing4)
+        }
+    }
+
+    private func submittedView(reference: String) -> some View {
+        OMSettingsSection(AppStrings.reportIssueSuccess, icon: "check") {
+            VStack(alignment: .center, spacing: .spacing5) {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient.primary)
+                        .frame(width: 64, height: 64)
+                    Icon("check", size: 34)
+                        .foregroundStyle(Color.white)
+                }
+                .accessibilityHidden(true)
+
+                Text(AppStrings.reportIssueSuccess)
+                    .font(.omH3)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .multilineTextAlignment(.center)
+
+                Text("\(AppStrings.reportIssueIssueIdLabel): \(reference)")
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .textSelection(.enabled)
+                    .accessibilityIdentifier("report-issue-reference")
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing8)
+        }
+        .onAppear {
+            AccessibilityAnnouncement.announce(AppStrings.reportIssueSuccess)
+        }
+    }
 
     private func loadScreenshot(_ item: PhotosPickerItem?) {
         guard let item else { return }
@@ -218,31 +249,296 @@ struct ReportIssueView: View {
     }
 
     private func submitReport() {
+        guard isValid else { return }
         isSubmitting = true
         error = nil
+        NativeClientLogCollector.shared.record(level: .info, category: "report_issue", message: "Submitting native issue report")
 
         Task {
             do {
-                var body: [String: Any] = [
-                    "title": title,
-                    "description": description,
-                    "category": category,
-                    "platform": "apple_native"
-                ]
-
-                if let screenshotData {
-                    body["screenshot_base64"] = screenshotData.base64EncodedString()
-                }
-
-                let _: Data = try await APIClient.shared.request(
-                    .post, path: "/v1/issues/report", body: body
+                let payload = IssueReportPayloadBuilder.makePayload(
+                    title: title,
+                    issueType: issueType,
+                    userFlow: userFlow,
+                    expectedBehaviour: expectedBehaviour,
+                    actualBehaviour: actualBehaviour,
+                    screenshotData: screenshotData,
+                    consoleLogs: NativeClientLogCollector.shared.logsAsText(limit: 100),
+                    runtimeDebugState: IssueReportPayloadBuilder.runtimeDebugState()
                 )
-                submitted = true
+
+                let response: IssueReportResponse = try await APIClient.shared.request(
+                    .post,
+                    path: "/v1/settings/issues",
+                    body: payload
+                )
+
+                let reference = response.shortIssueId ?? response.issueId ?? ""
+                if let issueId = response.issueId {
+                    await sendIssueLogs(issueId: issueId)
+                }
+                submittedIssueReference = reference.isEmpty ? AppStrings.done : reference
+                NativeClientLogCollector.shared.record(level: .info, category: "report_issue", message: "Native issue report submitted")
             } catch {
+                NativeClientLogCollector.shared.record(level: .error, category: "report_issue", message: error.localizedDescription)
                 self.error = error.localizedDescription
                 AccessibilityAnnouncement.announce(error.localizedDescription)
             }
             isSubmitting = false
         }
+    }
+
+    private func sendIssueLogs(issueId: String) async {
+        let payload = NativeClientLogCollector.shared.issueLogPayload(
+            issueId: issueId,
+            pageURL: "apple://settings/report_issue"
+        )
+
+        do {
+            let _: Data = try await APIClient.shared.request(
+                .post,
+                path: "/v1/settings/issue-logs",
+                body: payload
+            )
+        } catch {
+            NativeClientLogCollector.shared.record(level: .warning, category: "report_issue", message: "Issue log upload failed: \(error.localizedDescription)")
+        }
+    }
+}
+
+private struct ReportIssueTextArea: View {
+    let title: String
+    let placeholder: String
+    var hint: String?
+    @Binding var text: String
+    var minHeight: CGFloat = 120
+    let accessibilityIdentifier: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(title)
+                .font(.omSmall.weight(.semibold))
+                .foregroundStyle(Color.fontPrimary)
+
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $text)
+                    .font(.omP)
+                    .foregroundStyle(Color.fontPrimary)
+                    .scrollContentBackground(.hidden)
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing4)
+                    .frame(minHeight: minHeight)
+                    .background(Color.grey0)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: .radius5)
+                            .stroke(Color.grey30, lineWidth: 1)
+                    )
+                    .accessibilityIdentifier(accessibilityIdentifier)
+
+                if text.isEmpty {
+                    Text(placeholder)
+                        .font(.omP)
+                        .foregroundStyle(Color.fontTertiary)
+                        .padding(.horizontal, .spacing8)
+                        .padding(.vertical, .spacing6)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
+
+            if let hint {
+                Text(hint)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+        }
+    }
+}
+
+struct IssueReportResponse: Decodable {
+    let success: Bool
+    let message: String
+    let issueId: String?
+    let shortIssueId: String?
+    let screenshotUploaded: Bool
+}
+
+enum IssueReportPayloadBuilder {
+    enum IssueType: String {
+        case bugReport = "bug_report"
+        case featureRequest = "feature_request"
+    }
+
+    static func makePayload(
+        title: String,
+        issueType: IssueType,
+        userFlow: String,
+        expectedBehaviour: String,
+        actualBehaviour: String,
+        screenshotData: Data?,
+        consoleLogs: String,
+        runtimeDebugState: [String: Any],
+        language: String = Locale.current.language.languageCode?.identifier ?? "en"
+    ) -> [String: Any] {
+        var payload: [String: Any] = [
+            "title": sanitizedText(title),
+            "issue_type": issueType.rawValue,
+            "language": language,
+            "device_info": deviceInfo(),
+            "console_logs": NativeClientLogCollector.sanitize(consoleLogs),
+            "runtime_debug_state": runtimeDebugState,
+            "action_history": "native:settings/report_issue",
+            "trace_ids": [],
+            "add_to_linear": true,
+            "send_email_notification": true,
+        ]
+
+        let description = composedDescription(
+            userFlow: userFlow,
+            expectedBehaviour: expectedBehaviour,
+            actualBehaviour: actualBehaviour
+        )
+        if !description.isEmpty {
+            payload["description"] = description
+        }
+
+        if let screenshotData {
+            payload["screenshot_png_base64"] = screenshotData.base64EncodedString()
+        }
+
+        return payload
+    }
+
+    static func composedDescription(userFlow: String, expectedBehaviour: String, actualBehaviour: String) -> String {
+        [
+            ("What did you do?", userFlow),
+            ("Expected behaviour", expectedBehaviour),
+            ("Actual behaviour", actualBehaviour),
+        ]
+        .compactMap { heading, value in
+            let clean = sanitizedText(value)
+            return clean.isEmpty ? nil : "## \(heading)\n\(clean)"
+        }
+        .joined(separator: "\n\n")
+    }
+
+    static func runtimeDebugState() -> [String: Any] {
+        [
+            "platform": "apple_native",
+            "bundle_id": Bundle.main.bundleIdentifier ?? "org.openmates.app",
+            "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+        ]
+    }
+
+    static func deviceInfo() -> [String: Any] {
+        #if os(iOS)
+        return [
+            "userAgent": "OpenMates-Apple/iOS",
+            "viewportWidth": Int(UIScreen.main.bounds.width),
+            "viewportHeight": Int(UIScreen.main.bounds.height),
+            "isTouchEnabled": true,
+            "systemVersion": UIDevice.current.systemVersion,
+        ]
+        #elseif os(macOS)
+        let frame = NSScreen.main?.frame ?? .zero
+        return [
+            "userAgent": "OpenMates-Apple/macOS",
+            "viewportWidth": Int(frame.width),
+            "viewportHeight": Int(frame.height),
+            "isTouchEnabled": false,
+            "systemVersion": ProcessInfo.processInfo.operatingSystemVersionString,
+        ]
+        #else
+        return ["userAgent": "OpenMates-Apple", "isTouchEnabled": false]
+        #endif
+    }
+
+    static func sanitizedText(_ value: String) -> String {
+        NativeClientLogCollector.sanitize(value)
+            .replacingOccurrences(of: "<[^>]*>", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+enum NativeClientLogLevel: String {
+    case debug
+    case info
+    case warning
+    case error
+}
+
+struct NativeClientLogEntry: Equatable {
+    let timestamp: Date
+    let level: NativeClientLogLevel
+    let category: String
+    let message: String
+}
+
+final class NativeClientLogCollector {
+    static let shared = NativeClientLogCollector()
+    private static let maxEntries = 200
+    private let lock = NSLock()
+    private var entries: [NativeClientLogEntry] = []
+
+    private init() {}
+
+    func record(level: NativeClientLogLevel, category: String, message: String) {
+        let entry = NativeClientLogEntry(
+            timestamp: Date(),
+            level: level,
+            category: Self.sanitize(category),
+            message: Self.sanitize(message)
+        )
+        lock.lock()
+        entries.append(entry)
+        if entries.count > Self.maxEntries {
+            entries.removeFirst(entries.count - Self.maxEntries)
+        }
+        lock.unlock()
+    }
+
+    func resetForTests() {
+        lock.lock()
+        entries.removeAll()
+        lock.unlock()
+    }
+
+    func logsAsText(limit: Int) -> String {
+        lock.lock()
+        let snapshot = Array(entries.suffix(max(0, limit)))
+        lock.unlock()
+
+        let formatter = ISO8601DateFormatter()
+        return snapshot.map { entry in
+            "[\(formatter.string(from: entry.timestamp))] [\(entry.level.rawValue.uppercased())] [\(entry.category)] \(entry.message)"
+        }.joined(separator: "\n")
+    }
+
+    func issueLogPayload(issueId: String, pageURL: String) -> [String: Any] {
+        [
+            "issue_id": issueId,
+            "logs_text": logsAsText(limit: 150),
+            "page_url": Self.sanitize(pageURL),
+            "user_agent": "OpenMates-Apple",
+        ]
+    }
+
+    static func sanitize(_ value: String) -> String {
+        var sanitized = value
+        let replacements: [(String, String)] = [
+            (#"#[A-Za-z0-9_-]*key=[^\s\]]+"#, "#key=<redacted>"),
+            (#"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#, "<email>"),
+            (#"(?i)(password|token|secret|api[_-]?key)=([^\s&]+)"#, "$1=<redacted>"),
+            (#"file://[^\s\]]+"#, "file://<redacted>"),
+        ]
+        for (pattern, replacement) in replacements {
+            sanitized = sanitized.replacingOccurrences(
+                of: pattern,
+                with: replacement,
+                options: [.regularExpression, .caseInsensitive]
+            )
+        }
+        return sanitized
     }
 }

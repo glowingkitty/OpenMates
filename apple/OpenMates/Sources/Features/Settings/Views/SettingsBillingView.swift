@@ -13,6 +13,11 @@
 
 import SwiftUI
 import StoreKit
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 enum BillingUITestFixture {
     static var enabled: Bool {
@@ -25,13 +30,23 @@ struct SettingsBillingView: View {
         case buyCredits
         case autoTopUp
         case invoices
+        case referralCode
         case giftCards
     }
+
+    let referralCodeRequest: Int
 
     @State private var balance: Double = 0
     @State private var usageCredits: Double = 0
     @State private var usageMessages: Int = 0
     @State private var route: BillingRoute?
+    @State private var handledReferralCodeRequest = 0
+
+    init(referralCodeRequest: Int = 0) {
+        self.referralCodeRequest = referralCodeRequest
+        _route = State(initialValue: referralCodeRequest > 0 ? .referralCode : nil)
+        _handledReferralCodeRequest = State(initialValue: referralCodeRequest)
+    }
 
     var body: some View {
         Group {
@@ -42,6 +57,11 @@ struct SettingsBillingView: View {
             }
         }
         .task { await loadBillingHub() }
+        .onChange(of: referralCodeRequest) { _, newValue in
+            guard newValue != handledReferralCodeRequest else { return }
+            handledReferralCodeRequest = newValue
+            route = .referralCode
+        }
         .onReceive(NotificationCenter.default.publisher(for: .paymentCompleted)) { _ in
             Task { await loadBillingHub() }
         }
@@ -70,6 +90,11 @@ struct SettingsBillingView: View {
                     route = .invoices
                 }
                 .accessibilityIdentifier("settings-billing-invoices-row")
+
+                OMSettingsRow(title: AppStrings.referralCode, icon: "gift") {
+                    route = .referralCode
+                }
+                .accessibilityIdentifier("settings-billing-referral-code-row")
 
                 OMSettingsRow(title: AppStrings.giftCards, icon: "gift") {
                     route = .giftCards
@@ -120,6 +145,8 @@ struct SettingsBillingView: View {
                 AutoTopUpView()
             case .invoices:
                 InvoicesView()
+            case .referralCode:
+                SettingsReferralCodeView()
             case .giftCards:
                 SettingsGiftCardsView()
             }
@@ -202,6 +229,115 @@ struct SettingsBillingView: View {
 
     private func formattedDecimal(_ value: Double) -> String {
         String(format: "%.4f", value)
+    }
+}
+
+// MARK: - Referral code
+
+struct SettingsReferralCodeView: View {
+    struct ReferralStatusResponse: Decodable {
+        let available: Bool
+        let referralCode: String?
+        let successfulReferralsCount: Int
+        let maxSuccessfulReferrals: Int
+        let creditsPerReferrer: Int
+        let creditsPerReferredUser: Int
+        let minPurchaseAmountCents: Int
+        let attributionExpiresDays: Int
+    }
+
+    @State private var status: ReferralStatusResponse?
+    @State private var isLoading = true
+    @State private var error: String?
+    @State private var didCopy = false
+
+    private var referralURL: String? {
+        guard let code = status?.referralCode, !code.isEmpty else { return nil }
+        return ServerConfiguration.current.webAppURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + "/?ref=\(code)"
+    }
+
+    var body: some View {
+        OMSettingsPage(title: AppStrings.referralCode, showsHeader: false) {
+            Color.clear
+                .frame(height: 0)
+                .accessibilityIdentifier("settings-billing-referral-code-page")
+
+            OMSettingsSection(AppStrings.getFreeCredits, icon: "gift") {
+                VStack(alignment: .leading, spacing: .spacing5) {
+                    if isLoading {
+                        ProgressView()
+                            .accessibilityLabel(AppStrings.loading)
+                    } else if let error {
+                        Text(error)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.error)
+                    } else if let status, status.available, let referralURL {
+                        Text(AppStrings.referralIntro(
+                            referrerCredits: formatCredits(status.creditsPerReferrer),
+                            referredCredits: formatCredits(status.creditsPerReferredUser)
+                        ))
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                        Text(referralURL)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontPrimary)
+                            .textSelection(.enabled)
+                            .padding(.spacing5)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.grey0)
+                            .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                            .accessibilityIdentifier("referral-link-value")
+
+                        Text(AppStrings.referralProgress(
+                            count: "\(status.successfulReferralsCount)",
+                            max: "\(status.maxSuccessfulReferrals)"
+                        ))
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontSecondary)
+
+                        Button(didCopy ? AppStrings.copied : AppStrings.copy) {
+                            copyReferralURL(referralURL)
+                        }
+                        .buttonStyle(OMPrimaryButtonStyle())
+                        .accessibilityIdentifier("referral-copy-button")
+                    } else {
+                        Text(AppStrings.error)
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontSecondary)
+                    }
+                }
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing4)
+            }
+        }
+        .task { await loadReferralStatus() }
+    }
+
+    private func loadReferralStatus() async {
+        isLoading = true
+        error = nil
+        do {
+            status = try await APIClient.shared.request(.get, path: "/v1/referrals/status")
+        } catch {
+            self.error = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    private func copyReferralURL(_ value: String) {
+        #if os(iOS)
+        UIPasteboard.general.string = value
+        #elseif os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(value, forType: .string)
+        #endif
+        didCopy = true
+    }
+
+    private func formatCredits(_ value: Int) -> String {
+        value.formatted(.number.grouping(.automatic))
     }
 }
 

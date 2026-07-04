@@ -24,6 +24,11 @@ final class SettingsFullParityUITests: XCTestCase {
         for destination in guestDestinations {
             openDestination(destination, in: app)
             XCTAssertFalse(app.tables.firstMatch.exists, "Settings destination must not render default List/table chrome")
+            if destination.page == "settings-report-issue-page" {
+                XCTAssertTrue(app.descendants(matching: .any)["settings-report-issue-form"].waitForExistence(timeout: 5))
+                XCTAssertTrue(app.descendants(matching: .any)["report-issue-title"].exists)
+                XCTAssertTrue(app.descendants(matching: .any)["report-issue-submit"].exists)
+            }
             app.descendants(matching: .any)["settings-destination-back"].tap()
             XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 5))
         }

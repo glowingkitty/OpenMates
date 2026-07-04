@@ -68,6 +68,61 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertEqual(StoreManager.creditsByProductID["org.openmates.credits.54000"], 54_000)
     }
 
+    func testIssueReportPayloadUsesSettingsEndpointShapeAndRedactsSensitiveContext() {
+        let payload = IssueReportPayloadBuilder.makePayload(
+            title: " Broken <b>button</b> ",
+            issueType: .bugReport,
+            userFlow: "Opened https://example.org/share/chat/abc#key=secret as user@example.org",
+            expectedBehaviour: "token=secret should not leak",
+            actualBehaviour: "file:///Users/alice/private.txt appeared",
+            screenshotData: Data([1, 2, 3]),
+            consoleLogs: "email=user@example.org password=secret #key=secret",
+            runtimeDebugState: ["platform": "apple_native"],
+            language: "en"
+        )
+
+        XCTAssertEqual(payload["title"] as? String, "Broken button")
+        XCTAssertEqual(payload["issue_type"] as? String, "bug_report")
+        XCTAssertEqual(payload["language"] as? String, "en")
+        XCTAssertEqual(payload["screenshot_png_base64"] as? String, Data([1, 2, 3]).base64EncodedString())
+        XCTAssertNotNil(payload["device_info"] as? [String: Any])
+        XCTAssertNotNil(payload["runtime_debug_state"] as? [String: Any])
+
+        let description = payload["description"] as? String ?? ""
+        let logs = payload["console_logs"] as? String ?? ""
+        XCTAssertFalse(description.contains("user@example.org"))
+        XCTAssertFalse(description.contains("#key=secret"))
+        XCTAssertFalse(description.contains("file:///Users"))
+        XCTAssertFalse(logs.contains("password=secret"))
+        XCTAssertTrue(logs.contains("<email>"))
+    }
+
+    func testNativeClientLogCollectorBuildsIssueLogPayloadWithRedaction() {
+        NativeClientLogCollector.shared.resetForTests()
+        NativeClientLogCollector.shared.record(
+            level: .error,
+            category: "sync",
+            message: "Failed for person@example.org with api_key=secret"
+        )
+
+        let payload = NativeClientLogCollector.shared.issueLogPayload(
+            issueId: "issue-123",
+            pageURL: "apple://settings/report_issue#key=secret"
+        )
+
+        XCTAssertEqual(payload["issue_id"] as? String, "issue-123")
+        XCTAssertEqual(payload["page_url"] as? String, "apple://settings/report_issue#key=<redacted>")
+        let logs = payload["logs_text"] as? String ?? ""
+        XCTAssertTrue(logs.contains("<email>"))
+        XCTAssertTrue(logs.contains("api_key=<redacted>"))
+        XCTAssertFalse(logs.contains("person@example.org"))
+        XCTAssertFalse(logs.contains("api_key=secret"))
+    }
+
+    func testReconnectBannerHasDebounceBeforeUserFacingWarning() {
+        XCTAssertGreaterThanOrEqual(NetworkStatusBanner.reconnectDelayNanoseconds, 1_000_000_000)
+    }
+
     private static let metadataFixture = """
     {
       "apps": {

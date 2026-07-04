@@ -190,6 +190,102 @@ tasks:
   sv: Uppgifter
   he: משימות
   verified_by_human: []
+workspace_preview.eyebrow:
+  context: Small label above Apple workspace placeholder screens
+  en: Apple preview
+  de: Apple preview
+  zh: Apple preview
+  es: Apple preview
+  fr: Apple preview
+  pt: Apple preview
+  ru: Apple preview
+  ja: Apple preview
+  ko: Apple preview
+  it: Apple preview
+  tr: Apple preview
+  vi: Apple preview
+  id: Apple preview
+  pl: Apple preview
+  nl: Apple preview
+  ar: Apple preview
+  hi: Apple preview
+  th: Apple preview
+  cs: Apple preview
+  sv: Apple preview
+  he: Apple preview
+  verified_by_human: []
+workspace_preview.title:
+  context: Title on Apple workspace placeholder screens; {workspace} is the workspace name
+  en: "{workspace} is on the way"
+  de: "{workspace} is on the way"
+  zh: "{workspace} is on the way"
+  es: "{workspace} is on the way"
+  fr: "{workspace} is on the way"
+  pt: "{workspace} is on the way"
+  ru: "{workspace} is on the way"
+  ja: "{workspace} is on the way"
+  ko: "{workspace} is on the way"
+  it: "{workspace} is on the way"
+  tr: "{workspace} is on the way"
+  vi: "{workspace} is on the way"
+  id: "{workspace} is on the way"
+  pl: "{workspace} is on the way"
+  nl: "{workspace} is on the way"
+  ar: "{workspace} is on the way"
+  hi: "{workspace} is on the way"
+  th: "{workspace} is on the way"
+  cs: "{workspace} is on the way"
+  sv: "{workspace} is on the way"
+  he: "{workspace} is on the way"
+  verified_by_human: []
+workspace_preview.body:
+  context: Body copy on Apple workspace placeholder screens; {workspace} is the workspace name
+  en: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  de: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  zh: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  es: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  fr: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  pt: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  ru: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  ja: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  ko: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  it: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  tr: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  vi: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  id: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  pl: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  nl: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  ar: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  hi: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  th: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  cs: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  sv: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  he: "You can open {workspace} from the Apple header now. The full native workspace is being phased in while your existing web and CLI data stays safe."
+  verified_by_human: []
+workspace_preview.return_to_chats:
+  context: Button on Apple workspace placeholder screens returning to chat workspace
+  en: Back to chats
+  de: Back to chats
+  zh: Back to chats
+  es: Back to chats
+  fr: Back to chats
+  pt: Back to chats
+  ru: Back to chats
+  ja: Back to chats
+  ko: Back to chats
+  it: Back to chats
+  tr: Back to chats
+  vi: Back to chats
+  id: Back to chats
+  pl: Back to chats
+  nl: Back to chats
+  ar: Back to chats
+  hi: Back to chats
+  th: Back to chats
+  cs: Back to chats
+  sv: Back to chats
+  he: Back to chats
+  verified_by_human: []
 skip_to_content:
   context: Accessibility skip link - allows keyboard users to skip navigation and jump to main content
   en: Skip to content

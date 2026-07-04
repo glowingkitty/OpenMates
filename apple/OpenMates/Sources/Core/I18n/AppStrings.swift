@@ -47,6 +47,16 @@ enum AppStrings {
     static var plans: String { L("navigation.plans") }
     static var workflows: String { L("navigation.workflows") }
     static var tasks: String { L("navigation.tasks") }
+    static var workspacePreviewEyebrow: String { L("navigation.workspace_preview.eyebrow") }
+    static var workspacePreviewReturnToChats: String { L("navigation.workspace_preview.return_to_chats") }
+
+    static func workspacePreviewTitle(_ workspace: String) -> String {
+        LocalizationManager.shared.text("navigation.workspace_preview.title", replacements: ["workspace": workspace])
+    }
+
+    static func workspacePreviewBody(_ workspace: String) -> String {
+        LocalizationManager.shared.text("navigation.workspace_preview.body", replacements: ["workspace": workspace])
+    }
 
     // MARK: - Chat
     static var newChat: String { L("chat.new_chat") }
@@ -221,6 +231,57 @@ enum AppStrings {
     static var purchaseHistory: String { L("settings.billing.purchase_history") }
     static var invoices: String { L("settings.invoices") }
     static var giftCards: String { L("settings.gift_cards") }
+    static var getFreeCredits: String { L("settings.billing.get_free_credits") }
+    static var referralCode: String { L("settings.billing.referral_code") }
+    static var referralQrLabel: String { L("settings.billing.referral_qr_label") }
+
+    static func referralIntro(referrerCredits: String, referredCredits: String) -> String {
+        LocalizationManager.shared.text(
+            "settings.billing.referral_intro",
+            replacements: [
+                "referrerCredits": referrerCredits,
+                "referredCredits": referredCredits,
+            ]
+        )
+    }
+
+    static func referralProgress(count: String, max: String) -> String {
+        LocalizationManager.shared.text(
+            "settings.billing.referral_progress",
+            replacements: ["count": count, "max": max]
+        )
+    }
+
+    static var referralConditions: String { L("settings.billing.referral_conditions") }
+
+    // MARK: - Settings - Report issue
+    static var reportIssueDescription: String { L("settings.report_issue.description") }
+    static var reportIssueTitleLabel: String { L("settings.report_issue.title_label") }
+    static var reportIssueTitlePlaceholder: String { L("settings.report_issue.title_placeholder") }
+    static var reportIssueTitleRequired: String { L("settings.report_issue.title_required") }
+    static var reportIssueTitleTooShort: String { L("settings.report_issue.title_too_short") }
+    static var reportIssueUserFlowLabel: String { L("settings.report_issue.user_flow_label") }
+    static var reportIssueUserFlowPlaceholder: String { L("settings.report_issue.user_flow_placeholder") }
+    static var reportIssueUserFlowHint: String { L("settings.report_issue.user_flow_hint") }
+    static var reportIssueExpectedLabel: String { L("settings.report_issue.expected_behaviour_label") }
+    static var reportIssueExpectedPlaceholder: String { L("settings.report_issue.expected_behaviour_placeholder") }
+    static var reportIssueExpectedHint: String { L("settings.report_issue.expected_behaviour_hint") }
+    static var reportIssueActualLabel: String { L("settings.report_issue.actual_behaviour_label") }
+    static var reportIssueActualPlaceholder: String { L("settings.report_issue.actual_behaviour_placeholder") }
+    static var reportIssueActualHint: String { L("settings.report_issue.actual_behaviour_hint") }
+    static var reportIssueScreenshotLabel: String { L("settings.report_issue.screenshot_label") }
+    static var reportIssueScreenshotHint: String { L("settings.report_issue.screenshot_hint") }
+    static var reportIssueScreenshotUploadButton: String { L("settings.report_issue.screenshot_upload_button") }
+    static var reportIssueScreenshotRemove: String { L("settings.report_issue.screenshot_remove") }
+    static var reportIssueSubmitButton: String { L("settings.report_issue.submit_button") }
+    static var reportIssueSubmitting: String { L("settings.report_issue.submitting") }
+    static var reportIssueSuccess: String { L("settings.report_issue_success") }
+    static var reportIssueIssueIdLabel: String { L("settings.report_issue.issue_id_label") }
+    static var reportIssueError: String { L("settings.report_issue_error") }
+
+    // MARK: - Connection banners
+    static var offlineBanner: String { L("notifications.connection.offline_banner") }
+    static var reconnectingBanner: String { L("notifications.connection.reconnecting") }
 
     // MARK: - Settings - Notifications
     static var pushNotifications: String { L("settings.notifications.push") }

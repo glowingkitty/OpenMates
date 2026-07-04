@@ -213,23 +213,28 @@ struct SettingsView: View {
     var onClose: (() -> Void)?
     var onOpenExampleChat: ((String) -> Void)?
     var reportIssuePrefill: ReportIssuePrefill?
+    var referralCodeRequest: Int
     @State private var showIncognitoInfo = false
     @State private var destination: SettingsDestination?
     @State private var activeReportIssuePrefill: ReportIssuePrefill?
+    @State private var activeReferralCodeRequest: Int
     @State private var navigationDirection: SettingsNavigationDirection = .forward
     @State private var homeScrollTop: CGFloat = 0
     @State private var destinationScrollTop: CGFloat = 0
 
     init(
         reportIssuePrefill: ReportIssuePrefill? = nil,
+        referralCodeRequest: Int = 0,
         onClose: (() -> Void)? = nil,
         onOpenExampleChat: ((String) -> Void)? = nil
     ) {
         self.reportIssuePrefill = reportIssuePrefill
+        self.referralCodeRequest = referralCodeRequest
         self.onClose = onClose
         self.onOpenExampleChat = onOpenExampleChat
-        _destination = State(initialValue: reportIssuePrefill == nil ? nil : .reportIssue)
+        _destination = State(initialValue: reportIssuePrefill == nil ? (referralCodeRequest > 0 ? .billing : nil) : .reportIssue)
         _activeReportIssuePrefill = State(initialValue: reportIssuePrefill)
+        _activeReferralCodeRequest = State(initialValue: referralCodeRequest)
     }
 
     private var isAuthenticated: Bool { authManager.currentUser != nil || AccountSettingsUITestFixture.enabled }
@@ -263,6 +268,11 @@ struct SettingsView: View {
             guard let newPrefill else { return }
             activeReportIssuePrefill = newPrefill
             navigateTo(.reportIssue)
+        }
+        .onChange(of: referralCodeRequest) { _, newValue in
+            guard newValue != activeReferralCodeRequest else { return }
+            activeReferralCodeRequest = newValue
+            navigateTo(.billing)
         }
     }
 
@@ -536,7 +546,10 @@ struct SettingsView: View {
         case .apps:
             SettingsAppsFullView(onOpenExampleChat: onOpenExampleChat ?? { _ in })
         default:
-            destination.view(reportIssuePrefill: activeReportIssuePrefill)
+            destination.view(
+                reportIssuePrefill: activeReportIssuePrefill,
+                referralCodeRequest: activeReferralCodeRequest
+            )
         }
     }
 
@@ -758,7 +771,10 @@ struct SettingsView: View {
         }
 
         @ViewBuilder
-        func view(reportIssuePrefill: ReportIssuePrefill? = nil) -> some View {
+        func view(
+            reportIssuePrefill: ReportIssuePrefill? = nil,
+            referralCodeRequest: Int = 0
+        ) -> some View {
             switch self {
             case .pricing: SettingsPricingView()
             case .ai: SettingsAIFullView()
@@ -766,7 +782,7 @@ struct SettingsView: View {
             case .apps: SettingsAppsFullView()
             case .privacy: SettingsPrivacySubPage()
             case .mates: SettingsMatesView()
-            case .billing: SettingsBillingView()
+            case .billing: SettingsBillingView(referralCodeRequest: referralCodeRequest)
             case .notifications: SettingsNotificationsView()
             case .shared: SettingsSharedView()
             case .interface: SettingsInterfaceSubPage()

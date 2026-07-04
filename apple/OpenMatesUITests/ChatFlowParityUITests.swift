@@ -20,12 +20,7 @@ final class ChatFlowParityUITests: XCTestCase {
         ]
         app.launch()
 
-        let versionLabel = app.descendants(matching: .any)["app-version-label"]
-        XCTAssertTrue(versionLabel.waitForExistence(timeout: 10))
-        XCTAssertTrue(
-            versionLabel.label.contains("v0.13.0"),
-            "Expected app-version-label to contain v0.13.0, got: \(versionLabel.label)"
-        )
+        XCTAssertTrue(app.descendants(matching: .any)["compact-logo-button"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["daily-inspiration-card"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["What are your interests?"].exists)
@@ -38,10 +33,22 @@ final class ChatFlowParityUITests: XCTestCase {
         )
 
         XCTAssertTrue(app.descendants(matching: .any)["workspace-switcher"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["chats-nav-link"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["projects-nav-link"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["workflows-nav-link"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["tasks-nav-link"].exists)
+        openWorkspace("projects", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-projects"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-return-to-chats"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["projects-nav-link"].value as? String == "Disabled")
+
+        openWorkspace("tasks", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-tasks"].waitForExistence(timeout: 5))
+
+        openWorkspace("plans", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-plans"].waitForExistence(timeout: 5))
+
+        openWorkspace("workflows", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["workspace-placeholder-workflows"].waitForExistence(timeout: 5))
+
+        openWorkspace("chats", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
 
         attachScreenshot(name: "Unauthenticated new-chat parity surface")
@@ -162,6 +169,23 @@ final class ChatFlowParityUITests: XCTestCase {
         }
 
         XCTAssertEqual(tapped, count, "Expected to select \(count) visible interest tags")
+    }
+
+    private func openWorkspace(_ workspace: String, in app: XCUIApplication) {
+        let testId = "\(workspace)-nav-link"
+        let directEntry = app.descendants(matching: .any)[testId]
+        if directEntry.exists && directEntry.isHittable {
+            directEntry.tap()
+            return
+        }
+
+        let switcher = app.descendants(matching: .any)["workspace-switcher"]
+        XCTAssertTrue(switcher.waitForExistence(timeout: 5), "Expected workspace switcher")
+        switcher.tap()
+
+        let menuEntry = app.buttons[testId]
+        XCTAssertTrue(menuEntry.waitForExistence(timeout: 5), "Expected native workspace menu entry \(testId)")
+        menuEntry.tap()
     }
 
     private func attachScreenshot(name: String) {
