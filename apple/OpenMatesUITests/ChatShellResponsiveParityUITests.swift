@@ -102,9 +102,8 @@ final class ChatShellResponsiveParityUITests: XCTestCase {
     }
 
     private func quickActionTitleExists(_ title: String, in springboard: XCUIApplication, timeout: TimeInterval) -> Bool {
-        let predicate = NSPredicate(format: "label == %@ OR identifier == %@", title, title)
-        let element = springboard.descendants(matching: .any).matching(predicate).firstMatch
-        return element.waitForExistence(timeout: timeout)
+        if springboard.buttons[title].waitForExistence(timeout: timeout) { return true }
+        return springboard.staticTexts[title].waitForExistence(timeout: 1)
     }
 
     private func metric(_ key: String, in label: String) -> String? {
