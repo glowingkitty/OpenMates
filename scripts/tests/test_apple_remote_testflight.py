@@ -35,8 +35,10 @@ def test_testflight_profiles_are_prepared_before_archive() -> None:
     apple_remote = load_apple_remote()
     script = apple_remote.TESTFLIGHT_IOS_SCRIPT
 
-    setup_call = "\npreflight_signing()\nclean_openmates_provisioning_profiles()\nsync_bundle_capabilities()\ncreate_or_download_app_store_profiles()\n"
-    assert script.index(setup_call) < script.index('print("archive_status=started")')
+    archive_index = script.index('print("archive_status=started")')
+    assert script.index("if has_app_store_connect_api_auth():") < archive_index
+    assert script.index("create_or_download_app_store_profiles()") < archive_index
+    assert script.index("load_installed_app_store_profiles()") < archive_index
     assert 'archive_without_signing = True' in script
 
 

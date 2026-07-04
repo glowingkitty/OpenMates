@@ -695,6 +695,106 @@ def clean_openmates_provisioning_profiles():
     print(f"provisioning_profile_cleanup=moved:{moved}")
 
 
+def has_app_store_connect_api_auth():
+    return all(
+        os.environ.get(name)
+        for name in (
+            "APP_STORE_CONNECT_API_KEY_PATH",
+            "APP_STORE_CONNECT_API_KEY_ID",
+            "APP_STORE_CONNECT_API_ISSUER_ID",
+        )
+    )
+
+
+def provisioning_profile_dirs():
+    return [
+        pathlib.Path.home() / "Library" / "MobileDevice" / "Provisioning Profiles",
+        pathlib.Path.home() / "Library" / "Developer" / "Xcode" / "UserData" / "Provisioning Profiles",
+    ]
+
+
+def decoded_profile(profile_path):
+    decoded = subprocess.run(["security", "cms", "-D", "-i", str(profile_path)], capture_output=True, timeout=30)
+    if decoded.returncode != 0:
+        return None
+    try:
+        data = plistlib.loads(decoded.stdout)
+    except Exception:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def profile_bundle_identifier(profile_data):
+    entitlements = profile_data.get("Entitlements", {}) if isinstance(profile_data, dict) else {}
+    app_identifier = str(entitlements.get("application-identifier", ""))
+    for identifier in BUNDLE_IDS:
+        if app_identifier.endswith(f".{identifier}"):
+            return identifier
+    profile_name = str(profile_data.get("Name", ""))
+    return next((identifier for identifier in BUNDLE_IDS if identifier in profile_name), None)
+
+
+def profile_has_required_app_group(identifier, profile_data):
+    entitlements = profile_data.get("Entitlements", {}) if isinstance(profile_data, dict) else {}
+    app_groups = entitlements.get("com.apple.security.application-groups", [])
+    if APP_GROUP_IDENTIFIER in app_groups:
+        return True
+    print(f"profile_app_group=missing:{identifier}:{APP_GROUP_IDENTIFIER}")
+    return False
+
+
+def load_installed_app_store_profiles():
+    profile_names.clear()
+    found = {}
+    for profile_dir in provisioning_profile_dirs():
+        if not profile_dir.exists():
+            continue
+        for profile_path in profile_dir.glob(f"*.{profile_extension}"):
+            profile_data = decoded_profile(profile_path)
+            if not profile_data:
+                continue
+            identifier = profile_bundle_identifier(profile_data)
+            if not identifier or not profile_has_required_app_group(identifier, profile_data):
+                continue
+            profile_uuid = profile_data.get("UUID")
+            if not profile_uuid:
+                continue
+            found[identifier] = profile_uuid
+
+    missing = [identifier for identifier in BUNDLE_IDS if identifier not in found]
+    if missing:
+        print(f"installed_profiles=missing:{','.join(missing)}")
+        return False
+    profile_names.update(found)
+    for identifier in BUNDLE_IDS:
+        print(f"installed_profile=passed:{identifier}")
+    return True
+
+
+def restore_latest_openmates_profile_backup():
+    backups = sorted(
+        pathlib.Path(tempfile.gettempdir()).glob("openmates-profiles-backup-*"),
+        key=lambda path: path.stat().st_mtime if path.exists() else 0,
+        reverse=True,
+    )
+    if not backups:
+        print("provisioning_profile_restore=backup_missing")
+        return
+    target_dir = provisioning_profile_dirs()[0]
+    target_dir.mkdir(parents=True, exist_ok=True)
+    restored = 0
+    for profile_path in backups[0].glob(f"*.{profile_extension}"):
+        profile_data = decoded_profile(profile_path)
+        if not profile_data or not profile_bundle_identifier(profile_data):
+            continue
+        target = target_dir / profile_path.name
+        if target.exists():
+            continue
+        profile_path.replace(target)
+        restored += 1
+    print(f"provisioning_profile_restore=restored:{restored}")
+
+
 def stamp_unsigned_macos_archive_entitlements():
     if target_platform != "macos":
         return
@@ -728,9 +828,17 @@ def stamp_unsigned_macos_archive_entitlements():
 
 
 preflight_signing()
-clean_openmates_provisioning_profiles()
-sync_bundle_capabilities()
-create_or_download_app_store_profiles()
+if has_app_store_connect_api_auth():
+    clean_openmates_provisioning_profiles()
+    sync_bundle_capabilities()
+    create_or_download_app_store_profiles()
+else:
+    print("profile_create=missing_app_store_connect_api_auth")
+    if not load_installed_app_store_profiles():
+        restore_latest_openmates_profile_backup()
+        if not load_installed_app_store_profiles():
+            print("hint=Set App Store Connect API credentials in ~/.config/openmates/apple-remote.json or keep valid OpenMates App Store profiles installed on the Mac.")
+            sys.exit(2)
 
 
 derived = tempfile.mkdtemp(prefix="openmates-testflight-")
