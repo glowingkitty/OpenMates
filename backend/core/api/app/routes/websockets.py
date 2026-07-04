@@ -17,7 +17,11 @@ from .auth_ws import get_current_user_ws
 from .handlers.websocket_handlers.title_update_handler import handle_update_title
 from .handlers.websocket_handlers.draft_update_handler import handle_update_draft
 from .handlers.websocket_handlers.message_received_handler import handle_message_received
-from .handlers.websocket_handlers.active_chat_handler import handle_set_active_chat
+from .handlers.websocket_handlers.active_chat_handler import (
+    AI_STREAM_SNAPSHOT_TTL_SECONDS,
+    ai_stream_snapshot_cache_key,
+    handle_set_active_chat,
+)
 from .handlers.websocket_handlers.delete_chat_handler import handle_delete_chat
 from .handlers.websocket_handlers.delete_message_handler import handle_delete_message
 from .handlers.websocket_handlers.message_highlight_handlers import (
@@ -704,7 +708,28 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     if redis_payload.get("external_request"):
                         logger.debug(f"AI Stream Listener: External request detected for chat {chat_id_from_payload}. Skipping WebSocket broadcast.")
                         continue
-                    
+
+                    snapshot_key = ai_stream_snapshot_cache_key(chat_id_from_payload)
+                    if redis_payload.get("is_final_chunk", False):
+                        try:
+                            if hasattr(cache_service, "delete"):
+                                await cache_service.delete(snapshot_key)
+                        except Exception as snapshot_error:
+                            logger.debug(
+                                f"AI Stream Listener: Failed to delete stream snapshot for chat {chat_id_from_payload}: {snapshot_error}"
+                            )
+                    else:
+                        try:
+                            await cache_service.set(
+                                snapshot_key,
+                                redis_payload,
+                                ttl=AI_STREAM_SNAPSHOT_TTL_SECONDS,
+                            )
+                        except Exception as snapshot_error:
+                            logger.debug(
+                                f"AI Stream Listener: Failed to cache stream snapshot for chat {chat_id_from_payload}: {snapshot_error}"
+                            )
+
                     logger.debug(f"AI Stream Listener: Received '{event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}), chat_id {chat_id_from_payload} from Redis channel '{redis_channel_name}'. Processing for selective forwarding.")
                     logger.debug(
                         "AI Stream Listener: Redis payload summary: "

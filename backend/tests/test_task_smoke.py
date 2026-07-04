@@ -13,6 +13,8 @@ They do NOT start a Celery broker — they only verify module-level setup.
 import importlib
 import pytest
 
+pytest.importorskip("celery", reason="Celery task smoke tests require backend task dependencies")
+
 
 # ---------------------------------------------------------------------------
 # Task modules to test: (module_path, expected_task_names, expected_constants)
@@ -172,3 +174,9 @@ class TestCeleryConfig:
         from backend.core.api.app.tasks.celery_config import app
         assert app is not None
         assert app.main == "backend.core.api.app.tasks.celery_config" or app.main is not None
+
+    def test_ai_response_notification_email_task_registered(self):
+        from backend.core.api.app.tasks.celery_config import app
+        import backend.core.api.app.tasks.email_tasks  # noqa: F401
+
+        assert "app.tasks.email_tasks.ai_response_notification_email_task.send_ai_response_notification" in app.tasks

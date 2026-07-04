@@ -58,6 +58,13 @@ def test_existing_account_email_task_is_registered_and_transactional():
     assert "'existing-account'" in email_template_service
 
 
+def test_ai_response_notification_email_task_is_registered_by_email_package():
+    email_task_init = EMAIL_TASK_INIT_PATH.read_text(encoding="utf-8")
+
+    assert "from . import ai_response_notification_email_task" in email_task_init
+    assert "'ai_response_notification_email_task'" in email_task_init
+
+
 def test_existing_account_email_template_uses_translation_keys():
     template = EMAIL_TEMPLATE_PATH.read_text(encoding="utf-8")
     translations = EMAIL_TRANSLATIONS_PATH.read_text(encoding="utf-8")

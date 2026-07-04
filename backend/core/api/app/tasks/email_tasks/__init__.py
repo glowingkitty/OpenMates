@@ -31,6 +31,7 @@ from . import test_run_summary_email_task  # Import daily test run summary email
 from . import test_run_started_email_task  # Import test run started notification task
 from . import cron_session_email_task  # Import cron job session notification task
 from . import webhook_chat_notification_email_task  # Import webhook offline notification task
+from . import ai_response_notification_email_task  # Import AI response offline notification task
 from . import webhook_rate_limit_digest_email_task  # Import webhook rate-limit daily digest task
 from . import email_delivery_archive_task  # Import unified email delivery archive task
 from . import incomplete_signup_deletion_task  # Import incomplete signup deletion reminders task
@@ -70,6 +71,7 @@ __all__ = [
     'test_run_started_email_task',
     'cron_session_email_task',
     'webhook_chat_notification_email_task',
+    'ai_response_notification_email_task',
     'webhook_rate_limit_digest_email_task',
     'email_delivery_archive_task',
     'incomplete_signup_deletion_task',

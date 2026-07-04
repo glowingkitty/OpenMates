@@ -42,6 +42,38 @@ async def test_create_chat_rejects_vault_encrypted_metadata_before_directus_writ
 
 
 @pytest.mark.asyncio
+async def test_create_chat_treats_directus_unique_field_error_as_duplicate_race() -> None:
+    ChatMethods = _load_chat_methods_class()
+    cache = SimpleNamespace(delete=AsyncMock(), increment_stat=AsyncMock())
+    directus = SimpleNamespace(
+        cache=cache,
+        create_item=AsyncMock(return_value=(
+            False,
+            {
+                "status_code": 400,
+                "text": '{"errors":[{"message":"Value for field \\"id\\" in collection \\"chats\\" has to be unique."}]}',
+            },
+        )),
+        update_item=AsyncMock(return_value={"id": "chat-1", "encrypted_title": "client-encrypted-title"}),
+    )
+    methods = ChatMethods(directus)
+
+    result, is_duplicate = await methods.create_chat_in_directus({
+        "id": "chat-1",
+        "encrypted_title": "client-encrypted-title",
+        "messages_v": 1,
+    })
+
+    assert is_duplicate is True
+    assert result == {"id": "chat-1", "encrypted_title": "client-encrypted-title"}
+    directus.update_item.assert_awaited_once_with(
+        "chats",
+        "chat-1",
+        {"encrypted_title": "client-encrypted-title", "messages_v": 1},
+    )
+
+
+@pytest.mark.asyncio
 async def test_update_chat_fields_rejects_vault_encrypted_metadata_before_directus_write() -> None:
     ChatMethods = _load_chat_methods_class()
     directus = SimpleNamespace(update_item=AsyncMock())
