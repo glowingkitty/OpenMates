@@ -44,6 +44,7 @@ enum AppStrings {
     static var newWindow: String { L("common.new_window") }
     static var chat: String { L("common.chat") }
     static var projects: String { L("navigation.projects") }
+    static var plans: String { L("navigation.plans") }
     static var workflows: String { L("navigation.workflows") }
     static var tasks: String { L("navigation.tasks") }
 

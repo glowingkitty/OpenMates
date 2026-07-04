@@ -3210,50 +3210,134 @@ struct OpenMatesWebHeader: View {
 private struct WorkspaceSwitcherTabs: View {
     let onNewChat: () -> Void
 
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var hoveredTabId: WorkspaceTabItem.ID?
+
+    private static let tabWidth: CGFloat = 72
+    private static let tabHeight: CGFloat = 44.8
+    private static let tabRadius: CGFloat = 52
+    private static let compactWidth: CGFloat = 120
+    private static let compactHeight: CGFloat = 44
+
+    private var isCompact: Bool {
+        horizontalSizeClass == .compact
+    }
+
+    private var tabs: [WorkspaceTabItem] {
+        [
+            WorkspaceTabItem(id: "chat", icon: "chat", label: AppStrings.chat, testId: "chats-nav-link", active: true, disabled: false, action: onNewChat),
+            WorkspaceTabItem(id: "projects", icon: "project", label: AppStrings.projects, testId: "projects-nav-link", active: false, disabled: true, action: {}),
+            WorkspaceTabItem(id: "plans", icon: "planning", label: AppStrings.plans, testId: "plans-nav-link", active: false, disabled: true, action: {}),
+            WorkspaceTabItem(id: "tasks", icon: "task", label: AppStrings.tasks, testId: "tasks-nav-link", active: false, disabled: true, action: {}),
+            WorkspaceTabItem(id: "workflows", icon: "workflow", label: AppStrings.workflows, testId: "workflows-nav-link", active: false, disabled: true, action: {})
+        ]
+    }
+
+    private var activeTab: WorkspaceTabItem {
+        tabs.first { $0.active } ?? tabs[0]
+    }
+
+    private var activeIndex: Int {
+        tabs.firstIndex { $0.active } ?? 0
+    }
+
+    private var hoveredIndex: Int? {
+        guard let hoveredTabId else { return nil }
+        return tabs.firstIndex { $0.id == hoveredTabId }
+    }
+
     var body: some View {
-        HStack(spacing: .spacing2) {
-            workspaceTab(icon: "chat", label: AppStrings.chat, testId: "chats-nav-link", active: true, disabled: false, action: onNewChat)
-            workspaceTab(icon: "project", label: AppStrings.projects, testId: "projects-nav-link", active: false, disabled: true, action: {})
-            workspaceTab(icon: "workflow", label: AppStrings.workflows, testId: "workflows-nav-link", active: false, disabled: true, action: {})
-            workspaceTab(icon: "task", label: AppStrings.tasks, testId: "tasks-nav-link", active: false, disabled: true, action: {})
+        if isCompact {
+            compactSwitcher
+        } else {
+            desktopSwitcher
         }
-        .padding(3)
-        .background(Color.grey20)
-        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+    }
+
+    private var desktopSwitcher: some View {
+        ZStack(alignment: .leading) {
+            if let hoveredIndex, hoveredIndex != activeIndex {
+                RoundedRectangle(cornerRadius: Self.tabRadius)
+                    .fill(LinearGradient.primary)
+                    .opacity(0.5)
+                    .frame(width: Self.tabWidth, height: Self.tabHeight)
+                    .offset(x: CGFloat(hoveredIndex) * Self.tabWidth)
+                    .animation(.easeInOut(duration: 0.25), value: hoveredIndex)
+            }
+
+            RoundedRectangle(cornerRadius: Self.tabRadius)
+                .fill(LinearGradient.primary)
+                .frame(width: Self.tabWidth, height: Self.tabHeight)
+                .offset(x: CGFloat(activeIndex) * Self.tabWidth)
+                .animation(.easeInOut(duration: 0.3), value: activeIndex)
+
+            HStack(spacing: 0) {
+                ForEach(tabs) { tab in
+                    workspaceTab(tab)
+                }
+            }
+        }
+        .frame(width: Self.tabWidth * CGFloat(tabs.count), height: Self.tabHeight)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: Self.tabRadius))
+        .shadow(color: Color.black.opacity(0.14), radius: 4, x: 0, y: 4)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("workspace-switcher")
     }
 
-    @ViewBuilder
-    private func workspaceTab(
-        icon: String,
-        label: String,
-        testId: String,
-        active: Bool,
-        disabled: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        let tab = Button(action: action) {
-            Icon(icon, size: 20)
-                .foregroundStyle(LinearGradient.primary)
-                .frame(width: 44, height: 44)
-                .background(active ? Color.grey60.opacity(0.3) : Color.clear)
-                .clipShape(RoundedRectangle(cornerRadius: .radius3))
+    private var compactSwitcher: some View {
+        Button(action: activeTab.action) {
+            HStack(spacing: .spacing3) {
+                Icon(activeTab.icon, size: 21.6)
+                    .foregroundStyle(Color.white)
+
+                Icon("dropdown", size: 18)
+                    .foregroundStyle(Color.white)
+            }
+            .frame(width: Self.compactWidth, height: Self.compactHeight)
+            .background(LinearGradient.primary)
+            .clipShape(RoundedRectangle(cornerRadius: Self.tabRadius))
+            .shadow(color: Color.black.opacity(0.12), radius: 4, x: 0, y: 4)
         }
         .buttonStyle(.plain)
-        .disabled(disabled)
-        .opacity(disabled ? 0.7 : 1)
+        .accessibilityIdentifier("workspace-switcher")
+        .accessibilityLabel(activeTab.label)
+    }
+
+    @ViewBuilder
+    private func workspaceTab(_ item: WorkspaceTabItem) -> some View {
+        let tab = Button(action: item.action) {
+            Icon(item.icon, size: 20)
+                .foregroundStyle(item.active || hoveredTabId == item.id ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.grey70))
+                .frame(width: Self.tabWidth, height: Self.tabHeight)
+        }
+        .buttonStyle(.plain)
+        .disabled(item.disabled)
+        .opacity(item.disabled ? 0.7 : 1)
+        .onHover { isHovering in
+            hoveredTabId = isHovering ? item.id : nil
+        }
         .accessibilityElement(children: .ignore)
-        .accessibilityIdentifier(testId)
-        .accessibilityLabel(label)
-        .accessibilityValue(disabled ? AppStrings.disabled : "")
+        .accessibilityIdentifier(item.testId)
+        .accessibilityLabel(item.label)
+        .accessibilityValue(item.disabled ? AppStrings.disabled : "")
         .accessibilityAddTraits(.isButton)
 
-        if active {
+        if item.active {
             tab.accessibilityAddTraits(.isSelected)
         } else {
             tab
         }
+    }
+
+    private struct WorkspaceTabItem: Identifiable {
+        let id: String
+        let icon: String
+        let label: String
+        let testId: String
+        let active: Bool
+        let disabled: Bool
+        let action: () -> Void
     }
 }
 
