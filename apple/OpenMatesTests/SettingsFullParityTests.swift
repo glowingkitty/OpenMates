@@ -5,6 +5,11 @@
 
 import XCTest
 @testable import OpenMates
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 @MainActor
 final class SettingsFullParityTests: XCTestCase {
@@ -154,6 +159,16 @@ final class SettingsFullParityTests: XCTestCase {
 
     func testReconnectBannerHasDebounceBeforeUserFacingWarning() {
         XCTAssertGreaterThanOrEqual(NetworkStatusBanner.reconnectDelayNanoseconds, 1_000_000_000)
+    }
+
+    func testHeaderAndReferralAssetsAreBundled() {
+        #if os(iOS)
+        XCTAssertNotNil(UIImage(named: "openmates"))
+        XCTAssertNotNil(UIImage(named: "gift"))
+        #elseif os(macOS)
+        XCTAssertNotNil(NSImage(named: "openmates"))
+        XCTAssertNotNil(NSImage(named: "gift"))
+        #endif
     }
 
     private static let metadataFixture = """
