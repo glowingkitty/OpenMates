@@ -111,7 +111,7 @@ targets:
           - org.openmates.app.composeChat
           - org.openmates.app.browseChats
         NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
-        ITSAppUsesNonExemptEncryption: true
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

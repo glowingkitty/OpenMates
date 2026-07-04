@@ -47,4 +47,4 @@ def test_apple_app_store_metadata_is_upload_ready() -> None:
 
     info_plist = plistlib.loads((ROOT / "apple/OpenMates/Resources/Info.plist").read_bytes())
     assert info_plist["NSMicrophoneUsageDescription"]
-    assert info_plist["ITSAppUsesNonExemptEncryption"] is True
+    assert info_plist["ITSAppUsesNonExemptEncryption"] is False
