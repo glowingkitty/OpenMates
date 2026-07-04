@@ -1,0 +1,9 @@
+dist/*.vsix
+dist/**/*.vsix
+dist/test/**
+src/**
+tests/**
+scripts/**
+test_driver/**
+node_modules/**
+tsconfig.json

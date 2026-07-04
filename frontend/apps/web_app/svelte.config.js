@@ -1,4 +1,5 @@
-import adapter from '@sveltejs/adapter-vercel';
+import adapterStatic from '@sveltejs/adapter-static';
+import adapterVercel from '@sveltejs/adapter-vercel';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import * as child_process from 'node:child_process';
 
@@ -17,6 +18,8 @@ function getVersionName() {
 }
 
 /** @type {import('@sveltejs/kit').Config} */
+const isVscodeBuild = process.env.OPENMATES_BUILD_TARGET === 'vscode';
+
 const config = {
 	// Consult https://kit.svelte.dev/docs/integrations#preprocessors
 	// for more information about preprocessors
@@ -25,10 +28,18 @@ const config = {
 		runes: true
 	},
 	kit: {
-		adapter: adapter({
-			// see https://github.com/sveltejs/kit/tree/master/packages/adapter-vercel
-			// for more information on Vercel specific options
-		}),
+		adapter: isVscodeBuild
+			? adapterStatic({
+				pages: 'build',
+				assets: 'build',
+				fallback: 'index.html',
+				precompress: true,
+				strict: true
+			})
+			: adapterVercel({
+				// see https://github.com/sveltejs/kit/tree/master/packages/adapter-vercel
+				// for more information on Vercel specific options
+			}),
 		paths: {
 			// Use absolute asset paths (/_app/...) instead of relative (./_app/...).
 			// Required because the Vercel rewrite for /dev/* serves the SPA shell HTML
@@ -36,7 +47,7 @@ const config = {
 			// With relative paths, the browser would resolve ./_app/... relative to
 			// that deep URL, producing wrong paths like /dev/preview/embeds/web/_app/...
 			// which return HTML instead of JS (MIME type error, blank page).
-			relative: false
+			relative: isVscodeBuild
 		},
 		files: {
 			assets: 'static'

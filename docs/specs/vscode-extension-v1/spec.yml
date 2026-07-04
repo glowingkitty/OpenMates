@@ -1,0 +1,900 @@
+id: vscode-extension-v1
+title: VS Code Extension V1
+status: implementing
+
+goal: >
+  Provide an internal/manual-test VS Code extension that renders the full
+  OpenMates web app shell 1:1 inside a VS Code webview, uses pair-only login,
+  and connects users to existing read-only Project remote-access capabilities
+  without weakening the production web app's frame/CSP security or introducing
+  remote filesystem mutation in V1.
+
+scope:
+  in:
+    - Internal/manual VSIX build and install flow for OpenMates team testing.
+    - GitHub Actions coverage for extension build, package, activation,
+      webview smoke behavior, VS Code bridge messages, and no-mutation guardrails.
+    - A bundled VS Code webview build of the same OpenMates Svelte app shell and
+      shared UI components used by the browser app.
+    - Full app shell parity by default, including chat, settings, projects,
+      tasks, workflows, app store, and normal navigation surfaces that are
+      available in the browser app.
+    - VS Code-specific pre-login setup guidance explaining that Project access
+      requires installing and starting the OpenMates CLI on the machine where
+      project files live.
+    - Pair-only VS Code login for V1, reusing the existing pair-login security
+      model rather than passkey, password, or 2FA credential entry inside the
+      VS Code webview.
+    - A minimal VS Code native bridge for opening files and showing proposed
+      diffs when a remote-access source maps to the active VS Code workspace.
+    - >
+      Read-only Project remote-source behavior only: source status, previews,
+      bounded search/read context, upload-selected files, and non-mutating
+      remote diff proposals as defined by `projects-remote-sources`.
+    - Reconnect behavior where the VS Code extension reloads existing OpenMates
+      chat/job/source state after the editor or laptop disconnects.
+  out:
+    - Public VS Code Marketplace publishing, signing, marketplace metadata,
+      paid listing, or release automation.
+    - >
+      Relaxing production web app `X-Frame-Options: DENY` or CSP
+      `frame-ancestors 'none'`.
+    - Loading the live production web app in an iframe as the V1 implementation.
+    - Passkey, password, 2FA, recovery-key, or backup-code login inside the VS
+      Code webview.
+    - Applying patches, editing local or remote files, running terminal commands,
+      package installs, test commands, git mutations, or any remote-source
+      filesystem mutation from the VS Code extension or CLI in V1.
+    - Reimplementing a separate limited VS Code-only OpenMates UI.
+    - Depending on VS Code staying connected for backend AI jobs or
+      remote-access daemon work to continue.
+    - Full automated Remote-SSH end-to-end testing in V1 CI; remote-host behavior
+      is covered by unit/contract tests plus manual smoke testing.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me returned 401 Bad credentials."
+    - "gh issue list --repo glowingkitty/OpenMates --search 'VS Code extension vscode remote access' --state all --limit 20 returned no direct issue."
+    - "gh issue list --repo glowingkitty/OpenMates --search 'agentic coding projects permissions vscode' --state all --limit 20 returned no direct issue."
+    - "Existing related issue references are recorded in projects/tasks/plans specs, including #447 agentic coding/projects/permissions planning."
+  docs:
+    - docs/specs/projects-remote-sources/spec.yml
+    - docs/specs/tasks-v1/spec.yml
+    - docs/specs/workflows-v1/spec.yml
+    - docs/architecture/platforms/cli-package.md
+    - docs/architecture/platforms/cli-feature-parity.md
+    - docs/user-guide/cli/authentication.md
+    - docs/user-guide/cli/remote-access.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+  code_patterns:
+    - frontend/apps/web_app/package.json
+    - frontend/apps/web_app/src/hooks.server.ts
+    - frontend/packages/ui/src/components/Login.svelte
+    - frontend/packages/ui/src/components/settings/security/SettingsSessionsPairInitiate.svelte
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/src/projectFileRisk.ts
+    - backend/core/api/app/routes/auth_routes/auth_pair.py
+  tests:
+    - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    - frontend/apps/web_app/tests/cli-pair-login.spec.ts
+  external_research:
+    - "VS Code ExtensionKind supports UI and Workspace extension hosts. In remote windows, workspace extensions run on the remote extension host and UI extensions run near the local VS Code UI."
+    - "VS Code webviews are sandboxed and communicate with extensions through postMessage/acquireVsCodeApi; webview local resources must be served through asWebviewUri with a strict CSP."
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - VS Code extension V1 is a new desktop/editor platform shell around the shared web app UI and does not change Apple product surfaces.
+    - Existing Project remote-source Apple impact remains governed by `docs/specs/projects-remote-sources/spec.yml`.
+  verification:
+    - Apple not affected for this extension shell spec.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should V1 load the live web app in a webview, or bundle app assets?
+      answer: Bundle/native webview is preferred because production web security must not be weakened.
+    - question: Should the VS Code surface show only a coding area or the full app shell?
+      answer: Show the entire app shell exactly like the web browser, including settings, projects, workflows, and normal navigation.
+    - question: Which authentication flows should V1 expose in VS Code?
+      answer: Pair-login only. Passkey is likely not reliable in the bundled VS Code webview origin, and CLI-auth precedent avoids credential prompts.
+    - question: What setup should users see before login or before project access is available?
+      answer: Show VS Code-specific instructions to install and start the OpenMates CLI on every machine where they want OpenMates to access local project files.
+    - question: Should V1 allow automatic file edits or commands?
+      answer: No. Existing remote-source spec keeps V1 read/preview/import-only with non-mutating diff proposals. Patch application and commands are later-phase capabilities.
+  vision_summary: >
+    VS Code V1 should be the full OpenMates app, not a custom or limited coding
+    UI. It should run from bundled shared Svelte assets inside a secured VS Code
+    webview, use pair-login only, and guide users toward the CLI remote-access
+    daemon for project access. V1 remains read-only for remote sources so the
+    team can test the extension, webview parity, reconnect behavior, and Project
+    previews while continuing to harden write/command security architecture.
+  approved_by_user: true
+  resolved_open_questions:
+    - id: OQ-1
+      decision: "Use `extensionKind: [\"workspace\", \"ui\"]`, preferring the workspace host while allowing UI-host fallback when no workspace is open."
+    - id: OQ-2
+      decision: Reuse the existing OpenMates app shell and pair-login components wherever possible; add only the minimum VS Code platform adapter or shell code needed for webview constraints.
+
+scenarios:
+  - id: S-1
+    title: Internal tester opens the bundled full app shell
+    given:
+      - Alice installs the internal VSIX on her Mac.
+      - "Alice opens VS Code and runs `OpenMates: Open`."
+    when:
+      - The extension creates the OpenMates webview.
+    then:
+      - The bundled OpenMates app shell loads without iframing `app.openmates.org`.
+      - The UI uses the same shared Svelte app shell and design system as the browser app.
+      - Browser-only production frame/CSP protections remain unchanged.
+
+  - id: S-2
+    title: Pair-only login in VS Code
+    given:
+      - Alice is not logged into OpenMates in the VS Code extension.
+      - Alice is logged into OpenMates on another trusted device.
+    when:
+      - Alice starts login in the VS Code extension.
+    then:
+      - The extension shows pair-login instructions, QR/link, and PIN flow.
+      - The extension does not show passkey, password, 2FA, recovery-key, or backup-code login options in V1.
+      - The pair session can authenticate the bundled app shell and start normal app sync.
+
+  - id: S-3
+    title: Pre-login project setup guidance
+    given:
+      - Alice opens the VS Code extension before logging in or before connecting any Project source.
+    when:
+      - The pre-login or no-source state is shown.
+    then:
+      - The extension explains that OpenMates can view projects only when the CLI is installed and `openmates remote-access start` is running on the machine that has the project files.
+      - The instructions distinguish local Mac project access from dev-server project access.
+      - The extension remains usable as the full OpenMates app even when no CLI source is connected.
+
+  - id: S-4
+    title: Connected remote-access source appears in the full app
+    given:
+      - Alice has paired into the VS Code extension.
+      - Alice has a Project source attached by `openmates remote-access start` on a dev server.
+    when:
+      - Alice opens Projects in the VS Code extension.
+    then:
+      - The Project source appears with connected/offline status from OpenMates state.
+      - Virtual remote previews and upload-selected behavior match the browser app.
+      - The VS Code extension does not read files directly to construct Project previews.
+
+  - id: S-5
+    title: Native VS Code open-file and diff bridge is optional and bounded
+    given:
+      - Alice has a VS Code workspace open that maps to a connected remote-access source.
+      - The OpenMates app shows a remote file preview or non-mutating diff proposal.
+    when:
+      - Alice chooses Open in VS Code or Show diff.
+    then:
+      - The webview sends a typed message to the extension host.
+      - The extension opens the matching workspace file or readonly diff using VS Code APIs.
+      - If the source does not map to the active workspace, the app shows an actionable explanation instead of guessing a path.
+
+  - id: S-6
+    title: V1 cannot mutate files or run commands
+    given:
+      - Alice asks the assistant to update a remote Project file.
+    when:
+      - The assistant produces a proposed change.
+    then:
+      - OpenMates renders a non-mutating remote diff proposal.
+      - No local or remote file is modified by the VS Code extension or remote-access CLI.
+      - No terminal command, package install, test command, or git command is executed by the VS Code extension or remote-access CLI.
+      - If Alice asks to apply the patch, V1 explains that patch application is a later-phase capability.
+
+  - id: S-7
+    title: Work continues when VS Code disconnects
+    given:
+      - Alice starts an OpenMates chat/task from the VS Code extension.
+      - A remote-access CLI daemon remains connected on the dev server.
+    when:
+      - Alice closes her laptop or loses network connectivity.
+    then:
+      - OpenMates backend jobs and the remote-access daemon are not tied to the VS Code webview process.
+      - On reconnect, the VS Code extension reloads current chat, Project, and source status from OpenMates.
+      - Any blocked approval or offline state is shown clearly.
+
+  - id: S-8
+    title: GitHub Actions verifies the internal extension build
+    given:
+      - A pull request or dev branch changes the VS Code extension or shared VS Code webview build.
+    when:
+      - GitHub Actions runs extension checks.
+    then:
+      - The extension builds and packages into a VSIX artifact.
+      - VS Code Extension Host smoke tests run headlessly.
+      - Webview bridge and no-mutation guard tests pass.
+      - Test artifacts are available for manual install when needed.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The VS Code extension renders the full OpenMates app shell from bundled shared web assets without iframing the production web app or relaxing production frame/CSP headers.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-UNIT-WEBVIEW-HTML
+      - T-VSCODE-SMOKE
+
+  - id: AC-2
+    scenario: S-2
+    text: VS Code V1 supports pair-login only and does not expose passkey, password, 2FA, recovery-key, or backup-code login inside the webview.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-UNIT-VSCODE-AUTH
+      - T-VSCODE-SMOKE
+
+  - id: AC-3
+    scenario: S-3
+    text: The VS Code-specific startup state instructs users to install and start OpenMates CLI remote-access on each machine that owns project files while keeping the app usable without a connected source.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-UNIT-WEBVIEW-HTML
+      - T-VSCODE-SMOKE
+
+  - id: AC-4
+    scenario: S-4
+    text: Connected Project remote sources render through the existing full app Projects UI and continue to follow the read-only remote-source contracts from `projects-remote-sources`.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-CLI-REMOTE-ACCESS
+      - T-WEB-PROJECT-REMOTE-SOURCES
+
+  - id: AC-5
+    scenario: S-5
+    text: The extension exposes only bounded native VS Code bridge actions for opening mapped files and showing readonly diffs, with clear failure states when no workspace mapping exists.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-UNIT-VSCODE-BRIDGE
+      - T-VSCODE-SMOKE
+
+  - id: AC-6
+    scenario: S-6
+    text: V1 registers no file write, patch apply, terminal command, package install, test execution, or git mutation capability in the extension or remote-access V1 bridge.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-NO-MUTATION-GUARD
+      - T-CLI-REMOTE-ACCESS
+
+  - id: AC-7
+    scenario: S-7
+    text: The extension reloads persisted OpenMates chat/source state after disconnect instead of owning long-running AI or remote-access work itself.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-UNIT-VSCODE-STATE
+      - T-VSCODE-SMOKE
+
+  - id: AC-8
+    scenario: S-8
+    text: GitHub Actions builds, packages, and headlessly smoke-tests the internal VS Code extension, producing a VSIX artifact for manual Mac install tests.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids:
+      - T-GHA-VSCODE-EXTENSION
+
+assumptions:
+  - id: A-1
+    text: VS Code webviews can host the bundled OpenMates app shell if app runtime configuration is supplied by a VS Code platform adapter.
+    category: vscode
+    required_before: implementation
+    status: unchecked
+    evidence:
+      - source: VS Code Extension API documentation
+        summary: Webviews can run scripts, load local extension resources through `asWebviewUri`, and communicate through `postMessage`.
+  - id: A-2
+    text: Pair-login can be adapted for the bundled VS Code app shell without exposing account credentials in the webview.
+    category: auth
+    required_before: implementation
+    status: unchecked
+    evidence:
+      - source: frontend/packages/openmates-cli/src/client.ts
+        summary: CLI pair login already initiates, polls, completes PIN authorization, and stores a paired session without credential prompts.
+  - id: A-3
+    text: Internal V1 does not require marketplace packaging, publisher identity, extension signing, or public update channels.
+    category: release
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: user clarification
+        summary: User selected internal/manual build/test first with GitHub Actions coverage.
+
+contracts:
+  extension:
+    package:
+      location: frontend/apps/vscode_extension
+      distribution: internal_vsix
+      extension_kind:
+        - workspace
+        - ui
+      commands:
+        - "OpenMates: Open"
+        - "OpenMates: Show Logs"
+        - "OpenMates: Check Remote Access Setup"
+      forbidden_commands_v1:
+        - apply patch
+        - write file
+        - run terminal command
+        - install package
+        - run tests
+        - git commit
+        - git push
+    webview:
+      source: bundled_shared_openmates_app_assets
+      live_iframe: false
+      csp:
+        - default-src 'none'
+        - script-src webview nonce only
+        - style-src webview nonce or bundled styles only
+        - img-src webview https data as needed by existing app image proxy rules
+      bridge_messages:
+        inbound_from_webview:
+          - openFile
+          - showDiff
+          - copyText
+          - reportReady
+        outbound_to_webview:
+          - vscodeEnvironment
+          - workspaceMappingStatus
+          - nativeActionResult
+    auth:
+      allowed_v1:
+        - pair_login
+      blocked_v1:
+        - passkey
+        - password
+        - 2fa_otp
+        - recovery_key
+        - backup_code
+  web_app_adapter:
+    behavior: >
+      Add the minimum platform adapter needed for the same Svelte app shell to run
+      in browser and VS Code webview builds. The adapter supplies API base URL,
+      pair-login mode, VS Code bridge availability, and asset/base-path handling
+      without forking UI components.
+  remote_access:
+    source_of_truth: docs/specs/projects-remote-sources/spec.yml
+    allowed_v1:
+      - source status
+      - bounded search/read context
+      - virtual remote previews
+      - upload selected files to OpenMates
+      - non-mutating diff proposals
+    blocked_v1:
+      - apply patch
+      - shell command
+      - package install
+      - git mutation
+      - local or remote filesystem mutation
+  ci:
+    required_jobs:
+      - extension_unit
+      - extension_package
+      - extension_host_smoke
+      - no_mutation_guard
+      - related_cli_remote_access
+    environment:
+      - GitHub Actions Ubuntu runner
+      - Xvfb for VS Code Extension Host when required
+      - mocked OpenMates API/auth responses for extension smoke tests
+  manual_install:
+    build_command: cd frontend/apps/vscode_extension && npm run package
+    install_command: code --install-extension openmates-vscode-<version>.vsix
+    smoke_flow:
+      - "Run OpenMates: Open."
+      - Confirm full app shell loads.
+      - Pair-login from another trusted device.
+      - Start CLI remote-access separately on the machine with project files.
+      - Confirm connected source and virtual previews appear.
+
+privacy_security:
+  - Production web app frame/CSP protections must not be weakened for VS Code.
+  - VS Code V1 must not collect account credentials because login is pair-only.
+  - VS Code V1 must not become a filesystem authority for OpenMates remote-source data; the CLI remote-access bridge remains the source-machine authority.
+  - Source paths, repository remotes, CLI bridge credentials, runtime grants, and local filesystem details must not be shared in Project share payloads.
+  - No write or shell capability can be hidden behind webview bridge messages in V1.
+  - Webview messages must be typed and allowlisted; arbitrary command URIs are disabled unless a future spec approves exact commands.
+  - Logs and CI artifacts must not include pair tokens, session cookies, project paths with private user names, API keys, or raw file contents.
+
+tests:
+  - id: T-UNIT-WEBVIEW-HTML
+    type: unit
+    file: frontend/apps/vscode_extension/tests/webview.test.ts
+    command: cd frontend/apps/vscode_extension && npm run test:unit
+    covers:
+      - AC-1
+      - AC-3
+    assertions:
+      - webview HTML loads bundled assets via VS Code webview URIs
+      - webview HTML includes a strict CSP and does not iframe app.openmates.org or app.dev.openmates.org
+      - pre-login remote-access setup copy is available in VS Code mode
+      - command URIs are disabled by default
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "node --test --experimental-strip-types tests/*.test.ts (18 passed; includes packaged app asset rewrite, parseable VS Code runtime config, and smoke-credential redaction coverage)"
+        timestamp: "2026-07-04"
+
+  - id: T-UNIT-VSCODE-AUTH
+    type: unit
+    file: frontend/apps/vscode_extension/tests/authMode.test.ts
+    command: cd frontend/apps/vscode_extension && npm run test:unit
+    covers:
+      - AC-2
+    assertions:
+      - VS Code mode exposes pair-login as the only V1 login method
+      - passkey/password/2FA/recovery/backup-code routes are hidden or disabled in VS Code mode
+      - pair-login bootstrap does not persist raw pair tokens in logs
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "node --test --experimental-strip-types tests/*.test.ts (18 passed; includes packaged app asset rewrite, parseable VS Code runtime config, and smoke-credential redaction coverage)"
+        timestamp: "2026-07-04"
+
+  - id: T-UNIT-VSCODE-BRIDGE
+    type: unit
+    file: frontend/apps/vscode_extension/tests/bridge.test.ts
+    command: cd frontend/apps/vscode_extension && npm run test:unit
+    covers:
+      - AC-5
+    assertions:
+      - openFile resolves only mapped workspace paths
+      - showDiff opens readonly virtual content against a mapped workspace file
+      - unknown or forbidden bridge messages are rejected visibly
+      - unmapped sources return a user-facing no-mapping result
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "node --test --experimental-strip-types tests/*.test.ts (18 passed; includes packaged app asset rewrite, parseable VS Code runtime config, and smoke-credential redaction coverage)"
+        timestamp: "2026-07-04"
+
+  - id: T-UNIT-VSCODE-STATE
+    type: unit
+    file: frontend/apps/vscode_extension/tests/state.test.ts
+    command: cd frontend/apps/vscode_extension && npm run test:unit
+    covers:
+      - AC-7
+    assertions:
+      - extension restores webview state from OpenMates app state instead of local long-running worker state
+      - disconnect/reconnect events do not cancel backend jobs or remote-access source state
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "node --test --experimental-strip-types tests/*.test.ts (18 passed; includes packaged app asset rewrite, parseable VS Code runtime config, and smoke-credential redaction coverage)"
+        timestamp: "2026-07-04"
+
+  - id: T-NO-MUTATION-GUARD
+    type: unit
+    file: scripts/audit_vscode_extension_v1.py
+    command: python3 scripts/audit_vscode_extension_v1.py
+    covers:
+      - AC-6
+    assertions:
+      - VS Code extension package does not register write/apply/run/git/install commands
+      - extension bridge allowlist contains no mutation message types
+      - remote-access V1 command list remains read/search/status/start/stop oriented and does not expose apply/run in this spec slice
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/audit_vscode_extension_v1.py (PASS)"
+        timestamp: "2026-07-04"
+
+  - id: T-VSCODE-SMOKE
+    type: unit
+    file: frontend/apps/vscode_extension/src/test/suite/extension.test.ts
+    command: cd frontend/apps/vscode_extension && npm run test:vscode
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-5
+      - AC-7
+    assertions:
+      - extension activates in VS Code Extension Host
+      - readonly OpenMates commands are registered
+      - mutation-oriented commands are not registered
+      - full bundled-app readiness and native bridge action smoke coverage remains a follow-up after the shared app adapter is wired
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "xvfb-run -a node frontend/apps/vscode_extension/dist/test/runTest.js (Exit code 0)"
+        timestamp: "2026-07-04"
+
+  - id: T-GHA-VSCODE-EXTENSION
+    type: build
+    file: .github/workflows/vscode-extension.yml
+    command: gh workflow run vscode-extension.yml
+    covers:
+      - AC-8
+    assertions:
+      - GitHub Actions installs extension dependencies
+      - GitHub Actions runs CLI remote-access contract tests
+      - shared webview bundle builds
+      - extension compiles and packages a VSIX artifact
+      - installed VSIX is loaded from a fresh VS Code profile and runs CI-only webview login smoke against a test account
+      - unit tests, no-mutation guard, and VS Code smoke tests pass on Ubuntu with Xvfb where required
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: blocked
+        run_id: "Blocked until workflow runs on GitHub Actions with existing slot-1 E2E secrets (OPENMATES_TEST_ACCOUNT_1_EMAIL/PASSWORD/OTP_KEY). Local dummy slot-1 installed-VSIX run installs/activates packaged VSIX, opens the webview, and reaches backend auth via CI-only native bridge; expected failure: otp_required_but_missing for dummy credentials."
+        timestamp: "2026-07-04"
+
+  - id: T-CLI-REMOTE-ACCESS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test:unit:remote-access
+    covers:
+      - AC-4
+      - AC-6
+    assertions:
+      - remote-access search remains root-bounded, capped, and high-risk filtered
+      - V1 remote-access tests cover read-only behavior and high-risk path classification
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_applicable_existing_green_contract
+        run_id: "projects-remote-sources evidence"
+        timestamp: "2026-06-30"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-WEB-PROJECT-REMOTE-SOURCES
+    type: playwright
+    file: frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    command: python3 scripts/tests.py run --spec projects-remote-sources.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-4
+    assertions:
+      - browser app Projects UI remains the source of truth for remote source status and virtual preview rendering
+      - VS Code shared app bundle should use the same UI components and contracts
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_applicable_existing_spec
+        run_id: "projects-remote-sources ongoing spec"
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+verifications:
+  - id: V-MANUAL-MAC-VSIX
+    kind: manual_check
+    phase: green
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-5
+      - AC-8
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - Full Svelte app shell and shared UI package under frontend/apps/web_app and frontend/packages/ui.
+    - CLI pair-login flow in frontend/packages/openmates-cli/src/client.ts.
+    - Project remote-source read-only contract in docs/specs/projects-remote-sources/spec.yml.
+    - VS Code webview message passing and ExtensionKind model from VS Code Extension API.
+  architecture: >
+    Add a new internal VS Code extension app that packages a VS Code-specific
+    build of the same OpenMates app shell. The extension owns only webview
+    lifecycle, environment injection, pair-only VS Code startup mode, and a tiny
+    native bridge for open-file/show-diff actions. Project access remains routed
+    through OpenMates backend state and the existing CLI remote-access source
+    model; V1 exposes no mutation or shell-execution authority.
+  data_flow:
+    - "User installs internal VSIX and runs OpenMates: Open."
+    - Extension creates webview with bundled app assets and VS Code environment config.
+    - Bundled app shows VS Code pre-login setup instructions and pair-only login.
+    - User pairs from another trusted OpenMates device.
+    - App loads normal OpenMates state through API/WebSocket using the paired session.
+    - Project remote-source status and previews come from OpenMates/CLI remote-access contracts.
+    - Webview can request native open-file/show-diff only for mapped active workspace paths.
+    - Disconnecting VS Code does not own or cancel backend jobs or remote-access daemon work.
+  affected_files:
+    - path: frontend/apps/vscode_extension/package.json
+      reason: New internal extension package and scripts.
+    - path: frontend/apps/vscode_extension/src/extension.ts
+      reason: VS Code extension activation, commands, and webview lifecycle.
+    - path: frontend/apps/vscode_extension/src/webviewHtml.ts
+      reason: Strict CSP and bundled asset loading.
+    - path: frontend/apps/vscode_extension/src/bridge.ts
+      reason: Typed open-file/show-diff/native action bridge.
+    - path: frontend/apps/vscode_extension/src/authMode.ts
+      reason: Pair-only VS Code login mode wiring.
+    - path: frontend/apps/vscode_extension/src/test/**
+      reason: VS Code Extension Host smoke tests.
+    - path: frontend/packages/ui/src/platform/**
+      reason: Minimal shared platform adapter for browser versus VS Code runtime.
+    - path: frontend/apps/web_app/**
+      reason: Possible app-shell build target or adapter injection points while preserving browser behavior.
+    - path: scripts/audit_vscode_extension_v1.py
+      reason: Deterministic no-mutation guard for V1.
+    - path: .github/workflows/vscode-extension.yml
+      reason: CI build/package/smoke workflow.
+    - path: docs/user-guide/cli/remote-access.md
+      reason: Update only if setup wording changes after implementation.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/vscode-extension-v1/spec.yml
+    - cd frontend/apps/vscode_extension && npm run test:unit
+    - python3 scripts/audit_vscode_extension_v1.py
+    - cd frontend/apps/vscode_extension && npm run test:vscode
+    - cd frontend/apps/vscode_extension && npm run package
+    - cd frontend/packages/openmates-cli && npm run test:unit:remote-access
+    - python3 scripts/tests.py run --spec projects-remote-sources.spec.ts after deploy when shared Projects UI is affected
+  verification_order:
+    - Extension unit tests and no-mutation guard first.
+    - CLI remote-access read-only tests second.
+    - VS Code Extension Host smoke tests third.
+    - Package VSIX artifact fourth.
+    - Browser Projects Playwright after deploy only when shared Project UI changes.
+    - Manual Mac VSIX smoke after CI artifact is green.
+
+tasks:
+  - id: TASK-1
+    title: Create internal VS Code extension skeleton and package scripts
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-8
+      acceptance_criteria:
+        - AC-1
+        - AC-8
+    expected_files:
+      - frontend/apps/vscode_extension/package.json
+      - frontend/apps/vscode_extension/src/extension.ts
+      - frontend/apps/vscode_extension/src/webviewHtml.ts
+    verification:
+      - T-UNIT-WEBVIEW-HTML
+      - T-GHA-VSCODE-EXTENSION
+    verification_ids:
+      - T-UNIT-WEBVIEW-HTML
+      - T-GHA-VSCODE-EXTENSION
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add shared app VS Code platform adapter and pair-only auth mode
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+    expected_files:
+      - frontend/packages/ui/src/platform/**
+      - frontend/apps/vscode_extension/src/authMode.ts
+      - frontend/apps/vscode_extension/tests/authMode.test.ts
+    verification:
+      - T-UNIT-VSCODE-AUTH
+      - T-VSCODE-SMOKE
+    verification_ids:
+      - T-UNIT-VSCODE-AUTH
+      - T-VSCODE-SMOKE
+    blockers:
+      - Confirm whether pair-login session cookies/token storage need a VS Code-specific adapter or can reuse browser app storage primitives.
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Add bounded VS Code native bridge actions
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+    expected_files:
+      - frontend/apps/vscode_extension/src/bridge.ts
+      - frontend/apps/vscode_extension/tests/bridge.test.ts
+      - scripts/audit_vscode_extension_v1.py
+    verification:
+      - T-UNIT-VSCODE-BRIDGE
+      - T-NO-MUTATION-GUARD
+    verification_ids:
+      - T-UNIT-VSCODE-BRIDGE
+      - T-NO-MUTATION-GUARD
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Add VS Code Extension Host smoke tests and GitHub Actions workflow
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-7
+        - S-8
+      acceptance_criteria:
+        - AC-7
+        - AC-8
+    expected_files:
+      - frontend/apps/vscode_extension/src/test/**
+      - .github/workflows/vscode-extension.yml
+    verification:
+      - T-VSCODE-SMOKE
+      - T-GHA-VSCODE-EXTENSION
+    verification_ids:
+      - T-VSCODE-SMOKE
+      - T-GHA-VSCODE-EXTENSION
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Run internal Mac VSIX smoke and record evidence
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-5
+        - AC-8
+    expected_files: []
+    verification:
+      - V-MANUAL-MAC-VSIX
+    verification_ids:
+      - V-MANUAL-MAC-VSIX
+    blockers:
+      - Requires a Mac with VS Code and access to a generated internal VSIX artifact.
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - id: R-1
+    risk: The full Svelte app shell may rely on browser deployment assumptions that need careful platform-adapter seams for VS Code webviews.
+    mitigation: Keep adapter narrow, write unit tests for config/base-path/auth mode, and avoid component forks.
+  - id: R-2
+    risk: Pair-login session storage may differ between browser and VS Code webview enough to require auth adapter work.
+    mitigation: Treat A-2 as implementation-blocking and test pair-only auth before other extension UX.
+  - id: R-3
+    risk: Remote-SSH behavior may differ from local VS Code in ways not fully covered by GitHub Actions.
+    mitigation: Add unit coverage for remoteName/workspace mapping and require manual Remote-SSH smoke before wider testing.
+  - id: R-4
+    risk: Future mutation features could accidentally slip into V1 bridge code.
+    mitigation: Add `scripts/audit_vscode_extension_v1.py` and keep command/message allowlists explicit.
+
+open_questions:
+  - id: OQ-1
+    question: Should the extension run as workspace-preferred or UI-preferred when no workspace is open?
+    impact: Affects package `extensionKind`, Remote-SSH install location, and native open-file behavior.
+    status: resolved
+    resolution: "Use workspace-preferred `extensionKind: [\"workspace\", \"ui\"]`; no-workspace UI fallback can show the full app and disable workspace file actions."
+  - id: OQ-2
+    question: Can the current pair-login web components be reused directly in bundled VS Code mode, or is a small VS Code pair-login shell required?
+    impact: Affects TASK-2 scope and auth storage tests.
+    status: resolved
+    resolution: Reuse existing components by default and keep any VS Code-only pair shell to the absolute minimum required by webview runtime constraints.

@@ -1,0 +1,63 @@
+{
+  "name": "openmates-vscode-extension",
+  "displayName": "OpenMates",
+  "description": "Internal OpenMates VS Code extension shell for bundled app testing.",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "openmates",
+  "type": "module",
+  "main": "./dist/extension.js",
+  "engines": {
+    "vscode": "^1.106.0",
+    "node": ">=20"
+  },
+  "categories": [
+    "Other"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/glowingkitty/OpenMates.git",
+    "directory": "frontend/apps/vscode_extension"
+  },
+  "license": "AGPL-3.0-only",
+  "activationEvents": [
+    "onCommand:openmates.open",
+    "onCommand:openmates.checkRemoteAccessSetup",
+    "onCommand:openmates.showLogs"
+  ],
+  "extensionKind": [
+    "workspace",
+    "ui"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "openmates.open",
+        "title": "OpenMates: Open"
+      },
+      {
+        "command": "openmates.checkRemoteAccessSetup",
+        "title": "OpenMates: Check Remote Access Setup"
+      },
+      {
+        "command": "openmates.showLogs",
+        "title": "OpenMates: Show Logs"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare:webapp": "node scripts/prepareWebAppBundle.mjs",
+    "package": "tsc -p tsconfig.json && npm run prepare:webapp && node -e \"require('fs').rmSync('dist/openmates-vscode-0.1.0.vsix',{force:true})\" && vsce package --out dist/openmates-vscode-0.1.0.vsix",
+    "test:unit": "node --test --experimental-strip-types tests/*.test.ts",
+    "test:vscode": "npm run build && node dist/test/runTest.js",
+    "test:vscode:installed": "npm run build && node dist/test/runInstalledTest.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.0",
+    "@types/vscode": "^1.106.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.6.3",
+    "typescript": "5.9.2"
+  }
+}
