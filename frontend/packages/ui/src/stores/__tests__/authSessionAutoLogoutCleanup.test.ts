@@ -278,6 +278,31 @@ vi.mock("../../services/pendingAIResponses", () => ({
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
+const mockWindowDispatchEvent = vi.fn((event: { type: string }) => {
+  cleanupCalls.push(`window.${event.type}`);
+  return true;
+});
+
+class TestCustomEvent {
+  readonly type: string;
+  readonly detail: unknown;
+
+  constructor(type: string, init?: CustomEventInit) {
+    this.type = type;
+    this.detail = init?.detail;
+  }
+}
+
+vi.stubGlobal("CustomEvent", TestCustomEvent);
+vi.stubGlobal("window", {
+  location: {
+    hash: "",
+    origin: "http://test",
+    search: "",
+  },
+  dispatchEvent: mockWindowDispatchEvent,
+});
+
 function createStorageMock(): Storage {
   const values = new Map<string, string>();
   return {
@@ -312,14 +337,12 @@ describe("checkAuth auto logout cleanup", () => {
   });
 
   it("clears the same in-memory chat state on session expiry as manual logout", async () => {
-    const sawLogoutEvent = vi.fn(() => cleanupCalls.push("window.userLoggingOut"));
-    window.addEventListener("userLoggingOut", sawLogoutEvent);
-
     const result = await checkAuth(undefined, true);
 
-    window.removeEventListener("userLoggingOut", sawLogoutEvent);
-
     expect(result).toBe(false);
+    expect(mockWindowDispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "userLoggingOut" }),
+    );
     expect(cleanupCalls).toContain("window.userLoggingOut");
     expect(cleanupCalls).toContain("phasedSyncState.reset");
     expect(cleanupCalls).toContain("activeChatStore.clearActiveChat");
