@@ -172,6 +172,13 @@ final class ChatFlowParityUITests: XCTestCase {
     }
 
     private func openWorkspace(_ workspace: String, in app: XCUIApplication) {
+        let returnToChats = app.descendants(matching: .any)["workspace-placeholder-return-to-chats"]
+        if returnToChats.exists && returnToChats.isHittable {
+            returnToChats.tap()
+            XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 5))
+            if workspace == "chats" { return }
+        }
+
         let testId = "\(workspace)-nav-link"
         let directEntry = app.descendants(matching: .any)[testId]
         if directEntry.exists && directEntry.isHittable {
