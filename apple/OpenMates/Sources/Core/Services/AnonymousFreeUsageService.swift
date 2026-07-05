@@ -99,7 +99,12 @@ final class AnonymousFreeUsageService: ObservableObject {
         )
     }
 
-    func createAnonymousChatWithMessage(_ message: String, now: String, chatStore: ChatStore) async throws -> String {
+    func createAnonymousChatWithMessage(
+        _ message: String,
+        now: String,
+        chatStore: ChatStore,
+        piiMappings: [PIIMapping] = []
+    ) async throws -> String {
         guard canSendAnonymously else { throw AnonymousFreeUsageError.unavailable }
         var chat = try await createAnonymousChat(now: now)
         let chatKey = try await ensureAnonymousChatKey(chatId: chat.id)
@@ -131,7 +136,8 @@ final class AnonymousFreeUsageService: ObservableObject {
             updatedAt: nil,
             appId: nil,
             isStreaming: false,
-            embedRefs: nil
+            embedRefs: nil,
+            piiMappings: piiMappings.isEmpty ? nil : piiMappings
         )
         chat = copyAnonymousChat(chat, title: message, lastMessageAt: now, messagesV: 1)
         chatStore.upsertChat(chat)

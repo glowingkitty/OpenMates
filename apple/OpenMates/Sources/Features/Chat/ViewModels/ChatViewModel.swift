@@ -2938,7 +2938,8 @@ final class ChatSendPipeline {
     func makeLocalIncognitoUserMessage(
         content: String,
         in chat: Chat,
-        existingMessages: [Message]
+        existingMessages: [Message],
+        piiMappings: [PIIMapping] = []
     ) -> SendResult {
         let now = Date()
         let createdAt = Self.isoString(from: now)
@@ -2961,7 +2962,8 @@ final class ChatSendPipeline {
             updatedAt: nil,
             appId: nil,
             isStreaming: false,
-            embedRefs: nil
+            embedRefs: nil,
+            piiMappings: piiMappings.isEmpty ? nil : piiMappings
         )
         return SendResult(chat: updatedChat, message: message)
     }

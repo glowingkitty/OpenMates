@@ -1215,7 +1215,7 @@ struct MainAppView: View {
                 serverSuggestions: syncedNewChatSuggestions,
                 accountInterestTagIds: accountInterestTagIds,
                 focusRequest: newChatFocusRequest,
-                onCreateChatWithMessage: { message in
+                onCreateChatWithMessage: { message, piiMappings in
                     let now = ChatSendPipeline.isoString(from: Date())
                     if incognitoManager.isEnabled {
                         let chatId = makeTransientChat(isIncognito: true)
@@ -1224,7 +1224,8 @@ struct MainAppView: View {
                             let result = ChatSendPipeline().makeLocalIncognitoUserMessage(
                                 content: message,
                                 in: chat,
-                                existingMessages: []
+                                existingMessages: [],
+                                piiMappings: piiMappings
                             )
                             chatStore.performWithoutPersistence {
                                 chatStore.upsertChat(result.chat)
@@ -1261,14 +1262,16 @@ struct MainAppView: View {
                             existingMessages: [],
                             wsManager: wsManager,
                             chatStore: chatStore,
-                            waitForRemoteSend: false
+                            waitForRemoteSend: false,
+                            piiMappings: piiMappings
                         )
                         return result.chat.id
                     }
                     return try await anonymousFreeUsage.createAnonymousChatWithMessage(
                         message,
                         now: now,
-                        chatStore: chatStore
+                        chatStore: chatStore,
+                        piiMappings: piiMappings
                     )
                 },
                 onChatCreated: { chatId in
@@ -4105,7 +4108,7 @@ struct NewChatWelcomeView: View {
     let serverSuggestions: [NewChatSuggestionsView.ChatSuggestion]
     let accountInterestTagIds: [InterestTagId]
     let focusRequest: Int
-    let onCreateChatWithMessage: (String) async throws -> String
+    let onCreateChatWithMessage: (String, [PIIMapping]) async throws -> String
     let onChatCreated: (String) -> Void
     let onOpenChat: (String) -> Void
     let onInspirationViewed: (String) -> Void
@@ -4121,6 +4124,9 @@ struct NewChatWelcomeView: View {
     @State private var appliedGuestInterestTagIds: [InterestTagId] = []
     @State private var isGuestInterestSelectionActive = true
     @State private var handledFocusRequest = 0
+    @State private var detectedPIIMatches: [PIIMatch] = []
+    @State private var piiExclusions = Set<String>()
+    @StateObject private var piiPrivacySettingsStore = PIIPrivacySettingsStore.shared
     @FocusState private var isFocused: Bool
 
     private var activeInspiration: DailyInspirationBanner.DailyInspiration? {
@@ -4186,6 +4192,10 @@ struct NewChatWelcomeView: View {
         isFocused || isComposerExpanded || WelcomeScreenState.shouldShowInFieldSendButton(inputText: messageText)
     }
 
+    private var activePIIMatches: [PIIMatch] {
+        detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
+    }
+
     private var overflowCount: Int {
         guard isAuthenticated, totalChatCount > shownChatCards.count else { return 0 }
         return totalChatCount - shownChatCards.count
@@ -4209,7 +4219,7 @@ struct NewChatWelcomeView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let composerReserve: CGFloat = isComposerActive ? 156 : 100
+            let composerReserve: CGFloat = isComposerActive ? (activePIIMatches.isEmpty ? 156 : 236) : 100
 
             ZStack(alignment: .bottom) {
                 Color.clear
@@ -4262,6 +4272,9 @@ struct NewChatWelcomeView: View {
                     isFocused: $isFocused,
                     isAuthenticated: isAuthenticated,
                     canSendAnonymously: canSendAnonymously,
+                    piiMatches: activePIIMatches,
+                    onExcludePII: { match in piiExclusions.insert(match.id) },
+                    onUndoAllPII: { piiExclusions.formUnion(detectedPIIMatches.map(\.id)) },
                     onSend: { createChatWith(message: messageText) },
                     onOpenAuth: onOpenAuth
                 )
@@ -4269,7 +4282,11 @@ struct NewChatWelcomeView: View {
             .animation(.easeInOut(duration: 0.2), value: isComposerActive)
         }
         .background(Color.clear)
-        .task { await loadSuggestions() }
+        .task {
+            await loadSuggestions()
+            await ApplePrivacySettingsService.shared.load()
+            updatePIIMatches(for: messageText)
+        }
         .onAppear {
             isGuestInterestSelectionActive = !isAuthenticated && appliedGuestInterestTagIds.isEmpty
             applyFocusRequestIfNeeded()
@@ -4288,6 +4305,12 @@ struct NewChatWelcomeView: View {
                 suggestions = Self.defaultSuggestions(selected: effectiveInterestTagIds)
                 hiddenSuggestionIds.removeAll()
             }
+        }
+        .onChange(of: messageText) { _, newValue in
+            updatePIIMatches(for: newValue)
+        }
+        .onChange(of: piiPrivacySettingsStore.settings) { _, _ in
+            updatePIIMatches(for: messageText)
         }
     }
 
@@ -4566,7 +4589,8 @@ struct NewChatWelcomeView: View {
     }
 
     private func createChatWith(message: String) {
-        guard !message.isEmpty else { return }
+        let text = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
 
         // Self-hosted or exhausted anonymous usage still goes through signup.
         guard isAuthenticated || canSendAnonymously else {
@@ -4574,14 +4598,29 @@ struct NewChatWelcomeView: View {
             return
         }
 
-        Task {
+        let redaction = PIIDetector.redactionResult(
+            in: text,
+            excludedIds: piiExclusions,
+            options: piiPrivacySettingsStore.detectionOptions()
+        )
+
+        Task { @MainActor in
             do {
-                let chatId = try await onCreateChatWithMessage(message)
+                let chatId = try await onCreateChatWithMessage(redaction.redactedText, redaction.mappings)
+                messageText = ""
+                detectedPIIMatches = []
+                piiExclusions = []
                 onChatCreated(chatId)
             } catch {
                 print("[NewChatWelcome] Failed to create chat: \(error)")
             }
         }
+    }
+
+    private func updatePIIMatches(for text: String) {
+        detectedPIIMatches = PIIDetector.detect(in: text, options: piiPrivacySettingsStore.detectionOptions())
+        let currentIds = Set(detectedPIIMatches.map(\.id))
+        piiExclusions = piiExclusions.intersection(currentIds)
     }
 }
 
@@ -4955,6 +4994,9 @@ private struct WelcomeComposer: View {
     @FocusState.Binding var isFocused: Bool
     let isAuthenticated: Bool
     let canSendAnonymously: Bool
+    let piiMatches: [PIIMatch]
+    let onExcludePII: (PIIMatch) -> Void
+    let onUndoAllPII: () -> Void
     let onSend: () -> Void
     let onOpenAuth: () -> Void
 
@@ -4971,7 +5013,11 @@ private struct WelcomeComposer: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: .spacing2) {
+            PIIWarningBanner(matches: piiMatches, onUndoAll: onUndoAllPII)
+
+            PIIHighlightStrip(matches: piiMatches, onExclude: onExcludePII)
+
             OMMessageInputField(
                 text: $text,
                 isFocused: $isFocused,
