@@ -183,6 +183,93 @@ final class ChatSendPipelineParityTests: XCTestCase {
         )
     }
 
+    func testTextAttachmentEmbedCarriesRedactedContentAndRestoresThroughMappings() throws {
+        let mappings = [
+            PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL")
+        ]
+        let upload = UploadFileResponse(
+            embedId: "text-embed-1",
+            filename: "notes.md",
+            contentType: "text/markdown",
+            contentHash: "hash-1",
+            files: [
+                "original": UploadedFileVariant(
+                    s3Key: "uploads/notes.md",
+                    sizeBytes: 44,
+                    width: nil,
+                    height: nil,
+                    format: "md"
+                )
+            ],
+            s3BaseUrl: "https://example.invalid/files",
+            aesKey: "aes-key",
+            aesNonce: "aes-nonce",
+            vaultWrappedAesKey: "wrapped-key",
+            pageCount: nil,
+            deduplicated: true
+        )
+
+        let embed = ComposerPendingEmbed.from(
+            upload: upload,
+            localData: Data("Contact [EMAIL_1_com] about launch".utf8),
+            transcript: nil,
+            duration: nil,
+            piiMappings: mappings,
+            textContent: "Contact [EMAIL_1_com] about launch"
+        )
+
+        XCTAssertEqual(embed.piiMappings, mappings)
+        let payload = try XCTUnwrap(embed.serverPayload)
+        let payloadContent = try XCTUnwrap(payload["content"] as? String)
+        XCTAssertFalse(payloadContent.contains("alice@example.com"))
+        XCTAssertTrue(payloadContent.contains("[EMAIL_1_com]"))
+        XCTAssertEqual(embed.record.rawData?["content"]?.value as? String, "Contact [EMAIL_1_com] about launch")
+
+        let restored = PIIDetector.restorePII(in: embed.record, mappings: mappings)
+        XCTAssertEqual(restored.rawData?["content"]?.value as? String, "Contact alice@example.com about launch")
+    }
+
+    func testComposerAttachmentMappingsMergeWithForegroundTextMappings() {
+        let pipeline = ChatSendPipeline()
+        let textMapping = PIIMapping(placeholder: "[PHONE_1_567]", original: "+49 170 1234567", type: "PHONE")
+        let attachmentMapping = PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL")
+        let embed = ComposerPendingEmbed.from(
+            upload: UploadFileResponse(
+                embedId: "text-embed-1",
+                filename: "notes.md",
+                contentType: "text/markdown",
+                contentHash: nil,
+                files: [
+                    "original": UploadedFileVariant(
+                        s3Key: "uploads/notes.md",
+                        sizeBytes: 26,
+                        width: nil,
+                        height: nil,
+                        format: "md"
+                    )
+                ],
+                s3BaseUrl: "https://example.invalid/files",
+                aesKey: "aes-key",
+                aesNonce: "aes-nonce",
+                vaultWrappedAesKey: "wrapped-key",
+                pageCount: nil,
+                deduplicated: true
+            ),
+            localData: Data("Email [EMAIL_1_com]".utf8),
+            transcript: nil,
+            duration: nil,
+            piiMappings: [attachmentMapping],
+            textContent: "Email [EMAIL_1_com]"
+        )
+
+        let merged = pipeline.combinedPIIMappings(
+            textMappings: [textMapping],
+            composerEmbeds: [embed]
+        )
+
+        XCTAssertEqual(merged, [textMapping, attachmentMapping])
+    }
+
     func testCompletedAssistantVersionAdvancesPastUserMessageVersion() {
         let pipeline = ChatSendPipeline()
 

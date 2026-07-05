@@ -334,6 +334,42 @@ enum PIIDetector {
         return restored
     }
 
+    static func restorePII(in embed: EmbedRecord, mappings: [PIIMapping]) -> EmbedRecord {
+        guard !mappings.isEmpty, var rawData = embed.rawData else { return embed }
+        let restorableFields = ["content", "html", "code", "transcript", "summary", "title"]
+        var changed = false
+
+        for field in restorableFields {
+            guard let current = rawData[field]?.value as? String else { continue }
+            let restored = restorePII(in: current, mappings: mappings)
+            guard restored != current else { continue }
+            rawData[field] = AnyCodable(restored)
+            changed = true
+        }
+
+        guard changed else { return embed }
+        return EmbedRecord(
+            id: embed.id,
+            type: embed.type,
+            status: embed.status,
+            data: .raw(rawData),
+            encryptedContent: embed.encryptedContent,
+            encryptedType: embed.encryptedType,
+            encryptedTextPreview: embed.encryptedTextPreview,
+            parentEmbedId: embed.parentEmbedId,
+            appId: embed.appId,
+            skillId: embed.skillId,
+            embedIds: embed.embedIds,
+            hashedChatId: embed.hashedChatId,
+            hashedUserId: embed.hashedUserId,
+            versionNumber: embed.versionNumber,
+            contentHash: embed.contentHash,
+            versionHistory: embed.versionHistory,
+            versionHistoryReadonly: embed.versionHistoryReadonly,
+            createdAt: embed.createdAt
+        )
+    }
+
     static func summary(for matches: [PIIMatch]) -> String {
         let counts = Dictionary(grouping: matches, by: \.type).mapValues(\.count)
         return counts.keys.sorted { $0.rawValue < $1.rawValue }

@@ -467,6 +467,20 @@ struct ChatView: View {
         return Array(byPlaceholder.values)
     }
 
+    private var displayedEmbedRecords: [String: EmbedRecord] {
+        guard isPIIRevealed else { return viewModel.embedRecords }
+        return viewModel.embedRecords.mapValues { displayEmbed($0) }
+    }
+
+    private func displayEmbed(_ embed: EmbedRecord) -> EmbedRecord {
+        guard isPIIRevealed else { return embed }
+        return PIIDetector.restorePII(in: embed, mappings: cumulativePIIMappings)
+    }
+
+    private func displayedEmbeds(for message: Message) -> [EmbedRecord] {
+        viewModel.embeds(for: message).map(displayEmbed)
+    }
+
     private var incognitoSessionBanner: some View {
         HStack(spacing: .spacing3) {
             Icon("hidden", size: 14)
@@ -528,22 +542,23 @@ struct ChatView: View {
 
     @ViewBuilder
     private func embedFullscreenSheet(for embed: EmbedRecord) -> some View {
+        let displayedSelectedEmbed = displayEmbed(embed)
         let matchingMessage = viewModel.messages.first { msg in
             msg.embedRefs?.contains(where: { $0.id == embed.id }) == true
         }
         let fallbackMessage = matchingMessage ?? viewModel.messages.last
         let messageEmbeds: [EmbedRecord] = if let msg = fallbackMessage {
-            viewModel.embeds(for: msg)
+            displayedEmbeds(for: msg)
         } else {
             []
         }
-        let fullscreenEmbeds = messageEmbeds.contains(where: { $0.id == embed.id })
+        let fullscreenEmbeds = messageEmbeds.contains(where: { $0.id == displayedSelectedEmbed.id })
             ? messageEmbeds
-            : [embed]
+            : [displayedSelectedEmbed]
         EmbedFullscreenContainer(
             embeds: fullscreenEmbeds,
-            initialEmbedId: embed.id,
-            allEmbedRecords: viewModel.embedRecords,
+            initialEmbedId: displayedSelectedEmbed.id,
+            allEmbedRecords: displayedEmbedRecords,
             chatId: chatId,
             onClose: {
                 showEmbedFullscreen = false
@@ -617,8 +632,8 @@ struct ChatView: View {
                                         message: message,
                                         chatId: chatId,
                                         appId: viewModel.chat?.category ?? viewModel.chat?.appId,
-                                        embeds: viewModel.embeds(for: message),
-                                        allEmbedRecords: viewModel.embedRecords,
+                                        embeds: displayedEmbeds(for: message),
+                                        allEmbedRecords: displayedEmbedRecords,
                                         streamingContent: viewModel.isStreamingMessage(message.id) ? viewModel.streamingContent : nil,
                                         piiMappings: cumulativePIIMappings,
                                         isPIIRevealed: isPIIRevealed,
