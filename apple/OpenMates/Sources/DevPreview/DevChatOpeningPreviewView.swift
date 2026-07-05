@@ -32,6 +32,19 @@ struct DevChatOpeningPreviewView: View {
     }
 
     var body: some View {
+        Group {
+            if isUITestPIIComposerBannerFixtureEnabled {
+                DevPIIComposerBannerFixtureView()
+            } else {
+                chatOpeningPreview
+            }
+        }
+        .background(Color.grey0.ignoresSafeArea())
+        .accessibilityIdentifier("dev-chat-opening-preview")
+        .onAppear(perform: seedIfNeeded)
+    }
+
+    private var chatOpeningPreview: some View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 0) {
                 if !isUITestVisualSnapshotEnabled {
@@ -89,9 +102,6 @@ struct DevChatOpeningPreviewView: View {
                     .accessibilityIdentifier("dev-report-issue-overlay")
             }
         }
-        .background(Color.grey0.ignoresSafeArea())
-        .accessibilityIdentifier("dev-chat-opening-preview")
-        .onAppear(perform: seedIfNeeded)
     }
 
     private var header: some View {
@@ -172,6 +182,10 @@ struct DevChatOpeningPreviewView: View {
             || ProcessInfo.processInfo.environment["UI_TEST_VISUAL_SNAPSHOT"] == "1"
     }
 
+    private var isUITestPIIComposerBannerFixtureEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-pii-composer-banner-fixture")
+    }
+
     private var isUITestChatReportFormEnabled: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-chat-report-form")
             || ProcessInfo.processInfo.environment["UI_TEST_CHAT_REPORT_FORM"] == "1"
@@ -194,6 +208,46 @@ struct DevChatOpeningPreviewView: View {
         let inlineNewChatCompact = width <= inlineNewChatCompactBreakpoint
         let sizeClass = width <= inlineNewChatCompactBreakpoint ? "compact" : "regular"
         return "chat-width=\(roundedWidth); assistant-stacked=\(assistantStacked); inline-new-chat-compact=\(inlineNewChatCompact); size-class=\(sizeClass)"
+    }
+}
+
+private struct DevPIIComposerBannerFixtureView: View {
+    @State private var matches: [PIIMatch] = [
+        PIIMatch(
+            id: "EMAIL:alice@example.com",
+            type: .email,
+            value: "alice@example.com",
+            range: NSRange(location: 6, length: 17),
+            placeholder: "[EMAIL_1_com]"
+        ),
+        PIIMatch(
+            id: "PHONE:+49 170 1234567",
+            type: .phone,
+            value: "+49 170 1234567",
+            range: NSRange(location: 33, length: 16),
+            placeholder: "[PHONE_1_567]"
+        )
+    ]
+
+    var body: some View {
+        VStack(spacing: .spacing4) {
+            Text("Native Chat Opening Preview")
+                .font(.omSmall.weight(.semibold))
+                .foregroundStyle(Color.fontPrimary)
+
+            PIIWarningBanner(matches: matches) {
+                matches = []
+            }
+
+            PIIHighlightStrip(matches: matches) { match in
+                matches.removeAll { $0.id == match.id }
+            }
+
+            Spacer()
+        }
+        .padding(.spacing6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color.grey20)
     }
 }
 
