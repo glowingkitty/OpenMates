@@ -510,13 +510,13 @@ actor BackgroundChatSender {
         let ws = try await BackgroundWebSocket.open(session: session, sessionId: nativeSessionId, token: auth.wsToken)
         defer { ws.close() }
 
-        try await ws.send(type: "phased_sync_request", payload: [
+        try await ws.sendText(webSocketText(type: "phased_sync_request", payload: [
             "phase": "all",
             "client_chat_versions": [:],
             "client_chat_ids": [],
             "client_suggestions_count": 0,
             "client_embed_ids": []
-        ])
+        ]))
 
         let deadline = Date().addingTimeInterval(8)
         while Date() < deadline {
@@ -584,7 +584,7 @@ actor BackgroundChatSender {
             outboundPayload["encrypted_embeds"] = encryptedEmbedPayloads
         }
 
-        try await ws.send(type: "chat_message_added", payload: outboundPayload)
+        try await ws.sendText(webSocketText(type: "chat_message_added", payload: outboundPayload))
 
         if let storage = try await waitForAssistantStart(ws: ws, chatId: chatId, userMessageId: messageId) {
             try await sendEncryptedUserStoragePackage(
@@ -789,7 +789,7 @@ actor BackgroundChatSender {
             encryptedUserCategory: encryptedUserCategory
         ).dictionary
 
-        try await ws.send(type: "encrypted_chat_metadata", payload: payload)
+        try await ws.sendText(webSocketText(type: "encrypted_chat_metadata", payload: payload))
     }
 
     private func decryptDisplayTitles(for chats: [DestinationChat], userId: String) async throws -> [DestinationChat] {
@@ -1024,6 +1024,15 @@ actor BackgroundChatSender {
         return try decoder.decode(T.self, from: data)
     }
 
+    private func webSocketText(type: String, payload: [String: Any]) throws -> String {
+        let outbound = BackgroundWSOutboundMessage(type: type, payload: payload)
+        let data = try JSONEncoder().encode(outbound)
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw BackgroundChatSendError.encoding
+        }
+        return text
+    }
+
     private func appendMultipartField(
         name: String,
         filename: String,
@@ -1090,7 +1099,6 @@ actor BackgroundChatSender {
 
 private final class BackgroundWebSocket: @unchecked Sendable {
     private let task: URLSessionWebSocketTask
-    private let encoder = JSONEncoder()
 
     private init(task: URLSessionWebSocketTask) {
         self.task = task
@@ -1122,12 +1130,7 @@ private final class BackgroundWebSocket: @unchecked Sendable {
         return ws
     }
 
-    func send(type: String, payload: [String: Any]) async throws {
-        let outbound = BackgroundWSOutboundMessage(type: type, payload: payload)
-        let data = try encoder.encode(outbound)
-        guard let text = String(data: data, encoding: .utf8) else {
-            throw BackgroundChatSendError.encoding
-        }
+    func sendText(_ text: String) async throws {
         try await task.send(.string(text))
     }
 
