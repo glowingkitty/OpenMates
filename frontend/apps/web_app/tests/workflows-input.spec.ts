@@ -58,10 +58,12 @@ test.describe('Workflows input home', () => {
 		await loginToTestAccount(page, log, screenshot);
 
 		try {
+			let firstSeedWorkflowTitle = '';
 			for (let index = 0; index < 6; index += 1) {
+				const title = `Input spec seed ${Date.now()} ${index}`;
 				const response = await page.request.post(`${apiUrl}/v1/workflows`, {
 					data: {
-						title: `Input spec seed ${Date.now()} ${index}`,
+						title,
 						graph: blankWorkflowGraph(index),
 						enabled: index < 3,
 						run_content_retention: index % 2 === 0 ? 'last_5' : 'none'
@@ -70,6 +72,7 @@ test.describe('Workflows input home', () => {
 				expect(response.ok()).toBe(true);
 				const data = await response.json();
 				createdWorkflowIds.add(data.workflow.id);
+				if (index === 0) firstSeedWorkflowTitle = title;
 			}
 
 			await page.setViewportSize({ width: 390, height: 844 });
@@ -106,6 +109,12 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
 			await expect(page.getByTestId('resume-chat-large-card').first()).toBeVisible();
 			await expect(page.getByTestId('workflow-management')).toHaveCount(0);
+			await page.getByTestId('workflow-recommendations').getByText(firstSeedWorkflowTitle).click();
+			await expect(page).toHaveURL(/\/workflows\?view=manage/);
+			await expect(page.getByTestId('workflow-title-input')).toHaveValue(firstSeedWorkflowTitle, { timeout: 30000 });
+
+			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
 
 			const createInputResponse = page.waitForResponse(
 				(response) => response.url().includes('/v1/workflows/input') && response.request().method() === 'POST' && response.ok(),
