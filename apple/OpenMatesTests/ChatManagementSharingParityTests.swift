@@ -36,8 +36,9 @@ final class ChatManagementSharingParityTests: XCTestCase {
 
     func testInfoPlistRegistersInstallTimeHomeScreenQuickActions() throws {
         #if os(iOS)
+        let bundle = Bundle(for: AppDelegate.self)
         let items = try XCTUnwrap(
-            Bundle(for: AppDelegate.self).object(forInfoDictionaryKey: "UIApplicationShortcutItems") as? [[String: String]],
+            bundle.object(forInfoDictionaryKey: "UIApplicationShortcutItems") as? [[String: String]],
             "Expected static UIApplicationShortcutItems in the app bundle Info.plist"
         )
 
@@ -54,6 +55,34 @@ final class ChatManagementSharingParityTests: XCTestCase {
                 "org.openmates.incognito-ask|Incognito Ask"
             ]
         )
+
+        XCTAssertEqual(
+            bundle.object(forInfoDictionaryKey: "NSCameraUsageDescription") as? String,
+            "OpenMates uses the camera when you choose to attach a photo to a chat."
+        )
+        XCTAssertEqual(
+            bundle.object(forInfoDictionaryKey: "NSPhotoLibraryUsageDescription") as? String,
+            "OpenMates uses your photo library when you choose an image to attach to a chat."
+        )
+        #endif
+    }
+
+    func testQuickActionTitlesResolveForEverySupportedLanguage() async {
+        #if os(iOS)
+        let manager = LocalizationManager.shared
+        for language in SupportedLanguage.allCases {
+            await manager.setLanguage(language)
+            let titles = [
+                AppStrings.quickActionAsk,
+                AppStrings.quickActionAskAboutPhoto,
+                AppStrings.quickActionIncognitoAsk
+            ]
+            XCTAssertFalse(
+                titles.contains { $0.contains("quick_action") || $0.hasPrefix("activity.") },
+                "Expected translated quick action titles for \(language.code), got \(titles)"
+            )
+        }
+        await manager.setLanguage(.en)
         #endif
     }
 

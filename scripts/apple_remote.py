@@ -180,6 +180,19 @@ if with_associated_domains:
 else:
     print("associated_domains=project_default")
 
+print("translations_status=started")
+translations = subprocess.run(
+    ["npm", "run", "build:translations"],
+    cwd="frontend/packages/ui",
+    capture_output=True,
+    text=True,
+    timeout=180,
+)
+if translations.returncode != 0:
+    print_tail("translations_status", translations.stdout + translations.stderr, derived, limit=120)
+    sys.exit(translations.returncode)
+print("translations_status=passed")
+
 build_cmd = [
     "xcodebuild",
     "-project",
@@ -319,6 +332,21 @@ def print_tail(label, text, tmp_dir=None, limit=160):
     sanitized = re.sub(r"/Users/[^\s]+", "<macos-peer-path>", sanitized)
     for line in sanitized.splitlines()[-limit:]:
         print(line)
+
+
+def build_translations():
+    print("translations_status=started")
+    result = subprocess.run(
+        ["npm", "run", "build:translations"],
+        cwd="frontend/packages/ui",
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    if result.returncode != 0:
+        print_tail("translations_status", result.stdout + result.stderr, limit=120)
+        sys.exit(result.returncode)
+    print("translations_status=passed")
 
 
 def b64url(data):
@@ -870,6 +898,7 @@ def assert_ios_archive_passkey_entitlements():
 
 
 preflight_signing()
+build_translations()
 if has_app_store_connect_api_auth():
     clean_openmates_provisioning_profiles()
     sync_bundle_capabilities()
@@ -1824,7 +1853,8 @@ def sync_repo_command(branch: str) -> str:
 
 
 def build_ios_command(simulator: str) -> str:
-    return shell_join([
+    build_translations = shell_join(["npm", "run", "build:translations"])
+    xcodebuild = shell_join([
         "xcodebuild",
         "-project",
         "apple/OpenMates.xcodeproj",
@@ -1834,9 +1864,11 @@ def build_ios_command(simulator: str) -> str:
         f"platform=iOS Simulator,name={simulator}",
         "build",
     ])
+    return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {xcodebuild}"
 
 
 def test_ios_command(simulator: str, only_testing: str | None) -> str:
+    build_translations = shell_join(["npm", "run", "build:translations"])
     parts = [
         "xcodebuild",
         "test",
@@ -1849,7 +1881,7 @@ def test_ios_command(simulator: str, only_testing: str | None) -> str:
     ]
     if only_testing:
         parts.extend(["-only-testing", only_testing])
-    return shell_join(parts)
+    return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {shell_join(parts)}"
 
 
 def device_status_command() -> str:
