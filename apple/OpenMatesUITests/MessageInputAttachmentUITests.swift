@@ -82,6 +82,9 @@ final class MessageInputAttachmentUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-opening"] + arguments
         app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        if arguments.contains("--ui-test-pii-composer-banner-fixture") {
+            app.launchEnvironment["UI_TEST_PII_COMPOSER_BANNER_FIXTURE"] = "1"
+        }
         app.launch()
         return app
     }

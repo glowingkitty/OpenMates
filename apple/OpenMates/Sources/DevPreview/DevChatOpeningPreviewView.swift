@@ -184,6 +184,7 @@ struct DevChatOpeningPreviewView: View {
 
     private var isUITestPIIComposerBannerFixtureEnabled: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-pii-composer-banner-fixture")
+            || ProcessInfo.processInfo.environment["UI_TEST_PII_COMPOSER_BANNER_FIXTURE"] == "1"
     }
 
     private var isUITestChatReportFormEnabled: Bool {
