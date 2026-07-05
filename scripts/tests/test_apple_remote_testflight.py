@@ -58,7 +58,6 @@ def test_deploy_latest_testflight_syncs_then_uploads_both_platforms() -> None:
     command = apple_remote.deploy_latest_testflight_command(
         "dev",
         True,
-        "both",
         api_key_path="/private/key.p8",
         api_key_id="KEY123",
         api_issuer_id="ISSUER123",
@@ -71,11 +70,13 @@ def test_deploy_latest_testflight_syncs_then_uploads_both_platforms() -> None:
     assert "macos" in command
 
 
-def test_deploy_latest_testflight_rejects_unknown_platform() -> None:
+def test_deploy_latest_testflight_parser_has_no_platform_override() -> None:
     apple_remote = load_apple_remote()
 
-    with pytest.raises(apple_remote.AppleRemoteError):
-        apple_remote.deploy_latest_testflight_command("dev", True, "watchos")
+    parser = apple_remote.build_parser()
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(["deploy-latest-testflight", "--platform", "ios"])
 
 
 def test_app_store_connect_options_resolve_from_config() -> None:

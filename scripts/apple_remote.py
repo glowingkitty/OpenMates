@@ -1972,30 +1972,26 @@ def upload_testflight_macos_command(
 def deploy_latest_testflight_command(
     branch: str,
     internal_only: bool,
-    platform: str,
     *,
     api_key_path: str | None = None,
     api_key_id: str | None = None,
     api_issuer_id: str | None = None,
 ) -> str:
-    if platform not in {"both", "ios", "macos"}:
-        raise AppleRemoteError(f"Unsupported TestFlight platform: {platform}")
-
-    commands = [sync_repo_command(branch)]
-    if platform in {"both", "ios"}:
-        commands.append(upload_testflight_ios_command(
+    commands = [
+        sync_repo_command(branch),
+        upload_testflight_ios_command(
             internal_only,
             api_key_path=api_key_path,
             api_key_id=api_key_id,
             api_issuer_id=api_issuer_id,
-        ))
-    if platform in {"both", "macos"}:
-        commands.append(upload_testflight_macos_command(
+        ),
+        upload_testflight_macos_command(
             internal_only,
             api_key_path=api_key_path,
             api_key_id=api_key_id,
             api_issuer_id=api_issuer_id,
-        ))
+        ),
+    ]
     return " && ".join(commands)
 
 
@@ -2141,7 +2137,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Force-sync the remote checkout and upload latest iOS and macOS builds to TestFlight",
     )
     deploy_testflight_parser.add_argument("--branch", default="dev", help="Remote origin branch to deploy, default: dev")
-    deploy_testflight_parser.add_argument("--platform", choices=["both", "ios", "macos"], default="both")
     deploy_testflight_parser.add_argument(
         "--external-capable",
         action="store_true",
@@ -2300,7 +2295,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                     deploy_latest_testflight_command(
                         args.branch,
                         not args.external_capable,
-                        args.platform,
                         **api_options,
                     ),
                 ]),
