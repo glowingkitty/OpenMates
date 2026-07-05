@@ -1,0 +1,73 @@
+[
+  {
+    "id": "chat_follow_up_contact_details",
+    "description": "User pastes a normal work follow-up with name, launch date, account reference, email, and phone.",
+    "text": "Can you rewrite this follow-up? Hi Jordan, thanks for meeting today. The launch is scheduled for September 18, 2026, and the project file is 4829-1037-5581. Reply to Maya Chen at maya.chen@example.com or call +1 (415) 555-0124.",
+    "expected": [
+      { "label": "private_person", "text": "Jordan" },
+      { "label": "private_date", "text": "September 18, 2026" },
+      { "label": "account_number", "text": "4829-1037-5581" },
+      { "label": "private_person", "text": "Maya Chen" },
+      { "label": "private_email", "text": "maya.chen@example.com" },
+      { "label": "private_phone", "text": "+1 (415) 555-0124" }
+    ]
+  },
+  {
+    "id": "chat_home_address_delivery",
+    "description": "User asks for a delivery note containing a realistic home address and recipient.",
+    "text": "Please draft a message for courier support: the parcel for Emilia Rossi should be left with the concierge at 14 Rue Oberkampf, 75011 Paris, apartment 4B, because she is traveling tomorrow.",
+    "expected": [
+      { "label": "private_person", "text": "Emilia Rossi" },
+      { "label": "private_address", "text": "14 Rue Oberkampf, 75011 Paris, apartment 4B" },
+      { "label": "private_date", "text": "tomorrow" }
+    ]
+  },
+  {
+    "id": "chat_credentials_debugging",
+    "description": "User pastes credentials while asking for debugging help.",
+    "text": "Why does my deploy fail with OPENAI_API_KEY=sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz1234567890 and GitHub token ghp_1234567890abcdefghijklmnopqrstuvwx? The DB password is password=correct-horse-8842.",
+    "expected": [
+      { "label": "secret", "text": "sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz1234567890" },
+      { "label": "secret", "text": "ghp_1234567890abcdefghijklmnopqrstuvwx" },
+      { "label": "secret", "text": "correct-horse-8842" }
+    ]
+  },
+  {
+    "id": "chat_financial_numbers",
+    "description": "User requests help with a payment form containing bank and card numbers.",
+    "text": "Can you check this reimbursement form? IBAN DE89 3704 0044 0532 0130 00, card 4111 1111 1111 1111, invoice account AC-884201-77, payable to Noura Haddad.",
+    "expected": [
+      { "label": "account_number", "text": "DE89 3704 0044 0532 0130 00" },
+      { "label": "account_number", "text": "4111 1111 1111 1111" },
+      { "label": "account_number", "text": "AC-884201-77" },
+      { "label": "private_person", "text": "Noura Haddad" }
+    ]
+  },
+  {
+    "id": "chat_family_medical_context",
+    "description": "User includes family names and dates in a sensitive support message.",
+    "text": "Help me write a note to the clinic: my son Leo Martin, born 2018-03-12, had an appointment with Dr. Weber on Tuesday and I need the records sent to leo.parent@proton.me.",
+    "expected": [
+      { "label": "private_person", "text": "Leo Martin" },
+      { "label": "private_date", "text": "2018-03-12" },
+      { "label": "private_person", "text": "Dr. Weber" },
+      { "label": "private_date", "text": "Tuesday" },
+      { "label": "private_email", "text": "leo.parent@proton.me" }
+    ]
+  },
+  {
+    "id": "public_information_should_stay",
+    "description": "Public company and documentation references should not be over-redacted.",
+    "text": "Summarize the public OpenAI blog post at https://openai.com/index/introducing-openai-privacy-filter/ and compare it with the Hugging Face model card. The article was published in April 2026.",
+    "expected": []
+  },
+  {
+    "id": "chat_mixed_local_machine_details",
+    "description": "User pastes shell output with local username, host, IP, and private key header.",
+    "text": "My terminal shows alex@mbp-dev:~/Projects/OpenMates and the staging box is 203.0.113.42. The file starts with -----BEGIN OPENSSH PRIVATE KEY----- and I accidentally pasted it into chat.",
+    "expected": [
+      { "label": "secret", "text": "alex@mbp-dev" },
+      { "label": "secret", "text": "-----BEGIN OPENSSH PRIVATE KEY-----" }
+    ]
+  }
+]
