@@ -19,10 +19,10 @@ final class ChatManagementSharingParityTests: XCTestCase {
         XCTAssertEqual(
             typesAndTitles,
             [
-                "org.openmates.ask|Ask",
-                "org.openmates.ask-about-photo|Ask About Photo",
-                "org.openmates.search|Search",
-                "org.openmates.incognito-ask|Incognito Ask"
+                "org.openmates.ask|\(AppStrings.quickActionAsk)",
+                "org.openmates.ask-about-photo|\(AppStrings.quickActionAskAboutPhoto)",
+                "org.openmates.search|\(AppStrings.search)",
+                "org.openmates.incognito-ask|\(AppStrings.quickActionIncognitoAsk)"
             ]
         )
 
