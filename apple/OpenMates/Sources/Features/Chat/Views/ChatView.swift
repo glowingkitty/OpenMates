@@ -312,6 +312,7 @@ struct ChatView: View {
                 viewModel.seedUITestPendingComposerEmbed()
             }
             if ProcessInfo.processInfo.arguments.contains("--ui-test-seed-pii-composer-text") {
+                piiPrivacySettingsStore.update(.enabled)
                 messageText = "Email alice@example.com and call +49 170 1234567"
                 updatePIIMatches(for: messageText)
             }
