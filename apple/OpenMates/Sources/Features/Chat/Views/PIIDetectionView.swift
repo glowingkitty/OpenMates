@@ -595,6 +595,7 @@ struct PIIWarningBanner: View {
                     .stroke(Color.warning.opacity(0.3), lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: .radius3))
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("pii-warning-banner")
         }
     }
@@ -634,6 +635,7 @@ struct PIIHighlightStrip: View {
                 }
                 .padding(.horizontal, .spacing2)
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("pii-highlights")
         }
     }
