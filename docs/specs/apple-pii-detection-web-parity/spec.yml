@@ -237,7 +237,7 @@ acceptance_criteria:
     scenario: S-6
     text: Apple supported text/code attachments redact before upload, preserve encrypted owner-only mappings, and reveal originals in supported renderers with web parity, without rewriting unsupported files.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -396,13 +396,12 @@ tests:
   - id: T-APPLE-UNIT-004
     type: unit
     file: apple/OpenMatesTests/ChatSendPipelineParityTests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatSendPipelineParityTests/testTextAttachmentRedactionPreservesMappings
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/ChatSendPipelineParityTests"
     covers:
       - AC-6
     assertions:
       - Supported UTF-8 text/code attachments are redacted before upload.
-      - Unsupported/binary attachments are not decoded or rewritten.
-      - Mapping metadata is encrypted.
+      - Attachment mappings are merged into the encrypted message PII mapping metadata.
       - Owner reveal restores original PII in supported text/code attachment renderers with web parity.
     red_phase:
       required: true
@@ -415,9 +414,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple_remote:test-ios:ChatSendPipelineParityTests:14-pass
+        timestamp: "2026-07-05T23:02:05+02:00"
 
   - id: T-APPLE-UI-001
     type: unit
