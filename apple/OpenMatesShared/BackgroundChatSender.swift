@@ -59,7 +59,7 @@ enum BackgroundChatHTTPContract {
     }
 }
 
-struct BackgroundAttachmentClassification: Equatable {
+struct BackgroundAttachmentClassification: Equatable, Sendable {
     let embedType: String
     let referenceType: String
     let status: String
@@ -129,7 +129,7 @@ enum BackgroundAttachmentClassifier {
     }
 }
 
-struct BackgroundUploadedFileVariant: Decodable {
+struct BackgroundUploadedFileVariant: Decodable, Sendable {
     let s3Key: String
     let sizeBytes: Int?
     let width: Int?
@@ -137,7 +137,7 @@ struct BackgroundUploadedFileVariant: Decodable {
     let format: String?
 }
 
-struct BackgroundUploadFileResponse: Decodable {
+struct BackgroundUploadFileResponse: Decodable, Sendable {
     let embedId: String
     let filename: String
     let contentType: String
@@ -151,7 +151,7 @@ struct BackgroundUploadFileResponse: Decodable {
     let deduplicated: Bool?
 }
 
-struct BackgroundAudioTranscriptionMetadata: Equatable {
+struct BackgroundAudioTranscriptionMetadata: Equatable, Sendable {
     let transcript: String?
     let transcriptOriginal: String?
     let transcriptCorrected: String?
@@ -160,7 +160,7 @@ struct BackgroundAudioTranscriptionMetadata: Equatable {
     let model: String?
 }
 
-struct BackgroundPreparedEmbed: Identifiable {
+struct BackgroundPreparedEmbed: Identifiable, @unchecked Sendable {
     let id: String
     let type: String
     let referenceType: String
@@ -264,7 +264,7 @@ enum BackgroundChatSendContract {
 }
 
 actor BackgroundChatSender {
-    struct DestinationChat: Identifiable, Decodable {
+    struct DestinationChat: Identifiable, Decodable, Sendable {
         let id: String
         var title: String?
         let lastMessageAt: String?
@@ -368,7 +368,7 @@ actor BackgroundChatSender {
         }
     }
 
-    struct SendRequest {
+    struct SendRequest: Sendable {
         let content: String
         let destination: DestinationChat?
         let embeds: [BackgroundPreparedEmbed]
@@ -380,7 +380,7 @@ actor BackgroundChatSender {
         }
     }
 
-    struct SendResult {
+    struct SendResult: Sendable {
         let chatId: String
         let messageId: String
     }

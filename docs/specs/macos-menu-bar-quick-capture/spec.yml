@@ -583,11 +583,11 @@ verifications:
       - AC-3
       - AC-5
       - AC-6
-    status: pending
+    status: blocked
     evidence:
-      status: ""
-      summary: "python3 scripts/apple_remote.py status plus build/test evidence"
-      timestamp: ""
+      status: "ssh_failed"
+      summary: "python3 scripts/apple_remote.py status returned ssh_reachable=False after commit 27a9169 was pushed; Apple build/test verification must be retried when the Mac is reachable."
+      timestamp: "2026-07-05T16:46:38Z"
 
   - id: V-TESTFLIGHT-001
     kind: manual_check
@@ -595,11 +595,11 @@ verifications:
     required_for_done: true
     covers:
       - AC-8
-    status: pending
+    status: blocked
     evidence:
-      status: ""
-      summary: "Deploy to TestFlight only after spec_verify passes or explicit user waiver/blocker is recorded."
-      timestamp: ""
+      status: "blocked"
+      summary: "TestFlight is intentionally held because Apple build/test verification is blocked by ssh_failed."
+      timestamp: "2026-07-05T16:46:38Z"
 
 implementation_plan:
   existing_patterns:
