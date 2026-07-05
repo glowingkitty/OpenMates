@@ -75,17 +75,21 @@ final class BackgroundChatSenderParityTests: XCTestCase {
     }
 
     func testBackgroundSendsRedactPII() throws {
+        let openAIKey = "sk-proj-abcdefghijklmnopqrstuvwxyz1234567890"
         let result = try BackgroundChatSendContract.redactedContentForSend(
-            text: "Summarize for max@posteo.de and call +49 170 1234567",
+            text: "Summarize for max@posteo.de, call +49 170 1234567, and use \(openAIKey)",
             embeds: []
         )
 
         XCTAssertFalse(result.content.contains("max@posteo.de"))
         XCTAssertFalse(result.content.contains("+49 170 1234567"))
+        XCTAssertFalse(result.content.contains(openAIKey))
         XCTAssertTrue(result.content.contains("[EMAIL_"))
         XCTAssertTrue(result.content.contains("[PHONE_"))
-        XCTAssertEqual(result.piiMappings.count, 2)
+        XCTAssertTrue(result.content.contains("[OPENAI_KEY_"))
+        XCTAssertEqual(result.piiMappings.count, 3)
         XCTAssertTrue(result.piiMappings.contains { $0.original == "max@posteo.de" && $0.type == "EMAIL" })
+        XCTAssertTrue(result.piiMappings.contains { $0.original == openAIKey && $0.type == "OPENAI_KEY" })
     }
 
     func testQueuedBackgroundEventDoesNotTriggerEncryptedStoragePackage() {

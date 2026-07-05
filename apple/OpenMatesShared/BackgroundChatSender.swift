@@ -17,10 +17,43 @@ struct BackgroundChatStoragePayload {
     let titleV: Int
     let taskId: String
     let encryptedSenderName: String
+    let encryptedPIIMappings: String?
     let encryptedTitle: String?
     let encryptedIcon: String?
     let encryptedChatCategory: String?
     let encryptedUserCategory: String?
+
+    init(
+        chatId: String,
+        messageId: String,
+        encryptedContent: String,
+        createdAtUnix: Int,
+        encryptedChatKey: String,
+        messagesV: Int,
+        titleV: Int,
+        taskId: String,
+        encryptedSenderName: String,
+        encryptedPIIMappings: String? = nil,
+        encryptedTitle: String? = nil,
+        encryptedIcon: String? = nil,
+        encryptedChatCategory: String? = nil,
+        encryptedUserCategory: String? = nil
+    ) {
+        self.chatId = chatId
+        self.messageId = messageId
+        self.encryptedContent = encryptedContent
+        self.createdAtUnix = createdAtUnix
+        self.encryptedChatKey = encryptedChatKey
+        self.messagesV = messagesV
+        self.titleV = titleV
+        self.taskId = taskId
+        self.encryptedSenderName = encryptedSenderName
+        self.encryptedPIIMappings = encryptedPIIMappings
+        self.encryptedTitle = encryptedTitle
+        self.encryptedIcon = encryptedIcon
+        self.encryptedChatCategory = encryptedChatCategory
+        self.encryptedUserCategory = encryptedUserCategory
+    }
 
     var dictionary: [String: Any] {
         var payload: [String: Any] = [
@@ -37,12 +70,24 @@ struct BackgroundChatStoragePayload {
             "task_id": taskId,
             "encrypted_sender_name": encryptedSenderName
         ]
+        if let encryptedPIIMappings { payload["encrypted_pii_mappings"] = encryptedPIIMappings }
         if let encryptedTitle { payload["encrypted_title"] = encryptedTitle }
         if let encryptedIcon { payload["encrypted_icon"] = encryptedIcon }
         if let encryptedChatCategory { payload["encrypted_chat_category"] = encryptedChatCategory }
         if let encryptedUserCategory { payload["encrypted_category"] = encryptedUserCategory }
         return payload
     }
+}
+
+struct BackgroundPIIMapping: Codable, Equatable, Sendable {
+    let placeholder: String
+    let original: String
+    let type: String
+}
+
+struct BackgroundPIIRedactionResult: Equatable, Sendable {
+    let content: String
+    let piiMappings: [BackgroundPIIMapping]
 }
 
 enum BackgroundChatStorageContract {
@@ -253,6 +298,60 @@ struct BackgroundPreparedEmbed: Identifiable, @unchecked Sendable {
 }
 
 enum BackgroundChatSendContract {
+    private struct Pattern: Sendable {
+        let type: String
+        let expression: NSRegularExpression
+        let placeholderPrefix: String
+        let validator: (@Sendable (String) -> Bool)?
+
+        init(_ type: String, _ pattern: String, placeholderPrefix: String, options: NSRegularExpression.Options = [], validator: (@Sendable (String) -> Bool)? = nil) throws {
+            self.type = type
+            self.expression = try NSRegularExpression(pattern: pattern, options: options)
+            self.placeholderPrefix = placeholderPrefix
+            self.validator = validator
+        }
+    }
+
+    private static let patterns: [Pattern] = {
+        do {
+            return [
+                try Pattern("AWS_ACCESS_KEY", #"\bAKIA[0-9A-Z]{16}\b"#, placeholderPrefix: "AWS_KEY"),
+                try Pattern("OPENAI_KEY", #"\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,200}\b"#, placeholderPrefix: "OPENAI_KEY"),
+                try Pattern("ANTHROPIC_KEY", #"\bsk-ant-api03-[A-Za-z0-9_-]{90,110}\b"#, placeholderPrefix: "ANTHROPIC_KEY"),
+                try Pattern("GITHUB_PAT", #"\b(?:ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9]{22}_[A-Za-z0-9]{59}|gho_[A-Za-z0-9]{36})\b"#, placeholderPrefix: "GITHUB_TOKEN"),
+                try Pattern("STRIPE_KEY", #"\b[sr]k_(?:live|test)_[0-9a-zA-Z]{24,99}\b"#, placeholderPrefix: "STRIPE_KEY"),
+                try Pattern("GOOGLE_API_KEY", #"\bAIza[0-9A-Za-z\-_]{35}\b"#, placeholderPrefix: "GOOGLE_KEY"),
+                try Pattern("SLACK_TOKEN", #"\bxox[bpras]-[0-9a-zA-Z-]{10,250}\b"#, placeholderPrefix: "SLACK_TOKEN"),
+                try Pattern("AWS_SECRET_KEY", #"(?:aws_secret|secret_key|secretkey|secret_access_key)['\":\s=]+([0-9a-zA-Z/+=]{40})\b"#, placeholderPrefix: "AWS_SECRET", options: [.caseInsensitive]),
+                try Pattern("TWILIO_KEY", #"\b(?:AC[a-f0-9]{32}|SK[a-f0-9]{32})\b"#, placeholderPrefix: "TWILIO_KEY"),
+                try Pattern("SENDGRID_KEY", #"\bSG\.[a-zA-Z0-9_-]{22}\.[a-zA-Z0-9_-]{43}\b"#, placeholderPrefix: "SENDGRID_KEY"),
+                try Pattern("AZURE_KEY", #"(?:azure|subscription|ocp-apim)[_-]?(?:key|secret|token)['\":\s=]+([0-9a-f]{32})\b"#, placeholderPrefix: "AZURE_KEY", options: [.caseInsensitive]),
+                try Pattern("HUGGINGFACE_KEY", #"\bhf_[a-zA-Z0-9]{34,}\b"#, placeholderPrefix: "HF_TOKEN"),
+                try Pattern("DATABRICKS_TOKEN", #"\bdapi[a-f0-9]{32,40}\b"#, placeholderPrefix: "DATABRICKS_TOKEN"),
+                try Pattern("FIREBASE_KEY", #"\bAAAA[A-Za-z0-9_-]{100,200}\b"#, placeholderPrefix: "FIREBASE_KEY"),
+                try Pattern("GENERIC_SECRET", #"(?:api[_-]?key|api[_-]?secret|secret[_-]?key|auth[_-]?token|access[_-]?token|bearer[_-]?token|private[_-]?key|password|passwd|credential|client[_-]?secret|app[_-]?secret|signing[_-]?key|encryption[_-]?key)['\":\s=]+['\"]?([A-Za-z0-9_\-/.+=]{8,200})['\"]?"#, placeholderPrefix: "SECRET", options: [.caseInsensitive]),
+                try Pattern("PRIVATE_KEY", #"-----BEGIN (?:RSA |DSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |DSA |EC |OPENSSH |ENCRYPTED )?PRIVATE KEY-----"#, placeholderPrefix: "PRIVATE_KEY"),
+                try Pattern("JWT", #"\beyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+"#, placeholderPrefix: "JWT_TOKEN"),
+                try Pattern("EMAIL", #"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b"#, placeholderPrefix: "EMAIL", options: [.caseInsensitive]),
+                try Pattern("CREDIT_CARD", #"\b(?:4[0-9]{3}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|5[1-5][0-9]{2}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|3[47][0-9]{2}[-\s]?[0-9]{6}[-\s]?[0-9]{5}|6(?:011|5[0-9]{2})[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4})\b"#, placeholderPrefix: "CARD", validator: luhnCheck),
+                try Pattern("SSN", #"\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b"#, placeholderPrefix: "SSN", validator: ssnCheck),
+                try Pattern("PHONE", #"(?:(?:\+|00)[1-9]\d{0,2}[-.\s/]?(?:\(?\d{1,5}\)?[-.\s/]?){1,4}\d{2,4})|(?:\+?1[-.\s]?)?\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}|(?:0\d[-.\s/]?(?:\(?\d{1,5}\)?[-.\s/]?){1,4}\d{2,4})"#, placeholderPrefix: "PHONE", validator: phoneCheck),
+                try Pattern("IPV4", #"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b"#, placeholderPrefix: "IP", validator: publicIPv4Check),
+                try Pattern("IPV6", #"\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b"#, placeholderPrefix: "IPV6"),
+                try Pattern("IBAN", #"\b[A-Z]{2}\d{2}[\s]?[\dA-Z]{4}[\s]?(?:[\dA-Z]{4}[\s]?){1,7}[\dA-Z]{1,4}\b"#, placeholderPrefix: "IBAN", validator: ibanCheck),
+                try Pattern("HOME_FOLDER", #"(?:/home/|/Users/|[A-Z]:\\Users\\)[a-zA-Z0-9_.-]{1,64}(?=[/\\]|\b)|PS [A-Z]:\\Users\\[a-zA-Z0-9_.-]{1,64}(?=[\\>]|\b)|PS /(?:home|Users)/[a-zA-Z0-9_.-]{1,64}(?=[/>]|\b)"#, placeholderPrefix: "HOME_PATH", validator: homeFolderCheck),
+                try Pattern("USER_AT_HOSTNAME", #"\b[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,31}@[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,63}(?=[\s:~])"#, placeholderPrefix: "USER_HOST", validator: userAtHostnameCheck),
+                try Pattern("MAC_ADDRESS", #"\b(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\b"#, placeholderPrefix: "MAC", validator: macAddressCheck),
+                try Pattern("PASSPORT", #"(?:passport|reisepass|passeport|pass(?:port)?[\s._-]?(?:no|nr|num(?:ber)?|#))[:\s#=]*([A-Z0-9]{6,9})\b"#, placeholderPrefix: "PASSPORT", options: [.caseInsensitive]),
+                try Pattern("TAX_ID", #"\b(?:AT ?U\d{8}|BE ?0?\d{9,10}|BG ?\d{9,10}|HR ?\d{11}|CY ?\d{8}[A-Z]|CZ ?\d{8,10}|DK ?\d{8}|EE ?\d{9}|FI ?\d{8}|FR ?[0-9A-Z]{2}\d{9}|DE ?\d{9}|EL ?\d{9}|HU ?\d{8}|IE ?\d{7}[A-Z]{1,2}|IT ?\d{11}|LV ?\d{11}|LT ?\d{9,12}|LU ?\d{8}|MT ?\d{8}|NL ?\d{9}B\d{2}|PL ?\d{10}|PT ?\d{9}|RO ?\d{2,10}|SK ?\d{10}|SI ?\d{8}|ES ?[A-Z0-9]\d{7}[A-Z0-9]|SE ?\d{12}|GB ?\d{9}(?:\d{3})?)\b|(?:tax[\s_-]?(?:id|number|no|nr)|steuer(?:nummer|identifikationsnummer|nr|ident(?:nummer)?)|tin[\s_-]?(?:number|no|nr)|vat[\s_-]?(?:id|number|no|nr)|tax[\s_-]?identification(?:[\s_-]?number)?)[:\s#=]+([A-Z0-9\s/-]{5,20})"#, placeholderPrefix: "TAX_ID", options: [.caseInsensitive]),
+                try Pattern("VEHICLE_PLATE", #"(?:license[\s_-]?plate|plate[\s_-]?(?:number|no|nr)|kennzeichen|nummernschild|kfz[\s_-]?kennzeichen|immatriculation|registration[\s_-]?(?:number|no|nr|plate)|vrm|numberplate)[:\s#=]*([A-Z0-9]{1,4}[\s-]?[A-Z0-9]{1,4}[\s-]?[A-Z0-9]{1,6})\b"#, placeholderPrefix: "PLATE", options: [.caseInsensitive]),
+                try Pattern("CRYPTO_WALLET", #"\b(?:bc1[a-z0-9]{25,87}|[13][a-km-zA-HJ-NP-Z1-9]{25,34}|0x[0-9a-fA-F]{40})\b"#, placeholderPrefix: "WALLET")
+            ]
+        } catch {
+            fatalError("Invalid background PII detector regex: \(error)")
+        }
+    }()
+
     static func contentForSend(text: String, embeds: [BackgroundPreparedEmbed]) throws -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty || !embeds.isEmpty else { throw BackgroundChatSendError.emptyMessage }
@@ -260,6 +359,138 @@ enum BackgroundChatSendContract {
         if trimmed.isEmpty { return references }
         if references.isEmpty { return trimmed }
         return "\(trimmed)\n\n\(references)"
+    }
+
+    static func redactedContentForSend(text: String, embeds: [BackgroundPreparedEmbed]) throws -> BackgroundPIIRedactionResult {
+        let content = try contentForSend(text: text, embeds: embeds)
+        return redactPII(in: content)
+    }
+
+    private static func redactPII(in text: String) -> BackgroundPIIRedactionResult {
+        let nsText = text as NSString
+        let fullRange = NSRange(location: 0, length: nsText.length)
+        var occupied: [NSRange] = []
+        var counters: [String: Int] = [:]
+        var replacements: [(range: NSRange, mapping: BackgroundPIIMapping)] = []
+
+        for pattern in patterns {
+            pattern.expression.enumerateMatches(in: text, options: [], range: fullRange) { result, _, _ in
+                guard let result else { return }
+                let range = result.range(at: result.numberOfRanges > 1 && result.range(at: 1).location != NSNotFound ? 1 : 0)
+                guard range.location != NSNotFound, range.length > 0 else { return }
+                guard !occupied.contains(where: { NSIntersectionRange($0, range).length > 0 }) else { return }
+                let value = nsText.substring(with: range)
+                if let validator = pattern.validator, !validator(value) { return }
+                let count = (counters[pattern.type] ?? 0) + 1
+                counters[pattern.type] = count
+                let placeholder = "[\(pattern.placeholderPrefix)_\(count)_\(suffix(value))]"
+                occupied.append(range)
+                replacements.append((
+                    range,
+                    BackgroundPIIMapping(placeholder: placeholder, original: value, type: pattern.type)
+                ))
+            }
+        }
+
+        let mutable = NSMutableString(string: text)
+        for replacement in replacements.sorted(by: { $0.range.location > $1.range.location }) {
+            mutable.replaceCharacters(in: replacement.range, with: replacement.mapping.placeholder)
+        }
+        return BackgroundPIIRedactionResult(
+            content: mutable as String,
+            piiMappings: replacements.sorted { $0.range.location < $1.range.location }.map(\.mapping)
+        )
+    }
+
+    private static func suffix(_ value: String) -> String {
+        let cleaned = value.trimmingCharacters(in: CharacterSet(charactersIn: "'\"; \n\t"))
+        return String(cleaned.suffix(3))
+    }
+
+    private static func luhnCheck(_ value: String) -> Bool {
+        let digits = value.compactMap(\.wholeNumberValue)
+        guard (13...19).contains(digits.count) else { return false }
+        var sum = 0
+        var doubleDigit = false
+        for digit in digits.reversed() {
+            var value = digit
+            if doubleDigit {
+                value *= 2
+                if value > 9 { value -= 9 }
+            }
+            sum += value
+            doubleDigit.toggle()
+        }
+        return sum % 10 == 0
+    }
+
+    private static func ssnCheck(_ value: String) -> Bool {
+        let digits = value.compactMap(\.wholeNumberValue)
+        guard digits.count == 9 else { return false }
+        let area = digits[0] * 100 + digits[1] * 10 + digits[2]
+        let group = digits[3] * 10 + digits[4]
+        let serial = digits[5] * 1000 + digits[6] * 100 + digits[7] * 10 + digits[8]
+        return area != 0 && area != 666 && area < 900 && group != 0 && serial != 0
+    }
+
+    private static func phoneCheck(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let digits = trimmed.compactMap(\.wholeNumberValue)
+        guard (7...15).contains(digits.count) else { return false }
+        if matches(#"^\d{4}$"#, trimmed) { return false }
+        if matches(#"^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$"#, trimmed) { return false }
+        if matches(#"^\d{1,2}[-/.]\d{1,2}[-/.]\d{4}$"#, trimmed) { return false }
+        if matches(#"^(?:19|20)\d{6}$"#, trimmed) { return false }
+        if matches(#"^0\d{1,2}[-/.]\d{1,2}[-/.]\d{1,2}$"#, trimmed) { return false }
+        return true
+    }
+
+    private static func publicIPv4Check(_ value: String) -> Bool {
+        if value == "127.0.0.1" || value == "0.0.0.0" { return false }
+        if value.hasPrefix("192.168.") || value.hasPrefix("10.") || value.hasPrefix("172.") { return false }
+        return true
+    }
+
+    private static func ibanCheck(_ value: String) -> Bool {
+        let cleaned = value.replacingOccurrences(of: " ", with: "").uppercased()
+        guard (15...34).contains(cleaned.count) else { return false }
+        let rearranged = String(cleaned.dropFirst(4)) + String(cleaned.prefix(4))
+        var remainder = 0
+        for scalar in rearranged.unicodeScalars {
+            let digits: String
+            if CharacterSet.uppercaseLetters.contains(scalar) {
+                digits = String(Int(scalar.value) - 55)
+            } else {
+                digits = String(scalar)
+            }
+            for digit in digits.compactMap(\.wholeNumberValue) {
+                remainder = (remainder * 10 + digit) % 97
+            }
+        }
+        return remainder == 1
+    }
+
+    private static func homeFolderCheck(_ value: String) -> Bool {
+        let cleaned = value.replacingOccurrences(of: #"^(?:PS\s+)?(?:/home/|/Users/|[A-Z]:\\Users\\)"#, with: "", options: .regularExpression).lowercased()
+        let username = cleaned.split(whereSeparator: { $0 == "/" || $0 == "\\" || $0 == ">" }).first.map(String.init) ?? cleaned
+        return !["root", "admin", "shared", "public", "default", "guest", "nobody", "daemon", "www-data", "ubuntu"].contains(username)
+    }
+
+    private static func userAtHostnameCheck(_ value: String) -> Bool {
+        let parts = value.lowercased().split(separator: "@", maxSplits: 1).map(String.init)
+        guard parts.count == 2 else { return false }
+        if ["github.com", "gitlab.com", "bitbucket.org", "ssh.dev.azure.com"].contains(parts[1]) { return false }
+        return !["root", "admin", "guest", "nobody", "daemon", "www-data", "noreply", "no-reply", "git", "svn", "user", "test", "ubuntu"].contains(parts[0])
+    }
+
+    private static func macAddressCheck(_ value: String) -> Bool {
+        let normalized = value.replacingOccurrences(of: ":", with: "").replacingOccurrences(of: "-", with: "").uppercased()
+        return normalized != "000000000000" && normalized != "FFFFFFFFFFFF"
+    }
+
+    private static func matches(_ pattern: String, _ text: String) -> Bool {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
+        return regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
     }
 }
 
@@ -534,7 +765,8 @@ actor BackgroundChatSender {
     }
 
     func send(_ request: SendRequest) async throws -> SendResult {
-        let sendContent = try BackgroundChatSendContract.contentForSend(text: request.content, embeds: request.embeds)
+        let redactionResult = try BackgroundChatSendContract.redactedContentForSend(text: request.content, embeds: request.embeds)
+        let sendContent = redactionResult.content
 
         let auth = try await currentAuthenticatedUser()
         let now = Date()
@@ -547,6 +779,7 @@ actor BackgroundChatSender {
             userId: auth.userId
         )
         let encryptedContent = try await crypto.encryptContent(sendContent, key: keyMaterial.key)
+        let encryptedPIIMappings = try await encryptPIIMappings(redactionResult.piiMappings, key: keyMaterial.key)
         let encryptedEmbedPayloads = try await encryptedEmbeds(
             request.embeds,
             chatId: chatId,
@@ -583,6 +816,9 @@ actor BackgroundChatSender {
         if !encryptedEmbedPayloads.isEmpty {
             outboundPayload["encrypted_embeds"] = encryptedEmbedPayloads
         }
+        if let encryptedPIIMappings {
+            outboundPayload["encrypted_pii_mappings"] = encryptedPIIMappings
+        }
 
         try await ws.sendText(webSocketText(type: "chat_message_added", payload: outboundPayload))
 
@@ -596,6 +832,7 @@ actor BackgroundChatSender {
                 createdAtUnix: createdAtUnix,
                 encryptedChatKey: storage.metadata.encryptedChatKey ?? keyMaterial.encryptedChatKey,
                 key: keyMaterial.key,
+                encryptedPIIMappings: encryptedPIIMappings,
                 taskId: storage.taskId,
                 metadata: storage.metadata,
                 isNewChat: request.destination == nil || (request.destination?.titleV ?? 0) == 0,
@@ -760,6 +997,7 @@ actor BackgroundChatSender {
         createdAtUnix: Int,
         encryptedChatKey: String,
         key: SymmetricKey,
+        encryptedPIIMappings: String?,
         taskId: String,
         metadata: ChatMetadata,
         isNewChat: Bool,
@@ -783,6 +1021,7 @@ actor BackgroundChatSender {
             titleV: encryptedTitle == nil ? currentTitleV : currentTitleV + 1,
             taskId: taskId,
             encryptedSenderName: encryptedSenderName,
+            encryptedPIIMappings: encryptedPIIMappings,
             encryptedTitle: encryptedTitle,
             encryptedIcon: encryptedIcon,
             encryptedChatCategory: encryptedChatCategory,
@@ -933,6 +1172,13 @@ actor BackgroundChatSender {
     private func encryptOptional(_ value: String?, key: SymmetricKey) async throws -> String? {
         guard let value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         return try await crypto.encryptContent(value, key: key)
+    }
+
+    private func encryptPIIMappings(_ mappings: [BackgroundPIIMapping], key: SymmetricKey) async throws -> String? {
+        guard !mappings.isEmpty else { return nil }
+        let data = try JSONEncoder().encode(mappings)
+        guard let json = String(data: data, encoding: .utf8) else { return nil }
+        return try await crypto.encryptContent(json, key: key)
     }
 
     private func preferredIcon(from iconNames: [String], category: String?) -> String {
