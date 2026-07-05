@@ -7,8 +7,10 @@
 -->
 
 <script lang="ts">
+  import { onMount } from 'svelte';
   import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
   import { getContinueGradientColors, getResumeCardGradientStyle } from '../activeChatUtils';
+  import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
 
   type WorkspaceSurface = 'chats' | 'projects' | 'workflows' | 'tasks' | 'plans';
@@ -54,6 +56,10 @@
 
   let containerWidth = $state(0);
   const ChevronRight = getLucideIcon('chevron-right');
+
+  onMount(() => {
+    void loadDefaultInspirations({ surface, allowIndexedDB: false });
+  });
 
   function handleStartInspiration(inspiration: WorkspaceInspiration): void {
     onStartInspiration?.(inspiration);
