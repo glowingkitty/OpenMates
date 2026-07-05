@@ -134,6 +134,52 @@ describe("OpenMatesClient workflows", () => {
     );
   });
 
+  it("manages durable workflow input sessions", async () => {
+    await withServer(
+      (request, body) => {
+        if (request.url === "/v1/workflows/input" && request.method === "POST") {
+          assert.deepEqual(body, { text: "alert me if it rains", input_type: "text", selected_project_id: "project-1" });
+          return { session: { session_id: "session-1", status: "executed", event_cursor: 4, undo_available: true } };
+        }
+        if (request.url === "/v1/workflows/input/session-1" && request.method === "GET") {
+          return { session: { session_id: "session-1", status: "executed", event_cursor: 4, undo_available: true, events: [] } };
+        }
+        if (request.url === "/v1/workflows/input/session-1/events?after_event_id=2") {
+          return { events: [{ id: "event-3", session_id: "session-1", event_id: 3, type: "validation_passed", status: "ok", redacted_summary: "object:0", created_at: 1 }] };
+        }
+        if (request.url === "/v1/workflows/input/session-1/follow-up") {
+          assert.deepEqual(body, { text: "weekdays only" });
+          return { session: { session_id: "session-1", status: "executed", event_cursor: 7, undo_available: true } };
+        }
+        if (request.url === "/v1/workflows/input/session-1/stop") {
+          return { session: { session_id: "session-1", status: "stopped", event_cursor: 8, undo_available: true } };
+        }
+        if (request.url === "/v1/workflows/input/session-1/undo") {
+          return { session: { session_id: "session-1", status: "undone", event_cursor: 9, undo_available: false } };
+        }
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+        assert.equal((await client.startWorkflowInput({ text: "alert me if it rains", selectedProjectId: "project-1" })).session_id, "session-1");
+        assert.equal((await client.getWorkflowInputSession("session-1")).status, "executed");
+        assert.equal((await client.listWorkflowInputEvents("session-1", 2))[0]?.type, "validation_passed");
+        assert.equal((await client.followUpWorkflowInput("session-1", "weekdays only")).event_cursor, 7);
+        assert.equal((await client.stopWorkflowInput("session-1")).status, "stopped");
+        assert.equal((await client.undoWorkflowInput("session-1")).status, "undone");
+
+        assert.deepEqual(seen.map((request) => [request.method, request.url]), [
+          ["POST", "/v1/workflows/input"],
+          ["GET", "/v1/workflows/input/session-1"],
+          ["GET", "/v1/workflows/input/session-1/events?after_event_id=2"],
+          ["POST", "/v1/workflows/input/session-1/follow-up"],
+          ["POST", "/v1/workflows/input/session-1/stop"],
+          ["POST", "/v1/workflows/input/session-1/undo"],
+        ]);
+      },
+    );
+  });
+
   it("requires a CLI session before workflow calls", async () => {
     const originalHome = process.env.HOME;
     const tempHome = mkdtempSync(join(tmpdir(), "openmates-cli-workflows-no-session-"));

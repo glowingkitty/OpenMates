@@ -441,6 +441,8 @@ describe("workflows command", () => {
     assert.match(runCli(["help"]), /openmates workflows \[--help\]/);
     const output = runCli(["workflows", "--help"]);
     assert.match(output, /openmates workflows list \[--json\]/);
+    assert.match(output, /openmates workflows input <text>/);
+    assert.match(output, /openmates workflows input-follow-up <session-id> <text>/);
     assert.match(output, /openmates workflows run <workflow-id>/);
   });
 });

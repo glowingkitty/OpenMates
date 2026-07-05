@@ -420,6 +420,44 @@ export interface WorkflowRunDetail {
   output_summary?: Record<string, unknown>;
 }
 
+export type WorkflowInputType = "text" | "audio";
+
+export interface WorkflowInputStartParams {
+  text?: string | null;
+  inputType?: WorkflowInputType;
+  audioRef?: Record<string, unknown> | null;
+  selectedWorkflowId?: string | null;
+  selectedProjectId?: string | null;
+}
+
+export interface WorkflowInputEvent {
+  id: string;
+  session_id: string;
+  event_id: number;
+  type: string;
+  status: string;
+  redacted_summary: string;
+  payload?: Record<string, unknown>;
+  created_at: number;
+}
+
+export interface WorkflowInputSessionResult {
+  session_id: string;
+  status: string;
+  event_cursor: number;
+  message?: string | null;
+  error?: string | null;
+  workflow?: WorkflowDetail | null;
+  project_item?: Record<string, unknown> | null;
+  undo_available: boolean;
+}
+
+export interface WorkflowInputSessionDetail extends WorkflowInputSessionResult {
+  events: WorkflowInputEvent[];
+  draft_graph?: Record<string, unknown> | null;
+  mutations?: Array<Record<string, unknown>>;
+}
+
 export interface WorkflowCapability {
   type: "node" | "app_skill" | "workflow";
   id: string;
@@ -4515,6 +4553,88 @@ export class OpenMatesClient {
       throw new Error(`Workflow capabilities failed with HTTP ${response.status}`);
     }
     return response.data.capabilities ?? [];
+  }
+
+  async startWorkflowInput(params: WorkflowInputStartParams): Promise<WorkflowInputSessionResult> {
+    this.requireSession();
+    const response = await this.http.post<{ session?: WorkflowInputSessionResult }>(
+      "/v1/workflows/input",
+      {
+        ...(params.text !== undefined ? { text: params.text } : {}),
+        input_type: params.inputType ?? "text",
+        ...(params.audioRef !== undefined ? { audio_ref: params.audioRef } : {}),
+        ...(params.selectedWorkflowId !== undefined ? { selected_workflow_id: params.selectedWorkflowId } : {}),
+        ...(params.selectedProjectId !== undefined ? { selected_project_id: params.selectedProjectId } : {}),
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.session) {
+      throw new Error(`Workflow input start failed with HTTP ${response.status}`);
+    }
+    return response.data.session;
+  }
+
+  async getWorkflowInputSession(sessionId: string): Promise<WorkflowInputSessionDetail> {
+    this.requireSession();
+    const response = await this.http.get<{ session?: WorkflowInputSessionDetail }>(
+      `/v1/workflows/input/${encodeURIComponent(sessionId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.session) {
+      throw new Error(`Workflow input session get failed with HTTP ${response.status}`);
+    }
+    return response.data.session;
+  }
+
+  async listWorkflowInputEvents(sessionId: string, afterEventId = 0): Promise<WorkflowInputEvent[]> {
+    this.requireSession();
+    const response = await this.http.get<{ events?: WorkflowInputEvent[] }>(
+      `/v1/workflows/input/${encodeURIComponent(sessionId)}/events?after_event_id=${encodeURIComponent(String(afterEventId))}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow input events failed with HTTP ${response.status}`);
+    }
+    return response.data.events ?? [];
+  }
+
+  async followUpWorkflowInput(sessionId: string, text: string): Promise<WorkflowInputSessionResult> {
+    this.requireSession();
+    const response = await this.http.post<{ session?: WorkflowInputSessionResult }>(
+      `/v1/workflows/input/${encodeURIComponent(sessionId)}/follow-up`,
+      { text },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.session) {
+      throw new Error(`Workflow input follow-up failed with HTTP ${response.status}`);
+    }
+    return response.data.session;
+  }
+
+  async stopWorkflowInput(sessionId: string): Promise<WorkflowInputSessionResult> {
+    this.requireSession();
+    const response = await this.http.post<{ session?: WorkflowInputSessionResult }>(
+      `/v1/workflows/input/${encodeURIComponent(sessionId)}/stop`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.session) {
+      throw new Error(`Workflow input stop failed with HTTP ${response.status}`);
+    }
+    return response.data.session;
+  }
+
+  async undoWorkflowInput(sessionId: string): Promise<WorkflowInputSessionResult> {
+    this.requireSession();
+    const response = await this.http.post<{ session?: WorkflowInputSessionResult }>(
+      `/v1/workflows/input/${encodeURIComponent(sessionId)}/undo`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.session) {
+      throw new Error(`Workflow input undo failed with HTTP ${response.status}`);
+    }
+    return response.data.session;
   }
 
   private async setWorkflowEnabled(workflowId: string, enabled: boolean): Promise<WorkflowDetail> {

@@ -680,6 +680,51 @@ class OpenMatesWorkflows:
     def capabilities(self) -> list[dict[str, Any]]:
         return self._client._get("/v1/workflows/capabilities").get("capabilities", [])
 
+    def start_input(
+        self,
+        *,
+        text: str | None = None,
+        input_type: str = "text",
+        audio_ref: dict[str, Any] | None = None,
+        selected_workflow_id: str | None = None,
+        selected_project_id: str | None = None,
+    ) -> dict[str, Any]:
+        payload = {
+            "input_type": input_type,
+        }
+        if text is not None:
+            payload["text"] = text
+        if audio_ref is not None:
+            payload["audio_ref"] = audio_ref
+        if selected_workflow_id is not None:
+            payload["selected_workflow_id"] = selected_workflow_id
+        if selected_project_id is not None:
+            payload["selected_project_id"] = selected_project_id
+        return self._client._post("/v1/workflows/input", payload).get("session", {})
+
+    def input_session(self, session_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/workflows/input/{_quote(session_id)}").get("session", {})
+
+    def input_events(self, session_id: str, *, after_event_id: int = 0) -> list[dict[str, Any]]:
+        return self._client._get(
+            _with_query(
+                f"/v1/workflows/input/{_quote(session_id)}/events",
+                after_event_id=after_event_id,
+            )
+        ).get("events", [])
+
+    def follow_up_input(self, session_id: str, text: str) -> dict[str, Any]:
+        return self._client._post(
+            f"/v1/workflows/input/{_quote(session_id)}/follow-up",
+            {"text": text},
+        ).get("session", {})
+
+    def stop_input(self, session_id: str) -> dict[str, Any]:
+        return self._client._post(f"/v1/workflows/input/{_quote(session_id)}/stop", {}).get("session", {})
+
+    def undo_input(self, session_id: str) -> dict[str, Any]:
+        return self._client._post(f"/v1/workflows/input/{_quote(session_id)}/undo", {}).get("session", {})
+
     def get(self, workflow_id: str) -> dict[str, Any]:
         return self._client._get(f"/v1/workflows/{_quote(workflow_id)}").get("workflow", {})
 

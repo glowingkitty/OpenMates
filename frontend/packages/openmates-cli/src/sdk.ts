@@ -32,6 +32,10 @@ import type {
   WorkflowCapability,
   WorkflowDetail,
   WorkflowGraph,
+  WorkflowInputEvent,
+  WorkflowInputSessionDetail,
+  WorkflowInputSessionResult,
+  WorkflowInputStartParams,
   WorkflowRunContentRetention,
   WorkflowRunDetail,
   WorkflowSummary,
@@ -944,6 +948,47 @@ export class OpenMatesWorkflows {
   async capabilities(): Promise<WorkflowCapability[]> {
     const response = await this.client.get<{ capabilities?: WorkflowCapability[] }>("/v1/workflows/capabilities");
     return response.capabilities ?? [];
+  }
+
+  async startInput(params: WorkflowInputStartParams): Promise<WorkflowInputSessionResult> {
+    const response = await this.client.request<{ session?: WorkflowInputSessionResult }>("/v1/workflows/input", {
+      ...(params.text !== undefined ? { text: params.text } : {}),
+      input_type: params.inputType ?? "text",
+      ...(params.audioRef !== undefined ? { audio_ref: params.audioRef } : {}),
+      ...(params.selectedWorkflowId !== undefined ? { selected_workflow_id: params.selectedWorkflowId } : {}),
+      ...(params.selectedProjectId !== undefined ? { selected_project_id: params.selectedProjectId } : {}),
+    });
+    if (!response.session) throw new OpenMatesApiError(500, { detail: "Workflow input response missing session" });
+    return response.session;
+  }
+
+  async inputSession(sessionId: string): Promise<WorkflowInputSessionDetail> {
+    const response = await this.client.get<{ session?: WorkflowInputSessionDetail }>(`/v1/workflows/input/${encodeURIComponent(sessionId)}`);
+    if (!response.session) throw new OpenMatesApiError(500, { detail: "Workflow input response missing session" });
+    return response.session;
+  }
+
+  async inputEvents(sessionId: string, afterEventId = 0): Promise<WorkflowInputEvent[]> {
+    const response = await this.client.get<{ events?: WorkflowInputEvent[] }>(`/v1/workflows/input/${encodeURIComponent(sessionId)}/events?after_event_id=${encodeURIComponent(String(afterEventId))}`);
+    return response.events ?? [];
+  }
+
+  async followUpInput(sessionId: string, text: string): Promise<WorkflowInputSessionResult> {
+    const response = await this.client.request<{ session?: WorkflowInputSessionResult }>(`/v1/workflows/input/${encodeURIComponent(sessionId)}/follow-up`, { text });
+    if (!response.session) throw new OpenMatesApiError(500, { detail: "Workflow input response missing session" });
+    return response.session;
+  }
+
+  async stopInput(sessionId: string): Promise<WorkflowInputSessionResult> {
+    const response = await this.client.request<{ session?: WorkflowInputSessionResult }>(`/v1/workflows/input/${encodeURIComponent(sessionId)}/stop`, {});
+    if (!response.session) throw new OpenMatesApiError(500, { detail: "Workflow input response missing session" });
+    return response.session;
+  }
+
+  async undoInput(sessionId: string): Promise<WorkflowInputSessionResult> {
+    const response = await this.client.request<{ session?: WorkflowInputSessionResult }>(`/v1/workflows/input/${encodeURIComponent(sessionId)}/undo`, {});
+    if (!response.session) throw new OpenMatesApiError(500, { detail: "Workflow input response missing session" });
+    return response.session;
   }
 
   async get(workflowId: string): Promise<WorkflowDetail> {

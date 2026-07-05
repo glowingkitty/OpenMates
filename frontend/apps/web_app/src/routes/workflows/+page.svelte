@@ -48,6 +48,23 @@
     node_runs?: Array<{ node_id: string; status: string; output_summary?: Record<string, unknown> }>;
   };
 
+  type WorkflowInputEvent = {
+    event_id: number;
+    type: string;
+    status: string;
+    redacted_summary?: string;
+  };
+
+  type WorkflowInputSession = {
+    session_id: string;
+    status: string;
+    event_cursor: number;
+    message?: string | null;
+    error?: string | null;
+    workflow?: WorkflowDetail | null;
+    undo_available: boolean;
+  };
+
   type WorkflowRequestInit = {
     method?: string;
     body?: string;
@@ -72,6 +89,14 @@
   let editorGraph = $state<WorkflowGraph | null>(null);
   let editorDirty = $state(false);
   let expandedNodeId = $state<string | null>(null);
+  let showAllWorkflows = $state(false);
+  let workflowInputText = $state('');
+  let workflowInputBusy = $state(false);
+  let workflowInputSession = $state<WorkflowInputSession | null>(null);
+  let workflowInputEvents = $state<WorkflowInputEvent[]>([]);
+
+  let recentWorkflows = $derived(workflows.slice(0, 6));
+  let listedWorkflows = $derived(showAllWorkflows ? workflows : workflows.slice(0, 5));
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
   let workflowsEnabled = $derived($featureAvailabilityStore.disabledById?.['platform:workflows'] !== true && $featureAvailabilityStore.disabledById !== null);
@@ -144,6 +169,73 @@
 
   async function createBlankWorkflow() {
     await createWorkflow('Untitled workflow', blankWorkflowGraph(), false);
+  }
+
+  async function submitWorkflowInput() {
+    const text = workflowInputText.trim();
+    if (!text || workflowInputBusy) return;
+    workflowInputBusy = true;
+    error = null;
+    try {
+      const path = workflowInputSession?.session_id && workflowInputSession.status !== 'undone'
+        ? `/v1/workflows/input/${encodeURIComponent(workflowInputSession.session_id)}/follow-up`
+        : '/v1/workflows/input';
+      const data = await workflowRequest<{ session: WorkflowInputSession }>(path, {
+        method: 'POST',
+        body: JSON.stringify(path.endsWith('/input')
+          ? { text, selected_workflow_id: selectedWorkflow?.id ?? null }
+          : { text })
+      });
+      workflowInputText = '';
+      await applyWorkflowInputSession(data.session);
+    } catch (inputError) {
+      error = inputError instanceof Error ? inputError.message : 'Failed to process workflow input.';
+    } finally {
+      workflowInputBusy = false;
+    }
+  }
+
+  async function stopWorkflowInput() {
+    if (!workflowInputSession || workflowInputBusy) return;
+    workflowInputBusy = true;
+    try {
+      const data = await workflowRequest<{ session: WorkflowInputSession }>(`/v1/workflows/input/${encodeURIComponent(workflowInputSession.session_id)}/stop`, {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+      await applyWorkflowInputSession(data.session);
+    } finally {
+      workflowInputBusy = false;
+    }
+  }
+
+  async function undoWorkflowInput() {
+    if (!workflowInputSession || !workflowInputSession.undo_available || workflowInputBusy) return;
+    workflowInputBusy = true;
+    try {
+      const data = await workflowRequest<{ session: WorkflowInputSession }>(`/v1/workflows/input/${encodeURIComponent(workflowInputSession.session_id)}/undo`, {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+      await applyWorkflowInputSession(data.session);
+      await loadWorkflows();
+    } finally {
+      workflowInputBusy = false;
+    }
+  }
+
+  async function applyWorkflowInputSession(session: WorkflowInputSession) {
+    workflowInputSession = session;
+    await refreshWorkflowInputEvents(session.session_id, Math.max(0, session.event_cursor - 20));
+    if (session.workflow) {
+      workflows = [session.workflow, ...workflows.filter((workflow) => workflow.id !== session.workflow?.id)];
+      await selectWorkflow(session.workflow.id);
+    }
+  }
+
+  async function refreshWorkflowInputEvents(sessionId: string, afterEventId = 0) {
+    const data = await workflowRequest<{ events: WorkflowInputEvent[] }>(`/v1/workflows/input/${encodeURIComponent(sessionId)}/events?after_event_id=${afterEventId}`);
+    workflowInputEvents = data.events;
   }
 
   async function createWorkflow(title: string, graph: WorkflowGraph, enabled: boolean) {
@@ -615,6 +707,7 @@
             <p>Automations</p>
             <h1>Workflows</h1>
           </div>
+            {#if !showAllWorkflows}
             <div class="create-actions">
               <label class="retention-picker" for="workflow-retention">
                 <span>Run content retention</span>
@@ -626,11 +719,12 @@
               <button type="button" data-testid="create-blank-workflow" onclick={createBlankWorkflow} disabled={saving}>Blank workflow</button>
               <button type="button" data-testid="create-rain-workflow" onclick={createRainWorkflow} disabled={saving}>Daily rain alert</button>
               <button type="button" data-testid="create-news-workflow" onclick={createNewsWorkflow} disabled={saving}>AI news brief</button>
-          </div>
-          {#if workflows.length === 0}
+            </div>
+            {/if}
+            {#if workflows.length === 0}
             <p class="empty-copy">Create one of the starter workflows to test the server-side runner.</p>
           {:else}
-            {#each workflows as workflow (workflow.id)}
+            {#each listedWorkflows as workflow (workflow.id)}
               <button
                 type="button"
                 class="workflow-row"
@@ -642,6 +736,11 @@
                 <span>{workflow.enabled ? 'Enabled' : 'Disabled'} - {workflow.trigger_summary ?? 'Manual'} - {retentionLabel(workflow.run_content_retention)}</span>
               </button>
             {/each}
+            {#if workflows.length > 5}
+              <button type="button" class="show-all-button" data-testid="workflows-show-all" onclick={() => showAllWorkflows = !showAllWorkflows}>
+                {showAllWorkflows ? 'Show recent' : `Show all ${workflows.length}`}
+              </button>
+            {/if}
           {/if}
         </aside>
 
@@ -649,6 +748,38 @@
           {#if error}
             <div class="error-banner" data-testid="workflows-error">{error}</div>
           {/if}
+
+          <section class="workflow-home" data-testid="workflows-home">
+            <div class="workflow-home-copy">
+              <p>Workflow input</p>
+              <h2>Describe what should happen automatically.</h2>
+              <span>OpenMates will draft, validate, and commit server-side workflows through a durable session.</span>
+            </div>
+
+            {#if showAllWorkflows}
+              <div class="all-workflows-grid" data-testid="all-workflows-grid">
+                {#each workflows as workflow (workflow.id)}
+                  <button type="button" class="workflow-mini-card" onclick={() => selectWorkflow(workflow.id)}>
+                    <strong>{workflow.title}</strong>
+                    <span>{workflow.enabled ? 'Enabled' : 'Disabled'} - {workflow.trigger_summary ?? 'Manual'}</span>
+                  </button>
+                {/each}
+              </div>
+            {:else}
+              <div class="workflow-recommendations" data-testid="workflow-recommendations">
+                <button type="button" onclick={createRainWorkflow} disabled={saving}>Tell me if it will rain tomorrow</button>
+                <button type="button" onclick={createNewsWorkflow} disabled={saving}>Send me an AI news brief twice a week</button>
+                <button type="button" onclick={createBlankWorkflow} disabled={saving}>Start from a blank workflow</button>
+              </div>
+              {#if recentWorkflows.length > 0}
+                <div class="recent-workflows" data-testid="recent-workflows">
+                  {#each recentWorkflows as workflow (workflow.id)}
+                    <button type="button" class="recent-chip" onclick={() => selectWorkflow(workflow.id)}>{workflow.title}</button>
+                  {/each}
+                </div>
+              {/if}
+            {/if}
+          </section>
 
           {#if selectedWorkflow}
             <div class="detail-header">
@@ -878,6 +1009,33 @@
               <p>Choose a starter workflow to create a durable server-side automation.</p>
             </div>
           {/if}
+
+          <form class="workflow-input-composer" data-testid="workflow-input-composer" onsubmit={(event) => { event.preventDefault(); void submitWorkflowInput(); }}>
+            <textarea
+              data-testid="workflow-input-textarea"
+              bind:value={workflowInputText}
+              rows="1"
+              placeholder="Ask OpenMates to create or update a workflow..."
+              disabled={workflowInputBusy}
+            ></textarea>
+            <div class="workflow-input-actions">
+              {#if workflowInputSession && workflowInputSession.status === 'running'}
+                <button type="button" data-testid="workflow-input-stop" onclick={stopWorkflowInput} disabled={workflowInputBusy}>Stop</button>
+              {/if}
+              {#if workflowInputSession?.undo_available}
+                <button type="button" data-testid="workflow-input-undo" onclick={undoWorkflowInput} disabled={workflowInputBusy}>Undo</button>
+              {/if}
+              <button type="submit" data-testid="workflow-input-submit" disabled={workflowInputBusy || !workflowInputText.trim()}>{workflowInputBusy ? 'Working...' : 'Send'}</button>
+            </div>
+          </form>
+          {#if workflowInputSession}
+            <div class="workflow-input-status" data-testid="workflow-input-status" data-status={workflowInputSession.status}>
+              <strong>{workflowInputSession.status}</strong>
+              {#if workflowInputSession.message}<span>{workflowInputSession.message}</span>{/if}
+              {#if workflowInputSession.error}<span>{workflowInputSession.error}</span>{/if}
+              {#if workflowInputEvents.length > 0}<span>{workflowInputEvents.at(-1)?.type}</span>{/if}
+            </div>
+          {/if}
         </section>
       </main>
       <div class="settings-wrapper">
@@ -1063,6 +1221,13 @@
     background: var(--color-grey-blue);
   }
 
+  .show-all-button {
+    width: 100%;
+    margin-block-start: 6px;
+    color: var(--color-font-primary);
+    background: var(--color-grey-20);
+  }
+
   .workflow-row span,
   .empty-copy,
   .run-row span {
@@ -1073,6 +1238,89 @@
 
   .workflow-detail {
     padding: 22px;
+  }
+
+  .workflow-home {
+    display: grid;
+    gap: 16px;
+    margin-block-end: 22px;
+    padding: clamp(18px, 4vw, 30px);
+    border-radius: 34px;
+    background:
+      radial-gradient(circle at 15% 10%, color-mix(in srgb, var(--color-button-primary) 20%, transparent), transparent 32%),
+      linear-gradient(135deg, var(--color-grey-10), var(--color-grey-0));
+  }
+
+  .workflow-home-copy {
+    max-width: 740px;
+  }
+
+  .workflow-home-copy p {
+    margin: 0 0 6px;
+    color: var(--color-button-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.78rem;
+    font-weight: 900;
+  }
+
+  .workflow-home-copy h2 {
+    margin: 0;
+    max-width: 680px;
+    font-size: clamp(2rem, 5vw, 4rem);
+    line-height: 0.95;
+  }
+
+  .workflow-home-copy span {
+    display: block;
+    max-width: 620px;
+    margin-block-start: 12px;
+    color: var(--color-font-secondary);
+  }
+
+  .workflow-recommendations,
+  .recent-workflows {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .workflow-recommendations button,
+  .recent-chip,
+  .workflow-mini-card {
+    color: var(--color-font-primary);
+    background: color-mix(in srgb, var(--color-grey-0) 86%, transparent);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
+  }
+
+  .workflow-recommendations button:first-child {
+    color: var(--color-font-button);
+    background: var(--color-button-primary);
+  }
+
+  .recent-chip {
+    padding: 8px 12px;
+    border-radius: var(--radius-full, 999px);
+    font-size: 0.9rem;
+  }
+
+  .all-workflows-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 12px;
+  }
+
+  .workflow-mini-card {
+    display: grid;
+    gap: 6px;
+    min-height: 116px;
+    align-content: center;
+    text-align: start;
+  }
+
+  .workflow-mini-card span {
+    color: var(--color-font-secondary);
+    font-size: 0.86rem;
   }
 
   .detail-header {
@@ -1372,6 +1620,65 @@
     gap: 8px;
   }
 
+  .workflow-input-composer {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: end;
+    margin-block-start: 22px;
+    padding: 10px;
+    border: 1px solid var(--color-grey-20);
+    border-radius: var(--radius-full, 999px);
+    background: color-mix(in srgb, var(--color-grey-0) 94%, transparent);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.14);
+    backdrop-filter: blur(14px);
+  }
+
+  .workflow-input-composer textarea {
+    width: 100%;
+    min-height: 44px;
+    max-height: 160px;
+    resize: vertical;
+    border: 0;
+    outline: none;
+    padding: 12px 14px;
+    border-radius: var(--radius-full, 999px);
+    color: var(--color-font-primary);
+    background: var(--color-grey-10);
+    font: inherit;
+  }
+
+  .workflow-input-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .workflow-input-actions button {
+    color: var(--color-font-primary);
+    background: var(--color-grey-20);
+  }
+
+  .workflow-input-actions button[type="submit"] {
+    color: var(--color-font-button);
+    background: var(--color-button-primary);
+  }
+
+  .workflow-input-status {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-block-start: 10px;
+    color: var(--color-font-secondary);
+    font-size: 0.9rem;
+  }
+
+  .workflow-input-status strong {
+    color: var(--color-font-primary);
+  }
+
   .settings-wrapper {
     display: flex;
     align-items: flex-start;
@@ -1414,6 +1721,11 @@
 
     .detail-header {
       display: grid;
+    }
+
+    .workflow-input-composer {
+      grid-template-columns: 1fr;
+      border-radius: 26px;
     }
   }
 </style>

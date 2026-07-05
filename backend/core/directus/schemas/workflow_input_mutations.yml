@@ -1,0 +1,36 @@
+# backend/core/directus/schemas/workflow_input_mutations.yml
+# Workflow-input mutations are the durable undo ledger. Full normalized snapshots
+# are stored in record_json fields and must not include plaintext secrets.
+workflow_input_mutations:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Primary Key - mutation id."
+    session_id:
+      type: string
+      note: "[Indexed] Workflow input session id."
+    hashed_user_id:
+      type: string
+      note: "[Indexed] SHA256(user_id) of the owner."
+    type:
+      type: string
+      note: "create_workflow, update_workflow, delete_workflow, or link_workflow_to_project."
+    target_type:
+      type: string
+      note: "workflow or project_item."
+    target_id:
+      type: string
+      note: "Target identifier for undo."
+    before_json:
+      type: json
+      note: "Nullable normalized pre-mutation snapshot."
+    after_json:
+      type: json
+      note: "Nullable normalized post-mutation snapshot."
+    undone_at:
+      type: integer
+      note: "Nullable Unix timestamp when the mutation was undone."
+    created_at:
+      type: integer
+      note: "Unix timestamp."

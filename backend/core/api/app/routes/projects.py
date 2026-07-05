@@ -9,12 +9,14 @@ from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.services.feature_availability_guards import ensure_projects_enabled
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowNotFoundError, WorkflowService
 
 logger = logging.getLogger(__name__)
 
@@ -490,6 +492,12 @@ async def _validate_project_target(
         embed = await directus_service.embed.get_embed_by_id(target_id)
         if not embed or embed.get("hashed_user_id") != hash_id(user_id):
             raise HTTPException(status_code=404, detail="Embed not found")
+        return
+    if item_type == "workflow":
+        try:
+            await run_in_threadpool(WorkflowService(DirectusWorkflowRepository()).get_workflow, target_id, user_id)
+        except WorkflowNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="Workflow not found") from exc
 
 
 def _validate_project_upload_keys(

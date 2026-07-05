@@ -31,6 +31,7 @@ import {
   type WorkflowCapability,
   type WorkflowDetail,
   type WorkflowGraph,
+  type WorkflowInputSessionResult,
   type WorkflowRunDetail,
   type WorkflowRunContentRetention,
   type WorkflowSummary,
@@ -1349,6 +1350,82 @@ async function handleWorkflows(
     return;
   }
 
+  if (subcommand === "input") {
+    const text = typeof flags.text === "string" ? flags.text : rest.join(" ").trim();
+    if (!text) throw new Error("Missing workflow input text. Example: openmates workflows input \"alert me if it rains\"");
+    const session = await client.startWorkflowInput({
+      text,
+      selectedWorkflowId: typeof flags["workflow-id"] === "string" ? flags["workflow-id"] : undefined,
+      selectedProjectId: typeof flags["project-id"] === "string" ? flags["project-id"] : undefined,
+    });
+    if (flags.json === true) {
+      printJson(session);
+    } else {
+      printWorkflowInputSession(session);
+    }
+    return;
+  }
+
+  if (subcommand === "input-show") {
+    const sessionId = rest[0];
+    if (!sessionId) throw new Error("Missing session ID. Example: openmates workflows input-show <session-id>");
+    const session = await client.getWorkflowInputSession(sessionId);
+    if (flags.json === true) {
+      printJson(session);
+    } else {
+      printWorkflowInputSession(session);
+      if (session.events.length > 0) {
+        console.log("\nEvents:");
+        for (const event of session.events) {
+          kv(String(event.event_id), `${event.type} · ${event.status}`, 6);
+        }
+      }
+    }
+    return;
+  }
+
+  if (subcommand === "input-events") {
+    const sessionId = rest[0];
+    if (!sessionId) throw new Error("Missing session ID. Example: openmates workflows input-events <session-id>");
+    const afterEventId = typeof flags.after === "string" ? Number.parseInt(flags.after, 10) : 0;
+    const events = await client.listWorkflowInputEvents(sessionId, Number.isFinite(afterEventId) ? afterEventId : 0);
+    if (flags.json === true) {
+      printJson(events);
+    } else {
+      for (const event of events) {
+        kv(String(event.event_id), `${event.type} · ${event.status}`, 6);
+      }
+    }
+    return;
+  }
+
+  if (subcommand === "input-follow-up") {
+    const sessionId = rest[0];
+    const text = typeof flags.text === "string" ? flags.text : rest.slice(1).join(" ").trim();
+    if (!sessionId || !text) throw new Error("Missing session ID or text. Example: openmates workflows input-follow-up <session-id> \"make it weekdays only\"");
+    const session = await client.followUpWorkflowInput(sessionId, text);
+    if (flags.json === true) {
+      printJson(session);
+    } else {
+      printWorkflowInputSession(session);
+    }
+    return;
+  }
+
+  if (subcommand === "input-stop" || subcommand === "input-undo") {
+    const sessionId = rest[0];
+    if (!sessionId) throw new Error(`Missing session ID. Example: openmates workflows ${subcommand} <session-id>`);
+    const session = subcommand === "input-stop"
+      ? await client.stopWorkflowInput(sessionId)
+      : await client.undoWorkflowInput(sessionId);
+    if (flags.json === true) {
+      printJson(session);
+    } else {
+      printWorkflowInputSession(session);
+    }
+    return;
+  }
+
   if (subcommand === "show") {
     const workflowId = rest[0];
     if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows show <id>");
@@ -1451,6 +1528,16 @@ function printWorkflowDetail(workflow: WorkflowDetail): void {
   if (workflow.trigger_summary) kv("Trigger", workflow.trigger_summary);
   kv("Nodes", String(workflow.graph.nodes.length));
   console.log(`\n\x1b[2mRun: openmates workflows run ${workflow.id}\x1b[0m`);
+}
+
+function printWorkflowInputSession(session: WorkflowInputSessionResult): void {
+  header(`Workflow Input ${session.session_id}\n`);
+  kv("Status", session.status);
+  kv("Events", String(session.event_cursor));
+  kv("Undo", session.undo_available ? "available" : "unavailable");
+  if (session.message) kv("Message", session.message);
+  if (session.error) kv("Error", session.error);
+  if (session.workflow) kv("Workflow", `${session.workflow.title} (${session.workflow.id})`);
 }
 
 function printWorkflowRun(run: WorkflowRunDetail): void {
@@ -6578,6 +6665,12 @@ function printWorkflowsHelp(): void {
   openmates workflows list [--json]
   openmates workflows capabilities [--json]
   openmates workflows create --title <title> --graph '<json>' [--enabled] [--run-content-retention last_5|none] [--json]
+  openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--json]
+  openmates workflows input-show <session-id> [--json]
+  openmates workflows input-events <session-id> [--after <event-id>] [--json]
+  openmates workflows input-follow-up <session-id> <text> [--json]
+  openmates workflows input-stop <session-id> [--json]
+  openmates workflows input-undo <session-id> [--json]
   openmates workflows show <workflow-id> [--json]
   openmates workflows enable <workflow-id> [--json]
   openmates workflows disable <workflow-id> [--json]
@@ -6593,6 +6686,7 @@ and Apple clients.
 Examples:
   openmates workflows list
   openmates workflows capabilities --json
+  openmates workflows input "alert me if it rains tomorrow"
   openmates workflows run wf_123 --mode test --json`);
 }
 
