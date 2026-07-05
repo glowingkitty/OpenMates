@@ -41,7 +41,7 @@ const path = require('path');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getIsolatedTestAccount(
 	'api-keys-flow.spec.ts'
 );
-const E2E_KEY_NAME_PATTERN = /^(E2E-Test-Key|E2E-RestAPI|E2E-Limit-Key)/i;
+const E2E_KEY_NAME_PATTERN = /(E2E-Test-Key|E2E-RestAPI|E2E-Limit-Key)/i;
 
 test.describe.configure({ mode: 'serial' });
 
