@@ -473,7 +473,7 @@ tests:
   - id: T-APPLE-UI-001
     type: unit
     file: apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
-    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/MacMenuBarQuickCaptureUITests
+    command: python3 scripts/apple_remote.py repo -- xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_macOS -destination platform=macOS -only-testing:OpenMatesUITests/MacMenuBarQuickCaptureUITests test CODE_SIGNING_ALLOWED=NO
     covers:
       - AC-1
       - AC-2
@@ -496,14 +496,14 @@ tests:
       expected: pass
       evidence:
         status: blocked
-        run_id: pending_remote_macos_quick_capture_ui_test
-        timestamp: "2026-07-05T17:28:05Z"
-        summary: "Blocked until python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/MacMenuBarQuickCaptureUITests runs against the pushed debug-preview harness."
+        run_id: ssh_failed_after_harness_commit_7e77aed
+        timestamp: "2026-07-05T17:51:24Z"
+        summary: "Blocked because python3 scripts/apple_remote.py status reported ssh_reachable=False and remote test attempts timed out after harness commit 7e77aed."
 
   - id: T-APPLE-UI-002
     type: unit
     file: apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
-    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/MacMenuBarQuickCaptureUITests
+    command: python3 scripts/apple_remote.py repo -- xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_macOS -destination platform=macOS -only-testing:OpenMatesUITests/MacMenuBarQuickCaptureUITests test CODE_SIGNING_ALLOWED=NO
     covers:
       - AC-3
     assertions:
@@ -523,14 +523,14 @@ tests:
       expected: pass
       evidence:
         status: blocked
-        run_id: pending_remote_macos_quick_capture_ui_test
-        timestamp: "2026-07-05T17:28:05Z"
-        summary: "Blocked until python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/MacMenuBarQuickCaptureUITests runs against the pushed debug-preview harness."
+        run_id: ssh_failed_after_harness_commit_7e77aed
+        timestamp: "2026-07-05T17:51:24Z"
+        summary: "Blocked because python3 scripts/apple_remote.py status reported ssh_reachable=False and remote test attempts timed out after harness commit 7e77aed."
 
   - id: T-APPLE-UI-003
     type: unit
     file: apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
-    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/MacMenuBarQuickCaptureUITests
+    command: python3 scripts/apple_remote.py repo -- xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_macOS -destination platform=macOS -only-testing:OpenMatesUITests/MacMenuBarQuickCaptureUITests test CODE_SIGNING_ALLOWED=NO
     covers:
       - AC-4
       - AC-5
@@ -552,9 +552,9 @@ tests:
       expected: pass
       evidence:
         status: blocked
-        run_id: pending_remote_macos_quick_capture_ui_test
-        timestamp: "2026-07-05T17:28:05Z"
-        summary: "Blocked until python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/MacMenuBarQuickCaptureUITests runs against the pushed debug-preview harness."
+        run_id: ssh_failed_after_harness_commit_7e77aed
+        timestamp: "2026-07-05T17:51:24Z"
+        summary: "Blocked because python3 scripts/apple_remote.py status reported ssh_reachable=False and remote test attempts timed out after harness commit 7e77aed."
 
   - id: T-APPLE-UI-004
     type: unit
@@ -578,9 +578,9 @@ tests:
       expected: pass
       evidence:
         status: blocked
-        run_id: pending_remote_share_extension_attachment_ui_test
-        timestamp: "2026-07-05T17:28:05Z"
-        summary: "Blocked until python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesUITests/ShareExtensionAttachmentParityUITests runs against the pushed debug-preview harness."
+        run_id: ssh_failed_after_harness_commit_7e77aed
+        timestamp: "2026-07-05T17:51:24Z"
+        summary: "Blocked because python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesUITests/ShareExtensionAttachmentParityUITests timed out over SSH after harness commit 7e77aed."
 
 verifications:
   - id: V-SPEC-001
@@ -599,8 +599,8 @@ verifications:
     status: pending
     evidence:
       status: "blocked"
-      summary: "python3 scripts/spec_validate.py docs/specs/macos-menu-bar-quick-capture/spec.yml passed; python3 scripts/spec_verify.py docs/specs/macos-menu-bar-quick-capture/spec.yml remains blocked until the newly added UI harness is run remotely and TestFlight is handled."
-      timestamp: "2026-07-05T17:28:05Z"
+      summary: "python3 scripts/spec_validate.py docs/specs/macos-menu-bar-quick-capture/spec.yml passed; python3 scripts/spec_verify.py docs/specs/macos-menu-bar-quick-capture/spec.yml remains blocked because remote Apple UI tests could not run while ssh_reachable=False."
+      timestamp: "2026-07-05T17:51:24Z"
 
   - id: V-APPLE-BUILD-001
     kind: automated_test
@@ -626,8 +626,8 @@ verifications:
     status: blocked
     evidence:
       status: "blocked"
-      summary: "TestFlight is intentionally held until the newly added macOS Quick Capture UI/share-extension UI harnesses pass remote Apple verification."
-      timestamp: "2026-07-05T17:28:05Z"
+      summary: "TestFlight is intentionally held until the newly added macOS Quick Capture UI/share-extension UI harnesses pass remote Apple verification; current blocker is ssh_failed after commit 7e77aed."
+      timestamp: "2026-07-05T17:51:24Z"
 
 implementation_plan:
   existing_patterns:
