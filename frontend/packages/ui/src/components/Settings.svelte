@@ -286,6 +286,8 @@ changes to the documentation (to keep the documentation up to date).
                 views[route] = AiProviderDetailsWrapper;
             } else if (/^projects\/[^/]+$/.test(route)) {
                 views[route] = SettingsProjects;
+            } else if (/^developers\/api-keys\/[^/]+$/.test(route)) {
+                views[route] = views['developers/api-keys'];
             } else {
                 views[route] = AppDetailsWrapper;
             }
@@ -1386,6 +1388,12 @@ changes to the documentation (to keep the documentation up to date).
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
         }
 
+        const apiKeyDetailPattern = /^developers\/api-keys\/[^/]+$/;
+        if (apiKeyDetailPattern.test(settingsPath) && settingsPath !== 'developers/api-keys/create' && !dynamicEntryRoutes.has(settingsPath)) {
+            dynamicEntryRoutes.add(settingsPath);
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
+        }
+
         // Check if this is a dynamic reminder entry route that needs to be registered
         // Pattern: apps/reminder/entry/{reminder_id}[/edit]
         const reminderEntryPattern = /^apps\/reminder\/entry\/[^/]+(\/edit)?$/;
@@ -1527,6 +1535,16 @@ changes to the documentation (to keep the documentation up to date).
             activeSubMenuProviderIconSvg = '';
             activeSubMenuTitleKey = '';
             activeSubMenuTitleRaw = detail.title ?? $text('settings.projects.project_settings');
+        } else if (settingsPath === 'developers/api-keys/create') {
+            activeSubMenuIcon = 'key';
+            activeSubMenuProviderIconSvg = '';
+            activeSubMenuTitleKey = '';
+            activeSubMenuTitleRaw = detail.title ?? $text('settings.api_keys.create_title');
+        } else if (/^developers\/api-keys\/[^/]+$/.test(settingsPath)) {
+            activeSubMenuIcon = 'key';
+            activeSubMenuProviderIconSvg = '';
+            activeSubMenuTitleKey = '';
+            activeSubMenuTitleRaw = detail.title ?? $text('settings.api_keys.detail_title');
         } else if (settingsPath.startsWith('mates/') && settingsPath !== 'mates') {
             // Mate detail route: mates/{mateId}
             // Show the mate's profile image (via mate-profile CSS class) and the mate's name.

@@ -232,6 +232,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   // Developers
   developers: SettingsDevelopers,
   "developers/api-keys": SettingsApiKeys,
+  "developers/api-keys/create": SettingsApiKeys,
   "developers/devices": SettingsDevices,
   "developers/webhooks": SettingsWebhooks,
   // Newsletter

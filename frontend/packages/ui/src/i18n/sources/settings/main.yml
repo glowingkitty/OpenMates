@@ -10057,6 +10057,326 @@ api_keys:
   sv: API-nycklar
   he: מפתחות API
   verified_by_human: []
+
+api_keys.create_title:
+  context: Button and route title for creating an API key
+  en: Create API Key
+  verified_by_human: []
+
+api_keys.detail_title:
+  context: Fallback route title for API key detail settings
+  en: API Key Details
+  verified_by_human: []
+
+api_keys.create_description:
+  context: Description shown when creating a new API key
+  en: Create an API key for CLI, SDK, or external integrations. The key is shown once after creation.
+  verified_by_human: []
+
+api_keys.name_section:
+  context: Section heading for API key name input
+  en: Name
+  verified_by_human: []
+
+api_keys.name_placeholder:
+  context: Placeholder for API key name input
+  en: e.g., My App Integration
+  verified_by_human: []
+
+api_keys.name_required:
+  context: Validation error when API key name is empty
+  en: API key name is required
+  verified_by_human: []
+
+api_keys.access_section:
+  context: Section heading for API key access controls
+  en: Access
+  verified_by_human: []
+
+api_keys.full_access:
+  context: API key full access label
+  en: Full access
+  verified_by_human: []
+
+api_keys.full_access_description:
+  context: Description for API key full access toggle
+  en: Allow all supported API-key actions.
+  verified_by_human: []
+
+api_keys.full_access_warning_title:
+  context: Accessibility title for full access warning
+  en: Full access warning
+  verified_by_human: []
+
+api_keys.full_access_warning:
+  context: Warning shown when API key full access is enabled
+  en: Full access can read encrypted account metadata, create chats, run app skills, and spend account credits.
+  verified_by_human: []
+
+api_keys.restricted_access:
+  context: API key restricted access label
+  en: Restricted access
+  verified_by_human: []
+
+api_keys.scope_chat_create_incognito:
+  context: API key permission label
+  en: Create non-persistent chats
+  verified_by_human: []
+
+api_keys.scope_chat_create_saved:
+  context: API key permission label
+  en: Create saved chats
+  verified_by_human: []
+
+api_keys.scope_chat_read_existing:
+  context: API key permission label
+  en: Read existing chats
+  verified_by_human: []
+
+api_keys.scope_chat_append_existing:
+  context: API key permission label
+  en: Append existing chats
+  verified_by_human: []
+
+api_keys.scope_chat_delete:
+  context: API key permission label
+  en: Delete chats
+  verified_by_human: []
+
+api_keys.scope_chat_share:
+  context: API key permission label
+  en: Share chats
+  verified_by_human: []
+
+api_keys.scope_memory_read:
+  context: API key permission label
+  en: Read selected memories
+  verified_by_human: []
+
+api_keys.apps_access:
+  context: Label for API key app skill access dropdown
+  en: App skill access
+  verified_by_human: []
+
+api_keys.apps_all:
+  context: API key app skill access option
+  en: All app skills
+  verified_by_human: []
+
+api_keys.apps_selected:
+  context: API key app skill access option
+  en: Selected app skills
+  verified_by_human: []
+
+api_keys.allowed_skills_placeholder:
+  context: Placeholder for comma-separated API key skill allowlist
+  en: web:search, images:generate
+  verified_by_human: []
+
+api_keys.limits_section:
+  context: Section heading for API key limits
+  en: Limits
+  verified_by_human: []
+
+api_keys.credit_limit:
+  context: API key credit limit label
+  en: Credit limit
+  verified_by_human: []
+
+api_keys.credit_unlimited:
+  context: Unlimited credit period option
+  en: Unlimited
+  verified_by_human: []
+
+api_keys.credit_daily:
+  context: Daily credit period option
+  en: Daily
+  verified_by_human: []
+
+api_keys.credit_weekly:
+  context: Weekly credit period option
+  en: Weekly
+  verified_by_human: []
+
+api_keys.credit_monthly:
+  context: Monthly credit period option
+  en: Monthly
+  verified_by_human: []
+
+api_keys.credit_lifetime:
+  context: Lifetime credit period option
+  en: Lifetime
+  verified_by_human: []
+
+api_keys.credit_unlimited_warning_title:
+  context: Accessibility title for unlimited credit warning
+  en: Unlimited credit warning
+  verified_by_human: []
+
+api_keys.credit_unlimited_warning:
+  context: Warning shown when API key has no per-key credit cap
+  en: This key can spend account credits without a per-key cap.
+  verified_by_human: []
+
+api_keys.credit_amount_placeholder:
+  context: Placeholder for API key credit amount input
+  en: Credit cap
+  verified_by_human: []
+
+api_keys.expiration:
+  context: API key expiration label
+  en: Expiration
+  verified_by_human: []
+
+api_keys.expiration_7d:
+  context: API key expiration option
+  en: 7 days
+  verified_by_human: []
+
+api_keys.expiration_30d:
+  context: API key expiration option
+  en: 30 days
+  verified_by_human: []
+
+api_keys.expiration_90d:
+  context: API key expiration option
+  en: 90 days
+  verified_by_human: []
+
+api_keys.expiration_1y:
+  context: API key expiration option
+  en: 1 year
+  verified_by_human: []
+
+api_keys.expiration_never:
+  context: API key expiration option
+  en: Never
+  verified_by_human: []
+
+api_keys.expiration_never_warning_title:
+  context: Accessibility title for never expires warning
+  en: Never expires warning
+  verified_by_human: []
+
+api_keys.expiration_never_warning:
+  context: Warning shown when API key never expires
+  en: This key never expires. Revoke it immediately if it is leaked.
+  verified_by_human: []
+
+api_keys.creating:
+  context: Loading label while API key is being created
+  en: Creating...
+  verified_by_human: []
+
+api_keys.created_warning:
+  context: Warning shown after an API key is created
+  en: Copy this API key now. You will not be able to see it again.
+  verified_by_human: []
+
+api_keys.copied_done:
+  context: Confirmation button after copying a created API key
+  en: I've copied the key
+  verified_by_human: []
+
+api_keys.loading:
+  context: Loading text while API keys are loading
+  en: Loading API keys...
+  verified_by_human: []
+
+api_keys.empty_title:
+  context: Empty state title when no API keys exist
+  en: No API keys
+  verified_by_human: []
+
+api_keys.empty_hint:
+  context: Empty state hint when no API keys exist
+  en: Create your first API key to access OpenMates programmatically.
+  verified_by_human: []
+
+api_keys.not_found:
+  context: Empty state title when an API key detail route no longer exists
+  en: API key not found
+  verified_by_human: []
+
+api_keys.not_found_hint:
+  context: Empty state hint when an API key detail route no longer exists
+  en: It may have been revoked from another session.
+  verified_by_human: []
+
+api_keys.prefix:
+  context: API key prefix detail label
+  en: Prefix
+  verified_by_human: []
+
+api_keys.created:
+  context: API key creation date detail label
+  en: Created
+  verified_by_human: []
+
+api_keys.last_used:
+  context: API key last used detail label
+  en: Last used
+  verified_by_human: []
+
+api_keys.access:
+  context: API key access detail label
+  en: Access
+  verified_by_human: []
+
+api_keys.detail_secret_note:
+  context: Note shown on API key details page
+  en: The full secret is only shown once when the key is created. Revoke this key and create a new one if you lose it.
+  verified_by_human: []
+
+api_keys.revoke_warning:
+  context: Warning text before revoking an API key
+  en: Revoking this API key immediately blocks clients that use it. This cannot be undone.
+  verified_by_human: []
+
+api_keys.revoke_confirm_label:
+  context: Confirmation toggle label before revoking an API key
+  en: I understand this key will stop working
+  verified_by_human: []
+
+api_keys.revoke_key:
+  context: Destructive button label for revoking an API key
+  en: Revoke key
+  verified_by_human: []
+
+api_keys.limit_warning_title:
+  context: Accessibility title for API key count limit warning
+  en: API key limit reached
+  verified_by_human: []
+
+api_keys.limit_warning:
+  context: Warning shown when maximum API key count is reached
+  en: You have reached the maximum number of API keys ({max}). Revoke an existing key to create a new one.
+  verified_by_human: []
+
+api_keys.unknown:
+  context: Fallback value for unknown API key dates
+  en: Unknown
+  verified_by_human: []
+
+api_keys.unlimited_credits:
+  context: API key credit limit summary when unlimited
+  en: Unlimited credits
+  verified_by_human: []
+
+api_keys.credit_limit_summary:
+  context: API key credit limit summary with replacements
+  en: "{credits} credits / {period}"
+  verified_by_human: []
+
+api_keys.never_used:
+  context: API key last used summary when never used
+  en: Never used
+  verified_by_human: []
+
+api_keys.last_used_on:
+  context: API key last used summary with date replacement
+  en: "Last used: {date}"
+  verified_by_human: []
 devices:
   context: Navigation label for the devices settings sub-page
   en: Devices
