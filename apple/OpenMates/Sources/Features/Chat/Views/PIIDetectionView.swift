@@ -585,6 +585,7 @@ struct PIIWarningBanner: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(AppStrings.piiUndoAll)
+                .accessibilityIdentifier("pii-undo-all")
             }
             .padding(.vertical, .spacing4)
             .padding(.horizontal, .spacing6)
@@ -594,6 +595,7 @@ struct PIIWarningBanner: View {
                     .stroke(Color.warning.opacity(0.3), lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: .radius3))
+            .accessibilityIdentifier("pii-warning-banner")
         }
     }
 }

@@ -12,10 +12,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
     }
 
     func testSeededPendingAttachmentMatchesMessageInputContractStructure() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-seed-pending-composer-embed"]
-        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
-        app.launch()
+        let app = launchChatOpeningPreview(arguments: ["--ui-test-seed-pending-composer-embed"])
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
         let pendingEmbed = element(in: app, identifiers: ["pending-composer-embed", "embed-full-width-wrapper"])
@@ -33,6 +30,66 @@ final class MessageInputAttachmentUITests: XCTestCase {
         add(attachment)
     }
 
+    func testComposerWarningHighlightsAndExclusions() throws {
+        let app = launchChatOpeningPreview()
+        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+
+        let editor = element(in: app, identifier: "message-editor")
+        XCTAssertTrue(editor.waitForExistence(timeout: 8))
+        editor.tap()
+        editor.typeText("Email alice@example.com and call +49 170 1234567")
+
+        let banner = element(in: app, identifier: "pii-warning-banner")
+        XCTAssertTrue(banner.waitForExistence(timeout: 8))
+        XCTAssertTrue(element(in: app, identifier: "pii-highlights").waitForExistence(timeout: 5))
+
+        let emailHighlight = element(in: app, identifier: "pii-highlight-EMAIL")
+        let phoneHighlight = element(in: app, identifier: "pii-highlight-PHONE")
+        XCTAssertTrue(emailHighlight.waitForExistence(timeout: 5))
+        XCTAssertTrue(phoneHighlight.waitForExistence(timeout: 5))
+
+        emailHighlight.tap()
+        XCTAssertTrue(waitForAbsence(element(in: app, identifier: "pii-highlight-EMAIL")))
+        XCTAssertTrue(phoneHighlight.waitForExistence(timeout: 5))
+
+        element(in: app, identifier: "pii-undo-all").tap()
+        XCTAssertTrue(waitForAbsence(element(in: app, identifier: "pii-warning-banner")))
+        XCTAssertTrue(waitForAbsence(element(in: app, identifier: "pii-highlights")))
+    }
+
+    func testPIIVisibilityToggleRevealHideAndReload() throws {
+        let app = launchChatOpeningPreview(arguments: ["--ui-test-pii-visibility-fixture"])
+        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+
+        XCTAssertTrue(textContaining("[EMAIL_1_com]", in: app).waitForExistence(timeout: 8))
+        XCTAssertFalse(textContaining("alice@example.com", in: app).exists)
+
+        let toggle = element(in: app, identifier: "chat-pii-toggle")
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        toggle.tap()
+
+        XCTAssertTrue(textContaining("alice@example.com", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForAbsence(textContaining("[EMAIL_1_com]", in: app)))
+
+        element(in: app, identifier: "chat-pii-toggle").tap()
+        XCTAssertTrue(textContaining("[EMAIL_1_com]", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(textContaining("alice@example.com", in: app).exists)
+
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+        XCTAssertTrue(textContaining("[EMAIL_1_com]", in: app).waitForExistence(timeout: 8))
+        XCTAssertFalse(textContaining("alice@example.com", in: app).exists)
+    }
+
+    private func launchChatOpeningPreview(arguments: [String] = []) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "chat-opening"] + arguments
+        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        app.launch()
+        return app
+    }
+
     private func element(in app: XCUIApplication, identifier: String) -> XCUIElement {
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier == %@", identifier))
@@ -43,6 +100,18 @@ final class MessageInputAttachmentUITests: XCTestCase {
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier IN %@", identifiers))
             .firstMatch
+    }
+
+    private func textContaining(_ text: String, in app: XCUIApplication) -> XCUIElement {
+        app.staticTexts
+            .matching(NSPredicate(format: "label CONTAINS %@", text))
+            .firstMatch
+    }
+
+    private func waitForAbsence(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let predicate = NSPredicate(format: "exists == false")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
     private func focusComposerInput(in app: XCUIApplication) {

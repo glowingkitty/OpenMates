@@ -202,6 +202,10 @@ private struct DevChatOpeningFixture {
     let messages: [Message]
 
     static func make(messageCount: Int = 250) -> DevChatOpeningFixture {
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-pii-visibility-fixture") {
+            return piiVisibilityFixture()
+        }
+
         let chatId = "dev-chat-opening-large"
         let messages = (1...messageCount).map { index in
             let id = "seeded-message-\(index)"
@@ -238,6 +242,60 @@ private struct DevChatOpeningFixture {
             encryptedTitle: nil,
             encryptedChatKey: nil,
             messagesV: messageCount,
+            lastVisibleMessageId: messages.last?.id
+        )
+        return DevChatOpeningFixture(chat: chat, messages: messages)
+    }
+
+    private static func piiVisibilityFixture() -> DevChatOpeningFixture {
+        let chatId = "dev-chat-pii-visibility"
+        let mappings = [
+            PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL")
+        ]
+        let messages = [
+            Message(
+                id: "pii-user-1",
+                chatId: chatId,
+                role: .user,
+                content: "Please email [EMAIL_1_com] the update.",
+                encryptedContent: nil,
+                createdAt: timestamp(for: 1),
+                updatedAt: nil,
+                appId: nil,
+                isStreaming: false,
+                embedRefs: nil,
+                piiMappings: mappings,
+                encryptedPIIMappings: "encrypted-test-mappings"
+            ),
+            Message(
+                id: "pii-assistant-1",
+                chatId: chatId,
+                role: .assistant,
+                content: "I will draft a note for [EMAIL_1_com].",
+                encryptedContent: nil,
+                createdAt: timestamp(for: 2),
+                updatedAt: nil,
+                appId: "ai",
+                isStreaming: false,
+                embedRefs: nil
+            )
+        ]
+
+        let chat = Chat(
+            id: chatId,
+            title: "Seeded PII Chat",
+            lastMessageAt: timestamp(for: 2),
+            createdAt: timestamp(for: 1),
+            updatedAt: timestamp(for: 2),
+            isArchived: false,
+            isPinned: false,
+            appId: nil,
+            category: "ai",
+            icon: "ai",
+            chatSummary: "Deterministic PII reveal fixture for native UI tests.",
+            encryptedTitle: nil,
+            encryptedChatKey: nil,
+            messagesV: messages.count,
             lastVisibleMessageId: messages.last?.id
         )
         return DevChatOpeningFixture(chat: chat, messages: messages)
