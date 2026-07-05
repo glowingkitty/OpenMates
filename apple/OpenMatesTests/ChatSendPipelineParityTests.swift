@@ -165,6 +165,24 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(result.mappings.map(\.original), ["Project Orchid"])
     }
 
+    func testPIIRestoreUsesMappingsForUserAndAssistantPlaceholders() {
+        let mappings = [
+            PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL"),
+            PIIMapping(placeholder: "[EMAIL_1_com_EXTRA]", original: "other@example.com", type: "EMAIL"),
+            PIIMapping(placeholder: "[PROJECT]", original: "Project Orchid", type: "GENERIC_SECRET"),
+        ]
+
+        let restored = PIIDetector.restorePII(
+            in: "Send [EMAIL_1_com] the [PROJECT] update. Keep [EMAIL_1_com_EXTRA] separate.",
+            mappings: mappings
+        )
+
+        XCTAssertEqual(
+            restored,
+            "Send alice@example.com the Project Orchid update. Keep other@example.com separate."
+        )
+    }
+
     func testCompletedAssistantVersionAdvancesPastUserMessageVersion() {
         let pipeline = ChatSendPipeline()
 

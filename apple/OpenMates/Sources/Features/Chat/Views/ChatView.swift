@@ -133,7 +133,7 @@ struct ChatView: View {
     @State private var selectedEmbed: EmbedRecord?
     @State private var showEmbedFullscreen = false
     @State private var showReminder = false
-    @State private var showPIIPlaceholders = false
+    @State private var isPIIRevealed = false
     @State private var showAttachmentMenu = false
     @State private var showCameraCapture = false
     @State private var composerOverlay: ComposerOverlay?
@@ -304,6 +304,7 @@ struct ChatView: View {
         }
         .task(id: chatId) {
             await ApplePrivacySettingsService.shared.load()
+            isPIIRevealed = false
             viewModel.configure(wsManager: wsManager, chatStore: chatStore)
             await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
             #if DEBUG
@@ -430,6 +431,16 @@ struct ChatView: View {
             ChatHeaderView(chat: viewModel.chat, isLoading: viewModel.isLoading)
 
             Spacer()
+
+            if chatHasPIIMappings {
+                chatFloatingAction(
+                    icon: isPIIRevealed ? "hidden" : "visible",
+                    label: isPIIRevealed ? AppStrings.piiHide : AppStrings.piiShow,
+                    accessibilityIdentifier: "chat-pii-toggle"
+                ) {
+                    isPIIRevealed.toggle()
+                }
+            }
         }
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing3)
@@ -440,6 +451,20 @@ struct ChatView: View {
                 .fill(Color.grey20)
                 .frame(height: 1)
         }
+    }
+
+    private var chatHasPIIMappings: Bool {
+        viewModel.messages.contains { ($0.piiMappings?.isEmpty == false) || ($0.encryptedPIIMappings?.isEmpty == false) }
+    }
+
+    private var cumulativePIIMappings: [PIIMapping] {
+        var byPlaceholder: [String: PIIMapping] = [:]
+        for message in viewModel.messages where message.role == .user {
+            for mapping in message.piiMappings ?? [] {
+                byPlaceholder[mapping.placeholder] = mapping
+            }
+        }
+        return Array(byPlaceholder.values)
     }
 
     private var incognitoSessionBanner: some View {
@@ -595,6 +620,8 @@ struct ChatView: View {
                                         embeds: viewModel.embeds(for: message),
                                         allEmbedRecords: viewModel.embedRecords,
                                         streamingContent: viewModel.isStreamingMessage(message.id) ? viewModel.streamingContent : nil,
+                                        piiMappings: cumulativePIIMappings,
+                                        isPIIRevealed: isPIIRevealed,
                                         containerWidth: scrollGeo.size.width,
                                         isSearchTarget: searchTarget?.messageId == message.id,
                                         searchHighlightQuery: searchTarget?.messageId == message.id ? searchTarget?.query : nil,
@@ -1233,6 +1260,10 @@ struct ChatView: View {
             let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
             PIIWarningBanner(matches: activePIIMatches) {
                 piiExclusions.formUnion(detectedPIIMatches.map(\.id))
+            }
+
+            PIIHighlightStrip(matches: activePIIMatches) { match in
+                piiExclusions.insert(match.id)
             }
 
             if let chatId = viewModel.chat?.id {
@@ -1907,6 +1938,8 @@ struct MessageBubble: View {
     let embeds: [EmbedRecord]
     let allEmbedRecords: [String: EmbedRecord]
     let streamingContent: String?
+    let piiMappings: [PIIMapping]
+    let isPIIRevealed: Bool
     let containerWidth: CGFloat
     let isSearchTarget: Bool
     let searchHighlightQuery: String?
@@ -1929,8 +1962,9 @@ struct MessageBubble: View {
     private var assistantCategory: String? { message.appId ?? appId }
 
     var displayContent: String {
-        if let streaming = streamingContent { return streaming }
-        return message.content ?? ""
+        let content = streamingContent ?? message.content ?? ""
+        guard isPIIRevealed else { return content }
+        return PIIDetector.restorePII(in: content, mappings: piiMappings)
     }
 
     private var viewAllowsInteractiveQuestionSubmit: Bool {

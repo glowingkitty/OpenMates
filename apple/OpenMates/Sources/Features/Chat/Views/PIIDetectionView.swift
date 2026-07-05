@@ -325,6 +325,15 @@ enum PIIDetector {
             .map { PIIMapping(placeholder: $0.placeholder, original: $0.value, type: $0.type.rawValue) }
     }
 
+    static func restorePII(in text: String, mappings: [PIIMapping]) -> String {
+        guard !mappings.isEmpty else { return text }
+        var restored = text
+        for mapping in mappings.sorted(by: { $0.placeholder.count > $1.placeholder.count }) {
+            restored = restored.replacingOccurrences(of: mapping.placeholder, with: mapping.original)
+        }
+        return restored
+    }
+
     static func summary(for matches: [PIIMatch]) -> String {
         let counts = Dictionary(grouping: matches, by: \.type).mapValues(\.count)
         return counts.keys.sorted { $0.rawValue < $1.rawValue }
@@ -549,6 +558,45 @@ struct PIIWarningBanner: View {
                     .stroke(Color.warning.opacity(0.3), lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: .radius3))
+        }
+    }
+}
+
+struct PIIHighlightStrip: View {
+    let matches: [PIIMatch]
+    let onExclude: (PIIMatch) -> Void
+
+    var body: some View {
+        if !matches.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: .spacing3) {
+                    ForEach(matches) { match in
+                        Button {
+                            onExclude(match)
+                        } label: {
+                            Text(match.value)
+                                .font(.omTiny.weight(.semibold))
+                                .lineLimit(1)
+                                .foregroundStyle(Color.fontPrimary)
+                                .padding(.horizontal, .spacing5)
+                                .padding(.vertical, .spacing3)
+                                .background(Color.warning.opacity(0.22))
+                                .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: .radiusFull)
+                                        .stroke(Color.warning.opacity(0.45), lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(match.value)
+                        .accessibilityValue(match.type.rawValue)
+                        .accessibilityHint(AppStrings.piiUndoAllShort)
+                        .accessibilityIdentifier("pii-highlight-\(match.type.rawValue)")
+                    }
+                }
+                .padding(.horizontal, .spacing2)
+            }
+            .accessibilityIdentifier("pii-highlights")
         }
     }
 }

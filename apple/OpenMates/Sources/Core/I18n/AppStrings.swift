@@ -95,6 +95,8 @@ enum AppStrings {
     static var hiddenChats: String { L("chat.hidden_chats") }
     static var noHiddenChats: String { L("chat.no_hidden_chats") }
     static var unhide: String { L("chat.unhide") }
+    static var piiHide: String { L("chat.pii_hide") }
+    static var piiShow: String { L("chat.pii_show") }
     static var renameChat: String { L("chat.rename") }
     static var chatTitle: String { L("chat.title") }
     static var conversationForked: String { L("chat.forked") }
