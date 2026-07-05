@@ -34,9 +34,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
         let app = launchChatOpeningPreview()
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
 
-        let editor = element(in: app, identifier: "message-editor")
-        XCTAssertTrue(editor.waitForExistence(timeout: 8))
-        editor.tap()
+        let editor = focusComposerInput(in: app)
         editor.typeText("Email alice@example.com and call +49 170 1234567")
 
         let banner = element(in: app, identifier: "pii-warning-banner")
@@ -114,14 +112,17 @@ final class MessageInputAttachmentUITests: XCTestCase {
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
-    private func focusComposerInput(in app: XCUIApplication) {
+    @discardableResult
+    private func focusComposerInput(in app: XCUIApplication) -> XCUIElement {
         let textView = app.textViews.firstMatch
         let textField = app.textFields.firstMatch
         XCTAssertTrue(textView.exists || textField.exists)
         if textView.exists {
             textView.tap()
+            return textView
         } else {
             textField.tap()
+            return textField
         }
     }
 }
