@@ -983,9 +983,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
+        status: skipped_with_reason
         run_id: ""
-        timestamp: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: Workflow model tests already had prior green evidence when this session resumed; no separate red phase was run before the implementation slice.
     green_phase:
       required: true
       expected: pass
@@ -1035,9 +1036,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
+        status: skipped_with_reason
         run_id: ""
-        timestamp: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: Workflow runner tests already had prior green evidence when this session resumed; no separate red phase was run before the implementation slice.
     green_phase:
       required: true
       expected: pass
@@ -1070,9 +1072,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
+        status: skipped_with_reason
         run_id: ""
-        timestamp: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: Workflow assistant/event tests already had prior green evidence when this session resumed; no separate red phase was run before the implementation slice.
     green_phase:
       required: true
       expected: pass
@@ -1106,9 +1109,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
+        status: skipped_with_reason
         run_id: ""
-        timestamp: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: CLI workflow-management tests already had prior green evidence when this session resumed; no separate red phase was run before the implementation slice.
     green_phase:
       required: true
       expected: pass
@@ -1139,9 +1143,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
+        status: skipped_with_reason
         run_id: ""
-        timestamp: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: npm SDK workflow-management tests already had prior green evidence when this session resumed; no separate red phase was run before the implementation slice.
     green_phase:
       required: true
       expected: pass
@@ -1170,9 +1175,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
+        status: skipped_with_reason
         run_id: ""
-        timestamp: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: pip SDK workflow-management tests already had prior green evidence when this session resumed; no separate red phase was run before the implementation slice.
     green_phase:
       required: true
       expected: pass
@@ -1358,7 +1364,7 @@ tests:
   - id: T-E2E-002
     type: playwright
     file: frontend/apps/web_app/tests/workflows-input.spec.ts
-    command: python3 scripts/tests.py run --spec workflows-input.spec.ts
+    command: python3 scripts/tests.py run -- --spec workflows-input.spec.ts
     target: app.dev.openmates.org
     covers:
       - AC-25
@@ -1386,16 +1392,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
+        status: skipped_with_reason
         run_id: ""
-        timestamp: ""
+        timestamp: "2026-07-05T16:42:26Z"
+        summary: workflows-input.spec.ts was added after the backend, CLI, npm SDK, pip SDK, and web implementation slice was already deployed in this session, so no separate pre-implementation Playwright red phase was run.
     green_phase:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed_after_deploy
+        run_id: github-actions-28747669761
+        timestamp: "2026-07-05T16:42:26Z"
+        summary: python3 scripts/tests.py run -- --spec workflows-input.spec.ts passed against app.dev.openmates.org after webapp commit b64159ae4 was Ready and the dev API was rebuilt/restarted to expose /v1/workflows/input routes.
 
   - id: T-APPLE-001
     type: unit
@@ -1413,17 +1421,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
+        status: skipped_with_reason
         run_id: ""
-        timestamp: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: Apple workflow model parity tests already existed before this session resumed; no separate red phase was run for the workflow-input implementation slice.
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: blocked
-        run_id: remote-macos-peer-b5098dc5
-        timestamp: "2026-06-22T23:28:46Z"
-        note: "Remote Mac is SSH-reachable, but checkout is stuck at b5098dc502d0e90e11556659f77edf90fec05730 and python3 scripts/apple_remote.py repo -- git pull --ff-only fails with GitHub public-key authentication. Targeted test would not exercise the deployed workflow files until the remote checkout can fast-forward."
+        status: passed
+        run_id: remote-macos-peer-workflows-parity-2026-07-05
+        timestamp: "2026-07-05T16:45:15Z"
+        note: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/WorkflowsParityTests passed 3 tests with 0 failures."
 
   - id: T-APPLE-UI-001
     type: unit
@@ -1439,17 +1448,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
+        status: skipped_with_reason
         run_id: ""
-        timestamp: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: Apple workflow UI parity tests already existed before this session resumed; no separate red phase was run for the workflow-input implementation slice.
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: blocked
-        run_id: remote-macos-peer-b5098dc5
-        timestamp: "2026-06-22T23:28:46Z"
-        note: "Remote Mac is SSH-reachable, but checkout is stuck at b5098dc502d0e90e11556659f77edf90fec05730 and python3 scripts/apple_remote.py repo -- git pull --ff-only fails with GitHub public-key authentication. Targeted test would not exercise the deployed workflow files until the remote checkout can fast-forward."
+        status: passed
+        run_id: remote-macos-peer-workflows-ui-parity-2026-07-05
+        timestamp: "2026-07-05T16:46:27Z"
+        note: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesUITests/WorkflowsParityUITests passed 1 test with 0 failures."
 
 implementation_plan:
   existing_patterns:
