@@ -304,26 +304,38 @@ assumptions:
     text: The macOS target can add a menu bar extra/status item while preserving normal main app behavior.
     category: apple_app_lifecycle
     required_before: implementation
-    status: unchecked
-    evidence: []
+    status: confirmed
+    evidence:
+      - source: apple/OpenMates/Sources/App/OpenMatesApp.swift
+        summary: "The macOS app scene adds a MenuBarExtra with MacMenuBarQuickCaptureView while preserving the existing WindowGroup main app scene."
+      - source: xcodebuild OpenMates_macOS
+        summary: "macOS scheme build passed at commit fd78409b6 with CODE_SIGNING_ALLOWED=NO."
   - id: A-2
     text: Background capture jobs can run long enough after the popover closes to finish upload/transcription/send, or can persist enough encrypted state to resume from the foreground app.
     category: background_execution
     required_before: implementation
-    status: unchecked
-    evidence: []
+    status: confirmed
+    evidence:
+      - source: apple/OpenMates/Sources/App/OpenMatesApp.swift
+        summary: "Quick Capture closes the popover with NSApp.keyWindow?.orderOut(nil) while keeping the app process and Task-based upload/transcribe/send jobs active in MacMenuBarQuickCaptureViewModel."
   - id: A-3
     text: Existing upload endpoints and audio.transcribe can be called from macOS app and extension contexts using shared session/cookie/keychain state.
     category: auth_upload
     required_before: implementation
-    status: unchecked
-    evidence: []
+    status: confirmed
+    evidence:
+      - source: apple/OpenMatesShared/BackgroundChatSender.swift
+        summary: "BackgroundChatSender centralizes attachment preparation and audio transcription for menu bar and share-extension callers using the existing native auth/upload stack."
+      - source: apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+        summary: "Focused parity tests passed for shared background sender payload, attachment classification, audio metadata, and share-extension request parity."
   - id: A-4
     text: XCUITest or a deterministic unit harness can verify the menu bar popover; if macOS menu bar automation is not reliable, a debug launch surface must expose the same view for UI tests.
     category: testing
     required_before: task_execution
-    status: unchecked
-    evidence: []
+    status: confirmed
+    evidence:
+      - source: apple/OpenMatesUITests
+        summary: "MacMenuBarQuickCaptureUITests.swift and ShareExtensionAttachmentParityUITests.swift now launch a deterministic quick-capture dev-preview harness; remote Mac/iOS execution is still pending."
 
 contracts:
   ui_states:
@@ -366,16 +378,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: not_run_before_existing_implementation
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "Red phase was not captured before the existing implementation commits; green parity evidence is recorded below."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple_remote_background_sender_parity_20260705
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesTests/BackgroundChatSenderParityTests passed: 7 tests, 0 failures."
 
   - id: T-APPLE-UNIT-002
     type: unit
@@ -390,16 +404,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: not_run_before_existing_implementation
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "Red phase was not captured before the existing implementation commits; green parity evidence is recorded below."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple_remote_background_sender_parity_20260705
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesTests/BackgroundChatSenderParityTests passed: 7 tests, 0 failures."
 
   - id: T-APPLE-UNIT-003
     type: unit
@@ -415,16 +431,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: not_run_before_existing_implementation
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "Red phase was not captured before the existing implementation commits; green parity evidence is recorded below."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple_remote_background_sender_parity_20260705
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesTests/BackgroundChatSenderParityTests passed: 7 tests, 0 failures."
 
   - id: T-APPLE-UNIT-004
     type: unit
@@ -439,16 +457,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: not_run_before_existing_implementation
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "Red phase was not captured before the existing implementation commits; green parity evidence is recorded below."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple_remote_background_sender_parity_20260705
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesTests/BackgroundChatSenderParityTests passed: 7 tests, 0 failures."
 
   - id: T-APPLE-UI-001
     type: unit
@@ -467,16 +487,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: ui_harness_added_after_existing_implementation
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "Red phase was not captured before adding the debug-preview UI harness; green execution is pending remote Apple verification."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: blocked
+        run_id: pending_remote_macos_quick_capture_ui_test
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "Blocked until python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/MacMenuBarQuickCaptureUITests runs against the pushed debug-preview harness."
 
   - id: T-APPLE-UI-002
     type: unit
@@ -492,16 +514,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: ui_harness_added_after_existing_implementation
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "Red phase was not captured before adding the debug-preview UI harness; green execution is pending remote Apple verification."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: blocked
+        run_id: pending_remote_macos_quick_capture_ui_test
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "Blocked until python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/MacMenuBarQuickCaptureUITests runs against the pushed debug-preview harness."
 
   - id: T-APPLE-UI-003
     type: unit
@@ -519,16 +543,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: ui_harness_added_after_existing_implementation
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "Red phase was not captured before adding the debug-preview UI harness; green execution is pending remote Apple verification."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: blocked
+        run_id: pending_remote_macos_quick_capture_ui_test
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "Blocked until python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/MacMenuBarQuickCaptureUITests runs against the pushed debug-preview harness."
 
   - id: T-APPLE-UI-004
     type: unit
@@ -543,16 +569,18 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: skipped_with_reason
+        run_id: ui_harness_added_after_existing_implementation
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "Red phase was not captured before adding the debug-preview UI harness; green execution is pending remote Apple verification."
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: blocked
+        run_id: pending_remote_share_extension_attachment_ui_test
+        timestamp: "2026-07-05T17:28:05Z"
+        summary: "Blocked until python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesUITests/ShareExtensionAttachmentParityUITests runs against the pushed debug-preview harness."
 
 verifications:
   - id: V-SPEC-001
@@ -570,9 +598,9 @@ verifications:
       - AC-8
     status: pending
     evidence:
-      status: ""
-      summary: "python3 scripts/spec_validate.py docs/specs/macos-menu-bar-quick-capture/spec.yml and python3 scripts/spec_verify.py docs/specs/macos-menu-bar-quick-capture/spec.yml"
-      timestamp: ""
+      status: "blocked"
+      summary: "python3 scripts/spec_validate.py docs/specs/macos-menu-bar-quick-capture/spec.yml passed; python3 scripts/spec_verify.py docs/specs/macos-menu-bar-quick-capture/spec.yml remains blocked until the newly added UI harness is run remotely and TestFlight is handled."
+      timestamp: "2026-07-05T17:28:05Z"
 
   - id: V-APPLE-BUILD-001
     kind: automated_test
@@ -583,11 +611,11 @@ verifications:
       - AC-3
       - AC-5
       - AC-6
-    status: blocked
+    status: passed
     evidence:
-      status: "ssh_failed"
-      summary: "python3 scripts/apple_remote.py status returned ssh_reachable=False after commit 27a9169 was pushed; Apple build/test verification must be retried when the Mac is reachable."
-      timestamp: "2026-07-05T16:46:38Z"
+      status: "passed"
+      summary: "python3 scripts/apple_remote.py build-ios passed at 295c43419; xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_macOS CODE_SIGNING_ALLOWED=NO build passed at fd78409b6; python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesTests/BackgroundChatSenderParityTests passed with 7 tests, 0 failures."
+      timestamp: "2026-07-05T17:28:05Z"
 
   - id: V-TESTFLIGHT-001
     kind: manual_check
@@ -598,8 +626,8 @@ verifications:
     status: blocked
     evidence:
       status: "blocked"
-      summary: "TestFlight is intentionally held because Apple build/test verification is blocked by ssh_failed."
-      timestamp: "2026-07-05T16:46:38Z"
+      summary: "TestFlight is intentionally held until the newly added macOS Quick Capture UI/share-extension UI harnesses pass remote Apple verification."
+      timestamp: "2026-07-05T17:28:05Z"
 
 implementation_plan:
   existing_patterns:

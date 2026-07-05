@@ -113,6 +113,8 @@
 		C0FFEE000000000000006004 /* BackgroundChatNotificationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */; };
 		C0FFEE000000000000007004 /* MessageInputAttachmentUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000007001 /* MessageInputAttachmentUITests.swift */; };
 		C0FFEE000000000000008004 /* MessageInputAudioRecordingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000008001 /* MessageInputAudioRecordingUITests.swift */; };
+		C0FFEE000000000000041004 /* MacMenuBarQuickCaptureUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000041001 /* MacMenuBarQuickCaptureUITests.swift */; };
+		C0FFEE000000000000042004 /* ShareExtensionAttachmentParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000042001 /* ShareExtensionAttachmentParityUITests.swift */; };
 		C0FFEE000000000000009004 /* ChatResponsiveParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */; };
 		C0FFEE000000000000010004 /* ChatShellResponsiveParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000010001 /* ChatShellResponsiveParityUITests.swift */; };
 		C0FFEE000000000000011004 /* EmbedRenderingParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000011001 /* EmbedRenderingParityUITests.swift */; };
@@ -741,6 +743,8 @@
 		C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundChatNotificationUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000007001 /* MessageInputAttachmentUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInputAttachmentUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000008001 /* MessageInputAudioRecordingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInputAudioRecordingUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000041001 /* MacMenuBarQuickCaptureUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacMenuBarQuickCaptureUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000042001 /* ShareExtensionAttachmentParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionAttachmentParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatResponsiveParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000011001 /* EmbedRenderingParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedRenderingParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000010001 /* ChatShellResponsiveParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatShellResponsiveParityUITests.swift; sourceTree = "<group>"; };
@@ -1319,6 +1323,8 @@
 				C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */,
 				C0FFEE000000000000007001 /* MessageInputAttachmentUITests.swift */,
 				C0FFEE000000000000008001 /* MessageInputAudioRecordingUITests.swift */,
+				C0FFEE000000000000041001 /* MacMenuBarQuickCaptureUITests.swift */,
+				C0FFEE000000000000042001 /* ShareExtensionAttachmentParityUITests.swift */,
 				C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */,
 				C0FFEE000000000000010001 /* ChatShellResponsiveParityUITests.swift */,
 				C0FFEE000000000000011001 /* EmbedRenderingParityUITests.swift */,
@@ -2340,6 +2346,8 @@
 				C0FFEE000000000000006004 /* BackgroundChatNotificationUITests.swift in Sources */,
 				C0FFEE000000000000007004 /* MessageInputAttachmentUITests.swift in Sources */,
 				C0FFEE000000000000008004 /* MessageInputAudioRecordingUITests.swift in Sources */,
+				C0FFEE000000000000041004 /* MacMenuBarQuickCaptureUITests.swift in Sources */,
+				C0FFEE000000000000042004 /* ShareExtensionAttachmentParityUITests.swift in Sources */,
 				C0FFEE000000000000009004 /* ChatResponsiveParityUITests.swift in Sources */,
 				C0FFEE000000000000010004 /* ChatShellResponsiveParityUITests.swift in Sources */,
 				C0FFEE000000000000011004 /* EmbedRenderingParityUITests.swift in Sources */,

@@ -27,11 +27,97 @@ struct DevPreviewRootView: View {
             DevChatOpeningPreviewView(forceRecordingOverlay: true)
         case .chatShare:
             DevChatSharePreviewView()
+        case .quickCapture:
+            #if os(macOS)
+            MacMenuBarQuickCaptureView()
+                .frame(width: 430)
+            #else
+            DevQuickCaptureAttachmentPreviewView()
+            #endif
         case .embeds:
             DevEmbedPreviewGalleryView(initialApp: configuration.appSlug)
         }
     }
 }
+
+#if !os(macOS)
+struct DevQuickCaptureAttachmentPreviewView: View {
+    @State private var selectedTab = "chats"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing6) {
+            HStack(spacing: .spacing4) {
+                tabButton("chats")
+                tabButton("projects")
+                tabButton("plans")
+                tabButton("tasks")
+                tabButton("workflows")
+            }
+            if selectedTab == "chats" {
+                chatsPreview
+            } else {
+                Text("Quick capture for \(selectedTab) is coming later.")
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .padding(.spacing8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.grey10)
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                    .accessibilityIdentifier("quick-capture-placeholder-\(selectedTab)")
+            }
+        }
+        .padding(.spacing8)
+        .background(Color.grey0)
+        .accessibilityIdentifier("quick-capture-root")
+    }
+
+    private var chatsPreview: some View {
+        VStack(alignment: .leading, spacing: .spacing6) {
+            HStack(spacing: .spacing4) {
+                Text("New Chat")
+                Text("UI Test Chat")
+            }
+            .font(.omXs.weight(.semibold))
+            .foregroundStyle(Color.fontPrimary)
+            .accessibilityIdentifier("quick-capture-recent-chats")
+
+            VStack(spacing: .spacing4) {
+                TextField("", text: .constant(""))
+                    .textFieldStyle(.plain)
+                    .accessibilityIdentifier("quick-capture-message-editor")
+                HStack {
+                    Button("Record") {}
+                        .accessibilityIdentifier("quick-capture-record-audio-button")
+                    Spacer()
+                    Button("Send") {}
+                        .accessibilityIdentifier("quick-capture-send-button")
+                }
+            }
+            .padding(.spacing5)
+            .background(Color.grey10)
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .accessibilityIdentifier("quick-capture-composer")
+
+            Text("Shared fixture.pdf")
+                .font(.omXs)
+                .foregroundStyle(Color.fontSecondary)
+                .accessibilityIdentifier("quick-capture-pending-attachments")
+            Text("Success")
+                .font(.omMicro.weight(.semibold))
+                .foregroundStyle(Color.buttonPrimary)
+                .accessibilityIdentifier("quick-capture-status-list")
+        }
+    }
+
+    private func tabButton(_ id: String) -> some View {
+        Button(id.capitalized) {
+            selectedTab = id
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("quick-capture-tab-\(id)")
+    }
+}
+#endif
 
 struct DevChatSharePreviewView: View {
     var body: some View {

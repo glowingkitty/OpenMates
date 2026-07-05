@@ -636,9 +636,52 @@ private final class MacMenuBarQuickCaptureViewModel: ObservableObject {
             throw BackgroundChatSendError.unsupportedAttachment
         }
     }
+
+    #if DEBUG
+    func seedUITestStateIfRequested() {
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("--ui-test-seed-quick-capture-recent-chat"), recentChats.isEmpty {
+            recentChats = [
+                BackgroundChatSender.DestinationChat(
+                    id: "quick-capture-ui-test-chat",
+                    title: "UI Test Chat",
+                    lastMessageAt: nil,
+                    createdAt: ISO8601DateFormatter().string(from: Date()),
+                    updatedAt: nil,
+                    appId: nil,
+                    encryptedTitle: nil,
+                    encryptedCategory: nil,
+                    encryptedIcon: nil,
+                    encryptedChatKey: nil,
+                    messagesV: 1,
+                    titleV: 0
+                )
+            ]
+        }
+
+        if arguments.contains("--ui-test-seed-quick-capture-attachment"), pendingEmbeds.isEmpty {
+            pendingEmbeds = [
+                BackgroundPreparedEmbed(
+                    id: "quick-capture-ui-test-embed",
+                    type: "application/pdf",
+                    referenceType: "application",
+                    status: "processing",
+                    content: [
+                        "app_id": "pdf",
+                        "type": "application",
+                        "status": "processing",
+                        "filename": "Shared fixture.pdf"
+                    ],
+                    textPreview: "Shared fixture.pdf"
+                )
+            ]
+            jobs.insert(CaptureJob(id: UUID(), title: "Shared fixture.pdf", status: .sent), at: 0)
+        }
+    }
+    #endif
 }
 
-private struct MacMenuBarQuickCaptureView: View {
+struct MacMenuBarQuickCaptureView: View {
     @StateObject private var viewModel = MacMenuBarQuickCaptureViewModel()
     @StateObject private var recorder = VoiceRecorder()
     @FocusState private var inputFocused: Bool
@@ -658,8 +701,12 @@ private struct MacMenuBarQuickCaptureView: View {
         .background(Color.grey0)
         .onAppear {
             inputFocused = true
+            #if DEBUG
+            viewModel.seedUITestStateIfRequested()
+            #endif
             viewModel.loadRecentChats()
         }
+        .accessibilityIdentifier("quick-capture-root")
     }
 
     private var headerTabs: some View {

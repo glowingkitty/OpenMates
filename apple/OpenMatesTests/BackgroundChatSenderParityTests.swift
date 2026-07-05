@@ -46,6 +46,7 @@ final class BackgroundChatSenderParityTests: XCTestCase {
             titleV: 3,
             taskId: "task-1",
             encryptedSenderName: "encrypted-user",
+            encryptedPIIMappings: "encrypted-pii-mappings",
             encryptedTitle: "encrypted-title",
             encryptedIcon: "encrypted-icon",
             encryptedChatCategory: "encrypted-chat-category",
@@ -58,6 +59,7 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         XCTAssertEqual(payload["encrypted_chat_key"] as? String, "encrypted-chat-key")
         XCTAssertEqual(payload["task_id"] as? String, "task-1")
         XCTAssertEqual(payload["encrypted_sender_name"] as? String, "encrypted-user")
+        XCTAssertEqual(payload["encrypted_pii_mappings"] as? String, "encrypted-pii-mappings")
         XCTAssertEqual(payload["encrypted_title"] as? String, "encrypted-title")
         XCTAssertEqual(payload["encrypted_icon"] as? String, "encrypted-icon")
         XCTAssertEqual(payload["encrypted_chat_category"] as? String, "encrypted-chat-category")
@@ -70,6 +72,20 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         XCTAssertEqual(versions["messages_v"], 7)
         XCTAssertEqual(versions["title_v"], 3)
         XCTAssertEqual(versions["last_edited_overall_timestamp"], 1_780_000_000)
+    }
+
+    func testBackgroundSendsRedactPII() throws {
+        let result = try BackgroundChatSendContract.redactedContentForSend(
+            text: "Summarize for max@posteo.de and call +49 170 1234567",
+            embeds: []
+        )
+
+        XCTAssertFalse(result.content.contains("max@posteo.de"))
+        XCTAssertFalse(result.content.contains("+49 170 1234567"))
+        XCTAssertTrue(result.content.contains("[EMAIL_"))
+        XCTAssertTrue(result.content.contains("[PHONE_"))
+        XCTAssertEqual(result.piiMappings.count, 2)
+        XCTAssertTrue(result.piiMappings.contains { $0.original == "max@posteo.de" && $0.type == "EMAIL" })
     }
 
     func testQueuedBackgroundEventDoesNotTriggerEncryptedStoragePackage() {
