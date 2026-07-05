@@ -7,6 +7,9 @@
 // Svelte:  frontend/apps/web_app/src/routes/+page.svelte  (top-level layout)
 //          frontend/packages/ui/src/components/ChatHistory.svelte (sidebar)
 //          frontend/packages/ui/src/components/Header.svelte (top nav)
+//          frontend/packages/ui/src/components/ActiveChat.svelte (new-chat welcome)
+//          frontend/packages/ui/src/components/NewChatSuggestions.svelte
+//          frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
 // Default: Opens the new-chat welcome surface on cold boot. The welcome surface
 //          contains the guest/account interest selector and local ranking system.
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
@@ -4235,7 +4238,7 @@ struct NewChatWelcomeView: View {
                             )
                             .transition(.opacity)
                         } else if !shownChatCards.isEmpty {
-                            welcomeCardsCarousel
+                            welcomeCardsCarousel(containerSize: proxy.size)
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -4246,7 +4249,7 @@ struct NewChatWelcomeView: View {
                     .transition(.opacity)
                 }
 
-                if !suggestions.isEmpty && !shouldShowGuestInterestTags {
+                if isComposerActive && !suggestions.isEmpty && !shouldShowGuestInterestTags {
                     suggestionsCarousel
                         .frame(maxWidth: .infinity)
                         .padding(.bottom, composerReserve)
@@ -4318,16 +4321,24 @@ struct NewChatWelcomeView: View {
         .padding(.horizontal, .spacing6)
     }
 
-    private var welcomeCardsCarousel: some View {
-        GeometryReader { proxy in
-            let cardWidth: CGFloat = min(330, proxy.size.width - 72)
+    private func welcomeCardsCarousel(containerSize: CGSize) -> some View {
+        let usesLargeCards = Self.shouldUseLargeWelcomeCards(for: containerSize)
+
+        return GeometryReader { proxy in
+            let cardWidth: CGFloat = max(180, min(300, proxy.size.width - 72))
             let sideInset = max((proxy.size.width - cardWidth) / 2, CGFloat.spacing5)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: .spacing8) {
                     ForEach(shownChatCards) { card in
-                        WelcomeResumeCard(card: card, width: cardWidth, height: 216) {
-                            onOpenChat(card.id)
+                        if usesLargeCards {
+                            WelcomeResumeCard(card: card, width: cardWidth, height: 200) {
+                                onOpenChat(card.id)
+                            }
+                        } else {
+                            WelcomeResumeCompactCard(card: card, width: cardWidth) {
+                                onOpenChat(card.id)
+                            }
                         }
                     }
                     if overflowCount > 0 {
@@ -4336,10 +4347,15 @@ struct NewChatWelcomeView: View {
                 }
                 .padding(.leading, sideInset)
                 .padding(.trailing, .spacing12)
-                .padding(.vertical, .spacing3)
+                .padding(.top, usesLargeCards ? 35 : 12)
+                .padding(.bottom, 12)
             }
         }
-        .frame(height: 240)
+        .frame(height: usesLargeCards ? 247 : 84)
+    }
+
+    private static func shouldUseLargeWelcomeCards(for size: CGSize) -> Bool {
+        size.height >= 800 && size.width >= 550
     }
 
     private var suggestionsCarousel: some View {
@@ -4752,6 +4768,63 @@ private struct WelcomeResumeCard: View {
             .accessibilityIdentifier("welcome-chat-card-\(card.id)")
             .accessibilityLabel(card.title)
         }
+    }
+}
+
+private struct WelcomeResumeCompactCard: View {
+    let card: WelcomeChatCardData
+    let width: CGFloat
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: .spacing6) {
+                WelcomeCardIcon(name: card.iconName, size: 18)
+                    .frame(width: 18, height: 18)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(card.title)
+                        .font(.custom("Lexend Deca", size: 16).weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.96))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+
+                    if let summary = card.summary {
+                        Text(summary)
+                            .font(.custom("Lexend Deca", size: 11).weight(.medium))
+                            .foregroundStyle(.white.opacity(0.78))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                if card.isPinned {
+                    Icon("pin", size: 14)
+                        .foregroundStyle(.white.opacity(0.9))
+                        .frame(width: 18, height: 18)
+                }
+
+                LucideNativeIcon("chevron-right", size: 16)
+                    .foregroundStyle(.white.opacity(0.88))
+                    .frame(width: 16, height: 16)
+            }
+            .padding(.horizontal, .spacing8)
+            .padding(.vertical, .spacing5)
+            .frame(width: width)
+            .frame(minHeight: 44)
+            .background(CategoryMapping.gradient(for: card.category))
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .overlay(
+                RoundedRectangle(cornerRadius: .radius8)
+                    .stroke(.white.opacity(0.14), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
+            .contentShape(RoundedRectangle(cornerRadius: .radius8))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("welcome-chat-compact-card-\(card.id)")
+        .accessibilityLabel(card.title)
     }
 }
 
