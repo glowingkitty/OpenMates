@@ -77,6 +77,27 @@ final class MessageInputAttachmentUITests: XCTestCase {
         XCTAssertFalse(textContaining("alice@example.com", in: app).exists)
     }
 
+    func testWelcomeComposerShowsPIIWarningHighlights() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
+        app.launch()
+
+        let skipInterests = app.buttons["guest-interest-skip"]
+        if skipInterests.waitForExistence(timeout: 8) {
+            skipInterests.tap()
+        }
+
+        let messageEditor = app.textFields["message-editor"]
+        XCTAssertTrue(messageEditor.waitForExistence(timeout: 5))
+        messageEditor.tap()
+        messageEditor.typeText("Email alice@example.com")
+
+        XCTAssertTrue(app.staticTexts["Sensitive data detected"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["alice@example.com"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["chat.pii_banner.title"].exists)
+        XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
+    }
+
     private func launchChatOpeningPreview(arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-opening"] + arguments

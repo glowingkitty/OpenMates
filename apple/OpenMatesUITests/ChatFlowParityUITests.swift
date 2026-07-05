@@ -173,29 +173,6 @@ final class ChatFlowParityUITests: XCTestCase {
         attachScreenshot(name: "Guest interest tag selection filters suggestions")
     }
 
-    func testWelcomeComposerShowsPIIWarningHighlights() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
-        app.launch()
-
-        let skipInterests = app.buttons["guest-interest-skip"]
-        if skipInterests.waitForExistence(timeout: 8) {
-            skipInterests.tap()
-        }
-
-        let messageEditor = app.textFields["message-editor"]
-        XCTAssertTrue(messageEditor.waitForExistence(timeout: 5))
-        messageEditor.tap()
-        messageEditor.typeText("Email alice@example.com")
-
-        XCTAssertTrue(app.staticTexts["Sensitive data detected"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["alice@example.com"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.staticTexts["chat.pii_banner.title"].exists)
-        XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
-
-        attachScreenshot(name: "Welcome composer PII warning highlights")
-    }
-
     private func tapVisibleInterestTags(count: Int, in app: XCUIApplication) {
         let tagContainer = app.scrollViews["guest-interest-rail"]
         XCTAssertTrue(tagContainer.waitForExistence(timeout: 5), "Expected guest interest tags")
