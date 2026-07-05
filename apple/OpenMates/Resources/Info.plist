@@ -30,6 +30,41 @@
 		<string>org.openmates.app.composeChat</string>
 		<string>org.openmates.app.browseChats</string>
 	</array>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>square.and.pencil</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Ask</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>org.openmates.ask</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>camera</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Ask About Photo</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>org.openmates.ask-about-photo</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>magnifyingglass</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Search</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>org.openmates.search</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>eye.slash</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Incognito Ask</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>org.openmates.incognito-ask</string>
+		</dict>
+	</array>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>OpenMates uses the microphone to record voice messages you choose to send in chat.</string>
 	<key>OpenMatesKeychainAccessGroup</key>

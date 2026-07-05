@@ -4,10 +4,59 @@
 // chat ordering and merge behavior that backs the Apple chat-management UI.
 
 import XCTest
+#if os(iOS)
+import UIKit
+#endif
 @testable import OpenMates
 
 @MainActor
 final class ChatManagementSharingParityTests: XCTestCase {
+    func testHomeScreenQuickActionDefinitionsMatchChatActions() {
+        #if os(iOS)
+        let items = AppQuickAction.shortcutItems
+        let typesAndTitles = items.map { ($0.type, $0.localizedTitle) }
+
+        XCTAssertEqual(
+            typesAndTitles,
+            [
+                ("org.openmates.ask", "Ask"),
+                ("org.openmates.ask-about-photo", "Ask About Photo"),
+                ("org.openmates.search", "Search"),
+                ("org.openmates.incognito-ask", "Incognito Ask")
+            ]
+        )
+
+        XCTAssertEqual(AppQuickAction(shortcutItem: UIApplicationShortcutItem(type: "org.openmates.newchat", localizedTitle: "New Chat")), .ask)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[0]), .ask)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[1]), .askAboutPhoto)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[2]), .search)
+        XCTAssertEqual(AppQuickAction(shortcutItem: items[3]), .incognitoAsk)
+        #endif
+    }
+
+    func testInfoPlistRegistersInstallTimeHomeScreenQuickActions() throws {
+        #if os(iOS)
+        let items = try XCTUnwrap(
+            Bundle(for: AppDelegate.self).object(forInfoDictionaryKey: "UIApplicationShortcutItems") as? [[String: String]],
+            "Expected static UIApplicationShortcutItems in the app bundle Info.plist"
+        )
+
+        let typesAndTitles = items.map {
+            ($0["UIApplicationShortcutItemType"], $0["UIApplicationShortcutItemTitle"])
+        }
+
+        XCTAssertEqual(
+            typesAndTitles,
+            [
+                ("org.openmates.ask", "Ask"),
+                ("org.openmates.ask-about-photo", "Ask About Photo"),
+                ("org.openmates.search", "Search"),
+                ("org.openmates.incognito-ask", "Incognito Ask")
+            ]
+        )
+        #endif
+    }
+
     func testPinnedAndArchivedChatsMatchSidebarBuckets() {
         let store = ChatStore()
         let pinned = makeChat(id: "pinned", title: "Pinned", isArchived: false, isPinned: true, updatedAt: "2026-01-03T00:00:00Z")

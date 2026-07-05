@@ -48,33 +48,6 @@ final class ChatShellResponsiveParityUITests: XCTestCase {
         add(attachment)
     }
 
-    func testHomeScreenQuickActionMenuExposesChatActions() throws {
-        let app = XCUIApplication()
-        app.launch()
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 12))
-
-        XCUIDevice.shared.press(.home)
-
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        let appIcon = springboard.icons["OpenMates"]
-        XCTAssertTrue(appIcon.waitForExistence(timeout: 12), "Expected OpenMates app icon on the simulator home screen")
-
-        appIcon.press(forDuration: 1.2)
-
-        for title in ["Ask", "Ask About Photo", "Search", "Incognito Ask"] {
-            XCTAssertTrue(
-                quickActionTitleExists(title, in: springboard, timeout: 5),
-                "Expected home screen quick action titled \(title)"
-            )
-        }
-
-        let screenshot = XCUIScreen.main.screenshot()
-        let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = "Home screen quick actions"
-        attachment.lifetime = .keepAlways
-        add(attachment)
-    }
-
     private func waitForMetric(_ key: String, equals expected: Bool, in element: XCUIElement) throws -> String {
         let deadline = Date().addingTimeInterval(5)
         while Date() < deadline {
@@ -99,11 +72,6 @@ final class ChatShellResponsiveParityUITests: XCTestCase {
 
     private func stringMetric(_ key: String, in label: String) throws -> String {
         try XCTUnwrap(metric(key, in: label), "Missing string metric \(key) in: \(label)")
-    }
-
-    private func quickActionTitleExists(_ title: String, in springboard: XCUIApplication, timeout: TimeInterval) -> Bool {
-        if springboard.buttons[title].waitForExistence(timeout: timeout) { return true }
-        return springboard.staticTexts[title].waitForExistence(timeout: 1)
     }
 
     private func metric(_ key: String, in label: String) -> String? {
