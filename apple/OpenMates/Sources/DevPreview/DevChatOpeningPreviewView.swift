@@ -35,6 +35,8 @@ struct DevChatOpeningPreviewView: View {
         Group {
             if isUITestPIIComposerBannerFixtureEnabled {
                 DevPIIComposerBannerFixtureView()
+            } else if isUITestPIIVisibilityFixtureEnabled {
+                DevPIIVisibilityFixtureView()
             } else {
                 chatOpeningPreview
             }
@@ -187,6 +189,11 @@ struct DevChatOpeningPreviewView: View {
             || ProcessInfo.processInfo.environment["UI_TEST_PII_COMPOSER_BANNER_FIXTURE"] == "1"
     }
 
+    private var isUITestPIIVisibilityFixtureEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-pii-visibility-fixture")
+            || ProcessInfo.processInfo.environment["UI_TEST_PII_VISIBILITY_FIXTURE"] == "1"
+    }
+
     private var isUITestChatReportFormEnabled: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-chat-report-form")
             || ProcessInfo.processInfo.environment["UI_TEST_CHAT_REPORT_FORM"] == "1"
@@ -253,6 +260,57 @@ private struct DevPIIComposerBannerFixtureView: View {
         }
         .padding(.spacing6)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color.grey20)
+    }
+}
+
+private struct DevPIIVisibilityFixtureView: View {
+    private let hiddenContent = "Please email [EMAIL_1_com] the update."
+    private let mappings = [
+        PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL")
+    ]
+    @State private var isRevealed = false
+
+    private var displayedContent: String {
+        guard isRevealed else { return hiddenContent }
+        return PIIDetector.restorePII(in: hiddenContent, mappings: mappings)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            HStack(spacing: .spacing3) {
+                Text("Native Chat Opening Preview")
+                    .font(.omSmall.weight(.semibold))
+                    .foregroundStyle(Color.fontPrimary)
+
+                Spacer(minLength: 0)
+
+                Button {
+                    isRevealed.toggle()
+                } label: {
+                    Icon(isRevealed ? "hidden" : "visible", size: 22)
+                        .foregroundStyle(LinearGradient.primary)
+                        .frame(width: 44, height: 44)
+                        .background(Color.grey0.opacity(0.92))
+                        .clipShape(Circle())
+                        .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
+                }
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(isRevealed ? AppStrings.piiHide : AppStrings.piiShow)
+                .accessibilityIdentifier("chat-pii-toggle")
+                .accessibilityAddTraits(.isButton)
+            }
+
+            Text(displayedContent)
+                .font(.omP)
+                .foregroundStyle(Color.fontPrimary)
+                .accessibilityIdentifier("pii-visibility-fixture-message")
+
+            Spacer()
+        }
+        .padding(.spacing6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color.grey20)
     }
 }
