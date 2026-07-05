@@ -33,24 +33,23 @@ final class MessageInputAttachmentUITests: XCTestCase {
     func testComposerWarningHighlightsAndExclusions() throws {
         let app = launchChatOpeningPreview(arguments: ["--ui-test-pii-composer-banner-fixture"])
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
-        XCTAssertTrue(element(in: app, identifier: "pii-composer-banner-fixture").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["PII Composer Banner Fixture"].waitForExistence(timeout: 5))
 
-        let banner = element(in: app, identifier: "pii-warning-banner")
+        let banner = app.staticTexts["Sensitive data detected"]
         XCTAssertTrue(banner.waitForExistence(timeout: 8))
-        XCTAssertTrue(element(in: app, identifier: "pii-highlights").waitForExistence(timeout: 5))
 
-        let emailHighlight = element(in: app, identifier: "pii-highlight-EMAIL")
-        let phoneHighlight = element(in: app, identifier: "pii-highlight-PHONE")
+        let emailHighlight = app.buttons["alice@example.com"]
+        let phoneHighlight = app.buttons["+49 170 1234567"]
         XCTAssertTrue(emailHighlight.waitForExistence(timeout: 5))
         XCTAssertTrue(phoneHighlight.waitForExistence(timeout: 5))
 
         emailHighlight.tap()
-        XCTAssertTrue(waitForAbsence(element(in: app, identifier: "pii-highlight-EMAIL")))
+        XCTAssertTrue(waitForAbsence(app.buttons["alice@example.com"]))
         XCTAssertTrue(phoneHighlight.waitForExistence(timeout: 5))
 
-        element(in: app, identifier: "pii-undo-all").tap()
-        XCTAssertTrue(waitForAbsence(element(in: app, identifier: "pii-warning-banner")))
-        XCTAssertTrue(waitForAbsence(element(in: app, identifier: "pii-highlights")))
+        app.buttons["Undo all replacements"].tap()
+        XCTAssertTrue(waitForAbsence(app.staticTexts["Sensitive data detected"]))
+        XCTAssertTrue(waitForAbsence(app.buttons["+49 170 1234567"]))
     }
 
     func testPIIVisibilityToggleRevealHideAndReload() throws {
