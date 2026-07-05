@@ -193,13 +193,27 @@ async function createPipeline(pipeline, args) {
 
 async function modelDetections(classifier, text) {
   const raw = await classifier(text, { aggregation_strategy: 'simple' });
+  let cursor = 0;
   return raw
-    .map((item) => ({
-      label: normalizeLabel(item.entity_group || item.entity),
-      start: Number(item.start),
-      end: Number(item.end),
-      score: item.score == null ? null : Number(item.score),
-    }))
+    .map((item) => {
+      const fallbackWord = String(item.word || '').trim();
+      let start = Number(item.start);
+      let end = Number(item.end);
+      if ((!Number.isInteger(start) || !Number.isInteger(end)) && fallbackWord) {
+        const found = text.indexOf(fallbackWord, cursor);
+        if (found >= 0) {
+          start = found;
+          end = found + fallbackWord.length;
+          cursor = end;
+        }
+      }
+      return {
+        label: normalizeLabel(item.entity_group || item.entity),
+        start,
+        end,
+        score: item.score == null ? null : Number(item.score),
+      };
+    })
     .filter((item) => Number.isInteger(item.start) && Number.isInteger(item.end))
     .sort((first, second) => first.start - second.start);
 }
