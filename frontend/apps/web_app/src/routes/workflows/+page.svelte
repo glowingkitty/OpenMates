@@ -9,6 +9,7 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { Header, Settings, Notification, WorkspaceHomeShell, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability } from '@repo/ui';
   import { getApiEndpoint } from '@repo/ui/config/api';
@@ -195,7 +196,9 @@
     const data = await workflowRequest<{ workflows: WorkflowSummary[] }>('/v1/workflows');
     workflows = data.workflows;
     if (workflows.length > 0) {
-      await selectWorkflow(workflows[0].id);
+      const requestedWorkflowId = page.url.searchParams.get('workflow');
+      const workflowId = workflows.find((workflow) => workflow.id === requestedWorkflowId)?.id ?? workflows[0].id;
+      await selectWorkflow(workflowId);
     } else {
       selectedWorkflow = null;
       runs = [];
@@ -232,6 +235,7 @@
 
   async function continueWorkflowFromCard(item: WorkflowContinueItem) {
     await selectWorkflow(item.id);
+    await goto(`/workflows?view=manage&workflow=${encodeURIComponent(item.id)}`);
   }
 
   async function startWorkflowFromCard(item: WorkflowContinueItem) {
@@ -323,6 +327,7 @@
       });
       workflows = [data.workflow, ...workflows];
       await selectWorkflow(data.workflow.id);
+      await goto(`/workflows?view=manage&workflow=${encodeURIComponent(data.workflow.id)}`);
     } catch (createError) {
       error = createError instanceof Error ? createError.message : 'Failed to create workflow.';
     } finally {
