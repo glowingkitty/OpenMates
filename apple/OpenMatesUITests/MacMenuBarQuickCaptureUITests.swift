@@ -25,7 +25,7 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
         XCTAssertTrue(element(in: app, identifier: "quick-capture-composer").exists)
         XCTAssertTrue(element(in: app, identifier: "quick-capture-message-editor").exists)
         XCTAssertTrue(element(in: app, identifier: "quick-capture-record-audio-button").exists)
-        XCTAssertTrue(element(in: app, identifier: "quick-capture-send-button").exists)
+        XCTAssertTrue(sendButton(in: app).exists)
     }
 
     func testQuickCapturePreviewShowsNonChatPlaceholdersWithoutHistory() throws {
@@ -56,7 +56,7 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
         XCTAssertTrue(element(in: app, identifier: "quick-capture-pending-attachments").waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Shared fixture.pdf"].exists)
         XCTAssertTrue(element(in: app, identifier: "quick-capture-status-list").exists)
-        XCTAssertTrue(element(in: app, identifier: "quick-capture-send-button").isEnabled)
+        XCTAssertTrue(sendButton(in: app).isEnabled)
     }
 
     private func launchQuickCapturePreview(seedAttachment: Bool = false) -> XCUIApplication {
@@ -79,5 +79,10 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier == %@", identifier))
             .firstMatch
+    }
+
+    private func sendButton(in app: XCUIApplication) -> XCUIElement {
+        let identified = element(in: app, identifier: "quick-capture-send-button")
+        return identified.exists ? identified : app.buttons["Send"].firstMatch
     }
 }

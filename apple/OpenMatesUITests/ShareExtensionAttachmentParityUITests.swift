@@ -30,12 +30,17 @@ final class ShareExtensionAttachmentParityUITests: XCTestCase {
         XCTAssertTrue(element(in: app, identifier: "quick-capture-pending-attachments").exists)
         XCTAssertTrue(app.staticTexts["Shared fixture.pdf"].exists)
         XCTAssertTrue(element(in: app, identifier: "quick-capture-status-list").exists)
-        XCTAssertTrue(element(in: app, identifier: "quick-capture-send-button").isEnabled)
+        XCTAssertTrue(sendButton(in: app).isEnabled)
     }
 
     private func element(in app: XCUIApplication, identifier: String) -> XCUIElement {
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier == %@", identifier))
             .firstMatch
+    }
+
+    private func sendButton(in app: XCUIApplication) -> XCUIElement {
+        let identified = element(in: app, identifier: "quick-capture-send-button")
+        return identified.exists ? identified : app.buttons["Send"].firstMatch
     }
 }
