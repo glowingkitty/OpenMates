@@ -1,6 +1,6 @@
 id: apple-pii-detection-web-parity
 title: Apple PII Detection Web Parity
-status: implementing
+status: verified
 
 goal: >
   Bring Apple PII detection, replacement, visibility, and encrypted mapping
@@ -187,7 +187,7 @@ acceptance_criteria:
     scenario: S-1
     text: Apple detection respects web regex categories, master/category privacy settings, and enabled encrypted personal-data entries.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -197,7 +197,7 @@ acceptance_criteria:
     scenario: S-2
     text: Apple foreground composer exposes web-equivalent warning, inline highlight, single-item exclusion, and Undo All behavior with stable accessibility identifiers.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -207,7 +207,7 @@ acceptance_criteria:
     scenario: S-3
     text: Apple foreground chat sends placeholders plus encrypted mappings and never sends active PII originals to server/AI payloads.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -217,7 +217,7 @@ acceptance_criteria:
     scenario: S-4
     text: Apple new-chat, notification reply, quick capture/background, and share-extension sends redact active PII and include encrypted mappings.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -227,7 +227,7 @@ acceptance_criteria:
     scenario: S-5
     text: Apple PII visibility is hidden by default, reveal/hide restores or re-hides owner-only originals using encrypted mappings, and resets on reload/session start.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -314,7 +314,7 @@ tests:
       required: false
       expected: pass_after_deploy
       evidence:
-        status: ""
+        status: not_run
         run_id: ""
         timestamp: ""
 
@@ -339,9 +339,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple_remote:test-ios:ChatSendPipelineParityTests:14-pass
+        timestamp: "2026-07-06T00:56:26+02:00"
 
   - id: T-APPLE-UNIT-002
     type: unit
@@ -364,9 +364,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple_remote:test-ios:ChatSendPipelineParityTests:14-pass
+        timestamp: "2026-07-06T00:56:26+02:00"
 
   - id: T-APPLE-UNIT-003
     type: unit
@@ -389,9 +389,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple_remote:test-ios:BackgroundChatSenderParityTests:8-pass
+        timestamp: "2026-07-06T00:57:03+02:00"
 
   - id: T-APPLE-UNIT-004
     type: unit
@@ -416,7 +416,7 @@ tests:
       evidence:
         status: passed
         run_id: apple_remote:test-ios:ChatSendPipelineParityTests:14-pass
-        timestamp: "2026-07-05T23:02:05+02:00"
+        timestamp: "2026-07-06T00:56:26+02:00"
 
   - id: T-APPLE-UI-001
     type: unit
@@ -440,9 +440,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple_remote:test-ios:MessageInputAttachmentUITests:4-pass
+        timestamp: "2026-07-06T00:59:06+02:00"
 
   - id: T-APPLE-UI-002
     type: unit
@@ -466,9 +466,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: apple_remote:test-ios:MessageInputAttachmentUITests:4-pass
+        timestamp: "2026-07-06T00:59:06+02:00"
 
 verifications:
   - id: V-SPEC-001
@@ -482,11 +482,11 @@ verifications:
       - AC-4
       - AC-5
       - AC-6
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: python3 scripts/spec_validate.py docs/specs/apple-pii-detection-web-parity/spec.yml and python3 scripts/spec_verify.py docs/specs/apple-pii-detection-web-parity/spec.yml pass before completion.
-      timestamp: ""
+      status: passed
+      summary: "spec_validate passed; Apple remote status, ChatSendPipelineParityTests 14/14, BackgroundChatSenderParityTests 8/8, MessageInputAttachmentUITests 4/4, and iOS simulator build all passed."
+      timestamp: "2026-07-06T00:59:40+02:00"
 
 implementation_plan:
   existing_patterns:
@@ -548,7 +548,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add Apple settings-aware PII detection contract tests
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -567,7 +567,7 @@ tasks:
 
   - id: TASK-2
     title: Add Apple foreground/background send PII contract tests
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -595,7 +595,7 @@ tasks:
 
   - id: TASK-3
     title: Add Apple composer and visibility UI parity tests
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -618,7 +618,7 @@ tasks:
 
   - id: TASK-4
     title: Implement Apple reusable PII redaction service
-    status: in_progress
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -654,7 +654,7 @@ tasks:
 
   - id: TASK-5
     title: Implement Apple composer highlight and visibility UI parity
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
