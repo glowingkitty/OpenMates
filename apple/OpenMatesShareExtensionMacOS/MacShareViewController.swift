@@ -1,8 +1,7 @@
-// macOS share extension for sending URLs and text into encrypted chats.
-// This mirrors the focused iOS share flow with an AppKit host controller:
-// preview shared content, add an optional instruction, choose New Chat or a
-// recent chat, then send through BackgroundChatSender. Rich attachments,
-// audio, camera, sketch, and location are intentionally out of scope for v1.
+// macOS share extension for sending URLs, text, and supported files into
+// encrypted chats. This mirrors the focused iOS share flow with an AppKit host
+// controller: preview shared content, add an optional instruction, choose New
+// Chat or a recent chat, then send through BackgroundChatSender with embeds.
 // Secrets remain in the shared Keychain access group; App Group defaults are
 // used only for cached session metadata needed by extension processes.
 
@@ -25,8 +24,16 @@ final class MacShareViewController: NSViewController {
         let isURL: Bool
     }
 
+    private struct SharedAttachment {
+        let data: Data
+        let filename: String
+        let contentType: String
+    }
+
     private final class SharedPartCollector: @unchecked Sendable {
         private var parts: [SharedPart] = []
+        private var attachments: [SharedAttachment] = []
+        private var unsupported: [String] = []
         private let lock = NSLock()
 
         func append(_ part: SharedPart) {
@@ -35,9 +42,35 @@ final class MacShareViewController: NSViewController {
             lock.unlock()
         }
 
+        func append(_ attachment: SharedAttachment) {
+            lock.lock()
+            attachments.append(attachment)
+            lock.unlock()
+        }
+
+        func appendUnsupported(_ filename: String) {
+            lock.lock()
+            unsupported.append(filename)
+            lock.unlock()
+        }
+
         func values() -> [SharedPart] {
             lock.lock()
             let snapshot = parts
+            lock.unlock()
+            return snapshot
+        }
+
+        func attachmentValues() -> [SharedAttachment] {
+            lock.lock()
+            let snapshot = attachments
+            lock.unlock()
+            return snapshot
+        }
+
+        func unsupportedValues() -> [String] {
+            lock.lock()
+            let snapshot = unsupported
             lock.unlock()
             return snapshot
         }
@@ -60,6 +93,12 @@ final class MacShareViewController: NSViewController {
         return nil
     }
 
+    private nonisolated static func sharedFileURL(from value: Any?) -> URL? {
+        if let url = value as? URL { return url.isFileURL ? url : nil }
+        if let url = value as? NSURL, url.isFileURL { return url as URL }
+        return nil
+    }
+
     private nonisolated static func sharedPlainText(from value: Any?) -> String? {
         if let text = value as? String {
             return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : text
@@ -71,7 +110,46 @@ final class MacShareViewController: NSViewController {
         return nil
     }
 
+    private nonisolated static func attachmentFilename(from provider: NSItemProvider, typeIdentifier: String) -> String {
+        if let suggestedName = provider.suggestedName, !suggestedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let ext = UTType(typeIdentifier)?.preferredFilenameExtension
+            if let ext, URL(fileURLWithPath: suggestedName).pathExtension.isEmpty {
+                return "\(suggestedName).\(ext)"
+            }
+            return suggestedName
+        }
+        if let ext = UTType(typeIdentifier)?.preferredFilenameExtension {
+            return "Shared Attachment.\(ext)"
+        }
+        return "Shared Attachment"
+    }
+
+    private nonisolated static func attachmentContentType(typeIdentifier: String, fallbackFilename: String) -> String {
+        if let mime = UTType(typeIdentifier)?.preferredMIMEType { return mime }
+        if let type = UTType(filenameExtension: URL(fileURLWithPath: fallbackFilename).pathExtension), let mime = type.preferredMIMEType {
+            return mime
+        }
+        return "application/octet-stream"
+    }
+
+    private nonisolated static func firstSupportedAttachmentType(from provider: NSItemProvider) -> String? {
+        provider.registeredTypeIdentifiers.first { identifier in
+            let filename = attachmentFilename(from: provider, typeIdentifier: identifier)
+            let contentType = attachmentContentType(typeIdentifier: identifier, fallbackFilename: filename)
+            return BackgroundAttachmentClassifier.classification(filename: filename, contentType: contentType) != nil
+        }
+    }
+
+    private nonisolated static func isAllowedAttachmentSize(_ url: URL) -> Bool {
+        guard let values = try? url.resourceValues(forKeys: [.fileSizeKey]), let size = values.fileSize else {
+            return false
+        }
+        return size <= BackgroundAttachmentClassifier.maxFileSizeBytes
+    }
+
     private var sharedParts: [SharedPart] = []
+    private var sharedAttachments: [SharedAttachment] = []
+    private var unsupportedAttachments: [String] = []
     private var recentChats: [BackgroundChatSender.DestinationChat] = []
     private var selectedChat: BackgroundChatSender.DestinationChat?
     private var isSubmitting = false
@@ -214,7 +292,43 @@ final class MacShareViewController: NSViewController {
 
         for item in extensionItems {
             item.attachments?.forEach { provider in
-                if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+                if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                    group.enter()
+                    provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier) { value, _ in
+                        defer { group.leave() }
+                        guard let url = Self.sharedFileURL(from: value), Self.isAllowedAttachmentSize(url) else {
+                            collector.appendUnsupported(provider.suggestedName ?? "Shared Attachment")
+                            return
+                        }
+                        let accessed = url.startAccessingSecurityScopedResource()
+                        defer {
+                            if accessed { url.stopAccessingSecurityScopedResource() }
+                        }
+                        guard let data = try? Data(contentsOf: url) else {
+                            collector.appendUnsupported(url.lastPathComponent)
+                            return
+                        }
+                        let filename = url.lastPathComponent
+                        let contentType = Self.attachmentContentType(typeIdentifier: UTType.fileURL.identifier, fallbackFilename: filename)
+                        guard BackgroundAttachmentClassifier.classification(filename: filename, contentType: contentType) != nil else {
+                            collector.appendUnsupported(filename)
+                            return
+                        }
+                        collector.append(SharedAttachment(data: data, filename: filename, contentType: contentType))
+                    }
+                } else if let attachmentType = Self.firstSupportedAttachmentType(from: provider) {
+                    group.enter()
+                    let filename = Self.attachmentFilename(from: provider, typeIdentifier: attachmentType)
+                    let contentType = Self.attachmentContentType(typeIdentifier: attachmentType, fallbackFilename: filename)
+                    provider.loadDataRepresentation(forTypeIdentifier: attachmentType) { data, _ in
+                        defer { group.leave() }
+                        guard let data, data.count <= BackgroundAttachmentClassifier.maxFileSizeBytes else {
+                            collector.appendUnsupported(filename)
+                            return
+                        }
+                        collector.append(SharedAttachment(data: data, filename: filename, contentType: contentType))
+                    }
+                } else if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
                     group.enter()
                     provider.loadItem(forTypeIdentifier: UTType.url.identifier) { value, _ in
                         defer { group.leave() }
@@ -230,6 +344,8 @@ final class MacShareViewController: NSViewController {
                             collector.append(SharedPart(text: text, isURL: false))
                         }
                     }
+                } else if let name = provider.suggestedName {
+                    collector.appendUnsupported(name)
                 }
             }
         }
@@ -237,15 +353,25 @@ final class MacShareViewController: NSViewController {
         group.notify(queue: .main) { [weak self] in
             guard let self else { return }
             sharedParts = collector.values().filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            sharedAttachments = collector.attachmentValues()
+            unsupportedAttachments = collector.unsupportedValues()
             updatePreview()
         }
     }
 
     private func updatePreview() {
         let sharedText = sharedParts.map(\.text).joined(separator: "\n")
-        previewLabel.stringValue = sharedText.isEmpty ? "No URL or text was found." : sharedText
+        var previewLines: [String] = []
+        if !sharedText.isEmpty { previewLines.append(sharedText) }
+        if !sharedAttachments.isEmpty {
+            previewLines.append("Attachments: \(sharedAttachments.map(\.filename).joined(separator: ", "))")
+        }
+        if !unsupportedAttachments.isEmpty {
+            previewLines.append("Unsupported: \(unsupportedAttachments.joined(separator: ", "))")
+        }
+        previewLabel.stringValue = previewLines.isEmpty ? "No supported URL, text, or file was found." : previewLines.joined(separator: "\n")
         messageTextView.string = ""
-        sendButton.isEnabled = !sharedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        sendButton.isEnabled = !sharedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !sharedAttachments.isEmpty
     }
 
     private func loadRecentChats() {
@@ -290,7 +416,9 @@ final class MacShareViewController: NSViewController {
         Task {
             do {
                 let finalMessage = try buildFinalMessage()
-                _ = try await sender.send(.init(content: finalMessage, destination: selectedChat))
+                let destination = selectedChat ?? draftDestinationForAttachments()
+                let embeds = try await prepareSharedAttachments(destination: destination)
+                _ = try await sender.send(.init(content: finalMessage, destination: destination, embeds: embeds))
                 extensionContext?.completeRequest(returningItems: nil)
             } catch {
                 showFailure(error.localizedDescription)
@@ -313,10 +441,44 @@ final class MacShareViewController: NSViewController {
         } else {
             message = "\(userText)\n\n\(sharedText)"
         }
-        guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !sharedAttachments.isEmpty else {
             throw BackgroundChatSendError.emptyMessage
         }
         return message
+    }
+
+    private func draftDestinationForAttachments() -> BackgroundChatSender.DestinationChat? {
+        guard !sharedAttachments.isEmpty, selectedChat == nil else { return selectedChat }
+        return BackgroundChatSender.DestinationChat(
+            id: UUID().uuidString,
+            title: "New Chat",
+            lastMessageAt: nil,
+            createdAt: ISO8601DateFormatter().string(from: Date()),
+            updatedAt: nil,
+            appId: nil,
+            encryptedTitle: nil,
+            encryptedCategory: nil,
+            encryptedIcon: nil,
+            encryptedChatKey: nil,
+            messagesV: 0,
+            titleV: 0
+        )
+    }
+
+    private func prepareSharedAttachments(destination: BackgroundChatSender.DestinationChat?) async throws -> [BackgroundPreparedEmbed] {
+        guard !sharedAttachments.isEmpty else { return [] }
+        let chatId = destination?.id ?? UUID().uuidString
+        var embeds: [BackgroundPreparedEmbed] = []
+        for attachment in sharedAttachments {
+            let embed = try await sender.prepareAttachment(
+                data: attachment.data,
+                filename: attachment.filename,
+                contentType: attachment.contentType,
+                chatId: chatId
+            )
+            embeds.append(embed)
+        }
+        return embeds
     }
 
     private func updateNewChatSelection(_ selected: Bool) {

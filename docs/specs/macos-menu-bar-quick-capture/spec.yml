@@ -1,0 +1,829 @@
+id: macos-menu-bar-quick-capture
+title: macOS Menu Bar Quick Capture V1
+status: approved
+
+goal: >
+  Add a speed-first macOS menu bar quick capture surface that lets users send
+  text, voice recordings, pasted images/text, and dragged files into a new or
+  recent OpenMates chat without switching away from their current work. The
+  feature must reuse the normal web/Apple chat creation and encrypted embed
+  contracts, and must upgrade background/share-extension send paths from
+  text-only to full attachment parity.
+
+scope:
+  in:
+    - A custom OpenMates menu bar status item / menu bar extra on macOS.
+    - A custom OpenMates popover UI opened from the menu bar icon, not a stock macOS menu.
+    - Top tabs matching the product sections Chats, Projects, Plans, Tasks, and Workflows, with Chats selected by default.
+    - Projects, Plans, Tasks, and Workflows tabs render placeholder states only in V1.
+    - Default Chats destination is New Chat.
+    - A horizontally scrollable recent-chat selector lets the user select an existing chat destination without opening or viewing chat history in the popover.
+    - Text input for typed text, pasted text, pasted images, and drag/drop attachments.
+    - Attachment support for all currently upload-supported composer file types: images, PDFs, text/code/doc files, and audio files.
+    - Unsupported files are rejected visibly with a non-silent error.
+    - Voice recording uses the existing audio-recording embed pipeline: encrypted upload, audio.transcribe, Mistral Voxtral transcription, existing LLM correction behavior, and full transcript metadata persistence.
+    - Speed-first voice UX: releasing the record button minimizes the menu immediately, processes in the background, and lets the user reopen the popover to inspect status.
+    - Background status list for Uploading, Transcribing, Sending, Sent, Failed, Retry, and Delete states.
+    - Chat creation and message sending match the web app as source of truth and Apple foreground ChatSendPipeline parity.
+    - BackgroundChatSender or its replacement shared service supports text plus encrypted embed parity for menu bar quick capture, macOS share extension, iOS share extension, and notification-style background sends where applicable.
+    - Share extensions can send text, images, PDFs, supported text/code/doc files, and audio files into New Chat or a recent chat with an optional user instruction.
+    - Apple strings are localized through existing i18n/AppStrings flow.
+    - Apple UI uses generated design tokens and OpenMates custom primitives, with web header/composer patterns as visual source of truth.
+  out:
+    - Functional Projects, Plans, Tasks, or Workflows creation from the menu bar in V1.
+    - Viewing chat history, assistant responses, or full chat detail inside the menu bar popover.
+    - Transcript review or manual transcript correction before sending.
+    - Offline/local transcription.
+    - New backend transcription or correction model behavior.
+    - Arbitrary unsupported binary-file ingestion beyond the current normal composer upload contract.
+    - TestFlight deployment before all required spec checks are green or explicitly blocked/waived.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me returned 401 bad credentials."
+    - "gh issue list --repo glowingkitty/OpenMates --state all --search 'menu bar quick capture macOS' returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/tasks-v1/spec.yml
+    - docs/specs/plans-v1/spec.yml
+    - docs/specs/workflows-v1/spec.yml
+    - docs/specs/apple-chat-management-sharing-parity/spec.yml
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    - docs/specs/apple-embed-rendering-parity/spec.yml
+    - docs/specs/apple-ui-contracts/spec.yml
+    - docs/architecture/apple/parity-matrix.md
+  code_patterns:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts is the web source of truth for chat creation, local chat writes, message ids, draft handling, and embed registration before send.
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts records audio via MediaRecorder, uploads encrypted audio, calls /v1/apps/audio/skills/transcribe, and stores transcript_original/transcript_corrected/use_corrected/correction_model/model metadata.
+    - backend/apps/audio/skills/transcribe_skill.py uses Mistral Voxtral for transcription and the existing LLM correction flow; no model behavior change is required for this spec.
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift contains ChatSendPipeline, foreground uploadRecording/uploadAttachment behavior, and encrypted embed payload creation for normal Apple chat sends.
+    - apple/OpenMatesShared/BackgroundChatSender.swift supports text-only background sends today and must be extended or replaced with a shared background sender that supports embeds.
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift intentionally excludes rich attachments today; that limitation is removed by this spec.
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift provides the existing native recording overlay pattern.
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift and MessageInputAudioRecordingUITests.swift cover existing foreground composer structure.
+  tests:
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+  design_references:
+    - Web Header tabs and active section affordance from frontend/packages/ui/src/components/Header.svelte.
+    - Web MessageInput composer and ActionButtons patterns from frontend/packages/ui/src/components/enter_message/MessageInput.svelte and ActionButtons.svelte.
+    - Web RecordAudio overlay from frontend/packages/ui/src/components/enter_message/RecordAudio.svelte.
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    - apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+  parity_expectations:
+    - macOS quick capture uses the same chat id, message id, WebSocket, metadata, encrypted content, and encrypted embed contracts as normal web and Apple foreground chat sends.
+    - The menu bar UI visually follows OpenMates web header/composer design tokens while adapting layout to a compact macOS popover.
+    - Background/share sends preserve full audio transcript metadata and encrypted embed records just like the web composer.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17" when shared Apple code changes.
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/BackgroundChatSenderParityTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatSendPipelineParityTests
+    - macOS-specific Xcode UI test or sanitized blocker if remote Mac test runner cannot automate the menu bar status item.
+    - TestFlight deployment only after required Apple checks pass or receive explicit waiver.
+  intentional_native_differences:
+    - The menu bar popover does not render full chat history; it is a capture and status surface only.
+    - The top tabs are compact in the popover and non-Chat tabs are placeholders in V1.
+
+clarification:
+  rounds:
+    - question: Should V1 send into all five destinations, or make Chats functional first with other tabs as placeholders?
+      answer: >
+        Chat focus first; other tabs remain placeholders until fully functional.
+    - question: Should the default send destination be a new chat or the most recent/pinned chat?
+      answer: >
+        Default new chat, with a horizontal recent-chat list for selecting an
+        existing destination without opening it.
+    - question: Should V1 use native dictation or the existing web audio pipeline?
+      answer: >
+        Use the existing audio embed pipeline: encrypted audio upload, Mistral
+        Voxtral transcript, and existing correction flow. No local dictation for V1.
+    - question: Should the transcript be reviewed before sending?
+      answer: >
+        No. The menu bar is speed-first. Releasing the record button should
+        minimize the popover and process/send in the background.
+    - question: Should background sending include images and files too?
+      answer: >
+        Yes. BackgroundChatSender/share-extension paths must support images and
+        all currently upload-supported files, not text only.
+  vision_summary: >
+    The user wants a fast macOS menu bar capture surface that defaults to a new
+    chat, can optionally target a recent chat, and lets users send text, voice,
+    pasted images/text, and dragged files without disrupting their current work.
+    V1 intentionally optimizes for capture speed and chat parity while showing
+    Projects, Plans, Tasks, and Workflows as visible but inactive future tabs.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Send typed text to a new chat from menu bar
+    given:
+      - Alice is signed into the macOS OpenMates app.
+      - Alice clicks the OpenMates menu bar icon.
+    when:
+      - The quick capture popover opens on the Chats tab.
+      - Alice types "Summarize what I should do next" and presses Send.
+    then:
+      - A new chat is created with the same id/key/message/version contract as normal web chat creation.
+      - The message is sent through the normal chat WebSocket path.
+      - The popover minimizes after send starts.
+      - Reopening the popover shows Sent or Failed status for the capture.
+
+  - id: S-2
+    title: Send typed text to a selected recent chat
+    given:
+      - Alice has recent chats available from sync.
+    when:
+      - Alice opens the menu bar popover.
+      - Alice selects a recent chat from the horizontal strip.
+      - Alice sends a text message.
+    then:
+      - The message is appended to that existing chat using its existing encrypted chat key and version state.
+      - The popover does not open or render the selected chat history.
+
+  - id: S-3
+    title: Voice capture sends in the background
+    given:
+      - Alice opens the menu bar popover on the Chats tab.
+    when:
+      - Alice presses and holds the record button.
+      - Alice speaks a short instruction and releases the record button.
+    then:
+      - The popover minimizes immediately after release.
+      - A pending capture job uploads the audio, transcribes it, registers an audio-recording embed, and sends the chat message.
+      - The audio embed stores transcript, transcript_original, transcript_corrected, use_corrected, correction_model, and model metadata.
+      - Reopening the popover shows Uploading, Transcribing, Sending, Sent, or Failed status.
+
+  - id: S-4
+    title: Paste image or text into the quick composer
+    given:
+      - Alice has text or an image on the macOS clipboard.
+    when:
+      - Alice opens the menu bar popover and pastes.
+    then:
+      - Text paste inserts into the composer.
+      - Image paste creates a pending image attachment using the normal encrypted upload/embed path.
+      - Sending includes image embed references and encrypted embeds with the same persistence semantics as normal chat composer sends.
+
+  - id: S-5
+    title: Drag supported files into the quick composer
+    given:
+      - Alice opens the menu bar popover.
+    when:
+      - Alice drags an image, PDF, supported text/code/doc file, or audio file into the popover.
+    then:
+      - Supported files become pending attachments.
+      - Audio files are transcribed through the audio.transcribe flow.
+      - Unsupported files are rejected visibly and are not silently dropped.
+
+  - id: S-6
+    title: Share extension sends attachments with instructions
+    given:
+      - Alice shares supported text, images, PDFs, supported documents, or audio files from another macOS or iOS app to OpenMates.
+    when:
+      - Alice optionally adds an instruction and chooses New Chat or a recent chat.
+    then:
+      - The share extension uses the same background sender as the menu bar capture path.
+      - The resulting chat message has full encrypted embed parity with normal composer sends.
+
+  - id: S-7
+    title: Placeholder tabs are visible but non-functional
+    given:
+      - Alice opens the menu bar popover.
+    when:
+      - Alice switches to Projects, Plans, Tasks, or Workflows.
+    then:
+      - The tab visually activates.
+      - The tab shows a concise placeholder explaining that quick capture for that surface is coming later.
+      - The placeholder does not create durable project, plan, task, or workflow records.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The menu bar popover can create a new chat from typed text using the same chat/message/key/version contract as web chat creation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-001
+      - T-APPLE-UI-001
+
+  - id: AC-2
+    scenario: S-2
+    text: The popover defaults to New Chat and exposes a horizontal recent-chat selector that targets existing chats without opening them.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UI-001
+
+  - id: AC-3
+    scenario: S-3
+    text: Voice capture minimizes immediately after release, processes in the background, and sends an audio-recording embed with full transcript metadata.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-002
+      - T-APPLE-UI-002
+
+  - id: AC-4
+    scenario: S-4
+    text: Clipboard text and images are accepted in the popover and images send through encrypted embed parity.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UI-003
+
+  - id: AC-5
+    scenario: S-5
+    text: Drag/drop supports all normal composer-supported file types and visibly rejects unsupported files.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-003
+      - T-APPLE-UI-003
+
+  - id: AC-6
+    scenario: S-6
+    text: macOS and iOS share extensions can send supported attachments plus optional instructions using the shared background embed sender.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-004
+      - T-APPLE-UI-004
+
+  - id: AC-7
+    scenario: S-7
+    text: Projects, Plans, Tasks, and Workflows tabs are visible placeholders and create no durable records in V1.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UI-001
+
+  - id: AC-8
+    scenario: S-1
+    text: TestFlight deployment is attempted only after required Apple checks pass or receive an explicit blocker/waiver record.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids:
+      - V-TESTFLIGHT-001
+
+assumptions:
+  - id: A-1
+    text: The macOS target can add a menu bar extra/status item while preserving normal main app behavior.
+    category: apple_app_lifecycle
+    required_before: implementation
+    status: unchecked
+    evidence: []
+  - id: A-2
+    text: Background capture jobs can run long enough after the popover closes to finish upload/transcription/send, or can persist enough encrypted state to resume from the foreground app.
+    category: background_execution
+    required_before: implementation
+    status: unchecked
+    evidence: []
+  - id: A-3
+    text: Existing upload endpoints and audio.transcribe can be called from macOS app and extension contexts using shared session/cookie/keychain state.
+    category: auth_upload
+    required_before: implementation
+    status: unchecked
+    evidence: []
+  - id: A-4
+    text: XCUITest or a deterministic unit harness can verify the menu bar popover; if macOS menu bar automation is not reliable, a debug launch surface must expose the same view for UI tests.
+    category: testing
+    required_before: task_execution
+    status: unchecked
+    evidence: []
+
+contracts:
+  ui_states:
+    - Menu bar icon visible when the macOS app is running.
+    - Popover closed, compose, recording, attachment pending, processing status, sent status, failed status, unsupported-file error, unauthenticated state.
+    - Recent chat strip with New Chat selected by default.
+    - Placeholder states for Projects, Plans, Tasks, and Workflows.
+  chat_send:
+    - New chat id is client-generated UUID.
+    - User message id format is "{last_10_chars_of_chat_id}-{uuid_v4}".
+    - New chat starts with messages_v 1 and title_v 0 until metadata arrives.
+    - Existing chat sends preserve existing encrypted chat key and increment messages_v.
+    - WebSocket event is chat_message_added with chat_id, message, encrypted_chat_key, optional embeds, and optional encrypted_embeds.
+    - Encrypted durable user content and metadata use encrypted_chat_metadata after assistant task/metadata events, matching web/foreground Apple behavior.
+  attachments:
+    - Supported file classification matches normal Apple/web composer upload support.
+    - Image embeds use images/upload style content and encrypted embed storage.
+    - PDF and document/file embeds use the same normal composer classification and storage behavior.
+    - Audio files and recordings use audio-recording embeds with transcript metadata when transcription succeeds.
+    - Failed upload/transcription exposes failed status and retry/delete actions.
+  privacy_security:
+    - No plaintext message, transcript, file contents, auth tokens, keys, S3 keys, or private filenames are logged through NativeDiagnostics or console output.
+    - Durable chat/message/embed records are encrypted the same way as normal chat sends.
+    - Unsupported file rejection includes file type/category only, not private file paths.
+  release:
+    - TestFlight deployment requires green Apple unit/build/UI evidence or explicit blocker/waiver entries in this spec.
+
+tests:
+  - id: T-APPLE-UNIT-001
+    type: unit
+    file: apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/BackgroundChatSenderParityTests
+    covers:
+      - AC-1
+    assertions:
+      - background text send payload matches chat_message_added contract
+      - encrypted storage payload contains only encrypted durable content
+      - new chat ids, message ids, encrypted_chat_key, messages_v, and title_v match normal send contract
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-UNIT-002
+    type: unit
+    file: apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/BackgroundChatSenderParityTests
+    covers:
+      - AC-3
+    assertions:
+      - audio-recording embed payload preserves transcript_original, transcript_corrected, use_corrected, correction_model, and model
+      - audio pending job can move from recording to transcribing to sendable payload without transcript review
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-UNIT-003
+    type: unit
+    file: apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/BackgroundChatSenderParityTests
+    covers:
+      - AC-5
+    assertions:
+      - supported attachment types produce expected embed classifications
+      - unsupported file types produce visible rejection state and no sendable embed
+      - encrypted_embeds payload is produced for supported attachments
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-UNIT-004
+    type: unit
+    file: apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/BackgroundChatSenderParityTests
+    covers:
+      - AC-6
+    assertions:
+      - share extension request model can carry text plus multiple supported attachments
+      - shared background sender payload matches menu bar sender payload for equivalent input
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-UI-001
+    type: unit
+    file: apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/MacMenuBarQuickCaptureUITests
+    covers:
+      - AC-1
+      - AC-2
+      - AC-7
+    assertions:
+      - menu bar quick capture view opens with Chats selected
+      - New Chat is selected by default
+      - recent chats render horizontally and can be selected without rendering chat history
+      - placeholder tabs are visible and non-mutating
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-UI-002
+    type: unit
+    file: apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/MacMenuBarQuickCaptureUITests
+    covers:
+      - AC-3
+    assertions:
+      - releasing record closes/minimizes the popover
+      - reopening shows processing status for the capture job
+      - failed jobs expose retry and delete
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-UI-003
+    type: unit
+    file: apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    command: python3 scripts/apple_remote.py test-macos --only-testing OpenMatesUITests/MacMenuBarQuickCaptureUITests
+    covers:
+      - AC-4
+      - AC-5
+    assertions:
+      - paste text inserts into composer
+      - paste image creates pending attachment
+      - drag/drop supported files creates pending attachments
+      - drag/drop unsupported files shows visible rejection
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-UI-004
+    type: unit
+    file: apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ShareExtensionAttachmentParityUITests
+    covers:
+      - AC-6
+    assertions:
+      - share extension accepts supported attachments and optional instruction
+      - share extension uses shared background sender status/retry handling
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+verifications:
+  - id: V-SPEC-001
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+      - AC-8
+    status: pending
+    evidence:
+      status: ""
+      summary: "python3 scripts/spec_validate.py docs/specs/macos-menu-bar-quick-capture/spec.yml and python3 scripts/spec_verify.py docs/specs/macos-menu-bar-quick-capture/spec.yml"
+      timestamp: ""
+
+  - id: V-APPLE-BUILD-001
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-3
+      - AC-5
+      - AC-6
+    status: pending
+    evidence:
+      status: ""
+      summary: "python3 scripts/apple_remote.py status plus build/test evidence"
+      timestamp: ""
+
+  - id: V-TESTFLIGHT-001
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-8
+    status: pending
+    evidence:
+      status: ""
+      summary: "Deploy to TestFlight only after spec_verify passes or explicit user waiver/blocker is recorded."
+      timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+  architecture: >
+    Extract or extend a shared Apple background capture sender that uses the
+    same upload, transcription, encrypted embed, WebSocket, and encrypted
+    metadata contracts as foreground ChatSendPipeline. Build the macOS menu bar
+    popover as a compact OpenMates SwiftUI product surface and make share
+    extensions call the same sender for equivalent text/attachment inputs.
+  data_flow:
+    - User opens menu bar popover and selects New Chat or a recent chat.
+    - Text, pasted content, dragged files, or recording create a local pending capture job.
+    - Supported files upload through the encrypted upload endpoint.
+    - Audio recordings/files call audio.transcribe and store full transcript metadata.
+    - Sender builds message content with embed references and encrypted embed payloads.
+    - Sender dispatches chat_message_added and encrypted_chat_metadata through the normal contract.
+    - Popover status store updates independently of whether the popover is visible.
+  affected_files:
+    - path: apple/OpenMates/Sources/App/OpenMatesApp.swift
+      reason: Add macOS menu bar extra/status-item app integration.
+    - path: apple/OpenMates/Sources/Features/QuickCapture/MacMenuBarQuickCaptureView.swift
+      reason: New custom menu bar popover UI.
+    - path: apple/OpenMates/Sources/Features/QuickCapture/QuickCaptureViewModel.swift
+      reason: Pending capture state, recent chat selection, paste/drop/record orchestration.
+    - path: apple/OpenMatesShared/BackgroundChatSender.swift
+      reason: Extend text-only background sender to full embed parity or delegate to a new shared sender.
+    - path: apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+      reason: Support rich attachments through shared background sender.
+    - path: apple/OpenMatesShareExtension/ShareViewController.swift
+      reason: Keep iOS share extension parity where applicable.
+    - path: apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+      reason: Add deterministic payload and attachment classification coverage.
+    - path: apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+      reason: Add quick capture UI coverage or debug-hosted equivalent.
+    - path: apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+      reason: Add share extension attachment parity coverage.
+    - path: frontend/packages/ui/src/components/Header.svelte
+      reason: Read-only visual source for tab styling; update counterpart comments only if needed.
+    - path: frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+      reason: Read-only visual source for composer styling; update counterpart comments only if needed.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/macos-menu-bar-quick-capture/spec.yml
+    - Write/extend Apple unit/UI tests first and record red-phase evidence.
+    - Implement shared sender and menu bar UI in small slices.
+    - Run Apple remote unit/UI/build checks and record green evidence.
+    - python3 scripts/spec_verify.py docs/specs/macos-menu-bar-quick-capture/spec.yml
+    - Deploy to TestFlight only after verification passes.
+  verification_order:
+    - Spec validation
+    - Apple unit payload tests
+    - Apple UI/menu/share tests
+    - Apple build
+    - Spec verification
+    - TestFlight deploy
+
+tasks:
+  - id: TASK-1
+    title: Add background sender embed parity tests
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-3
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-3
+        - AC-5
+        - AC-6
+    expected_files:
+      - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    verification:
+      - T-APPLE-UNIT-002
+      - T-APPLE-UNIT-003
+      - T-APPLE-UNIT-004
+    verification_ids:
+      - T-APPLE-UNIT-002
+      - T-APPLE-UNIT-003
+      - T-APPLE-UNIT-004
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Implement shared background capture sender with embed parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+    expected_files:
+      - apple/OpenMatesShared/BackgroundChatSender.swift
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    verification:
+      - T-APPLE-UNIT-001
+      - T-APPLE-UNIT-002
+      - T-APPLE-UNIT-003
+      - T-APPLE-UNIT-004
+    verification_ids:
+      - T-APPLE-UNIT-001
+      - T-APPLE-UNIT-002
+      - T-APPLE-UNIT-003
+      - T-APPLE-UNIT-004
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Build macOS menu bar quick capture UI
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-7
+    expected_files:
+      - apple/OpenMates/Sources/App/OpenMatesApp.swift
+      - apple/OpenMates/Sources/Features/QuickCapture/MacMenuBarQuickCaptureView.swift
+      - apple/OpenMates/Sources/Features/QuickCapture/QuickCaptureViewModel.swift
+      - apple/OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
+    verification:
+      - T-APPLE-UI-001
+      - T-APPLE-UI-002
+      - T-APPLE-UI-003
+    verification_ids:
+      - T-APPLE-UI-001
+      - T-APPLE-UI-002
+      - T-APPLE-UI-003
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Upgrade share extensions to shared rich-attachment sender
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-6
+    expected_files:
+      - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+      - apple/OpenMatesShareExtension/ShareViewController.swift
+      - apple/OpenMatesUITests/ShareExtensionAttachmentParityUITests.swift
+    verification:
+      - T-APPLE-UNIT-004
+      - T-APPLE-UI-004
+    verification_ids:
+      - T-APPLE-UNIT-004
+      - T-APPLE-UI-004
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Verify and deploy TestFlight
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-8
+    expected_files:
+      - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    verification:
+      - V-SPEC-001
+      - V-APPLE-BUILD-001
+      - V-TESTFLIGHT-001
+    verification_ids:
+      - V-SPEC-001
+      - V-APPLE-BUILD-001
+      - V-TESTFLIGHT-001
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - id: R-1
+    text: macOS menu bar UI automation may be unreliable in remote XCUITest; provide a debug-hosted quick capture surface with the same view model if direct status-item automation is blocked.
+  - id: R-2
+    text: Background processing after the popover closes may be interrupted; pending capture jobs must store enough sanitized/encrypted state to retry or resume safely.
+  - id: R-3
+    text: Extensions have stricter runtime and entitlement limits than the main app; rich attachment sending may need a foreground handoff when upload/transcription exceeds extension budget.
+  - id: R-4
+    text: Apple currently stores only transcript for native uploadRecording; V1 must preserve full web transcript metadata to avoid parity drift.
+
+open_questions:
+  - id: OQ-1
+    text: >
+      Which menu bar icon treatment should ship first: OpenMates favicon
+      gradient, monochrome template icon, or a user-selectable setting?
+  - id: OQ-2
+    text: Should failed background captures auto-notify through system notifications, or remain visible only when the popover is reopened?

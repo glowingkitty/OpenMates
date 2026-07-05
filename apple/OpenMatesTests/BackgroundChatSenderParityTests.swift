@@ -83,4 +83,111 @@ final class BackgroundChatSenderParityTests: XCTestCase {
             BackgroundChatStorageContract.shouldSendEncryptedStoragePackage(afterInboundEventType: "ai_task_initiated")
         )
     }
+
+    func testBackgroundAttachmentClassificationMatchesComposerSupportedTypes() {
+        XCTAssertEqual(BackgroundAttachmentClassifier.classification(filename: "photo.png", contentType: "image/png")?.embedType, "images-image")
+        XCTAssertEqual(BackgroundAttachmentClassifier.classification(filename: "brief.pdf", contentType: "application/pdf")?.embedType, "pdf")
+        XCTAssertEqual(BackgroundAttachmentClassifier.classification(filename: "notes.md", contentType: "text/markdown")?.embedType, "docs-doc")
+        XCTAssertEqual(BackgroundAttachmentClassifier.classification(filename: "voice.m4a", contentType: "audio/mp4")?.embedType, "audio-recording")
+        XCTAssertNil(BackgroundAttachmentClassifier.classification(filename: "archive.zip", contentType: "application/zip"))
+    }
+
+    func testBackgroundAudioEmbedPreservesFullTranscriptMetadata() throws {
+        let upload = BackgroundUploadFileResponse.testFixture(
+            embedId: "audio-embed-1",
+            filename: "voice.m4a",
+            contentType: "audio/mp4"
+        )
+        let metadata = BackgroundAudioTranscriptionMetadata(
+            transcript: "Corrected transcript",
+            transcriptOriginal: "Raw transcript",
+            transcriptCorrected: "Corrected transcript",
+            useCorrected: true,
+            correctionModel: "gemini-3.5-flash",
+            model: "voxtral-mini-2602"
+        )
+
+        let embed = try BackgroundPreparedEmbed.from(upload: upload, audioMetadata: metadata, durationSeconds: 2.5)
+
+        XCTAssertEqual(embed.type, "audio-recording")
+        XCTAssertEqual(embed.referenceType, "audio-recording")
+        XCTAssertEqual(embed.textPreview, "Corrected transcript")
+        XCTAssertEqual(embed.content["transcript"] as? String, "Corrected transcript")
+        XCTAssertEqual(embed.content["transcript_original"] as? String, "Raw transcript")
+        XCTAssertEqual(embed.content["transcript_corrected"] as? String, "Corrected transcript")
+        XCTAssertEqual(embed.content["use_corrected"] as? Bool, true)
+        XCTAssertEqual(embed.content["correction_model"] as? String, "gemini-3.5-flash")
+        XCTAssertEqual(embed.content["model"] as? String, "voxtral-mini-2602")
+        XCTAssertTrue(embed.markdownReference.contains("audio-embed-1"))
+    }
+
+    func testBackgroundSendContentAllowsEmbedOnlyMessages() throws {
+        let upload = BackgroundUploadFileResponse.testFixture(
+            embedId: "image-embed-1",
+            filename: "screenshot.png",
+            contentType: "image/png"
+        )
+        let embed = try BackgroundPreparedEmbed.from(upload: upload)
+
+        XCTAssertNoThrow(try BackgroundChatSendContract.contentForSend(text: "", embeds: [embed]))
+        let content = try BackgroundChatSendContract.contentForSend(text: "Please inspect this", embeds: [embed])
+
+        XCTAssertTrue(content.hasPrefix("Please inspect this"))
+        XCTAssertTrue(content.contains("image-embed-1"))
+        XCTAssertThrowsError(try BackgroundChatSendContract.contentForSend(text: "", embeds: []))
+    }
+
+    func testBackgroundPdfEmbedUsesProcessingUntilOcrDedupCompletes() throws {
+        let processingUpload = BackgroundUploadFileResponse.testFixture(
+            embedId: "pdf-embed-1",
+            filename: "brief.pdf",
+            contentType: "application/pdf",
+            deduplicated: false
+        )
+        let finishedUpload = BackgroundUploadFileResponse.testFixture(
+            embedId: "pdf-embed-2",
+            filename: "brief.pdf",
+            contentType: "application/pdf",
+            deduplicated: true
+        )
+
+        let processingEmbed = try BackgroundPreparedEmbed.from(upload: processingUpload)
+        let finishedEmbed = try BackgroundPreparedEmbed.from(upload: finishedUpload)
+
+        XCTAssertEqual(processingEmbed.status, "processing")
+        XCTAssertEqual(processingEmbed.content["status"] as? String, "processing")
+        XCTAssertEqual(finishedEmbed.status, "finished")
+        XCTAssertEqual(finishedEmbed.content["status"] as? String, "finished")
+    }
+}
+
+private extension BackgroundUploadFileResponse {
+    static func testFixture(
+        embedId: String,
+        filename: String,
+        contentType: String,
+        deduplicated: Bool = true
+    ) -> BackgroundUploadFileResponse {
+        BackgroundUploadFileResponse(
+            embedId: embedId,
+            filename: filename,
+            contentType: contentType,
+            contentHash: "hash-1",
+            files: [
+                "original": BackgroundUploadedFileVariant(
+                    s3Key: "uploads/\(filename)",
+                    sizeBytes: 123,
+                    width: contentType.hasPrefix("image/") ? 100 : nil,
+                    height: contentType.hasPrefix("image/") ? 80 : nil,
+                    format: (filename as NSString).pathExtension
+                )
+            ],
+            s3BaseUrl: "https://example.invalid/files",
+            aesKey: "aes-key",
+            aesNonce: "aes-nonce",
+            vaultWrappedAesKey: "wrapped-key",
+            pageCount: contentType == "application/pdf" ? 1 : nil,
+            deduplicated: deduplicated
+        )
+    }
 }

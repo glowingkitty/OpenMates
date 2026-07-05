@@ -59,6 +59,210 @@ enum BackgroundChatHTTPContract {
     }
 }
 
+struct BackgroundAttachmentClassification: Equatable {
+    let embedType: String
+    let referenceType: String
+    let status: String
+    let appId: String
+    let skillId: String?
+    let shouldSendContent: Bool
+}
+
+enum BackgroundAttachmentClassifier {
+    static let maxFileSizeBytes = 100 * 1024 * 1024
+
+    private static let imageExtensions: Set<String> = ["jpg", "jpeg", "png", "gif", "heic", "webp"]
+    private static let audioExtensions: Set<String> = ["m4a", "mp3", "wav", "webm", "mp4", "flac", "ogg", "aac"]
+    private static let documentExtensions: Set<String> = [
+        "txt", "md", "markdown", "csv", "tsv", "json", "jsonl", "xml", "html", "htm", "log",
+        "yaml", "yml", "toml", "ini", "conf", "config", "properties",
+        "js", "jsx", "ts", "tsx", "svelte", "css", "scss", "sass", "less",
+        "py", "rb", "php", "java", "kt", "kts", "swift", "go", "rs", "c", "h", "cpp", "hpp",
+        "cs", "m", "mm", "sh", "bash", "zsh", "fish", "ps1", "sql", "r", "lua", "dart",
+        "doc", "docx", "odt", "rtf", "xls", "xlsx", "ods", "ppt", "pptx", "odp"
+    ]
+
+    static func classification(filename: String, contentType: String?) -> BackgroundAttachmentClassification? {
+        let mime = contentType?.lowercased() ?? ""
+        let ext = (filename as NSString).pathExtension.lowercased()
+        if mime.hasPrefix("audio/") || audioExtensions.contains(ext) {
+            return BackgroundAttachmentClassification(
+                embedType: "audio-recording",
+                referenceType: "audio-recording",
+                status: "finished",
+                appId: "audio",
+                skillId: "transcribe",
+                shouldSendContent: true
+            )
+        }
+        if mime.hasPrefix("image/") || imageExtensions.contains(ext) {
+            return BackgroundAttachmentClassification(
+                embedType: "images-image",
+                referenceType: "image",
+                status: "finished",
+                appId: "images",
+                skillId: "upload",
+                shouldSendContent: true
+            )
+        }
+        if mime == "application/pdf" || ext == "pdf" {
+            return BackgroundAttachmentClassification(
+                embedType: "pdf",
+                referenceType: "pdf",
+                status: "finished",
+                appId: "pdf",
+                skillId: nil,
+                shouldSendContent: true
+            )
+        }
+        if mime.hasPrefix("text/") || documentExtensions.contains(ext) {
+            return BackgroundAttachmentClassification(
+                embedType: "docs-doc",
+                referenceType: "file",
+                status: "finished",
+                appId: "docs",
+                skillId: nil,
+                shouldSendContent: true
+            )
+        }
+        return nil
+    }
+}
+
+struct BackgroundUploadedFileVariant: Decodable {
+    let s3Key: String
+    let sizeBytes: Int?
+    let width: Int?
+    let height: Int?
+    let format: String?
+}
+
+struct BackgroundUploadFileResponse: Decodable {
+    let embedId: String
+    let filename: String
+    let contentType: String
+    let contentHash: String?
+    let files: [String: BackgroundUploadedFileVariant]
+    let s3BaseUrl: String
+    let aesKey: String
+    let aesNonce: String
+    let vaultWrappedAesKey: String
+    let pageCount: Int?
+    let deduplicated: Bool?
+}
+
+struct BackgroundAudioTranscriptionMetadata: Equatable {
+    let transcript: String?
+    let transcriptOriginal: String?
+    let transcriptCorrected: String?
+    let useCorrected: Bool?
+    let correctionModel: String?
+    let model: String?
+}
+
+struct BackgroundPreparedEmbed: Identifiable {
+    let id: String
+    let type: String
+    let referenceType: String
+    let status: String
+    let content: [String: Any]
+    let textPreview: String?
+
+    var markdownReference: String {
+        "```json\n{\"type\": \"\(referenceType)\", \"embed_id\": \"\(id)\"}\n```"
+    }
+
+    var serverPayload: [String: Any]? {
+        guard let contentString = Self.jsonString(content) else { return nil }
+        var payload: [String: Any] = [
+            "embed_id": id,
+            "type": type,
+            "status": status,
+            "content": contentString,
+            "createdAt": Int(Date().timeIntervalSince1970),
+            "updatedAt": Int(Date().timeIntervalSince1970)
+        ]
+        if let textPreview { payload["text_preview"] = textPreview }
+        return payload
+    }
+
+    static func from(
+        upload: BackgroundUploadFileResponse,
+        audioMetadata: BackgroundAudioTranscriptionMetadata? = nil,
+        durationSeconds: TimeInterval? = nil
+    ) throws -> BackgroundPreparedEmbed {
+        guard let classification = BackgroundAttachmentClassifier.classification(
+            filename: upload.filename,
+            contentType: upload.contentType
+        ) else {
+            throw BackgroundChatSendError.unsupportedAttachment
+        }
+
+        let isPDF = upload.contentType.lowercased() == "application/pdf"
+            || (upload.filename as NSString).pathExtension.lowercased() == "pdf"
+        let status = isPDF && upload.deduplicated != true ? "processing" : classification.status
+
+        var object: [String: Any] = [
+            "app_id": classification.appId,
+            "type": classification.referenceType,
+            "status": status,
+            "filename": upload.filename,
+            "s3_base_url": upload.s3BaseUrl,
+            "files": upload.files.mapValues { variant in
+                var file: [String: Any] = ["s3_key": variant.s3Key]
+                if let size = variant.sizeBytes { file["size_bytes"] = size }
+                if let width = variant.width { file["width"] = width }
+                if let height = variant.height { file["height"] = height }
+                if let format = variant.format { file["format"] = format }
+                return file
+            },
+            "aes_key": upload.aesKey,
+            "aes_nonce": upload.aesNonce,
+            "vault_wrapped_aes_key": upload.vaultWrappedAesKey
+        ]
+        if let skillId = classification.skillId { object["skill_id"] = skillId }
+        if let contentHash = upload.contentHash { object["content_hash"] = contentHash }
+        if let pageCount = upload.pageCount { object["page_count"] = pageCount }
+        if let durationSeconds { object["duration"] = durationSeconds }
+        if let audioMetadata {
+            if let transcript = audioMetadata.transcript { object["transcript"] = transcript }
+            if let transcriptOriginal = audioMetadata.transcriptOriginal { object["transcript_original"] = transcriptOriginal }
+            if let transcriptCorrected = audioMetadata.transcriptCorrected { object["transcript_corrected"] = transcriptCorrected }
+            if let useCorrected = audioMetadata.useCorrected { object["use_corrected"] = useCorrected }
+            if let correctionModel = audioMetadata.correctionModel { object["correction_model"] = correctionModel }
+            if let model = audioMetadata.model { object["model"] = model }
+        }
+
+        return BackgroundPreparedEmbed(
+            id: upload.embedId,
+            type: classification.embedType,
+            referenceType: classification.referenceType,
+            status: status,
+            content: object,
+            textPreview: audioMetadata?.transcript ?? upload.filename
+        )
+    }
+
+    static func jsonString(_ object: [String: Any]) -> String? {
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) else {
+            return nil
+        }
+        return String(data: data, encoding: .utf8)
+    }
+}
+
+enum BackgroundChatSendContract {
+    static func contentForSend(text: String, embeds: [BackgroundPreparedEmbed]) throws -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty || !embeds.isEmpty else { throw BackgroundChatSendError.emptyMessage }
+        let references = embeds.map(\.markdownReference).joined(separator: "\n")
+        if trimmed.isEmpty { return references }
+        if references.isEmpty { return trimmed }
+        return "\(trimmed)\n\n\(references)"
+    }
+}
+
 actor BackgroundChatSender {
     struct DestinationChat: Identifiable, Decodable {
         let id: String
@@ -167,11 +371,43 @@ actor BackgroundChatSender {
     struct SendRequest {
         let content: String
         let destination: DestinationChat?
+        let embeds: [BackgroundPreparedEmbed]
+
+        init(content: String, destination: DestinationChat?, embeds: [BackgroundPreparedEmbed] = []) {
+            self.content = content
+            self.destination = destination
+            self.embeds = embeds
+        }
     }
 
     struct SendResult {
         let chatId: String
         let messageId: String
+    }
+
+    private struct TranscribeSkillRequest: Encodable {
+        let requests: [[String: AnyCodable]]
+    }
+
+    private struct TranscribeSkillResponse: Decodable {
+        struct ResponseData: Decodable {
+            struct ResultGroup: Decodable {
+                struct Result: Decodable {
+                    let transcript: String?
+                    let transcriptOriginal: String?
+                    let transcriptCorrected: String?
+                    let useCorrected: Bool?
+                    let correctionModel: String?
+                    let model: String?
+                }
+
+                let results: [Result]
+            }
+
+            let results: [ResultGroup]
+        }
+
+        let data: ResponseData
     }
 
     private struct CachedUser: Decodable {
@@ -298,8 +534,7 @@ actor BackgroundChatSender {
     }
 
     func send(_ request: SendRequest) async throws -> SendResult {
-        let trimmed = request.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { throw BackgroundChatSendError.emptyMessage }
+        let sendContent = try BackgroundChatSendContract.contentForSend(text: request.content, embeds: request.embeds)
 
         let auth = try await currentAuthenticatedUser()
         let now = Date()
@@ -311,7 +546,14 @@ actor BackgroundChatSender {
             encryptedChatKey: request.destination?.encryptedChatKey,
             userId: auth.userId
         )
-        let encryptedContent = try await crypto.encryptContent(trimmed, key: keyMaterial.key)
+        let encryptedContent = try await crypto.encryptContent(sendContent, key: keyMaterial.key)
+        let encryptedEmbedPayloads = try await encryptedEmbeds(
+            request.embeds,
+            chatId: chatId,
+            messageId: messageId,
+            userId: auth.userId,
+            chatKey: keyMaterial.key
+        )
         let nextMessagesV = max(request.destination?.messagesV ?? 0, 0) + 1
 
         let ws = try await BackgroundWebSocket.open(session: session, sessionId: nativeSessionId, token: auth.wsToken)
@@ -320,7 +562,7 @@ actor BackgroundChatSender {
         var messagePayload: [String: Any] = [
             "message_id": messageId,
             "role": "user",
-            "content": trimmed,
+            "content": sendContent,
             "created_at": createdAtUnix,
             "sender_name": "user",
             "chat_has_title": (request.destination?.titleV ?? 0) > 0
@@ -329,18 +571,27 @@ actor BackgroundChatSender {
             messagePayload["current_chat_title"] = request.destination?.title
         }
 
-        try await ws.send(type: "chat_message_added", payload: [
+        let sendableEmbeds = request.embeds.compactMap(\.serverPayload)
+        var outboundPayload: [String: Any] = [
             "chat_id": chatId,
             "message": messagePayload,
             "encrypted_chat_key": keyMaterial.encryptedChatKey
-        ])
+        ]
+        if !sendableEmbeds.isEmpty {
+            outboundPayload["embeds"] = sendableEmbeds
+        }
+        if !encryptedEmbedPayloads.isEmpty {
+            outboundPayload["encrypted_embeds"] = encryptedEmbedPayloads
+        }
+
+        try await ws.send(type: "chat_message_added", payload: outboundPayload)
 
         if let storage = try await waitForAssistantStart(ws: ws, chatId: chatId, userMessageId: messageId) {
             try await sendEncryptedUserStoragePackage(
                 ws: ws,
                 chatId: chatId,
                 messageId: messageId,
-                content: trimmed,
+                content: sendContent,
                 encryptedContent: encryptedContent,
                 createdAtUnix: createdAtUnix,
                 encryptedChatKey: storage.metadata.encryptedChatKey ?? keyMaterial.encryptedChatKey,
@@ -354,6 +605,77 @@ actor BackgroundChatSender {
         }
 
         return SendResult(chatId: chatId, messageId: messageId)
+    }
+
+    func prepareAttachment(
+        data: Data,
+        filename: String,
+        contentType: String,
+        chatId: String,
+        durationSeconds: TimeInterval? = nil
+    ) async throws -> BackgroundPreparedEmbed {
+        guard BackgroundAttachmentClassifier.classification(filename: filename, contentType: contentType) != nil else {
+            throw BackgroundChatSendError.unsupportedAttachment
+        }
+        let upload = try await uploadAttachment(data: data, filename: filename, contentType: contentType, chatId: chatId)
+        let isAudio = BackgroundAttachmentClassifier.classification(filename: filename, contentType: contentType)?.embedType == "audio-recording"
+        if isAudio {
+            let metadata = try await transcribeUploadedAudio(upload, chatId: chatId)
+            return try BackgroundPreparedEmbed.from(upload: upload, audioMetadata: metadata, durationSeconds: durationSeconds)
+        }
+        return try BackgroundPreparedEmbed.from(upload: upload, durationSeconds: durationSeconds)
+    }
+
+    func uploadAttachment(data: Data, filename: String, contentType: String, chatId: String) async throws -> BackgroundUploadFileResponse {
+        _ = try await currentAuthenticatedUser()
+        let boundary = UUID().uuidString
+        var body = Data()
+        appendMultipartField(name: "file", filename: filename, contentType: contentType, data: data, boundary: boundary, to: &body)
+        appendMultipartField(name: "chat_id", value: chatId, boundary: boundary, to: &body)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+
+        let uploadURL = ServerConfiguration.current.uploadBaseURL.appendingPathComponent("v1/upload/file")
+        var request = URLRequest(url: uploadURL)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue(ServerConfiguration.current.webAppURL.absoluteString, forHTTPHeaderField: "Origin")
+        request.setValue("OpenMates-Apple/\(appVersion)", forHTTPHeaderField: "User-Agent")
+        request.setValue(platformIdentifier, forHTTPHeaderField: "X-OpenMates-Client")
+        request.httpBody = body
+        return try await execute(request)
+    }
+
+    func transcribeUploadedAudio(_ upload: BackgroundUploadFileResponse, chatId: String) async throws -> BackgroundAudioTranscriptionMetadata {
+        let s3Key = upload.files["original"]?.s3Key ?? upload.files.values.first?.s3Key
+        guard let s3Key else { throw BackgroundChatSendError.encoding }
+
+        let item: [String: Any] = [
+            "id": upload.embedId,
+            "embed_id": upload.embedId,
+            "s3_key": s3Key,
+            "s3_base_url": upload.s3BaseUrl,
+            "aes_key": upload.aesKey,
+            "aes_nonce": upload.aesNonce,
+            "vault_wrapped_aes_key": upload.vaultWrappedAesKey,
+            "filename": upload.filename,
+            "mime_type": upload.contentType,
+            "chat_id": chatId
+        ]
+
+        let response: TranscribeSkillResponse = try await apiRequest(
+            .post,
+            path: "/v1/apps/audio/skills/transcribe",
+            body: TranscribeSkillRequest(requests: [item.mapValues { AnyCodable($0) }])
+        )
+        let result = response.data.results.first?.results.first
+        return BackgroundAudioTranscriptionMetadata(
+            transcript: result?.transcript,
+            transcriptOriginal: result?.transcriptOriginal,
+            transcriptCorrected: result?.transcriptCorrected,
+            useCorrected: result?.useCorrected,
+            correctionModel: result?.correctionModel,
+            model: result?.model
+        )
     }
 
     private func waitForAssistantStart(
@@ -515,6 +837,99 @@ actor BackgroundChatSender {
         return (key, try await crypto.wrapChatKey(key, masterKey: masterKey))
     }
 
+    private func encryptedEmbeds(
+        _ embeds: [BackgroundPreparedEmbed],
+        chatId: String,
+        messageId: String,
+        userId: String,
+        chatKey: SymmetricKey
+    ) async throws -> [[String: Any]] {
+        guard !embeds.isEmpty else { return [] }
+        guard let masterKey = try await crypto.loadMasterKey(for: userId) else {
+            throw BackgroundChatSendError.missingMasterKey
+        }
+
+        let hashedChatId = sha256Hex(chatId)
+        let hashedMessageId = sha256Hex(messageId)
+        let hashedUserId = sha256Hex(userId)
+        let now = Int(Date().timeIntervalSince1970)
+
+        var encryptedPayloads: [[String: Any]] = []
+        for embed in embeds {
+            guard let content = BackgroundPreparedEmbed.jsonString(embed.content) else {
+                throw BackgroundChatSendError.encoding
+            }
+            let embedKey = deriveEmbedKey(from: chatKey, embedId: embed.id)
+            let hashedEmbedId = sha256Hex(embed.id)
+            let wrappedWithMaster = try await encryptRawKey(embedKey, wrappingKey: masterKey)
+            let wrappedWithChat = try await encryptRawKey(embedKey, wrappingKey: chatKey)
+            var payload: [String: Any] = [
+                "embed_id": embed.id,
+                "encrypted_type": try await encryptEmbedField(embed.type, key: embedKey),
+                "encrypted_content": try await encryptEmbedField(content, key: embedKey),
+                "status": embed.status,
+                "hashed_chat_id": hashedChatId,
+                "hashed_message_id": hashedMessageId,
+                "hashed_user_id": hashedUserId,
+                "created_at": now,
+                "updated_at": now,
+                "embed_keys": [
+                    [
+                        "hashed_embed_id": hashedEmbedId,
+                        "key_type": "master",
+                        "hashed_chat_id": NSNull(),
+                        "encrypted_embed_key": wrappedWithMaster,
+                        "hashed_user_id": hashedUserId,
+                        "created_at": now
+                    ],
+                    [
+                        "hashed_embed_id": hashedEmbedId,
+                        "key_type": "chat",
+                        "hashed_chat_id": hashedChatId,
+                        "encrypted_embed_key": wrappedWithChat,
+                        "hashed_user_id": hashedUserId,
+                        "created_at": now
+                    ]
+                ]
+            ]
+            if let textPreview = embed.textPreview {
+                payload["encrypted_text_preview"] = try await encryptEmbedField(textPreview, key: embedKey)
+            }
+            encryptedPayloads.append(payload)
+        }
+        return encryptedPayloads
+    }
+
+    private func deriveEmbedKey(from chatKey: SymmetricKey, embedId: String) -> SymmetricKey {
+        HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: chatKey,
+            salt: Data("openmates-embed-key-v1".utf8),
+            info: Data(embedId.utf8),
+            outputByteCount: 32
+        )
+    }
+
+    private func encryptEmbedField(_ value: String, key: SymmetricKey) async throws -> String {
+        try await encryptRawData(Data(value.utf8), key: key)
+    }
+
+    private func encryptRawKey(_ key: SymmetricKey, wrappingKey: SymmetricKey) async throws -> String {
+        let raw = key.withUnsafeBytes { Data($0) }
+        return try await encryptRawData(raw, key: wrappingKey)
+    }
+
+    private func encryptRawData(_ data: Data, key: SymmetricKey) async throws -> String {
+        let encrypted = try await crypto.encrypt(data, using: key)
+        var combined = Data()
+        combined.append(encrypted.nonce)
+        combined.append(encrypted.ciphertext)
+        return combined.base64EncodedString()
+    }
+
+    private func sha256Hex(_ value: String) -> String {
+        SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
     private func encryptOptional(_ value: String?, key: SymmetricKey) async throws -> String? {
         guard let value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         return try await crypto.encryptContent(value, key: key)
@@ -607,6 +1022,41 @@ actor BackgroundChatSender {
             throw BackgroundChatSendError.server(httpResponse.statusCode)
         }
         return try decoder.decode(T.self, from: data)
+    }
+
+    private func appendMultipartField(
+        name: String,
+        filename: String,
+        contentType: String,
+        data: Data,
+        boundary: String,
+        to body: inout Data
+    ) {
+        let safeName = safeMultipartHeaderValue(filename)
+        let safeContentType = safeMultipartHeaderValue(contentType)
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(safeName)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(safeContentType)\r\n\r\n".data(using: .utf8)!)
+        body.append(data)
+        body.append("\r\n".data(using: .utf8)!)
+    }
+
+    private func safeMultipartHeaderValue(_ value: String) -> String {
+        value.map { character -> String in
+            character == "\r" || character == "\n" || character == "\"" ? "_" : String(character)
+        }.joined()
+    }
+
+    private func appendMultipartField(
+        name: String,
+        value: String,
+        boundary: String,
+        to body: inout Data
+    ) {
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
+        body.append(value.data(using: .utf8)!)
+        body.append("\r\n".data(using: .utf8)!)
     }
 
     private func makeDeviceInfo() -> DeviceInfo {
@@ -724,6 +1174,7 @@ private struct BackgroundWSOutboundMessage: Encodable {
 
 enum BackgroundChatSendError: LocalizedError {
     case emptyMessage
+    case unsupportedAttachment
     case notAuthenticated
     case missingMasterKey
     case network
@@ -734,6 +1185,8 @@ enum BackgroundChatSendError: LocalizedError {
         switch self {
         case .emptyMessage:
             return "Nothing to send."
+        case .unsupportedAttachment:
+            return "This file type is not supported yet."
         case .notAuthenticated:
             return "Open OpenMates and sign in first."
         case .missingMasterKey:
