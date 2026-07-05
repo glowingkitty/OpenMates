@@ -95,7 +95,7 @@ export interface DailyInspiration {
   surface?: DailyInspirationSurface;
 }
 
-export type DailyInspirationSurface = "chats" | "projects" | "workflows";
+export type DailyInspirationSurface = "chats" | "projects" | "workflows" | "tasks" | "plans";
 
 export interface DailyInspirationState {
   /** Up to 3 inspirations for the current day */

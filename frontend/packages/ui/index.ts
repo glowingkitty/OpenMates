@@ -35,6 +35,7 @@ export { default as Header } from "./src/components/Header.svelte";
 export { default as Footer } from "./src/components/Footer.svelte";
 export { default as Settings } from "./src/components/Settings.svelte";
 export { default as ProjectsPage } from "./src/components/projects/ProjectsPage.svelte";
+export { default as WorkspaceHomeShell } from "./src/components/workspace/WorkspaceHomeShell.svelte";
 export { default as Login } from "./src/components/Login.svelte";
 export { default as Chats } from "./src/components/chats/Chats.svelte";
 export { default as SearchBar } from "./src/components/chats/search/SearchBar.svelte";

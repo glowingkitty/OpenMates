@@ -76,10 +76,14 @@ test.describe('Workflows input home', () => {
 			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
-			await expect(page.getByTestId('workflow-inspiration-card')).toContainText('Let OpenMates handle the recurring work');
-			await expect(page.getByTestId('workflows-welcome')).toContainText('what should OpenMates automate');
+			await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+			await expect(page.getByTestId('daily-inspiration-label')).toBeVisible();
+			await expect(page.getByTestId('workflow-inspiration-card')).toHaveCount(0);
+			await expect(page.getByTestId('workflows-workspace-center')).toContainText('what should OpenMates automate');
 			await expect(page.getByTestId('workflow-recommendations')).toContainText('Tell me if it will rain tomorrow');
 			await expect(page.getByTestId('recent-workflows')).toBeVisible();
+			await expect(page.getByTestId('resume-chat-card').first()).toBeVisible();
+			await expect(page.getByTestId('resume-chat-card').first()).toHaveClass(/resume-chat-card/);
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-textarea')).toHaveAttribute('placeholder', /Ask OpenMates to create or update a workflow/);
 			await expect(page.getByTestId('workflow-input-submit')).toBeDisabled();
