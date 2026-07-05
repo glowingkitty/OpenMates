@@ -9,7 +9,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
-  import { getContinueGradientColors, getResumeCardGradientStyle } from '../activeChatUtils';
+  import { getContinueGradientColors, getResumeCardGradientStyle, getResumeLargeCardStyle } from '../activeChatUtils';
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
 
@@ -38,7 +38,11 @@
     subtitle?: string;
     continueLabel?: string;
     continueItems?: ContinueItem[];
+    actionItems?: ContinueItem[];
+    actionItemsTestId?: string;
+    continueSectionTestId?: string;
     onContinueItem?: (item: ContinueItem) => void;
+    onActionItem?: (item: ContinueItem) => void;
     onStartInspiration?: (inspiration: WorkspaceInspiration) => void;
   };
 
@@ -50,15 +54,28 @@
     subtitle = '',
     continueLabel = 'Continue where you left off',
     continueItems = [],
+    actionItems = [],
+    actionItemsTestId = `${surface}-workspace-actions`,
+    continueSectionTestId = `${surface}-workspace-continue`,
     onContinueItem,
+    onActionItem,
     onStartInspiration,
   }: Props = $props();
 
   let containerWidth = $state(0);
+  let viewportWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  let viewportHeight = $state(typeof window !== 'undefined' ? window.innerHeight : 800);
+  let isTallViewport = $derived(viewportHeight >= 800 && viewportWidth >= 550);
   const ChevronRight = getLucideIcon('chevron-right');
 
   onMount(() => {
     void loadDefaultInspirations({ surface, allowIndexedDB: false });
+    const handleResize = () => {
+      viewportWidth = window.innerWidth;
+      viewportHeight = window.innerHeight;
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   });
 
   function handleStartInspiration(inspiration: WorkspaceInspiration): void {
@@ -69,8 +86,16 @@
     onContinueItem?.(item);
   }
 
+  function handleActionItem(item: ContinueItem): void {
+    onActionItem?.(item);
+  }
+
   function continueCardStyle(item: ContinueItem): string {
     return getResumeCardGradientStyle(getContinueGradientColors(item.category ?? 'productivity', item.appId));
+  }
+
+  function continueLargeCardStyle(item: ContinueItem): string {
+    return getResumeLargeCardStyle(getContinueGradientColors(item.category ?? 'productivity', item.appId));
   }
 </script>
 
@@ -94,9 +119,143 @@
       </div>
     </div>
 
-    {#if continueItems.length > 0}
-      <div class="workspace-continue-label">{continueLabel}</div>
-      <div class="recent-chats-scroll-container" data-testid="recent-chats-scroll-container">
+    {#if actionItems.length > 0}
+      <div class="recent-chats-scroll-container" data-testid={actionItemsTestId}>
+        {#each actionItems as item (item.id)}
+          {@const iconName = getValidIconName(item.icon ?? 'sparkles', item.category ?? 'productivity')}
+          {@const IconComponent = getLucideIcon(iconName)}
+          {#if isTallViewport}
+            <button
+              type="button"
+              class="resume-chat-large-card"
+              data-testid="resume-chat-large-card"
+              style={continueLargeCardStyle(item)}
+              onclick={() => handleActionItem(item)}
+            >
+              <div class="resume-large-orbs" aria-hidden="true">
+                <div class="resume-orb resume-orb-1"></div>
+                <div class="resume-orb resume-orb-2"></div>
+                <div class="resume-orb resume-orb-3"></div>
+              </div>
+              <div class="resume-large-deco resume-large-deco-left">
+                <IconComponent size={80} color="white" />
+              </div>
+              <div class="resume-large-deco resume-large-deco-right">
+                <IconComponent size={80} color="white" />
+              </div>
+              <div class="resume-large-content">
+                {#if item.badge}
+                  <span class="resume-chat-kind-badge">{item.badge}</span>
+                {/if}
+                <div class="resume-large-icon">
+                  <IconComponent size={32} color="white" />
+                </div>
+                <span class="resume-large-title">{item.title}</span>
+                {#if item.summary}
+                  <p class="resume-large-summary">{item.summary}</p>
+                {/if}
+              </div>
+            </button>
+          {:else}
+            <button
+              type="button"
+              class="resume-chat-card"
+              data-testid="resume-chat-card"
+              style={continueCardStyle(item)}
+              onclick={() => handleActionItem(item)}
+            >
+              <div class="resume-chat-compact-icon">
+                <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
+              </div>
+              <div class="resume-chat-content">
+                {#if item.badge}
+                  <span class="resume-chat-kind-badge compact">{item.badge}</span>
+                {/if}
+                <span class="resume-chat-title" data-testid="resume-chat-title">{item.title}</span>
+                {#if item.summary}
+                  <span class="resume-chat-summary">{item.summary}</span>
+                {/if}
+              </div>
+              <div class="resume-chat-arrow">
+                <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
+              </div>
+            </button>
+          {/if}
+        {/each}
+      </div>
+    {:else if continueItems.length > 0}
+      <div class="workspace-continue-section" data-testid={continueSectionTestId}>
+        <div class="workspace-continue-label">{continueLabel}</div>
+        <div class="recent-chats-scroll-container" data-testid="recent-chats-scroll-container">
+        {#each continueItems as item (item.id)}
+          {@const iconName = getValidIconName(item.icon ?? 'sparkles', item.category ?? 'productivity')}
+          {@const IconComponent = getLucideIcon(iconName)}
+          {#if isTallViewport}
+            <button
+              type="button"
+              class="resume-chat-large-card"
+              data-testid="resume-chat-large-card"
+              style={continueLargeCardStyle(item)}
+              onclick={() => handleContinueItem(item)}
+            >
+              <div class="resume-large-orbs" aria-hidden="true">
+                <div class="resume-orb resume-orb-1"></div>
+                <div class="resume-orb resume-orb-2"></div>
+                <div class="resume-orb resume-orb-3"></div>
+              </div>
+              <div class="resume-large-deco resume-large-deco-left">
+                <IconComponent size={80} color="white" />
+              </div>
+              <div class="resume-large-deco resume-large-deco-right">
+                <IconComponent size={80} color="white" />
+              </div>
+              <div class="resume-large-content">
+                {#if item.badge}
+                  <span class="resume-chat-kind-badge">{item.badge}</span>
+                {/if}
+                <div class="resume-large-icon">
+                  <IconComponent size={32} color="white" />
+                </div>
+                <span class="resume-large-title" data-testid="resume-large-title">{item.title}</span>
+                {#if item.summary}
+                  <p class="resume-large-summary">{item.summary}</p>
+                {/if}
+              </div>
+            </button>
+          {:else}
+            <button
+              type="button"
+              class="resume-chat-card"
+              data-testid="resume-chat-card"
+              style={continueCardStyle(item)}
+              onclick={() => handleContinueItem(item)}
+            >
+              <div class="resume-chat-compact-icon">
+                <IconComponent size={18} color="rgba(255, 255, 255, 0.92)" />
+              </div>
+              <div class="resume-chat-content">
+                {#if item.badge}
+                  <span class="resume-chat-kind-badge compact">{item.badge}</span>
+                {/if}
+                <span class="resume-chat-title" data-testid="resume-chat-title">{item.title}</span>
+                {#if item.summary}
+                  <span class="resume-chat-summary">{item.summary}</span>
+                {/if}
+              </div>
+              <div class="resume-chat-arrow">
+                <ChevronRight size={16} color="rgba(255, 255, 255, 0.88)" />
+              </div>
+            </button>
+          {/if}
+        {/each}
+        </div>
+      </div>
+    {/if}
+
+    {#if actionItems.length > 0 && continueItems.length > 0}
+      <div class="workspace-continue-section" data-testid={continueSectionTestId}>
+        <div class="workspace-continue-label">{continueLabel}</div>
+        <div class="recent-chats-scroll-container secondary" data-testid="recent-chats-scroll-container">
         {#each continueItems as item (item.id)}
           {@const iconName = getValidIconName(item.icon ?? 'sparkles', item.category ?? 'productivity')}
           {@const IconComponent = getLucideIcon(iconName)}
@@ -124,12 +283,9 @@
             </div>
           </button>
         {/each}
+        </div>
       </div>
     {/if}
-  </div>
-
-  <div class="workspace-surface-actions">
-    <slot name="actions" />
   </div>
 
   <div class="workspace-composer-slot">
@@ -141,10 +297,7 @@
   .workspace-home-shell {
     min-height: min(900px, calc(100vh - 104px));
     min-height: min(900px, calc(100dvh - 104px));
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: clamp(16px, 3vh, 26px);
+    position: relative;
     padding: clamp(14px, 2vw, 24px);
     border-radius: var(--radius-16, 32px);
     background: var(--color-grey-0);
@@ -155,13 +308,15 @@
   .workspace-daily-inspiration-area {
     width: 100%;
     max-width: 1180px;
+    margin: 0 auto;
     flex-shrink: 0;
   }
 
   .workspace-center-content.center-content {
-    position: static;
-    transform: none;
-    inset: auto;
+    position: absolute;
+    top: calc(50% + 17.5vh);
+    left: 50%;
+    transform: translate(-50%, -50%);
     width: 100%;
     max-width: 100%;
     z-index: var(--z-index-raised);
@@ -192,10 +347,8 @@
     margin: 0;
     max-width: 920px;
     color: var(--color-grey-80);
-    font-size: clamp(2.4rem, 7vw, 5rem);
+    font-size: var(--font-size-h2-mobile);
     font-weight: 600;
-    line-height: 0.98;
-    letter-spacing: -0.05em;
   }
 
   .workspace-center-content .welcome-text p:not(:first-child) {
@@ -209,6 +362,10 @@
     color: var(--color-grey-60);
     font-size: var(--font-size-p);
     font-weight: 600;
+  }
+
+  .workspace-continue-section {
+    width: 100%;
   }
 
   .recent-chats-scroll-container {
@@ -238,6 +395,14 @@
     min-width: 300px;
     max-width: 300px;
     flex-shrink: 0;
+  }
+
+  .recent-chats-scroll-container .resume-chat-large-card {
+    flex-shrink: 0;
+  }
+
+  .recent-chats-scroll-container.secondary {
+    padding-top: 8px;
   }
 
   .resume-chat-card {
@@ -354,11 +519,185 @@
     opacity: 0.82;
   }
 
-  .workspace-surface-actions,
   .workspace-composer-slot {
-    width: min(920px, 100%);
+    position: absolute;
+    left: 50%;
+    right: auto;
+    bottom: clamp(14px, 2vh, 24px);
+    transform: translateX(-50%);
+    width: min(920px, calc(100% - 48px));
     display: grid;
     gap: var(--spacing-4);
+    z-index: var(--z-index-raised-2);
+    pointer-events: auto;
+  }
+
+  .resume-chat-large-card {
+    position: relative;
+    width: 300px;
+    min-width: 300px;
+    max-width: 300px;
+    height: 200px;
+    min-height: 200px;
+    max-height: 200px;
+    border-radius: 30px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: none;
+    padding: 0;
+    background-color: transparent;
+    pointer-events: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.15s ease-out, box-shadow 0.2s ease-out;
+  }
+
+  .resume-chat-large-card:hover {
+    transform: scale(0.98);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .resume-chat-large-card:active {
+    transform: scale(0.96);
+    transition: transform 0.05s ease-out;
+  }
+
+  .resume-chat-large-card:focus {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 2px;
+  }
+
+  .resume-large-content {
+    position: relative;
+    z-index: var(--z-index-raised-3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-8) var(--spacing-12);
+    max-width: 260px;
+    width: 100%;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .resume-large-content .resume-chat-kind-badge {
+    align-self: center;
+  }
+
+  .resume-large-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .resume-large-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: var(--font-size-p);
+    font-weight: 700;
+    color: var(--color-font-button);
+    text-align: center;
+    line-height: 1.3;
+    max-width: 100%;
+  }
+
+  .resume-large-summary {
+    margin: 2px 0 0;
+    font-size: var(--font-size-xxs);
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.4;
+    text-align: center;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .resume-large-orbs {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+    border-radius: 30px;
+  }
+
+  .resume-orb {
+    position: absolute;
+    width: 280px;
+    height: 240px;
+    background: radial-gradient(ellipse at center, var(--orb-color-b) 0%, var(--orb-color-b) 40%, transparent 85%);
+    filter: blur(22px);
+    opacity: 0.35;
+    will-change: transform, border-radius;
+  }
+
+  .resume-orb-1 {
+    top: -60px;
+    left: -70px;
+    animation: orbMorph1 11s ease-in-out infinite, resumeOrbDrift1 19s ease-in-out infinite;
+  }
+
+  .resume-orb-2 {
+    bottom: -80px;
+    right: -80px;
+    width: 260px;
+    height: 220px;
+    animation: orbMorph2 13s ease-in-out infinite, resumeOrbDrift2 23s ease-in-out infinite;
+  }
+
+  .resume-orb-3 {
+    top: -10px;
+    left: 25%;
+    width: 200px;
+    height: 180px;
+    opacity: 0.38;
+    animation: orbMorph3 17s ease-in-out infinite, resumeOrbDrift3 29s ease-in-out infinite;
+  }
+
+  .resume-large-deco {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: var(--z-index-raised);
+    pointer-events: none;
+    --float-rx: 7px;
+    --float-ry: 8px;
+    --deco-target-opacity: 0.3;
+    animation: decoEnter 0.6s ease-out 0.1s both, decoFloat 16s linear 0.7s infinite;
+  }
+
+  .resume-large-deco-left {
+    left: -10px;
+    bottom: -8px;
+    --deco-rotate: -15deg;
+  }
+
+  .resume-large-deco-right {
+    right: -10px;
+    bottom: -8px;
+    --deco-rotate: 15deg;
+    animation-delay: 0.1s, -8s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .resume-orb,
+    .resume-large-deco {
+      animation: none !important;
+    }
   }
 
   @media (min-height: 800px) {
@@ -371,9 +710,7 @@
     .workspace-home-shell {
       min-height: calc(100vh - 91px);
       min-height: calc(100dvh - 91px);
-      align-items: stretch;
       padding: 0;
-      gap: var(--spacing-6);
     }
 
     .workspace-center-content .welcome-text h2 {
@@ -386,9 +723,8 @@
       padding-right: 48px;
     }
 
-    .workspace-surface-actions,
     .workspace-composer-slot {
-      width: 100%;
+      width: calc(100% - 48px);
       padding-inline: var(--spacing-5);
       box-sizing: border-box;
     }

@@ -108,6 +108,35 @@
   let workflowInputEvents = $state<WorkflowInputEvent[]>([]);
 
   let recentWorkflows = $derived(workflows.slice(0, 6));
+  let workflowStarterItems: WorkflowContinueItem[] = [
+    {
+      id: 'starter-rain',
+      title: 'Tell me if it will rain tomorrow',
+      summary: 'Weather check plus notification',
+      badge: 'Starter',
+      category: 'weather',
+      appId: 'weather',
+      icon: 'cloud-rain',
+    },
+    {
+      id: 'starter-news',
+      title: 'Send me an AI news brief twice a week',
+      summary: 'Research, summarize, and notify',
+      badge: 'Starter',
+      category: 'technology',
+      appId: 'news',
+      icon: 'newspaper',
+    },
+    {
+      id: 'starter-blank',
+      title: 'Start from a blank workflow',
+      summary: 'Open the visual builder',
+      badge: 'Blank',
+      category: 'productivity',
+      appId: 'workflows',
+      icon: 'workflow',
+    },
+  ];
   let recentWorkflowContinueItems = $derived<WorkflowContinueItem[]>(recentWorkflows.map((workflow) => ({
     id: workflow.id,
     title: workflow.title,
@@ -200,6 +229,16 @@
 
   async function continueWorkflowFromCard(item: WorkflowContinueItem) {
     await selectWorkflow(item.id);
+  }
+
+  async function startWorkflowFromCard(item: WorkflowContinueItem) {
+    if (item.id === 'starter-rain') {
+      await createRainWorkflow();
+    } else if (item.id === 'starter-news') {
+      await createNewsWorkflow();
+    } else if (item.id === 'starter-blank') {
+      await createBlankWorkflow();
+    }
   }
 
   async function submitWorkflowInput() {
@@ -744,36 +783,13 @@
           heading={`Hey ${workflowGreetingName}, what should OpenMates automate?`}
           subtitle="Describe the outcome in natural language. You can stop, refine, or undo the last workflow change."
           continueItems={recentWorkflowContinueItems}
+          actionItems={workflowStarterItems}
+          actionItemsTestId="workflow-recommendations"
+          continueSectionTestId="recent-workflows"
           onContinueItem={continueWorkflowFromCard}
+          onActionItem={startWorkflowFromCard}
           onStartInspiration={startWorkflowFromInspiration}
         >
-          <svelte:fragment slot="actions">
-            <div class="workflow-recommendations" data-testid="workflow-recommendations">
-              <button type="button" onclick={createRainWorkflow} disabled={saving}>
-                <strong>Tell me if it will rain tomorrow</strong>
-                <span>Weather check plus notification</span>
-              </button>
-              <button type="button" onclick={createNewsWorkflow} disabled={saving}>
-                <strong>Send me an AI news brief twice a week</strong>
-                <span>Research, summarize, and notify</span>
-              </button>
-              <button type="button" onclick={createBlankWorkflow} disabled={saving}>
-                <strong>Start from a blank workflow</strong>
-                <span>Open the visual builder</span>
-              </button>
-            </div>
-            {#if recentWorkflows.length > 0}
-              <section class="recent-workflows" data-testid="recent-workflows" aria-label="Recent workflows">
-                <div class="resume-section-heading">
-                  <span>Continue where you left off</span>
-                  <button type="button" class="show-all-button" data-testid="workflows-show-all" onclick={() => showAllWorkflows = !showAllWorkflows}>
-                    {showAllWorkflows ? 'Show recent' : `Show all ${workflows.length}`}
-                  </button>
-                </div>
-              </section>
-            {/if}
-          </svelte:fragment>
-
           <svelte:fragment slot="composer">
             <form class="workflow-input-composer" data-testid="workflow-input-composer" onsubmit={(event) => { event.preventDefault(); void submitWorkflowInput(); }}>
               <textarea
@@ -809,6 +825,11 @@
             <div>
               <p>Manage automations</p>
               <h2>{workflowCountLabel}</h2>
+              {#if workflows.length > 0}
+                <button type="button" class="show-all-button" data-testid="workflows-show-all" onclick={() => showAllWorkflows = !showAllWorkflows}>
+                  {showAllWorkflows ? 'Show recent' : `Show all ${workflows.length}`}
+                </button>
+              {/if}
             </div>
             <div class="create-actions">
               <label class="retention-picker" for="workflow-retention">
@@ -1320,13 +1341,6 @@
     padding: 22px;
   }
 
-  .workflow-recommendations {
-    width: min(920px, 100%);
-    display: flex;
-    gap: 10px;
-  }
-
-  .workflow-recommendations button,
   .workflow-mini-card {
     display: grid;
     gap: 6px;
@@ -1334,43 +1348,6 @@
     color: var(--color-font-primary);
     background: color-mix(in srgb, var(--color-grey-0) 86%, transparent);
     box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
-  }
-
-  .workflow-recommendations button {
-    flex: 1 1 210px;
-    min-height: 92px;
-  }
-
-  .workflow-recommendations button span {
-    color: var(--color-font-secondary);
-    font-size: 0.86rem;
-  }
-
-  .workflow-recommendations button:first-child {
-    color: var(--color-font-button);
-    background: var(--color-button-primary);
-  }
-
-  .workflow-recommendations button:first-child span {
-    color: color-mix(in srgb, var(--color-font-button) 76%, transparent);
-  }
-
-  .recent-workflows {
-    width: min(920px, 100%);
-    display: grid;
-    gap: 10px;
-  }
-
-  .resume-section-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .resume-section-heading span {
-    color: var(--color-font-secondary);
-    font-weight: 800;
   }
 
   .all-workflows-grid {
