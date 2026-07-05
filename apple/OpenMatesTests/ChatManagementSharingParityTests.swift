@@ -14,15 +14,15 @@ final class ChatManagementSharingParityTests: XCTestCase {
     func testHomeScreenQuickActionDefinitionsMatchChatActions() {
         #if os(iOS)
         let items = AppQuickAction.shortcutItems
-        let typesAndTitles = items.map { ($0.type, $0.localizedTitle) }
+        let typesAndTitles = items.map { "\($0.type)|\($0.localizedTitle)" }
 
         XCTAssertEqual(
             typesAndTitles,
             [
-                ("org.openmates.ask", "Ask"),
-                ("org.openmates.ask-about-photo", "Ask About Photo"),
-                ("org.openmates.search", "Search"),
-                ("org.openmates.incognito-ask", "Incognito Ask")
+                "org.openmates.ask|Ask",
+                "org.openmates.ask-about-photo|Ask About Photo",
+                "org.openmates.search|Search",
+                "org.openmates.incognito-ask|Incognito Ask"
             ]
         )
 
@@ -41,17 +41,17 @@ final class ChatManagementSharingParityTests: XCTestCase {
             "Expected static UIApplicationShortcutItems in the app bundle Info.plist"
         )
 
-        let typesAndTitles = items.map {
-            ($0["UIApplicationShortcutItemType"], $0["UIApplicationShortcutItemTitle"])
+        let typesAndTitles = items.map { item in
+            "\(item["UIApplicationShortcutItemType"] ?? "")|\(item["UIApplicationShortcutItemTitle"] ?? "")"
         }
 
         XCTAssertEqual(
             typesAndTitles,
             [
-                ("org.openmates.ask", "Ask"),
-                ("org.openmates.ask-about-photo", "Ask About Photo"),
-                ("org.openmates.search", "Search"),
-                ("org.openmates.incognito-ask", "Incognito Ask")
+                "org.openmates.ask|Ask",
+                "org.openmates.ask-about-photo|Ask About Photo",
+                "org.openmates.search|Search",
+                "org.openmates.incognito-ask|Incognito Ask"
             ]
         )
         #endif
