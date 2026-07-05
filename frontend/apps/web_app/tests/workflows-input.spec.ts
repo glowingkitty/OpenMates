@@ -79,6 +79,11 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
 			await expect(page.getByTestId('daily-inspiration-label')).toBeVisible();
 			await expect(page.getByTestId('workflow-inspiration-card')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-management')).toHaveCount(0);
+			await expect(page.getByText('Manage automations')).toHaveCount(0);
+			await expect(page.getByTestId('workflows-list')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-detail')).toHaveCount(0);
+			await expect(page.getByTestId('workflows-show-all')).toHaveCount(0);
 			await expect(page.getByTestId('workflows-workspace-center')).toContainText('what should OpenMates automate');
 			await expect(page.getByTestId('workflow-recommendations')).toContainText('Tell me if it will rain tomorrow');
 			await expect(page.getByTestId('recent-workflows')).toBeVisible();
@@ -90,14 +95,17 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('message-editor')).toHaveCount(0);
 
 			const startScreenBox = await page.getByTestId('workflows-start-screen').boundingBox();
-			const managementBox = await page.getByTestId('workflow-management').boundingBox();
-			if (!startScreenBox || !managementBox) throw new Error('Workflows start and management sections must both be measurable.');
-			expect(managementBox.y).toBeGreaterThan(startScreenBox.y);
+			const composerBox = await page.getByTestId('workflow-input-composer').boundingBox();
+			const centerBox = await page.getByTestId('workflows-workspace-center').boundingBox();
+			if (!startScreenBox || !composerBox || !centerBox) throw new Error('Workflows home sections must be measurable.');
+			expect(startScreenBox.height).toBeGreaterThan(700);
+			expect(composerBox.y + composerBox.height).toBeGreaterThan(760);
+			expect(centerBox.y + centerBox.height).toBeLessThan(composerBox.y);
 
-			await page.getByTestId('workflows-show-all').click();
-			await expect(page.getByTestId('all-workflows-grid')).toBeVisible();
-			await expect(page.getByTestId('workflow-recommendations')).toBeVisible();
-			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
+			await page.setViewportSize({ width: 1365, height: 900 });
+			await expect(page.getByTestId('daily-inspiration-banner')).toBeVisible();
+			await expect(page.getByTestId('resume-chat-large-card').first()).toBeVisible();
+			await expect(page.getByTestId('workflow-management')).toHaveCount(0);
 
 			const createInputResponse = page.waitForResponse(
 				(response) => response.url().includes('/v1/workflows/input') && response.request().method() === 'POST' && response.ok(),
@@ -112,7 +120,7 @@ test.describe('Workflows input home', () => {
 
 			await expect(page.getByTestId('workflow-input-status')).toHaveAttribute('data-status', 'executed', { timeout: 30000 });
 			await expect(page.getByTestId('workflow-input-status')).toContainText('committed');
-			await expect(page.getByTestId('workflow-title-input')).toHaveValue('Rain alert');
+			await expect(page.getByTestId('workflow-title-input')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-input-undo')).toBeVisible();
 
 			const undoResponse = page.waitForResponse(
@@ -122,6 +130,8 @@ test.describe('Workflows input home', () => {
 			await page.getByTestId('workflow-input-undo').click();
 			await undoResponse;
 			await expect(page.getByTestId('workflow-input-status')).toHaveAttribute('data-status', 'undone', { timeout: 30000 });
+			await expect(page.getByTestId('workflow-management')).toHaveCount(0);
+			await expect(page.getByText('Manage automations')).toHaveCount(0);
 		} finally {
 			for (const workflowId of createdWorkflowIds) {
 				await page.request.delete(`${apiUrl}/v1/workflows/${encodeURIComponent(workflowId)}`).catch(() => null);

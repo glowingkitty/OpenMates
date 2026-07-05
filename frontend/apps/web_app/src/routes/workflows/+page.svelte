@@ -9,6 +9,7 @@
 
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { page } from '$app/state';
   import { Header, Settings, Notification, WorkspaceHomeShell, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability } from '@repo/ui';
   import { getApiEndpoint } from '@repo/ui/config/api';
   import { userProfile } from '@repo/ui/stores/userProfile';
@@ -149,6 +150,7 @@
   let listedWorkflows = $derived(showAllWorkflows ? workflows : workflows.slice(0, 5));
   let workflowGreetingName = $derived($userProfile.username?.trim() || 'there');
   let workflowCountLabel = $derived(workflows.length === 1 ? '1 workflow ready' : `${workflows.length} workflows ready`);
+  let isManageView = $derived(page.url.searchParams.get('view') === 'manage');
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
   let workflowsEnabled = $derived($featureAvailabilityStore.disabledById?.['platform:workflows'] !== true && $featureAvailabilityStore.disabledById !== null);
@@ -771,55 +773,57 @@
   <div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="workflows-container" class:menu-open={$panelState.isSettingsOpen}>
-      <main class="workflows-start" data-testid="workflows-page">
+      <main class="workflows-start" class:management-view={isManageView} data-testid="workflows-page">
         {#if error}
           <div class="error-banner" data-testid="workflows-error">{error}</div>
         {/if}
 
-        <WorkspaceHomeShell
-          surface="workflows"
-          testId="workflows-start-screen"
-          eyebrow="Workflows"
-          heading={`Hey ${workflowGreetingName}, what should OpenMates automate?`}
-          subtitle="Describe the outcome in natural language. You can stop, refine, or undo the last workflow change."
-          continueItems={recentWorkflowContinueItems}
-          actionItems={workflowStarterItems}
-          actionItemsTestId="workflow-recommendations"
-          continueSectionTestId="recent-workflows"
-          onContinueItem={continueWorkflowFromCard}
-          onActionItem={startWorkflowFromCard}
-          onStartInspiration={startWorkflowFromInspiration}
-        >
-          <svelte:fragment slot="composer">
-            <form class="workflow-input-composer" data-testid="workflow-input-composer" onsubmit={(event) => { event.preventDefault(); void submitWorkflowInput(); }}>
-              <textarea
-                data-testid="workflow-input-textarea"
-                bind:value={workflowInputText}
-                rows="1"
-                placeholder="Ask OpenMates to create or update a workflow..."
-                disabled={workflowInputBusy}
-              ></textarea>
-              <div class="workflow-input-actions">
-                {#if workflowInputSession && workflowInputSession.status === 'running'}
-                  <button type="button" data-testid="workflow-input-stop" onclick={stopWorkflowInput} disabled={workflowInputBusy}>Stop</button>
-                {/if}
-                {#if workflowInputSession?.undo_available}
-                  <button type="button" data-testid="workflow-input-undo" onclick={undoWorkflowInput} disabled={workflowInputBusy}>Undo</button>
-                {/if}
-                <button type="submit" data-testid="workflow-input-submit" disabled={workflowInputBusy || !workflowInputText.trim()}>{workflowInputBusy ? 'Working...' : 'Send'}</button>
-              </div>
-            </form>
-            {#if workflowInputSession}
-              <div class="workflow-input-status" data-testid="workflow-input-status" data-status={workflowInputSession.status}>
-                <strong>{workflowInputSession.status}</strong>
-                {#if workflowInputSession.message}<span>{workflowInputSession.message}</span>{/if}
-                {#if workflowInputSession.error}<span>{workflowInputSession.error}</span>{/if}
-                {#if workflowInputEvents.length > 0}<span>{workflowInputEvents.at(-1)?.type}</span>{/if}
-              </div>
-            {/if}
-          </svelte:fragment>
-        </WorkspaceHomeShell>
+        {#if !isManageView}
+          <WorkspaceHomeShell
+            surface="workflows"
+            testId="workflows-start-screen"
+            heading={`Hey ${workflowGreetingName}, what should OpenMates automate?`}
+            subtitle="Describe the outcome in natural language. You can stop, refine, or undo the last workflow change."
+            continueItems={recentWorkflowContinueItems}
+            actionItems={workflowStarterItems}
+            actionItemsTestId="workflow-recommendations"
+            continueSectionTestId="recent-workflows"
+            onContinueItem={continueWorkflowFromCard}
+            onActionItem={startWorkflowFromCard}
+            onStartInspiration={startWorkflowFromInspiration}
+          >
+            <svelte:fragment slot="composer">
+              <form class="workflow-input-composer" data-testid="workflow-input-composer" onsubmit={(event) => { event.preventDefault(); void submitWorkflowInput(); }}>
+                <textarea
+                  data-testid="workflow-input-textarea"
+                  bind:value={workflowInputText}
+                  rows="1"
+                  placeholder="Ask OpenMates to create or update a workflow..."
+                  disabled={workflowInputBusy}
+                ></textarea>
+                <div class="workflow-input-actions">
+                  {#if workflowInputSession && workflowInputSession.status === 'running'}
+                    <button type="button" data-testid="workflow-input-stop" onclick={stopWorkflowInput} disabled={workflowInputBusy}>Stop</button>
+                  {/if}
+                  {#if workflowInputSession?.undo_available}
+                    <button type="button" data-testid="workflow-input-undo" onclick={undoWorkflowInput} disabled={workflowInputBusy}>Undo</button>
+                  {/if}
+                  <button type="submit" data-testid="workflow-input-submit" disabled={workflowInputBusy || !workflowInputText.trim()}>{workflowInputBusy ? 'Working...' : 'Send'}</button>
+                </div>
+              </form>
+              {#if workflowInputSession}
+                <div class="workflow-input-status" data-testid="workflow-input-status" data-status={workflowInputSession.status}>
+                  <strong>{workflowInputSession.status}</strong>
+                  {#if workflowInputSession.message}<span>{workflowInputSession.message}</span>{/if}
+                  {#if workflowInputSession.error}<span>{workflowInputSession.error}</span>{/if}
+                  {#if workflowInputEvents.length > 0}<span>{workflowInputEvents.at(-1)?.type}</span>{/if}
+                </div>
+              {/if}
+            </svelte:fragment>
+          </WorkspaceHomeShell>
+        {/if}
 
+        {#if isManageView}
         <section class="workflow-management" data-testid="workflow-management">
           <div class="management-header">
             <div>
@@ -1114,6 +1118,7 @@
             </section>
           </div>
         </section>
+        {/if}
       </main>
       <div class="settings-wrapper">
         <Settings isLoggedIn={$authStore.isAuthenticated} />
@@ -1177,6 +1182,11 @@
     gap: 28px;
     color: var(--color-font-primary);
     scroll-behavior: smooth;
+  }
+
+  .workflows-start:not(.management-view) {
+    gap: 0;
+    overflow: hidden;
   }
 
   .management-header p,

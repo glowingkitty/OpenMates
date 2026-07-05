@@ -44,7 +44,7 @@ test.describe('Workflows editor', () => {
 		const initialIds = new Set((initialData.workflows ?? []).map((workflow: { id: string }) => workflow.id));
 
 		try {
-			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
+			await page.goto(getE2EDebugUrl('/workflows?view=manage'), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
 
 			await page.getByTestId('workflow-retention-select').selectOption('none');

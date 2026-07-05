@@ -33,7 +33,7 @@
   type Props = {
     surface: WorkspaceSurface;
     testId?: string;
-    eyebrow: string;
+    eyebrow?: string;
     heading: string;
     subtitle?: string;
     continueLabel?: string;
@@ -49,7 +49,7 @@
   let {
     surface,
     testId = `${surface}-workspace-home`,
-    eyebrow,
+    eyebrow = '',
     heading,
     subtitle = '',
     continueLabel = 'Continue where you left off',
@@ -111,10 +111,12 @@
   <div class="center-content workspace-center-content" data-testid={`${surface}-workspace-center`}>
     <div class="team-profile">
       <div class="welcome-text">
-        <p>{eyebrow}</p>
+        {#if eyebrow}
+          <p class="workspace-eyebrow">{eyebrow}</p>
+        {/if}
         <h2>{heading}</h2>
         {#if subtitle}
-          <p>{subtitle}</p>
+          <p class="workspace-subtitle">{subtitle}</p>
         {/if}
       </div>
     </div>
@@ -295,8 +297,8 @@
 
 <style>
   .workspace-home-shell {
-    min-height: min(900px, calc(100vh - 104px));
-    min-height: min(900px, calc(100dvh - 104px));
+    height: 100%;
+    min-height: 0;
     position: relative;
     padding: clamp(14px, 2vw, 24px);
     border-radius: var(--radius-16, 32px);
@@ -334,7 +336,7 @@
     gap: var(--spacing-10);
   }
 
-  .workspace-center-content .welcome-text p:first-child {
+  .workspace-center-content .workspace-eyebrow {
     margin: 0 0 8px;
     color: var(--color-grey-60);
     font-size: var(--font-size-small);
@@ -351,7 +353,7 @@
     font-weight: 600;
   }
 
-  .workspace-center-content .welcome-text p:not(:first-child) {
+  .workspace-center-content .workspace-subtitle {
     margin: 10px 0 0;
     color: var(--color-grey-60);
     font-size: var(--font-size-p);
@@ -708,8 +710,7 @@
 
   @media (max-width: 730px) {
     .workspace-home-shell {
-      min-height: calc(100vh - 91px);
-      min-height: calc(100dvh - 91px);
+      min-height: 0;
       padding: 0;
     }
 
