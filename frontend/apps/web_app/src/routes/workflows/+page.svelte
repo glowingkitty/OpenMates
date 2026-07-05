@@ -1145,7 +1145,7 @@
     min-height: min(900px, calc(100vh - 104px));
     min-height: min(900px, calc(100dvh - 104px));
     display: grid;
-    grid-template-rows: auto auto auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto;
     align-content: center;
     justify-items: center;
     gap: clamp(16px, 3vh, 26px);
