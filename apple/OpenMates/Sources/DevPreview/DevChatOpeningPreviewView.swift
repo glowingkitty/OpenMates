@@ -235,6 +235,11 @@ private struct DevPIIComposerBannerFixtureView: View {
                 .font(.omSmall.weight(.semibold))
                 .foregroundStyle(Color.fontPrimary)
 
+            Text("PII Composer Banner Fixture")
+                .font(.omMicro)
+                .foregroundStyle(Color.fontSecondary)
+                .accessibilityIdentifier("pii-composer-banner-fixture")
+
             PIIWarningBanner(matches: matches) {
                 matches = []
             }

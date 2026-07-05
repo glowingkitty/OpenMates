@@ -33,6 +33,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
     func testComposerWarningHighlightsAndExclusions() throws {
         let app = launchChatOpeningPreview(arguments: ["--ui-test-pii-composer-banner-fixture"])
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+        XCTAssertTrue(element(in: app, identifier: "pii-composer-banner-fixture").waitForExistence(timeout: 5))
 
         let banner = element(in: app, identifier: "pii-warning-banner")
         XCTAssertTrue(banner.waitForExistence(timeout: 8))
