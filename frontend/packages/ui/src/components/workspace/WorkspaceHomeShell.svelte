@@ -719,6 +719,10 @@
       line-height: 1.08;
     }
 
+    .workspace-center-content.center-content {
+      top: calc(50% + 13vh);
+    }
+
     .recent-chats-scroll-container {
       padding-left: calc(50% - 150px);
       padding-right: 48px;
