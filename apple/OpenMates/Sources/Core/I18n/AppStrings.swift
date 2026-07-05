@@ -234,6 +234,37 @@ enum AppStrings {
 
     // MARK: - Settings - Privacy
     static var hidePersonalData: String { L("settings.hide_personal_data") }
+    static var privacyHidePersonalData: String { L("settings.privacy.hide_personal_data") }
+    static var privacyHidePersonalDataChats: String { L("settings.privacy.hide_personal_data.chats") }
+    static var privacyHidePersonalDataDescription: String { L("settings.privacy.hide_personal_data.description") }
+    static var privacyContacts: String { L("settings.privacy.contacts") }
+    static var privacyAddName: String { L("settings.privacy.add_name") }
+    static var privacyAddAddress: String { L("settings.privacy.add_address") }
+    static var privacyAddBirthday: String { L("settings.privacy.add_birthday") }
+    static var privacyForEveryone: String { L("settings.privacy.for_everyone") }
+    static var privacyEmailAddresses: String { L("settings.privacy.email_addresses") }
+    static var privacyPhoneNumbers: String { L("settings.privacy.phone_numbers") }
+    static var privacyCreditCardNumbers: String { L("settings.privacy.credit_card_numbers") }
+    static var privacyIbanBankAccount: String { L("settings.privacy.iban_bank_account") }
+    static var privacyTaxIdVat: String { L("settings.privacy.tax_id_vat") }
+    static var privacyCryptoWallets: String { L("settings.privacy.crypto_wallets") }
+    static var privacySocialSecurityNumbers: String { L("settings.privacy.social_security_numbers") }
+    static var privacyPassportNumbers: String { L("settings.privacy.passport_numbers") }
+    static var privacyForDevelopers: String { L("settings.privacy.for_developers") }
+    static var privacyApiKeys: String { L("settings.privacy.api_keys") }
+    static var privacyJwtTokens: String { L("settings.privacy.jwt_tokens") }
+    static var privacyPrivateKeys: String { L("settings.privacy.private_keys") }
+    static var privacyGenericSecrets: String { L("settings.privacy.generic_secrets") }
+    static var privacyIpAddresses: String { L("settings.privacy.ip_addresses") }
+    static var privacyMacAddresses: String { L("settings.privacy.mac_addresses") }
+    static var privacyUserAtHostname: String { L("settings.privacy.user_at_hostname") }
+    static var privacyHomeFolder: String { L("settings.privacy.home_folder") }
+    static var privacyCustom: String { L("settings.privacy.custom") }
+    static var privacyAddCustomEntry: String { L("settings.privacy.add_custom_entry") }
+    static var privacyFormTitle: String { L("settings.privacy.form.title") }
+    static var privacyFormTextToHide: String { L("settings.privacy.form.text_to_hide") }
+    static var privacyFormReplaceWith: String { L("settings.privacy.form.replace_with") }
+    static var privacyEncryptionNote: String { L("settings.privacy.encryption_note") }
     static var autoDeleteChats: String { L("settings.privacy.auto_deletion") }
     static var shareDebugLogs: String { L("settings.privacy.debug_logging_title") }
     static var never: String { L("common.never") }

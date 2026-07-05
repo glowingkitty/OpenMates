@@ -4,7 +4,7 @@
 
 import SwiftUI
 
-struct PIIMatch: Identifiable, Equatable {
+struct PIIMatch: Identifiable, Equatable, Sendable {
     let id: String
     let type: PIIType
     let value: String
@@ -12,7 +12,110 @@ struct PIIMatch: Identifiable, Equatable {
     let placeholder: String
 }
 
-enum PIIType: String, CaseIterable {
+struct PersonalDataForDetection: Equatable, Sendable {
+    let id: String
+    let textToHide: String
+    let replaceWith: String
+    let additionalTexts: [String]
+    let type: PIIType?
+
+    init(id: String, textToHide: String, replaceWith: String, additionalTexts: [String] = [], type: PIIType? = nil) {
+        self.id = id
+        self.textToHide = textToHide
+        self.replaceWith = replaceWith
+        self.additionalTexts = additionalTexts
+        self.type = type
+    }
+}
+
+struct PIIDetectionOptions: Equatable, Sendable {
+    let excludedIds: Set<String>
+    let disabledCategories: Set<String>
+    let personalDataEntries: [PersonalDataForDetection]
+
+    init(
+        excludedIds: Set<String> = [],
+        disabledCategories: Set<String> = [],
+        personalDataEntries: [PersonalDataForDetection] = []
+    ) {
+        self.excludedIds = excludedIds
+        self.disabledCategories = disabledCategories
+        self.personalDataEntries = personalDataEntries
+    }
+}
+
+struct PIIRedactionResult: Equatable, Sendable {
+    let originalText: String
+    let redactedText: String
+    let matches: [PIIMatch]
+    let mappings: [PIIMapping]
+}
+
+struct PIIPrivacySettings: Equatable, Sendable {
+    let masterEnabled: Bool
+    let disabledCategories: Set<String>
+    let personalDataEntries: [PersonalDataForDetection]
+
+    static let enabled = PIIPrivacySettings(
+        masterEnabled: true,
+        disabledCategories: [],
+        personalDataEntries: []
+    )
+
+    var detectionOptions: PIIDetectionOptions {
+        guard masterEnabled else {
+            return PIIDetectionOptions(disabledCategories: Set(PIIPrivacyCategory.allCategoryKeys))
+        }
+        return PIIDetectionOptions(
+            disabledCategories: disabledCategories,
+            personalDataEntries: personalDataEntries
+        )
+    }
+}
+
+enum PIIPrivacyCategory {
+    static let allCategoryKeys: [String] = [
+        "email_addresses",
+        "addresses",
+        "phone_numbers",
+        "credit_card_numbers",
+        "iban_bank_account",
+        "tax_id_vat",
+        "crypto_wallets",
+        "social_security_numbers",
+        "passport_numbers",
+        "api_keys",
+        "jwt_tokens",
+        "private_keys",
+        "generic_secrets",
+        "ip_addresses",
+        "mac_addresses",
+        "user_at_hostname",
+        "home_folder",
+        "vehicle_plate"
+    ]
+}
+
+@MainActor
+final class PIIPrivacySettingsStore: ObservableObject {
+    static let shared = PIIPrivacySettingsStore()
+
+    @Published private(set) var settings: PIIPrivacySettings = .enabled
+
+    init(settings: PIIPrivacySettings = .enabled) {
+        self.settings = settings
+    }
+
+    func update(_ settings: PIIPrivacySettings) {
+        self.settings = settings
+    }
+
+    func detectionOptions() -> PIIDetectionOptions {
+        settings.detectionOptions
+    }
+}
+
+enum PIIType: String, CaseIterable, Sendable {
     case email = "EMAIL"
     case address = "ADDRESS"
     case phone = "PHONE"
@@ -100,7 +203,42 @@ enum PIIDetector {
         }
     }()
 
-    static func detect(in text: String) -> [PIIMatch] {
+    private static let typeToCategory: [PIIType: String] = [
+        .email: "email_addresses",
+        .address: "addresses",
+        .phone: "phone_numbers",
+        .creditCard: "credit_card_numbers",
+        .ssn: "social_security_numbers",
+        .iban: "iban_bank_account",
+        .taxId: "tax_id_vat",
+        .passport: "passport_numbers",
+        .cryptoWallet: "crypto_wallets",
+        .vehiclePlate: "vehicle_plate",
+        .awsAccessKey: "api_keys",
+        .awsSecretKey: "api_keys",
+        .openAIKey: "api_keys",
+        .anthropicKey: "api_keys",
+        .githubToken: "api_keys",
+        .stripeKey: "api_keys",
+        .googleAPIKey: "api_keys",
+        .slackToken: "api_keys",
+        .twilioKey: "api_keys",
+        .sendgridKey: "api_keys",
+        .azureKey: "api_keys",
+        .huggingFaceKey: "api_keys",
+        .databricksToken: "api_keys",
+        .firebaseKey: "api_keys",
+        .genericSecret: "generic_secrets",
+        .privateKey: "private_keys",
+        .jwt: "jwt_tokens",
+        .ipv4: "ip_addresses",
+        .ipv6: "ip_addresses",
+        .homeFolder: "home_folder",
+        .userAtHostname: "user_at_hostname",
+        .macAddress: "mac_addresses"
+    ]
+
+    static func detect(in text: String, options: PIIDetectionOptions = PIIDetectionOptions()) -> [PIIMatch] {
         let nsText = text as NSString
         let fullRange = NSRange(location: 0, length: nsText.length)
         let urlExclusionRanges = regexMatches(#"https?://[^\s]+"#, in: text).map(\.range)
@@ -109,6 +247,9 @@ enum PIIDetector {
         var matches: [PIIMatch] = []
 
         for pattern in patterns {
+            if let category = typeToCategory[pattern.type], options.disabledCategories.contains(category) {
+                continue
+            }
             pattern.expression.enumerateMatches(in: text, options: [], range: fullRange) { result, _, _ in
                 guard let result else { return }
                 let range = result.range(at: result.numberOfRanges > 1 && result.range(at: 1).location != NSNotFound ? 1 : 0)
@@ -118,13 +259,15 @@ enum PIIDetector {
 
                 let value = nsText.substring(with: range)
                 if let validator = pattern.validator, !validator(value) { return }
+                let id = "pii-\(pattern.type.rawValue)-\(range.location)"
+                guard !options.excludedIds.contains(id) else { return }
 
                 let count = (counters[pattern.type] ?? 0) + 1
                 counters[pattern.type] = count
                 occupied.append(range)
                 matches.append(
                     PIIMatch(
-                        id: "pii-\(pattern.type.rawValue)-\(range.location)",
+                        id: id,
                         type: pattern.type,
                         value: value,
                         range: range,
@@ -134,7 +277,38 @@ enum PIIDetector {
             }
         }
 
+        appendPersonalDataMatches(
+            text: text,
+            nsText: nsText,
+            entries: options.personalDataEntries,
+            excludedIds: options.excludedIds,
+            occupied: &occupied,
+            matches: &matches
+        )
+
         return matches.sorted { $0.range.location < $1.range.location }
+    }
+
+    static func redactionResult(
+        in text: String,
+        matches: [PIIMatch]? = nil,
+        excludedIds: Set<String> = [],
+        options: PIIDetectionOptions = PIIDetectionOptions()
+    ) -> PIIRedactionResult {
+        let effectiveOptions = PIIDetectionOptions(
+            excludedIds: options.excludedIds.union(excludedIds),
+            disabledCategories: options.disabledCategories,
+            personalDataEntries: options.personalDataEntries
+        )
+        let allMatches = matches ?? detect(in: text, options: effectiveOptions)
+        let redacted = redactedText(text, matches: allMatches, excludedIds: effectiveOptions.excludedIds)
+        let mappingList = mappings(for: allMatches, excludedIds: effectiveOptions.excludedIds)
+        return PIIRedactionResult(
+            originalText: text,
+            redactedText: redacted,
+            matches: allMatches,
+            mappings: mappingList
+        )
     }
 
     static func redactedText(_ text: String, matches: [PIIMatch], excludedIds: Set<String>) -> String {
@@ -198,6 +372,43 @@ enum PIIDetector {
     private static func suffix(_ value: String) -> String {
         let cleaned = value.trimmingCharacters(in: CharacterSet(charactersIn: "'\"; \n\t"))
         return String(cleaned.suffix(3))
+    }
+
+    private static func appendPersonalDataMatches(
+        text: String,
+        nsText: NSString,
+        entries: [PersonalDataForDetection],
+        excludedIds: Set<String>,
+        occupied: inout [NSRange],
+        matches: inout [PIIMatch]
+    ) {
+        for entry in entries {
+            let searchTexts = ([entry.textToHide] + entry.additionalTexts)
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            for searchText in searchTexts {
+                var start = text.startIndex
+                while start < text.endIndex {
+                    guard let stringRange = text.range(of: searchText, options: [.caseInsensitive], range: start..<text.endIndex) else { break }
+                    let range = NSRange(stringRange, in: text)
+                    let id = "pii-PERSONAL_DATA-\(entry.id)-\(range.location)"
+                    if !excludedIds.contains(id), !occupied.contains(where: { NSIntersectionRange($0, range).length > 0 }) {
+                        let placeholder = entry.replaceWith.hasPrefix("[") ? entry.replaceWith : "[\(entry.replaceWith)]"
+                        matches.append(
+                            PIIMatch(
+                                id: id,
+                                type: entry.type ?? .email,
+                                value: nsText.substring(with: range),
+                                range: range,
+                                placeholder: placeholder
+                            )
+                        )
+                        occupied.append(range)
+                    }
+                    start = stringRange.upperBound
+                }
+            }
+        }
     }
 
     private static func luhnCheck(_ value: String) -> Bool {

@@ -128,6 +128,7 @@ struct ChatView: View {
 
     @StateObject private var viewModel = ChatViewModel()
     @StateObject private var handoffManager = HandoffManager()
+    @StateObject private var piiPrivacySettingsStore = PIIPrivacySettingsStore.shared
     @State private var messageText = ""
     @State private var selectedEmbed: EmbedRecord?
     @State private var showEmbedFullscreen = false
@@ -302,6 +303,7 @@ struct ChatView: View {
             applyCameraCaptureRequestIfNeeded()
         }
         .task(id: chatId) {
+            await ApplePrivacySettingsService.shared.load()
             viewModel.configure(wsManager: wsManager, chatStore: chatStore)
             await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
             #if DEBUG
@@ -355,6 +357,9 @@ struct ChatView: View {
         .onChange(of: messageText) { _, newValue in
             updatePIIMatches(for: newValue)
             updateMentionQuery(for: newValue)
+        }
+        .onChange(of: piiPrivacySettingsStore.settings) { _, _ in
+            updatePIIMatches(for: messageText)
         }
         .onReceive(NotificationCenter.default.publisher(for: .pendingDeferredSendRequested)) { notification in
             handleComposerDeferredSend(notification)
@@ -1679,8 +1684,13 @@ struct ChatView: View {
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty || viewModel.hasPendingComposerEmbeds else { return }
-        let sanitizedText = PIIDetector.redactedText(text, matches: detectedPIIMatches, excludedIds: piiExclusions)
-        let piiMappings = PIIDetector.mappings(for: detectedPIIMatches, excludedIds: piiExclusions)
+        let redaction = PIIDetector.redactionResult(
+            in: text,
+            excludedIds: piiExclusions,
+            options: piiPrivacySettingsStore.detectionOptions()
+        )
+        let sanitizedText = redaction.redactedText
+        let piiMappings = redaction.mappings
         if let chatId = viewModel.chat?.id, pendingUploads.hasActiveUploads(chatId: chatId) {
             let blockingIds = Set(pendingUploads.uploadsForChat(chatId).map(\.id))
             pendingUploads.addPendingSend(
@@ -1744,7 +1754,7 @@ struct ChatView: View {
     }
 
     private func updatePIIMatches(for text: String) {
-        detectedPIIMatches = PIIDetector.detect(in: text)
+        detectedPIIMatches = PIIDetector.detect(in: text, options: piiPrivacySettingsStore.detectionOptions())
         let currentIds = Set(detectedPIIMatches.map(\.id))
         piiExclusions = piiExclusions.intersection(currentIds)
     }

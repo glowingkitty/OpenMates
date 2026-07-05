@@ -10,6 +10,161 @@ import XCTest
 
 @MainActor
 final class ChatSendPipelineParityTests: XCTestCase {
+    func testDetectorRespectsWebSettingsAndCustomEntries() {
+        let text = "Email alice@example.com, call +49 170 1234567, or send mail to 221B Baker Street in London."
+        let options = PIIDetectionOptions(
+            disabledCategories: ["phone_numbers"],
+            personalDataEntries: [
+                PersonalDataForDetection(
+                    id: "home-address",
+                    textToHide: "221B Baker Street",
+                    replaceWith: "[HOME_ADDRESS]",
+                    additionalTexts: ["London"],
+                    type: .address
+                )
+            ]
+        )
+
+        let matches = PIIDetector.detect(in: text, options: options)
+
+        XCTAssertTrue(matches.contains { $0.type == .email && $0.value == "alice@example.com" })
+        XCTAssertFalse(matches.contains { $0.type == .phone }, "Disabled phone_numbers category must not detect phone PII")
+        XCTAssertTrue(matches.contains { $0.type == .address && $0.value == "221B Baker Street" })
+        XCTAssertTrue(matches.contains { $0.type == .address && $0.value == "London" })
+        XCTAssertEqual(matches.first { $0.value == "221B Baker Street" }?.placeholder, "[HOME_ADDRESS]")
+    }
+
+    func testPrivacySettingsStoreProducesDetectorOptionsForComposer() {
+        let store = PIIPrivacySettingsStore(settings: PIIPrivacySettings(
+            masterEnabled: true,
+            disabledCategories: ["email_addresses"],
+            personalDataEntries: [
+                PersonalDataForDetection(
+                    id: "safe-word",
+                    textToHide: "Project Orchid",
+                    replaceWith: "[PROJECT]",
+                    type: .genericSecret
+                )
+            ]
+        ))
+
+        let matches = PIIDetector.detect(
+            in: "Email alice@example.com about Project Orchid.",
+            options: store.detectionOptions()
+        )
+
+        XCTAssertFalse(matches.contains { $0.type == .email })
+        XCTAssertTrue(matches.contains { $0.value == "Project Orchid" && $0.placeholder == "[PROJECT]" })
+
+        store.update(PIIPrivacySettings(
+            masterEnabled: false,
+            disabledCategories: [],
+            personalDataEntries: [
+                PersonalDataForDetection(
+                    id: "safe-word",
+                    textToHide: "Project Orchid",
+                    replaceWith: "[PROJECT]",
+                    type: .genericSecret
+                )
+            ]
+        ))
+
+        XCTAssertTrue(PIIDetector.detect(
+            in: "Email alice@example.com about Project Orchid.",
+            options: store.detectionOptions()
+        ).isEmpty)
+    }
+
+    func testApplePrivacySettingsStateProjectsWebEncryptedEntriesToDetectorSettings() {
+        let now = 1_780_000_000
+        let state = ApplePrivacySettingsState(
+            detectionSettings: ApplePIIDetectionSettings(
+                masterEnabled: true,
+                categories: [
+                    "email_addresses": false,
+                    "phone_numbers": true,
+                ]
+            ),
+            entries: [
+                ApplePrivacyPersonalDataEntry(
+                    id: "project-entry",
+                    type: .custom,
+                    title: "Project",
+                    textToHide: "Project Orchid",
+                    replaceWith: "PROJECT",
+                    enabled: true,
+                    addressLines: nil,
+                    createdAt: now,
+                    updatedAt: now
+                ),
+                ApplePrivacyPersonalDataEntry(
+                    id: "disabled-entry",
+                    type: .custom,
+                    title: "Disabled",
+                    textToHide: "Do Not Hide",
+                    replaceWith: "DISABLED",
+                    enabled: false,
+                    addressLines: nil,
+                    createdAt: now,
+                    updatedAt: now
+                ),
+            ]
+        )
+
+        let settings = state.detectorSettings
+        let matches = PIIDetector.detect(
+            in: "Email alice@example.com about Project Orchid and Do Not Hide.",
+            options: settings.detectionOptions
+        )
+
+        XCTAssertTrue(settings.disabledCategories.contains("email_addresses"))
+        XCTAssertFalse(matches.contains { $0.type == .email })
+        XCTAssertTrue(matches.contains { $0.value == "Project Orchid" && $0.placeholder == "[PROJECT]" })
+        XCTAssertFalse(matches.contains { $0.value == "Do Not Hide" })
+    }
+
+    func testForegroundPIIRedactionKeepsExcludedFalsePositiveAndCreatesMappings() {
+        let text = "Draft from max@posteo.de to sarah@proton.com. Call +49 170 1234567."
+        let matches = PIIDetector.detect(in: text)
+        let excluded = Set(matches.filter { $0.value == "max@posteo.de" }.map(\.id))
+
+        let result = PIIDetector.redactionResult(in: text, matches: matches, excludedIds: excluded)
+
+        XCTAssertTrue(result.redactedText.contains("max@posteo.de"), "Excluded PII should stay original")
+        XCTAssertFalse(result.redactedText.contains("sarah@proton.com"))
+        XCTAssertFalse(result.redactedText.contains("+49 170 1234567"))
+        XCTAssertTrue(result.redactedText.contains("[EMAIL_"))
+        XCTAssertTrue(result.redactedText.contains("[PHONE_"))
+        XCTAssertEqual(result.mappings.count, 2)
+        XCTAssertFalse(result.mappings.contains { $0.original == "max@posteo.de" })
+        XCTAssertTrue(result.mappings.contains { $0.original == "sarah@proton.com" && $0.type == "EMAIL" })
+    }
+
+    func testSendTimeRedactionUsesCurrentPrivacySettingsInsteadOfCachedMatches() {
+        let text = "Email alice@example.com about Project Orchid."
+        let staleMatches = PIIDetector.detect(in: text)
+        XCTAssertTrue(staleMatches.contains { $0.type == .email })
+
+        let currentOptions = PIIDetectionOptions(
+            disabledCategories: ["email_addresses"],
+            personalDataEntries: [
+                PersonalDataForDetection(
+                    id: "project",
+                    textToHide: "Project Orchid",
+                    replaceWith: "[PROJECT]",
+                    type: .genericSecret
+                )
+            ]
+        )
+
+        let result = PIIDetector.redactionResult(in: text, options: currentOptions)
+
+        XCTAssertTrue(result.redactedText.contains("alice@example.com"))
+        XCTAssertFalse(result.redactedText.contains("Project Orchid"))
+        XCTAssertTrue(result.redactedText.contains("[PROJECT]"))
+        XCTAssertEqual(result.mappings.map(\.original), ["Project Orchid"])
+    }
+
     func testCompletedAssistantVersionAdvancesPastUserMessageVersion() {
         let pipeline = ChatSendPipeline()
 
