@@ -691,6 +691,10 @@ final class ChatViewModel: ObservableObject {
         }
         do {
             let composerEmbeds = pendingComposerEmbeds
+            let mergedPIIMappings = sendPipeline.combinedPIIMappings(
+                textMappings: piiMappings,
+                composerEmbeds: composerEmbeds
+            )
             let result = try await sendPipeline.sendUserMessage(
                 content: contentWithComposerEmbedReferences(content, embeds: composerEmbeds),
                 in: currentChat,
@@ -698,14 +702,14 @@ final class ChatViewModel: ObservableObject {
                 wsManager: wsManager,
                 chatStore: chatStore,
                 composerEmbeds: composerEmbeds,
-                piiMappings: piiMappings,
+                piiMappings: mergedPIIMappings,
                 broadcastToSiblings: broadcastToSiblings
             )
             chat = result.chat
             pendingUserMessagesById[result.message.id] = result.message
             appendOrReplaceLocalMessage(result.message)
             if broadcastToSiblings {
-                await broadcastMessageToSiblingSubChats(content, piiMappings: piiMappings)
+                await broadcastMessageToSiblingSubChats(content, piiMappings: mergedPIIMappings)
             }
             pendingComposerEmbeds.removeAll()
             isStreaming = true
@@ -1653,30 +1657,54 @@ final class ChatViewModel: ObservableObject {
             ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
             return nil
         }
-        let safeData = redactedUploadDataIfNeeded(data, filename: filename)
+        let safeUpload = redactedUploadContentIfNeeded(data, filename: filename)
         let uploadId = UUID().uuidString
         PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
 
         guard let upload = await uploadData(
-            safeData,
+            safeUpload.data,
             filename: filename,
             uploadId: uploadId,
             contentType: "application/octet-stream",
             markFinishedOnSuccess: false
         ) else { return nil }
-        registerPendingComposerEmbed(upload, localData: safeData, transcript: nil, duration: nil)
+        registerPendingComposerEmbed(
+            upload,
+            localData: safeUpload.data,
+            transcript: nil,
+            duration: nil,
+            piiMappings: safeUpload.piiMappings,
+            textContent: safeUpload.redactedText
+        )
         PendingUploadStore.shared.markFinished(id: uploadId)
         return upload
     }
 
-    private func redactedUploadDataIfNeeded(_ data: Data, filename: String) -> Data {
+    private struct RedactedUploadContent {
+        let data: Data
+        let piiMappings: [PIIMapping]
+        let redactedText: String?
+    }
+
+    private func redactedUploadContentIfNeeded(_ data: Data, filename: String) -> RedactedUploadContent {
         guard isSupportedPIIRedactableTextFile(filename),
-              let text = String(data: data, encoding: .utf8) else { return data }
-        let matches = PIIDetector.detect(in: text)
-        guard !matches.isEmpty else { return data }
-        let redacted = PIIDetector.redactedText(text, matches: matches, excludedIds: [])
-        print("[Chat] Redacted \(matches.count) PII item(s) before uploading supported text attachment")
-        return redacted.data(using: .utf8) ?? data
+              let text = String(data: data, encoding: .utf8) else {
+            return RedactedUploadContent(data: data, piiMappings: [], redactedText: nil)
+        }
+        let redaction = PIIDetector.redactionResult(
+            in: text,
+            options: PIIPrivacySettingsStore.shared.detectionOptions()
+        )
+        guard !redaction.mappings.isEmpty,
+              let redactedData = redaction.redactedText.data(using: .utf8) else {
+            return RedactedUploadContent(data: data, piiMappings: [], redactedText: nil)
+        }
+        print("[Chat] Redacted \(redaction.mappings.count) PII item(s) before uploading supported text attachment")
+        return RedactedUploadContent(
+            data: redactedData,
+            piiMappings: redaction.mappings,
+            redactedText: redaction.redactedText
+        )
     }
 
     private func isSupportedPIIRedactableTextFile(_ filename: String) -> Bool {
@@ -1742,7 +1770,14 @@ final class ChatViewModel: ObservableObject {
                 body: request
             )
             let transcript = response.data.results.first?.results.first?.transcript
-            registerPendingComposerEmbed(upload, localData: data, transcript: transcript, duration: duration)
+            registerPendingComposerEmbed(
+                upload,
+                localData: data,
+                transcript: transcript,
+                duration: duration,
+                piiMappings: [],
+                textContent: nil
+            )
             PendingUploadStore.shared.markFinished(id: uploadId)
             return transcript
         } catch {
@@ -1840,7 +1875,14 @@ final class ChatViewModel: ObservableObject {
             pageCount: nil,
             deduplicated: true
         )
-        registerPendingComposerEmbed(upload, localData: Data(repeating: 0, count: 128), transcript: nil, duration: nil)
+        registerPendingComposerEmbed(
+            upload,
+            localData: Data(repeating: 0, count: 128),
+            transcript: nil,
+            duration: nil,
+            piiMappings: [],
+            textContent: nil
+        )
     }
     #endif
 
@@ -1848,13 +1890,17 @@ final class ChatViewModel: ObservableObject {
         _ upload: UploadFileResponse,
         localData: Data?,
         transcript: String?,
-        duration: TimeInterval?
+        duration: TimeInterval?,
+        piiMappings: [PIIMapping],
+        textContent: String?
     ) {
         let embed = ComposerPendingEmbed.from(
             upload: upload,
             localData: localData,
             transcript: transcript,
-            duration: duration
+            duration: duration,
+            piiMappings: piiMappings,
+            textContent: textContent
         )
         pendingComposerEmbeds.removeAll { $0.id == embed.id }
         pendingComposerEmbeds.append(embed)
@@ -1905,6 +1951,7 @@ struct ComposerPendingEmbed: Identifiable {
     let localData: Data?
     let filename: String
     let size: Int
+    let piiMappings: [PIIMapping]
 
     var markdownReference: String {
         "```json\n{\"type\": \"\(referenceType)\", \"embed_id\": \"\(id)\"}\n```"
@@ -1963,10 +2010,17 @@ struct ComposerPendingEmbed: Identifiable {
         upload: UploadFileResponse,
         localData: Data?,
         transcript: String?,
-        duration: TimeInterval?
+        duration: TimeInterval?,
+        piiMappings: [PIIMapping] = [],
+        textContent: String? = nil
     ) -> ComposerPendingEmbed {
         let classification = ComposerUploadClassification(upload: upload)
-        let contentObject = classification.contentObject(upload: upload, transcript: transcript, duration: duration)
+        let contentObject = classification.contentObject(
+            upload: upload,
+            transcript: transcript,
+            duration: duration,
+            textContent: textContent
+        )
         let content = classification.shouldSendContent ? jsonString(contentObject) : nil
         let preview = transcript ?? upload.filename
         let record = EmbedRecord(
@@ -1990,7 +2044,8 @@ struct ComposerPendingEmbed: Identifiable {
             record: record,
             localData: localData,
             filename: upload.filename,
-            size: localData?.count ?? upload.files.values.compactMap(\.sizeBytes).max() ?? 0
+            size: localData?.count ?? upload.files.values.compactMap(\.sizeBytes).max() ?? 0,
+            piiMappings: piiMappings
         )
     }
 
@@ -2046,7 +2101,7 @@ private struct ComposerUploadClassification {
         }
     }
 
-    func contentObject(upload: UploadFileResponse, transcript: String?, duration: TimeInterval?) -> [String: Any] {
+    func contentObject(upload: UploadFileResponse, transcript: String?, duration: TimeInterval?, textContent: String?) -> [String: Any] {
         var object: [String: Any] = [
             "app_id": appId,
             "type": referenceType,
@@ -2070,6 +2125,11 @@ private struct ComposerUploadClassification {
         if let pageCount = upload.pageCount { object["page_count"] = pageCount }
         if let transcript { object["transcript"] = transcript }
         if let duration { object["duration"] = duration }
+        if let textContent, !textContent.isEmpty, appId == "docs" {
+            object["content"] = textContent
+            object["title"] = upload.filename
+            object["word_count"] = textContent.split { $0.isWhitespace }.count
+        }
         return object
     }
 }
@@ -2960,6 +3020,13 @@ final class ChatSendPipeline {
             ],
             "message_history": incognitoMessageHistoryPayload(messageHistory, fallbackChatId: chatId)
         ]
+    }
+
+    func combinedPIIMappings(
+        textMappings: [PIIMapping],
+        composerEmbeds: [ComposerPendingEmbed]
+    ) -> [PIIMapping] {
+        textMappings + composerEmbeds.flatMap(\.piiMappings)
     }
 
     private func incognitoMessageHistoryPayload(_ messages: [Message], fallbackChatId: String) -> [[String: Any]] {
