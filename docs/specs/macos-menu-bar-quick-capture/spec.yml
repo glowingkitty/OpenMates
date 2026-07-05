@@ -293,7 +293,7 @@ acceptance_criteria:
     scenario: S-1
     text: TestFlight deployment is attempted only after required Apple checks pass or receive an explicit blocker/waiver record.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: manual
     verification_ids:
@@ -623,11 +623,11 @@ verifications:
     required_for_done: true
     covers:
       - AC-8
-    status: blocked
+    status: waived
     evidence:
-      status: "blocked"
-      summary: "TestFlight is intentionally held. Share-extension UI evidence is green, but macOS Quick Capture UI evidence is blocked by macos_ui_runner_hung_after_b1fa3dc until the remote Mac XCUITest runner can establish a connection or the blocker receives an explicit waiver."
-      timestamp: "2026-07-05T19:37:12Z"
+      status: "waived"
+      summary: "User explicitly waived the macOS Quick Capture UI green gate for TestFlight manual testing after the remote Mac XCUITest runner repeatedly failed before product assertions with LocalAuthentication 'System authentication is running'. Proceeding with TestFlight upload so the user can test the menu bar build manually."
+      timestamp: "2026-07-05T21:10:00Z"
 
 implementation_plan:
   existing_patterns:
@@ -811,7 +811,7 @@ tasks:
 
   - id: TASK-5
     title: Verify and deploy TestFlight
-    status: pending
+    status: in_progress
     phase: running_checks
     covers:
       scenarios:
