@@ -147,6 +147,7 @@
     appId: 'workflows',
     icon: 'workflow',
   })));
+  let workflowHomeItems = $derived<WorkflowContinueItem[]>([...workflowStarterItems, ...recentWorkflowContinueItems]);
   let listedWorkflows = $derived(showAllWorkflows ? workflows : workflows.slice(0, 5));
   let workflowGreetingName = $derived($userProfile.username?.trim() || 'there');
   let workflowCountLabel = $derived(workflows.length === 1 ? '1 workflow ready' : `${workflows.length} workflows ready`);
@@ -240,6 +241,8 @@
       await createNewsWorkflow();
     } else if (item.id === 'starter-blank') {
       await createBlankWorkflow();
+    } else {
+      await continueWorkflowFromCard(item);
     }
   }
 
@@ -784,8 +787,7 @@
             testId="workflows-start-screen"
             heading={`Hey ${workflowGreetingName}, what should OpenMates automate?`}
             subtitle="Describe the outcome in natural language. You can stop, refine, or undo the last workflow change."
-            continueItems={recentWorkflowContinueItems}
-            actionItems={workflowStarterItems}
+            actionItems={workflowHomeItems}
             actionItemsTestId="workflow-recommendations"
             continueSectionTestId="recent-workflows"
             onContinueItem={continueWorkflowFromCard}

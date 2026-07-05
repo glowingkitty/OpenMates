@@ -86,7 +86,7 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('workflows-show-all')).toHaveCount(0);
 			await expect(page.getByTestId('workflows-workspace-center')).toContainText('what should OpenMates automate');
 			await expect(page.getByTestId('workflow-recommendations')).toContainText('Tell me if it will rain tomorrow');
-			await expect(page.getByTestId('recent-workflows')).toBeVisible();
+			await expect(page.getByTestId('recent-workflows')).toHaveCount(0);
 			await expect(page.getByTestId('resume-chat-card').first()).toBeVisible();
 			await expect(page.getByTestId('resume-chat-card').first()).toHaveClass(/resume-chat-card/);
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
