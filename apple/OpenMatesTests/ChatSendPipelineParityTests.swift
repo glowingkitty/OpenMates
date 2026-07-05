@@ -146,7 +146,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertTrue(staleMatches.contains { $0.type == .email })
 
         let currentOptions = PIIDetectionOptions(
-            disabledCategories: ["email_addresses"],
+            disabledCategories: ["email_addresses", "user_at_hostname"],
             personalDataEntries: [
                 PersonalDataForDetection(
                     id: "project",
