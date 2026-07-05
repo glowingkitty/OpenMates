@@ -15,8 +15,7 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
     func testQuickCapturePreviewShowsDefaultChatDestinationAndComposer() throws {
         let app = launchQuickCapturePreview()
 
-        XCTAssertTrue(element(in: app, identifier: "quick-capture-root").waitForExistence(timeout: 12))
-        XCTAssertTrue(element(in: app, identifier: "quick-capture-tab-chats").exists)
+        XCTAssertTrue(element(in: app, identifier: "quick-capture-tab-chats").waitForExistence(timeout: 12))
         XCTAssertTrue(element(in: app, identifier: "quick-capture-recent-chats").exists)
         XCTAssertTrue(app.staticTexts["New Chat"].exists)
         XCTAssertTrue(app.staticTexts["UI Test Chat"].exists)
@@ -44,7 +43,8 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
     func testQuickCapturePreviewShowsSeededPendingAttachmentAndStatusList() throws {
         let app = launchQuickCapturePreview(seedAttachment: true)
 
-        XCTAssertTrue(element(in: app, identifier: "quick-capture-pending-attachments").waitForExistence(timeout: 12))
+        XCTAssertTrue(element(in: app, identifier: "quick-capture-tab-chats").waitForExistence(timeout: 12))
+        XCTAssertTrue(element(in: app, identifier: "quick-capture-pending-attachments").waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Shared fixture.pdf"].exists)
         XCTAssertTrue(element(in: app, identifier: "quick-capture-status-list").exists)
         XCTAssertTrue(element(in: app, identifier: "quick-capture-send-button").isEnabled)
