@@ -59,14 +59,14 @@ final class MessageInputAttachmentUITests: XCTestCase {
         XCTAssertTrue(textContaining("[EMAIL_1_com]", in: app).waitForExistence(timeout: 8))
         XCTAssertFalse(textContaining("alice@example.com", in: app).exists)
 
-        let toggle = element(in: app, identifier: "chat-pii-toggle")
+        let toggle = app.buttons["Show sensitive data"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         toggle.tap()
 
         XCTAssertTrue(textContaining("alice@example.com", in: app).waitForExistence(timeout: 5))
         XCTAssertTrue(waitForAbsence(textContaining("[EMAIL_1_com]", in: app)))
 
-        element(in: app, identifier: "chat-pii-toggle").tap()
+        app.buttons["Hide sensitive data"].tap()
         XCTAssertTrue(textContaining("[EMAIL_1_com]", in: app).waitForExistence(timeout: 5))
         XCTAssertFalse(textContaining("alice@example.com", in: app).exists)
 
