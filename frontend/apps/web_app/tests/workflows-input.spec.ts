@@ -72,8 +72,12 @@ test.describe('Workflows input home', () => {
 				createdWorkflowIds.add(data.workflow.id);
 			}
 
+			await page.setViewportSize({ width: 390, height: 844 });
 			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
+			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
+			await expect(page.getByTestId('workflow-inspiration-card')).toContainText('Let OpenMates handle the recurring work');
+			await expect(page.getByTestId('workflows-welcome')).toContainText('what should OpenMates automate');
 			await expect(page.getByTestId('workflow-recommendations')).toContainText('Tell me if it will rain tomorrow');
 			await expect(page.getByTestId('recent-workflows')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
@@ -81,9 +85,14 @@ test.describe('Workflows input home', () => {
 			await expect(page.getByTestId('workflow-input-submit')).toBeDisabled();
 			await expect(page.getByTestId('message-editor')).toHaveCount(0);
 
+			const startScreenBox = await page.getByTestId('workflows-start-screen').boundingBox();
+			const managementBox = await page.getByTestId('workflow-management').boundingBox();
+			if (!startScreenBox || !managementBox) throw new Error('Workflows start and management sections must both be measurable.');
+			expect(managementBox.y).toBeGreaterThan(startScreenBox.y);
+
 			await page.getByTestId('workflows-show-all').click();
 			await expect(page.getByTestId('all-workflows-grid')).toBeVisible();
-			await expect(page.getByTestId('workflow-recommendations')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-recommendations')).toBeVisible();
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
 
 			const createInputResponse = page.waitForResponse(

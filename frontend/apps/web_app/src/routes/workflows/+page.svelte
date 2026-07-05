@@ -11,6 +11,7 @@
   import { onMount } from 'svelte';
   import { Header, Settings, Notification, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability } from '@repo/ui';
   import { getApiEndpoint } from '@repo/ui/config/api';
+  import { userProfile } from '@repo/ui/stores/userProfile';
 
   type WorkflowNodeType = 'schedule_trigger' | 'manual_trigger' | 'app_skill_action' | 'decision' | 'repeat' | 'create_chat_report' | 'send_notification' | 'send_email_notification' | 'end';
 
@@ -97,6 +98,8 @@
 
   let recentWorkflows = $derived(workflows.slice(0, 6));
   let listedWorkflows = $derived(showAllWorkflows ? workflows : workflows.slice(0, 5));
+  let workflowGreetingName = $derived($userProfile.username?.trim() || 'there');
+  let workflowCountLabel = $derived(workflows.length === 1 ? '1 workflow ready' : `${workflows.length} workflows ready`);
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
   let workflowsEnabled = $derived($featureAvailabilityStore.disabledById?.['platform:workflows'] !== true && $featureAvailabilityStore.disabledById !== null);
@@ -701,13 +704,95 @@
   <div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="workflows-container" class:menu-open={$panelState.isSettingsOpen}>
-      <main class="workflows-board" data-testid="workflows-page">
-        <aside class="workflow-list" data-testid="workflows-list">
-          <div class="section-heading">
-            <p>Automations</p>
-            <h1>Workflows</h1>
+      <main class="workflows-start" data-testid="workflows-page">
+        {#if error}
+          <div class="error-banner" data-testid="workflows-error">{error}</div>
+        {/if}
+
+        <section class="workflow-start-screen" data-testid="workflows-start-screen">
+          <section class="workflow-inspiration-card" data-testid="workflow-inspiration-card">
+            <div>
+              <span>Workflow idea</span>
+              <strong>Let OpenMates handle the recurring work.</strong>
+            </div>
+            <p>Ask for a reminder, research brief, daily report, or a custom automation. The workflow is saved as a durable session, so it survives refreshes and connection drops.</p>
+          </section>
+
+          <section class="workflow-welcome" data-testid="workflows-welcome">
+            <p>Workflows</p>
+            <h1>Hey {workflowGreetingName}, what should OpenMates automate?</h1>
+            <span>Describe the outcome in natural language. You can stop, refine, or undo the last workflow change.</span>
+          </section>
+
+          <form class="workflow-input-composer" data-testid="workflow-input-composer" onsubmit={(event) => { event.preventDefault(); void submitWorkflowInput(); }}>
+            <textarea
+              data-testid="workflow-input-textarea"
+              bind:value={workflowInputText}
+              rows="1"
+              placeholder="Ask OpenMates to create or update a workflow..."
+              disabled={workflowInputBusy}
+            ></textarea>
+            <div class="workflow-input-actions">
+              {#if workflowInputSession && workflowInputSession.status === 'running'}
+                <button type="button" data-testid="workflow-input-stop" onclick={stopWorkflowInput} disabled={workflowInputBusy}>Stop</button>
+              {/if}
+              {#if workflowInputSession?.undo_available}
+                <button type="button" data-testid="workflow-input-undo" onclick={undoWorkflowInput} disabled={workflowInputBusy}>Undo</button>
+              {/if}
+              <button type="submit" data-testid="workflow-input-submit" disabled={workflowInputBusy || !workflowInputText.trim()}>{workflowInputBusy ? 'Working...' : 'Send'}</button>
+            </div>
+          </form>
+          {#if workflowInputSession}
+            <div class="workflow-input-status" data-testid="workflow-input-status" data-status={workflowInputSession.status}>
+              <strong>{workflowInputSession.status}</strong>
+              {#if workflowInputSession.message}<span>{workflowInputSession.message}</span>{/if}
+              {#if workflowInputSession.error}<span>{workflowInputSession.error}</span>{/if}
+              {#if workflowInputEvents.length > 0}<span>{workflowInputEvents.at(-1)?.type}</span>{/if}
+            </div>
+          {/if}
+
+          <div class="workflow-recommendations" data-testid="workflow-recommendations">
+            <button type="button" onclick={createRainWorkflow} disabled={saving}>
+              <strong>Tell me if it will rain tomorrow</strong>
+              <span>Weather check plus notification</span>
+            </button>
+            <button type="button" onclick={createNewsWorkflow} disabled={saving}>
+              <strong>Send me an AI news brief twice a week</strong>
+              <span>Research, summarize, and notify</span>
+            </button>
+            <button type="button" onclick={createBlankWorkflow} disabled={saving}>
+              <strong>Start from a blank workflow</strong>
+              <span>Open the visual builder</span>
+            </button>
           </div>
-            {#if !showAllWorkflows}
+
+          {#if recentWorkflows.length > 0}
+            <section class="recent-workflows" data-testid="recent-workflows" aria-label="Recent workflows">
+              <div class="resume-section-heading">
+                <span>Continue where you left off</span>
+                <button type="button" class="show-all-button" data-testid="workflows-show-all" onclick={() => showAllWorkflows = !showAllWorkflows}>
+                  {showAllWorkflows ? 'Show recent' : `Show all ${workflows.length}`}
+                </button>
+              </div>
+              <div class="recent-workflow-scroll">
+                {#each recentWorkflows as workflow (workflow.id)}
+                  <button type="button" class="recent-workflow-card" onclick={() => selectWorkflow(workflow.id)}>
+                    <span>{workflow.enabled ? 'Enabled' : 'Paused'}</span>
+                    <strong>{workflow.title}</strong>
+                    <small>{workflow.trigger_summary ?? 'Manual'} - {retentionLabel(workflow.run_content_retention)}</small>
+                  </button>
+                {/each}
+              </div>
+            </section>
+          {/if}
+        </section>
+
+        <section class="workflow-management" data-testid="workflow-management">
+          <div class="management-header">
+            <div>
+              <p>Manage automations</p>
+              <h2>{workflowCountLabel}</h2>
+            </div>
             <div class="create-actions">
               <label class="retention-picker" for="workflow-retention">
                 <span>Run content retention</span>
@@ -720,66 +805,44 @@
               <button type="button" data-testid="create-rain-workflow" onclick={createRainWorkflow} disabled={saving}>Daily rain alert</button>
               <button type="button" data-testid="create-news-workflow" onclick={createNewsWorkflow} disabled={saving}>AI news brief</button>
             </div>
-            {/if}
-            {#if workflows.length === 0}
-            <p class="empty-copy">Create one of the starter workflows to test the server-side runner.</p>
-          {:else}
-            {#each listedWorkflows as workflow (workflow.id)}
-              <button
-                type="button"
-                class="workflow-row"
-                class:active={selectedWorkflow?.id === workflow.id}
-                data-testid="workflow-row"
-                onclick={() => selectWorkflow(workflow.id)}
-              >
-                <strong>{workflow.title}</strong>
-                <span>{workflow.enabled ? 'Enabled' : 'Disabled'} - {workflow.trigger_summary ?? 'Manual'} - {retentionLabel(workflow.run_content_retention)}</span>
-              </button>
-            {/each}
-            {#if workflows.length > 5}
-              <button type="button" class="show-all-button" data-testid="workflows-show-all" onclick={() => showAllWorkflows = !showAllWorkflows}>
-                {showAllWorkflows ? 'Show recent' : `Show all ${workflows.length}`}
-              </button>
-            {/if}
-          {/if}
-        </aside>
+          </div>
 
-        <section class="workflow-detail" data-testid="workflow-detail">
-          {#if error}
-            <div class="error-banner" data-testid="workflows-error">{error}</div>
-          {/if}
-
-          <section class="workflow-home" data-testid="workflows-home">
-            <div class="workflow-home-copy">
-              <p>Workflow input</p>
-              <h2>Describe what should happen automatically.</h2>
-              <span>OpenMates will draft, validate, and commit server-side workflows through a durable session.</span>
+          {#if showAllWorkflows}
+            <div class="all-workflows-grid" data-testid="all-workflows-grid">
+              {#each workflows as workflow (workflow.id)}
+                <button type="button" class="workflow-mini-card" onclick={() => selectWorkflow(workflow.id)}>
+                  <strong>{workflow.title}</strong>
+                  <span>{workflow.enabled ? 'Enabled' : 'Disabled'} - {workflow.trigger_summary ?? 'Manual'}</span>
+                </button>
+              {/each}
             </div>
+          {/if}
 
-            {#if showAllWorkflows}
-              <div class="all-workflows-grid" data-testid="all-workflows-grid">
-                {#each workflows as workflow (workflow.id)}
-                  <button type="button" class="workflow-mini-card" onclick={() => selectWorkflow(workflow.id)}>
+          <div class="management-grid">
+            <aside class="workflow-list" data-testid="workflows-list">
+              <div class="section-heading">
+                <p>Library</p>
+                <h3>Recent workflows</h3>
+              </div>
+              {#if workflows.length === 0}
+                <p class="empty-copy">Create one of the starter workflows to test the server-side runner.</p>
+              {:else}
+                {#each listedWorkflows as workflow (workflow.id)}
+                  <button
+                    type="button"
+                    class="workflow-row"
+                    class:active={selectedWorkflow?.id === workflow.id}
+                    data-testid="workflow-row"
+                    onclick={() => selectWorkflow(workflow.id)}
+                  >
                     <strong>{workflow.title}</strong>
-                    <span>{workflow.enabled ? 'Enabled' : 'Disabled'} - {workflow.trigger_summary ?? 'Manual'}</span>
+                    <span>{workflow.enabled ? 'Enabled' : 'Disabled'} - {workflow.trigger_summary ?? 'Manual'} - {retentionLabel(workflow.run_content_retention)}</span>
                   </button>
                 {/each}
-              </div>
-            {:else}
-              <div class="workflow-recommendations" data-testid="workflow-recommendations">
-                <button type="button" onclick={createRainWorkflow} disabled={saving}>Tell me if it will rain tomorrow</button>
-                <button type="button" onclick={createNewsWorkflow} disabled={saving}>Send me an AI news brief twice a week</button>
-                <button type="button" onclick={createBlankWorkflow} disabled={saving}>Start from a blank workflow</button>
-              </div>
-              {#if recentWorkflows.length > 0}
-                <div class="recent-workflows" data-testid="recent-workflows">
-                  {#each recentWorkflows as workflow (workflow.id)}
-                    <button type="button" class="recent-chip" onclick={() => selectWorkflow(workflow.id)}>{workflow.title}</button>
-                  {/each}
-                </div>
               {/if}
-            {/if}
-          </section>
+            </aside>
+
+            <section class="workflow-detail" data-testid="workflow-detail">
 
           {#if selectedWorkflow}
             <div class="detail-header">
@@ -1010,32 +1073,8 @@
             </div>
           {/if}
 
-          <form class="workflow-input-composer" data-testid="workflow-input-composer" onsubmit={(event) => { event.preventDefault(); void submitWorkflowInput(); }}>
-            <textarea
-              data-testid="workflow-input-textarea"
-              bind:value={workflowInputText}
-              rows="1"
-              placeholder="Ask OpenMates to create or update a workflow..."
-              disabled={workflowInputBusy}
-            ></textarea>
-            <div class="workflow-input-actions">
-              {#if workflowInputSession && workflowInputSession.status === 'running'}
-                <button type="button" data-testid="workflow-input-stop" onclick={stopWorkflowInput} disabled={workflowInputBusy}>Stop</button>
-              {/if}
-              {#if workflowInputSession?.undo_available}
-                <button type="button" data-testid="workflow-input-undo" onclick={undoWorkflowInput} disabled={workflowInputBusy}>Undo</button>
-              {/if}
-              <button type="submit" data-testid="workflow-input-submit" disabled={workflowInputBusy || !workflowInputText.trim()}>{workflowInputBusy ? 'Working...' : 'Send'}</button>
-            </div>
-          </form>
-          {#if workflowInputSession}
-            <div class="workflow-input-status" data-testid="workflow-input-status" data-status={workflowInputSession.status}>
-              <strong>{workflowInputSession.status}</strong>
-              {#if workflowInputSession.message}<span>{workflowInputSession.message}</span>{/if}
-              {#if workflowInputSession.error}<span>{workflowInputSession.error}</span>{/if}
-              {#if workflowInputEvents.length > 0}<span>{workflowInputEvents.at(-1)?.type}</span>{/if}
-            </div>
-          {/if}
+            </section>
+          </div>
         </section>
       </main>
       <div class="settings-wrapper">
@@ -1092,13 +1131,122 @@
     }
   }
 
-  .workflows-board {
+  .workflows-start {
     flex: 1;
     min-width: 0;
+    overflow: auto;
+    display: grid;
+    gap: 28px;
+    color: var(--color-font-primary);
+    scroll-behavior: smooth;
+  }
+
+  .workflow-start-screen {
+    min-height: min(900px, calc(100vh - 104px));
+    min-height: min(900px, calc(100dvh - 104px));
+    display: grid;
+    grid-template-rows: auto auto auto auto minmax(0, 1fr);
+    align-content: center;
+    justify-items: center;
+    gap: clamp(16px, 3vh, 26px);
+    padding: clamp(16px, 3vw, 34px);
+    border-radius: var(--radius-16, 32px);
+    background:
+      radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--color-button-primary) 18%, transparent), transparent 30%),
+      radial-gradient(circle at 86% 18%, color-mix(in srgb, var(--color-grey-blue) 50%, transparent), transparent 32%),
+      var(--color-grey-0);
+  }
+
+  .workflow-inspiration-card {
+    width: min(900px, 100%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 22px;
+    padding: clamp(18px, 3vw, 26px);
+    border: 1px solid color-mix(in srgb, var(--color-grey-30) 70%, transparent);
+    border-radius: 34px;
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--color-button-primary) 15%, var(--color-grey-0)), var(--color-grey-0));
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.08);
+  }
+
+  .workflow-inspiration-card div {
+    display: grid;
+    gap: 4px;
+  }
+
+  .workflow-inspiration-card span,
+  .workflow-welcome p,
+  .management-header p,
+  .section-heading p,
+  .detail-header p {
+    margin: 0;
+    color: var(--color-font-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+    font-weight: 900;
+  }
+
+  .workflow-inspiration-card strong {
+    font-size: clamp(1.1rem, 2vw, 1.45rem);
+  }
+
+  .workflow-inspiration-card p {
+    max-width: 470px;
+    margin: 0;
+    color: var(--color-font-secondary);
+    line-height: 1.45;
+  }
+
+  .workflow-welcome {
+    width: min(920px, 100%);
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+    text-align: center;
+  }
+
+  .workflow-welcome h1 {
+    max-width: 820px;
+    margin: 0;
+    font-size: clamp(2.25rem, 7vw, 5.4rem);
+    line-height: 0.94;
+    letter-spacing: -0.05em;
+  }
+
+  .workflow-welcome span {
+    max-width: 640px;
+    color: var(--color-font-secondary);
+    font-size: clamp(1rem, 1.7vw, 1.18rem);
+    line-height: 1.45;
+  }
+
+  .workflow-management {
+    display: grid;
+    gap: 16px;
+    padding-block-end: 36px;
+  }
+
+  .management-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 4px;
+  }
+
+  .management-header h2,
+  .section-heading h3,
+  .empty-detail h2 {
+    margin: 0;
+  }
+
+  .management-grid {
     display: grid;
     grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
     gap: 16px;
-    color: var(--color-font-primary);
   }
 
   .workflow-list,
@@ -1115,24 +1263,12 @@
     padding: 18px;
   }
 
-  .section-heading p,
-  .detail-header p {
-    margin: 0 0 4px;
-    color: var(--color-font-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 0.75rem;
-  }
-
-  .section-heading h1,
-  .empty-detail h2 {
-    margin: 0;
-  }
-
   .create-actions {
-    display: grid;
+    display: flex;
+    align-items: flex-end;
+    flex-wrap: wrap;
     gap: 8px;
-    margin: 18px 0;
+    margin: 0;
   }
 
   .retention-picker {
@@ -1222,8 +1358,6 @@
   }
 
   .show-all-button {
-    width: 100%;
-    margin-block-start: 6px;
     color: var(--color-font-primary);
     background: var(--color-grey-20);
   }
@@ -1240,57 +1374,32 @@
     padding: 22px;
   }
 
-  .workflow-home {
-    display: grid;
-    gap: 16px;
-    margin-block-end: 22px;
-    padding: clamp(18px, 4vw, 30px);
-    border-radius: 34px;
-    background:
-      radial-gradient(circle at 15% 10%, color-mix(in srgb, var(--color-button-primary) 20%, transparent), transparent 32%),
-      linear-gradient(135deg, var(--color-grey-10), var(--color-grey-0));
-  }
-
-  .workflow-home-copy {
-    max-width: 740px;
-  }
-
-  .workflow-home-copy p {
-    margin: 0 0 6px;
-    color: var(--color-button-primary);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 0.78rem;
-    font-weight: 900;
-  }
-
-  .workflow-home-copy h2 {
-    margin: 0;
-    max-width: 680px;
-    font-size: clamp(2rem, 5vw, 4rem);
-    line-height: 0.95;
-  }
-
-  .workflow-home-copy span {
-    display: block;
-    max-width: 620px;
-    margin-block-start: 12px;
-    color: var(--color-font-secondary);
-  }
-
-  .workflow-recommendations,
-  .recent-workflows {
+  .workflow-recommendations {
+    width: min(920px, 100%);
     display: flex;
     gap: 10px;
-    flex-wrap: wrap;
   }
 
   .workflow-recommendations button,
-  .recent-chip,
+  .recent-workflow-card,
   .workflow-mini-card {
+    display: grid;
+    gap: 6px;
+    text-align: start;
     color: var(--color-font-primary);
     background: color-mix(in srgb, var(--color-grey-0) 86%, transparent);
     box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
+  }
+
+  .workflow-recommendations button {
+    flex: 1 1 210px;
+    min-height: 92px;
+  }
+
+  .workflow-recommendations button span,
+  .recent-workflow-card small {
+    color: var(--color-font-secondary);
+    font-size: 0.86rem;
   }
 
   .workflow-recommendations button:first-child {
@@ -1298,10 +1407,83 @@
     background: var(--color-button-primary);
   }
 
-  .recent-chip {
-    padding: 8px 12px;
+  .workflow-recommendations button:first-child span {
+    color: color-mix(in srgb, var(--color-font-button) 76%, transparent);
+  }
+
+  .recent-workflows {
+    width: min(920px, 100%);
+    display: grid;
+    gap: 10px;
+  }
+
+  .resume-section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .resume-section-heading span {
+    color: var(--color-font-secondary);
+    font-weight: 800;
+  }
+
+  .recent-workflow-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-block-end: 8px;
+    scrollbar-width: thin;
+  }
+
+  .recent-workflow-card {
+    min-width: min(280px, 74vw);
+    min-height: 130px;
+    align-content: end;
+    padding: 18px;
+    color: var(--color-font-button);
+    background: linear-gradient(135deg, var(--color-button-primary), color-mix(in srgb, var(--color-button-primary) 55%, #04b8cf));
+    overflow: hidden;
+    position: relative;
+  }
+
+  .recent-workflow-card::before,
+  .recent-workflow-card::after {
+    content: '';
+    position: absolute;
+    width: 110px;
+    height: 110px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    pointer-events: none;
+  }
+
+  .recent-workflow-card::before {
+    top: -34px;
+    right: -18px;
+  }
+
+  .recent-workflow-card::after {
+    bottom: -54px;
+    left: 16px;
+  }
+
+  .recent-workflow-card span,
+  .recent-workflow-card strong,
+  .recent-workflow-card small {
+    position: relative;
+    z-index: 1;
+    color: inherit;
+  }
+
+  .recent-workflow-card span {
+    width: fit-content;
+    padding: 4px 8px;
     border-radius: var(--radius-full, 999px);
-    font-size: 0.9rem;
+    background: rgba(255, 255, 255, 0.18);
+    font-size: 0.75rem;
+    font-weight: 900;
   }
 
   .all-workflows-grid {
@@ -1621,19 +1803,18 @@
   }
 
   .workflow-input-composer {
-    position: sticky;
-    bottom: 0;
+    width: min(920px, 100%);
     z-index: 3;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
     align-items: end;
-    margin-block-start: 22px;
-    padding: 10px;
+    margin: 0 auto;
+    padding: 12px;
     border: 1px solid var(--color-grey-20);
     border-radius: var(--radius-full, 999px);
     background: color-mix(in srgb, var(--color-grey-0) 94%, transparent);
-    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.14);
+    box-shadow: 0 18px 54px rgba(0, 0, 0, 0.16);
     backdrop-filter: blur(14px);
   }
 
@@ -1667,10 +1848,11 @@
   }
 
   .workflow-input-status {
+    width: min(920px, 100%);
     display: flex;
+    justify-content: center;
     gap: 8px;
     flex-wrap: wrap;
-    margin-block-start: 10px;
     color: var(--color-font-secondary);
     font-size: 0.9rem;
   }
@@ -1707,10 +1889,28 @@
     .workflows-container {
       height: calc(100vh - 75px);
       height: calc(100dvh - 75px);
-      padding-inline-end: 10px;
+      padding: 8px 10px;
     }
 
-    .workflows-board {
+    .workflow-start-screen {
+      min-height: calc(100vh - 91px);
+      min-height: calc(100dvh - 91px);
+      align-content: start;
+      padding: 12px;
+      border-radius: var(--radius-10, 24px);
+    }
+
+    .workflow-inspiration-card,
+    .management-header,
+    .create-actions {
+      display: grid;
+    }
+
+    .workflow-welcome h1 {
+      font-size: clamp(2.15rem, 14vw, 3.6rem);
+    }
+
+    .management-grid {
       grid-template-columns: 1fr;
     }
 
@@ -1726,6 +1926,11 @@
     .workflow-input-composer {
       grid-template-columns: 1fr;
       border-radius: 26px;
+    }
+
+    .workflow-input-actions {
+      justify-content: flex-end;
+      flex-wrap: wrap;
     }
   }
 </style>
