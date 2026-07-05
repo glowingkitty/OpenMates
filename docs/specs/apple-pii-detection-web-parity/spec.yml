@@ -1,0 +1,687 @@
+id: apple-pii-detection-web-parity
+title: Apple PII Detection Web Parity
+status: implementing
+
+goal: >
+  Bring Apple PII detection, replacement, visibility, and encrypted mapping
+  behavior to web parity without replacing the existing deterministic regex
+  system. Apple should protect user text before it leaves the device across all
+  native send surfaces, while preserving owner-only reveal semantics through
+  encrypted PII mappings.
+
+scope:
+  in:
+    - Apple foreground chat composer parity with web PII detection, banner, inline highlights, individual click/tap-to-exclude, and Undo All behavior.
+    - Apple privacy settings/custom personal data parity for detection inputs, including master toggle, per-category toggles, and enabled encrypted personal-data entries.
+    - Apple message send parity for regular chats, new-chat welcome sends, deferred sends while uploads finish, notification replies, quick capture/background sends, and iOS/macOS share extension sends.
+    - Apple encrypted PII mappings on messages so owner devices can restore placeholders in user and assistant content like web.
+    - Apple PII visibility toggle parity: hidden by default, reveal/hide owner-only originals, and reset to hidden on reload/session start.
+    - "Apple supported UTF-8 text/code attachment redaction mapping parity where not already covered by `text-file-pii-redaction-parity`."
+  out:
+    - Replacing deterministic regex detection with OpenAI Privacy Filter or any local AI model.
+    - Server-side parsing of original personal data from messages or uploaded files.
+    - Detecting names, addresses, birthdays, or custom text unless the user has configured encrypted personal-data entries.
+    - Changing web PII behavior except for tests/fixtures needed to define Apple parity.
+    - Persisting PII exclusions across sessions.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search returned 401 Bad credentials in prior session."
+    - "gh CLI fallback search for 'Apple PII parity OR PII detection OR personal data replacement' returned no matching issues."
+    - "#464: Consider local AI model for Apple PII detection; explicitly out of scope for this parity slice."
+  docs:
+    - docs/architecture/privacy/pii-protection.md
+    - docs/architecture/privacy/sensitive-data-redaction.md
+    - docs/specs/text-file-pii-redaction-parity/spec.yml
+    - docs/specs/apple-chat-management-sharing-parity/spec.yml
+    - docs/specs/apple-ui-contracts/spec.yml
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+  code_patterns:
+    - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/PIIWarningBanner.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/stores/personalDataStore.ts
+    - frontend/packages/ui/src/stores/piiVisibilityStore.ts
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+  tests:
+    - frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    - frontend/packages/ui/src/stores/__tests__/piiVisibilityStore.test.ts
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesUITests/ChatManagementSharingParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+  parity_expectations:
+    - Apple uses the web regex categories and placeholder semantics as the source of truth.
+    - Apple reads the same privacy setting concepts as web: master toggle, category toggles, and enabled user-defined personal data entries.
+    - Apple product UI uses OpenMates custom primitives and generated tokens, not default platform product UI.
+    - Native logs and test evidence use sanitized content only and never include raw private values beyond synthetic fixtures.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatSendPipelineParityTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/BackgroundChatSenderParityTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+  intentional_native_differences:
+    - Text input implementation can use native SwiftUI/AppKit/UIKit editing primitives where needed, but the visible behavior and accessibility identifiers must match web test semantics.
+    - Share sheets, file pickers, and notification permissions remain OS-owned.
+    - Local AI PII model detection remains a follow-up enhancement only.
+
+clarification:
+  rounds:
+    - question: Should OpenAI Privacy Filter or a local model replace the current regex PII system on Apple?
+      answer: No. Keep deterministic regex detection; any model would be future additive enhancement only.
+    - question: Is the current target only Apple full parity with the existing web app behavior?
+      answer: Yes. Focus now on Apple full parity with the web app.
+    - question: Should Apple text/code attachment original reveal be required in this slice even if renderers cannot yet consume attachment-level mappings?
+      answer: Yes. Original PII reveal must work just like the web app; full parity with the web app is required.
+  vision_summary: >
+    Apple should behave like the web app for PII detection and replacement: detect
+    locally, show the same warning/highlight affordances, let users exclude false
+    positives, send placeholders instead of originals, sync encrypted mappings for
+    owner-only reveal, and cover native send surfaces beyond the foreground chat
+    composer. The existing regex system remains the contract; model-based PII
+    detection is not part of this implementation.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Apple detector respects web patterns and privacy settings
+    given:
+      - Alice has Apple privacy settings with PII detection enabled.
+      - Alice has enabled custom personal-data entries stored encrypted on device/sync.
+    when:
+      - Alice types or pastes text containing web-supported regex PII and enabled personal-data values.
+    then:
+      - Apple detects the same enabled categories as web.
+      - Apple skips categories disabled by settings and skips all detection when the master toggle is off.
+      - Apple detects enabled personal-data entries using the configured placeholders.
+
+  - id: S-2
+    title: Apple foreground composer matches web warning and exclusion UX
+    given:
+      - Alice is composing a chat message on Apple.
+      - The message contains multiple detected PII values.
+    when:
+      - Detection completes after paste or debounce.
+      - Alice taps one highlighted value to keep it original.
+      - Alice taps Undo All on the warning banner.
+    then:
+      - "Apple shows an accessible warning banner equivalent to web `pii-warning-banner`."
+      - "Apple exposes inline highlighted PII elements equivalent to web `pii-highlight` with type metadata for tests."
+      - Tapping one highlight excludes only that item from replacement.
+      - Undo All excludes all current detections and removes highlights/banner.
+
+  - id: S-3
+    title: Apple foreground sends placeholders and encrypted mappings
+    given:
+      - Alice composes a regular Apple chat message with active PII detections and one excluded false positive.
+    when:
+      - Alice sends the message.
+    then:
+      - The sent user content contains placeholders for active detections and original text only for excluded detections.
+      - The outbound payload includes encrypted PII mappings for active detections.
+      - Local/offline message state keeps decrypted mappings only in memory and encrypted mappings in persisted/synced state.
+      - The server and AI providers receive placeholders, not originals.
+
+  - id: S-4
+    title: Apple background and extension sends protect PII
+    given:
+      - Alice sends text through a native path outside the foreground composer.
+    when:
+      - The path is new-chat welcome, notification reply, quick capture/background sender, iOS share extension, or macOS share extension.
+    then:
+      - The send path runs the same local PII replacement before network send.
+      - The outbound payload and encrypted storage package include encrypted PII mappings when mappings exist.
+      - Synthetic tests prove no raw fixture PII leaves through these paths.
+
+  - id: S-5
+    title: Apple PII visibility toggle restores owner-only originals
+    given:
+      - Alice has a chat containing messages with encrypted PII mappings.
+    when:
+      - Alice opens the chat on Apple and toggles PII visibility.
+    then:
+      - PII is hidden by default with placeholders shown.
+      - The toggle is visible only when the chat has PII mappings.
+      - Toggling reveal restores originals in user and assistant content using cumulative mappings.
+      - Toggling hide restores placeholders.
+      - Reload/session start resets to hidden.
+
+  - id: S-6
+    title: Apple text/code attachment mappings remain owner-only
+    given:
+      - Alice attaches a supported UTF-8 text/code file containing PII on Apple.
+    when:
+      - Apple redacts the attachment before upload.
+    then:
+      - Uploaded bytes contain placeholders instead of originals.
+      - Generated embed/message mapping metadata needed for owner reveal is encrypted.
+      - Owner reveal restores original PII in supported text/code attachment renderers wherever web can reveal it.
+      - Unsupported/binary files keep the existing upload behavior.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Apple detection respects web regex categories, master/category privacy settings, and enabled encrypted personal-data entries.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-001
+
+  - id: AC-2
+    scenario: S-2
+    text: Apple foreground composer exposes web-equivalent warning, inline highlight, single-item exclusion, and Undo All behavior with stable accessibility identifiers.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UI-001
+
+  - id: AC-3
+    scenario: S-3
+    text: Apple foreground chat sends placeholders plus encrypted mappings and never sends active PII originals to server/AI payloads.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-002
+
+  - id: AC-4
+    scenario: S-4
+    text: Apple new-chat, notification reply, quick capture/background, and share-extension sends redact active PII and include encrypted mappings.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-003
+
+  - id: AC-5
+    scenario: S-5
+    text: Apple PII visibility is hidden by default, reveal/hide restores or re-hides owner-only originals using encrypted mappings, and resets on reload/session start.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UI-002
+
+  - id: AC-6
+    scenario: S-6
+    text: Apple supported text/code attachments redact before upload, preserve encrypted owner-only mappings, and reveal originals in supported renderers with web parity, without rewriting unsupported files.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-004
+
+assumptions:
+  - id: A-1
+    text: Web PII behavior remains the source of truth for regex patterns, settings concepts, placeholders, click-to-exclude, Undo All, and visibility toggle semantics.
+    category: product
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+        summary: Defines regex categories, disabled category filtering, personal-data entries, placeholders, mappings, and restore helpers.
+      - source: frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+        summary: Encodes highlight, banner, click-to-exclude, send placeholders, and visibility toggle expectations.
+
+  - id: A-2
+    text: Apple already has partial detector, banner, main-composer replacement, and encrypted mapping plumbing but lacks full web parity.
+    category: source_audit
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+        summary: Contains regex detector and warning banner but no settings/custom personal data source.
+      - source: apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+        summary: Main composer redacts and passes mappings, but no inline tap-to-exclude equivalent or visibility toggle parity is evident.
+      - source: apple/OpenMatesShared/BackgroundChatSender.swift
+        summary: "Background send builds `sendContent` and sends it without PII detection or encrypted PII mappings."
+
+contracts:
+  api:
+    - "Existing WebSocket and encrypted storage payloads remain unchanged except that Apple sends `encrypted_pii_mappings` where web already does."
+    - No new backend route is required.
+  data:
+    - "Message-level mappings contain `placeholder`, `original`, and `type`."
+    - "`encrypted_pii_mappings` is encrypted with the chat key before remote send or persistent storage."
+    - Plaintext mappings may exist only in transient in-memory state needed for current-owner rendering.
+    - PII visibility state is per-chat and session-local, defaulting to hidden.
+  ui_states:
+    - PII warning banner visible with active detections.
+    - Inline highlight visible for each active detection with stable accessibility/test identity and type metadata.
+    - Single highlight tap/click exclusion.
+    - Undo All exclusion.
+    - Chat-level PII visibility toggle hidden/visible states.
+    - Settings-driven master/category/custom entry detection states.
+  privacy_security:
+    - Detection runs locally before message or supported text/code upload content leaves the device.
+    - Raw original PII must not be sent in active PII outbound payloads, storage packages, or logs.
+    - Share-extension and background-send tests use synthetic PII fixtures only.
+    - Local model/AI detection is out of scope and must not be added as a replacement.
+
+tests:
+  - id: T-WEB-001
+    type: playwright
+    file: frontend/apps/web_app/tests/pii-detection-flow.spec.ts
+    command: python3 scripts/tests.py run --spec pii-detection-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-5
+    assertions:
+      - Web source-of-truth still detects highlights and banner.
+      - Web source-of-truth still supports single-item exclusion, send placeholders, and reveal/hide toggle.
+    red_phase:
+      required: false
+      expected: pass
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: false
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-UNIT-001
+    type: unit
+    file: apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatSendPipelineParityTests/testDetectorRespectsWebSettingsAndCustomEntries
+    covers:
+      - AC-1
+    assertions:
+      - Regex categories match representative web fixtures.
+      - Master/category settings disable detection as expected.
+      - Enabled personal-data entries produce configured placeholders.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-UNIT-002
+    type: unit
+    file: apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatSendPipelineParityTests/testForegroundSendEncryptsPIIMappings
+    covers:
+      - AC-3
+    assertions:
+      - Foreground send payload contains placeholders for active detections.
+      - Excluded PII remains original only when explicitly excluded.
+      - "`encrypted_pii_mappings` exists and decrypts to placeholder/original/type mappings with the chat key."
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-UNIT-003
+    type: unit
+    file: apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/BackgroundChatSenderParityTests/testBackgroundSendsRedactPII
+    covers:
+      - AC-4
+    assertions:
+      - Background sender redacts synthetic email/phone/API key fixture content before WebSocket send.
+      - Background sender includes encrypted mappings in outbound and encrypted storage payloads.
+      - Share-extension composed messages use the same redaction helper before dispatch.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-UNIT-004
+    type: unit
+    file: apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatSendPipelineParityTests/testTextAttachmentRedactionPreservesMappings
+    covers:
+      - AC-6
+    assertions:
+      - Supported UTF-8 text/code attachments are redacted before upload.
+      - Unsupported/binary attachments are not decoded or rewritten.
+      - Mapping metadata is encrypted.
+      - Owner reveal restores original PII in supported text/code attachment renderers with web parity.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-UI-001
+    type: unit
+    file: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests/testComposerWarningHighlightsAndExclusions
+    covers:
+      - AC-2
+    assertions:
+      - "Apple composer exposes `pii-warning-banner` equivalent."
+      - "Apple composer exposes one accessible `pii-highlight` equivalent per active detection with type metadata."
+      - Tapping one highlight removes only that active detection.
+      - Undo All removes all active detections.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-UI-002
+    type: unit
+    file: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests/testPIIVisibilityToggleRevealHideAndReload
+    covers:
+      - AC-5
+    assertions:
+      - Apple hides PII placeholders by default.
+      - Apple reveal toggle restores synthetic originals in user and assistant content.
+      - Apple hide toggle reverts to placeholders.
+      - Relaunch/reload returns to hidden state.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+verifications:
+  - id: V-SPEC-001
+    kind: automated_test
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+    status: pending
+    evidence:
+      status: ""
+      summary: python3 scripts/spec_validate.py docs/specs/apple-pii-detection-web-parity/spec.yml and python3 scripts/spec_verify.py docs/specs/apple-pii-detection-web-parity/spec.yml pass before completion.
+      timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - frontend/packages/ui/src/components/enter_message/services/piiDetectionService.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/stores/personalDataStore.ts
+    - frontend/packages/ui/src/stores/piiVisibilityStore.ts
+    - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+  architecture: >
+    Extract Apple PII detection into a settings-aware native privacy service that
+    can be reused by foreground composer, send pipeline, background sender, and
+    share extensions. Keep UI state in the composer for highlights/exclusions,
+    keep visibility state per chat and session-local, and keep encrypted mappings
+    attached to messages/storage payloads using existing chat-key encryption.
+  data_flow:
+    - User enters text in foreground or background/send-extension surface.
+    - Apple loads local privacy settings/custom entries when available and builds detection options.
+    - Local detector finds active matches and creates deterministic placeholders/mappings.
+    - Foreground composer renders warning/highlight/exclusion UI before send.
+    - Send path replaces active matches with placeholders and encrypts mappings with the chat key.
+    - Message render aggregates decrypted owner mappings to reveal originals only when the chat visibility state is revealed.
+  affected_files:
+    - path: apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+      reason: Convert detector/banner into web-parity settings-aware behavior and expose UI identifiers.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      reason: Add inline highlight/exclusion UI and PII visibility toggle integration.
+    - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+      reason: Load, edit, and save web-compatible encrypted privacy settings/custom personal-data entries using OpenMates primitives.
+    - path: apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      reason: Ensure mappings survive send, storage, render, sync, and supported text attachment paths.
+    - path: apple/OpenMatesShared/BackgroundChatSender.swift
+      reason: Redact and attach encrypted mappings for quick capture, notification replies, and share-extension sends.
+    - path: apple/OpenMatesShareExtension/ShareViewController.swift
+      reason: Use background redaction contract for iOS share messages.
+    - path: apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+      reason: Use background redaction contract for macOS share messages.
+    - path: apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+      reason: Unit contract coverage for detector options and foreground send redaction behavior.
+    - path: apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+      reason: Unit contract coverage for background sender and share-extension redaction behavior.
+    - path: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+      reason: UI parity coverage for composer warning/highlights/exclusions, reveal/hide toggle, and attachment behavior.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/apple-pii-detection-web-parity/spec.yml
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatSendPipelineParityTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/BackgroundChatSenderParityTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/spec_verify.py docs/specs/apple-pii-detection-web-parity/spec.yml
+  verification_order:
+    - Apple unit tests for detector and send contracts first.
+    - Apple UI tests for composer and visibility parity second.
+    - Apple build after targeted tests or as fallback if UI tests are blocked.
+    - Web Playwright only if web source-of-truth fixtures or behavior are changed.
+
+tasks:
+  - id: TASK-1
+    title: Add Apple settings-aware PII detection contract tests
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+      acceptance_criteria:
+        - AC-1
+    expected_files:
+      - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    verification:
+      - T-APPLE-UNIT-001
+    verification_ids:
+      - T-APPLE-UNIT-001
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add Apple foreground/background send PII contract tests
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+        - S-6
+      acceptance_criteria:
+        - AC-3
+        - AC-4
+        - AC-6
+    expected_files:
+      - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+      - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    verification:
+      - T-APPLE-UNIT-002
+      - T-APPLE-UNIT-003
+      - T-APPLE-UNIT-004
+    verification_ids:
+      - T-APPLE-UNIT-002
+      - T-APPLE-UNIT-003
+      - T-APPLE-UNIT-004
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Add Apple composer and visibility UI parity tests
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-2
+        - S-5
+      acceptance_criteria:
+        - AC-2
+        - AC-5
+    expected_files:
+      - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    verification:
+      - T-APPLE-UI-001
+      - T-APPLE-UI-002
+    verification_ids:
+      - T-APPLE-UI-001
+      - T-APPLE-UI-002
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Implement Apple reusable PII redaction service
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-3
+        - S-4
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-3
+        - AC-4
+        - AC-6
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+      - apple/OpenMates/Sources/Features/Settings/Views/SettingsHidePersonalDataView.swift
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMatesShared/BackgroundChatSender.swift
+      - apple/OpenMatesShareExtension/ShareViewController.swift
+      - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    verification:
+      - T-APPLE-UNIT-001
+      - T-APPLE-UNIT-002
+      - T-APPLE-UNIT-003
+      - T-APPLE-UNIT-004
+    verification_ids:
+      - T-APPLE-UNIT-001
+      - T-APPLE-UNIT-002
+      - T-APPLE-UNIT-003
+      - T-APPLE-UNIT-004
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Implement Apple composer highlight and visibility UI parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-2
+        - S-5
+      acceptance_criteria:
+        - AC-2
+        - AC-5
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/PIIDetectionView.swift
+    verification:
+      - T-APPLE-UI-001
+      - T-APPLE-UI-002
+    verification_ids:
+      - T-APPLE-UI-001
+      - T-APPLE-UI-002
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - Native inline highlights inside editable text may require a focused text-editor wrapper rather than a simple SwiftUI TextEditor overlay.
+  - Share extensions and background sends have fewer app-shell services available, so redaction must avoid dependencies that are unavailable in extension contexts.
+  - "Custom personal-data settings may need a native persistence adapter if Apple does not already load `privacy` app settings/memories."
+  - Attachment owner-reveal parity may be limited by renderer support and may need a clearly documented follow-up if mappings can be stored before UI reveal exists.
+
+open_questions:
+  - none
