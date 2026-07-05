@@ -105,6 +105,9 @@ final class MessageInputAttachmentUITests: XCTestCase {
         if arguments.contains("--ui-test-pii-composer-banner-fixture") {
             app.launchEnvironment["UI_TEST_PII_COMPOSER_BANNER_FIXTURE"] = "1"
         }
+        if arguments.contains("--ui-test-pii-visibility-fixture") {
+            app.launchEnvironment["UI_TEST_PII_VISIBILITY_FIXTURE"] = "1"
+        }
         app.launch()
         return app
     }
