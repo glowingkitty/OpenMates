@@ -276,6 +276,10 @@ private struct DevPIIVisibilityFixtureView: View {
         return PIIDetector.restorePII(in: hiddenContent, mappings: mappings)
     }
 
+    private var toggleLabel: String {
+        isRevealed ? AppStrings.piiHide : AppStrings.piiShow
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing4) {
             HStack(spacing: .spacing3) {
@@ -288,16 +292,21 @@ private struct DevPIIVisibilityFixtureView: View {
                 Button {
                     isRevealed.toggle()
                 } label: {
-                    Icon(isRevealed ? "hidden" : "visible", size: 22)
-                        .foregroundStyle(LinearGradient.primary)
-                        .frame(width: 44, height: 44)
-                        .background(Color.grey0.opacity(0.92))
-                        .clipShape(Circle())
-                        .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
+                    HStack(spacing: .spacing2) {
+                        Icon(isRevealed ? "hidden" : "visible", size: 18)
+                            .foregroundStyle(LinearGradient.primary)
+                        Text(toggleLabel)
+                            .font(.omXs.weight(.semibold))
+                            .foregroundStyle(Color.fontPrimary)
+                    }
+                    .padding(.horizontal, .spacing3)
+                    .frame(height: 44)
+                    .background(Color.grey0.opacity(0.92))
+                    .clipShape(Capsule())
+                    .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
                 }
                 .buttonStyle(.plain)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(isRevealed ? AppStrings.piiHide : AppStrings.piiShow)
+                .accessibilityLabel(toggleLabel)
                 .accessibilityIdentifier("chat-pii-toggle")
                 .accessibilityAddTraits(.isButton)
             }
