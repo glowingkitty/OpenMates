@@ -31,11 +31,8 @@ final class MessageInputAttachmentUITests: XCTestCase {
     }
 
     func testComposerWarningHighlightsAndExclusions() throws {
-        let app = launchChatOpeningPreview()
+        let app = launchChatOpeningPreview(arguments: ["--ui-test-seed-pii-composer-text"])
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
-
-        let editor = focusComposerInput(in: app)
-        editor.typeText("Email alice@example.com and call +49 170 1234567")
 
         let banner = element(in: app, identifier: "pii-warning-banner")
         XCTAssertTrue(banner.waitForExistence(timeout: 8))
