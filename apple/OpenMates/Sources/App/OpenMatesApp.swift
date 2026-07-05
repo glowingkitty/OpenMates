@@ -352,7 +352,7 @@ private final class MacMenuBarQuickCaptureViewModel: ObservableObject {
 
         var id: String { rawValue }
 
-        var title: String {
+        @MainActor var title: String {
             switch self {
             case .chats: return AppStrings.chats
             case .projects: return AppStrings.projects
@@ -380,7 +380,7 @@ private final class MacMenuBarQuickCaptureViewModel: ObservableObject {
                 }
             }
 
-            var label: String {
+            @MainActor var label: String {
                 switch self {
                 case .uploading:
                     return AppStrings.uploadProgressUploading(percent: "")
