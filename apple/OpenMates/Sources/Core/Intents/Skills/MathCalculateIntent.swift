@@ -5,7 +5,7 @@ import AppIntents
 import Foundation
 
 struct MathCalculateIntent: AppIntent {
-    static let title: LocalizedStringResource = "Calculate"
+    static let title: LocalizedStringResource = "Math | Calculate"
     static let description: IntentDescription = "Perform a mathematical calculation."
     static let openAppWhenRun = false
 

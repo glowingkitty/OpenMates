@@ -5,7 +5,7 @@ import AppIntents
 import Foundation
 
 struct NewsSearchIntent: AppIntent {
-    static let title: LocalizedStringResource = "Search News"
+    static let title: LocalizedStringResource = "News | Search"
     static let description: IntentDescription = "Search for news articles on a topic."
     static let openAppWhenRun = false
 

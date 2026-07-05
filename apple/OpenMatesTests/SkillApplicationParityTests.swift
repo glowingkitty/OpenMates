@@ -6,6 +6,54 @@ import XCTest
 @testable import OpenMates
 
 final class SkillApplicationParityTests: XCTestCase {
+    func testShortcutSkillFormatterUnwrapsRestSdkEnvelope() throws {
+        let response: [String: Any] = [
+            "success": true,
+            "data": [
+                "results": [
+                    [
+                        "id": 1,
+                        "results": [
+                            [
+                                "title": "Open Air Concert",
+                                "date_start": "2026-07-10T19:00:00Z",
+                                "venue": [
+                                    "name": "Park Stage",
+                                    "city": "Berlin",
+                                ],
+                            ],
+                        ],
+                        "total_available": 1,
+                    ],
+                ],
+            ],
+            "credits_charged": 1,
+        ]
+
+        let formatted = SkillFormatter.formatResults(response, type: "events")
+
+        XCTAssertFalse(formatted.contains("No details available"))
+        XCTAssertTrue(formatted.contains("Open Air Concert"))
+        XCTAssertTrue(formatted.contains("Starts: 2026-07-10T19:00:00Z"))
+        XCTAssertTrue(formatted.contains("Venue: Park Stage, Berlin"))
+    }
+
+    func testShortcutSkillFormatterPreservesUnknownPayloadAsJson() throws {
+        let response: [String: Any] = [
+            "success": true,
+            "data": [
+                "answer": "42",
+                "confidence": "high",
+            ],
+        ]
+
+        let formatted = SkillFormatter.formatResults(response, type: "unknown")
+
+        XCTAssertFalse(formatted.contains("No details available"))
+        XCTAssertTrue(formatted.contains("\"answer"))
+        XCTAssertTrue(formatted.contains("42"))
+    }
+
     func testCodeFixturesClassifyApplicationCodeAndDocsStates() throws {
         let codeSkills = DevEmbedPreviewFixtures.skills(for: .code)
         let skillsById = Dictionary(uniqueKeysWithValues: codeSkills.map { ($0.id, $0) })

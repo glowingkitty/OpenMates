@@ -5,7 +5,7 @@ import AppIntents
 import Foundation
 
 struct NutritionSearchIntent: AppIntent {
-    static let title: LocalizedStringResource = "Search Recipes"
+    static let title: LocalizedStringResource = "Nutrition | Search Recipes"
     static let description: IntentDescription = "Search for recipes and nutritional information."
     static let openAppWhenRun = false
 

@@ -4,7 +4,7 @@ import AppIntents
 import Foundation
 
 struct CodeDocsIntent: AppIntent {
-    static let title: LocalizedStringResource = "Get Code Documentation"
+    static let title: LocalizedStringResource = "Code | Get Docs"
     static let description: IntentDescription = "Look up documentation for a programming library or framework."
     static let openAppWhenRun = false
 

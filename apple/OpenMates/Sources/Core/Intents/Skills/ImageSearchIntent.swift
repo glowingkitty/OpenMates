@@ -4,7 +4,7 @@ import AppIntents
 import Foundation
 
 struct ImageSearchIntent: AppIntent {
-    static let title: LocalizedStringResource = "Search Images"
+    static let title: LocalizedStringResource = "Images | Search"
     static let description: IntentDescription = "Search for images on a topic."
     static let openAppWhenRun = false
 

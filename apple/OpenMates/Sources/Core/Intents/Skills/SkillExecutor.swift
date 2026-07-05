@@ -41,11 +41,20 @@ enum SkillFormatter {
     /// The `type` hint determines which fields to extract and how to present them.
     static func formatResults(_ json: [String: Any], type: String) -> String {
         // Check for error responses
+        if let success = json["success"] as? Bool, !success {
+            return "Error: \((json["error"] as? String) ?? "Skill execution failed")"
+        }
         if let error = json["error"] as? String {
             return "Error: \(error)"
         }
         if let detail = json["detail"] as? String {
             return "Error: \(detail)"
+        }
+
+        // Public REST/SDK responses wrap skill payloads as { success, data, ... }.
+        // Shortcuts should expose the same payload instead of formatting the envelope.
+        if let data = json["data"] as? [String: Any] {
+            return formatResults(data, type: type)
         }
 
         // Most skill responses have a "results" array with per-request responses
@@ -96,7 +105,14 @@ enum SkillFormatter {
             if let duration = item["duration"] as? String { parts.append("Duration: \(duration)") }
         case "events":
             if let date = item["date"] as? String { parts.append("Date: \(date)") }
+            if let dateStart = item["date_start"] as? String { parts.append("Starts: \(dateStart)") }
+            if let dateEnd = item["date_end"] as? String { parts.append("Ends: \(dateEnd)") }
             if let venue = item["venue"] as? String { parts.append("Venue: \(venue)") }
+            if let venue = item["venue"] as? [String: Any] {
+                let venueParts = ["name", "address", "city", "country"].compactMap { venue[$0] as? String }
+                if !venueParts.isEmpty { parts.append("Venue: \(venueParts.joined(separator: ", "))") }
+            }
+            if let location = item["location"] as? String { parts.append("Location: \(location)") }
         case "health":
             if let address = item["address"] as? String { parts.append("Address: \(address)") }
             if let phone = item["phone"] as? String { parts.append("Phone: \(phone)") }
@@ -109,6 +125,16 @@ enum SkillFormatter {
             break
         }
 
-        return parts.isEmpty ? "No details available" : parts.joined(separator: "\n")
+        if !parts.isEmpty {
+            return parts.joined(separator: "\n")
+        }
+
+        if JSONSerialization.isValidJSONObject(item),
+           let data = try? JSONSerialization.data(withJSONObject: item, options: [.prettyPrinted, .sortedKeys]),
+           let json = String(data: data, encoding: .utf8) {
+            return json
+        }
+
+        return "No details available"
     }
 }
