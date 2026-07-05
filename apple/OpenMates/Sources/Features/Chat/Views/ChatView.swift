@@ -106,6 +106,7 @@ struct ChatView: View {
     var chatStore: ChatStore? = nil
     var inputFocusRequest = 0
     var cameraCaptureRequest = 0
+    var searchTarget: ChatSearchSelection? = nil
     /// Mirrors web `.chat-container.menu-open`; used by the banner header to
     /// collapse from viewport-responsive height to the fixed adjacent-panel height.
     var isSettingsOpen = false
@@ -590,6 +591,8 @@ struct ChatView: View {
                                         allEmbedRecords: viewModel.embedRecords,
                                         streamingContent: viewModel.isStreamingMessage(message.id) ? viewModel.streamingContent : nil,
                                         containerWidth: scrollGeo.size.width,
+                                        isSearchTarget: searchTarget?.messageId == message.id,
+                                        searchHighlightQuery: searchTarget?.messageId == message.id ? searchTarget?.query : nil,
                                         onEmbedTap: { embed in
                                             selectedEmbed = embed
                                             showEmbedFullscreen = true
@@ -720,9 +723,27 @@ struct ChatView: View {
                 }
                 .onChange(of: viewModel.messages.map(\.id)) { _, _ in
                     restoreInitialScrollIfNeeded(proxy: proxy)
+                    scrollToSearchTargetIfNeeded(proxy: proxy)
+                }
+                .onChange(of: searchTarget) { _, _ in
+                    scrollToSearchTargetIfNeeded(proxy: proxy)
                 }
             }
         }
+    }
+
+    private func scrollToSearchTargetIfNeeded(proxy: ScrollViewProxy) {
+        guard let targetMessageId = searchTarget?.messageId else { return }
+        if viewModel.messages.contains(where: { $0.id == targetMessageId }) {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                proxy.scrollTo(targetMessageId, anchor: UnitPoint(x: 0.5, y: 0.18))
+            }
+            NativeSyncPerfLog.info("phase=chatSearchScroll chat=\(chatId.prefix(8)) message=\(targetMessageId.prefix(8)) mode=visible")
+            return
+        }
+
+        guard viewModel.hasOlderMessages, !viewModel.isLoadingOlder else { return }
+        viewModel.loadOlderMessages()
     }
 
     private func scrollSentinel(id: String, edge: ChatScrollSentinelEdge) -> some View {
@@ -1877,6 +1898,8 @@ struct MessageBubble: View {
     let allEmbedRecords: [String: EmbedRecord]
     let streamingContent: String?
     let containerWidth: CGFloat
+    let isSearchTarget: Bool
+    let searchHighlightQuery: String?
     let onEmbedTap: (EmbedRecord) -> Void
     let onOpenPublicChat: ((String) -> Void)?
     let onInteractiveQuestionSubmit: ((String) -> Void)?
@@ -2036,7 +2059,8 @@ struct MessageBubble: View {
                     content: displayContent,
                     isUserMessage: true,
                     allEmbedRecords: allEmbedRecords,
-                    onEmbedTap: onEmbedTap
+                    onEmbedTap: onEmbedTap,
+                    searchHighlightQuery: searchHighlightQuery
                 )
                     .foregroundStyle(Color.fontPrimary)
                     .padding(.spacing6)
@@ -2046,6 +2070,7 @@ struct MessageBubble: View {
                     .overlay(alignment: .bottomTrailing) {
                         SpeechTailView(side: .trailing, color: Color.greyBlue)
                     }
+                    .searchTargetOutline(isSearchTarget)
                     .onLongPressGesture {
                         onShowActions?()
                     }
@@ -2094,7 +2119,8 @@ struct MessageBubble: View {
                             allEmbedRecords: allEmbedRecords,
                             hiddenEmbedIds: hiddenInlineEmbedIds,
                             onEmbedTap: onEmbedTap,
-                            onInteractiveQuestionSubmit: viewAllowsInteractiveQuestionSubmit ? onInteractiveQuestionSubmit : nil
+                            onInteractiveQuestionSubmit: viewAllowsInteractiveQuestionSubmit ? onInteractiveQuestionSubmit : nil,
+                            searchHighlightQuery: searchHighlightQuery
                         )
                     }
                     .foregroundStyle(Color.grey100)
@@ -2105,6 +2131,7 @@ struct MessageBubble: View {
                     .overlay(alignment: .topLeading) {
                         SpeechTailView(side: useStackedLayout ? .top : .leading, color: Color.grey0)
                     }
+                    .searchTargetOutline(isSearchTarget)
                     .onLongPressGesture {
                         onShowActions?()
                     }
@@ -2170,6 +2197,19 @@ struct MessageBubble: View {
         .accessibilityLabel("\(isUser ? "You" : "AI"): \(displayContent.prefix(200))")
         .accessibilityHint("Long press for options")
         .accessibilityIdentifier(isUser ? "message-user" : "message-assistant")
+    }
+}
+
+private extension View {
+    func searchTargetOutline(_ isActive: Bool) -> some View {
+        overlay {
+            if isActive {
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.buttonPrimary, lineWidth: 2)
+                    .padding(-4)
+                    .allowsHitTesting(false)
+            }
+        }
     }
 }
 

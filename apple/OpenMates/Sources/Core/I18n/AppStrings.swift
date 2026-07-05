@@ -100,8 +100,17 @@ enum AppStrings {
     static var conversationForked: String { L("chat.forked") }
     static var setReminder: String { L("chat.set_reminder") }
     static var chats: String { L("common.chats") }
+    static var summary: String { L("common.summary") }
     static var explore: String { L("common.explore") }
     static var openChat: String { L("chat.open_chat") }
+    static var searchNoResults: String { L("chats.search.no_results") }
+    static var searchResultsLabel: String { L("chats.search.results_label") }
+    static var searchGoToMessage: String { L("chats.search.go_to_message") }
+    static var searchTagMatch: String { L("chats.search.tag_match") }
+    static var today: String { L("activity.today") }
+    static var yesterday: String { L("activity.yesterday") }
+    static var previous7Days: String { L("activity.previous_7_days") }
+    static var previous30Days: String { L("activity.previous_30_days") }
     static var scrollToTop: String { L("chats.scroll_to_top") }
     static var scrollToBottom: String { L("chats.scroll_to_bottom") }
     static var interactiveQuestionFailed: String { L("chat.interactive_question_failed") }

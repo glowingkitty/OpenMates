@@ -2103,7 +2103,7 @@ private struct ChatEmbedsResponse: Decodable {
 }
 
 @MainActor
-fileprivate enum PublicChatContent {
+enum PublicChatContent {
     struct PublicChat {
         let chat: Chat
         let messages: [Message]

@@ -63,6 +63,7 @@ struct MainAppView: View {
     @State private var showPairAuthorize = false
     @State private var pairToken: String?
     @State private var searchText = ""
+    @State private var searchSelection: ChatSearchSelection?
     @State private var dailyInspirations: [DailyInspirationBanner.DailyInspiration] = []
     @State private var syncedNewChatSuggestions: [NewChatSuggestionsView.ChatSuggestion] = []
     @State private var accountInterestTagIds: [InterestTagId] = []
@@ -584,12 +585,14 @@ struct MainAppView: View {
     private func openNewChatScreen() {
         selectedWorkspace = .chat
         selectedChatId = nil
+        searchSelection = nil
         showNewChat = true
         showAuthSheet = false
         showSearch = false
         showExplore = false
         showShareChat = false
         showHiddenChats = false
+        searchSelection = nil
         actionChat = nil
     }
 
@@ -608,6 +611,7 @@ struct MainAppView: View {
         let chatId = makeTransientChat(isIncognito: false)
         selectedWorkspace = .chat
         selectedChatId = chatId
+        searchSelection = nil
         showNewChat = false
         showAuthSheet = false
         showSearch = false
@@ -629,6 +633,7 @@ struct MainAppView: View {
         let chatId = makeTransientChat(isIncognito: true)
         selectedWorkspace = .chat
         selectedChatId = chatId
+        searchSelection = nil
         showNewChat = false
         showAuthSheet = false
         showSearch = false
@@ -684,6 +689,28 @@ struct MainAppView: View {
         isChatsPanelOpen = true
         showSearch = true
         lastForegroundInteractionAt = Date()
+    }
+
+    private func closeSearch() {
+        showSearch = false
+        searchSelection = nil
+    }
+
+    private func handleSearchSelection(_ selection: ChatSearchSelection) {
+        selectedWorkspace = .chat
+        selectedChatId = selection.chatId
+        searchSelection = selection
+        showNewChat = false
+        showAuthSheet = false
+        showExplore = false
+        showShareChat = false
+        showHiddenChats = false
+        actionChat = nil
+        if isCompactShell {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isChatsPanelOpen = false
+            }
+        }
     }
 
     private func handleQuickAction(_ action: AppQuickAction) {
@@ -949,15 +976,6 @@ struct MainAppView: View {
         if showExplore {
             appOverlay(title: AppStrings.explore, isPresented: $showExplore) {
                 PublicChatListView()
-            }
-        }
-
-        if showSearch {
-            appOverlay(title: AppStrings.search, isPresented: $showSearch) {
-                ChatSearchView { chatId in
-                    selectedChatId = chatId
-                    showSearch = false
-                }
             }
         }
 
@@ -1290,6 +1308,7 @@ struct MainAppView: View {
                 chatStore: chatStore,
                 inputFocusRequest: chatInputFocusRequest,
                 cameraCaptureRequest: chatCameraCaptureRequest,
+                searchTarget: searchSelection?.chatId == chatId ? searchSelection : nil,
                 isSettingsOpen: !isCompactShell && showSettings,
                 onShareChat: { showShareChat = true },
                 onPreviousChat: previousChatAction(for: chatId),
@@ -1314,6 +1333,7 @@ struct MainAppView: View {
                 chatStore: isAnonymous ? chatStore : nil,
                 inputFocusRequest: chatInputFocusRequest,
                 cameraCaptureRequest: chatCameraCaptureRequest,
+                searchTarget: searchSelection?.chatId == chatId ? searchSelection : nil,
                 isSettingsOpen: !isCompactShell && showSettings,
                 onPreviousChat: previousChatAction(for: chatId),
                 onNextChat: nextChatAction(for: chatId),
@@ -1337,13 +1357,19 @@ struct MainAppView: View {
     private func previousChatAction(for chatId: String) -> (() -> Void)? {
         guard let idx = orderedChatIds.firstIndex(of: chatId), idx > 0 else { return nil }
         let prevId = orderedChatIds[idx - 1]
-        return { selectedChatId = prevId }
+        return {
+            selectedChatId = prevId
+            searchSelection = nil
+        }
     }
 
     private func nextChatAction(for chatId: String) -> (() -> Void)? {
         guard let idx = orderedChatIds.firstIndex(of: chatId), idx < orderedChatIds.count - 1 else { return nil }
         let nextId = orderedChatIds[idx + 1]
-        return { selectedChatId = nextId }
+        return {
+            selectedChatId = nextId
+            searchSelection = nil
+        }
     }
 
     private func openPublicChat(_ chatId: String) {
@@ -1352,6 +1378,7 @@ struct MainAppView: View {
             return
         }
         selectedChatId = chatId
+        searchSelection = nil
         if isCompactShell {
             isChatsPanelOpen = false
         }
@@ -1359,53 +1386,63 @@ struct MainAppView: View {
 
     private var chatsPanel: some View {
         VStack(spacing: 0) {
-            chatPanelTopButtons
+            if showSearch {
+                ChatSearchView(
+                    chats: chatStore.chats,
+                    activeChatId: selectedChatId,
+                    chatStore: chatStore,
+                    onSelectResult: handleSearchSelection,
+                    onClose: closeSearch
+                )
+            } else {
+                chatPanelTopButtons
 
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: .spacing2) {
-                    showHiddenChatsButton
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: .spacing2) {
+                        showHiddenChatsButton
 
-                    if !filteredPinnedChats.isEmpty {
-                        chatSectionHeader(AppStrings.pinnedChats)
-                        ForEach(filteredPinnedChats) { chat in
-                            chatRow(chat)
+                        if !filteredPinnedChats.isEmpty {
+                            chatSectionHeader(AppStrings.pinnedChats)
+                            ForEach(filteredPinnedChats) { chat in
+                                chatRow(chat)
+                            }
                         }
-                    }
 
-                    if !visibleFilteredUnpinnedChats.isEmpty {
-                        let header = filteredPinnedChats.isEmpty ? AppStrings.chats : AppStrings.recentChats
-                        chatSectionHeader(header)
-                        ForEach(visibleFilteredUnpinnedChats) { chat in
-                            chatRow(chat)
+                        if !visibleFilteredUnpinnedChats.isEmpty {
+                            let header = filteredPinnedChats.isEmpty ? AppStrings.chats : AppStrings.recentChats
+                            chatSectionHeader(header)
+                            ForEach(visibleFilteredUnpinnedChats) { chat in
+                                chatRow(chat)
+                            }
+                        } else if filteredPinnedChats.isEmpty && isAuthenticated && self.publicChats(in: .intro).isEmpty {
+                            Text(AppStrings.noChats)
+                                .font(.omSmall)
+                                .foregroundStyle(Color.fontTertiary)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.top, .spacing10)
                         }
-                    } else if filteredPinnedChats.isEmpty && isAuthenticated && self.publicChats(in: .intro).isEmpty {
-                        Text(AppStrings.noChats)
-                            .font(.omSmall)
-                            .foregroundStyle(Color.fontTertiary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.top, .spacing10)
-                    }
 
-                    if shouldShowMoreUserChats {
-                        ShowMoreChatsButton(
-                            totalCount: max(totalChatCount, userChatCountForDisplayLimit),
-                            loadedCount: min(visibleUserChatLimit, userChatCountForDisplayLimit),
-                            isLoading: isLoadingMore,
-                            onLoadMore: { showMoreUserChats() }
-                        )
-                        .padding(.horizontal, .spacing5)
-                    }
+                        if shouldShowMoreUserChats {
+                            ShowMoreChatsButton(
+                                totalCount: max(totalChatCount, userChatCountForDisplayLimit),
+                                loadedCount: min(visibleUserChatLimit, userChatCountForDisplayLimit),
+                                isLoading: isLoadingMore,
+                                onLoadMore: { showMoreUserChats() }
+                            )
+                            .padding(.horizontal, .spacing5)
+                        }
 
-                    chatPublicSection(.intro, title: AppStrings.introSection)
-                    chatPublicSection(.examples, title: AppStrings.exampleChatsSection)
-                    chatPublicSection(.announcements, title: AppStrings.announcementsSection)
-                    chatPublicSection(.legal, title: AppStrings.legalSection)
+                        chatPublicSection(.intro, title: AppStrings.introSection)
+                        chatPublicSection(.examples, title: AppStrings.exampleChatsSection)
+                        chatPublicSection(.announcements, title: AppStrings.announcementsSection)
+                        chatPublicSection(.legal, title: AppStrings.legalSection)
+                    }
+                    .padding(.vertical, .spacing3)
                 }
-                .padding(.vertical, .spacing3)
-            }
-            .refreshable {
-                if isAuthenticated {
-                    await loadInitialData()
+                .refreshable {
+                    if isAuthenticated {
+                        await loadInitialData()
+                    }
                 }
             }
         }
@@ -1529,6 +1566,7 @@ struct MainAppView: View {
         let isSelected = selectedChatId == chat.id
         Button {
             selectedChatId = chat.id
+            searchSelection = nil
             showNewChat = false
             if isCompactShell {
                 withAnimation(.easeInOut(duration: 0.2)) {
