@@ -23,7 +23,10 @@ final class ShareExtensionAttachmentParityUITests: XCTestCase {
         app.launchEnvironment["DEV_PREVIEW"] = "quick-capture"
         app.launch()
 
-        XCTAssertTrue(element(in: app, identifier: "quick-capture-tab-chats").waitForExistence(timeout: 12))
+        XCTAssertTrue(
+            element(in: app, identifier: "quick-capture-tab-chats").waitForExistence(timeout: 12),
+            "Expected Quick Capture preview to launch for shared attachment smoke coverage. Visible UI: \(app.debugDescription)"
+        )
         XCTAssertTrue(element(in: app, identifier: "quick-capture-pending-attachments").exists)
         XCTAssertTrue(app.staticTexts["Shared fixture.pdf"].exists)
         XCTAssertTrue(element(in: app, identifier: "quick-capture-status-list").exists)

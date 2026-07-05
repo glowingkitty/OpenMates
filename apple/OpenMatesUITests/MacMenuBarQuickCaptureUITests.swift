@@ -15,7 +15,10 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
     func testQuickCapturePreviewShowsDefaultChatDestinationAndComposer() throws {
         let app = launchQuickCapturePreview()
 
-        XCTAssertTrue(element(in: app, identifier: "quick-capture-tab-chats").waitForExistence(timeout: 12))
+        XCTAssertTrue(
+            element(in: app, identifier: "quick-capture-tab-chats").waitForExistence(timeout: 12),
+            "Expected Quick Capture preview to launch. Visible UI: \(app.debugDescription)"
+        )
         XCTAssertTrue(element(in: app, identifier: "quick-capture-recent-chats").exists)
         XCTAssertTrue(app.staticTexts["New Chat"].exists)
         XCTAssertTrue(app.staticTexts["UI Test Chat"].exists)
@@ -29,7 +32,10 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
         let app = launchQuickCapturePreview()
 
         let projectsTab = element(in: app, identifier: "quick-capture-tab-projects")
-        XCTAssertTrue(projectsTab.waitForExistence(timeout: 12))
+        XCTAssertTrue(
+            projectsTab.waitForExistence(timeout: 12),
+            "Expected Quick Capture project tab. Visible UI: \(app.debugDescription)"
+        )
         projectsTab.tap()
         XCTAssertTrue(element(in: app, identifier: "quick-capture-placeholder-projects").waitForExistence(timeout: 5))
         XCTAssertFalse(element(in: app, identifier: "chat-history").exists)
@@ -43,7 +49,10 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
     func testQuickCapturePreviewShowsSeededPendingAttachmentAndStatusList() throws {
         let app = launchQuickCapturePreview(seedAttachment: true)
 
-        XCTAssertTrue(element(in: app, identifier: "quick-capture-tab-chats").waitForExistence(timeout: 12))
+        XCTAssertTrue(
+            element(in: app, identifier: "quick-capture-tab-chats").waitForExistence(timeout: 12),
+            "Expected seeded Quick Capture preview. Visible UI: \(app.debugDescription)"
+        )
         XCTAssertTrue(element(in: app, identifier: "quick-capture-pending-attachments").waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Shared fixture.pdf"].exists)
         XCTAssertTrue(element(in: app, identifier: "quick-capture-status-list").exists)
