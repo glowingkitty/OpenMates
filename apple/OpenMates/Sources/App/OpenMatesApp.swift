@@ -706,7 +706,6 @@ struct MacMenuBarQuickCaptureView: View {
             #endif
             viewModel.loadRecentChats()
         }
-        .accessibilityIdentifier("quick-capture-root")
     }
 
     private var headerTabs: some View {

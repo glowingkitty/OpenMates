@@ -68,7 +68,6 @@ struct DevQuickCaptureAttachmentPreviewView: View {
         }
         .padding(.spacing8)
         .background(Color.grey0)
-        .accessibilityIdentifier("quick-capture-root")
     }
 
     private var chatsPreview: some View {
