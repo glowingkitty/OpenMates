@@ -214,9 +214,7 @@ async function revokeCurrentApiKeyFromDetails(page: any, log: (msg: string) => v
 	await expect(revokeButton).toBeVisible({ timeout: 5000 });
 	await revokeButton.click();
 
-	const confirmToggle = page.getByRole('checkbox', {
-		name: /i understand this key will stop working/i
-	});
+	const confirmToggle = page.getByText(/i understand this key will stop working/i).first();
 	await expect(confirmToggle).toBeVisible({ timeout: 5000 });
 	await confirmToggle.click();
 	await expect(revokeButton).toBeEnabled({ timeout: 3000 });
