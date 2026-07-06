@@ -421,7 +421,7 @@ tests:
       - Shared source used by Watch is free of unguarded UIKit/AppKit/PDFKit/QuickLook imports.
       - Watch target has independent-app configuration and required entitlements.
     red_phase: { required: true, expected: fail, evidence: { status: missing_test, run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-build-watch-8a0bea0", timestamp: "2026-07-06T22:44:00Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-build-watch-193c954", timestamp: "2026-07-06T23:15:00Z" } }
   - id: T-WATCH-PAIR-LOGIN-UNIT
     type: unit
     file: apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
@@ -431,8 +431,10 @@ tests:
       - Shared pair-login runtime PIN normalization uppercases, filters, and truncates Watch PIN input deterministically.
       - Shared pair-login runtime pair URL generation preserves the web app host and uppercases synthetic pair tokens.
       - Shared pair-login runtime backend failure strings map to typed Watch-visible failure states without logging real pair tokens, private emails, master keys, or reusable PINs.
+      - Synthetic encrypted pair-login bundles decrypt through the same AES-GCM/PBKDF2 path and return expected bundle fields plus master key bytes.
+      - Master keys save, load, and delete through the local Keychain path using redacted test user identifiers.
     red_phase: { required: true, expected: fail, evidence: { status: missing_test, run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-ios-xctest-watch-pair-login-runtime-class-8a0bea0", timestamp: "2026-07-06T23:00:05Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-ios-xctest-watch-pair-login-runtime-5tests-193c954", timestamp: "2026-07-06T23:16:11Z" } }
   - id: T-WATCH-PAIR-LOGIN-UI
     type: unit
     file: apple/OpenMatesWatchUITests/WatchPairLoginUITests.swift
@@ -641,7 +643,6 @@ tasks:
     blockers: [TASK-1]
     follow_up_tasks:
       - Add Watch UI test target/coverage for unauthenticated QR/PIN states and successful authenticated routing.
-      - Extend deterministic runtime coverage for encrypted pair bundle completion and Watch-local Keychain persistence with synthetic data.
     independently_deployable: false
   - id: TASK-3
     title: Extract Watch-compatible chat runtime, sync, and offline cache
