@@ -1,10 +1,11 @@
 // Watch chat runtime and offline cache.
 // Provides the portable data layer for the standalone watchOS chat shell while
 // staying small enough to unit test from the existing Apple unit-test target.
-// The runtime fetches recent chats/messages directly from the backend and keeps
-// a Watch-local JSON snapshot for offline startup. Encryption-aware display is
-// completed by later Watch sync slices; this layer never logs plaintext.
+// The runtime fetches recent chats/messages directly from the backend, unwraps
+// per-chat keys from the Watch-local master key, and keeps a local JSON snapshot
+// for offline startup. This layer never logs plaintext.
 
+import CryptoKit
 import Foundation
 import SwiftUI
 
@@ -14,6 +15,9 @@ struct WatchChatSummary: Codable, Equatable, Identifiable, Sendable {
     var lastMessageAt: String?
     var preview: String?
     var isPinned: Bool
+    var encryptedTitle: String?
+    var encryptedPreview: String?
+    var encryptedChatKey: String?
 }
 
 struct WatchChatMessage: Codable, Equatable, Identifiable, Sendable {
@@ -27,21 +31,86 @@ struct WatchChatMessage: Codable, Equatable, Identifiable, Sendable {
     let chatId: String
     let role: Role
     var content: String?
+    var encryptedContent: String?
     let createdAt: String
     var isPending: Bool
+}
+
+struct WatchPendingTextSend: Codable, Equatable, Identifiable, Sendable {
+    let id: String
+    let chatId: String
+    let messageId: String
+    let encryptedContent: String
+    let encryptedChatKey: String
+    let createdAt: String
 }
 
 struct WatchChatSnapshot: Codable, Equatable, Sendable {
     var chats: [WatchChatSummary]
     var messagesByChatId: [String: [WatchChatMessage]]
+    var pendingTextSends: [WatchPendingTextSend]
     var savedAt: Date
 
-    static let empty = WatchChatSnapshot(chats: [], messagesByChatId: [:], savedAt: .distantPast)
+    static let empty = WatchChatSnapshot(
+        chats: [],
+        messagesByChatId: [:],
+        pendingTextSends: [],
+        savedAt: .distantPast
+    )
+
+    init(
+        chats: [WatchChatSummary],
+        messagesByChatId: [String: [WatchChatMessage]],
+        pendingTextSends: [WatchPendingTextSend] = [],
+        savedAt: Date
+    ) {
+        self.chats = chats
+        self.messagesByChatId = messagesByChatId
+        self.pendingTextSends = pendingTextSends
+        self.savedAt = savedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        chats = try container.decode([WatchChatSummary].self, forKey: .chats)
+        messagesByChatId = try container.decode([String: [WatchChatMessage]].self, forKey: .messagesByChatId)
+        pendingTextSends = try container.decodeIfPresent([WatchPendingTextSend].self, forKey: .pendingTextSends) ?? []
+        savedAt = try container.decode(Date.self, forKey: .savedAt)
+    }
+}
+
+struct WatchRemoteChat: Equatable, Sendable {
+    let id: String
+    let title: String?
+    let lastMessageAt: String?
+    let updatedAt: String?
+    let chatSummary: String?
+    let isPinned: Bool
+    let encryptedTitle: String?
+    let encryptedChatSummary: String?
+    let encryptedChatKey: String?
+}
+
+struct WatchRemoteMessage: Equatable, Sendable {
+    let id: String
+    let chatId: String
+    let role: WatchChatMessage.Role
+    let content: String?
+    let encryptedContent: String?
+    let createdAt: String
 }
 
 protocol WatchChatAPI: Sendable {
-    func fetchRecentChats(limit: Int) async throws -> [WatchChatSummary]
-    func fetchMessages(chatId: String) async throws -> [WatchChatMessage]
+    func fetchRecentChats(limit: Int) async throws -> [WatchRemoteChat]
+    func fetchMessages(chatId: String) async throws -> [WatchRemoteMessage]
+    func sendPendingText(_ pending: WatchPendingTextSend) async throws
+}
+
+@MainActor
+protocol WatchChatCrypto: AnyObject {
+    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary
+    func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage
+    func encryptText(_ text: String, for chat: WatchChatSummary) async throws -> String
 }
 
 actor WatchChatOfflineCache {
@@ -97,10 +166,18 @@ final class WatchChatRuntime: ObservableObject {
 
     private let api: any WatchChatAPI
     private let cache: WatchChatOfflineCache
+    private let crypto: any WatchChatCrypto
+    private var pendingTextSends: [WatchPendingTextSend] = []
 
-    init(api: any WatchChatAPI = APIClient.shared, cache: WatchChatOfflineCache = WatchChatOfflineCache()) {
+    init(
+        currentUserId: String? = nil,
+        api: any WatchChatAPI = APIClient.shared,
+        cache: WatchChatOfflineCache = WatchChatOfflineCache(),
+        crypto: (any WatchChatCrypto)? = nil
+    ) {
         self.api = api
         self.cache = cache
+        self.crypto = crypto ?? WatchChatCryptoService(currentUserId: currentUserId)
     }
 
     var selectedChat: WatchChatSummary? {
@@ -126,11 +203,12 @@ final class WatchChatRuntime: ObservableObject {
 
         do {
             let fetchedChats = try await api.fetchRecentChats(limit: 20)
-            chats = Self.sortedChats(fetchedChats)
+            chats = Self.sortedChats(await decryptChats(fetchedChats))
             if selectedChatId == nil {
                 selectedChatId = chats.first?.id
             }
             isOffline = false
+            await replayPendingTextSends()
             try await persistSnapshot()
         } catch {
             isOffline = true
@@ -150,7 +228,7 @@ final class WatchChatRuntime: ObservableObject {
 
         do {
             let messages = try await api.fetchMessages(chatId: chat.id)
-            messagesByChatId[chat.id] = Self.sortedMessages(messages)
+            messagesByChatId[chat.id] = Self.sortedMessages(await decryptMessages(messages))
             isOffline = false
             errorMessage = nil
             try await persistSnapshot()
@@ -162,24 +240,48 @@ final class WatchChatRuntime: ObservableObject {
 
     func queueLocalText(_ content: String) async {
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let selectedChatId else { return }
+        guard !trimmed.isEmpty,
+              let selectedChatId,
+              let chat = selectedChat,
+              let encryptedChatKey = chat.encryptedChatKey else { return }
+        let createdAt = ISO8601DateFormatter().string(from: Date())
+        let messageId = "watch-\(selectedChatId.suffix(10))-\(UUID().uuidString)"
+        let encryptedContent: String
+        do {
+            encryptedContent = try await crypto.encryptText(trimmed, for: chat)
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
         let pending = WatchChatMessage(
-            id: "pending-\(UUID().uuidString)",
+            id: messageId,
             chatId: selectedChatId,
             role: .user,
             content: trimmed,
-            createdAt: ISO8601DateFormatter().string(from: Date()),
+            encryptedContent: encryptedContent,
+            createdAt: createdAt,
             isPending: true
+        )
+        let pendingSend = WatchPendingTextSend(
+            id: UUID().uuidString,
+            chatId: selectedChatId,
+            messageId: messageId,
+            encryptedContent: encryptedContent,
+            encryptedChatKey: encryptedChatKey,
+            createdAt: createdAt
         )
         var messages = messagesByChatId[selectedChatId] ?? []
         messages.append(pending)
         messagesByChatId[selectedChatId] = Self.sortedMessages(messages)
+        pendingTextSends.append(pendingSend)
         try? await persistSnapshot()
+        await replayPendingTextSends()
     }
 
     private func apply(_ snapshot: WatchChatSnapshot) {
         chats = Self.sortedChats(snapshot.chats)
         messagesByChatId = snapshot.messagesByChatId.mapValues(Self.sortedMessages)
+        pendingTextSends = snapshot.pendingTextSends
         if selectedChatId == nil {
             selectedChatId = chats.first?.id
         }
@@ -187,8 +289,52 @@ final class WatchChatRuntime: ObservableObject {
 
     private func persistSnapshot() async throws {
         try await cache.saveSnapshot(
-            WatchChatSnapshot(chats: chats, messagesByChatId: messagesByChatId, savedAt: Date())
+            WatchChatSnapshot(
+                chats: chats,
+                messagesByChatId: messagesByChatId,
+                pendingTextSends: pendingTextSends,
+                savedAt: Date()
+            )
         )
+    }
+
+    private func decryptChats(_ remoteChats: [WatchRemoteChat]) async -> [WatchChatSummary] {
+        var result: [WatchChatSummary] = []
+        result.reserveCapacity(remoteChats.count)
+        for chat in remoteChats {
+            result.append(await crypto.decryptChat(chat))
+        }
+        return result
+    }
+
+    private func decryptMessages(_ remoteMessages: [WatchRemoteMessage]) async -> [WatchChatMessage] {
+        var result: [WatchChatMessage] = []
+        result.reserveCapacity(remoteMessages.count)
+        for message in remoteMessages {
+            result.append(await crypto.decryptMessage(message))
+        }
+        return result
+    }
+
+    private func replayPendingTextSends() async {
+        guard !pendingTextSends.isEmpty else { return }
+        var remaining: [WatchPendingTextSend] = []
+        for pending in pendingTextSends {
+            do {
+                try await api.sendPendingText(pending)
+                markPendingMessageSent(messageId: pending.messageId, chatId: pending.chatId)
+            } catch {
+                remaining.append(pending)
+            }
+        }
+        pendingTextSends = remaining
+    }
+
+    private func markPendingMessageSent(messageId: String, chatId: String) {
+        guard var messages = messagesByChatId[chatId],
+              let index = messages.firstIndex(where: { $0.id == messageId }) else { return }
+        messages[index].isPending = false
+        messagesByChatId[chatId] = messages
     }
 
     private static func sortedChats(_ chats: [WatchChatSummary]) -> [WatchChatSummary] {
@@ -204,14 +350,103 @@ final class WatchChatRuntime: ObservableObject {
 }
 
 extension APIClient: WatchChatAPI {
-    func fetchRecentChats(limit: Int) async throws -> [WatchChatSummary] {
+    func fetchRecentChats(limit: Int) async throws -> [WatchRemoteChat] {
         let response: WatchChatListEnvelope = try await request(.get, path: "/v1/chats?limit=\(limit)")
-        return response.chats.map(WatchChatSummary.init(dto:))
+        return response.chats.map(WatchRemoteChat.init(dto:))
     }
 
-    func fetchMessages(chatId: String) async throws -> [WatchChatMessage] {
+    func fetchMessages(chatId: String) async throws -> [WatchRemoteMessage] {
         let response: [WatchChatMessageDTO] = try await request(.get, path: "/v1/chats/\(chatId)/messages")
-        return response.map(WatchChatMessage.init(dto:))
+        return response.map(WatchRemoteMessage.init(dto:))
+    }
+
+    func sendPendingText(_ pending: WatchPendingTextSend) async throws {
+        let createdAtUnix = Int((ISO8601DateFormatter().date(from: pending.createdAt) ?? Date()).timeIntervalSince1970)
+        let payload: [String: Any] = [
+            "chat_id": pending.chatId,
+            "message_id": pending.messageId,
+            "encrypted_content": pending.encryptedContent,
+            "created_at": createdAtUnix,
+            "encrypted_chat_key": pending.encryptedChatKey,
+            "versions": ["last_edited_overall_timestamp": createdAtUnix]
+        ]
+        let _: Data = try await request(.post, path: "/v1/chats/\(pending.chatId)/messages", body: payload)
+    }
+}
+
+@MainActor
+private final class WatchChatCryptoService: WatchChatCrypto {
+    private let currentUserId: String?
+    private var chatKeys: [String: SymmetricKey] = [:]
+
+    init(currentUserId: String?) {
+        self.currentUserId = currentUserId
+    }
+
+    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary {
+        let key = await chatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey)
+        let title = await decrypt(chat.encryptedTitle, key: key) ?? chat.title
+        let preview = await decrypt(chat.encryptedChatSummary, key: key) ?? chat.chatSummary
+        return WatchChatSummary(
+            id: chat.id,
+            title: title,
+            lastMessageAt: chat.lastMessageAt ?? chat.updatedAt,
+            preview: preview,
+            isPinned: chat.isPinned,
+            encryptedTitle: chat.encryptedTitle,
+            encryptedPreview: chat.encryptedChatSummary,
+            encryptedChatKey: chat.encryptedChatKey
+        )
+    }
+
+    func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage {
+        let key = chatKeys[message.chatId]
+        let content = await decrypt(message.encryptedContent, key: key) ?? message.content
+        return WatchChatMessage(
+            id: message.id,
+            chatId: message.chatId,
+            role: message.role,
+            content: content,
+            encryptedContent: message.encryptedContent,
+            createdAt: message.createdAt,
+            isPending: false
+        )
+    }
+
+    func encryptText(_ text: String, for chat: WatchChatSummary) async throws -> String {
+        guard let key = await chatKey(chatId: chat.id, encryptedChatKey: chat.encryptedChatKey) else {
+            throw WatchChatRuntimeError.missingChatKey
+        }
+        return try await CryptoManager.shared.encryptContent(text, key: key)
+    }
+
+    private func chatKey(chatId: String, encryptedChatKey: String?) async -> SymmetricKey? {
+        if let key = chatKeys[chatId] { return key }
+        guard let currentUserId,
+              let encryptedChatKey,
+              let masterKey = try? await CryptoManager.shared.loadMasterKey(for: currentUserId),
+              let chatKey = try? await CryptoManager.shared.unwrapChatKey(
+                encryptedChatKeyBase64: encryptedChatKey,
+                masterKey: masterKey
+              ) else { return nil }
+        chatKeys[chatId] = chatKey
+        return chatKey
+    }
+
+    private func decrypt(_ encrypted: String?, key: SymmetricKey?) async -> String? {
+        guard let encrypted, let key else { return nil }
+        return try? await CryptoManager.shared.decryptContent(base64String: encrypted, key: key)
+    }
+}
+
+enum WatchChatRuntimeError: LocalizedError {
+    case missingChatKey
+
+    var errorDescription: String? {
+        switch self {
+        case .missingChatKey:
+            return "Missing local chat key"
+        }
     }
 }
 
@@ -226,6 +461,9 @@ private struct WatchChatDTO: Decodable {
     let updatedAt: String?
     let chatSummary: String?
     let isPinned: Bool?
+    let encryptedTitle: String?
+    let encryptedChatSummary: String?
+    let encryptedChatKey: String?
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -240,6 +478,12 @@ private struct WatchChatDTO: Decodable {
         case isPinned
         case isPinnedSnake = "is_pinned"
         case pinned
+        case encryptedTitle
+        case encryptedTitleSnake = "encrypted_title"
+        case encryptedChatSummary
+        case encryptedChatSummarySnake = "encrypted_chat_summary"
+        case encryptedChatKey
+        case encryptedChatKeySnake = "encrypted_chat_key"
     }
 
     init(from decoder: Decoder) throws {
@@ -256,6 +500,12 @@ private struct WatchChatDTO: Decodable {
         isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned)
             ?? container.decodeIfPresent(Bool.self, forKey: .isPinnedSnake)
             ?? container.decodeIfPresent(Bool.self, forKey: .pinned)
+        encryptedTitle = try container.decodeIfPresent(String.self, forKey: .encryptedTitle)
+            ?? container.decodeIfPresent(String.self, forKey: .encryptedTitleSnake)
+        encryptedChatSummary = try container.decodeIfPresent(String.self, forKey: .encryptedChatSummary)
+            ?? container.decodeIfPresent(String.self, forKey: .encryptedChatSummarySnake)
+        encryptedChatKey = try container.decodeIfPresent(String.self, forKey: .encryptedChatKey)
+            ?? container.decodeIfPresent(String.self, forKey: .encryptedChatKeySnake)
     }
 }
 
@@ -264,6 +514,7 @@ private struct WatchChatMessageDTO: Decodable {
     let chatId: String
     let role: WatchChatMessage.Role
     let content: String?
+    let encryptedContent: String?
     let createdAt: String
 
     private enum CodingKeys: String, CodingKey {
@@ -273,6 +524,8 @@ private struct WatchChatMessageDTO: Decodable {
         case chatIdSnake = "chat_id"
         case role
         case content
+        case encryptedContent
+        case encryptedContentSnake = "encrypted_content"
         case createdAt
         case createdAtSnake = "created_at"
     }
@@ -285,33 +538,39 @@ private struct WatchChatMessageDTO: Decodable {
             ?? container.decode(String.self, forKey: .chatIdSnake)
         role = try container.decode(WatchChatMessage.Role.self, forKey: .role)
         content = try container.decodeIfPresent(String.self, forKey: .content)
+        encryptedContent = try container.decodeIfPresent(String.self, forKey: .encryptedContent)
+            ?? container.decodeIfPresent(String.self, forKey: .encryptedContentSnake)
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
             ?? container.decodeIfPresent(String.self, forKey: .createdAtSnake)
             ?? ""
     }
 }
 
-private extension WatchChatSummary {
+private extension WatchRemoteChat {
     init(dto: WatchChatDTO) {
         self.init(
             id: dto.id,
             title: dto.title,
             lastMessageAt: dto.lastMessageAt ?? dto.updatedAt,
-            preview: dto.chatSummary,
-            isPinned: dto.isPinned == true
+            updatedAt: dto.updatedAt,
+            chatSummary: dto.chatSummary,
+            isPinned: dto.isPinned == true,
+            encryptedTitle: dto.encryptedTitle,
+            encryptedChatSummary: dto.encryptedChatSummary,
+            encryptedChatKey: dto.encryptedChatKey
         )
     }
 }
 
-private extension WatchChatMessage {
+private extension WatchRemoteMessage {
     init(dto: WatchChatMessageDTO) {
         self.init(
             id: dto.id,
             chatId: dto.chatId,
             role: dto.role,
             content: dto.content,
+            encryptedContent: dto.encryptedContent,
             createdAt: dto.createdAt,
-            isPending: false
         )
     }
 }

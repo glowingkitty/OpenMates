@@ -15,7 +15,11 @@
 import SwiftUI
 
 struct WatchChatShellView: View {
-    @StateObject private var runtime = WatchChatRuntime()
+    @StateObject private var runtime: WatchChatRuntime
+
+    init(currentUserId: String?) {
+        _runtime = StateObject(wrappedValue: WatchChatRuntime(currentUserId: currentUserId))
+    }
 
     var body: some View {
         TabView(selection: Binding(
