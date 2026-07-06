@@ -1183,9 +1183,9 @@ struct EnhancedPIIDetector: Sendable {
         }
 
         do {
-            guard let matches = try await withModelTimeout {
+            guard let matches = try await withModelTimeout({
                 try await modelDetector.detectedMatches(in: text, options: options)
-            } else {
+            }) else {
                 return EnhancedPIIDetectionResult(matches: regexMatches, mode: .regexFallback(reason: .timeout))
             }
             return EnhancedPIIDetectionResult(matches: matches, mode: .enhanced)
