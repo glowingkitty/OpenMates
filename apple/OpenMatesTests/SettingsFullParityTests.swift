@@ -431,7 +431,7 @@ final class SettingsFullParityTests: XCTestCase {
 private final class MockEnhancedPIIModelDownloader: EnhancedPIIModelDownloading, @unchecked Sendable {
     private(set) var downloadedManifests: [EnhancedPIIModelManifest] = []
 
-    func download(_ manifest: EnhancedPIIModelManifest, progress: (Double) async -> Void) async throws -> URL {
+    func download(_ manifest: EnhancedPIIModelManifest, progress: @MainActor @Sendable (Double) async -> Void) async throws -> URL {
         downloadedManifests.append(manifest)
         await progress(0.25)
         await progress(1.0)
