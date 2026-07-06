@@ -11084,7 +11084,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             </div>
 
                             {#if !$authStore.isAuthenticated && guestInterestSelectorVisible}
-                                <div transition:slide={{ duration: 320 }}>
+                                <div class="guest-interest-tags-wrapper" transition:slide={{ duration: 320 }}>
                                     <GuestInterestTags
                                         shuffleToken={guestInterestShuffleToken}
                                         onSelectionChange={handleGuestInterestSelectionChange}
@@ -12705,6 +12705,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         width: 100%;
     }
 
+    .center-content.guest-welcome-content {
+        /* Keep the guest interest rail tied to the full chat-side container, not
+           to the intrinsic width of the centered welcome copy. */
+        width: 100cqw;
+        max-width: 100cqw;
+    }
+
     .team-profile {
         display: flex;
         flex-direction: column;
@@ -12731,6 +12738,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         font-size: var(--font-size-p);
         font-weight: 600;
         line-height: 1.25;
+    }
+
+    .guest-interest-tags-wrapper {
+        width: 100%;
+        align-self: stretch;
     }
 
     .guest-interest-select-link {
