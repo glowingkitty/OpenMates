@@ -23,6 +23,10 @@ scope:
     - Read-only Project share links for encrypted Project metadata and explicitly selected Project records, using URL-fragment key material and optional password protection matching the existing chat/embed share-link pattern.
     - Two-mode Project write policy for future remote writes: Always ask before writes, or Auto approve safe writes with deterministic high-risk file protections.
     - Code app automated check settings with first-use prompt, supporting isolated E2B checks or remote-machine checks as separate consent from write permission.
+    - Project-scoped Rules area that imports AGENTS.md, CLAUDE.md, .cursor/rules, and similar repository instruction files as AI Instructions, shows them as Rules embeds in the Project browser, and keeps them loaded whenever the Project/folder/source is referenced in chat.
+    - Rules processing that suggests prebuilt deterministic Checks from imported AI Instructions, including protected paths, maximum file line count, forbidden commands, required checks, generated-file guards, secret scans, and approval-required path patterns.
+    - A clear separation between AI Instructions, prebuilt parameterized Checks, and Workflows for custom or multi-step automation, while presenting them together under one Project Rules mental model.
+    - User review before activating checks or workflow suggestions extracted from instruction text; built-in OpenMates safety checks are visible in the same Rules UI as active system checks.
     - Zero-knowledge storage for Project metadata and remote-source metadata in OpenMates backend, with remote search/read executed by the client or CLI bridge.
     - Later-phase architecture placeholders for applying remote patches and running commands without implementing remote-source mutations in V1.
   out:
@@ -32,6 +36,8 @@ scope:
     - Sending raw recursive file trees, entire repositories, or unlimited file contents to the assistant.
     - Server-side decryption of Project metadata, remote-source metadata, preview cache contents, or user file contents.
     - Repo-local cache or `.gitignore` mutation without an explicit user approval step.
+    - Arbitrary user-authored enforcement scripts as Checks in V1; custom enforcement beyond the prebuilt Check registry must be modeled as a Workflow with explicit permissions and sandboxing.
+    - Automatically activating LLM-extracted checks or workflow automations from AGENTS.md, CLAUDE.md, or similar instruction files without user review.
     - Sharing remote-source runtime access, CLI bridge credentials, local/private paths, execution grants, repository remotes, or any permission to search/read/mutate the recipient's or sender's filesystem.
 
 context_discovery:
@@ -127,6 +133,17 @@ clarification:
       answer: Show a visible Read / Read & Write switch on Project, folder, and file mention/access chips. If Project mode is Auto approve safe writes, mentions default to Read & Write except protected files. If Project mode is Always ask before writes, mentions default to Read. The switch should be keyboard accessible, including Tab navigation.
     - question: Should OpenMates prompt for automated code checks after assistant code changes?
       answer: Yes. On first assistant code creation or update in a Project, ask whether to enable automated checks. Choices are Not now, isolated E2B sandbox with no remote-machine performance impact but code disclosure to the sandbox, or remote-machine checks with better privacy but local CPU/disk impact. This setting is separate from write permission.
+    - question: How should Project rules, deterministic enforcement, and workflows fit together?
+      answer: >
+        Use one user-facing Project Rules area with three internal rule kinds: AI
+        Instructions, prebuilt deterministic Checks with editable parameters, and
+        Workflows for anything custom or multi-step. AGENTS.md, CLAUDE.md, and
+        similar files should appear as Rules embeds and be auto-loaded for Project
+        context. OpenMates can use an LLM to extract candidate checks/workflows
+        from those instruction files, but only mapped prebuilt Check templates can
+        become hard enforcement, and the user must review the conversion before
+        activation. Existing built-in OpenMates safety checks should also be
+        visible in this same Rules UI so users have one mental model.
   vision_summary: >
     Projects should become the privacy-preserving workspace boundary for code and
     document context. Attaching a folder or repository should not upload it by
@@ -139,7 +156,9 @@ clarification:
     should keep a simple two-mode Project policy: Always ask before writes or Auto
     approve safe writes. High-risk files still require explicit approval by
     default, and automated code checks are a separate Code app / Project setting
-    rather than an implicit part of read or write access.
+    rather than an implicit part of read or write access. Project Rules unify AI
+    instruction files, deterministic checks, and workflow suggestions in one UI so
+    users do not need to understand internal policy versus workflow boundaries.
   approved_by_user: true
 
 v1_product_model:
@@ -238,6 +257,99 @@ v1_product_model:
         Stores global Code app defaults for lint/test/check behavior after
         assistant-created or assistant-updated code. Project settings can override
         these defaults per Project/source.
+    project_rules:
+      path: Project page > Rules section and Settings > Projects > <project name> > Rules
+      behavior: >
+        Shows imported and user-created Project Rules as embed-like cards and a
+        fullscreen Rules view. The same surface separates AI Instructions, Checks,
+        and linked Workflows without requiring users to know the internal runtime
+        implementation. Project pages show Rules cards next to folders, files,
+        plans, tasks, and other embeds; Project settings expose activation,
+        review, source, and enforcement controls.
+  project_rules:
+    description: >
+      Project Rules are the user-facing reliability layer for Project context.
+      They combine persistent AI instruction documents, deterministic prebuilt
+      checks, and workflow links under one Project-scoped UI. Rules are loaded
+      whenever the user references the Project, folder, or source in chat so the
+      assistant does not lose important instructions during long conversations or
+      compression.
+    user_facing_kinds:
+      - kind: ai_instruction
+        label: AI Instruction
+        behavior: >
+          Text that the assistant should keep in context. Imported AGENTS.md,
+          CLAUDE.md, .cursor/rules, .github/copilot-instructions.md, and
+          user-created Project rule text start here. AI Instructions can be
+          subjective or contextual and do not block actions by themselves.
+      - kind: check
+        label: Check
+        behavior: >
+          A prebuilt deterministic rule with editable parameters. Checks answer
+          whether a proposed action is allowed, blocked, warning-only, or requires
+          approval. Checks never depend on an LLM judgment at enforcement time.
+      - kind: workflow
+        label: Workflow
+        behavior: >
+          A linked workflow handles multi-step, scheduled, event-triggered, or
+          custom automation such as running commands, creating reports, notifying
+          users, or escalating failed checks.
+    imported_sources:
+      auto_detect:
+        - AGENTS.md
+        - CLAUDE.md
+        - .cursor/rules/**
+        - .github/copilot-instructions.md
+        - .openmates/rules.md
+      behavior: >
+        Detected files appear as Rules cards in the Project browser and open in
+        the fullscreen Rules view. Repo-backed Projects may offer to create or
+        sync user-created rules to AGENTS.md or .openmates/rules.md, but writing
+        those files follows the Project write policy and remains a later-phase
+        remote mutation until patch apply is implemented.
+    extraction_pipeline:
+      - step: import_instruction
+        behavior: The original instruction file is stored/rendered as an AI Instruction Rules embed.
+      - step: propose_structured_items
+        behavior: An LLM may identify candidate Checks or Workflow suggestions and link each candidate back to the source text span.
+      - step: template_match
+        behavior: Only candidates that map to the prebuilt Check registry can become deterministic Checks.
+      - step: user_review
+        behavior: User sees proposed Checks and Workflow suggestions before activation, with safe built-in checks shown as already active system defaults.
+      - step: activate
+        behavior: Activated Checks enforce according to their effect; Workflow suggestions become draft workflows or links only after explicit user confirmation.
+    check_registry_v1:
+      - id: protected_paths
+        parameters: paths, effect
+        example: "Never edit .env files -> paths: [.env, .env.*], effect: require_approval"
+      - id: max_file_lines
+        parameters: paths, max_lines, effect
+        example: "Keep files under 500 lines -> max_lines: 500"
+      - id: forbidden_commands
+        parameters: commands, preferred_commands, effect
+        example: "Never run local Playwright -> commands: [npx playwright], preferred_commands: [python3 scripts/tests.py run --spec]"
+      - id: required_checks
+        parameters: changed_paths, commands, runner, consent_mode
+        example: "After backend edits, run pytest -> changed_paths: [backend/**/*.py], commands: [python -m pytest ...]"
+      - id: generated_file_guard
+        parameters: generated_paths, source_paths, effect
+        example: "Do not edit generated files unless source files changed"
+      - id: secret_scan_required
+        parameters: paths, scanner, effect
+        example: "Scan proposed diffs for secret-like strings before approval"
+      - id: approval_required_paths
+        parameters: paths, reason, effect
+        example: "Ask before changing auth, billing, privacy, or security paths"
+    unsupported_or_ai_only_examples:
+      - "Prefer simple solutions"
+      - "Make the UI feel premium"
+      - "Preserve architectural intent"
+      - "Ask a clarifying question when the user's intent is ambiguous"
+    visibility:
+      - Imported Rules cards show source file, last processed time, active extracted item count, and whether review is needed.
+      - Fullscreen Rules view shows the original text, extracted AI Instructions, active Checks, draft Workflow suggestions, and unsupported AI-only instructions.
+      - Each Check shows source line/span, template id, parameters, effect, status, and a human-readable explanation of how it is enforced.
+      - Advanced users can edit Check parameters, but V1 does not expose arbitrary Python/JavaScript enforcement code editing.
   write_permission_modes:
     always_ask:
       label: Always ask before writes
@@ -471,6 +583,13 @@ contracts:
       behavior: >
         Shows global automated-check defaults and first-use prompt behavior for
         assistant code creation or updates.
+    - surface: Project page > Rules
+      behavior: >
+        Shows AGENTS.md, CLAUDE.md, .cursor/rules, and user-created instruction
+        files as Rules cards in the Project browser. Opening a card shows the
+        original AI Instruction text plus extracted Checks and Workflow
+        suggestions, with review/activation controls for anything not already a
+        built-in OpenMates safety default.
   assistant_context:
     - name: project_map
       behavior: Bounded structure and ranking context for a Project or folder mention.
@@ -482,6 +601,8 @@ contracts:
       behavior: Normal encrypted OpenMates embed created only after explicit Upload to OpenMates for selected files.
     - name: remote_diff_virtual_artifact
       behavior: Non-mutating unified diff proposal for an existing remote file, stored inside the encrypted assistant message, rendered like an embed preview/fullscreen diff, and never applied to the remote filesystem in V1.
+    - name: project_rules_context
+      behavior: Active AI Instructions and summaries of active Checks/Workflow links for the referenced Project/folder/source, bounded and loaded into assistant context whenever that Project context is granted.
   privacy_security:
     - Backend stores remote-source metadata, preview metadata, and Project item metadata only as encrypted blobs or opaque hashes.
     - Raw private paths, file contents, git remotes, environment variable values, and ignored file contents are not logged or sent to the LLM by default.
@@ -490,6 +611,8 @@ contracts:
     - Project grants are scoped by Project/source/item, access kind, chat or turn duration, caps, and privacy mode.
     - Repo-local permission config may add restrictions and suggestions but cannot silently grant write permission, command execution, or weaken user/global settings.
     - Automated E2B checks for private Project code require explicit first-use or Project-level consent because relevant code/config leaves the user's machine.
+    - LLM-extracted Checks and Workflow suggestions from instruction files require user review before activation and cannot weaken built-in OpenMates safety checks.
+    - Prebuilt Checks may add restrictions, warnings, approvals, or required verification, but arbitrary user-authored scripts are not executed as Checks in V1.
 
 scenarios:
   - id: S-1
@@ -659,6 +782,23 @@ scenarios:
       - Remote-source runtime access is excluded: Bob cannot use Alice's CLI bridge, local paths, repository remotes, source grants, search/read permissions, write permissions, check commands, tokens, or connected-device credentials.
       - Existing chat and embed share links continue to work without format changes.
 
+  - id: S-14
+    title: Project rules import instructions and activate reviewed checks
+    given:
+      - Alice attaches a repository source that contains AGENTS.md and CLAUDE.md.
+      - AGENTS.md says "Never edit .env files", "Keep files under 500 lines", "Run backend tests after backend changes", and "Prefer simple solutions".
+    when:
+      - OpenMates scans the source metadata and opens the Project Rules section.
+      - OpenMates processes the imported instruction files.
+    then:
+      - AGENTS.md and CLAUDE.md appear as Rules cards in the Project browser and open in the fullscreen Rules view.
+      - The full original instruction text remains available as AI Instructions and is loaded when Alice references the Project, folder, or source in chat.
+      - OpenMates suggests a protected_paths Check for .env files and a max_file_lines Check with limit 500, each linked back to the original text.
+      - OpenMates suggests a Workflow or required_checks draft for running backend tests after backend changes, depending on whether the action can be represented by the prebuilt Checks registry.
+      - The instruction "Prefer simple solutions" remains AI-only because it cannot be enforced deterministically.
+      - Alice must review and activate suggested Checks or Workflow drafts before they enforce or run.
+      - Built-in OpenMates safety checks, such as high-risk file protection and secret-like file handling, are visible in the same Rules UI as active system checks.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -699,6 +839,9 @@ acceptance_criteria:
   - id: AC-13
     scenario: S-13
     text: Project sharing wraps existing Project/task/plan/embed keys with URL-fragment key material for read-only selected encrypted Project data and never shares remote-source runtime access, new durable record keys, durable share wrappers, or server-readable raw keys.
+  - id: AC-14
+    scenario: S-14
+    text: Project Rules import AGENTS.md, CLAUDE.md, and similar files as AI Instructions, propose only prebuilt parameterized Checks or Workflow drafts from enforceable text, require user review before activation, and show built-in OpenMates safety checks in the same Rules UI.
 
 tests:
   - id: T-UNIT-CLI-REMOTE-SOURCES
@@ -710,11 +853,13 @@ tests:
       - AC-6
       - AC-7
       - AC-11
+      - AC-14
     assertions:
       - remote-access source attachment stores local source metadata and default cache path without uploading files
       - bridge search shells out to an injectable rg runner with approved root and cap enforcement
       - ignored, secret-like, binary, and out-of-root paths are excluded by default
       - high-risk files and user-defined protected paths are classified as always-ask before later-phase apply
+      - imported instruction text can be mapped only to known Check templates before enforcement
       - source IDs are path-safe before cache directories are created
       - missing source roots and corrupt local source metadata fail visibly
       - rg no-match exit code returns an empty search result instead of a bridge failure
@@ -852,6 +997,7 @@ tests:
       - AC-9
       - AC-11
       - AC-13
+      - AC-14
     assertions:
       - project source routes require auth and Project edit access
       - source and preview metadata size caps are enforced
@@ -861,6 +1007,8 @@ tests:
       - Project settings reject unsupported write modes and unsafe permission weakening requests
       - high-risk file policy marks built-in and user-defined patterns as always-ask by default
       - Project share bundle creation rejects plaintext paths, source runtime grants, connected-device credentials, and server-readable raw keys
+      - imported Project instruction files create AI Instruction rule records and suggested Checks/Workflow drafts without auto-activating them
+      - unsupported subjective instructions remain AI-only and do not become deterministic Checks
     red_phase:
       required: true
       expected: fail
@@ -892,6 +1040,7 @@ tests:
       - AC-10
       - AC-12
       - AC-13
+      - AC-14
     assertions:
       - Projects UI shows attached remote source status and virtual remote previews
       - selected remote files can be uploaded while unselected files remain virtual
@@ -903,6 +1052,7 @@ tests:
       - remote diff virtual artifacts render in embed-like preview/fullscreen UI without applying the patch or creating Project rows
       - automated checks first-use prompt offers Not now, isolated cloud sandbox, and remote machine choices
       - Project share link opens selected encrypted Project records read-only without exposing remote-source runtime access
+      - Rules section shows imported AGENTS.md/CLAUDE.md cards, extracted Check suggestions, AI-only instructions, and built-in OpenMates safety checks
     red_phase:
       required: true
       expected: fail
@@ -1014,9 +1164,12 @@ implementation_plan:
   data_flow:
     - User starts CLI bridge and attaches source to Project.
     - CLI indexes bounded source metadata and writes local cache under the default remote cache path.
+    - CLI or client detects Project instruction files such as AGENTS.md and CLAUDE.md and surfaces them as Rules source candidates.
     - Client stores encrypted Project source metadata through Projects API.
+    - Project Rules processing imports instruction files as AI Instructions, proposes prebuilt Checks or Workflow drafts, and waits for user review before activation.
     - Projects UI requests virtual previews from the bridge and renders them with existing embed preview components.
     - Chat composer serializes Project/folder/file mentions and sends encrypted/cleartext approved context payloads according to privacy mode.
+    - When Project context is granted, active AI Instructions plus compact active Check/Workflow summaries are included in assistant context for that Project/folder/source.
     - Backend parser recognizes project mention tokens and `AskSkillRequest` carries Project context references to main processor.
     - Main processor uses Project map/search/read context only within grant scopes and caps.
     - When asked to edit an existing remote file, assistant emits a unified diff that is serialized into the encrypted assistant message as a virtual artifact instead of a real embed mutation or Project row.
@@ -1034,6 +1187,8 @@ implementation_plan:
       reason: Directus helpers for source, preview, and settings records.
     - path: backend/shared/python_utils/project_file_risk.py
       reason: Deterministic high-risk file/path classification shared by backend and tests.
+    - path: backend/shared/python_utils/project_rules.py
+      reason: Future shared Project Rules Check template matching and validation.
     - path: backend/core/api/app/utils/override_parser.py
       reason: Project/folder/file mention parsing.
     - path: backend/core/api/app/schemas/ai_skill_schemas.py
@@ -1045,9 +1200,11 @@ implementation_plan:
     - path: frontend/packages/ui/src/services/projectService.ts
       reason: Remote source, virtual preview, upload-selected, Project settings, and grant workflows.
     - path: frontend/packages/ui/src/components/projects/ProjectsPage.svelte
-      reason: Remote source browsing, settings gear quick link, and upload-selected UI.
+      reason: Remote source browsing, Rules cards, settings gear quick link, and upload-selected UI.
     - path: frontend/packages/ui/src/components/projects/ProjectBrowserItem.svelte
-      reason: Virtual remote preview states.
+      reason: Virtual remote preview states and Rules card rendering.
+    - path: frontend/packages/ui/src/components/projects/ProjectRulesFullscreen.svelte
+      reason: Future fullscreen Rules view showing AI Instructions, Checks, Workflow drafts, source spans, and activation state.
     - path: frontend/packages/ui/src/components/settings/projects/**
       reason: Project-specific permission, protected path, remote source, and automated check settings.
     - path: frontend/packages/ui/src/components/settings/privacy/**
@@ -1070,6 +1227,8 @@ implementation_plan:
       reason: remote-access commands.
     - path: frontend/packages/openmates-cli/src/projectFileRisk.ts
       reason: CLI-side high-risk file/path classification and allowed-check-command enforcement.
+    - path: frontend/packages/openmates-cli/src/projectRules.ts
+      reason: Future CLI-side instruction-file discovery and Check template suggestion helpers.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/projects-remote-sources/spec.yml
     - cd frontend/packages/openmates-cli && npm run test:unit:remote-access
@@ -1242,6 +1401,30 @@ tasks:
       - backend/apps/ai/processing/main_processor.py
     verification:
       - T-UNIT-PROJECT-SERVICE
+      - T-PYTEST-PROJECT-SOURCES
+      - T-E2E-PROJECT-REMOTE-SOURCES
+    independently_deployable: false
+  - id: TASK-5
+    title: Add Project Rules instructions and prebuilt Checks slice
+    covers:
+      scenarios:
+        - S-14
+        - S-11
+        - S-12
+      acceptance_criteria:
+        - AC-14
+        - AC-11
+        - AC-12
+    expected_files:
+      - backend/shared/python_utils/project_rules.py
+      - backend/tests/test_project_remote_sources.py
+      - frontend/packages/openmates-cli/src/projectRules.ts
+      - frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+      - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
+      - frontend/packages/ui/src/components/projects/ProjectRulesFullscreen.svelte
+      - frontend/apps/web_app/tests/projects-remote-sources.spec.ts
+    verification:
+      - T-UNIT-CLI-REMOTE-SOURCES
       - T-PYTEST-PROJECT-SOURCES
       - T-E2E-PROJECT-REMOTE-SOURCES
     independently_deployable: false
