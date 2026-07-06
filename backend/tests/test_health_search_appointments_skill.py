@@ -50,6 +50,7 @@ def test_motive_category_filter_handles_negation_and_overbroad_speech_hours() ->
     assert _matches_motive_category("Schnarchsprechstunde", "general") is False
     assert _matches_motive_category("Behandlung von Kopfschmerzen/ Schwindel", "general") is False
     assert _matches_motive_category("Beratung Knie-OP (mit existierendem MRT)", "general") is False
+    assert _matches_motive_category("OP Beratung und Aufklärung bei Kniebeschwerden", "general") is False
     assert _matches_motive_category("Eingewachsener Zehennagel / Nagelbettentzündung - Erstuntersuchung", "general") is False
     assert _matches_motive_category("Krebsvorsorge, bekannter Patient", "checkup") is False
     assert _matches_motive_category("Nackentransparenz-Messung mit Erst-Trimester-Screening", "checkup") is False
