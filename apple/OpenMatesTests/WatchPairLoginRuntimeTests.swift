@@ -7,6 +7,7 @@
 import XCTest
 @testable import OpenMates
 
+@MainActor
 final class WatchPairLoginRuntimeTests: XCTestCase {
     func testNormalizedPINUppercasesFiltersAndTruncatesToSixCharacters() {
         XCTAssertEqual(PairLoginRuntime.normalizedPIN(" ab-cd 12 xyz "), "ABCD12")
