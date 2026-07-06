@@ -59,6 +59,10 @@ sys.path.insert(0, '/app/backend')
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.shared.python_utils.chat_version_integrity import (
+    assess_chat_version_integrity,
+    repair_chat_version_fields,
+)
 
 
 # Shared inspection utilities — replaces duplicated helpers
@@ -227,10 +231,18 @@ def build_version_consistency_check(
 
     issues: List[str] = []
 
-    if directus_messages_v is not None and directus_messages_v != actual_message_count:
-        issues.append(
-            f"Directus messages_v ({directus_messages_v}) != actual message count ({actual_message_count})"
+    directus_integrity = None
+    if directus_messages_v is not None:
+        directus_integrity = assess_chat_version_integrity(
+            chat_id=str(chat_metadata.get('id', 'unknown') if chat_metadata else 'unknown'),
+            stored_messages_v=directus_messages_v,
+            durable_message_count=actual_message_count,
         )
+        if directus_integrity.is_mismatch:
+            issues.append(
+                f"Directus messages_v ({directus_messages_v}) != actual message count "
+                f"({actual_message_count}): {directus_integrity.reason}"
+            )
 
     if cache_messages_v is not None and cache_messages_v != actual_message_count:
         issues.append(
@@ -247,6 +259,7 @@ def build_version_consistency_check(
         'actual_message_count': actual_message_count,
         'directus_messages_v': directus_messages_v,
         'cache_messages_v': cache_messages_v,
+        'directus_integrity_reason': directus_integrity.reason if directus_integrity else None,
         'issues': issues,
         'is_consistent': len(issues) == 0,
     }
@@ -1652,6 +1665,11 @@ async def main():
         action='store_true',
         help='When used with --production, hit the dev API instead of prod'
     )
+    parser.add_argument(
+        '--repair-messages-v',
+        action='store_true',
+        help='Local-only explicit repair: align chats.messages_v to durable chat_messages row count'
+    )
     
     args = parser.parse_args()
     
@@ -1675,6 +1693,13 @@ async def main():
         # --no-cache is meaningless in production mode (we can't access prod Redis directly,
         # but the API returns cache info for us). Just ignore silently.
         pass
+
+    if is_remote and args.repair_messages_v:
+        print(
+            "Error: --repair-messages-v is local-only. Run inside the target environment after inspecting the chat.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     
     script_logger.info(f"Inspecting chat: {args.chat_id}")
     
@@ -1844,6 +1869,22 @@ async def main():
                 args.chat_id, 
                 limit=args.messages_limit + 100 if not args.json else 10000
             )
+
+            if args.repair_messages_v and chat_metadata:
+                integrity_issue = assess_chat_version_integrity(
+                    chat_id=args.chat_id,
+                    stored_messages_v=chat_metadata.get('messages_v'),
+                    durable_message_count=len(messages),
+                )
+                repair_fields = repair_chat_version_fields(integrity_issue, allow_repair=True)
+                if repair_fields:
+                    await directus_service.update_item("chats", args.chat_id, repair_fields)
+                    chat_metadata.update(repair_fields)
+                    script_logger.warning(
+                        "Repaired chat messages_v metadata for %s to durable row count %s",
+                        args.chat_id[:8],
+                        repair_fields["messages_v"],
+                    )
             
             # 3. Fetch embeds
             embeds = await get_chat_embeds(

@@ -156,6 +156,9 @@ struct ChatStreamingLifecycleState: Equatable {
 
 @MainActor
 final class ChatViewModel: ObservableObject {
+    private static let encryptedUserStorageRetryLimit = 3
+    private static let encryptedUserStorageRetryDelayMilliseconds = 200
+
     struct ChatOpeningMetrics: Equatable {
         var initialMessagesReceived = 0
         var initialMessagesDecrypted = 0
@@ -1107,14 +1110,39 @@ final class ChatViewModel: ObservableObject {
     private func sendEncryptedUserStorageIfPossible(
         chatId: String,
         assistantMessageId: String,
-        metadata: StreamingClient.ChatMetadata
+        metadata: StreamingClient.ChatMetadata,
+        retryAttempt: Int = 0
     ) async {
         guard !IncognitoChatSession.isIncognitoChatId(chatId) else { return }
-        guard chat?.id == chatId else { return }
+        guard chat?.id == chatId else {
+            await retryEncryptedUserStorageIfNeeded(
+                chatId: chatId,
+                assistantMessageId: assistantMessageId,
+                metadata: metadata,
+                retryAttempt: retryAttempt
+            )
+            return
+        }
         let userMessageId = metadata.userMessageId ?? userMessageIdByAssistantMessageId[assistantMessageId]
         guard let userMessageId,
-              let userMessage = pendingUserMessagesById[userMessageId] ?? allMessages.first(where: { $0.id == userMessageId }),
-              let currentChat = chat else { return }
+              let currentChat = chat else {
+            await retryEncryptedUserStorageIfNeeded(
+                chatId: chatId,
+                assistantMessageId: assistantMessageId,
+                metadata: metadata,
+                retryAttempt: retryAttempt
+            )
+            return
+        }
+        guard let userMessage = pendingUserMessagesById[userMessageId] ?? allMessages.first(where: { $0.id == userMessageId }) else {
+            await retryEncryptedUserStorageIfNeeded(
+                chatId: chatId,
+                assistantMessageId: assistantMessageId,
+                metadata: metadata,
+                retryAttempt: retryAttempt
+            )
+            return
+        }
         do {
             let updatedChat = try await sendPipeline.sendEncryptedUserStoragePackage(
                 chat: currentChat,
@@ -1128,6 +1156,29 @@ final class ChatViewModel: ObservableObject {
         } catch {
             self.error = error.localizedDescription
         }
+    }
+
+    private func retryEncryptedUserStorageIfNeeded(
+        chatId: String,
+        assistantMessageId: String,
+        metadata: StreamingClient.ChatMetadata,
+        retryAttempt: Int
+    ) async {
+        guard retryAttempt < Self.encryptedUserStorageRetryLimit else {
+            NativeDiagnostics.warning(
+                "Encrypted user storage retry exhausted for chat/message prefix",
+                category: "chat_sync"
+            )
+            return
+        }
+        try? await Task.sleep(for: .milliseconds(Self.encryptedUserStorageRetryDelayMilliseconds))
+        guard !Task.isCancelled else { return }
+        await sendEncryptedUserStorageIfPossible(
+            chatId: chatId,
+            assistantMessageId: assistantMessageId,
+            metadata: metadata,
+            retryAttempt: retryAttempt + 1
+        )
     }
 
     private func persistCompletedAssistantMessage(_ message: Message, userMessageId: String?) async {

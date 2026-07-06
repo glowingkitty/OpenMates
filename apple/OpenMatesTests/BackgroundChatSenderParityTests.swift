@@ -92,8 +92,8 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         XCTAssertTrue(result.piiMappings.contains { $0.original == openAIKey && $0.type == "OPENAI_KEY" })
     }
 
-    func testQueuedBackgroundEventDoesNotTriggerEncryptedStoragePackage() {
-        XCTAssertFalse(
+    func testQueuedBackgroundEventTriggersEncryptedStoragePackage() {
+        XCTAssertTrue(
             BackgroundChatStorageContract.shouldSendEncryptedStoragePackage(afterInboundEventType: "message_queued")
         )
         XCTAssertTrue(
@@ -102,6 +102,23 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         XCTAssertTrue(
             BackgroundChatStorageContract.shouldSendEncryptedStoragePackage(afterInboundEventType: "ai_task_initiated")
         )
+    }
+
+    func testNewAuthenticatedBackgroundChatIdIsLowercaseUUID() {
+        let chatId = BackgroundChatID.makeAuthenticatedChatId()
+
+        XCTAssertEqual(chatId, chatId.lowercased())
+        XCTAssertNotNil(UUID(uuidString: chatId))
+    }
+
+    func testQueuedStorageAcceptsBackendActiveTaskId() {
+        let taskId = BackgroundChatStorageContract.storageTaskId(
+            taskId: nil,
+            aiTaskId: nil,
+            activeTaskId: "active-task-1"
+        )
+
+        XCTAssertEqual(taskId, "active-task-1")
     }
 
     func testBackgroundAttachmentClassificationMatchesComposerSupportedTypes() {

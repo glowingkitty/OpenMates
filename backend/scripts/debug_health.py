@@ -729,6 +729,7 @@ async def check_chat_health(
         from backend.core.api.app.services.directus.directus import DirectusService
         from backend.core.api.app.services.cache import CacheService
         from backend.core.api.app.utils.secrets_manager import SecretsManager
+        from backend.shared.python_utils.chat_version_integrity import assess_chat_version_integrity
 
         secrets = SecretsManager()
         await secrets.initialize()
@@ -755,8 +756,15 @@ async def check_chat_health(
         msg_count = len(msgs) if msgs else 0
         stored_v = chat.get('messages_v', 0)
         print(f"\n  Messages: {msg_count} (messages_v={stored_v})")
-        if msg_count != stored_v:
-            issues.append(f"messages_v mismatch: stored={stored_v}, actual={msg_count}")
+        version_integrity = assess_chat_version_integrity(
+            chat_id=chat_id,
+            stored_messages_v=stored_v,
+            durable_message_count=msg_count,
+        )
+        if version_integrity.is_mismatch:
+            issues.append(
+                f"messages_v mismatch: stored={stored_v}, actual={msg_count}, reason={version_integrity.reason}"
+            )
 
         # Embeds
         embeds = await directus.get_items("embeds", filters={"chat": {"_eq": chat_id}}, fields=["id", "status", "app_id", "skill_id"])

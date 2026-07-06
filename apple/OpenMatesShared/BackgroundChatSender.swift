@@ -91,8 +91,22 @@ struct BackgroundPIIRedactionResult: Equatable, Sendable {
 }
 
 enum BackgroundChatStorageContract {
-    static func shouldSendEncryptedStoragePackage(afterInboundEventType eventType: String) -> Bool {
-        eventType != "message_queued"
+    static func shouldSendEncryptedStoragePackage(afterInboundEventType _: String) -> Bool {
+        true
+    }
+
+    static func storageTaskId(taskId: String?, aiTaskId: String?, activeTaskId: String?) -> String? {
+        taskId ?? aiTaskId ?? activeTaskId
+    }
+}
+
+enum BackgroundChatID {
+    static func makeAuthenticatedChatId() -> String {
+        UUID().uuidString.lowercased()
+    }
+
+    static func makeMessageId(chatId: String) -> String {
+        "\(chatId.suffix(10))-\(UUID().uuidString.lowercased())"
     }
 }
 
@@ -771,8 +785,8 @@ actor BackgroundChatSender {
         let auth = try await currentAuthenticatedUser()
         let now = Date()
         let createdAtUnix = Int(now.timeIntervalSince1970)
-        let chatId = request.destination?.id ?? UUID().uuidString
-        let messageId = "\(chatId.suffix(10))-\(UUID().uuidString)"
+        let chatId = request.destination?.id ?? BackgroundChatID.makeAuthenticatedChatId()
+        let messageId = BackgroundChatID.makeMessageId(chatId: chatId)
         let keyMaterial = try await ensureChatKey(
             chatId: chatId,
             encryptedChatKey: request.destination?.encryptedChatKey,
@@ -952,8 +966,21 @@ actor BackgroundChatSender {
                 if candidate.userMessageId == nil || candidate.userMessageId == userMessageId {
                     metadata = candidate
                 }
-            case "message_queued" where !BackgroundChatStorageContract.shouldSendEncryptedStoragePackage(afterInboundEventType: inbound.type):
-                return nil
+            case "message_queued":
+                guard BackgroundChatStorageContract.shouldSendEncryptedStoragePackage(afterInboundEventType: inbound.type),
+                      inbound.stringField("chat_id") == chatId else {
+                    continue
+                }
+                if let queuedUserMessageId = inbound.stringField("user_message_id"), queuedUserMessageId != userMessageId {
+                    continue
+                }
+                if let queuedTaskId = BackgroundChatStorageContract.storageTaskId(
+                    taskId: inbound.stringField("task_id"),
+                    aiTaskId: inbound.stringField("ai_task_id"),
+                    activeTaskId: inbound.stringField("active_task_id")
+                ) {
+                    return (queuedTaskId, metadata ?? ChatMetadata.empty(userMessageId: userMessageId))
+                }
             default:
                 break
             }
