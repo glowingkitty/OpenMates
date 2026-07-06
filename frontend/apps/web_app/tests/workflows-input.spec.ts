@@ -116,6 +116,7 @@ test.describe('Workflows input home', () => {
 
 			await page.goto(getE2EDebugUrl('/workflows'), { waitUntil: 'domcontentloaded' });
 			await expect(page.getByTestId('workflow-input-composer')).toBeVisible();
+			await expect(page.getByTestId('workflow-input-textarea')).toBeEnabled({ timeout: 30000 });
 
 			const createInputResponse = page.waitForResponse(
 				(response) => response.url().includes('/v1/workflows/input') && response.request().method() === 'POST' && response.ok(),
