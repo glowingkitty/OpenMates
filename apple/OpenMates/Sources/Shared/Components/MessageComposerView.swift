@@ -99,7 +99,6 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("action-buttons")
             }
-            .accessibilityIdentifier("message-field")
         }
         .frame(maxWidth: maxWidth ?? .infinity)
         .accessibilityElement(children: .contain)

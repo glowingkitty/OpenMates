@@ -79,6 +79,14 @@ struct OMMessageInputField<ActionButtons: View>: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(Color.clear)
+                .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
+                .accessibilityElement()
+                .accessibilityLabel(AppStrings.chatMessageInput)
+                .accessibilityHint(accessibilityHint)
+                .accessibilityIdentifier("message-field")
+
             TextField("", text: $text, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.omP)
