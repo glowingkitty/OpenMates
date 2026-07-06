@@ -146,7 +146,9 @@
 
   async function selectWorkflow(workflowId: string) {
     routeError = null;
+    const sameWorkflowAlreadySelected = $workflowWorkspaceStore.selectedWorkflowId === workflowId;
     const workflow = await workflowWorkspaceStore.selectWorkflow(workflowId);
+    if (sameWorkflowAlreadySelected && editorDirty) return;
     selectedRunContentRetention = workflow.run_content_retention ?? 'last_5';
     resetEditor(workflow);
   }
