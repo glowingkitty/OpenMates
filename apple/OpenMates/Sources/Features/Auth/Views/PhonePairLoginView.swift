@@ -13,7 +13,6 @@
 // ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
-import CryptoKit
 import CoreImage.CIFilterBuiltins
 
 #if os(iOS)
@@ -22,20 +21,12 @@ import UIKit
 import AppKit
 #endif
 
-enum PhonePairLoginStatus: Equatable {
-    case generating
-    case waiting
-    case ready
-    case expired
-    case failed
-}
-
 @MainActor
 final class PhonePairLoginState: ObservableObject {
     @Published var token: String?
     @Published var pairURLString: String?
     @Published var qrImage: Image?
-    @Published var status: PhonePairLoginStatus = .generating
+    @Published var status: PairLoginStatus = .generating
     @Published var pin = ""
     @Published var errorMessage: String?
     @Published var isSubmitting = false
@@ -253,18 +244,12 @@ struct PhonePairLoginView: View {
         pairState.reset()
 
         do {
-            let response: PairInitiateResponse = try await APIClient.shared.request(
-                .post,
-                path: "/v1/auth/pair/initiate",
-                body: PairInitiateRequest(deviceHint: officialAppDeviceHint)
-            )
-            let upperToken = response.token.uppercased()
-            pairState.token = upperToken
-            let pairURL = await buildPairURL(token: upperToken)
-            pairState.pairURLString = pairURL
-            pairState.qrImage = generateQRCode(from: pairURL)
+            let initiation = try await PairLoginRuntime.initiate()
+            pairState.token = initiation.token
+            pairState.pairURLString = initiation.pairURLString
+            pairState.qrImage = generateQRCode(from: initiation.pairURLString)
             pairState.status = .waiting
-            startPolling(token: upperToken)
+            startPolling(token: initiation.token)
         } catch {
             pairState.errorMessage = error.localizedDescription
             pairState.status = .failed
@@ -279,10 +264,7 @@ struct PhonePairLoginView: View {
                 if Task.isCancelled { return }
 
                 do {
-                    let response: PairPollResponse = try await APIClient.shared.request(
-                        .get,
-                        path: "/v1/auth/pair/poll/\(token)"
-                    )
+                    let response = try await PairLoginRuntime.poll(token: token)
 
                     await MainActor.run {
                         if response.status == "ready" {
@@ -311,12 +293,7 @@ struct PhonePairLoginView: View {
     }
 
     private func sanitizeAndSubmitPin(_ rawValue: String) {
-        let sanitized = String(
-            rawValue
-                .uppercased()
-                .filter { $0.isLetter || $0.isNumber }
-                .prefix(6)
-        )
+        let sanitized = PairLoginRuntime.normalizedPIN(rawValue)
         if sanitized != rawValue {
             pairState.pin = sanitized
             return
@@ -337,35 +314,10 @@ struct PhonePairLoginView: View {
 
         Task {
             do {
-                let completeResponse: PairCompleteResponse = try await APIClient.shared.request(
-                    .post,
-                    path: "/v1/auth/pair/complete/\(token)",
-                    body: PairCompleteRequest(pin: pairState.pin)
-                )
-
-                guard completeResponse.success else {
-                    handlePairCompleteFailure(completeResponse.message)
-                    return
-                }
-
-                let (bundle, masterKey) = try await decryptLoginBundle(from: completeResponse, token: token, pin: pairState.pin)
-                let loginResponse: LoginResponse = try await APIClient.shared.request(
-                    .post,
-                    path: "/v1/auth/login",
-                    body: LoginRequest(
-                        hashedEmail: bundle.hashedEmail,
-                        lookupHash: bundle.lookupHash,
-                        loginMethod: "pair",
-                        tfaCode: nil,
-                        codeType: nil,
-                        emailEncryptionKey: nil,
-                        stayLoggedIn: stayLoggedIn,
-                        sessionId: AuthManager.nativeSessionId,
-                        deviceInfo: AuthManager.makeNativeDeviceInfo()
-                    )
-                )
-
-                try await authManager.completePairLogin(response: loginResponse, masterKey: masterKey)
+                let result = try await PairLoginRuntime.complete(token: token, pin: pairState.pin, stayLoggedIn: stayLoggedIn)
+                try await authManager.completePairLogin(response: result.loginResponse, masterKey: result.masterKey)
+            } catch PairLoginRuntimeError.completeFailed(let kind) {
+                handlePairCompleteFailure(kind)
             } catch {
                 pairState.errorMessage = error.localizedDescription
                 pairState.isSubmitting = false
@@ -373,77 +325,28 @@ struct PhonePairLoginView: View {
         }
     }
 
-    private func handlePairCompleteFailure(_ message: String?) {
+    private func handlePairCompleteFailure(_ kind: PairLoginCompleteFailureKind) {
         pairState.isSubmitting = false
         pairState.pin = ""
 
-        if message == "too_many_attempts" {
+        if kind == .tooManyAttempts {
             pairState.errorMessage = AppStrings.pairPinLocked
             pairState.status = .expired
             return
         }
 
-        if let message, message.hasPrefix("invalid_pin:") {
-            let attempts = message.split(separator: ":").last.map(String.init) ?? "0"
+        if case .invalidPIN(let attempts) = kind {
             pairState.errorMessage = AppStrings.pairPinError(attempts: attempts)
             return
         }
 
-        if message == "expired" {
+        if kind == .expired {
             pairState.status = .expired
             pairState.errorMessage = AppStrings.pairExpired
             return
         }
 
         pairState.errorMessage = AppStrings.loginFailed
-    }
-
-    private func decryptLoginBundle(
-        from response: PairCompleteResponse,
-        token: String,
-        pin: String
-    ) async throws -> (PairLoginBundle, SymmetricKey) {
-        guard let encryptedBundle = response.encryptedBundle,
-              let iv = response.iv,
-              let encryptedData = Data(base64Encoded: encryptedBundle),
-              let ivData = Data(base64Encoded: iv) else {
-            throw AuthError.missingAuthData
-        }
-
-        let pairKey = await CryptoManager.shared.derivePairLoginKey(pin: pin, token: token)
-        let plaintext = try await CryptoManager.shared.decryptAESGCM(
-            ciphertext: encryptedData,
-            iv: ivData,
-            key: pairKey
-        )
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let bundle = try decoder.decode(PairLoginBundle.self, from: plaintext)
-        guard let masterKeyData = Data(base64Encoded: bundle.masterKeyExported) else {
-            throw AuthError.missingAuthData
-        }
-        return (bundle, SymmetricKey(data: masterKeyData))
-    }
-
-    private func buildPairURL(token: String) async -> String {
-        let webURL = await APIClient.shared.webAppURL
-        if let scheme = webURL.scheme, let host = webURL.host {
-            return "\(scheme)://\(host)/#pair=\(token)"
-        }
-        return "\(webURL.absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/#pair=\(token)"
-    }
-
-    private var officialAppDeviceHint: String {
-        #if os(iOS)
-        if UIDevice.current.userInterfaceIdiom == .pad {
-            return "OpenMates iPadOS app"
-        }
-        return "OpenMates iOS app"
-        #elseif os(macOS)
-        return "OpenMates macOS app"
-        #else
-        return "OpenMates Apple app"
-        #endif
     }
 
     private func generateQRCode(from string: String) -> Image? {

@@ -22,6 +22,25 @@
 		C0FFEE000000000000047024 /* GradientTokens.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8091075B043B717B7D8BC5A8 /* GradientTokens.generated.swift */; };
 		C0FFEE000000000000047010 /* SpacingTokens.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB325B83486580D9A5294F46 /* SpacingTokens.generated.swift */; };
 		C0FFEE000000000000047012 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3FF87BFEDD0901768A27407A /* Assets.xcassets */; };
+		C0FFEE000000000000048002 /* AuthError.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048001 /* AuthError.swift */; };
+		C0FFEE000000000000048003 /* AuthError.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048001 /* AuthError.swift */; };
+		C0FFEE000000000000048004 /* AuthError.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048001 /* AuthError.swift */; };
+		C0FFEE000000000000048006 /* PairLoginRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048005 /* PairLoginRuntime.swift */; };
+		C0FFEE000000000000048007 /* PairLoginRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048005 /* PairLoginRuntime.swift */; };
+		C0FFEE000000000000048008 /* PairLoginRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048005 /* PairLoginRuntime.swift */; };
+		C0FFEE000000000000048010 /* WatchLocalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048009 /* WatchLocalization.swift */; };
+		C0FFEE000000000000048012 /* WatchAuthStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048011 /* WatchAuthStore.swift */; };
+		C0FFEE000000000000048014 /* WatchPairLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048013 /* WatchPairLoginView.swift */; };
+		C0FFEE000000000000048015 /* TypographyTokens.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D07F28FC45DED704707F83E /* TypographyTokens.generated.swift */; };
+		C0FFEE000000000000048016 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF7ECFDB350FFF2DF2E494E9 /* APIClient.swift */; };
+		C0FFEE000000000000048017 /* ServerConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41D2695F0FC7E6379A31DF9F /* ServerConfiguration.swift */; };
+		C0FFEE000000000000048018 /* AuthModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7F8B81401F93E43A5A56A9 /* AuthModels.swift */; };
+		C0FFEE000000000000048019 /* CryptoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13ABD68DF91C20D76F75ABD8 /* CryptoManager.swift */; };
+		C0FFEE000000000000048020 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2010DA119E370FEB468BB19E /* KeychainHelper.swift */; };
+		C0FFEE000000000000048021 /* OpenMatesSharedEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED01D930F18663BA0D38F028 /* OpenMatesSharedEnvironment.swift */; };
+		C0FFEE000000000000048022 /* i18n in Resources */ = {isa = PBXBuildFile; fileRef = 2B48B4BA9CC01C1F47E89D75 /* i18n */; };
+		C0FFEE000000000000048024 /* WatchPairLoginRuntimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000048023 /* WatchPairLoginRuntimeTests.swift */; };
+		C0FFEE000000000000048025 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = 82F8B920FCEFE49C520D05ED /* Fonts */; };
 		FDD100000000000000000002 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDD100000000000000000001 /* BrandAssets.xcassets */; };
 		FDD100000000000000000003 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDD100000000000000000001 /* BrandAssets.xcassets */; };
 		04B767719514CAB080FEB1CB /* LucideIcons in Frameworks */ = {isa = PBXBuildFile; productRef = 8FC7D47DA7AECCBB2EBDABE9 /* LucideIcons */; };
@@ -589,9 +608,15 @@
 /* Begin PBXFileReference section */
 		C0FFEE000000000000047001 /* OpenMatesWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenMatesWatchApp.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000047003 /* WatchRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchRootView.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000048009 /* WatchLocalization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLocalization.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000048011 /* WatchAuthStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchAuthStore.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000048013 /* WatchPairLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPairLoginView.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000047013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C0FFEE000000000000047014 /* OpenMatesWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenMatesWatch.entitlements; sourceTree = "<group>"; };
 		C0FFEE000000000000047015 /* OpenMatesWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenMatesWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0FFEE000000000000048001 /* AuthError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthError.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000048005 /* PairLoginRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairLoginRuntime.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000048023 /* WatchPairLoginRuntimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPairLoginRuntimeTests.swift; sourceTree = "<group>"; };
 		0227C2E4CCA424320275BF24 /* EmbedContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedContentView.swift; sourceTree = "<group>"; };
 		03D3A7D2378D0282470FB1BD /* AccessibilityModifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityModifiers.swift; sourceTree = "<group>"; };
 		03F6A73487EB67E6734E689D /* EmbedGrouping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedGrouping.swift; sourceTree = "<group>"; };
@@ -1159,6 +1184,7 @@
 			isa = PBXGroup;
 			children = (
 				E0EF7DDBA6C719D8C80D36CD /* AuthManager.swift */,
+				C0FFEE000000000000048005 /* PairLoginRuntime.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -1350,6 +1376,7 @@
 		C285A6C7CD48C01946345989 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				C0FFEE000000000000048001 /* AuthError.swift */,
 				EB7F8B81401F93E43A5A56A9 /* AuthModels.swift */,
 				D75EAD87B703C54666637C80 /* ChatModels.swift */,
 				EC211406AADF88E0D1BF6F4D /* EmbedModels.swift */,
@@ -1412,6 +1439,9 @@
 			isa = PBXGroup;
 			children = (
 				C0FFEE000000000000047001 /* OpenMatesWatchApp.swift */,
+				C0FFEE000000000000048011 /* WatchAuthStore.swift */,
+				C0FFEE000000000000048009 /* WatchLocalization.swift */,
+				C0FFEE000000000000048013 /* WatchPairLoginView.swift */,
 				C0FFEE000000000000047003 /* WatchRootView.swift */,
 			);
 			path = Sources;
@@ -1421,6 +1451,7 @@
 			isa = PBXGroup;
 			children = (
 				C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */,
+				C0FFEE000000000000048023 /* WatchPairLoginRuntimeTests.swift */,
 				C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */,
 				C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */,
 				C0FFEE000000000000039001 /* BackgroundChatSenderParityTests.swift */,
@@ -1950,6 +1981,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				C0FFEE000000000000047012 /* Assets.xcassets in Resources */,
+				C0FFEE000000000000048025 /* Fonts in Resources */,
+				C0FFEE000000000000048022 /* i18n in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2012,11 +2045,23 @@
 			buildActionMask = 2147483647;
 			files = (
 				C0FFEE000000000000047002 /* OpenMatesWatchApp.swift in Sources */,
+				C0FFEE000000000000048004 /* AuthError.swift in Sources */,
+				C0FFEE000000000000048018 /* AuthModels.swift in Sources */,
+				C0FFEE000000000000048019 /* CryptoManager.swift in Sources */,
+				C0FFEE000000000000048020 /* KeychainHelper.swift in Sources */,
+				C0FFEE000000000000048016 /* APIClient.swift in Sources */,
+				C0FFEE000000000000048017 /* ServerConfiguration.swift in Sources */,
+				C0FFEE000000000000048008 /* PairLoginRuntime.swift in Sources */,
+				C0FFEE000000000000048010 /* WatchLocalization.swift in Sources */,
+				C0FFEE000000000000048012 /* WatchAuthStore.swift in Sources */,
+				C0FFEE000000000000048014 /* WatchPairLoginView.swift in Sources */,
 				C0FFEE000000000000047004 /* WatchRootView.swift in Sources */,
 				C0FFEE000000000000047006 /* DataExtensions.swift in Sources */,
+				C0FFEE000000000000048021 /* OpenMatesSharedEnvironment.swift in Sources */,
 				C0FFEE000000000000047008 /* ColorTokens.generated.swift in Sources */,
 				C0FFEE000000000000047024 /* GradientTokens.generated.swift in Sources */,
 				C0FFEE000000000000047010 /* SpacingTokens.generated.swift in Sources */,
+				C0FFEE000000000000048015 /* TypographyTokens.generated.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2059,8 +2104,10 @@
 				904B5E9DC63A0799F6489909 /* AskOpenMatesIntent.swift in Sources */,
 				AF35A14428770C7ADC84EC38 /* AttachmentPicker.swift in Sources */,
 				8C5E273D1E7E856FF7C2D6F9 /* AuthFlowView.swift in Sources */,
+				C0FFEE000000000000048002 /* AuthError.swift in Sources */,
 				1B1681C4C8C5257667359EC7 /* AuthManager.swift in Sources */,
 				D28496BC291A569EA6AD7667 /* AuthModels.swift in Sources */,
+				C0FFEE000000000000048006 /* PairLoginRuntime.swift in Sources */,
 				31751A097DDB781066268A99 /* BackgroundChatSender.swift in Sources */,
 				EE49D3D4C3BA1DAED058F015 /* BackupCodeView.swift in Sources */,
 				7D8915EDA73C2D4E982A02B6 /* CameraView.swift in Sources */,
@@ -2269,8 +2316,10 @@
 				079E4E6D7181F2A3A9076D00 /* AskOpenMatesIntent.swift in Sources */,
 				E872AF90AD71048157C38163 /* AttachmentPicker.swift in Sources */,
 				563F43A66FA1E96562430CEE /* AuthFlowView.swift in Sources */,
+				C0FFEE000000000000048003 /* AuthError.swift in Sources */,
 				68BB48027B70916FD087A263 /* AuthManager.swift in Sources */,
 				F98B349F4D92BA38E6A386DE /* AuthModels.swift in Sources */,
+				C0FFEE000000000000048007 /* PairLoginRuntime.swift in Sources */,
 				88923DFE92A96AF8D50B9372 /* BackgroundChatSender.swift in Sources */,
 				E628B3A1F3BF0C7F6F112E67 /* BackupCodeView.swift in Sources */,
 				F60B0AD99AE29EEF5D439703 /* CameraView.swift in Sources */,
@@ -2533,6 +2582,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */,
+				C0FFEE000000000000048024 /* WatchPairLoginRuntimeTests.swift in Sources */,
 				C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */,
 				C0FFEE000000000000038002 /* ChatStreamingLifecycleParityTests.swift in Sources */,
 				C0FFEE000000000000039002 /* BackgroundChatSenderParityTests.swift in Sources */,

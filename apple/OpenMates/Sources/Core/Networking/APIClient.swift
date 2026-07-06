@@ -152,7 +152,9 @@ actor APIClient {
     }
 
     private static var platformClientIdentifier: String {
-        #if os(iOS)
+        #if os(watchOS)
+        return "watchos"
+        #elseif os(iOS)
         return "ios"
         #elseif os(macOS)
         return "macos"

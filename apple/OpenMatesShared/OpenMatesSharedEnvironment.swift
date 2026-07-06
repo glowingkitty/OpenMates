@@ -15,6 +15,10 @@ enum OpenMatesSharedEnvironment {
     }
 
     static var cookieStorage: HTTPCookieStorage {
+        #if os(watchOS)
+        HTTPCookieStorage.shared
+        #else
         HTTPCookieStorage.sharedCookieStorage(forGroupContainerIdentifier: appGroupIdentifier)
+        #endif
     }
 }

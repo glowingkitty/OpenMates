@@ -14,6 +14,17 @@
 	<false/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>OpenMates uses the microphone to record voice messages you choose to send in chat.</string>
+	<key>OpenMatesKeychainAccessGroup</key>
+	<string>$(AppIdentifierPrefix)org.openmates.app</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>LexendDeca-Light.ttf</string>
+		<string>LexendDeca-Regular.ttf</string>
+		<string>LexendDeca-Medium.ttf</string>
+		<string>LexendDeca-SemiBold.ttf</string>
+		<string>LexendDeca-Bold.ttf</string>
+		<string>LexendDeca-ExtraBold.ttf</string>
+	</array>
 	<key>WKApplication</key>
 	<true/>
 	<key>WKWatchOnly</key>

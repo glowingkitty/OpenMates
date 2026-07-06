@@ -1,8 +1,7 @@
-// Initial OpenMates Watch root view.
-// This minimal shell proves standalone watchOS target wiring before auth and
-// chat runtime are introduced. It avoids hardcoded user-visible strings and
-// uses generated OpenMates color and spacing tokens from the web token pipeline.
-// Later spec tasks replace this loading shell with pair login and chat routing.
+// OpenMates Watch root view.
+// Owns the top-level auth routing for the standalone watchOS client. Pair login
+// is implemented natively on Watch while later spec slices replace the temporary
+// authenticated loading shell with chat/offline sync surfaces.
 // The view deliberately avoids stock navigation/list chrome.
 
 // ─── Web source ─────────────────────────────────────────────────────
@@ -14,11 +13,37 @@
 import SwiftUI
 
 struct WatchRootView: View {
+    @StateObject private var authStore = WatchAuthStore()
+
     var body: some View {
         ZStack {
             Color.grey100
                 .ignoresSafeArea()
 
+            switch authStore.state {
+            case .initializing:
+                loadingView
+            case .unauthenticated:
+                WatchPairLoginView(authStore: authStore)
+            case .authenticated:
+                VStack(spacing: .spacing3) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(Color.grey0)
+                    Text(WatchStrings.loadingChats)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.grey0.opacity(0.82))
+                        .multilineTextAlignment(.center)
+                }
+                .accessibilityIdentifier("watch-authenticated-loading")
+            }
+        }
+        .task { await authStore.checkSession() }
+        .accessibilityIdentifier("watch-root")
+    }
+
+    private var loadingView: some View {
+        VStack(spacing: .spacing3) {
             Circle()
                 .fill(Color.buttonPrimary)
                 .frame(width: .iconSizeXl, height: .iconSizeXl)
@@ -32,10 +57,8 @@ struct WatchRootView: View {
             ProgressView()
                 .controlSize(.small)
                 .tint(Color.grey0)
-                .offset(y: .spacing24)
                 .accessibilityIdentifier("watch-root-loading-indicator")
         }
-        .accessibilityIdentifier("watch-root")
     }
 }
 

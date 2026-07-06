@@ -146,15 +146,33 @@ targets:
     deploymentTarget: "10.0"
     sources:
       - path: OpenMatesWatch/Sources
+      - path: OpenMates/Sources/Core/Models/AuthError.swift
+      - path: OpenMates/Sources/Core/Models/AuthModels.swift
+      - path: OpenMates/Sources/Core/Crypto/CryptoManager.swift
+      - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
+      - path: OpenMates/Sources/Core/Networking/APIClient.swift
+      - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+      - path: OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
       - path: OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+      - path: OpenMatesShared/OpenMatesSharedEnvironment.swift
       - path: ../frontend/packages/ui/src/tokens/generated/swift/ColorTokens.generated.swift
         name: ColorTokens.generated.swift
       - path: ../frontend/packages/ui/src/tokens/generated/swift/GradientTokens.generated.swift
         name: GradientTokens.generated.swift
       - path: ../frontend/packages/ui/src/tokens/generated/swift/SpacingTokens.generated.swift
         name: SpacingTokens.generated.swift
+      - path: ../frontend/packages/ui/src/tokens/generated/swift/TypographyTokens.generated.swift
+        name: TypographyTokens.generated.swift
     resources:
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
+      - path: OpenMates/Resources/Fonts
+        buildPhase: resources
+        name: Fonts
+        type: folder
+      - path: ../frontend/packages/ui/src/i18n/locales
+        buildPhase: resources
+        name: i18n
+        type: folder
     settings:
       base:
         CODE_SIGN_ENTITLEMENTS: OpenMatesWatch/OpenMatesWatch.entitlements
@@ -164,6 +182,7 @@ targets:
         SDKROOT: watchos
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "4"
+        OpenMatesKeychainAccessGroup: $(AppIdentifierPrefix)org.openmates.app
       configs:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
@@ -186,6 +205,14 @@ targets:
         WKApplication: true
         WKWatchOnly: true
         NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
+        OpenMatesKeychainAccessGroup: $(AppIdentifierPrefix)org.openmates.app
+        UIAppFonts:
+          - LexendDeca-Light.ttf
+          - LexendDeca-Regular.ttf
+          - LexendDeca-Medium.ttf
+          - LexendDeca-SemiBold.ttf
+          - LexendDeca-Bold.ttf
+          - LexendDeca-ExtraBold.ttf
 
   # Share extension — share URLs, text, and images from other apps into OpenMates chats
   OpenMatesShareExtension:
