@@ -11,6 +11,7 @@ from __future__ import annotations
 from backend.apps.health.skills.search_appointments_skill import (
     _cities_match,
     _doctolib_motive_allows_new_patients,
+    _doctolib_motive_matches_requested_insurance,
     _is_private_practice_name,
     _jameda_service_matches_requested_insurance,
     _matches_motive_category,
@@ -69,6 +70,21 @@ def test_doctolib_new_patient_filter_rejects_existing_patient_only_motives() -> 
     assert _doctolib_motive_allows_new_patients({}) is True
     assert _doctolib_motive_allows_new_patients({"allowNewPatients": True}) is True
     assert _doctolib_motive_allows_new_patients({"allowNewPatients": False}) is False
+
+
+def test_doctolib_public_insurance_rejects_explicit_paid_motives() -> None:
+    assert _doctolib_motive_matches_requested_insurance(
+        {"name": "Erstuntersuchung Neupatient:in"},
+        "public",
+    ) is True
+    assert _doctolib_motive_matches_requested_insurance(
+        {"name": "Erstuntersuchung Neupatient:in (49 € zusätzlich)"},
+        "public",
+    ) is False
+    assert _doctolib_motive_matches_requested_insurance(
+        {"name": "Privatsprechstunde"},
+        "public",
+    ) is False
 
 
 def test_public_request_rejects_private_practice_names() -> None:
