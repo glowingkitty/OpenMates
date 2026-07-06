@@ -5171,42 +5171,44 @@ private struct WelcomeComposer: View {
                 expandedMinHeight: isExpanded ? 360 : 112,
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
-                onSubmit: { canSubmit ? onSend() : onOpenAuth() }
-            ) overlayContent: {
-                if isOpen {
-                    Button {
-                        isExpanded.toggle()
-                        isFocused = true
-                    } label: {
-                        Icon(isExpanded ? "minimize" : "fullscreen", size: 20)
-                            .foregroundStyle(LinearGradient.primary)
-                            .frame(width: 30, height: 30)
+                onSubmit: { canSubmit ? onSend() : onOpenAuth() },
+                overlayContent: {
+                    if isOpen {
+                        Button {
+                            isExpanded.toggle()
+                            isFocused = true
+                        } label: {
+                            Icon(isExpanded ? "minimize" : "fullscreen", size: 20)
+                                .foregroundStyle(LinearGradient.primary)
+                                .frame(width: 30, height: 30)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 10)
+                        .padding(.trailing, 15)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                        .accessibilityLabel(isExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen)
+                        .accessibilityIdentifier("message-input-fullscreen-button")
                     }
-                    .buttonStyle(.plain)
-                    .padding(.top, 10)
-                    .padding(.trailing, 15)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                    .accessibilityLabel(isExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen)
-                    .accessibilityIdentifier("message-input-fullscreen-button")
-                }
-            } actionButtons: {
-                HStack(spacing: .spacing5) {
-                    MessageComposerActionIcon(icon: "files", label: AppStrings.attachFiles, identifier: "attach-files-button") {}
-                    MessageComposerActionIcon(icon: "maps", label: AppStrings.shareLocation, identifier: "share-location-button") {}
-                    MessageComposerActionIcon(icon: "whiteboard", label: AppStrings.sketchAction, identifier: "sketch-button") {}
-                    Spacer()
-                    MessageComposerActionIcon(icon: "camera", label: AppStrings.takePhoto, identifier: "take-photo-button") {}
-                    MessageComposerActionIcon(icon: "recordaudio", label: AppStrings.recordAudio, identifier: "record-audio-button") {}
-                    if hasContent {
-                        MessageComposerSendButton(title: canSubmit ? AppStrings.sendAction : AppStrings.signUp) {
-                            canSubmit ? onSend() : onOpenAuth()
+                },
+                actionButtons: {
+                    HStack(spacing: .spacing5) {
+                        MessageComposerActionIcon(icon: "files", label: AppStrings.attachFiles, identifier: "attach-files-button") {}
+                        MessageComposerActionIcon(icon: "maps", label: AppStrings.shareLocation, identifier: "share-location-button") {}
+                        MessageComposerActionIcon(icon: "whiteboard", label: AppStrings.sketchAction, identifier: "sketch-button") {}
+                        Spacer()
+                        MessageComposerActionIcon(icon: "camera", label: AppStrings.takePhoto, identifier: "take-photo-button") {}
+                        MessageComposerActionIcon(icon: "recordaudio", label: AppStrings.recordAudio, identifier: "record-audio-button") {}
+                        if hasContent {
+                            MessageComposerSendButton(title: canSubmit ? AppStrings.sendAction : AppStrings.signUp) {
+                                canSubmit ? onSend() : onOpenAuth()
+                            }
                         }
                     }
+                    .padding(.horizontal, .spacing5)
+                    .padding(.bottom, .spacing4)
+                    .transition(.opacity)
                 }
-                .padding(.horizontal, .spacing5)
-                .padding(.bottom, .spacing4)
-                .transition(.opacity)
-            }
+            )
             if isOpen {
                 Button {
                     isFocused = false
