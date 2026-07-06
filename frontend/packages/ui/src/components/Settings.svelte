@@ -8,6 +8,10 @@ changes to the documentation (to keep the documentation up to date).
 <!-- yaml
 
 -->
+<!--
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/App/MainAppView.swift
+-->
 <script lang="ts" module>
     import { writable, type Writable } from 'svelte/store';
     import { text } from '@repo/ui';
@@ -789,7 +793,6 @@ changes to the documentation (to keep the documentation up to date).
      */
     let resolvedProfileImageBlobUrl = $state<string | null>(null);
     let displayProfileImageUrl = $derived(resolvedProfileImageBlobUrl);
-    let referralCtaCompact = $state(false);
     let showReferralCta = $derived(
         $authStore.isAuthenticated && !$isRestrictedSession && !isSelfHosted && !!$referralStatus?.available
     );
@@ -812,12 +815,6 @@ changes to the documentation (to keep the documentation up to date).
             }
         });
         return () => { cancelled = true; };
-    });
-
-    onMount(() => {
-        setTimeout(() => {
-            referralCtaCompact = true;
-        }, 3000);
     });
 
     // State to track active submenu view
@@ -2719,7 +2716,6 @@ changes to the documentation (to keep the documentation up to date).
                     <button
                         type="button"
                         class="referral-cta"
-                        class:compact={referralCtaCompact}
                         data-testid="referral-cta"
                         aria-label={$text('settings.billing.get_free_credits')}
                         onclick={openReferralSettings}
@@ -3138,6 +3134,18 @@ changes to the documentation (to keep the documentation up to date).
     .referral-cta.compact .referral-cta-text {
         display: none;
         opacity: 0;
+    }
+
+    @media (max-width: 730px) {
+        .referral-cta {
+            max-width: 24px;
+            justify-content: center;
+        }
+
+        .referral-cta .referral-cta-text {
+            display: none;
+            opacity: 0;
+        }
     }
 
     .profile-container-wrapper:has(.profile-container.menu-open) .referral-cta {
