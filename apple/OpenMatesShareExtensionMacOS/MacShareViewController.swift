@@ -15,6 +15,8 @@ final class MacShareViewController: NSViewController {
         static let stackSpacing: CGFloat = 12
         static let buttonHeight: CGFloat = 34
         static let messageHeight: CGFloat = 112
+        static let composerCornerRadius: CGFloat = 24
+        static let composerBorderWidth: CGFloat = 2
         static let tableRowHeight: CGFloat = 42
         static let tableMaxVisibleRows = 5
     }
@@ -159,6 +161,8 @@ final class MacShareViewController: NSViewController {
     private let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
     private let sendButton = NSButton(title: "Send", target: nil, action: nil)
     private let previewLabel = NSTextField(labelWithString: "")
+    private let messageComposerView = NSView()
+    private let messageScrollView = NSScrollView()
     private let messageTextView = NSTextView()
     private let newChatButton = NSButton(title: "New Chat", target: nil, action: nil)
     private let tableView = NSTableView()
@@ -222,14 +226,26 @@ final class MacShareViewController: NSViewController {
         previewLabel.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
         rootStack.addArrangedSubview(previewLabel)
 
-        let messageScrollView = NSScrollView()
+        messageComposerView.identifier = NSUserInterfaceItemIdentifier("message-composer")
+        messageComposerView.translatesAutoresizingMaskIntoConstraints = false
         messageScrollView.hasVerticalScroller = true
-        messageScrollView.borderType = .bezelBorder
+        messageScrollView.borderType = .noBorder
         messageScrollView.documentView = messageTextView
+        messageScrollView.wantsLayer = true
+        messageScrollView.layer?.cornerRadius = Layout.composerCornerRadius
+        messageScrollView.layer?.borderWidth = Layout.composerBorderWidth
+        messageScrollView.layer?.borderColor = NSColor.separatorColor.cgColor
+        messageScrollView.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
+        messageScrollView.identifier = NSUserInterfaceItemIdentifier("message-field")
+        messageScrollView.translatesAutoresizingMaskIntoConstraints = false
         messageTextView.font = .systemFont(ofSize: 15)
         messageTextView.isRichText = false
         messageTextView.allowsUndo = true
-        rootStack.addArrangedSubview(messageScrollView)
+        messageTextView.drawsBackground = false
+        messageTextView.textContainerInset = NSSize(width: 10, height: 12)
+        messageTextView.identifier = NSUserInterfaceItemIdentifier("message-editor")
+        messageComposerView.addSubview(messageScrollView)
+        rootStack.addArrangedSubview(messageComposerView)
 
         newChatButton.target = self
         newChatButton.action = #selector(selectNewChat)
@@ -273,8 +289,12 @@ final class MacShareViewController: NSViewController {
             cancelButton.heightAnchor.constraint(equalToConstant: Layout.buttonHeight),
             sendButton.heightAnchor.constraint(equalToConstant: Layout.buttonHeight),
             previewLabel.widthAnchor.constraint(equalTo: rootStack.widthAnchor),
-            messageScrollView.widthAnchor.constraint(equalTo: rootStack.widthAnchor),
-            messageScrollView.heightAnchor.constraint(equalToConstant: Layout.messageHeight),
+            messageComposerView.widthAnchor.constraint(equalTo: rootStack.widthAnchor),
+            messageComposerView.heightAnchor.constraint(equalToConstant: Layout.messageHeight),
+            messageScrollView.topAnchor.constraint(equalTo: messageComposerView.topAnchor),
+            messageScrollView.leadingAnchor.constraint(equalTo: messageComposerView.leadingAnchor),
+            messageScrollView.trailingAnchor.constraint(equalTo: messageComposerView.trailingAnchor),
+            messageScrollView.bottomAnchor.constraint(equalTo: messageComposerView.bottomAnchor),
             newChatButton.widthAnchor.constraint(equalTo: rootStack.widthAnchor),
             tableScrollView.widthAnchor.constraint(equalTo: rootStack.widthAnchor),
             statusLabel.widthAnchor.constraint(equalTo: rootStack.widthAnchor),
@@ -450,7 +470,7 @@ final class MacShareViewController: NSViewController {
     private func draftDestinationForAttachments() -> BackgroundChatSender.DestinationChat? {
         guard !sharedAttachments.isEmpty, selectedChat == nil else { return selectedChat }
         return BackgroundChatSender.DestinationChat(
-            id: UUID().uuidString,
+            id: UUID().uuidString.lowercased(),
             title: "New Chat",
             lastMessageAt: nil,
             createdAt: ISO8601DateFormatter().string(from: Date()),
@@ -467,7 +487,7 @@ final class MacShareViewController: NSViewController {
 
     private func prepareSharedAttachments(destination: BackgroundChatSender.DestinationChat?) async throws -> [BackgroundPreparedEmbed] {
         guard !sharedAttachments.isEmpty else { return [] }
-        let chatId = destination?.id ?? UUID().uuidString
+        let chatId = destination?.id ?? UUID().uuidString.lowercased()
         var embeds: [BackgroundPreparedEmbed] = []
         for attachment in sharedAttachments {
             let embed = try await sender.prepareAttachment(

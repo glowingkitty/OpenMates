@@ -45,6 +45,8 @@ struct DevPreviewRootView: View {
 #if !os(macOS)
 struct DevQuickCaptureAttachmentPreviewView: View {
     @State private var selectedTab = "chats"
+    @State private var messageText = ""
+    @FocusState private var inputFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing6) {
@@ -82,21 +84,27 @@ struct DevQuickCaptureAttachmentPreviewView: View {
             .foregroundStyle(Color.fontPrimary)
             .accessibilityIdentifier("quick-capture-recent-chats")
 
-            VStack(spacing: .spacing4) {
-                TextField("", text: .constant(""))
-                    .textFieldStyle(.plain)
-                    .accessibilityIdentifier("quick-capture-message-editor")
-                HStack {
-                    Button("Record") {}
-                        .accessibilityIdentifier("quick-capture-record-audio-button")
+            MessageComposerView(
+                text: $messageText,
+                isFocused: $inputFocused,
+                compact: false,
+                placeholder: AppStrings.whatDoYouNeedHelpWith,
+                maxWidth: nil,
+                onSubmit: {}
+            ) {
+                HStack(spacing: .spacing6) {
+                    MessageComposerActionIcon(
+                        icon: "recordaudio",
+                        label: AppStrings.recordAudio,
+                        identifier: "quick-capture-record-audio-button"
+                    ) {}
                     Spacer()
-                    Button("Send") {}
+                    MessageComposerSendButton(title: AppStrings.sendAction) {}
                         .accessibilityIdentifier("quick-capture-send-button")
                 }
+                .padding(.horizontal, .spacing5)
+                .padding(.bottom, .spacing6)
             }
-            .padding(.spacing5)
-            .background(Color.grey10)
-            .clipShape(RoundedRectangle(cornerRadius: 24))
             .accessibilityIdentifier("quick-capture-composer")
 
             Text("Shared fixture.pdf")

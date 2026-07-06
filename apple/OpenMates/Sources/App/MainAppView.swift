@@ -670,7 +670,7 @@ struct MainAppView: View {
 
     private func makeTransientChat(isIncognito: Bool) -> String {
         let now = ChatSendPipeline.isoString(from: Date())
-        let chatId = isIncognito ? IncognitoManager.makeChatId() : UUID().uuidString
+        let chatId = isIncognito ? IncognitoManager.makeChatId() : UUID().uuidString.lowercased()
         let chat = Chat(
             id: chatId,
             title: nil,
@@ -1260,7 +1260,7 @@ struct MainAppView: View {
                         }
                         return chatId
                     } else if isAuthenticated {
-                        let chatId = UUID().uuidString
+                        let chatId = UUID().uuidString.lowercased()
                         let chat = Chat(
                             id: chatId,
                             title: nil,
@@ -5083,7 +5083,7 @@ private struct WelcomeComposer: View {
 
             PIIHighlightStrip(matches: piiMatches, onExclude: onExcludePII)
 
-            OMMessageInputField(
+            MessageComposerView(
                 text: $text,
                 isFocused: $isFocused,
                 compact: !hasContent,
@@ -5092,36 +5092,21 @@ private struct WelcomeComposer: View {
                 compactCornerRadius: 24,
                 showActionButtonsWhenCompact: isOpen,
                 expandedMinHeight: 112,
+                maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 onSubmit: { canSubmit ? onSend() : onOpenAuth() }
             ) {
                 HStack(spacing: .spacing5) {
-                    Icon("files", size: 22)
-                        .foregroundStyle(Color.fontSecondary)
-                    Icon("maps", size: 22)
-                        .foregroundStyle(Color.fontSecondary)
-                    Icon("modify", size: 22)
-                        .foregroundStyle(Color.fontSecondary)
+                    MessageComposerActionIcon(icon: "files", label: AppStrings.attachFiles) {}
+                    MessageComposerActionIcon(icon: "maps", label: AppStrings.shareLocation) {}
+                    MessageComposerActionIcon(icon: "modify", label: AppStrings.sketchAction) {}
                     Spacer()
-                    Icon("take_photo", size: 22)
-                        .foregroundStyle(Color.fontSecondary)
-                    Icon("recordaudio", size: 22)
-                        .foregroundStyle(Color.fontSecondary)
+                    MessageComposerActionIcon(icon: "take_photo", label: AppStrings.takePhoto) {}
+                    MessageComposerActionIcon(icon: "recordaudio", label: AppStrings.recordAudio) {}
                     if hasContent {
-                        Button {
+                        MessageComposerSendButton(title: canSubmit ? AppStrings.sendAction : AppStrings.signUp) {
                             canSubmit ? onSend() : onOpenAuth()
-                        } label: {
-                            Text(canSubmit ? AppStrings.sendAction : AppStrings.signUp)
-                                .font(.omSmall)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(Color.fontButton)
-                                .padding(.horizontal, .spacing8)
-                                .frame(height: 40)
-                                .background(Color.buttonPrimary)
-                                .clipShape(RoundedRectangle(cornerRadius: .radius8))
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("send-button")
                     }
                 }
                 .padding(.horizontal, .spacing5)

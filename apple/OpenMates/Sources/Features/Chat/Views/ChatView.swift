@@ -1053,7 +1053,7 @@ struct ChatView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("new-chat-button")
-        .frame(maxWidth: 1000)
+        .frame(maxWidth: MessageComposerMetric.mainAppMaxWidth)
         .frame(maxWidth: .infinity)
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing3)
@@ -1096,6 +1096,8 @@ struct ChatView: View {
             subChatBroadcastToggle
             inputField(compact: false, placeholder: AppStrings.typeMessage)
         }
+            .frame(maxWidth: MessageComposerMetric.mainAppMaxWidth)
+            .frame(maxWidth: .infinity)
             .padding(.horizontal, .spacing4)
             .padding(.vertical, .spacing3)
             .background(Color.grey0)
@@ -1274,69 +1276,73 @@ struct ChatView: View {
 
     private func inputField(compact: Bool, placeholder: String, expandedMinHeight: CGFloat = 100) -> some View {
         let overlayActive = composerOverlay != nil || isUITestRecordingOverlayForced
+        let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
         return VStack(spacing: .spacing2) {
-            let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
-            PIIWarningBanner(matches: activePIIMatches) {
-                piiExclusions.formUnion(detectedPIIMatches.map(\.id))
-            }
-
-            if enhancedPIIModelController.isDownloadConfigured,
-               enhancedPIIRecommendationStore.shouldRecommend(
-                   regexMatches: activePIIMatches,
-                   modelStatus: enhancedPIIModelController.status
-               ) {
-                EnhancedPIIModelSuggestionBanner(
-                    onDownload: { Task { await enhancedPIIModelController.performPrimaryAction() } },
-                    onDismiss: { enhancedPIIRecommendationStore.dismiss() }
-                )
-            }
-
-            PIIHighlightStrip(matches: activePIIMatches) { match in
-                piiExclusions.insert(match.id)
-            }
-
-            if let chatId = viewModel.chat?.id {
-                UploadProgressBar(uploads: pendingUploads.uploadsForChat(chatId))
-            }
-
-            PendingComposerEmbedsList(embeds: viewModel.pendingComposerEmbeds) { embed in
-                viewModel.removePendingComposerEmbed(id: embed.id)
-            }
-
-            #if DEBUG
-            if shouldShowUITestPendingComposerEmbedFallback {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: .spacing3) {
-                        PendingComposerEmbedPreview(embed: .uiTestFixture) {}
-                    }
-                    .padding(.horizontal, .spacing4)
-                }
-                .padding(.vertical, .spacing2)
-                .accessibilityIdentifier("pending-composer-embed")
-            }
-            #endif
-
-            if let mentionQuery {
-                MentionDropdownView(
-                    query: mentionQuery,
-                    onSelect: insertMention,
-                    onDismiss: { self.mentionQuery = nil }
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, .spacing5)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-            }
-
-            OMMessageInputField(
+            MessageComposerView(
                 text: $messageText,
                 isFocused: $isInputFocused,
                 compact: compact && !overlayActive,
                 placeholder: placeholder,
                 expandedMinHeight: overlayActive ? 400 : expandedMinHeight,
+                maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
-                overlayContent: composerOverlayView(),
                 onSubmit: sendMessage
             ) {
+                PIIWarningBanner(matches: activePIIMatches) {
+                    piiExclusions.formUnion(detectedPIIMatches.map(\.id))
+                }
+
+                if enhancedPIIModelController.isDownloadConfigured,
+                   enhancedPIIRecommendationStore.shouldRecommend(
+                       regexMatches: activePIIMatches,
+                       modelStatus: enhancedPIIModelController.status
+                   ) {
+                    EnhancedPIIModelSuggestionBanner(
+                        onDownload: { Task { await enhancedPIIModelController.performPrimaryAction() } },
+                        onDismiss: { enhancedPIIRecommendationStore.dismiss() }
+                    )
+                }
+
+                PIIHighlightStrip(matches: activePIIMatches) { match in
+                    piiExclusions.insert(match.id)
+                }
+
+                if let chatId = viewModel.chat?.id {
+                    UploadProgressBar(uploads: pendingUploads.uploadsForChat(chatId))
+                }
+
+                PendingComposerEmbedsList(embeds: viewModel.pendingComposerEmbeds) { embed in
+                    viewModel.removePendingComposerEmbed(id: embed.id)
+                }
+
+                #if DEBUG
+                if shouldShowUITestPendingComposerEmbedFallback {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: .spacing3) {
+                            PendingComposerEmbedPreview(embed: .uiTestFixture) {}
+                        }
+                        .padding(.horizontal, .spacing4)
+                    }
+                    .padding(.vertical, .spacing2)
+                    .accessibilityIdentifier("pending-composer-embed")
+                }
+                #endif
+
+                if let mentionQuery {
+                    MentionDropdownView(
+                        query: mentionQuery,
+                        onSelect: insertMention,
+                        onDismiss: { self.mentionQuery = nil }
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, .spacing5)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
+            } overlayContent: {
+                if let overlay = composerOverlayView() {
+                    overlay
+                }
+            } actionButtons: {
                 HStack(spacing: .spacing6) {
                 AttachmentPicker(
                     isPresented: $showAttachmentMenu,
@@ -1404,8 +1410,6 @@ struct ChatView: View {
                 }
                 .padding(.horizontal, .spacing5)
                 .padding(.bottom, .spacing6)
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("action-buttons")
             }
 
             if let queuedMessageText = viewModel.streamingLifecycle.queuedMessageText {
@@ -1431,6 +1435,7 @@ struct ChatView: View {
                     .transition(.opacity)
             }
         }
+        .frame(maxWidth: MessageComposerMetric.mainAppMaxWidth)
     }
 
     private func composerOverlayView() -> AnyView? {

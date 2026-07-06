@@ -13,6 +13,9 @@ final class ShareViewController: UIViewController {
         static let selectedBorderWidth: CGFloat = 1
         static let selectedBackgroundAlpha: CGFloat = 0.12
         static let cellCornerRadius: CGFloat = 10
+        static let composerCornerRadius: CGFloat = 24
+        static let composerBorderWidth: CGFloat = 2
+        static let composerHeight: CGFloat = 116
     }
 
     private var sharedParts: [SharedPart] = []
@@ -30,6 +33,8 @@ final class ShareViewController: UIViewController {
     private let cancelButton = UIButton(type: .system)
     private let sendButton = UIButton(type: .system)
     private let previewLabel = UILabel()
+    private let messageComposerView = UIView()
+    private let messageFieldView = UIView()
     private let messageTextView = UITextView()
     private let newChatButton = UIButton(type: .system)
     private let chatTableView = UITableView(frame: .zero, style: .plain)
@@ -213,14 +218,22 @@ final class ShareViewController: UIViewController {
         previewLabel.backgroundColor = .secondarySystemBackground
         stackView.addArrangedSubview(previewLabel)
 
+        messageComposerView.accessibilityIdentifier = "message-composer"
+        messageFieldView.accessibilityIdentifier = "message-field"
+        messageFieldView.backgroundColor = .secondarySystemBackground
+        messageFieldView.layer.borderColor = UIColor.separator.cgColor
+        messageFieldView.layer.borderWidth = Layout.composerBorderWidth
+        messageFieldView.layer.cornerRadius = Layout.composerCornerRadius
+        messageFieldView.layer.masksToBounds = true
         messageTextView.font = .systemFont(ofSize: 16)
-        messageTextView.accessibilityIdentifier = "share-extension-message-input"
-        messageTextView.layer.borderColor = UIColor.separator.cgColor
-        messageTextView.layer.borderWidth = 1
-        messageTextView.layer.cornerRadius = 12
+        messageTextView.accessibilityIdentifier = "message-editor"
+        messageTextView.backgroundColor = .clear
         messageTextView.textContainerInset = UIEdgeInsets(top: 12, left: 10, bottom: 12, right: 10)
-        messageTextView.heightAnchor.constraint(equalToConstant: 116).isActive = true
-        stackView.addArrangedSubview(messageTextView)
+        messageTextView.translatesAutoresizingMaskIntoConstraints = false
+        messageFieldView.translatesAutoresizingMaskIntoConstraints = false
+        messageFieldView.addSubview(messageTextView)
+        messageComposerView.addSubview(messageFieldView)
+        stackView.addArrangedSubview(messageComposerView)
 
         newChatButton.setTitle("New Chat", for: .normal)
         newChatButton.accessibilityIdentifier = "share-extension-new-chat"
@@ -269,6 +282,16 @@ final class ShareViewController: UIViewController {
             stackView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor, constant: -16),
             stackView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: -20),
             stackView.widthAnchor.constraint(equalTo: scrollView.widthAnchor, constant: -32),
+
+            messageFieldView.topAnchor.constraint(equalTo: messageComposerView.topAnchor),
+            messageFieldView.leadingAnchor.constraint(equalTo: messageComposerView.leadingAnchor),
+            messageFieldView.trailingAnchor.constraint(equalTo: messageComposerView.trailingAnchor),
+            messageFieldView.bottomAnchor.constraint(equalTo: messageComposerView.bottomAnchor),
+            messageFieldView.heightAnchor.constraint(equalToConstant: Layout.composerHeight),
+            messageTextView.topAnchor.constraint(equalTo: messageFieldView.topAnchor),
+            messageTextView.leadingAnchor.constraint(equalTo: messageFieldView.leadingAnchor),
+            messageTextView.trailingAnchor.constraint(equalTo: messageFieldView.trailingAnchor),
+            messageTextView.bottomAnchor.constraint(equalTo: messageFieldView.bottomAnchor),
         ])
 
         sendButton.accessibilityIdentifier = "share-extension-send"
@@ -442,7 +465,7 @@ final class ShareViewController: UIViewController {
     private func draftDestinationForAttachments() -> BackgroundChatSender.DestinationChat? {
         guard !sharedAttachments.isEmpty, selectedChat == nil else { return selectedChat }
         return BackgroundChatSender.DestinationChat(
-            id: UUID().uuidString,
+            id: UUID().uuidString.lowercased(),
             title: "New Chat",
             lastMessageAt: nil,
             createdAt: ISO8601DateFormatter().string(from: Date()),
@@ -459,7 +482,7 @@ final class ShareViewController: UIViewController {
 
     private func prepareSharedAttachments(destination: BackgroundChatSender.DestinationChat?) async throws -> [BackgroundPreparedEmbed] {
         guard !sharedAttachments.isEmpty else { return [] }
-        let chatId = destination?.id ?? UUID().uuidString
+        let chatId = destination?.id ?? UUID().uuidString.lowercased()
         var embeds: [BackgroundPreparedEmbed] = []
         for attachment in sharedAttachments {
             let embed = try await sender.prepareAttachment(

@@ -603,7 +603,7 @@ private final class MacMenuBarQuickCaptureViewModel: ObservableObject {
         if let selectedChat { return selectedChat }
         if let draftDestination { return draftDestination }
         let destination = BackgroundChatSender.DestinationChat(
-            id: UUID().uuidString,
+            id: UUID().uuidString.lowercased(),
             title: AppStrings.newChat,
             lastMessageAt: nil,
             createdAt: ISO8601DateFormatter().string(from: Date()),
@@ -794,69 +794,48 @@ struct MacMenuBarQuickCaptureView: View {
     }
 
     private var composer: some View {
-        VStack(spacing: .spacing4) {
-            TextField("", text: $viewModel.message, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(.omP)
-                .lineLimit(2...5)
-                .focused($inputFocused)
-                .tint(Color.buttonPrimary)
-                .padding(.spacing6)
-                .background(Color.greyBlue)
-                .clipShape(RoundedRectangle(cornerRadius: 18))
-                .overlay(alignment: .topLeading) {
-                    if viewModel.message.isEmpty && !inputFocused {
-                        Text(AppStrings.whatDoYouNeedHelpWith)
-                            .font(.omP)
-                            .foregroundStyle(Color.fontTertiary)
-                            .padding(.spacing6)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .accessibilityIdentifier("quick-capture-message-editor")
-                .onDrop(of: [UTType.fileURL.identifier], isTargeted: nil) { providers in
-                    loadDroppedURLs(from: providers)
-                }
-                .onPasteCommand(of: [UTType.fileURL, UTType.image, UTType.png, UTType.jpeg]) { providers in
-                    loadPastedItems(from: providers)
-                }
-
-            HStack(spacing: .spacing4) {
+        MessageComposerView(
+            text: $viewModel.message,
+            isFocused: $inputFocused,
+            compact: false,
+            placeholder: AppStrings.whatDoYouNeedHelpWith,
+            expandedMinHeight: MessageComposerMetric.expandedMinHeight,
+            maxWidth: nil,
+            accessibilityHint: AppStrings.whatDoYouNeedHelpWith,
+            onSubmit: sendQuickCaptureMessage
+        ) {
+            HStack(spacing: .spacing6) {
                 recordButton
                 Spacer()
-                Button {
-                    Task {
-                        guard await refreshAuthenticatedSessionForQuickCapture() else { return }
-                        viewModel.sendCurrentMessage()
-                    }
-                } label: {
-                    Text(AppStrings.sendAction)
-                        .font(.omSmall.weight(.bold))
-                        .foregroundStyle(Color.fontButton)
-                        .padding(.horizontal, .spacing8)
-                        .padding(.vertical, .spacing4)
-                        .background(LinearGradient.primary)
-                        .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                MessageComposerSendButton(title: AppStrings.sendAction, disabled: !viewModel.canSend) {
+                    sendQuickCaptureMessage()
                 }
-                .buttonStyle(.plain)
-                .disabled(!viewModel.canSend)
-                .opacity(viewModel.canSend ? 1 : 0.55)
                 .accessibilityIdentifier("quick-capture-send-button")
             }
+            .padding(.horizontal, .spacing5)
+            .padding(.bottom, .spacing6)
         }
-        .padding(.spacing5)
-        .background(Color.grey10)
-        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .onDrop(of: [UTType.fileURL.identifier], isTargeted: nil) { providers in
+            loadDroppedURLs(from: providers)
+        }
+        .onPasteCommand(of: [UTType.fileURL, UTType.image, UTType.png, UTType.jpeg]) { providers in
+            loadPastedItems(from: providers)
+        }
         .accessibilityIdentifier("quick-capture-composer")
+    }
+
+    private func sendQuickCaptureMessage() {
+        Task {
+            guard await refreshAuthenticatedSessionForQuickCapture() else { return }
+            viewModel.sendCurrentMessage()
+        }
     }
 
     private var recordButton: some View {
         Button {} label: {
             Icon("recordaudio", size: 22)
-                .foregroundStyle(Color.fontButton)
-                .frame(width: 42, height: 42)
-                .background(recorder.isRecording ? Color.error : Color.buttonPrimary)
-                .clipShape(Circle())
+                .foregroundStyle(recorder.isRecording ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
+                .frame(width: 25, height: 25)
         }
         .buttonStyle(.plain)
         .simultaneousGesture(
