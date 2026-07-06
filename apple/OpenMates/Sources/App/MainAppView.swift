@@ -4582,6 +4582,7 @@ struct NewChatWelcomeView: View {
                     .padding(.bottom, proxy.size.width <= 730 ? 8 : 14)
                 }
             }
+            .frame(maxHeight: .infinity, alignment: .bottom)
             .mask(
                 LinearGradient(
                     stops: [
