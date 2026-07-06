@@ -63,18 +63,16 @@ async function tagRailMetrics(page: any): Promise<{
 	});
 }
 
-async function tagRailEndGap(page: any): Promise<number> {
+async function tagRailSideGaps(page: any): Promise<{ left: number; right: number }> {
 	return page.getByTestId('guest-interest-rail').evaluate((rail: HTMLElement) => {
-		const tags = Array.from(rail.querySelectorAll<HTMLElement>('button[data-testid^="interest-tag-"]'));
-		const lastTag = tags[tags.length - 1];
-		if (!lastTag) return Number.POSITIVE_INFINITY;
-		const previousScrollLeft = rail.scrollLeft;
-		rail.scrollLeft = rail.scrollWidth;
+		const chatContainer = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
 		const railRect = rail.getBoundingClientRect();
-		const lastRect = lastTag.getBoundingClientRect();
-		const endGap = Math.max(0, railRect.right - lastRect.right);
-		rail.scrollLeft = previousScrollLeft;
-		return endGap;
+		const chatRect = chatContainer?.getBoundingClientRect();
+		if (!chatRect) return { left: Number.POSITIVE_INFINITY, right: Number.POSITIVE_INFINITY };
+		return {
+			left: Math.abs(railRect.left - chatRect.left),
+			right: Math.abs(chatRect.right - railRect.right)
+		};
 	});
 }
 
@@ -113,6 +111,7 @@ async function guestIntroOpacity(page: any, testId: string): Promise<number> {
 test.describe('Guest interest smart selection', () => {
 	test('fresh guest welcome uses session-only tags and local smart ranking', async ({ page }: { page: any }) => {
 		test.setTimeout(90000);
+		await page.setViewportSize({ width: 1280, height: 800 });
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
@@ -178,9 +177,12 @@ test.describe('Guest interest smart selection', () => {
 
 		const defaultTagOrder = await interestTagOrder(page);
 		const defaultRailMetrics = await tagRailMetrics(page);
+		const defaultRailSideGaps = await tagRailSideGaps(page);
 		expect(defaultRailMetrics.availableTagCount).toBe(10);
 		expect(defaultRailMetrics.selectedTagCount).toBe(0);
-		expect(await tagRailEndGap(page)).toBeLessThanOrEqual(24);
+		expect(defaultRailSideGaps.left).toBeLessThanOrEqual(24);
+		expect(defaultRailSideGaps.right).toBeLessThanOrEqual(24);
+		expect(await lastTagCenterDeltaAtScrollEnd(page)).toBeLessThanOrEqual(32);
 		expect(defaultTagOrder.slice(0, 10)).toEqual(
 			expect.arrayContaining([
 				'privacy',
@@ -218,9 +220,12 @@ test.describe('Guest interest smart selection', () => {
 		const tagOrder = await interestTagOrder(page);
 		expect(tagOrder.slice(0, 4)).toEqual(SELECTED_INTEREST_TAGS);
 		const selectedRailMetrics = await tagRailMetrics(page);
+		const selectedRailSideGaps = await tagRailSideGaps(page);
 		expect(selectedRailMetrics.availableTagCount).toBe(10);
 		expect(selectedRailMetrics.selectedTagCount).toBe(4);
-		expect(await tagRailEndGap(page)).toBeLessThanOrEqual(24);
+		expect(selectedRailSideGaps.left).toBeLessThanOrEqual(24);
+		expect(selectedRailSideGaps.right).toBeLessThanOrEqual(24);
+		expect(await lastTagCenterDeltaAtScrollEnd(page)).toBeLessThanOrEqual(32);
 		expect(await firstAvailableTagCenterDelta(page)).toBeLessThanOrEqual(32);
 		expect(tagOrder).toEqual(
 			expect.arrayContaining(['privacy', 'run_code', 'build_electronics', 'diy_projects'])

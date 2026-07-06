@@ -1,6 +1,9 @@
 <!--
   GuestInterestTags.svelte — logged-out interest selector for smart welcome ranking.
 
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/App/MainAppView.swift
+
   This component persists guest selections only through topicPreferencesStore,
   which writes to sessionStorage. It emits every selection change so the parent
   can rerank inspirations and suggestion cards without sending interests to the
@@ -196,7 +199,6 @@
     flex-direction: column;
     gap: var(--spacing-2, 8px);
     width: 100%;
-    max-width: 1040px;
     margin: 10px auto 0;
     align-items: center;
     pointer-events: auto;
@@ -215,7 +217,7 @@
     scroll-behavior: smooth;
     overscroll-behavior-x: contain;
     touch-action: pan-x;
-    padding: 8px 12px 12px max(6px, calc(50% - var(--guest-interest-center-offset, 75px)));
+    padding: 8px max(6px, calc(50% - var(--guest-interest-center-offset, 75px))) 12px;
     box-sizing: border-box;
     justify-content: flex-start;
     scrollbar-width: none;
@@ -310,11 +312,5 @@
     text-decoration: none;
     box-shadow: none;
     filter: none;
-  }
-
-  @media (max-width: 700px) {
-    .guest-interest-rail {
-      padding-right: max(6px, calc(50% - var(--guest-interest-center-offset, 75px)));
-    }
   }
 </style>

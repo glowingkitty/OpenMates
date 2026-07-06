@@ -4750,7 +4750,7 @@ private struct GuestInterestTagsView: View {
                 }
 
                 Button(action: onSkip) {
-                    Text(AppStrings.skip)
+                    Text(AppStrings.interestsSkip)
                         .font(.omSmall.weight(.semibold))
                         .foregroundStyle(Color.grey60)
                 }
@@ -4759,7 +4759,7 @@ private struct GuestInterestTagsView: View {
             }
             .frame(minHeight: 40)
         }
-        .frame(maxWidth: 1040)
+        .frame(maxWidth: .infinity)
         .padding(.top, 10)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("guest-interest-tags")

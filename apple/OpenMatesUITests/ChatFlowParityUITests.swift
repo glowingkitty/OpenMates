@@ -24,6 +24,16 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["daily-inspiration-card"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["What are your interests?"].exists)
+        XCTAssertFalse(app.staticTexts["common.skip"].exists)
+
+        let tagRail = app.scrollViews["guest-interest-rail"]
+        XCTAssertTrue(tagRail.waitForExistence(timeout: 5))
+        let appWidth = app.windows.firstMatch.frame.width
+        XCTAssertGreaterThanOrEqual(
+            tagRail.frame.width,
+            appWidth * 0.85,
+            "Guest interest rail should span the available welcome surface instead of using a narrow centered cap"
+        )
 
         XCTAssertTrue(app.buttons["interest-tag-privacy"].waitForExistence(timeout: 5))
         XCTAssertEqual(

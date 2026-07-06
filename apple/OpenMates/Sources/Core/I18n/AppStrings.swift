@@ -167,6 +167,7 @@ enum AppStrings {
     static var interestsActiveTitle: String { L("chat.interests.active_title") }
     static var interestsExploreTitle: String { L("chat.interests.title") }
     static var interestsContinue: String { L("chat.interests.continue") }
+    static var interestsSkip: String { L("chat.interests.skip") }
     static var interestsSelect: String { L("chat.interests.select_interests") }
     static var profilePicture: String { L("settings.account.profile_picture") }
     static var usage: String { L("settings.usage") }
