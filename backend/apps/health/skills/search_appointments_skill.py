@@ -444,6 +444,11 @@ NOISE_MOTIVE_PATTERNS: List[str] = [
     r"ästhetik",
     r"kosmetisch",
     r"bleaching",
+    r"\bcmd\b",
+    r"kiefergelenk",
+    r"dentcoat",
+    r"veneers?",
+    r"zahnextraktion",
     r"professionelle\s+zahnreinigung",  # PZR — dental cleaning, not a medical visit
     r"knie\s*-?\s*op",
     r"\bop\s*-?\s*beratung\b",
@@ -461,7 +466,11 @@ NEGATION_TERMS_PATTERN = re.compile(r"\b(?:nicht|kein|keine|ohne|not|no)\b")
 
 EXISTING_PATIENT_MOTIVE_PATTERN = re.compile(
     r"\b(?:bestandspatient(?:in)?|bekannter\s+patient|bekannte\s+patientin|"
-    r"kontroll|wiedervorstellung|nachsorge)\b"
+    r"wiedervorstellung\w*|nachsorge\w*)\b"
+)
+
+CONTROL_VISIT_MOTIVE_PATTERN = re.compile(
+    r"\bkontroll\w*\b"
 )
 
 PRIVATE_PRACTICE_NAME_PATTERN = re.compile(
@@ -585,6 +594,8 @@ def _matches_motive_category(motive_name: str, category: str) -> bool:
     name_lower = motive_name.lower()
 
     if category != "followup" and EXISTING_PATIENT_MOTIVE_PATTERN.search(name_lower):
+        return False
+    if category == "general" and CONTROL_VISIT_MOTIVE_PATTERN.search(name_lower):
         return False
 
     # Check if it matches the requested category
