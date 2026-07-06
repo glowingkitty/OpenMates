@@ -10,7 +10,8 @@ import pytest
 
 from backend.core.api.app.services.workflow_models import WorkflowRunContentStorage
 from backend.core.api.app.services.workflow_runner import WorkflowRunner
-from backend.core.api.app.services.workflow_service import InMemoryWorkflowRepository, WorkflowService
+from backend.core.api.app.services.workflow_service import InMemoryWorkflowRepository
+from backend.tests.workflow_test_utils import workflow_service
 
 
 class FakeAppSkillAdapter:
@@ -128,7 +129,7 @@ def news_graph() -> dict:
 
 @pytest.mark.asyncio
 async def test_rain_workflow_runs_server_side_and_records_node_history() -> None:
-    service = WorkflowService()
+    service = workflow_service()
     workflow = service.create_workflow("alice", "Daily rain alert", rain_graph(), enabled=True)
     app_adapter = FakeAppSkillAdapter()
     action_adapter = FakeActionAdapter()
@@ -147,7 +148,7 @@ async def test_rain_workflow_runs_server_side_and_records_node_history() -> None
 
 @pytest.mark.asyncio
 async def test_decision_node_records_unmatched_branch_without_silent_failure() -> None:
-    service = WorkflowService()
+    service = workflow_service()
     workflow = service.create_workflow("alice", "Dry day", rain_graph(rain_probability=10), enabled=True)
 
     run = await WorkflowRunner(service, app_skill_adapter=FakeAppSkillAdapter(), action_adapter=FakeActionAdapter()).run_workflow(workflow, "alice", trigger_type="manual")
@@ -159,7 +160,7 @@ async def test_decision_node_records_unmatched_branch_without_silent_failure() -
 
 @pytest.mark.asyncio
 async def test_ai_news_brief_runs_news_action_report_and_notifications() -> None:
-    service = WorkflowService()
+    service = workflow_service()
     workflow = service.create_workflow("alice", "AI news brief", news_graph(), enabled=True)
     app_adapter = FakeAppSkillAdapter()
     action_adapter = FakeActionAdapter()
@@ -179,7 +180,7 @@ async def test_ai_news_brief_runs_news_action_report_and_notifications() -> None
 @pytest.mark.asyncio
 async def test_run_content_rows_store_node_outputs_as_encrypted_blob_refs() -> None:
     repository = InMemoryWorkflowRepository()
-    service = WorkflowService(repository=repository)
+    service = workflow_service(repository=repository)
     workflow = service.create_workflow("alice", "Daily rain alert", rain_graph(), enabled=True)
 
     run = await WorkflowRunner(service, app_skill_adapter=FakeAppSkillAdapter(), action_adapter=FakeActionAdapter()).run_workflow(workflow, "alice", trigger_type="schedule")
@@ -198,7 +199,7 @@ async def test_run_content_rows_store_node_outputs_as_encrypted_blob_refs() -> N
 @pytest.mark.asyncio
 async def test_default_run_content_retention_keeps_latest_five_durable_blobs() -> None:
     repository = InMemoryWorkflowRepository()
-    service = WorkflowService(repository=repository)
+    service = workflow_service(repository=repository)
     workflow = service.create_workflow("alice", "Daily rain alert", rain_graph(), enabled=True)
 
     runner = WorkflowRunner(service, app_skill_adapter=FakeAppSkillAdapter(), action_adapter=FakeActionAdapter())
@@ -217,7 +218,7 @@ async def test_default_run_content_retention_keeps_latest_five_durable_blobs() -
 @pytest.mark.asyncio
 async def test_none_retention_keeps_only_latest_ephemeral_run_content() -> None:
     repository = InMemoryWorkflowRepository()
-    service = WorkflowService(repository=repository)
+    service = workflow_service(repository=repository)
     workflow = service.create_workflow(
         "alice",
         "Daily rain alert",
@@ -245,7 +246,7 @@ async def test_none_retention_keeps_only_latest_ephemeral_run_content() -> None:
 @pytest.mark.asyncio
 async def test_temporary_workflow_remains_after_run_until_cleanup() -> None:
     repository = InMemoryWorkflowRepository()
-    service = WorkflowService(repository=repository)
+    service = workflow_service(repository=repository)
     workflow = service.create_workflow("alice", "Temporary rain", rain_graph(), lifecycle="temporary", enabled=True)
     assert workflow.auto_delete_at is not None
 

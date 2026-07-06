@@ -41,10 +41,12 @@ async def run_workflow_now(
     input_payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     service = get_workflow_service()
-    workflow = service.get_workflow(workflow_id, user_id)
+    vault_key_id = service.resolve_user_vault_key_id(user_id)
+    workflow = await asyncio.to_thread(service.get_workflow, workflow_id, user_id, vault_key_id)
     run = await WorkflowRunner(service).run_workflow(
         workflow,
         user_id,
+        vault_key_id=vault_key_id,
         trigger_type=trigger_type,
         input_payload=input_payload or {},
     )
@@ -55,11 +57,12 @@ def dispatch_workflow_event(user_id: str, event: dict[str, Any]) -> dict[str, An
     service = get_workflow_service()
     matcher = _WORKFLOW_EVENT_SERVICE
     normalized_event = _normalize_event(user_id, event)
+    vault_key_id = service.resolve_user_vault_key_id(user_id)
     matched_workflow_ids: list[str] = []
-    for workflow in service.list_workflows(user_id):
+    for workflow in service.list_workflows(user_id, vault_key_id):
         if not workflow.enabled:
             continue
-        detail = service.get_workflow(workflow.id, user_id)
+        detail = service.get_workflow(workflow.id, user_id, vault_key_id)
         trigger = next((node for node in detail.graph.nodes if node.id == detail.graph.trigger_node_id), None)
         if trigger is None or trigger.type != WorkflowNodeType.EVENT_TRIGGER:
             continue

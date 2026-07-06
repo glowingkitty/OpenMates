@@ -21,10 +21,16 @@ workflow_encrypted_blobs:
       note: "workflow_title, workflow_graph, workflow_run_content, or workflow_run_content_ephemeral."
     ciphertext:
       type: text
-      note: "Encrypted JSON payload."
+      note: "Vault Transit encrypted JSON payload."
     checksum:
       type: string
       note: "SHA256 checksum of plaintext before encryption for integrity checks."
+    vault_key_ref:
+      type: string
+      note: "Vault Transit user key id used to encrypt this payload. Required to decrypt historical workflow versions after key metadata changes."
+    key_version:
+      type: string
+      note: "Vault Transit key version returned during encryption."
     expires_at:
       type: integer
       note: "Nullable Unix timestamp for ephemeral payload expiry."

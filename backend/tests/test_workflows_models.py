@@ -12,15 +12,23 @@ import pytest
 from pydantic import ValidationError
 
 from backend.core.api.app.services.feature_availability_service import FeatureAvailabilityService, FeatureDefinition
-from backend.core.api.app.services.workflow_models import WorkflowGraph, WorkflowLifecycle, WorkflowMissingInputError
+from backend.core.api.app.services.workflow_models import (
+    WorkflowGraph,
+    WorkflowLifecycle,
+    WorkflowMissingInputError,
+    WorkflowTemplateSensitiveFieldError,
+    build_workflow_template_share_payload,
+)
 from backend.core.api.app.services.workflow_service import (
     DirectusWorkflowRepository,
     InMemoryWorkflowRepository,
+    VaultWorkflowPayloadCipher,
     WORKFLOW_PLATFORM_FEATURE,
     WORKFLOW_TEMPORARY_TTL_SECONDS,
     WorkflowFeatureDisabledError,
     WorkflowService,
 )
+from backend.tests.workflow_test_utils import workflow_service
 
 
 class FakeDirectusResponse:
@@ -80,6 +88,26 @@ class FakeDirectusClient:
         return True
 
 
+class FakeVaultEncryptionService:
+    def __init__(self) -> None:
+        self.encrypted: dict[str, tuple[str, str]] = {}
+        self.encrypt_calls: list[tuple[str, str]] = []
+        self.decrypt_calls: list[tuple[str, str]] = []
+
+    async def encrypt_with_user_key(self, plaintext: str, key_id: str) -> tuple[str, str]:
+        ciphertext = f"vault:v1:{len(self.encrypted) + 1}"
+        self.encrypted[ciphertext] = (plaintext, key_id)
+        self.encrypt_calls.append((plaintext, key_id))
+        return ciphertext, "1"
+
+    async def decrypt_with_user_key(self, ciphertext: str, key_id: str) -> str | None:
+        self.decrypt_calls.append((ciphertext, key_id))
+        stored = self.encrypted.get(ciphertext)
+        if stored is None or stored[1] != key_id:
+            return None
+        return stored[0]
+
+
 def rain_graph() -> dict:
     return {
         "version": 1,
@@ -112,8 +140,8 @@ def rain_graph() -> dict:
     }
 
 
-def disabled_workflow_service() -> WorkflowService:
-    return WorkflowService(
+def disabled_workflow_service():
+    return workflow_service(
         feature_availability=FeatureAvailabilityService(
             definitions=[FeatureDefinition(id=WORKFLOW_PLATFORM_FEATURE, kind="platform", default_enabled=False)],
             config={},
@@ -200,7 +228,7 @@ def test_workflow_service_blocks_when_platform_feature_disabled() -> None:
 
 
 def test_workflow_service_enforces_owner_isolation() -> None:
-    service = WorkflowService()
+    service = workflow_service()
     workflow = service.create_workflow("alice", "Rain", rain_graph())
 
     assert service.get_workflow(workflow.id, "alice").id == workflow.id
@@ -210,7 +238,7 @@ def test_workflow_service_enforces_owner_isolation() -> None:
 
 def test_workflow_definition_rows_store_sensitive_content_as_encrypted_blob_refs() -> None:
     repository = InMemoryWorkflowRepository()
-    service = WorkflowService(repository=repository)
+    service = workflow_service(repository=repository)
 
     workflow = service.create_workflow("alice", "Daily rain alert", rain_graph())
     raw_workflow_rows = json.dumps(repository.workflows, sort_keys=True)
@@ -232,7 +260,7 @@ def test_directus_workflow_repository_persists_workflow_records_without_plaintex
     repository = DirectusWorkflowRepository(base_url="http://directus.test", token="test-token")
     fake_client = FakeDirectusClient()
     setattr(repository, "_client", fake_client)
-    service = WorkflowService(repository=repository)
+    service = workflow_service(repository=repository)
 
     workflow = service.create_workflow("alice", "Daily rain alert", rain_graph(), enabled=True)
     loaded = service.get_workflow(workflow.id, "alice")
@@ -247,8 +275,42 @@ def test_directus_workflow_repository_persists_workflow_records_without_plaintex
     assert "Berlin" not in raw_blob_rows
 
 
+def test_workflow_cipher_uses_existing_vault_encryption_service() -> None:
+    repository = InMemoryWorkflowRepository()
+    encryption = FakeVaultEncryptionService()
+    service = WorkflowService(
+        repository=repository,
+        payload_cipher=VaultWorkflowPayloadCipher(encryption),
+    )
+
+    workflow = service.create_workflow("alice", "Daily rain alert", rain_graph(), vault_key_id="vault-key-alice")
+    loaded = service.get_workflow(workflow.id, "alice", vault_key_id="vault-key-alice")
+    raw_workflow_rows = json.dumps(repository.workflows, sort_keys=True)
+    raw_blob_rows = json.dumps(repository.encrypted_blobs, sort_keys=True)
+
+    assert loaded.title == "Daily rain alert"
+    assert encryption.encrypt_calls
+    assert encryption.decrypt_calls
+    assert {call[1] for call in encryption.encrypt_calls} == {"vault-key-alice"}
+    assert "Daily rain alert" not in raw_workflow_rows
+    assert "Berlin" not in raw_workflow_rows
+    assert "Daily rain alert" not in raw_blob_rows
+    assert "Berlin" not in raw_blob_rows
+    assert all(blob["ciphertext"].startswith("vault:v1:") for blob in repository.encrypted_blobs.values())
+
+
+def test_workflow_vault_cipher_fails_closed_without_vault_key_id() -> None:
+    service = WorkflowService(
+        repository=InMemoryWorkflowRepository(),
+        payload_cipher=VaultWorkflowPayloadCipher(FakeVaultEncryptionService()),
+    )
+
+    with pytest.raises(RuntimeError, match="Vault key id"):
+        service.create_workflow("alice", "Daily rain alert", rain_graph())
+
+
 def test_workflow_run_content_retention_defaults_updates_and_rejects_unknown_values() -> None:
-    service = WorkflowService()
+    service = workflow_service()
     workflow = service.create_workflow("alice", "Daily rain alert", rain_graph())
 
     assert workflow.run_content_retention == "last_5"
@@ -263,9 +325,67 @@ def test_graph_completes_without_explicit_end_node() -> None:
     assert {node.id for node in graph.nodes} == {"trigger", "weather", "decision", "notify", "email"}
 
 
+def test_workflow_template_export_excludes_runtime_context_and_imports_disabled() -> None:
+    service = workflow_service()
+    workflow = service.create_workflow(
+        "alice",
+        "Daily rain alert",
+        rain_graph(),
+        enabled=True,
+        source="chat",
+        source_chat_id="chat-1",
+    )
+
+    payload = build_workflow_template_share_payload(workflow)
+    serialized = json.dumps(payload.model_dump(mode="json"), sort_keys=True)
+
+    assert payload.title == "Daily rain alert"
+    assert payload.import_enabled is False
+    assert payload.binding_requirements
+    assert "weather" in payload.required_app_capabilities
+    assert "source_chat_id" not in serialized
+    assert "next_run_at" not in serialized
+    assert "workflow_run" not in serialized
+    assert "connected_account" not in serialized
+    assert "access_token" not in serialized
+
+
+def test_workflow_template_export_excludes_notification_destinations() -> None:
+    graph = rain_graph()
+    graph["nodes"][3]["config"].update({"recipient": "alice@example.com", "channel": "push-device-1"})
+    workflow = workflow_service().create_workflow("alice", "Notify me", graph)
+
+    payload = build_workflow_template_share_payload(workflow)
+    serialized = json.dumps(payload.model_dump(mode="json"), sort_keys=True)
+
+    assert "alice@example.com" not in serialized
+    assert "push-device-1" not in serialized
+    assert "recipient" not in serialized
+    assert "channel" not in serialized
+
+
+def test_workflow_template_export_rejects_sensitive_recursive_keys() -> None:
+    graph = rain_graph()
+    graph["nodes"][1]["config"]["input"]["access_token"] = "secret-token"
+    workflow = workflow_service().create_workflow("alice", "Unsafe", graph)
+
+    with pytest.raises(WorkflowTemplateSensitiveFieldError, match="access_token"):
+        build_workflow_template_share_payload(workflow)
+
+
+@pytest.mark.parametrize("field_name", ["authToken", "bearer_token", "account_id", "connection_id", "provider_user_id"])
+def test_workflow_template_export_rejects_sensitive_key_variants(field_name: str) -> None:
+    graph = rain_graph()
+    graph["nodes"][1]["config"]["input"][field_name] = "private-runtime-value"
+    workflow = workflow_service().create_workflow("alice", "Unsafe", graph)
+
+    with pytest.raises(WorkflowTemplateSensitiveFieldError, match=field_name):
+        build_workflow_template_share_payload(workflow)
+
+
 def test_temporary_workflow_lifecycle_can_be_kept_and_cleaned_up() -> None:
     repository = InMemoryWorkflowRepository()
-    service = WorkflowService(repository=repository)
+    service = workflow_service(repository=repository)
     workflow = service.create_workflow(
         "alice",
         "Temporary rain reminder",
@@ -301,7 +421,7 @@ def test_temporary_workflow_lifecycle_can_be_kept_and_cleaned_up() -> None:
 
 def test_expired_temporary_workflows_are_deleted_by_cleanup_not_by_run() -> None:
     repository = InMemoryWorkflowRepository()
-    service = WorkflowService(repository=repository)
+    service = workflow_service(repository=repository)
     workflow = service.create_workflow(
         "alice",
         "Expired temporary workflow",
@@ -332,7 +452,7 @@ def test_manual_runs_validate_required_start_input_schema() -> None:
             }
         },
     }
-    service = WorkflowService()
+    service = workflow_service()
     workflow = service.create_workflow("alice", "Manual city workflow", graph)
 
     with pytest.raises(WorkflowMissingInputError, match="city"):
@@ -342,7 +462,7 @@ def test_manual_runs_validate_required_start_input_schema() -> None:
 
 
 def test_capabilities_include_safe_v1_app_skills_and_disabled_custom_code() -> None:
-    service = WorkflowService()
+    service = workflow_service()
     capabilities = {item.id: item for item in service.capabilities()}
 
     assert capabilities["weather:forecast"].enabled is True
@@ -351,7 +471,7 @@ def test_capabilities_include_safe_v1_app_skills_and_disabled_custom_code() -> N
 
 
 def test_capabilities_include_owner_scoped_persisted_workflows_only() -> None:
-    service = WorkflowService()
+    service = workflow_service()
     persisted = service.create_workflow("alice", "Weekly AI news", rain_graph())
     service.create_workflow("alice", "Temporary chat workflow", rain_graph(), lifecycle="temporary")
     service.create_workflow("bob", "Bob workflow", rain_graph())

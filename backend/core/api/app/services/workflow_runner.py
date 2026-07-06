@@ -39,7 +39,14 @@ class WorkflowRunner:
         self.app_skill_adapter = app_skill_adapter or WorkflowAppSkillAdapter()
         self.action_adapter = action_adapter or WorkflowActionAdapter()
 
-    async def run_workflow(self, workflow: WorkflowDetail, user_id: str, trigger_type: str = "manual", input_payload: dict[str, Any] | None = None) -> WorkflowRunDetail:
+    async def run_workflow(
+        self,
+        workflow: WorkflowDetail,
+        user_id: str,
+        vault_key_id: str | None = None,
+        trigger_type: str = "manual",
+        input_payload: dict[str, Any] | None = None,
+    ) -> WorkflowRunDetail:
         self.workflow_service.validate_manual_run_input(workflow, input_payload)
         run_id = str(uuid.uuid4())
         started_at = int(time.time())
@@ -76,7 +83,7 @@ class WorkflowRunner:
                     node_runs=node_runs,
                     output_summary=context,
                 )
-                return await run_in_threadpool(self.workflow_service.save_run, user_id, run)
+                return await run_in_threadpool(self.workflow_service.save_run, user_id, run, vault_key_id)
             current_node_id = self._next_node_id(node, node_run.output_summary, outgoing_edges)
 
         run = WorkflowRunDetail(
@@ -90,7 +97,7 @@ class WorkflowRunner:
             node_runs=node_runs,
             output_summary=context,
         )
-        return await run_in_threadpool(self.workflow_service.save_run, user_id, run)
+        return await run_in_threadpool(self.workflow_service.save_run, user_id, run, vault_key_id)
 
     def _next_node_id(self, node: WorkflowNode, output: dict[str, Any], outgoing_edges: dict[str, list[Any]]) -> str | None:
         candidates = outgoing_edges.get(node.id, [])

@@ -9,7 +9,8 @@
 
 from __future__ import annotations
 
-import base64
+import asyncio
+import concurrent.futures
 import hashlib
 import json
 import logging
@@ -17,7 +18,7 @@ import os
 import time
 import uuid
 from copy import deepcopy
-from typing import Any
+from typing import Any, Protocol
 
 import httpx
 
@@ -40,6 +41,7 @@ from backend.core.api.app.services.workflow_models import (
     WorkflowSummary,
     WorkflowValidationError,
 )
+from backend.core.api.app.utils.encryption import EncryptionService
 
 
 WORKFLOW_PLATFORM_FEATURE = "platform:workflows"
@@ -58,19 +60,58 @@ def _stable_json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
-def _encrypt_payload(payload: Any) -> tuple[str, str]:
-    plaintext = _stable_json(payload).encode("utf-8")
-    checksum = "sha256:" + hashlib.sha256(plaintext).hexdigest()
-    key = hashlib.sha256(b"openmates-workflows-dev-vault-v1").digest()
-    ciphertext = bytes(byte ^ key[index % len(key)] for index, byte in enumerate(plaintext))
-    return base64.b64encode(ciphertext).decode("ascii"), checksum
+class WorkflowPayloadCipher(Protocol):
+    requires_vault_key_id: bool
+
+    def encrypt_json(self, payload: Any, vault_key_id: str | None) -> dict[str, str]:
+        """Encrypt a JSON payload and return persisted blob fields."""
+
+    def decrypt_json(self, blob: dict[str, Any], vault_key_id: str | None) -> Any:
+        """Decrypt persisted blob fields into a JSON payload."""
 
 
-def _decrypt_payload(ciphertext: str) -> Any:
-    encrypted = base64.b64decode(ciphertext.encode("ascii"))
-    key = hashlib.sha256(b"openmates-workflows-dev-vault-v1").digest()
-    plaintext = bytes(byte ^ key[index % len(key)] for index, byte in enumerate(encrypted))
-    return json.loads(plaintext.decode("utf-8"))
+class VaultWorkflowPayloadCipher:
+    """Vault Transit backed workflow payload encryption."""
+
+    requires_vault_key_id = True
+
+    def __init__(self, encryption_service: EncryptionService | None = None) -> None:
+        self.encryption_service = encryption_service or EncryptionService()
+
+    def encrypt_json(self, payload: Any, vault_key_id: str | None) -> dict[str, str]:
+        if not vault_key_id:
+            raise RuntimeError("Workflow payload encryption requires a user Vault key id")
+        plaintext = _stable_json(payload)
+        checksum = "sha256:" + hashlib.sha256(plaintext.encode("utf-8")).hexdigest()
+        ciphertext, key_version = _run_async_blocking(self.encryption_service.encrypt_with_user_key(plaintext, vault_key_id))
+        return {
+            "ciphertext": ciphertext,
+            "checksum": checksum,
+            "vault_key_ref": vault_key_id,
+            "key_version": key_version,
+        }
+
+    def decrypt_json(self, blob: dict[str, Any], vault_key_id: str | None) -> Any:
+        key_ref = blob.get("vault_key_ref") or vault_key_id
+        if not key_ref:
+            raise RuntimeError("Workflow payload decryption requires a user Vault key id")
+        plaintext = _run_async_blocking(self.encryption_service.decrypt_with_user_key(blob["ciphertext"], str(key_ref)))
+        if plaintext is None:
+            raise RuntimeError("Vault returned no plaintext for workflow payload")
+        checksum = "sha256:" + hashlib.sha256(plaintext.encode("utf-8")).hexdigest()
+        if blob.get("checksum") and blob["checksum"] != checksum:
+            raise RuntimeError("Workflow payload checksum mismatch")
+        return json.loads(plaintext)
+
+
+def _run_async_blocking(coro: Any) -> Any:
+    """Run an async Vault call from sync workflow service code without reusing event loops."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(coro)).result()
 
 
 class WorkflowNotFoundError(KeyError):
@@ -152,6 +193,10 @@ class InMemoryWorkflowRepository:
 
     def delete_run_record(self, run_id: str) -> None:
         self.runs.pop(run_id, None)
+
+    def get_user_vault_key_id(self, user_id: str) -> str | None:
+        del user_id
+        return None
 
 
 class DirectusWorkflowRepository:
@@ -288,6 +333,8 @@ class DirectusWorkflowRepository:
             "kind": blob["kind"],
             "ciphertext": blob["ciphertext"],
             "checksum": blob["checksum"],
+            "vault_key_ref": blob.get("vault_key_ref"),
+            "key_version": blob.get("key_version"),
             "expires_at": blob.get("expires_at"),
             "created_at": blob["created_at"],
         }
@@ -308,6 +355,8 @@ class DirectusWorkflowRepository:
             "kind": item["kind"],
             "ciphertext": item["ciphertext"],
             "checksum": item["checksum"],
+            "vault_key_ref": item.get("vault_key_ref"),
+            "key_version": item.get("key_version"),
             "expires_at": item.get("expires_at"),
             "created_at": item["created_at"],
         }
@@ -326,6 +375,11 @@ class DirectusWorkflowRepository:
         item = self._find_one(self.RUNS, {"id": {"_eq": run_id}}, fields="id")
         if item:
             self._delete_item(self.RUNS, item["id"])
+
+    def get_user_vault_key_id(self, user_id: str) -> str | None:
+        response = self._request("GET", f"/users/{user_id}", params={"fields": "vault_key_id"})
+        vault_key_id = response.json().get("data", {}).get("vault_key_id")
+        return str(vault_key_id) if vault_key_id else None
 
     def _find_one(self, collection: str, filters: dict[str, Any], fields: str = "*") -> dict[str, Any] | None:
         items = self._get_items(collection, filters, fields=fields, limit=1)
@@ -404,8 +458,10 @@ class WorkflowService:
         self,
         repository: Any | None = None,
         feature_availability: FeatureAvailabilityService | None = None,
+        payload_cipher: WorkflowPayloadCipher | None = None,
     ) -> None:
         self.repository = repository or InMemoryWorkflowRepository()
+        self.payload_cipher = payload_cipher or VaultWorkflowPayloadCipher()
         self.feature_availability = feature_availability or FeatureAvailabilityService(
             definitions=[FeatureDefinition(id=WORKFLOW_PLATFORM_FEATURE, kind="platform", default_enabled=False)],
             config={"feature_overrides": {"enabled": [WORKFLOW_PLATFORM_FEATURE], "disabled": []}},
@@ -415,32 +471,39 @@ class WorkflowService:
         if not self.feature_availability.is_enabled(WORKFLOW_PLATFORM_FEATURE):
             raise WorkflowFeatureDisabledError("FEATURE_DISABLED")
 
-    def list_workflows(self, user_id: str) -> list[WorkflowSummary]:
+    def resolve_user_vault_key_id(self, user_id: str, vault_key_id: str | None = None) -> str | None:
+        """Return the Vault Transit key id required for workflow blob encryption."""
+        return self._vault_key_id_for_user(user_id, vault_key_id)
+
+    def list_workflows(self, user_id: str, vault_key_id: str | None = None) -> list[WorkflowSummary]:
         self.ensure_enabled()
+        vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         records = [
             record
             for record in self.repository.list_workflows(user_id)
             if record.get("lifecycle", WorkflowLifecycle.PERSISTED.value) == WorkflowLifecycle.PERSISTED.value
         ]
         records = sorted(records, key=lambda item: item["updated_at"], reverse=True)
-        return [self._summary_from_record(record) for record in records]
+        return [self._summary_from_record(record, vault_key_id) for record in records]
 
-    def list_temporary_workflows(self, user_id: str) -> list[WorkflowSummary]:
+    def list_temporary_workflows(self, user_id: str, vault_key_id: str | None = None) -> list[WorkflowSummary]:
         self.ensure_enabled()
+        vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         records = [
             record
             for record in self.repository.list_workflows(user_id)
             if record.get("lifecycle") == WorkflowLifecycle.TEMPORARY.value
         ]
         records = sorted(records, key=lambda item: item["updated_at"], reverse=True)
-        return [self._summary_from_record(record) for record in records]
+        return [self._summary_from_record(record, vault_key_id) for record in records]
 
-    def get_workflow(self, workflow_id: str, user_id: str) -> WorkflowDetail:
+    def get_workflow(self, workflow_id: str, user_id: str, vault_key_id: str | None = None) -> WorkflowDetail:
         self.ensure_enabled()
+        vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         record = self.repository.get_workflow(workflow_id, user_id)
         if not record:
             raise WorkflowNotFoundError(workflow_id)
-        return self._detail_from_record(record)
+        return self._detail_from_record(record, vault_key_id)
 
     def create_workflow(
         self,
@@ -454,8 +517,10 @@ class WorkflowService:
         source_chat_id: str | None = None,
         created_by_assistant: bool = False,
         auto_delete_at: int | None = None,
+        vault_key_id: str | None = None,
     ) -> WorkflowDetail:
         self.ensure_enabled()
+        vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph)
         retention = WorkflowRunContentRetention(run_content_retention)
         workflow_lifecycle = WorkflowLifecycle(lifecycle)
@@ -470,9 +535,9 @@ class WorkflowService:
             raise ValueError("auto_delete_at is only valid for temporary workflows")
         workflow_id = str(uuid.uuid4())
         version_id = str(uuid.uuid4())
-        title_blob = self._save_encrypted_blob(user_id, "workflow_title", title)
+        title_blob = self._save_encrypted_blob(user_id, "workflow_title", title, vault_key_id=vault_key_id)
         graph_payload = workflow_graph.model_dump(mode="json", by_alias=True)
-        graph_blob = self._save_encrypted_blob(user_id, "workflow_graph", graph_payload)
+        graph_blob = self._save_encrypted_blob(user_id, "workflow_graph", graph_payload, vault_key_id=vault_key_id)
         record = {
             "id": workflow_id,
             "owner_hash": _hash_owner_id(user_id),
@@ -504,7 +569,7 @@ class WorkflowService:
             "created_at": now,
             "updated_at": now,
         }
-        return self._detail_from_record(self.repository.save_workflow(record))
+        return self._detail_from_record(self.repository.save_workflow(record), vault_key_id)
 
     def update_workflow(
         self,
@@ -515,14 +580,16 @@ class WorkflowService:
         graph: dict[str, Any] | WorkflowGraph | None = None,
         enabled: bool | None = None,
         run_content_retention: WorkflowRunContentRetention | None = None,
+        vault_key_id: str | None = None,
     ) -> WorkflowDetail:
         self.ensure_enabled()
+        vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         record = self.repository.get_workflow(workflow_id, user_id)
         if not record:
             raise WorkflowNotFoundError(workflow_id)
 
         if title is not None:
-            title_blob = self._save_encrypted_blob(user_id, "workflow_title", title)
+            title_blob = self._save_encrypted_blob(user_id, "workflow_title", title, vault_key_id=vault_key_id)
             self.repository.delete_encrypted_blob(record["encrypted_title_ref"])
             record["encrypted_title_ref"] = title_blob["ref"]
             record["encrypted_title_checksum"] = title_blob["checksum"]
@@ -530,7 +597,7 @@ class WorkflowService:
             workflow_graph = graph if isinstance(graph, WorkflowGraph) else WorkflowGraph.model_validate(graph)
             version_id = str(uuid.uuid4())
             graph_payload = workflow_graph.model_dump(mode="json", by_alias=True)
-            graph_blob = self._save_encrypted_blob(user_id, "workflow_graph", graph_payload)
+            graph_blob = self._save_encrypted_blob(user_id, "workflow_graph", graph_payload, vault_key_id=vault_key_id)
             versions = list(record.get("versions") or [])
             versions.append(
                 {
@@ -551,10 +618,11 @@ class WorkflowService:
         if run_content_retention is not None:
             record["run_content_retention"] = WorkflowRunContentRetention(run_content_retention).value
         record["updated_at"] = int(time.time())
-        return self._detail_from_record(self.repository.save_workflow(record))
+        return self._detail_from_record(self.repository.save_workflow(record), vault_key_id)
 
-    def keep_temporary_workflow(self, workflow_id: str, user_id: str) -> WorkflowDetail:
+    def keep_temporary_workflow(self, workflow_id: str, user_id: str, vault_key_id: str | None = None) -> WorkflowDetail:
         self.ensure_enabled()
+        vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         record = self.repository.get_workflow(workflow_id, user_id)
         if not record:
             raise WorkflowNotFoundError(workflow_id)
@@ -565,7 +633,7 @@ class WorkflowService:
         record["auto_delete_at"] = None
         record["kept_at"] = now
         record["updated_at"] = now
-        return self._detail_from_record(self.repository.save_workflow(record))
+        return self._detail_from_record(self.repository.save_workflow(record), vault_key_id)
 
     def cleanup_expired_temporary_workflows(self, user_id: str | None = None, now: int | None = None) -> int:
         self.ensure_enabled()
@@ -607,7 +675,8 @@ class WorkflowService:
         self.repository.save_workflow(record)
         return True
 
-    def save_run(self, user_id: str, run: WorkflowRunDetail) -> WorkflowRunDetail:
+    def save_run(self, user_id: str, run: WorkflowRunDetail, vault_key_id: str | None = None) -> WorkflowRunDetail:
+        vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         workflow = self.repository.get_workflow(run.workflow_id, user_id)
         if not workflow:
             raise WorkflowNotFoundError(run.workflow_id)
@@ -630,6 +699,7 @@ class WorkflowService:
                 "workflow_run_content_ephemeral",
                 run_content,
                 expires_at=now + WORKFLOW_EPHEMERAL_RUN_CONTENT_TTL_SECONDS,
+                vault_key_id=vault_key_id,
             )
             record["content_available"] = True
             record["content_storage"] = WorkflowRunContentStorage.EPHEMERAL.value
@@ -637,7 +707,7 @@ class WorkflowService:
             record["encrypted_content_ref"] = blob["ref"]
             record["encrypted_content_checksum"] = blob["checksum"]
         else:
-            blob = self._save_encrypted_blob(user_id, "workflow_run_content", run_content)
+            blob = self._save_encrypted_blob(user_id, "workflow_run_content", run_content, vault_key_id=vault_key_id)
             record["content_available"] = True
             record["content_storage"] = WorkflowRunContentStorage.DURABLE.value
             record["content_expires_at"] = None
@@ -650,21 +720,23 @@ class WorkflowService:
         workflow["last_run_status"] = run.status.value
         workflow["updated_at"] = now
         self.repository.save_workflow(workflow)
-        return self.get_run(run.workflow_id, run.id, user_id)
+        return self.get_run(run.workflow_id, run.id, user_id, vault_key_id=vault_key_id)
 
-    def list_runs(self, workflow_id: str, user_id: str) -> list[WorkflowRunDetail]:
+    def list_runs(self, workflow_id: str, user_id: str, vault_key_id: str | None = None) -> list[WorkflowRunDetail]:
         self.ensure_enabled()
+        vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         if not self.repository.get_workflow(workflow_id, user_id):
             raise WorkflowNotFoundError(workflow_id)
         records = sorted(self.repository.list_runs(workflow_id, user_id), key=lambda item: item.get("started_at") or 0, reverse=True)
-        return [self._run_detail_from_record(record) for record in records]
+        return [self._run_detail_from_record(record, vault_key_id) for record in records]
 
-    def get_run(self, workflow_id: str, run_id: str, user_id: str) -> WorkflowRunDetail:
+    def get_run(self, workflow_id: str, run_id: str, user_id: str, vault_key_id: str | None = None) -> WorkflowRunDetail:
         self.ensure_enabled()
+        vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
         record = self.repository.get_run(workflow_id, run_id, user_id)
         if not record:
             raise WorkflowNotFoundError(run_id)
-        return self._run_detail_from_record(record)
+        return self._run_detail_from_record(record, vault_key_id)
 
     def validate_manual_run_input(self, workflow: WorkflowDetail, input_payload: dict[str, Any] | None) -> None:
         from backend.core.api.app.services.workflow_models import validate_manual_run_input
@@ -674,7 +746,7 @@ class WorkflowService:
         except WorkflowMissingInputError:
             raise
 
-    def capabilities(self, user_id: str | None = None) -> list[WorkflowCapability]:
+    def capabilities(self, user_id: str | None = None, vault_key_id: str | None = None) -> list[WorkflowCapability]:
         node_capabilities = [
             WorkflowCapability(type="node", id="schedule_trigger", title="Schedule", metadata={"category": "trigger"}),
             WorkflowCapability(type="node", id="manual_trigger", title="Manual run", metadata={"category": "trigger"}),
@@ -694,16 +766,17 @@ class WorkflowService:
         ]
         workflow_capabilities: list[WorkflowCapability] = []
         if user_id is not None:
+            vault_key_id = self._vault_key_id_for_user(user_id, vault_key_id)
             workflow_capabilities = [
                 WorkflowCapability(
                     type="workflow",
                     id=f"workflow:{record['id']}",
-                    title=str(self._load_encrypted_blob(record["encrypted_title_ref"])),
+                    title=str(self._load_encrypted_blob(record["encrypted_title_ref"], vault_key_id)),
                     metadata={
                         "workflow_id": record["id"],
                         "lifecycle": record.get("lifecycle", WorkflowLifecycle.PERSISTED.value),
-                        "trigger_type": record.get("trigger_type") or self._trigger_type_from_record(record),
-                        "requires_input": self._workflow_requires_start_input(record),
+                        "trigger_type": record.get("trigger_type") or self._trigger_type_from_record(record, vault_key_id),
+                        "requires_input": self._workflow_requires_start_input(record, vault_key_id),
                     },
                 )
                 for record in self.repository.list_workflows(user_id)
@@ -711,10 +784,10 @@ class WorkflowService:
             ]
         return node_capabilities + app_skill_capabilities + workflow_capabilities
 
-    def _summary_from_record(self, record: dict[str, Any]) -> WorkflowSummary:
+    def _summary_from_record(self, record: dict[str, Any], vault_key_id: str | None) -> WorkflowSummary:
         return WorkflowSummary(
             id=record["id"],
-            title=str(self._load_encrypted_blob(record["encrypted_title_ref"])),
+            title=str(self._load_encrypted_blob(record["encrypted_title_ref"], vault_key_id)),
             status=WorkflowStatus(record["status"]),
             enabled=bool(record["enabled"]),
             lifecycle=WorkflowLifecycle(record.get("lifecycle", WorkflowLifecycle.PERSISTED.value)),
@@ -732,18 +805,18 @@ class WorkflowService:
             updated_at=record["updated_at"],
         )
 
-    def _detail_from_record(self, record: dict[str, Any]) -> WorkflowDetail:
-        graph_payload = self._load_encrypted_blob(record["encrypted_graph_ref"])
-        return WorkflowDetail(**self._summary_from_record(record).model_dump(), graph=WorkflowGraph.model_validate(graph_payload))
+    def _detail_from_record(self, record: dict[str, Any], vault_key_id: str | None) -> WorkflowDetail:
+        graph_payload = self._load_encrypted_blob(record["encrypted_graph_ref"], vault_key_id)
+        return WorkflowDetail(**self._summary_from_record(record, vault_key_id).model_dump(), graph=WorkflowGraph.model_validate(graph_payload))
 
-    def _run_detail_from_record(self, record: dict[str, Any]) -> WorkflowRunDetail:
+    def _run_detail_from_record(self, record: dict[str, Any], vault_key_id: str | None) -> WorkflowRunDetail:
         hydrated = deepcopy(record)
         hydrated["node_runs"] = []
         hydrated["output_summary"] = {}
         if hydrated.get("content_available") and hydrated.get("encrypted_content_ref"):
             blob = self.repository.get_encrypted_blob(hydrated["encrypted_content_ref"])
             if blob and (blob.get("expires_at") is None or blob["expires_at"] > int(time.time())):
-                content = _decrypt_payload(blob["ciphertext"])
+                content = self.payload_cipher.decrypt_json(blob, vault_key_id)
                 hydrated["node_runs"] = content.get("node_runs") or []
                 hydrated["output_summary"] = content.get("output_summary") or {}
             else:
@@ -753,27 +826,39 @@ class WorkflowService:
                 hydrated["encrypted_content_checksum"] = None
         return WorkflowRunDetail.model_validate(hydrated)
 
-    def _save_encrypted_blob(self, user_id: str, kind: str, payload: Any, expires_at: int | None = None) -> dict[str, Any]:
-        ciphertext, checksum = _encrypt_payload(payload)
+    def _save_encrypted_blob(self, user_id: str, kind: str, payload: Any, expires_at: int | None = None, vault_key_id: str | None = None) -> dict[str, Any]:
+        encrypted = self.payload_cipher.encrypt_json(payload, vault_key_id)
         return self.repository.save_encrypted_blob(
             {
                 "ref": f"vault://workflows/{kind}/{uuid.uuid4()}",
                 "owner_hash": _hash_owner_id(user_id),
                 "kind": kind,
-                "ciphertext": ciphertext,
-                "checksum": checksum,
+                "ciphertext": encrypted["ciphertext"],
+                "checksum": encrypted["checksum"],
+                "vault_key_ref": encrypted.get("vault_key_ref"),
+                "key_version": encrypted.get("key_version"),
                 "expires_at": expires_at,
                 "created_at": int(time.time()),
             }
         )
 
-    def _load_encrypted_blob(self, ref: str) -> Any:
+    def _load_encrypted_blob(self, ref: str, vault_key_id: str | None) -> Any:
         blob = self.repository.get_encrypted_blob(ref)
         if not blob:
             raise WorkflowNotFoundError(ref)
         if blob.get("expires_at") is not None and blob["expires_at"] <= int(time.time()):
             raise WorkflowNotFoundError(ref)
-        return _decrypt_payload(blob["ciphertext"])
+        return self.payload_cipher.decrypt_json(blob, vault_key_id)
+
+    def _vault_key_id_for_user(self, user_id: str, vault_key_id: str | None = None) -> str | None:
+        if not self.payload_cipher.requires_vault_key_id:
+            return vault_key_id
+        resolved = vault_key_id
+        if not resolved and hasattr(self.repository, "get_user_vault_key_id"):
+            resolved = self.repository.get_user_vault_key_id(user_id)
+        if not resolved:
+            raise RuntimeError("Workflow encryption requires the user's Vault key id")
+        return resolved
 
     def _delete_existing_ephemeral_run_content(self, workflow_id: str, user_id: str) -> None:
         for run_record in self.repository.list_runs(workflow_id, user_id):
@@ -814,16 +899,16 @@ class WorkflowService:
             return str(schedule_type)
         return trigger.type.value
 
-    def _trigger_type_from_record(self, record: dict[str, Any]) -> str:
+    def _trigger_type_from_record(self, record: dict[str, Any], vault_key_id: str | None) -> str:
         try:
-            graph = WorkflowGraph.model_validate(self._load_encrypted_blob(record["encrypted_graph_ref"]))
+            graph = WorkflowGraph.model_validate(self._load_encrypted_blob(record["encrypted_graph_ref"], vault_key_id))
             return next(node.type.value for node in graph.nodes if node.id == graph.trigger_node_id)
         except Exception:
             return "unknown"
 
-    def _workflow_requires_start_input(self, record: dict[str, Any]) -> bool:
+    def _workflow_requires_start_input(self, record: dict[str, Any], vault_key_id: str | None) -> bool:
         try:
-            graph = WorkflowGraph.model_validate(self._load_encrypted_blob(record["encrypted_graph_ref"]))
+            graph = WorkflowGraph.model_validate(self._load_encrypted_blob(record["encrypted_graph_ref"], vault_key_id))
             trigger = next(node for node in graph.nodes if node.id == graph.trigger_node_id)
             schema = trigger.config.get("required_start_input_schema") or {}
             return bool(schema.get("required"))

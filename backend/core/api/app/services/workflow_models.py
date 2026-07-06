@@ -105,6 +105,25 @@ DISABLED_FUTURE_NODE_TYPES = {
     WorkflowNodeType.CUSTOM_CODE,
 }
 SUPPORTED_WORKFLOW_APP_SKILLS = {("weather", "forecast"), ("news", "search")}
+FORBIDDEN_WORKFLOW_TEMPLATE_KEYS = {
+    "token",
+    "refreshtoken",
+    "accesstoken",
+    "authtoken",
+    "bearertoken",
+    "secret",
+    "credential",
+    "credentials",
+    "accountid",
+    "connectionid",
+    "connectedaccountid",
+    "provideruserid",
+    "webhooksecret",
+    "apikey",
+    "password",
+    "vault",
+    "runid",
+}
 
 
 class WorkflowValidationError(ValueError):
@@ -113,6 +132,10 @@ class WorkflowValidationError(ValueError):
 
 class WorkflowMissingInputError(ValueError):
     """Raised when a manual workflow run lacks required trigger input."""
+
+
+class WorkflowTemplateSensitiveFieldError(ValueError):
+    """Raised when workflow template export sees runtime-only or secret fields."""
 
 
 class WorkflowEdge(BaseModel):
@@ -221,6 +244,20 @@ class WorkflowCapability(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class WorkflowTemplateSharePayload(BaseModel):
+    template_version: int = 1
+    title: str
+    description: str | None = None
+    trigger_template: dict[str, Any]
+    node_templates: list[dict[str, Any]] = Field(default_factory=list)
+    edge_templates: list[dict[str, Any]] = Field(default_factory=list)
+    variables_schema: dict[str, Any] = Field(default_factory=dict)
+    required_app_capabilities: list[str] = Field(default_factory=list)
+    binding_requirements: list[dict[str, Any]] = Field(default_factory=list)
+    created_at: int
+    import_enabled: bool = False
+
+
 def validate_workflow_graph(graph: WorkflowGraph) -> None:
     node_ids = [node.id for node in graph.nodes]
     if len(node_ids) != len(set(node_ids)):
@@ -251,6 +288,130 @@ def validate_workflow_graph(graph: WorkflowGraph) -> None:
             raise WorkflowValidationError("Workflow edges must reference existing nodes")
         if nodes_by_id[edge.from_node].type == WorkflowNodeType.DECISION and not edge.branch:
             raise WorkflowValidationError("Decision node edges must include a branch label")
+
+
+def build_workflow_template_share_payload(workflow: WorkflowDetail) -> WorkflowTemplateSharePayload:
+    """Build a template-only share payload without runtime grants or run state."""
+    trigger = next(node for node in workflow.graph.nodes if node.id == workflow.graph.trigger_node_id)
+    non_trigger_nodes = [node for node in workflow.graph.nodes if node.id != workflow.graph.trigger_node_id]
+    payload = WorkflowTemplateSharePayload(
+        title=workflow.title,
+        description=None,
+        trigger_template=_template_node(trigger),
+        node_templates=[_template_node(node) for node in non_trigger_nodes],
+        edge_templates=[edge.model_dump(mode="json", by_alias=True) for edge in workflow.graph.edges],
+        variables_schema=_template_variables_schema(workflow.graph.variables),
+        required_app_capabilities=_required_app_capabilities(workflow.graph),
+        binding_requirements=_binding_requirements(workflow.graph),
+        created_at=workflow.created_at,
+        import_enabled=False,
+    )
+    _reject_sensitive_template_keys(payload.model_dump(mode="json"))
+    return payload
+
+
+def _template_node(node: WorkflowNode) -> dict[str, Any]:
+    template: dict[str, Any] = {
+        "id": node.id,
+        "type": node.type.value,
+    }
+    if node.title:
+        template["title"] = node.title
+    config = _template_node_config(node)
+    if config:
+        template["config"] = config
+    if node.input_mapping:
+        template["input_mapping"] = dict(node.input_mapping)
+    return template
+
+
+def _template_node_config(node: WorkflowNode) -> dict[str, Any]:
+    config = node.config
+    if node.type == WorkflowNodeType.SCHEDULE_TRIGGER:
+        return {"schedule": dict(config.get("schedule") or {})}
+    if node.type == WorkflowNodeType.MANUAL_TRIGGER:
+        schema = config.get("required_start_input_schema")
+        return {"required_start_input_schema": schema} if schema is not None else {}
+    if node.type == WorkflowNodeType.EVENT_TRIGGER:
+        event_config = config.get("event") if isinstance(config.get("event"), dict) else config
+        safe_event = {
+            key: event_config[key]
+            for key in ("source", "event_type", "filters", "rate_limit", "rate_limit_seconds")
+            if key in event_config
+        }
+        return {"event": safe_event} if safe_event else {}
+    if node.type == WorkflowNodeType.APP_SKILL_ACTION:
+        safe_config = {
+            "app_id": config.get("app_id"),
+            "skill_id": config.get("skill_id"),
+        }
+        if "input" in config:
+            safe_config["input"] = config["input"]
+        return safe_config
+    if node.type == WorkflowNodeType.DECISION:
+        return {"predicate": config.get("predicate")}
+    if node.type == WorkflowNodeType.REPEAT:
+        return {
+            key: config.get(key)
+            for key in ("max_iterations", "max_duration_seconds", "max_credits", "per_iteration_timeout_seconds")
+            if key in config
+        }
+    if node.type in {WorkflowNodeType.CREATE_CHAT_REPORT, WorkflowNodeType.START_NEW_CHAT}:
+        return {key: config[key] for key in ("title", "prompt", "template", "initial_message") if key in config}
+    if node.type in {WorkflowNodeType.SEND_NOTIFICATION, WorkflowNodeType.SEND_EMAIL_NOTIFICATION}:
+        return {key: config[key] for key in ("title", "body") if key in config}
+    return {}
+
+
+def _template_variables_schema(variables: dict[str, Any]) -> dict[str, Any]:
+    schema = variables.get("schema") if isinstance(variables, dict) else None
+    return dict(schema) if isinstance(schema, dict) else {}
+
+
+def _required_app_capabilities(graph: WorkflowGraph) -> list[str]:
+    capabilities: set[str] = set()
+    for node in graph.nodes:
+        if node.type == WorkflowNodeType.APP_SKILL_ACTION:
+            app_id = str(node.config.get("app_id") or "").strip()
+            skill_id = str(node.config.get("skill_id") or "").strip()
+            if app_id:
+                capabilities.add(app_id)
+            if app_id and skill_id:
+                capabilities.add(f"{app_id}.{skill_id}")
+    return sorted(capabilities)
+
+
+def _binding_requirements(graph: WorkflowGraph) -> list[dict[str, Any]]:
+    requirements: list[dict[str, Any]] = []
+    for node in graph.nodes:
+        if node.type == WorkflowNodeType.SCHEDULE_TRIGGER:
+            requirements.append({"type": "schedule", "node_id": node.id})
+        elif node.type == WorkflowNodeType.APP_SKILL_ACTION:
+            requirements.append({
+                "type": "app_skill",
+                "node_id": node.id,
+                "app_id": node.config.get("app_id"),
+                "skill_id": node.config.get("skill_id"),
+            })
+        elif node.type in {WorkflowNodeType.SEND_NOTIFICATION, WorkflowNodeType.SEND_EMAIL_NOTIFICATION}:
+            requirements.append({"type": "notification_preferences", "node_id": node.id})
+    return requirements
+
+
+def _reject_sensitive_template_keys(value: Any, path: str = "$") -> None:
+    if isinstance(value, dict):
+        for key, child in value.items():
+            normalized_key = "".join(character for character in str(key).lower() if character.isalnum())
+            contains_forbidden_key = any(
+                forbidden in normalized_key
+                for forbidden in FORBIDDEN_WORKFLOW_TEMPLATE_KEYS
+            )
+            if normalized_key in FORBIDDEN_WORKFLOW_TEMPLATE_KEYS or contains_forbidden_key:
+                raise WorkflowTemplateSensitiveFieldError(f"Workflow template contains forbidden field at {path}.{key}")
+            _reject_sensitive_template_keys(child, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            _reject_sensitive_template_keys(child, f"{path}[{index}]")
 
 
 def _validate_node_config(node: WorkflowNode) -> None:

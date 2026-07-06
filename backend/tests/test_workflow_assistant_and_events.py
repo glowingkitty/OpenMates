@@ -17,7 +17,8 @@ from backend.apps.workflows.skills.search_skill import SearchSkill
 from backend.core.api.app.services.workflow_assistant_service import WorkflowAssistantService
 from backend.core.api.app.services.workflow_event_service import WorkflowEventService
 from backend.core.api.app.services.workflow_models import WorkflowLifecycle, WorkflowMissingInputError
-from backend.core.api.app.services.workflow_service import WORKFLOW_TEMPORARY_TTL_SECONDS, WorkflowService
+from backend.core.api.app.services.workflow_service import WORKFLOW_TEMPORARY_TTL_SECONDS
+from backend.tests.workflow_test_utils import workflow_service
 
 
 def one_time_weather_graph() -> dict:
@@ -75,7 +76,7 @@ def workflow_skill(skill_class, skill_id: str):
 
 
 def test_schedule_once_creates_temporary_workflow_with_seven_day_expiry() -> None:
-    service = WorkflowService()
+    service = workflow_service()
     assistant = WorkflowAssistantService(service)
 
     workflow = assistant.schedule_once("alice", "Tomorrow weather", one_time_weather_graph(), source_chat_id="chat-1")
@@ -91,7 +92,7 @@ def test_schedule_once_creates_temporary_workflow_with_seven_day_expiry() -> Non
 
 
 def test_schedule_recurring_creates_persisted_workflow() -> None:
-    service = WorkflowService()
+    service = workflow_service()
     assistant = WorkflowAssistantService(service)
 
     workflow = assistant.schedule_recurring("alice", "Weekly AI news", recurring_news_graph(), source_chat_id="chat-1")
@@ -102,7 +103,7 @@ def test_schedule_recurring_creates_persisted_workflow() -> None:
 
 
 def test_assistant_search_returns_owner_scoped_persisted_workflows() -> None:
-    service = WorkflowService()
+    service = workflow_service()
     assistant = WorkflowAssistantService(service)
     persisted = assistant.schedule_recurring("alice", "Weekly AI news", recurring_news_graph())
     assistant.schedule_once("alice", "Temporary weather", one_time_weather_graph())
@@ -114,7 +115,7 @@ def test_assistant_search_returns_owner_scoped_persisted_workflows() -> None:
 
 
 def test_pending_workflow_run_can_be_cancelled_and_requires_input() -> None:
-    service = WorkflowService()
+    service = workflow_service()
     assistant = WorkflowAssistantService(service)
     workflow = service.create_workflow("alice", "Manual city workflow", manual_input_graph())
 
@@ -130,7 +131,7 @@ def test_pending_workflow_run_can_be_cancelled_and_requires_input() -> None:
 
 
 def test_high_risk_pending_workflow_requires_approval() -> None:
-    service = WorkflowService()
+    service = workflow_service()
     assistant = WorkflowAssistantService(service)
     workflow = assistant.schedule_recurring("alice", "Weekly AI news", recurring_news_graph())
 
@@ -141,7 +142,7 @@ def test_high_risk_pending_workflow_requires_approval() -> None:
 
 
 def test_assistant_schedule_skills_enforce_once_vs_recurring_graphs() -> None:
-    assistant = WorkflowAssistantService(WorkflowService())
+    assistant = WorkflowAssistantService(workflow_service())
 
     with pytest.raises(ValueError, match="schedule_once requires"):
         assistant.schedule_once("alice", "Wrong once", recurring_news_graph())
@@ -151,7 +152,7 @@ def test_assistant_schedule_skills_enforce_once_vs_recurring_graphs() -> None:
 
 
 def test_keep_temporary_converts_workflow_to_persisted() -> None:
-    service = WorkflowService()
+    service = workflow_service()
     assistant = WorkflowAssistantService(service)
     workflow = assistant.schedule_once("alice", "Temporary weather", one_time_weather_graph())
 
@@ -196,7 +197,7 @@ def test_event_trigger_phrase_filters_are_deterministic() -> None:
 
 @pytest.mark.asyncio
 async def test_workflow_app_skills_delegate_to_assistant_service() -> None:
-    service = WorkflowService()
+    service = workflow_service()
     assistant = WorkflowAssistantService(service)
 
     schedule_once = await workflow_skill(ScheduleOnceSkill, "schedule-once").execute(
@@ -262,7 +263,7 @@ def test_workflow_tasks_cleanup_and_event_dispatch(monkeypatch) -> None:
     pytest.importorskip("celery")
     from backend.core.api.app.tasks import workflow_tasks
 
-    service = WorkflowService()
+    service = workflow_service()
     monkeypatch.setattr(workflow_tasks, "_WORKFLOW_SERVICE", service)
     monkeypatch.setattr(workflow_tasks, "_WORKFLOW_EVENT_SERVICE", WorkflowEventService())
 
