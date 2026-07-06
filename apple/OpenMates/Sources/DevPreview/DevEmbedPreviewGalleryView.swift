@@ -18,6 +18,7 @@ import SwiftUI
 
 struct DevPreviewRootView: View {
     let configuration: DevPreviewLaunchConfiguration
+    @StateObject private var previewAuthManager = AuthManager()
 
     var body: some View {
         switch configuration.surface {
@@ -30,6 +31,7 @@ struct DevPreviewRootView: View {
         case .quickCapture:
             #if os(macOS)
             MacMenuBarQuickCaptureView()
+                .environmentObject(previewAuthManager)
                 .frame(width: 430)
             #else
             DevQuickCaptureAttachmentPreviewView()

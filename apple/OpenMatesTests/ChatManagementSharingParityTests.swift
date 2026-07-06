@@ -67,6 +67,37 @@ final class ChatManagementSharingParityTests: XCTestCase {
         #endif
     }
 
+    func testMacMenuBarQuickCaptureUsesGlyphOnlyStatusIcon() {
+        #if os(macOS)
+        XCTAssertFalse(
+            OpenMatesMenuBarGlyph.includesAppIconContainerForTests,
+            "The menu bar icon must be the OpenMates person/sparkles glyph only, not the full blue app icon container."
+        )
+        #endif
+    }
+
+    func testMacMenuBarQuickCaptureRefreshesOfflineAuthenticatedSessionBeforeSend() {
+        #if os(macOS)
+        XCTAssertTrue(
+            MacMenuBarQuickCaptureAuthPolicy.shouldRefreshSession(
+                state: .authenticated,
+                hasCurrentUser: true,
+                hasWebSocketToken: false
+            ),
+            "Quick Capture must refresh the shared native session when the main app restored an authenticated user without a WebSocket token."
+        )
+        XCTAssertFalse(
+            MacMenuBarQuickCaptureAuthPolicy.shouldRefreshSession(
+                state: .authenticated,
+                hasCurrentUser: true,
+                hasWebSocketToken: true
+            )
+        )
+        XCTAssertFalse(MacMenuBarQuickCaptureAuthPolicy.canUseQuickCapture(state: .unauthenticated))
+        XCTAssertTrue(MacMenuBarQuickCaptureAuthPolicy.canUseQuickCapture(state: .authenticated))
+        #endif
+    }
+
     func testQuickActionTitlesResolveForEverySupportedLanguage() async {
         #if os(iOS)
         let manager = LocalizationManager.shared
