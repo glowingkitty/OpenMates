@@ -272,6 +272,7 @@ distribution_identity_sha1 = ""
 installer_identity_sha1 = ""
 profile_names = {}
 APP_GROUP_IDENTIFIER = "group.org.openmates.app.shared"
+SHARED_KEYCHAIN_GROUP_IDENTIFIER = "Z9B2YFKN2X.org.openmates.app"
 if target_platform == "ios":
     scheme_name = "OpenMates_iOS"
     archive_filename = "OpenMates.xcarchive"
@@ -287,6 +288,8 @@ if target_platform == "ios":
         "org.openmates.app.notification-service",
         "org.openmates.app.widget",
     )
+    REQUIRED_APP_GROUP_BUNDLE_IDS = set(BUNDLE_IDS)
+    REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set()
 elif target_platform == "macos":
     scheme_name = "OpenMates_macOS"
     archive_filename = "OpenMatesMac.xcarchive"
@@ -300,6 +303,22 @@ elif target_platform == "macos":
         "org.openmates.app",
         "org.openmates.app.sharemacos",
     )
+    REQUIRED_APP_GROUP_BUNDLE_IDS = set(BUNDLE_IDS)
+    REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set()
+elif target_platform == "watchos":
+    scheme_name = "OpenMatesWatch"
+    archive_filename = "OpenMatesWatch.xcarchive"
+    archive_destination = "generic/platform=watchOS"
+    profile_type = "IOS_APP_STORE"
+    certificate_type_filter = "IOS_DISTRIBUTION"
+    profile_extension = "mobileprovision"
+    bundle_id_platform = "IOS"
+    archive_without_signing = False
+    BUNDLE_IDS = (
+        "org.openmates.app.watch",
+    )
+    REQUIRED_APP_GROUP_BUNDLE_IDS = set()
+    REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set(BUNDLE_IDS)
 else:
     print(f"unsupported_target_platform={target_platform}")
     sys.exit(2)
@@ -613,8 +632,12 @@ def enable_bundle_capability(bundle_id, capability_type):
 def sync_bundle_capabilities():
     for identifier in BUNDLE_IDS:
         bundle_id = bundle_id_record_id(identifier)
-        enable_bundle_capability(bundle_id, "APP_GROUPS")
-        print(f"capability_sync=passed:{identifier}:APP_GROUPS")
+        if identifier in REQUIRED_APP_GROUP_BUNDLE_IDS:
+            enable_bundle_capability(bundle_id, "APP_GROUPS")
+            print(f"capability_sync=passed:{identifier}:APP_GROUPS")
+        if identifier in REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS:
+            enable_bundle_capability(bundle_id, "KEYCHAIN_SHARING")
+            print(f"capability_sync=passed:{identifier}:KEYCHAIN_SHARING")
         if identifier == "org.openmates.app":
             enable_bundle_capability(bundle_id, "ASSOCIATED_DOMAINS")
             print(f"capability_sync=passed:{identifier}:ASSOCIATED_DOMAINS")
@@ -642,21 +665,30 @@ def delete_existing_profile(profile_name):
         asc_request(f"profiles/{profile_id}", method="DELETE")
 
 
-def assert_profile_supports_app_group(identifier, profile_path):
+def assert_profile_supports_required_entitlements(identifier, profile_path):
     decoded = subprocess.run(["security", "cms", "-D", "-i", str(profile_path)], capture_output=True, timeout=30)
     if decoded.returncode != 0:
-        print(f"profile_app_group=decode_failed:{identifier}")
+        print(f"profile_entitlements=decode_failed:{identifier}")
         print_tail("profile_decode", decoded.stderr.decode("utf-8", "replace"), limit=80)
         sys.exit(decoded.returncode)
     data = plistlib.loads(decoded.stdout)
     entitlements = data.get("Entitlements", {}) if isinstance(data, dict) else {}
-    app_groups = entitlements.get("com.apple.security.application-groups", [])
-    if APP_GROUP_IDENTIFIER not in app_groups:
-        print(f"profile_app_group=missing:{identifier}:{APP_GROUP_IDENTIFIER}")
-        print("manual_action=assign_app_group_to_bundle_id_in_apple_developer_portal")
-        print("manual_path=Certificates, Identifiers & Profiles > Identifiers > App IDs > bundle ID > App Groups")
-        sys.exit(1)
-    print(f"profile_app_group=passed:{identifier}")
+    if identifier in REQUIRED_APP_GROUP_BUNDLE_IDS:
+        app_groups = entitlements.get("com.apple.security.application-groups", [])
+        if APP_GROUP_IDENTIFIER not in app_groups:
+            print(f"profile_app_group=missing:{identifier}:{APP_GROUP_IDENTIFIER}")
+            print("manual_action=assign_app_group_to_bundle_id_in_apple_developer_portal")
+            print("manual_path=Certificates, Identifiers & Profiles > Identifiers > App IDs > bundle ID > App Groups")
+            sys.exit(1)
+        print(f"profile_app_group=passed:{identifier}")
+    if identifier in REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS:
+        keychain_groups = entitlements.get("keychain-access-groups", [])
+        if SHARED_KEYCHAIN_GROUP_IDENTIFIER not in keychain_groups:
+            print(f"profile_keychain_group=missing:{identifier}:{SHARED_KEYCHAIN_GROUP_IDENTIFIER}")
+            print("manual_action=assign_keychain_sharing_group_to_bundle_id_in_apple_developer_portal")
+            print("manual_path=Certificates, Identifiers & Profiles > Identifiers > App IDs > bundle ID > Keychain Sharing")
+            sys.exit(1)
+        print(f"profile_keychain_group=passed:{identifier}")
 
 
 def create_or_download_app_store_profiles():
@@ -690,7 +722,7 @@ def create_or_download_app_store_profiles():
         profile_path = profile_dirs[0] / f"{profile_uuid}.{profile_extension}"
         for profiles_dir in profile_dirs:
             (profiles_dir / f"{profile_uuid}.{profile_extension}").write_bytes(profile_bytes)
-        assert_profile_supports_app_group(identifier, profile_path)
+        assert_profile_supports_required_entitlements(identifier, profile_path)
         profile_data = decoded_profile(profile_path)
         installed_uuid = profile_data.get("UUID") if profile_data else None
         profile_names[identifier] = installed_uuid or profile_uuid
@@ -770,13 +802,19 @@ def profile_bundle_identifier(profile_data):
     return next((identifier for identifier in BUNDLE_IDS if identifier in profile_name), None)
 
 
-def profile_has_required_app_group(identifier, profile_data):
+def profile_has_required_entitlements(identifier, profile_data):
     entitlements = profile_data.get("Entitlements", {}) if isinstance(profile_data, dict) else {}
-    app_groups = entitlements.get("com.apple.security.application-groups", [])
-    if APP_GROUP_IDENTIFIER in app_groups:
-        return True
-    print(f"profile_app_group=missing:{identifier}:{APP_GROUP_IDENTIFIER}")
-    return False
+    if identifier in REQUIRED_APP_GROUP_BUNDLE_IDS:
+        app_groups = entitlements.get("com.apple.security.application-groups", [])
+        if APP_GROUP_IDENTIFIER not in app_groups:
+            print(f"profile_app_group=missing:{identifier}:{APP_GROUP_IDENTIFIER}")
+            return False
+    if identifier in REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS:
+        keychain_groups = entitlements.get("keychain-access-groups", [])
+        if SHARED_KEYCHAIN_GROUP_IDENTIFIER not in keychain_groups:
+            print(f"profile_keychain_group=missing:{identifier}:{SHARED_KEYCHAIN_GROUP_IDENTIFIER}")
+            return False
+    return True
 
 
 def load_installed_app_store_profiles():
@@ -790,7 +828,7 @@ def load_installed_app_store_profiles():
             if not profile_data:
                 continue
             identifier = profile_bundle_identifier(profile_data)
-            if not identifier or not profile_has_required_app_group(identifier, profile_data):
+            if not identifier or not profile_has_required_entitlements(identifier, profile_data):
                 continue
             profile_uuid = profile_data.get("UUID")
             if not profile_uuid:
@@ -2006,6 +2044,28 @@ def upload_testflight_macos_command(
     )
 
 
+def upload_testflight_watch_command(
+    internal_only: bool,
+    *,
+    api_key_path: str | None = None,
+    api_key_id: str | None = None,
+    api_issuer_id: str | None = None,
+) -> str:
+    command = shell_join([
+        "python3",
+        "-c",
+        TESTFLIGHT_IOS_SCRIPT,
+        "1" if internal_only else "0",
+        "watchos",
+    ])
+    return app_store_connect_env_prefix(
+        command,
+        api_key_path=api_key_path,
+        api_key_id=api_key_id,
+        api_issuer_id=api_issuer_id,
+    )
+
+
 def deploy_latest_testflight_command(
     branch: str,
     internal_only: bool,
@@ -2017,6 +2077,12 @@ def deploy_latest_testflight_command(
     commands = [
         sync_repo_command(branch),
         upload_testflight_ios_command(
+            internal_only,
+            api_key_path=api_key_path,
+            api_key_id=api_key_id,
+            api_issuer_id=api_issuer_id,
+        ),
+        upload_testflight_watch_command(
             internal_only,
             api_key_path=api_key_path,
             api_key_id=api_key_id,
@@ -2176,9 +2242,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_app_store_connect_api_args(testflight_macos_parser)
 
+    testflight_watch_parser = subparsers.add_parser("upload-testflight-watch", help="Archive and upload OpenMatesWatch to TestFlight")
+    testflight_watch_parser.add_argument(
+        "--external-capable",
+        action="store_true",
+        help="Do not mark the uploaded build as internal-testing-only",
+    )
+    add_app_store_connect_api_args(testflight_watch_parser)
+
     deploy_testflight_parser = subparsers.add_parser(
         "deploy-latest-testflight",
-        help="Force-sync the remote checkout and upload latest iOS and macOS builds to TestFlight",
+        help="Force-sync the remote checkout and upload latest iOS, watchOS, and macOS builds to TestFlight",
     )
     deploy_testflight_parser.add_argument("--branch", default="dev", help="Remote origin branch to deploy, default: dev")
     deploy_testflight_parser.add_argument(
@@ -2328,6 +2402,18 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "bash",
                     "-lc",
                     upload_testflight_macos_command(
+                        not args.external_capable,
+                        **api_options,
+                    ),
+                ]),
+            )
+        if args.command == "upload-testflight-watch":
+            return run_remote(
+                config,
+                repo_command(config, [
+                    "bash",
+                    "-lc",
+                    upload_testflight_watch_command(
                         not args.external_capable,
                         **api_options,
                     ),

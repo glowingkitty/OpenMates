@@ -73,10 +73,24 @@ def test_deploy_latest_testflight_syncs_then_uploads_both_platforms() -> None:
     )
 
     assert command.index("git fetch origin dev") < command.index("APP_STORE_CONNECT_API_KEY_PATH=/private/key.p8")
-    assert command.count("python3 -c") == 2
+    assert command.count("python3 -c") == 3
     assert "APP_STORE_CONNECT_API_KEY_ID=KEY123" in command
     assert "APP_STORE_CONNECT_API_ISSUER_ID=ISSUER123" in command
+    assert "watchos" in command
     assert "macos" in command
+
+
+def test_upload_testflight_watch_uses_watch_scheme_and_profile_contract() -> None:
+    apple_remote = load_apple_remote()
+    command = apple_remote.upload_testflight_watch_command(True)
+    script = apple_remote.TESTFLIGHT_IOS_SCRIPT
+
+    assert "watchos" in command
+    assert 'scheme_name = "OpenMatesWatch"' in script
+    assert 'archive_destination = "generic/platform=watchOS"' in script
+    assert '"org.openmates.app.watch"' in script
+    assert 'enable_bundle_capability(bundle_id, "KEYCHAIN_SHARING")' in script
+    assert "profile_keychain_group=passed" in script
 
 
 def test_deploy_latest_testflight_parser_has_no_platform_override() -> None:
