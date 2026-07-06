@@ -5,6 +5,9 @@
 // test verifies the visible native hierarchy exposes the expected chat elements.
 
 import XCTest
+#if canImport(UIKit)
+import UIKit
+#endif
 
 @MainActor
 final class ChatFlowParityUITests: XCTestCase {
@@ -199,12 +202,23 @@ final class ChatFlowParityUITests: XCTestCase {
         let messageField = app.descendants(matching: .any)["message-field"]
         XCTAssertTrue(messageField.waitForExistence(timeout: 5))
         waitForFrameHeight(atLeast: 90, element: messageField, timeout: 5)
+        let focusedScreenshot = XCUIScreen.main.screenshot()
+        attachScreenshot(focusedScreenshot, name: "Focused welcome message input visible")
         XCTAssertTrue(messageField.isHittable, "Focused welcome composer field should stay visible and hittable")
+        assertElementIsVisibleInScreenshot(messageField, in: app, screenshot: focusedScreenshot)
         XCTAssertGreaterThanOrEqual(
             messageField.frame.height,
             90,
             "Focused welcome composer should expand to the web-like message-field height instead of collapsing/disappearing"
         )
+        let keyboard = app.keyboards.firstMatch
+        if keyboard.exists {
+            XCTAssertLessThanOrEqual(
+                messageField.frame.maxY,
+                keyboard.frame.minY - 2,
+                "Focused welcome composer field must render above the software keyboard"
+            )
+        }
 
         XCTAssertTrue(app.buttons["sketch-button"].exists)
         XCTAssertTrue(app.buttons["take-photo-button"].exists)
@@ -327,8 +341,121 @@ final class ChatFlowParityUITests: XCTestCase {
         }
     }
 
+    private func assertElementIsVisibleInScreenshot(
+        _ element: XCUIElement,
+        in app: XCUIApplication,
+        screenshot: XCUIScreenshot,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let windowFrame = app.windows.firstMatch.frame
+        let visibleFrame = element.frame.intersection(windowFrame)
+        XCTAssertGreaterThan(visibleFrame.width, 40, "Message input should have visible width", file: file, line: line)
+        XCTAssertGreaterThan(visibleFrame.height, 40, "Message input should have visible height", file: file, line: line)
+
+        #if canImport(UIKit)
+        guard let image = UIImage(data: screenshot.pngRepresentation), let cgImage = image.cgImage else {
+            XCTFail("Could not decode focused message input screenshot", file: file, line: line)
+            return
+        }
+
+        let imageWidth = cgImage.width
+        let imageHeight = cgImage.height
+        var pixels = [UInt8](repeating: 0, count: imageWidth * imageHeight * 4)
+        guard let context = CGContext(
+            data: &pixels,
+            width: imageWidth,
+            height: imageHeight,
+            bitsPerComponent: 8,
+            bytesPerRow: imageWidth * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            XCTFail("Could not prepare focused message input screenshot pixels", file: file, line: line)
+            return
+        }
+        context.translateBy(x: 0, y: CGFloat(imageHeight))
+        context.scaleBy(x: 1, y: -1)
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight))
+
+        let scaleX = CGFloat(imageWidth) / windowFrame.width
+        let scaleY = CGFloat(imageHeight) / windowFrame.height
+        let fieldSampleFrame = visibleFrame.insetBy(dx: 4, dy: 4)
+        let comparisonFrame = comparisonSampleFrame(for: visibleFrame, in: windowFrame)
+        let fieldAverage = averageRGB(in: fieldSampleFrame, pixels: pixels, imageWidth: imageWidth, imageHeight: imageHeight, scaleX: scaleX, scaleY: scaleY)
+        let surroundingAverage = averageRGB(in: comparisonFrame, pixels: pixels, imageWidth: imageWidth, imageHeight: imageHeight, scaleX: scaleX, scaleY: scaleY)
+        let delta = colorDistance(fieldAverage, surroundingAverage)
+        XCTAssertGreaterThan(
+            delta,
+            6,
+            "Focused message input must be visually distinguishable in the screenshot (delta: \(delta))",
+            file: file,
+            line: line
+        )
+        #endif
+    }
+
+    private func comparisonSampleFrame(for elementFrame: CGRect, in windowFrame: CGRect) -> CGRect {
+        let sampleHeight: CGFloat = 24
+        if elementFrame.minY - sampleHeight - 8 > windowFrame.minY {
+            return CGRect(
+                x: elementFrame.minX + elementFrame.width * 0.2,
+                y: elementFrame.minY - sampleHeight - 8,
+                width: elementFrame.width * 0.6,
+                height: sampleHeight
+            )
+        }
+        return CGRect(
+            x: elementFrame.minX + elementFrame.width * 0.2,
+            y: min(windowFrame.maxY - sampleHeight, elementFrame.maxY + 8),
+            width: elementFrame.width * 0.6,
+            height: sampleHeight
+        )
+    }
+
+    private func averageRGB(
+        in rect: CGRect,
+        pixels: [UInt8],
+        imageWidth: Int,
+        imageHeight: Int,
+        scaleX: CGFloat,
+        scaleY: CGFloat
+    ) -> (Double, Double, Double) {
+        var totalR = 0.0
+        var totalG = 0.0
+        var totalB = 0.0
+        var count = 0.0
+
+        for row in 0..<5 {
+            for column in 0..<5 {
+                let xPoint = rect.minX + rect.width * (CGFloat(column) + 0.5) / 5
+                let yPoint = rect.minY + rect.height * (CGFloat(row) + 0.5) / 5
+                let x = min(max(Int(xPoint * scaleX), 0), imageWidth - 1)
+                let y = min(max(Int(yPoint * scaleY), 0), imageHeight - 1)
+                let index = (y * imageWidth + x) * 4
+                totalR += Double(pixels[index])
+                totalG += Double(pixels[index + 1])
+                totalB += Double(pixels[index + 2])
+                count += 1
+            }
+        }
+
+        return (totalR / count, totalG / count, totalB / count)
+    }
+
+    private func colorDistance(_ lhs: (Double, Double, Double), _ rhs: (Double, Double, Double)) -> Double {
+        let red = lhs.0 - rhs.0
+        let green = lhs.1 - rhs.1
+        let blue = lhs.2 - rhs.2
+        return sqrt(red * red + green * green + blue * blue)
+    }
+
     private func attachScreenshot(name: String) {
-        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachScreenshot(XCUIScreen.main.screenshot(), name: name)
+    }
+
+    private func attachScreenshot(_ screenshot: XCUIScreenshot, name: String) {
+        let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)

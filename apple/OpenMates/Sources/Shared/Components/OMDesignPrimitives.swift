@@ -128,7 +128,10 @@ struct OMMessageInputField<ActionButtons: View>: View {
         .frame(maxWidth: .infinity, minHeight: fieldHeight, maxHeight: compact ? fieldHeight : nil)
         .background(Color.greyBlue)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-        // Web `.message-field` has no border/focus ring; focus changes placeholder/action state only.
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(isFocused.wrappedValue ? Color.buttonPrimary.opacity(0.6) : Color.clear, lineWidth: 2)
+        )
         .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
         .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
         .onTapGesture {
