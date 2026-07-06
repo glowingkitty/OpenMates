@@ -1592,11 +1592,14 @@ struct ChatView: View {
     }
 
     private var recordGestureButton: some View {
-        Icon("recordaudio", size: 25)
-            .foregroundStyle(recordAttemptActive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
-            .frame(width: 25, height: 25)
+        Button(action: {}) {
+            Icon("recordaudio", size: 25)
+                .foregroundStyle(recordAttemptActive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
+                .frame(width: 25, height: 25)
+        }
+            .buttonStyle(.plain)
             .contentShape(Circle())
-            .gesture(
+            .simultaneousGesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
                         handleRecordGestureChanged(value)
@@ -1605,9 +1608,7 @@ struct ChatView: View {
                         finishRecordAttempt()
                     }
             )
-            .accessibilityElement(children: .ignore)
             .accessibilityLabel(AppStrings.recordAudio)
-            .accessibilityAddTraits(.isButton)
             .accessibilityIdentifier("record-audio-button")
     }
 
