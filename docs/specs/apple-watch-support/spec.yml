@@ -300,7 +300,7 @@ acceptance_criteria:
     scenario: S-1
     text: Remote Apple tooling can build and test the watchOS target through sanitized scripts/apple_remote.py commands.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: custom
     verification_ids: [T-WATCH-REMOTE-TOOLING, T-WATCH-BUILD]
@@ -421,7 +421,7 @@ tests:
       - Shared source used by Watch is free of unguarded UIKit/AppKit/PDFKit/QuickLook imports.
       - Watch target has independent-app configuration and required entitlements.
     red_phase: { required: true, expected: fail, evidence: { status: missing_test, run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-build-watch-64bc26c", timestamp: "2026-07-06T21:54:45Z" } }
   - id: T-WATCH-PAIR-LOGIN-UNIT
     type: unit
     file: apple/OpenMatesWatchTests/WatchPairLoginTests.swift
@@ -604,8 +604,8 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add watchOS target and remote watchOS verification tooling
-    status: pending
-    phase: awaiting_approval
+    status: done
+    phase: complete
     covers:
       scenarios: [S-1]
       acceptance_criteria: [AC-9]
