@@ -445,6 +445,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         case "payment_completed":
             NotificationCenter.default.post(name: .paymentCompleted, object: nil)
 
+        case "native_client_lifecycle_ack":
+            break
+
         case "force_logout":
             let reason = msg.stringField("reason") ?? "session_revoked"
             NotificationCenter.default.post(

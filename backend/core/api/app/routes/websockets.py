@@ -680,6 +680,11 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                         continue
 
                     for device_hash, websocket_conn in user_connections.items():
+                        if not manager.is_connection_completion_capable(user_id_uuid, device_hash):
+                            logger.debug(
+                                f"AI Stream Listener: Skipping backgrounded/non-completion-capable device {user_id_uuid}/{device_hash}."
+                            )
+                            continue
                         active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
                         if chat_id_from_payload == active_chat_on_device:
                             await manager.send_personal_message(
@@ -742,6 +747,11 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     # WebSocket.send_json() is fast (just queues in buffer), so we can await it
                     # but we process all devices in parallel to avoid sequential delays
                     for device_hash, websocket_conn in user_connections.items():
+                        if not manager.is_connection_completion_capable(user_id_uuid, device_hash):
+                            logger.debug(
+                                f"AI Stream Listener: Skipping backgrounded/non-completion-capable device {user_id_uuid}/{device_hash}."
+                            )
+                            continue
                         active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
                         
                         if chat_id_from_payload == active_chat_on_device:
@@ -837,7 +847,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     
                     if is_final_marker and not redis_payload.get("external_request") and not was_interrupted:
                         # Check if user has ANY active connections
-                        if not manager.is_user_active(user_id_uuid):
+                        if not manager.is_user_completion_capable_active(user_id_uuid):
                             # User appears offline - spawn background task to retry and send email
                             # Also queues the AI response for pending delivery on reconnect (60-day TTL)
                             asyncio.create_task(
@@ -2345,6 +2355,17 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     active_chat_id=active_chat_id,
                     user_otel_attrs=user_otel_attrs,
+                )
+            elif message_type == "native_client_lifecycle":
+                is_foreground = bool(payload.get("is_foreground", True))
+                manager.set_connection_foreground(user_id, device_fingerprint_hash, is_foreground)
+                await manager.send_personal_message(
+                    {
+                        "type": "native_client_lifecycle_ack",
+                        "payload": {"is_foreground": is_foreground},
+                    },
+                    user_id,
+                    device_fingerprint_hash,
                 )
             elif message_type == "cancel_ai_task":
                 await handle_cancel_ai_task(

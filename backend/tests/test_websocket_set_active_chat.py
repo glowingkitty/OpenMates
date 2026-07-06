@@ -10,6 +10,8 @@ import sys
 from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock
 
+from backend.core.api.app.routes.connection_manager import ConnectionManager
+
 
 class FakeManager:
     def __init__(self):
@@ -145,3 +147,53 @@ def test_set_active_chat_replays_inflight_ai_stream_snapshot(monkeypatch):
         active_chat_handler.ai_stream_snapshot_cache_key("353bfac8-b5aa-45f1-8ae2-76b3a9257719")
     )
     assert len(created_coroutines) == 1
+
+
+def test_native_background_connection_is_not_completion_capable():
+    manager = ConnectionManager()
+    user_id = "user-123"
+    device_hash = "device-123"
+    connection_key = (user_id, device_hash)
+
+    manager.active_connections[user_id] = {device_hash: object()}
+    manager.active_chat_per_connection[connection_key] = "chat-123"
+
+    assert manager.is_user_active(user_id) is True
+    assert manager.is_user_completion_capable_active(user_id) is True
+
+    manager.set_connection_foreground(user_id, device_hash, is_foreground=False)
+
+    assert manager.is_user_active(user_id) is True
+    assert manager.is_user_completion_capable_active(user_id) is False
+    assert manager.get_active_chat(user_id, device_hash) is None
+
+    manager.set_connection_foreground(user_id, device_hash, is_foreground=True)
+    manager.set_active_chat(user_id, device_hash, "chat-123")
+
+    assert manager.is_user_completion_capable_active(user_id) is True
+    assert manager.get_active_chat(user_id, device_hash) == "chat-123"
+
+
+def test_native_background_grace_period_is_not_completion_capable():
+    manager = ConnectionManager()
+    user_id = "user-123"
+    device_hash = "device-123"
+    connection_key = (user_id, device_hash)
+
+    manager.grace_period_tasks[connection_key] = SimpleNamespace(done=lambda: False)
+    manager.active_chat_per_connection[connection_key] = "chat-123"
+
+    assert manager.is_user_active(user_id) is True
+    assert manager.is_user_completion_capable_active(user_id) is True
+
+    manager.set_connection_foreground(user_id, device_hash, is_foreground=False)
+
+    assert manager.is_user_active(user_id) is True
+    assert manager.is_user_completion_capable_active(user_id) is False
+    assert manager.get_active_chat(user_id, device_hash) is None
+
+    manager.set_connection_foreground(user_id, device_hash, is_foreground=True)
+    manager.set_active_chat(user_id, device_hash, "chat-123")
+
+    assert manager.is_user_completion_capable_active(user_id) is True
+    assert manager.get_active_chat(user_id, device_hash) == "chat-123"

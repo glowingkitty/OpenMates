@@ -80,6 +80,9 @@ class ConnectionManager:
         self.reverse_lookup: Dict[int, Tuple[str, str]] = {}
         # Structure: {(user_id, device_fingerprint_hash): chat_id} to track active chat per device
         self.active_chat_per_connection: Dict[Tuple[str, str], Optional[str]] = {}
+        # Structure: {(user_id, device_fingerprint_hash): bool} tracks whether
+        # a client is foregrounded and able to consume plaintext AI completions.
+        self.connection_foreground_state: Dict[Tuple[str, str], bool] = {}
         # Structure: {(user_id, device_fingerprint_hash): asyncio.Task} for disconnect grace period tasks
         self.grace_period_tasks: Dict[Tuple[str, str], asyncio.Task] = {}
 
@@ -114,6 +117,7 @@ class ConnectionManager:
             logger.debug(f"WebSocket connected: User {user_id}, Device {device_fingerprint_hash}. Initial active chat: None.")
         else:
             logger.debug(f"WebSocket re-established: User {user_id}, Device {device_fingerprint_hash}. Active chat: {self.active_chat_per_connection[connection_key]}.")
+        self.connection_foreground_state[connection_key] = True
 
     def disconnect(self, websocket: WebSocket, reason: str = "Unknown"):
         ws_id = id(websocket)
@@ -194,6 +198,7 @@ class ConnectionManager:
                 if connection_key in self.active_chat_per_connection:
                     del self.active_chat_per_connection[connection_key]
                     logger.debug(f"Finalized: Cleared active chat tracking for {user_id}/{device_fingerprint_hash} (ws_id: {ws_id_to_finalize}) after grace period.")
+                self.connection_foreground_state.pop(connection_key, None)
             else:
                 # This case should ideally be caught by the check at the beginning of this method.
                 logger.warning(f"Finalize disconnect for {user_id}/{device_fingerprint_hash}: ws_id {ws_id_to_finalize} was expected, but found ws_id {id(user_connections[device_fingerprint_hash])}. Session might have been rapidly replaced. Reverse lookup for {ws_id_to_finalize} cleaned if it was still pointing here.")
@@ -209,6 +214,7 @@ class ConnectionManager:
                 if not (self.active_connections.get(user_id, {}).get(device_fingerprint_hash)):
                     del self.active_chat_per_connection[connection_key]
                     logger.debug(f"Finalized: Cleared lingering active chat tracking for {user_id}/{device_fingerprint_hash} as no active connection exists.")
+                self.connection_foreground_state.pop(connection_key, None)
 
     async def send_personal_message(self, message: dict, user_id: str, device_fingerprint_hash: str):
         websocket = self.active_connections.get(user_id, {}).get(device_fingerprint_hash)
@@ -379,6 +385,45 @@ class ConnectionManager:
                 return True
         return False
 
+    def is_connection_completion_capable(self, user_id: str, device_fingerprint_hash: str) -> bool:
+        """True when a connection can receive plaintext AI completion frames."""
+        connection_key = (user_id, device_fingerprint_hash)
+        websocket_instance = self.active_connections.get(user_id, {}).get(device_fingerprint_hash)
+        grace_task = self.grace_period_tasks.get(connection_key)
+        is_connected_or_grace = bool(websocket_instance) or (grace_task is not None and not grace_task.done())
+        if not is_connected_or_grace:
+            return False
+        return self.connection_foreground_state.get(connection_key, True)
+
+    def is_user_completion_capable_active(self, user_id: str) -> bool:
+        """Checks if a user has any foreground connection that can finish AI storage."""
+        for device_fingerprint_hash in self.active_connections.get(user_id, {}):
+            if self.is_connection_completion_capable(user_id, device_fingerprint_hash):
+                return True
+        for (uid, device_fingerprint_hash), task in self.grace_period_tasks.items():
+            if uid == user_id and not task.done() and self.is_connection_completion_capable(uid, device_fingerprint_hash):
+                return True
+        return False
+
+    def set_connection_foreground(self, user_id: str, device_fingerprint_hash: str, is_foreground: bool):
+        """Mark whether a client is foregrounded enough to consume AI completions."""
+        connection_key = (user_id, device_fingerprint_hash)
+        websocket_instance = self.active_connections.get(user_id, {}).get(device_fingerprint_hash)
+        grace_task = self.grace_period_tasks.get(connection_key)
+        is_in_grace = grace_task is not None and not grace_task.done()
+
+        if websocket_instance or is_in_grace:
+            self.connection_foreground_state[connection_key] = is_foreground
+            if not is_foreground:
+                self.active_chat_per_connection[connection_key] = None
+            logger.debug(
+                f"User {user_id}, Device {device_fingerprint_hash}: Foreground state set to {is_foreground}."
+            )
+        else:
+            logger.warning(
+                f"User {user_id}, Device {device_fingerprint_hash}: Attempted to set foreground state, but connection not found."
+            )
+
     def set_active_chat(self, user_id: str, device_fingerprint_hash: str, chat_id: Optional[str]):
         """Sets the currently active chat for a specific user device connection."""
         connection_key = (user_id, device_fingerprint_hash)
@@ -402,7 +447,7 @@ class ConnectionManager:
         grace_task = self.grace_period_tasks.get(connection_key)
         is_in_grace = grace_task is not None and not grace_task.done()
 
-        if websocket_instance or is_in_grace:
+        if (websocket_instance or is_in_grace) and self.connection_foreground_state.get(connection_key, True):
             return self.active_chat_per_connection.get(connection_key)
         
         logger.debug(f"Requested active chat for {user_id}/{device_fingerprint_hash}, but connection is not active or in grace. Returning None.")

@@ -323,6 +323,7 @@ struct MainAppView: View {
         .onChange(of: showNewChat, showNewChatDidChange)
         .onChange(of: showSettings, showSettingsDidChange)
         .onChange(of: scenePhase, scenePhaseDidChange)
+        .onChange(of: wsManager.connectionState, websocketConnectionStateDidChange)
     }
 
     private var shellWithOverlays: some View {
@@ -534,12 +535,31 @@ struct MainAppView: View {
     }
 
     private func scenePhaseDidChange(_ oldValue: ScenePhase, _ newValue: ScenePhase) {
-        guard newValue == .active, isAuthenticated, didBootstrapAuthenticatedSession else { return }
+        guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
+        switch newValue {
+        case .active:
+            sendNativeClientForegroundAndActiveChat()
+        case .inactive, .background:
+            sendNativeClientLifecycle(isForeground: false)
+        @unknown default:
+            sendNativeClientLifecycle(isForeground: false)
+        }
+
+        guard newValue == .active else { return }
         switch wsManager.connectionState {
         case .connected, .connecting, .reconnecting:
             schedulePendingAssistantResponseFlush()
         case .disconnected:
             connectWebSocket()
+        }
+    }
+
+    private func websocketConnectionStateDidChange(_ oldValue: WebSocketManager.ConnectionState, _ newValue: WebSocketManager.ConnectionState) {
+        guard newValue == .connected else { return }
+        if scenePhase == .active {
+            sendNativeClientForegroundAndActiveChat()
+        } else {
+            sendNativeClientLifecycle(isForeground: false)
         }
     }
 
@@ -2139,6 +2159,49 @@ struct MainAppView: View {
         schedulePendingAssistantResponseFlush()
     }
 
+    private func sendNativeClientLifecycle(isForeground: Bool) {
+        guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
+        Task { @MainActor in
+            await sendNativeClientLifecycleMessage(isForeground: isForeground)
+        }
+    }
+
+    private func sendNativeClientForegroundAndActiveChat() {
+        guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
+        Task { @MainActor in
+            await sendNativeClientLifecycleMessage(isForeground: true)
+            await announceActiveChat(showNewChat ? nil : selectedChatId)
+        }
+    }
+
+    private func sendNativeClientLifecycleMessage(isForeground: Bool) async {
+        #if os(iOS)
+        var backgroundTask: UIBackgroundTaskIdentifier = .invalid
+        if !isForeground {
+            backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "OpenMatesNativeLifecycle")
+        }
+        defer {
+            if backgroundTask != .invalid {
+                UIApplication.shared.endBackgroundTask(backgroundTask)
+            }
+        }
+        #endif
+
+        do {
+            try await wsManager.send(WSOutboundMessage(
+                type: "native_client_lifecycle",
+                payload: ["is_foreground": isForeground]
+            ))
+        } catch {
+            if isForeground {
+                NativeDiagnostics.warning(
+                    "Failed to announce native foreground state: \(type(of: error))",
+                    category: "app_lifecycle"
+                )
+            }
+        }
+    }
+
     private func schedulePendingAssistantResponseFlush() {
         guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
         guard !PendingAssistantResponseQueue.shared.all().isEmpty else { return }
@@ -2431,8 +2494,10 @@ struct MainAppView: View {
     private func showAssistantNotificationIfNeeded(chat: Chat, message: Message, source: String) async {
         guard source == "background" || source == "pending" else { return }
         guard message.role == .assistant else { return }
+        if scenePhase != .active || selectedChatId != chat.id {
+            UnreadMessagesStore.shared.incrementUnread(chatId: chat.id)
+        }
         guard scenePhase != .active else { return }
-        guard selectedChatId != chat.id else { return }
 
         await pushManager.showChatMessageNotification(
             chatId: chat.id
