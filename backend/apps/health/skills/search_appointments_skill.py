@@ -449,6 +449,7 @@ NOISE_MOTIVE_PATTERNS: List[str] = [
     r"dentcoat",
     r"veneers?",
     r"zahnextraktion",
+    r"weisheitszahn",
     r"professionelle\s+zahnreinigung",  # PZR — dental cleaning, not a medical visit
     r"knie\s*-?\s*op",
     r"\bop\s*-?\s*beratung\b",

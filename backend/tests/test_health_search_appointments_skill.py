@@ -54,6 +54,7 @@ def test_motive_category_filter_handles_negation_and_overbroad_speech_hours() ->
     assert _matches_motive_category("Dentcoat (Beratung)", "general") is False
     assert _matches_motive_category("Veneers (Beratung)", "general") is False
     assert _matches_motive_category("Beratung Zahnextraktion", "general") is False
+    assert _matches_motive_category("Weisheitszahnentfernung (Beratung)", "general") is False
     assert _matches_motive_category("Beratung Knie-OP (mit existierendem MRT)", "general") is False
     assert _matches_motive_category("OP Beratung und Aufklärung bei Kniebeschwerden", "general") is False
     assert _matches_motive_category("Eingewachsener Zehennagel / Nagelbettentzündung - Erstuntersuchung", "general") is False
