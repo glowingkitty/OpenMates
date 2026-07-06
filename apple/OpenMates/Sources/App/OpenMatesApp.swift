@@ -823,6 +823,7 @@ struct MacMenuBarQuickCaptureView: View {
         .onPasteCommand(of: [UTType.fileURL, UTType.image, UTType.png, UTType.jpeg]) { providers in
             loadPastedItems(from: providers)
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("quick-capture-composer")
     }
 

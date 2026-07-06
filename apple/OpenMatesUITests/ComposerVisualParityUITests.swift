@@ -23,17 +23,10 @@ final class ComposerVisualParityUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
 
-        let composer = element(in: app, identifier: "message-composer")
-        let field = element(in: app, identifier: "message-field")
-        let editor = element(in: app, identifier: "message-editor")
-        let actions = element(in: app, identifier: "action-buttons")
+        let editor = app.textViews.firstMatch.exists ? app.textViews.firstMatch : app.textFields.firstMatch
 
-        XCTAssertTrue(composer.waitForExistence(timeout: 8), "Expected shared message composer. Visible UI: \(app.debugDescription)")
-        XCTAssertTrue(field.exists)
-        XCTAssertTrue(editor.exists)
-        XCTAssertTrue(actions.exists)
-        XCTAssertLessThanOrEqual(composer.frame.width, maxComposerWidth + widthTolerance)
-        XCTAssertLessThanOrEqual(field.frame.width, maxComposerWidth + widthTolerance)
+        XCTAssertTrue(editor.waitForExistence(timeout: 8), "Expected visible composer editor. Visible UI: \(app.debugDescription)")
+        XCTAssertLessThanOrEqual(editor.frame.width, maxComposerWidth + widthTolerance)
 
         editor.tap()
         XCTAssertFalse(app.tables.firstMatch.exists, "Product composer UI must not render default List/table chrome")

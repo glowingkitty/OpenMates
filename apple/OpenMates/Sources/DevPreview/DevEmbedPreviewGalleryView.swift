@@ -107,6 +107,7 @@ struct DevQuickCaptureAttachmentPreviewView: View {
                     .padding(.bottom, .spacing6)
                 }
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("quick-capture-composer")
 
             Text("Shared fixture.pdf")

@@ -102,6 +102,7 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
             .accessibilityIdentifier("message-field")
         }
         .frame(maxWidth: maxWidth ?? .infinity)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("message-composer")
     }
 }
