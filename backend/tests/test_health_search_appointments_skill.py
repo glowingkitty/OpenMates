@@ -55,11 +55,16 @@ def test_motive_category_filter_handles_negation_and_overbroad_speech_hours() ->
     assert _matches_motive_category("Veneers (Beratung)", "general") is False
     assert _matches_motive_category("Beratung Zahnextraktion", "general") is False
     assert _matches_motive_category("Weisheitszahnentfernung (Beratung)", "general") is False
+    assert _matches_motive_category("Beratung Behandlung Eigenfett", "general") is False
+    assert _matches_motive_category("Beratung zu Behandlungen für ein Leben ohne Brille - Augenlasern", "general") is False
+    assert _matches_motive_category("Voruntersuchung Augen-OP Katarakt (Grauer Star)", "general") is False
+    assert _matches_motive_category("Buche jetzt dein kostenloses Beratungsgespräch zur Ketamintherapie", "general") is False
     assert _matches_motive_category("Beratung Knie-OP (mit existierendem MRT)", "general") is False
     assert _matches_motive_category("OP Beratung und Aufklärung bei Kniebeschwerden", "general") is False
     assert _matches_motive_category("Eingewachsener Zehennagel / Nagelbettentzündung - Erstuntersuchung", "general") is False
     assert _matches_motive_category("Krebsvorsorge, bekannter Patient", "checkup") is False
     assert _matches_motive_category("Kontrolluntersuchung", "general") is False
+    assert _matches_motive_category("Kontrolluntersuchung", "checkup") is True
     assert _matches_motive_category("Nackentransparenz-Messung mit Erst-Trimester-Screening", "checkup") is False
     assert _matches_motive_category("Ersttrimesterscreening/ frühe Feindiagnostik", "checkup") is False
     assert _matches_motive_category("Videosprechstunde - Bestandspatient", "general") is False
