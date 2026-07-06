@@ -49,8 +49,9 @@ actor WatchChatOfflineCache {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
-    init(directory: URL = Self.defaultDirectory()) {
-        self.fileURL = directory.appendingPathComponent("watch-chat-snapshot.json")
+    init(directory: URL? = nil) {
+        self.fileURL = (directory ?? WatchChatOfflineCache.defaultDirectory())
+            .appendingPathComponent("watch-chat-snapshot.json")
         self.encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         self.decoder = JSONDecoder()
