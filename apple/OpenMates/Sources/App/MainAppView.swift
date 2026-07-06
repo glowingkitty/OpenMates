@@ -5172,7 +5172,7 @@ private struct WelcomeComposer: View {
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 onSubmit: { canSubmit ? onSend() : onOpenAuth() }
-            ) {
+            ) overlayContent: {
                 if isOpen {
                     Button {
                         isExpanded.toggle()
