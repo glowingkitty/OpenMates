@@ -26,6 +26,25 @@ router = APIRouter(prefix="/v1/user-plans", tags=["User Plans"])
 PlanStatus = Literal["draft", "awaiting_confirmation", "active", "executing", "blocked", "completed", "archived"]
 CriterionStatus = Literal["pending", "satisfied", "failed", "waived"]
 VerificationStatus = Literal["pending", "passed", "failed", "passed_unexpectedly", "skipped", "waived"]
+KeyWrapperType = Literal["master", "chat", "project"]
+
+
+class UserPlanKeyWrapperRequest(BaseModel):
+    key_type: KeyWrapperType
+    encrypted_plan_key: str = Field(min_length=1)
+    hashed_chat_id: str | None = None
+    hashed_project_id: str | None = None
+    created_at: int
+    expires_at: int | None = None
+
+
+class PlanVerificationTaskKeyWrapperRequest(BaseModel):
+    key_type: KeyWrapperType
+    encrypted_task_key: str = Field(min_length=1)
+    hashed_chat_id: str | None = None
+    hashed_project_id: str | None = None
+    created_at: int
+    expires_at: int | None = None
 
 
 class UserPlanCreateRequest(BaseModel):
@@ -36,6 +55,7 @@ class UserPlanCreateRequest(BaseModel):
     encrypted_goal: str | None = None
     encrypted_scope_in: str | None = None
     encrypted_scope_out: str | None = None
+    encrypted_linked_project_ids: str | None = None
     encrypted_assumptions: str | None = None
     encrypted_open_questions: str | None = None
     encrypted_constraints: str | None = None
@@ -50,6 +70,7 @@ class UserPlanCreateRequest(BaseModel):
     planner_focus_id: str | None = None
     created_at: int
     updated_at: int
+    key_wrappers: list[UserPlanKeyWrapperRequest] = Field(default_factory=list)
 
 
 class UserPlanUpdateRequest(BaseModel):
@@ -59,6 +80,7 @@ class UserPlanUpdateRequest(BaseModel):
     encrypted_goal: str | None = None
     encrypted_scope_in: str | None = None
     encrypted_scope_out: str | None = None
+    encrypted_linked_project_ids: str | None = None
     encrypted_assumptions: str | None = None
     encrypted_open_questions: str | None = None
     encrypted_constraints: str | None = None
@@ -73,6 +95,7 @@ class UserPlanUpdateRequest(BaseModel):
     planner_focus_id: str | None = None
     updated_at: int | None = None
     version: int | None = None
+    key_wrappers: list[UserPlanKeyWrapperRequest] | None = None
 
 
 class PlanActivationRequest(BaseModel):
@@ -123,6 +146,8 @@ class PlanVerificationRequest(BaseModel):
     create_task: bool = False
     task_id: str | None = None
     encrypted_task_key: str | None = None
+    task_key_wrappers: list[PlanVerificationTaskKeyWrapperRequest] = Field(default_factory=list)
+    encrypted_linked_project_ids: str | None = None
     encrypted_title: str | None = None
     encrypted_command: str | None = None
     encrypted_evaluation_prompt: str | None = None
@@ -150,6 +175,10 @@ class PlanDriftCheckRequest(BaseModel):
     drift_score: int = Field(ge=0, le=100)
     correction_message: str | None = None
     active_task_id: str | None = None
+
+
+class UserPlanKeyWrappersRequest(BaseModel):
+    key_wrappers: list[UserPlanKeyWrapperRequest] = Field(min_length=1)
 
 
 def get_user_plan_service(request: Request) -> UserPlanService:
@@ -225,6 +254,44 @@ async def update_user_plan(
         return {"plan": plan}
     except Exception as exc:
         _handle_plan_error(exc)
+
+
+@router.post("/{plan_id}/key-wrappers")
+@limiter.limit("20/minute")
+async def add_user_plan_key_wrappers(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    body: UserPlanKeyWrappersRequest,
+    service: UserPlanService = Depends(get_user_plan_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    existing = await service.plan_methods.get_plan(plan_id, current_user.id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    created = await service.plan_methods.replace_plan_key_wrappers(
+        current_user.id,
+        plan_id,
+        [wrapper.model_dump() for wrapper in body.key_wrappers],
+    )
+    if created is None:
+        raise HTTPException(status_code=400, detail="Invalid plan key wrappers")
+    return {"key_wrappers": created}
+
+
+@router.get("/{plan_id}/key-wrappers")
+@limiter.limit("60/minute")
+async def list_user_plan_key_wrappers(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    service: UserPlanService = Depends(get_user_plan_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    existing = await service.plan_methods.get_plan(plan_id, current_user.id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    return {"key_wrappers": await service.plan_methods.list_plan_key_wrappers(current_user.id, plan_id)}
 
 
 @router.post("/{plan_id}/activate")

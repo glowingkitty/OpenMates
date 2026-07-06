@@ -2289,7 +2289,21 @@ async def _async_process_ai_skill_ask_task(
     logger.info(f"[Task ID: {task_id}] AI skill ask task processing finished {log_final_status}.")
 
     if getattr(request_data, "user_task_id", None):
-        if task_was_soft_limited or task_was_revoked:
+        user_task_blocked_reason_code = None
+        if isinstance(main_processor_debug_metadata, dict):
+            raw_blocked_reason = main_processor_debug_metadata.get("user_task_blocked_reason_code")
+            if isinstance(raw_blocked_reason, str) and raw_blocked_reason:
+                user_task_blocked_reason_code = raw_blocked_reason
+
+        if user_task_blocked_reason_code:
+            await _update_user_task_execution_state(
+                request_data,
+                directus_service_instance,
+                ai_execution_state="blocked",
+                status="blocked",
+                blocked_reason_code=user_task_blocked_reason_code,
+            )
+        elif task_was_soft_limited or task_was_revoked:
             await _update_user_task_execution_state(
                 request_data,
                 directus_service_instance,

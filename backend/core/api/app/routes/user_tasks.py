@@ -10,6 +10,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
+from backend.apps.ai.processing.task_proposals import extract_review_task_proposals
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
 from backend.core.api.app.services.feature_availability_guards import ensure_tasks_enabled
@@ -25,6 +26,16 @@ router = APIRouter(prefix="/v1/user-tasks", tags=["User Tasks"], dependencies=[D
 
 TaskStatus = Literal["backlog", "todo", "in_progress", "blocked", "done"]
 AssigneeType = Literal["ai", "user"]
+KeyWrapperType = Literal["master", "chat", "project"]
+
+
+class UserTaskKeyWrapperRequest(BaseModel):
+    key_type: KeyWrapperType
+    encrypted_task_key: str = Field(min_length=1)
+    hashed_chat_id: str | None = None
+    hashed_project_id: str | None = None
+    created_at: int
+    expires_at: int | None = None
 
 
 class UserTaskCreateRequest(BaseModel):
@@ -33,6 +44,7 @@ class UserTaskCreateRequest(BaseModel):
     encrypted_title: str = Field(min_length=1)
     encrypted_description: str | None = None
     encrypted_tags: str | None = None
+    encrypted_linked_project_ids: str | None = None
     encrypted_activity_summary: str | None = None
     encrypted_latest_instruction: str | None = None
     status: TaskStatus = "todo"
@@ -50,6 +62,7 @@ class UserTaskCreateRequest(BaseModel):
     position: int = 0
     created_at: int
     updated_at: int
+    key_wrappers: list[UserTaskKeyWrapperRequest] = Field(default_factory=list)
 
 
 class UserTaskUpdateRequest(BaseModel):
@@ -57,6 +70,7 @@ class UserTaskUpdateRequest(BaseModel):
     encrypted_task_key: str | None = None
     encrypted_description: str | None = None
     encrypted_tags: str | None = None
+    encrypted_linked_project_ids: str | None = None
     encrypted_activity_summary: str | None = None
     encrypted_latest_instruction: str | None = None
     status: TaskStatus | None = None
@@ -76,6 +90,7 @@ class UserTaskUpdateRequest(BaseModel):
     ai_execution_state: str | None = None
     updated_at: int | None = None
     version: int | None = None
+    key_wrappers: list[UserTaskKeyWrapperRequest] | None = None
 
 
 class UserTaskStartAIRequest(BaseModel):
@@ -86,8 +101,20 @@ class UserTaskStartAIRequest(BaseModel):
     plaintext_description: str | None = None
     plaintext_latest_instruction: str | None = None
     plaintext_chat_title: str | None = None
+    plaintext_project_context: str | None = None
     updated_at: int | None = None
     version: int | None = None
+
+
+class UserTaskExtractRequest(BaseModel):
+    corrected_text: str = Field(min_length=1, max_length=8000)
+    mode: Literal["create", "update"] = "create"
+    context_chat_id: str | None = None
+    project_ids: list[str] = Field(default_factory=list)
+
+
+class UserTaskKeyWrappersRequest(BaseModel):
+    key_wrappers: list[UserTaskKeyWrapperRequest] = Field(min_length=1)
 
 
 def get_user_task_service(request: Request) -> UserTaskService:
@@ -156,6 +183,18 @@ async def create_user_task(
         _handle_task_error(exc)
 
 
+@router.post("/extract")
+@limiter.limit("20/minute")
+async def extract_user_task_proposals(
+    request: Request,
+    response: Response,
+    body: UserTaskExtractRequest,
+) -> dict[str, Any]:
+    await _current_user(request, response)
+    proposals = extract_review_task_proposals(body.corrected_text)
+    return {"proposed_tasks": [proposal.model_dump() for proposal in proposals]}
+
+
 @router.patch("/{task_id}")
 @limiter.limit("30/minute")
 async def update_user_task(
@@ -188,3 +227,41 @@ async def start_user_task_ai(
         return {"task": task}
     except Exception as exc:
         _handle_task_error(exc)
+
+
+@router.post("/{task_id}/key-wrappers")
+@limiter.limit("20/minute")
+async def add_user_task_key_wrappers(
+    request: Request,
+    response: Response,
+    task_id: str,
+    body: UserTaskKeyWrappersRequest,
+    service: UserTaskService = Depends(get_user_task_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    existing = await service.task_methods.get_task(task_id, current_user.id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Task not found")
+    created = await service.task_methods.replace_task_key_wrappers(
+        current_user.id,
+        task_id,
+        [wrapper.model_dump() for wrapper in body.key_wrappers],
+    )
+    if created is None:
+        raise HTTPException(status_code=400, detail="Invalid task key wrappers")
+    return {"key_wrappers": created}
+
+
+@router.get("/{task_id}/key-wrappers")
+@limiter.limit("60/minute")
+async def list_user_task_key_wrappers(
+    request: Request,
+    response: Response,
+    task_id: str,
+    service: UserTaskService = Depends(get_user_task_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    existing = await service.task_methods.get_task(task_id, current_user.id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"key_wrappers": await service.task_methods.list_task_key_wrappers(current_user.id, task_id)}

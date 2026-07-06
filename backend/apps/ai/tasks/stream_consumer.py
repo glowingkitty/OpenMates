@@ -7563,22 +7563,26 @@ async def _consume_main_processing_stream(
     # We don't save anything to cache or publish any Redis messages in this case
     if awaiting_app_settings_memories_permission:
         logger.info(f"{log_prefix} Task completing without response - awaiting user permission for app settings/memories. No final marker will be sent.")
+        debug_metadata["user_task_blocked_reason_code"] = "permission_required"
         # Return early - no message processing needed
         # The client will receive the permission request via WebSocket and show the dialog
         return "", False, False, [], debug_metadata
 
     if awaiting_connected_account_permission:
         logger.info(f"{log_prefix} Task completing without response - awaiting user permission for connected account. No final marker will be sent.")
+        debug_metadata["user_task_blocked_reason_code"] = "connected_account_required"
         return "", False, False, [], debug_metadata
         
     # Handle paused execution cases: waiting for sub-chats or user input
     # The client handles the paused state without finalizing the current message
     if awaiting_user_input:
         logger.info(f"{log_prefix} Task completing without response - awaiting user input. No final marker will be sent.")
+        debug_metadata["user_task_blocked_reason_code"] = "user_input_required"
         return "", False, False, [], debug_metadata
 
     if awaiting_sub_chat_confirmation:
         logger.info(f"{log_prefix} Task completing without response - awaiting sub-chat confirmation. No final marker will be sent.")
+        debug_metadata["user_task_blocked_reason_code"] = "sub_chat_confirmation_required"
         return "", False, False, [], debug_metadata
 
     if awaiting_sub_chats_completion and not aggregated_response:

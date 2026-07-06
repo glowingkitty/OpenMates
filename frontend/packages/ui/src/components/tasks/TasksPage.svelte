@@ -10,10 +10,12 @@
   import { notificationStore } from '../../stores/notificationStore';
   import {
     createUserTask,
+    extractUserTaskProposals,
     listUserTasks,
     startUserTaskWithAI,
     updateUserTask,
     type ListUserTasksFilters,
+    type UserTaskProposal,
     type UserTaskStatus,
     type UserTaskViewModel,
   } from '../../services/userTaskService';
@@ -49,6 +51,10 @@
   let planTitle = $state('');
   let planSummary = $state('');
   let assignToAI = $state(false);
+  let transcriptText = $state('');
+  let correctedTranscriptText = $state('');
+  let isExtracting = $state(false);
+  let extractedProposals = $state<UserTaskProposal[]>([]);
 
   const totalCount = $derived(tasks.length);
   const activeCount = $derived(tasks.filter((task) => task.status === 'in_progress').length);
@@ -131,6 +137,55 @@
     } finally {
       isSaving = false;
     }
+  }
+
+  async function handleExtractTasks(): Promise<void> {
+    const correctedText = (correctedTranscriptText || transcriptText).trim();
+    if (!correctedText || isExtracting) return;
+    isExtracting = true;
+    try {
+      extractedProposals = await extractUserTaskProposals({
+        correctedText,
+        contextChatId: chatId,
+        projectIds: projectId ? [projectId] : [],
+      });
+      if (extractedProposals.length === 0) {
+        notificationStore.error('No task proposals found');
+      }
+    } catch (error) {
+      console.error('[TasksPage] Failed to extract task proposals:', error);
+      notificationStore.error('Failed to extract task proposals');
+    } finally {
+      isExtracting = false;
+    }
+  }
+
+  async function handleAcceptProposal(proposal: UserTaskProposal): Promise<void> {
+    if (isSaving) return;
+    isSaving = true;
+    try {
+      const task = await createUserTask({
+        title: proposal.title,
+        description: proposal.description ?? '',
+        status: proposal.status ?? 'todo',
+        assigneeType: proposal.assignee_type ?? 'user',
+        primaryChatId: chatId,
+        linkedProjectIds: projectId ? [projectId] : [],
+      });
+      tasks = [task, ...tasks];
+      extractedProposals = extractedProposals.filter((candidate) => candidate !== proposal);
+      broadcastTasksChanged();
+      notificationStore.success('Task created from transcript');
+    } catch (error) {
+      console.error('[TasksPage] Failed to accept task proposal:', error);
+      notificationStore.error('Failed to create task from proposal');
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  function handleDismissProposal(proposal: UserTaskProposal): void {
+    extractedProposals = extractedProposals.filter((candidate) => candidate !== proposal);
   }
 
   async function handleCreatePlan(): Promise<void> {
@@ -317,6 +372,56 @@
     </button>
   </form>
 
+  <section class="task-extract-card" data-testid="task-extract-card" aria-label="Create tasks from transcript">
+    <div class="task-extract-heading">
+      <div>
+        <p class="eyebrow">Voice transcript</p>
+        <h2>Review extracted tasks before saving.</h2>
+      </div>
+      <button type="button" onclick={() => { correctedTranscriptText = transcriptText; }} disabled={!transcriptText.trim()} data-testid="task-use-transcript-button">
+        Use transcript
+      </button>
+    </div>
+    <label for={compact ? 'project-task-transcript' : 'task-transcript'}>Audio transcript or dictated text</label>
+    <textarea
+      id={compact ? 'project-task-transcript' : 'task-transcript'}
+      bind:value={transcriptText}
+      placeholder="Paste or dictate the raw transcript here"
+      rows={compact ? 2 : 3}
+      data-testid="task-transcript-input"
+    ></textarea>
+    <label for={compact ? 'project-task-corrected-transcript' : 'task-corrected-transcript'}>Corrected transcript</label>
+    <textarea
+      id={compact ? 'project-task-corrected-transcript' : 'task-corrected-transcript'}
+      bind:value={correctedTranscriptText}
+      placeholder="Review and correct the transcript before extraction"
+      rows={compact ? 2 : 3}
+      data-testid="task-corrected-transcript-input"
+    ></textarea>
+    <button type="button" onclick={() => void handleExtractTasks()} disabled={isExtracting || !(correctedTranscriptText || transcriptText).trim()} data-testid="task-extract-button">
+      {isExtracting ? 'Extracting...' : 'Extract task proposals'}
+    </button>
+
+    {#if extractedProposals.length > 0}
+      <div class="task-proposal-list" data-testid="task-extract-proposals">
+        {#each extractedProposals as proposal}
+          <article class="task-proposal-card" data-testid="task-extract-proposal">
+            <div>
+              <strong>{proposal.title}</strong>
+              {#if proposal.description}
+                <span>{proposal.description}</span>
+              {/if}
+            </div>
+            <div class="task-proposal-actions">
+              <button type="button" onclick={() => void handleAcceptProposal(proposal)} disabled={isSaving} data-testid="task-accept-proposal-button">Create</button>
+              <button type="button" onclick={() => handleDismissProposal(proposal)} disabled={isSaving} data-testid="task-dismiss-proposal-button">Dismiss</button>
+            </div>
+          </article>
+        {/each}
+      </div>
+    {/if}
+  </section>
+
   {#if isLoading}
     <div class="tasks-state" data-testid="tasks-loading">Loading tasks...</div>
   {:else if hasLoadError}
@@ -353,6 +458,7 @@
   .tasks-hero,
   .plans-strip,
   .task-create-card,
+  .task-extract-card,
   .tasks-state {
     border-radius: 32px;
     border: 1px solid var(--color-grey-20);
@@ -519,6 +625,56 @@
     gap: 12px;
     padding: 16px;
     margin-bottom: 18px;
+  }
+
+  .task-extract-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    margin-bottom: 18px;
+  }
+
+  .task-extract-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .task-proposal-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .task-proposal-card {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 18px;
+    background: var(--color-grey-0);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+  }
+
+  .task-proposal-card div:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .task-proposal-card span {
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-small);
+  }
+
+  .task-proposal-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
 
   .task-create-card.compact {

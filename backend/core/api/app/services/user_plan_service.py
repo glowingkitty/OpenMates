@@ -48,7 +48,7 @@ class UserPlanService:
         update.pop("version", None)
         updated = await self.plan_methods.update_plan(plan_id, user_id, update)
         if not updated:
-            raise UserPlanNotFoundError("Plan not found")
+            raise ValueError("Failed to update plan")
         return updated
 
     async def activate_plan(self, plan_id: str, user_id: str, patch: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -120,8 +120,10 @@ class UserPlanService:
             task_payload = {
                 "task_id": payload.get("task_id"),
                 "encrypted_task_key": payload.get("encrypted_task_key"),
+                "key_wrappers": payload.get("task_key_wrappers", []),
                 "encrypted_title": payload.get("encrypted_title"),
                 "encrypted_description": payload.get("encrypted_expected_result"),
+                "encrypted_linked_project_ids": payload.get("encrypted_linked_project_ids"),
                 "status": "todo",
                 "assignee_type": payload.get("assignee_type", "user"),
                 "primary_chat_id": payload.get("primary_chat_id"),
@@ -135,6 +137,19 @@ class UserPlanService:
             }
             task = await self.task_service.create_task(user_id, task_payload)
             payload["linked_task_id"] = task.get("task_id")
+        for task_only_field in (
+            "task_id",
+            "encrypted_task_key",
+            "task_key_wrappers",
+            "encrypted_linked_project_ids",
+            "encrypted_title",
+            "primary_chat_id",
+            "linked_project_ids",
+            "plan_step_id",
+            "assignee_type",
+            "assigned_to",
+        ):
+            payload.pop(task_only_field, None)
         created = await self.plan_methods.create_verification(plan_id, payload)
         if not created:
             raise ValueError("Failed to create plan verification")

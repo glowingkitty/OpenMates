@@ -17,6 +17,7 @@ TRANSIENT_AI_FIELDS = {
     "plaintext_description",
     "plaintext_latest_instruction",
     "plaintext_chat_title",
+    "plaintext_project_context",
 }
 
 AiDispatcher = Callable[[str, str, dict[str, Any]], Awaitable[dict[str, Any]]]
@@ -51,9 +52,17 @@ class UserTaskService:
         payload.setdefault("assignee_type", "user")
         if payload.get("assignee_type") == "ai" and payload.get("due_at") is None:
             now = payload.get("updated_at") or payload.get("created_at")
-            payload["status"] = "in_progress"
-            payload.setdefault("ai_execution_state", "queued")
-            payload.setdefault("started_at", now)
+            primary_chat_id = payload.get("primary_chat_id")
+            active_tasks = []
+            if primary_chat_id:
+                active_tasks = await self.task_methods.list_active_ai_tasks_for_chat(user_id, primary_chat_id)
+            if active_tasks:
+                payload["status"] = "todo"
+                payload.setdefault("ai_execution_state", "waiting_for_previous_task")
+            else:
+                payload["status"] = "in_progress"
+                payload.setdefault("ai_execution_state", "queued")
+                payload.setdefault("started_at", now)
         created = await self.task_methods.create_task(user_id, payload)
         if not created:
             raise ValueError("Failed to create task")
@@ -70,7 +79,7 @@ class UserTaskService:
         update.pop("version", None)
         updated = await self.task_methods.update_task(task_id, user_id, update)
         if not updated:
-            raise UserTaskNotFoundError("Task not found")
+            raise ValueError("Failed to update task")
         return updated
 
     async def start_ai(self, task_id: str, user_id: str, patch: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -88,6 +97,11 @@ class UserTaskService:
         chat_id = raw_patch.get("primary_chat_id") or existing.get("primary_chat_id")
         if instruction and not chat_id:
             raise ValueError("primary_chat_id is required to start a task with AI")
+        if chat_id:
+            active_tasks = await self.task_methods.list_active_ai_tasks_for_chat(user_id, chat_id, exclude_task_id=task_id)
+            active_tasks = [task for task in active_tasks if task.get("task_id") != task_id]
+            if active_tasks:
+                raise UserTaskConflictError("Another AI task is already active in this chat")
 
         update = {
             key: value
@@ -138,6 +152,7 @@ class UserTaskService:
         title = str(patch.get("plaintext_title") or "").strip()
         description = str(patch.get("plaintext_description") or "").strip()
         latest_instruction = str(patch.get("plaintext_latest_instruction") or "").strip()
+        project_context = str(patch.get("plaintext_project_context") or "").strip()
         parts = ["You are executing an OpenMates user task."]
         if title:
             parts.append(f"Task: {title}")
@@ -145,6 +160,8 @@ class UserTaskService:
             parts.append(f"Details: {description}")
         if latest_instruction:
             parts.append(f"Latest instruction: {latest_instruction}")
+        if project_context:
+            parts.append(f"Project context: {project_context}")
         return "\n\n".join(parts) if len(parts) > 1 else ""
 
     async def _dispatch_transient_ai_task(

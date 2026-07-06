@@ -14,9 +14,14 @@ scope:
   in:
     - A separate durable Directus task collection for user-facing tasks, distinct from Celery task polling and chat messages.
     - Privacy-first storage with client-encrypted task title, description, tags, activity text, and AI instruction content for durable storage.
+    - One unique client-generated symmetric task key per task, with owner/master, primary chat, and linked-project access following the same client-side envelope-encryption model as chats, embeds, projects, and plans.
+    - Short-lived Vault-encrypted task execution contexts for every AI-assigned task in active chats so the assistant can continue task queues without server-side durable plaintext.
     - Minimal server-visible task metadata needed for authorization, filtering, scheduling, ordering, and safe execution.
     - A new product task API namespace under /v1/user-tasks, avoiding collision with /v1/tasks/{task_id} Celery polling.
     - Central /tasks Kanban page with backlog, todo, in_progress, blocked, and done columns.
+    - Account-wide task-view items that include normal user tasks plus read-only workflow run projections, so the Tasks view shows currently running and recently completed automation work related to the user's account.
+    - Workflow run cards in Tasks are inspectable and cancellable while active, but are not editable task records and cannot be dragged, assigned, or mutated through task-edit controls.
+    - The default Done column only shows tasks and workflow run projections completed in the last seven days; older completed items are hidden from the default board, not auto-deleted at seven days.
     - Mouse drag-and-drop and touch-friendly Kanban status changes.
     - Task creation and editing from /tasks, from chat, and from assistant-generated task proposals.
     - Text and voice creation flow: audio transcript, corrected transcript, AI instruction, then task creation or update.
@@ -26,9 +31,11 @@ scope:
     - Active chat task preview at the top of the chat showing the currently worked task, progress count, and a click target to open chat task details.
     - Unified chat details/settings page that uses the settings header pattern and consolidates chat tasks, files, usage details, and share controls.
     - Replacement of the existing chat share menu/process with the new settings-style chat Share section shown in the provided designs.
+    - Shared chat exports include chat-primary tasks by default as read-only shared task records; task decrypt authority is carried in the share URL fragment payload, matching the existing chat/embed share-link pattern.
     - AI and user assignees, including AI execution when assigned or scheduled.
     - AI sequentially working through a chat's AI-assigned tasks, marking blocked when user input or permissions are required.
     - Due-date scheduling for AI-assigned tasks that survives server restarts.
+    - Retention and cleanup policies for completed/archived tasks, key wrappers, and expired execution contexts so stale task data does not grow indefinitely.
     - CLI, npm SDK, and pip SDK task-management contracts before web E2E verification.
   out:
     - Replacing Celery /v1/tasks/{task_id} polling for long-running app skills.
@@ -37,6 +44,8 @@ scope:
     - Server-side full-text search over private task title or description.
     - Public task sharing, team task boards, or cross-user collaboration beyond a single owner account.
     - Complex dependency graphs, recurring tasks, or workflow-style automation beyond one due-date trigger.
+    - Editing workflow run definitions or node state from the Tasks view; workflow definitions remain managed in Workflows, and running workflow runs are immutable except for cancellation/resume-style controls explicitly owned by the workflow runner.
+    - Server-side decryption of durable task title, description, tags, activity, or instruction fields.
     - Native Apple implementation in the first web/API slice, although the spec records expected parity.
     - Remote filesystem access, code mutation, or high-stakes agentic coding permissions.
 
@@ -274,6 +283,73 @@ scenarios:
       - Files, Usage details, and Share tabs match the provided mobile designs and remain usable on desktop.
       - Existing share behavior, QR/link display, auto-expire, stop sharing, download chat, and privacy options continue to work through the new surface.
 
+  - id: S-11
+    title: Shared chats include decryptable read-only task records
+    given:
+      - Alice owns a chat with three tasks whose primary_chat_id is the chat.
+      - One additional task is linked only through a project and has no primary_chat_id for the chat.
+    when:
+      - Alice creates a shared chat link with the default task-sharing option enabled.
+      - Bob opens the shared chat link.
+    then:
+      - Bob can decrypt and view the three chat-primary tasks using each existing task key wrapped by the share-link fragment key inside the exported bundle.
+      - Bob sees those tasks as read-only shared context, not editable owner tasks.
+      - The project-only task is not included unless Alice explicitly includes project context in a future share flow.
+
+  - id: S-14
+    title: Task sharing uses URL-fragment key material, not server-readable share grants
+    given:
+      - Alice owns a chat-primary task encrypted with a per-task key.
+      - Alice creates a shared chat link with optional password protection.
+    when:
+      - OpenMates builds the shared chat payload.
+    then:
+      - The share payload includes the task id and the existing task key wrapped by the share-link fragment key; no new durable task key is created for sharing.
+      - The wrapped existing task key is decryptable only from the URL fragment key and optional password, following the existing chat/embed share contract.
+      - The backend never receives the URL fragment key, optional password, raw task key, or a server-readable durable share wrapper.
+      - Existing chat and embed share links continue to work without format changes.
+
+  - id: S-15
+    title: Workflow runs appear as read-only task-view cards
+    given:
+      - Alice has one workflow run currently running and one workflow run completed two days ago.
+      - Alice has one workflow run completed more than seven days ago.
+    when:
+      - Alice opens the central Tasks view.
+      - Alice cancels the running workflow run from its task-view card.
+      - Alice opens the completed workflow run card.
+    then:
+      - The running workflow run appears in the in_progress column with workflow identity, current step/progress when available, and actions to cancel or open the workflow run.
+      - The recently completed workflow run appears in the Done column with an Open workflow run action.
+      - The workflow run completed more than seven days ago is hidden from the default Done column but remains inspectable from workflow run history or an explicit older/completed history view.
+      - Workflow run cards are read-only projections, not editable user_tasks rows, and cannot be dragged between task columns or assigned to AI.
+      - Cancelling the active card requests workflow-run cancellation and stops future workflow steps when the runner reaches a cancellation checkpoint.
+
+  - id: S-12
+    title: AI task queue resumes from Vault-encrypted execution context
+    given:
+      - Alice has an active chat with three AI-assigned tasks.
+      - Each task has durable client-encrypted fields and a short-lived Vault-encrypted execution context.
+    when:
+      - The first task completes.
+    then:
+      - The backend can start the next eligible task by decrypting only the Vault execution context, not durable task fields.
+      - If the execution context is expired or missing, the next task becomes blocked with missing_execution_context.
+      - Execution contexts are deleted on task completion, cancellation, expiry, or user/account deletion.
+
+  - id: S-13
+    title: Old task data is retained or deleted according to lifecycle policy
+    given:
+      - Alice has completed, archived, blocked, and active tasks from several months ago.
+      - Alice has configured chat auto-delete and default task retention settings.
+    when:
+      - The daily retention job runs.
+    then:
+      - Expired execution contexts and orphan key wrappers are deleted first.
+      - Completed or archived tasks past the retention window are deleted with their activity, key wrappers, and execution contexts.
+      - Active, blocked, due, or explicitly kept tasks are not deleted.
+      - Chat auto-delete either deletes chat-primary tasks with the chat or preserves them only when explicitly detached/kept by the user.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -323,6 +399,24 @@ acceptance_criteria:
   - id: AC-16
     scenario: S-10
     text: Chat settings implementation uses existing canonical settings UI components and shared settings header patterns, with no custom inline settings UI styling.
+  - id: AC-17
+    scenario: S-11
+    text: Every task has a per-task key and owner/chat/project access contexts; shared chat links include chat-primary task records and the existing task keys wrapped by the share URL fragment key by default.
+  - id: AC-18
+    scenario: S-12
+    text: AI-assigned tasks in active chats have short-lived Vault-encrypted execution contexts, and queue continuation uses that context rather than durable task plaintext.
+  - id: AC-19
+    scenario: S-13
+    text: Task retention jobs delete expired execution contexts, orphan key wrappers, and eligible completed/archived tasks without deleting active or blocked work.
+  - id: AC-20
+    scenario: S-14
+    text: Shared task decryptability is granted by share-link fragment key material, not by a persistent server-readable share key grant.
+  - id: AC-21
+    scenario: S-15
+    text: The central Tasks view includes workflow run projections in in_progress and Done, with active runs cancellable and all workflow run cards read-only except for workflow-run actions.
+  - id: AC-22
+    scenario: S-15
+    text: The default Done column shows only user tasks and workflow run projections completed in the last seven days; older completed items are hidden from the default board rather than auto-deleted at seven days.
 
 contracts:
   api:
@@ -335,30 +429,78 @@ contracts:
         - Supports pagination for central /tasks and project filters.
     - route: POST /v1/user-tasks
       auth: session_or_api_key
-      request: "{ encrypted_title, encrypted_description?, status?, assignee, primary_chat_id?, project_ids?, due_at?, priority?, encrypted_tags? }"
+      request: "{ encrypted_title, encrypted_description?, status?, assignee, primary_chat_id?, project_ids?, due_at?, priority?, encrypted_tags?, key_wrappers? }"
       response: "{ task_id, status, encrypted_fields, metadata }"
       notes:
         - Defaults status to todo when no status is provided and no AI execution starts.
         - Starts AI immediately only when assignment/execution fields request AI work and due_at is absent or already due.
+        - linked_project_ids is request-only raw project ID input. The backend stores linked_project_hashes for filtering and encrypted_linked_project_ids for owner-side client use.
+        - key_wrappers must include a master wrapper and should include chat/project wrappers whenever primary_chat_id or linked_project_ids are present.
     - route: PATCH /v1/user-tasks/{task_id}
       auth: session_or_api_key
-      request: "partial task encrypted fields and metadata with client version"
+      request: "partial task encrypted fields and metadata with client version; key_wrappers when primary_chat_id or linked_project_ids changes"
       response: "{ task_id, version, updated_at }"
       notes:
         - Rejects stale versions with a visible conflict response rather than silently overwriting user or assistant edits.
+        - Project/chat relinks update linked_project_hashes, encrypted_linked_project_ids, and replacement key wrappers together so access contexts do not drift.
     - route: POST /v1/user-tasks/{task_id}/start-ai
       auth: session_or_api_key
-      request: "{ chat_id?, project_ids?, encrypted_instruction_context }"
+      request: "{ chat_id?, project_ids?, encrypted_instruction_context?, vault_execution_context? }"
       response: "{ task_id, status: in_progress, chat_id, ai_run_id }"
       notes:
         - Creates or reuses a working chat and sends the task execution instruction.
+        - Stores a short-lived Vault-encrypted execution context when AI work is queued, then deletes it on completion/cancel/expiry.
     - route: POST /v1/user-tasks/extract
       auth: session_or_api_key
       request: "{ encrypted_corrected_transcript_or_text, mode: create|update, context_chat_id?, project_ids? }"
       response: "{ proposed_tasks: ProposedTask[] }"
       notes:
         - Returns proposals for user review before POST /v1/user-tasks commits them.
+    - route: POST /v1/user-tasks/{task_id}/key-wrappers
+      auth: session_or_api_key
+      request: "{ key_wrappers: TaskKeyWrapper[] }"
+      response: "{ key_wrappers: TaskKeyWrapper[] }"
+      notes:
+        - Adds or replaces owner/chat/project wrappers for the task key without exposing the raw task key to the server.
+        - Persistent share wrappers are intentionally not part of the task source-of-truth; share decryptability is bundle/link scoped and uses existing task keys wrapped by URL-fragment key material.
+    - route: POST /v1/user-tasks/{task_id}/execution-context
+      auth: session_or_api_key
+      request: "{ vault_encrypted_context, expires_at, context_version }"
+      response: "{ task_id, expires_at }"
+      notes:
+        - Used only for AI-assigned active-chat tasks. This is not durable private task storage.
+        - Missing or expired execution context blocks queue continuation with missing_execution_context.
+    - route: GET /v1/user-tasks/view
+      auth: session_or_api_key
+      request: "query: status?, project_id?, chat_id?, include_workflow_runs=true, done_since?, limit?, cursor?"
+      response: "{ items: TaskViewItem[], next_cursor?: string }"
+      notes:
+        - Returns a mixed account overview for the Tasks surface: normal user_task items plus workflow_run projection items owned by the user.
+        - The default done_since is now minus seven days for Done-column requests. This filters default visibility only and must not delete older completed user tasks or workflow run records.
+        - Workflow run projection items are derived from workflow_runs/workflow metadata and are not written into user_tasks.
+        - Workflow run projection items expose only safe summary fields needed for the card: workflow_id, run_id, title, status, trigger_type, started_at, finished_at, current_node_summary/progress when available, content_available, and open/cancel capability flags.
+        - Workflow run projection items cannot be updated through PATCH /v1/user-tasks/{task_id}; run cancellation uses the Workflows API.
   data:
+    view_models:
+      - name: TaskViewItem
+        purpose: Unified Tasks-board item rendered by the central task surface.
+        variants:
+          - kind: user_task
+            source: user_tasks
+            mutable_from_tasks_view: true
+          - kind: workflow_run
+            source: workflow_runs joined to workflow summary metadata
+            mutable_from_tasks_view: false
+            allowed_actions:
+              - open_workflow_run
+              - cancel_workflow_run when status is queued, running, or waiting
+        status_mapping:
+          - workflow queued or running -> in_progress
+          - workflow completed -> done
+          - workflow failed, cancelled, or waiting_for_input -> blocked unless a future Needs attention column is introduced
+        notes:
+          - Workflow run projections keep workflow_runs as the source of truth and avoid duplicating automation execution records into encrypted user task rows.
+          - Cards may show workflow run title, workflow name, trigger type, current node/progress, and run status, but must not expose encrypted run content outside the workflow authorization boundary.
     collections:
       - name: user_tasks
         purpose: Durable user-facing task records.
@@ -369,7 +511,7 @@ contracts:
           - assignee_type: ai|user
           - assignee_hash
           - primary_chat_id
-          - linked_project_ids
+          - linked_project_hashes
           - parent_task_id
           - due_at
           - priority
@@ -386,6 +528,7 @@ contracts:
           - encrypted_task_key
           - encrypted_description
           - encrypted_tags
+          - encrypted_linked_project_ids
           - encrypted_activity_summary
           - encrypted_latest_instruction
       - name: user_task_activity
@@ -400,6 +543,53 @@ contracts:
           - actor_hash
           - event_type
           - created_at
+      - name: user_task_key_wrappers
+        purpose: Per-task key grants for owner, chat, and project access.
+        encrypted_fields:
+          - encrypted_task_key
+        server_visible_fields:
+          - id
+          - hashed_task_id
+          - hashed_user_id
+          - key_type: master|chat|project
+          - hashed_chat_id
+          - hashed_project_id
+          - created_at
+          - expires_at
+        notes:
+          - master wrappers are wrapped with the owner master key.
+          - chat wrappers are wrapped with the primary chat key.
+          - project wrappers are wrapped with the project key.
+          - share links do not create durable server-side task share wrappers; shared payloads include task id plus the existing task key wrapped for the share URL fragment key and optional password.
+      - name: shared_task_payload
+        purpose: Ephemeral/exported task data included in shared chats or future project shares.
+        fields:
+          - task_id
+          - encrypted_task_record
+          - existing_task_key_wrapped_by_share_key
+          - generated_at
+          - duration_seconds
+          - password_protected
+        notes:
+          - The backend may store or serve the encrypted payload, but it must never receive the URL fragment key, optional password, raw task key, or decrypted task fields.
+          - The share payload re-wraps the existing task key for this bundle only; it does not create a new task key and does not persist a durable share wrapper.
+          - Recipients can view shared tasks read-only unless they explicitly import/copy them into their own account with new owner keys.
+      - name: user_task_execution_contexts
+        purpose: Short-lived Vault-encrypted plaintext context for AI execution and queue continuation.
+        encrypted_fields:
+          - vault_encrypted_context
+        server_visible_fields:
+          - id
+          - task_id
+          - hashed_user_id
+          - hashed_primary_chat_id
+          - context_version
+          - created_at
+          - expires_at
+          - consumed_at
+        notes:
+          - Must be deleted on task completion, cancellation, expiry, user deletion, or chat deletion.
+          - Must never be sent to shared chat viewers.
     statuses:
       - backlog
       - todo
@@ -441,6 +631,9 @@ contracts:
     - Chat settings Share tab before share link creation.
     - Chat settings Share tab after share link creation with copy, QR, URL, stop sharing, and download chat states.
     - Project-filtered tasks on project page.
+    - Workflow run card in in_progress with Open workflow run and Cancel run actions.
+    - Workflow run card in Done with Open workflow run action only.
+    - Older completed items hidden from the default Done column after seven days, with an explicit history/older completed path if needed.
     - AI assigned and starting.
     - AI scheduled for due time.
     - AI in progress.
@@ -449,11 +642,30 @@ contracts:
     - Edit conflict.
   privacy_security:
     - Never store plaintext private task title, description, tags, transcript, or instruction content in durable server storage.
-    - Server-visible linked_project_ids and primary_chat_id are acceptable metadata for filtering and execution; reassess if project IDs become sensitive beyond existing project access assumptions.
+    - Server-visible linked_project_hashes and primary_chat_id are acceptable metadata for filtering and execution; raw linked_project_ids are stored only inside encrypted_linked_project_ids.
     - Use hashed user identifiers for assignee identity and ownership lookups.
     - Vault-encrypted AI execution context must have bounded retention and be deleted after task completion, cancellation, or expiration.
+    - Durable task keys must never be stored raw; only wrapped task keys are stored.
+    - Shared chats include only existing task keys wrapped for the shared task subset, protected by the share URL fragment key and optional password, not owner/master wrappers.
     - AI cannot start project-linked task work unless the user owns the linked projects and the feature is enabled.
     - Task API must enforce ownership for task, chat, and project links.
+  retention:
+    done_column_default_window_days: 7
+    done_column_visibility:
+      - The central Tasks board defaults the Done column to user tasks and workflow run projections completed in the last seven days.
+      - Completed items older than seven days are hidden from the default board for focus, not deleted at seven days.
+      - Deletion remains governed by the task retention policy, workflow run-content retention, workflow metadata retention, and user/account deletion rules.
+    execution_context_ttl_seconds: 259200 # 3 days by default; refreshed while active execution continues.
+    completed_task_default_retention_days: 180
+    archived_task_default_retention_days: 90
+    cleanup_schedule: daily, staggered after chat auto-delete and usage archival jobs.
+    delete_with_chat:
+      - Chat-primary tasks are deleted when their primary chat is auto-deleted unless the user explicitly detaches or keeps them.
+      - Project-linked tasks without primary_chat_id survive chat deletion and remain under project retention.
+    cleanup_order:
+      - Expired execution contexts.
+      - Orphan key wrappers whose task no longer exists.
+      - Completed or archived tasks past retention, including activity, key wrappers, and execution contexts.
   naming:
     - /v1/tasks remains Celery/background task polling.
     - /v1/user-tasks is the user-facing product task API namespace.
@@ -508,7 +720,9 @@ tests:
       - AC-9
     assertions:
       - authenticated create stores a user_tasks row with encrypted title and description fields only.
-      - list filters by primary_chat_id and linked_project_ids without decrypting private content.
+      - task creation stores per-task key wrappers for master/chat/project access contexts without raw keys.
+      - list filters by primary_chat_id and linked_project_hashes without decrypting private content.
+      - raw linked_project_ids are not persisted in plaintext and remain available to the owner only through encrypted_linked_project_ids.
       - unauthenticated and wrong-owner task, chat, or project access is rejected.
       - /v1/tasks Celery polling behavior remains unchanged.
     red_phase:
@@ -539,6 +753,7 @@ tests:
       - duplicate scheduler retries do not create duplicate working chats or AI runs.
       - chat task queues start the next AI task only after the active task finishes or blocks.
       - awaiting user input marks the task blocked with a reason code.
+      - queue continuation currently covers same-chat active-task blocking; Vault execution-context continuation remains pending.
     red_phase:
       required: false
       expected: not_captured
@@ -553,6 +768,59 @@ tests:
         status: passed
         run_id: "local-pytest-2026-06-26"
         timestamp: "2026-06-26"
+
+  - id: T-PYTEST-TASK-SHARE-BUNDLE
+    type: pytest
+    file: backend/tests/test_user_tasks_share_bundle.py
+    command: python3 -m pytest backend/tests/test_user_tasks_share_bundle.py
+    covers:
+      - AC-17
+      - AC-20
+    assertions:
+      - shared chat payloads include chat-primary task records as read-only encrypted bundle entries.
+      - each bundle entry wraps the existing task key with the share URL fragment key; no new task key and no durable share wrapper is created.
+      - backend storage/serving paths never receive the fragment key, optional password, raw existing task key, or decrypted task fields.
+      - project-only tasks are excluded from default chat shares unless project context is explicitly included by a later share flow.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PYTEST-TASK-EXECUTION-CONTEXT-CLEANUP
+    type: pytest
+    file: backend/tests/test_user_task_execution_contexts.py
+    command: python3 -m pytest backend/tests/test_user_task_execution_contexts.py
+    covers:
+      - AC-18
+      - AC-19
+    assertions:
+      - AI-assigned active-chat tasks store only short-lived Vault-encrypted execution context, not durable plaintext task fields.
+      - queue continuation uses non-expired execution context and blocks with missing_execution_context when context is absent or expired.
+      - cleanup deletes expired execution contexts, orphan key wrappers, and eligible completed/archived tasks without deleting active or blocked work.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
 
   - id: T-PYTEST-PROPOSALS
     type: pytest
@@ -685,6 +953,8 @@ tests:
       - AC-14
       - AC-15
       - AC-16
+      - AC-21
+      - AC-22
     assertions:
       - /tasks renders the Kanban board and creates a manual todo task.
       - drag/drop or touch equivalent moves a task between fixed columns and persists after reload.
@@ -699,6 +969,9 @@ tests:
       - Files tab lists chat files and exposes download actions.
       - Usage details tab lists grouped usage rows and exposes usage data download.
       - Chat settings markup uses data-testid hooks and canonical settings component structure instead of CSS class selectors in tests.
+      - Running workflow runs appear as read-only in_progress cards with Open workflow run and Cancel run actions.
+      - Recently completed workflow runs appear as read-only Done cards with Open workflow run actions.
+      - Completed tasks and workflow runs older than seven days are hidden from the default Done column without being deleted.
     red_phase:
       required: true
       expected: fail
@@ -713,6 +986,33 @@ tests:
         status: passed
         run_id: "playwright-28447876363"
         timestamp: "2026-06-30"
+
+  - id: T-PYTEST-TASK-VIEW-WORKFLOW-RUNS
+    type: pytest
+    file: backend/tests/test_task_view_workflow_runs.py
+    command: python3 -m pytest backend/tests/test_task_view_workflow_runs.py
+    covers:
+      - AC-21
+      - AC-22
+    assertions:
+      - task-view listing returns user-owned workflow run projections without creating user_tasks rows.
+      - workflow queued/running maps to in_progress, completed maps to done, and failed/cancelled/waiting maps to blocked.
+      - default Done filtering includes only completed user tasks and workflow run projections completed in the last seven days.
+      - older completed records remain available through their source history APIs and are not deleted by task-view filtering.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
 
   - id: T-MANUAL-APPLE
     type: manual
@@ -760,8 +1060,10 @@ implementation_plan:
     - User or assistant creates encrypted task content and minimal metadata.
     - Backend stores user_tasks and optional user_task_activity rows.
     - /tasks lists metadata plus encrypted fields; clients decrypt locally.
-    - Chat and project pages query by primary_chat_id or linked_project_ids.
+    - Chat and project pages query by primary_chat_id or raw linked_project_ids; the backend filters using linked_project_hashes.
+    - The central Tasks task-view endpoint merges normal user tasks with workflow run projections for account-wide active/recent automation visibility.
     - The central /tasks page and project page render the same decrypted task view models through shared TaskBoard and TaskCard components.
+    - Workflow run projection cards remain read-only in the Tasks UI and route cancel/open actions through Workflows APIs.
     - Active chat derives the current task preview from the linked chat task queue and opens ChatDetailsSettingsPage on click.
     - AI assignment without due_at creates or reuses a working chat and sends an execution instruction.
     - AI assignment with due_at is claimed by a restart-safe scheduler at due time.
@@ -773,6 +1075,10 @@ implementation_plan:
       reason: Product task API under /v1/user-tasks.
     - path: backend/core/api/app/services/user_task_service.py
       reason: Authorization, metadata filtering, conflict checks, and AI start orchestration.
+    - path: backend/core/api/app/services/task_view_service.py
+      reason: Unified task-view item projection combining user tasks and workflow runs for the central Tasks surface.
+    - path: backend/core/api/app/routes/workflows.py
+      reason: Workflow run cancellation endpoint used by running workflow run task-view cards.
     - path: backend/core/api/app/tasks/user_task_scheduler.py
       reason: Restart-safe due-date task claiming and execution dispatch.
     - path: backend/core/api/app/services/user_task_scheduler_service.py
@@ -786,7 +1092,7 @@ implementation_plan:
     - path: frontend/packages/ui/src/components/tasks/TaskBoard.svelte
       reason: Shared screenshot-aligned Kanban board for /tasks, project pages, and chat details.
     - path: frontend/packages/ui/src/components/tasks/TaskCard.svelte
-      reason: Shared task card style and interactions across all task boards.
+      reason: Shared task card style and interactions across all task boards, including read-only workflow run cards.
     - path: frontend/packages/ui/src/components/tasks/ActiveChatTaskPreview.svelte
       reason: Floating current-task preview in active chat.
     - path: frontend/packages/ui/src/components/tasks/TaskProposalReview.svelte
@@ -804,7 +1110,7 @@ implementation_plan:
     - path: frontend/packages/ui/src/components/chats/ChatSettingsShareSection.svelte
       reason: Replacement for existing share menu/process inside unified chat settings.
     - path: frontend/packages/ui/src/services/userTaskService.ts
-      reason: Encrypted frontend task API client and local decrypt/encrypt helpers.
+      reason: Encrypted frontend task API client, local decrypt/encrypt helpers, and task-view item loading.
     - path: frontend/packages/ui/src/components/settings/elements
       reason: Existing canonical settings UI components must be reused for chat settings tabs.
     - path: frontend/packages/ui/src/components/projects/ProjectsPage.svelte
@@ -817,6 +1123,8 @@ implementation_plan:
       reason: CLI/npm SDK task methods.
     - path: packages/openmates-python/openmates/client.py
       reason: pip SDK task methods.
+    - path: backend/tests/test_task_view_workflow_runs.py
+      reason: Backend task-view projection and seven-day Done visibility coverage.
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/tasks-v1/spec.yml
     - python3 scripts/audit_sdk_cli_parity.py after CLI/SDK task methods are added.
@@ -842,6 +1150,8 @@ implementation_plan:
     - Regressing existing share behavior while replacing the old share menu/process.
     - Violating settings UI consistency by implementing chat settings with one-off inline CSS instead of canonical settings components.
     - Scope creep into full workflows, recurring tasks, or agentic coding permissions.
+    - Confusing read-only workflow run cards with editable user tasks; card actions and API contracts must make the distinction explicit.
+    - Treating the seven-day Done visibility window as deletion; hiding default board items must remain separate from retention cleanup.
   open_questions:
     - Should priority be server-visible metadata for sorting, or encrypted-only with client-side sorting after fetch?
     - Should tags be encrypted-only in V1, which limits server-side tag filters, or should there be optional hashed tag filters later?
@@ -883,6 +1193,7 @@ tasks:
         - S-5
         - S-6
         - S-7
+        - S-15
       acceptance_criteria:
         - AC-4
         - AC-5
@@ -950,6 +1261,8 @@ tasks:
         - AC-14
         - AC-15
         - AC-16
+        - AC-21
+        - AC-22
     expected_files:
       - frontend/apps/web_app/src/routes/tasks/+page.svelte
       - frontend/packages/ui/src/components/tasks/TasksPage.svelte
@@ -966,6 +1279,9 @@ tasks:
       - frontend/packages/ui/src/components/projects/ProjectsPage.svelte
       - frontend/packages/ui/src/components/ActiveChat.svelte
       - frontend/apps/web_app/tests/tasks-flow.spec.ts
+      - backend/core/api/app/services/task_view_service.py
+      - backend/tests/test_task_view_workflow_runs.py
     verification:
       - T-PLAYWRIGHT-TASKS
+      - T-PYTEST-TASK-VIEW-WORKFLOW-RUNS
     independently_deployable: false

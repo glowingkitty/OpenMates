@@ -5,17 +5,40 @@
 // Spec: docs/specs/plans-v1/spec.yml
 
 import { getApiEndpoint } from "../config/api";
+import { computeSHA256 } from "../message_parsing/utils";
 import {
   decryptChatKeyWithMasterKey,
   decryptWithEmbedKey,
   encryptChatKeyWithMasterKey,
   encryptWithEmbedKey,
   generateEmbedKey,
+  wrapEmbedKeyWithChatKey,
 } from "./cryptoService";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { listProjects } from "./projectService";
 
 export type UserPlanStatus = "draft" | "awaiting_confirmation" | "active" | "executing" | "blocked" | "completed" | "archived";
 export type UserPlanCriterionStatus = "pending" | "satisfied" | "failed" | "waived";
 export type UserPlanVerificationStatus = "pending" | "passed" | "failed" | "passed_unexpectedly" | "skipped" | "waived";
+export type UserPlanKeyWrapperType = "master" | "chat" | "project";
+
+export interface UserPlanKeyWrapperRecord {
+  key_type: UserPlanKeyWrapperType;
+  encrypted_plan_key: string;
+  hashed_chat_id?: string | null;
+  hashed_project_id?: string | null;
+  created_at: number;
+  expires_at?: number | null;
+}
+
+export interface UserTaskKeyWrapperRecord {
+  key_type: UserPlanKeyWrapperType;
+  encrypted_task_key: string;
+  hashed_chat_id?: string | null;
+  hashed_project_id?: string | null;
+  created_at: number;
+  expires_at?: number | null;
+}
 
 export interface EncryptedUserPlanRecord {
   id?: string;
@@ -34,6 +57,8 @@ export interface EncryptedUserPlanRecord {
   status: UserPlanStatus;
   primary_chat_id?: string | null;
   linked_project_ids?: string[] | null;
+  linked_project_hashes?: string[] | null;
+  encrypted_linked_project_ids?: string | null;
   current_phase_id?: string | null;
   current_step_id?: string | null;
   current_task_id?: string | null;
@@ -42,6 +67,7 @@ export interface EncryptedUserPlanRecord {
   created_at: number;
   updated_at: number;
   completed_at?: number | null;
+  key_wrappers?: UserPlanKeyWrapperRecord[];
 }
 
 export interface UserPlanViewModel {
@@ -176,6 +202,13 @@ async function decryptOptional(value: string | null | undefined, key: Uint8Array
   return (await decryptWithEmbedKey(value, key)) ?? "";
 }
 
+async function decryptStringArray(value: string | null | undefined, key: Uint8Array): Promise<string[]> {
+  const text = await decryptOptional(value, key);
+  if (!text) return [];
+  const parsed = JSON.parse(text) as unknown;
+  return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+}
+
 async function decryptPlanKey(plan: UserPlanViewModel | EncryptedUserPlanRecord): Promise<Uint8Array> {
   const encryptedPlanKey = "encrypted" in plan ? plan.encrypted.encrypted_plan_key : plan.encrypted_plan_key;
   const planKey = await decryptChatKeyWithMasterKey(encryptedPlanKey ?? "");
@@ -201,7 +234,7 @@ async function decryptPlan(record: EncryptedUserPlanRecord): Promise<UserPlanVie
     risks: await decryptOptional(record.encrypted_risks, planKey),
     status: record.status,
     primaryChatId: record.primary_chat_id ?? null,
-    linkedProjectIds: record.linked_project_ids ?? [],
+    linkedProjectIds: await decryptStringArray(record.encrypted_linked_project_ids, planKey),
     currentPhaseId: record.current_phase_id ?? null,
     currentStepId: record.current_step_id ?? null,
     currentTaskId: record.current_task_id ?? null,
@@ -232,6 +265,81 @@ async function encryptPlanFields(input: CreateUserPlanInput, planKey: Uint8Array
   };
 }
 
+async function loadProjectKeys(linkedProjectIds: string[]): Promise<Array<{ projectId: string; projectKey: Uint8Array }>> {
+  if (linkedProjectIds.length === 0) return [];
+
+  const projects = await listProjects();
+  const projectKeys: Array<{ projectId: string; projectKey: Uint8Array }> = [];
+  for (const projectId of linkedProjectIds) {
+    const project = projects.find((candidate) => candidate.project_id === projectId);
+    if (!project) throw new Error(`Could not find project key for linked project ${projectId}`);
+    projectKeys.push({ projectId, projectKey: project.projectKey });
+  }
+  return projectKeys;
+}
+
+async function buildPlanKeyWrappers(
+  planKey: Uint8Array,
+  encryptedPlanKey: string,
+  timestamp: number,
+  primaryChatId: string | null,
+  linkedProjectIds: string[],
+): Promise<UserPlanKeyWrapperRecord[]> {
+  const wrappers: UserPlanKeyWrapperRecord[] = [
+    { key_type: "master", encrypted_plan_key: encryptedPlanKey, created_at: timestamp },
+  ];
+  if (primaryChatId) {
+    const chatKey = await chatKeyManager.getKey(primaryChatId);
+    if (!chatKey) throw new Error(`Could not find chat key for primary chat ${primaryChatId}`);
+    wrappers.push({
+      key_type: "chat",
+      hashed_chat_id: await computeSHA256(primaryChatId),
+      encrypted_plan_key: await wrapEmbedKeyWithChatKey(planKey, chatKey),
+      created_at: timestamp,
+    });
+  }
+  for (const project of await loadProjectKeys(linkedProjectIds)) {
+    wrappers.push({
+      key_type: "project",
+      hashed_project_id: await computeSHA256(project.projectId),
+      encrypted_plan_key: await wrapEmbedKeyWithChatKey(planKey, project.projectKey),
+      created_at: timestamp,
+    });
+  }
+  return wrappers;
+}
+
+async function buildTaskKeyWrappers(
+  taskKey: Uint8Array,
+  encryptedTaskKey: string,
+  timestamp: number,
+  primaryChatId: string | null,
+  linkedProjectIds: string[],
+): Promise<UserTaskKeyWrapperRecord[]> {
+  const wrappers: UserTaskKeyWrapperRecord[] = [
+    { key_type: "master", encrypted_task_key: encryptedTaskKey, created_at: timestamp },
+  ];
+  if (primaryChatId) {
+    const chatKey = await chatKeyManager.getKey(primaryChatId);
+    if (!chatKey) throw new Error(`Could not find chat key for primary chat ${primaryChatId}`);
+    wrappers.push({
+      key_type: "chat",
+      hashed_chat_id: await computeSHA256(primaryChatId),
+      encrypted_task_key: await wrapEmbedKeyWithChatKey(taskKey, chatKey),
+      created_at: timestamp,
+    });
+  }
+  for (const project of await loadProjectKeys(linkedProjectIds)) {
+    wrappers.push({
+      key_type: "project",
+      hashed_project_id: await computeSHA256(project.projectId),
+      encrypted_task_key: await wrapEmbedKeyWithChatKey(taskKey, project.projectKey),
+      created_at: timestamp,
+    });
+  }
+  return wrappers;
+}
+
 export async function listUserPlans(filters: ListUserPlansFilters = {}): Promise<UserPlanViewModel[]> {
   const data = await requestJson<{ plans: EncryptedUserPlanRecord[] }>(`/v1/user-plans${buildQuery(filters)}`);
   const decrypted = await Promise.all(data.plans.map(decryptPlan));
@@ -243,19 +351,23 @@ export async function createUserPlan(input: CreateUserPlanInput): Promise<UserPl
   const encryptedPlanKey = await encryptChatKeyWithMasterKey(planKey);
   if (!encryptedPlanKey) throw new Error("Could not wrap plan key with master key");
   const timestamp = nowSeconds();
+  const linkedProjectIds = input.linkedProjectIds ?? [];
+  const primaryChatId = input.primaryChatId ?? null;
   const body: EncryptedUserPlanRecord = {
     plan_id: crypto.randomUUID(),
     encrypted_plan_key: encryptedPlanKey,
     ...(await encryptPlanFields(input, planKey)),
+    encrypted_linked_project_ids: await encryptWithEmbedKey(JSON.stringify(linkedProjectIds), planKey),
     status: input.status ?? "draft",
-    primary_chat_id: input.primaryChatId ?? null,
-    linked_project_ids: input.linkedProjectIds ?? [],
+    primary_chat_id: primaryChatId,
+    linked_project_ids: linkedProjectIds,
     current_phase_id: input.currentPhaseId ?? null,
     current_step_id: input.currentStepId ?? null,
     current_task_id: input.currentTaskId ?? null,
     planner_focus_id: input.plannerFocusId ?? null,
     created_at: timestamp,
     updated_at: timestamp,
+    key_wrappers: await buildPlanKeyWrappers(planKey, encryptedPlanKey, timestamp, primaryChatId, linkedProjectIds),
   };
   const data = await requestJson<{ plan: EncryptedUserPlanRecord }>("/v1/user-plans", {
     method: "POST",
@@ -266,8 +378,23 @@ export async function createUserPlan(input: CreateUserPlanInput): Promise<UserPl
   return decrypted;
 }
 
+export async function listUserPlanKeyWrappers(planId: string): Promise<UserPlanKeyWrapperRecord[]> {
+  const data = await requestJson<{ key_wrappers: UserPlanKeyWrapperRecord[] }>(`/v1/user-plans/${planId}/key-wrappers`);
+  return data.key_wrappers;
+}
+
+export async function addUserPlanKeyWrappers(planId: string, keyWrappers: UserPlanKeyWrapperRecord[]): Promise<UserPlanKeyWrapperRecord[]> {
+  const data = await requestJson<{ key_wrappers: UserPlanKeyWrapperRecord[] }>(`/v1/user-plans/${planId}/key-wrappers`, {
+    method: "POST",
+    body: JSON.stringify({ key_wrappers: keyWrappers }),
+  });
+  return data.key_wrappers;
+}
+
 export async function updateUserPlan(plan: UserPlanViewModel, patch: Partial<CreateUserPlanInput> & { status?: UserPlanStatus }): Promise<UserPlanViewModel> {
   const planKey = await decryptPlanKey(plan);
+  const encryptedPlanKey = plan.encrypted.encrypted_plan_key;
+  if (!encryptedPlanKey) throw new Error("Missing encrypted plan key");
   const body: Record<string, unknown> = { version: plan.version, updated_at: nowSeconds() };
   if (patch.title !== undefined) body.encrypted_title = await encryptWithEmbedKey(patch.title, planKey);
   if (patch.summary !== undefined) body.encrypted_summary = await encryptWithEmbedKey(patch.summary, planKey);
@@ -279,9 +406,15 @@ export async function updateUserPlan(plan: UserPlanViewModel, patch: Partial<Cre
   if (patch.constraints !== undefined) body.encrypted_constraints = await encryptWithEmbedKey(patch.constraints, planKey);
   if (patch.decisions !== undefined) body.encrypted_decisions = await encryptWithEmbedKey(patch.decisions, planKey);
   if (patch.risks !== undefined) body.encrypted_risks = await encryptWithEmbedKey(patch.risks, planKey);
+  if (patch.linkedProjectIds !== undefined) body.encrypted_linked_project_ids = await encryptWithEmbedKey(JSON.stringify(patch.linkedProjectIds), planKey);
   if (patch.status !== undefined) body.status = patch.status;
   if (patch.primaryChatId !== undefined) body.primary_chat_id = patch.primaryChatId;
   if (patch.linkedProjectIds !== undefined) body.linked_project_ids = patch.linkedProjectIds;
+  if (patch.linkedProjectIds !== undefined || patch.primaryChatId !== undefined) {
+    const updatedPrimaryChatId = patch.primaryChatId !== undefined ? patch.primaryChatId : plan.primaryChatId;
+    const updatedLinkedProjectIds = patch.linkedProjectIds !== undefined ? patch.linkedProjectIds : plan.linkedProjectIds;
+    body.key_wrappers = await buildPlanKeyWrappers(planKey, encryptedPlanKey, nowSeconds(), updatedPrimaryChatId ?? null, updatedLinkedProjectIds);
+  }
   if (patch.currentPhaseId !== undefined) body.current_phase_id = patch.currentPhaseId;
   if (patch.currentStepId !== undefined) body.current_step_id = patch.currentStepId;
   if (patch.currentTaskId !== undefined) body.current_task_id = patch.currentTaskId;
@@ -347,6 +480,8 @@ export async function createPlanVerification(plan: UserPlanViewModel, input: Cre
   const timestamp = nowSeconds();
   const taskKey = input.createTask ? generateEmbedKey() : null;
   const encryptedTaskKey = taskKey ? await encryptChatKeyWithMasterKey(taskKey) : null;
+  const linkedProjectIds = input.linkedProjectIds ?? plan.linkedProjectIds;
+  const primaryChatId = input.primaryChatId ?? plan.primaryChatId;
   const data = await requestJson<{ verification: Record<string, unknown> }>(`/v1/user-plans/${plan.plan_id}/verification`, {
     method: "POST",
     body: JSON.stringify({
@@ -361,12 +496,18 @@ export async function createPlanVerification(plan: UserPlanViewModel, input: Cre
       create_task: input.createTask ?? false,
       task_id: input.taskId ?? null,
       encrypted_task_key: encryptedTaskKey,
+      task_key_wrappers: taskKey && encryptedTaskKey
+        ? await buildTaskKeyWrappers(taskKey, encryptedTaskKey, timestamp, primaryChatId, linkedProjectIds)
+        : [],
+      encrypted_linked_project_ids: taskKey
+        ? await encryptWithEmbedKey(JSON.stringify(linkedProjectIds), taskKey)
+        : null,
       encrypted_title: await encryptWithEmbedKey(input.title ?? "", taskKey ?? planKey),
       encrypted_command: await encryptWithEmbedKey(input.command ?? "", planKey),
       encrypted_evaluation_prompt: await encryptWithEmbedKey(input.evaluationPrompt ?? "", planKey),
       encrypted_expected_result: await encryptWithEmbedKey(input.expectedResult ?? "", planKey),
-      primary_chat_id: input.primaryChatId ?? plan.primaryChatId,
-      linked_project_ids: input.linkedProjectIds ?? plan.linkedProjectIds,
+      primary_chat_id: primaryChatId,
+      linked_project_ids: linkedProjectIds,
       plan_step_id: input.planStepId ?? plan.currentStepId,
       assignee_type: input.assigneeType ?? "user",
       created_at: timestamp,

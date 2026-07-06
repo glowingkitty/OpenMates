@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 MAX_TASK_PROPOSALS = 3
 TASK_PROPOSAL_STATUSES = {"backlog", "todo", "in_progress", "blocked", "done"}
 TASK_PROPOSAL_ASSIGNEES = {"user", "ai"}
+TASK_LINE_PREFIXES = ("-", "*", "•")
 
 
 class TaskProposal(BaseModel):
@@ -99,3 +100,34 @@ def sanitize_task_update_proposals(raw_updates: Any, task_id: str) -> list[TaskU
     if len(updates) != len(raw_updates[:MAX_TASK_PROPOSALS]):
         logger.info("[Task ID: %s] [PostProcessor] Filtered invalid task update proposal(s)", task_id)
     return updates
+
+
+def extract_review_task_proposals(text: str, task_id: str = "user-task-extract") -> list[TaskProposal]:
+    """Create bounded review-only task proposals from transient user text.
+
+    The durable task API remains encrypted. This helper intentionally returns
+    plaintext only to the current request so the client can review/edit before
+    committing encrypted task records.
+    """
+    cleaned_text = text.strip()
+    if not cleaned_text:
+        return []
+
+    raw_proposals: list[dict[str, str]] = []
+    for raw_line in cleaned_text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        for prefix in TASK_LINE_PREFIXES:
+            if line.startswith(prefix):
+                line = line[len(prefix) :].strip()
+                break
+        if line:
+            raw_proposals.append({"title": line, "description": cleaned_text})
+        if len(raw_proposals) >= MAX_TASK_PROPOSALS:
+            break
+
+    if not raw_proposals:
+        raw_proposals.append({"title": cleaned_text[:160], "description": cleaned_text})
+
+    return sanitize_task_proposals(raw_proposals, task_id)

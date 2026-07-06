@@ -5,6 +5,7 @@
 # dependencies.
 
 from backend.apps.ai.processing.task_proposals import (
+    extract_review_task_proposals,
     sanitize_task_proposals,
     sanitize_task_update_proposals,
 )
@@ -59,3 +60,15 @@ def test_task_update_proposals_require_visible_task_id_and_a_change() -> None:
     assert len(result) == 1
     assert result[0].task_id == "task-1"
     assert result[0].status == "done"
+
+
+def test_extract_review_task_proposals_uses_transient_text_only() -> None:
+    result = extract_review_task_proposals("- Draft launch checklist\n- Prepare QA notes\n- Publish changelog\n- Ignored")
+
+    assert [proposal.title for proposal in result] == [
+        "Draft launch checklist",
+        "Prepare QA notes",
+        "Publish changelog",
+    ]
+    assert all(proposal.status == "todo" for proposal in result)
+    assert all(proposal.assignee_type == "user" for proposal in result)
