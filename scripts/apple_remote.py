@@ -1892,6 +1892,35 @@ def test_ios_command(simulator: str, only_testing: str | None) -> str:
     return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {shell_join(parts)}"
 
 
+def build_watch_command(simulator: str) -> str:
+    return shell_join([
+        "xcodebuild",
+        "-project",
+        "apple/OpenMates.xcodeproj",
+        "-scheme",
+        "OpenMatesWatch",
+        "-destination",
+        f"platform=watchOS Simulator,name={simulator}",
+        "build",
+    ])
+
+
+def test_watch_command(simulator: str, only_testing: str | None) -> str:
+    parts = [
+        "xcodebuild",
+        "test",
+        "-project",
+        "apple/OpenMates.xcodeproj",
+        "-scheme",
+        "OpenMatesWatch",
+        "-destination",
+        f"platform=watchOS Simulator,name={simulator}",
+    ]
+    if only_testing:
+        parts.extend(["-only-testing", only_testing])
+    return shell_join(parts)
+
+
 def device_status_command() -> str:
     return shell_join(["python3", "-c", DEVICE_STATUS_SCRIPT])
 
@@ -2111,6 +2140,13 @@ def build_parser() -> argparse.ArgumentParser:
     test_parser.add_argument("--simulator", default="iPhone 17")
     test_parser.add_argument("--only-testing")
 
+    build_watch_parser = subparsers.add_parser("build-watch", help="Build OpenMatesWatch remotely")
+    build_watch_parser.add_argument("--simulator", default="Apple Watch Series 10 (46mm)")
+
+    test_watch_parser = subparsers.add_parser("test-watch", help="Run OpenMatesWatch tests remotely")
+    test_watch_parser.add_argument("--simulator", default="Apple Watch Series 10 (46mm)")
+    test_watch_parser.add_argument("--only-testing")
+
     device_parser = subparsers.add_parser("device-status", help="Show sanitized physical iOS device readiness")
     device_parser.set_defaults(_uses_repo=True)
 
@@ -2253,6 +2289,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return run_remote(config, repo_command(config, ["bash", "-lc", build_ios_command(args.simulator)]))
         if args.command == "test-ios":
             return run_remote(config, repo_command(config, ["bash", "-lc", test_ios_command(args.simulator, args.only_testing)]))
+        if args.command == "build-watch":
+            return run_remote(config, repo_command(config, ["bash", "-lc", build_watch_command(args.simulator)]))
+        if args.command == "test-watch":
+            return run_remote(config, repo_command(config, ["bash", "-lc", test_watch_command(args.simulator, args.only_testing)]))
         if args.command == "device-status":
             return run_remote(config, repo_command(config, ["bash", "-lc", device_status_command()]))
         if args.command == "install-ios-device":
