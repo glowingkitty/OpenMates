@@ -546,9 +546,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "remote:python3 scripts/apple_remote.py build-ios --simulator 'iPhone 17'"
+        timestamp: "2026-07-06T13:10:26Z"
+        summary: "OpenMates_iOS built successfully on the remote Mac for iPhone 17 simulator after the shared composer extraction."
 
 verifications:
   - id: V-WEB-COMPUTED-STYLE
