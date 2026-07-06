@@ -157,7 +157,6 @@ targets:
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
     settings:
       base:
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_ENTITLEMENTS: OpenMatesWatch/OpenMatesWatch.entitlements
         INFOPLIST_FILE: OpenMatesWatch/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.watch
