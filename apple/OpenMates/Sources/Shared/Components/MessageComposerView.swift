@@ -189,7 +189,7 @@ struct MessageComposerActionIcon: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
-        .modifier(OptionalAccessibilityIdentifier(identifier))
+        .modifier(OptionalAccessibilityIdentifier(identifier: identifier))
     }
 }
 
