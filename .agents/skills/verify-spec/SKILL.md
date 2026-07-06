@@ -39,6 +39,8 @@ python3 scripts/spec_verify.py docs/specs/<slug>/spec.yml --phase complete
 For every scenario and acceptance criterion, record:
 
 - Implemented: yes/no/partial/unknown
+- Coverage: covered/ambiguous/uncovered/blocked/waived based on
+  `coverage_status`, linked tests, and `verification_ids`
 - Evidence: test file, command, manual verification, code reference, or gap
 - Risk: none/low/medium/high
 
@@ -47,10 +49,26 @@ For every scenario and acceptance criterion, record:
 Pass only when:
 
 - Every completed acceptance criterion has green evidence.
-- Every required red phase has failure evidence before implementation.
+- Every required acceptance criterion is covered, waived, or blocked by an
+  accepted user/external dependency; ambiguous and uncovered criteria fail.
+- Every required assumption whose `required_before` is `implementation` is
+  confirmed, corrected and applied, waived, or externally blocked.
+- required assumptions with unchecked, checking, or contradicted status fail the
+  implementation gate unless the user accepts a waiver or external blocker.
+- Every required red phase has evidence before implementation. Red evidence may
+  be failed as expected, passed unexpectedly with a reason, missing-test with a
+  reason, skipped with a reason, or not applicable.
+- Every required green/final check has passing, user-confirmed, waived, or
+  accepted-blocker evidence.
 - Privacy/security criteria have concrete code or test evidence.
 - Changed source files have related tests or an explicit skip reason.
 - Open questions are resolved or listed as accepted residual risk.
+
+Failed required checks must not be treated as a summary-only issue. The report
+must identify the affected acceptance criteria and confirm that follow-up tasks
+exist or that the user explicitly accepted a waiver/blocker.
+failed required checks keep the spec active until the linked follow-up work is
+done or the user accepts a waiver/blocker.
 
 Playwright green evidence is only valid after the implementation has been
 deployed to dev, Vercel is Ready, and the spec has run against
@@ -89,6 +107,8 @@ intent changed, or ask the user to accept a documented risk.
 
 - Do not mark criteria complete based on intent alone.
 - Do not weaken or remove acceptance criteria to make verification pass.
+- Do not mark ambiguous coverage as complete; normalize vague criteria into
+  concrete checks first.
 - Prefer Playwright/pytest/vitest via repo-approved test commands over manual
   browser checks.
 - Manual verification is allowed only when automation is impractical and the

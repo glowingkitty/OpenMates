@@ -79,10 +79,14 @@ For full specs:
    Apple remote evidence third when the Apple app has a counterpart.
 10. Run the listed red-phase tests in the same order and record evidence in
     `spec.yml`.
-11. Implement one small requirement slice at a time.
-12. Deploy before Playwright green-phase verification because Playwright specs
+11. Before implementation starts, confirm required assumptions and normalize
+    vague acceptance criteria such as "all tests pass" into concrete scoped
+    checks. Required criteria must have `coverage_status`, `verification_scope`,
+    and `verification_ids`, or an explicit user confirmation, waiver, or blocker.
+12. Implement one small requirement slice at a time.
+13. Deploy before Playwright green-phase verification because Playwright specs
     run against `app.dev.openmates.org`.
-13. Run green-phase tests in CLI → web → Apple order, record evidence in
+14. Run green-phase tests in CLI → web → Apple order, record evidence in
     `spec.yml`, and run `python3 scripts/spec_verify.py
     docs/specs/<slug>/spec.yml`.
 
@@ -218,6 +222,22 @@ acceptance_criteria:
   - id: AC-1
     scenario: S-1
     text: A logged-in user can create a team and becomes its owner.
+    required: true
+    status: pending # pending | satisfied | failed | waived | blocked
+    coverage_status: covered # uncovered | covered | ambiguous | blocked | waived
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-001
+
+assumptions:
+  - id: A-1
+    text: Existing auth dependencies can identify the current user for team APIs.
+    category: auth
+    required_before: implementation # implementation | task_execution | completion | never
+    status: confirmed # unchecked | checking | confirmed | corrected | contradicted | blocked | waived
+    evidence:
+      - source: backend/core/api/app/routes/auth_routes/auth_dependencies.py
+        summary: Existing dependency returns the current user for authenticated API routes.
 
 contracts:
   api:
@@ -283,6 +303,19 @@ tests:
         run_id: ""
         timestamp: ""
 
+verifications:
+  - id: V-MANUAL-001
+    kind: user_confirmation # automated_test | deterministic_check | manual_check | ai_evaluation | user_confirmation | artifact_review
+    phase: final # red | green | final | not_applicable
+    required_for_done: true
+    covers:
+      - AC-1
+    status: pending # pending | passed | failed | passed_unexpectedly | skipped | waived | blocked
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+
 implementation_plan:
   existing_patterns:
     - backend/core/api/app/routes/example.py
@@ -307,6 +340,8 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Create team backend slice
+    status: pending # pending | in_progress | done | blocked | needs_fix | cancelled
+    phase: working_tasks
     covers:
       scenarios:
         - S-1
@@ -317,6 +352,10 @@ tasks:
       - backend/tests/test_teams.py
     verification:
       - T-PYTEST-001
+    verification_ids:
+      - T-PYTEST-001
+    blockers: []
+    follow_up_tasks: []
     independently_deployable: true
 ```
 
@@ -341,6 +380,12 @@ or test IDs are malformed, Playwright tests do not target `app.dev.openmates.org
 or Playwright green phase is not `pass_after_deploy`.
 
 `spec_verify.py` fails when required red or green phase evidence is missing.
+Red-phase evidence may be `failed_as_expected`, `passed_unexpectedly`,
+`missing_test`, `skipped_with_reason`, or `not_applicable`; required green/final
+evidence must pass, be user-confirmed, waived, or be blocked by an accepted
+user/external dependency. Failed required checks keep the spec active and should
+create or suggest follow-up tasks linked to the failed verification and affected
+acceptance criteria.
 
 ## Subagents And Separate Sessions
 
