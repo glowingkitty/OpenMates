@@ -245,9 +245,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-macos-peer-20260706-chat-enhanced-pii-individual
+        timestamp: "2026-07-06T10:17:43Z"
+        summary: >
+          Passed on remote iOS simulator with `--only-testing
+          OpenMatesTests/ChatSendPipelineParityTests/testEnhancedPIIFallsBackToRegexWhenModelUnavailable`.
 
   - id: T-APPLE-UNIT-002
     type: unit
@@ -269,9 +272,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-macos-peer-20260706-settings-enhanced-pii
+        timestamp: "2026-07-06T10:19:20Z"
+        summary: >
+          Passed on remote iOS simulator with `--only-testing
+          OpenMatesTests/SettingsFullParityTests/testEnhancedPIIModelSettingsLifecycle`.
 
   - id: T-APPLE-UNIT-003
     type: unit
@@ -294,9 +300,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-macos-peer-20260706-chat-enhanced-pii-individual
+        timestamp: "2026-07-06T10:17:43Z"
+        summary: >
+          Passed on remote iOS simulator with `--only-testing
+          OpenMatesTests/ChatSendPipelineParityTests/testEnhancedPIIComposerSuggestionBackoff`.
 
   - id: T-APPLE-UNIT-004
     type: unit
@@ -320,9 +329,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-macos-peer-20260706-chat-enhanced-pii-individual
+        timestamp: "2026-07-06T10:17:43Z"
+        summary: >
+          Passed on remote iOS simulator with `--only-testing
+          OpenMatesTests/ChatSendPipelineParityTests/testEnhancedPIIModelSpansMergeIntoMappings`.
 
   - id: T-APPLE-UNIT-005
     type: unit
@@ -344,9 +356,12 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-macos-peer-20260706-chat-enhanced-pii-individual
+        timestamp: "2026-07-06T10:17:43Z"
+        summary: >
+          Passed on remote iOS simulator with `--only-testing
+          OpenMatesTests/ChatSendPipelineParityTests/testEnhancedPIIModelTimeoutFallsBackToRegex`.
 
 verifications:
   - id: V-SPEC-001
@@ -361,9 +376,14 @@ verifications:
       - AC-5
     status: pending
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
+      status: blocked
+      summary: >
+        Remote Apple unit evidence is green for the implemented first slice, and
+        `python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"`
+        passed on 2026-07-06. Full done remains blocked until production model
+        hosting URL, SHA-256 checksum, artifact size, and native runtime/runner
+        are configured.
+      timestamp: "2026-07-06T10:20:00Z"
 
 implementation_plan:
   existing_patterns:
@@ -410,7 +430,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add enhanced detector and settings lifecycle tests
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -446,7 +466,7 @@ tasks:
 
   - id: TASK-2
     title: Implement regex-first enhanced detection and lifecycle state
-    status: pending
+    status: blocked
     phase: working_tasks
     covers:
       scenarios:
