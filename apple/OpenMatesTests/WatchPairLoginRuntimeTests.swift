@@ -77,9 +77,10 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         try await CryptoManager.shared.saveMasterKey(masterKey, for: userId)
         let loaded = try await CryptoManager.shared.loadMasterKey(for: userId)
         try await CryptoManager.shared.deleteMasterKey(for: userId)
+        let deleted = try await CryptoManager.shared.loadMasterKey(for: userId)
 
         XCTAssertEqual(loaded.map { rawData(from: $0) }, masterKeyData)
-        XCTAssertNil(try await CryptoManager.shared.loadMasterKey(for: userId))
+        XCTAssertNil(deleted)
     }
 
     private func rawData(from key: SymmetricKey) -> Data {
