@@ -66,6 +66,18 @@ DEFAULT_APP_INTERNAL_PORT = 8000
 # Internal API base URL for billing
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
+APPLE_DEVICE_CLIENTS = {"ios", "macos", "apple"}
+
+
+def _apple_session_device_hash(request: Request, user_id: str) -> Optional[str]:
+    user_agent = request.headers.get("User-Agent", "")
+    client = request.headers.get("X-OpenMates-Client", "").lower().strip()
+    bundle_id = request.headers.get("X-OpenMates-Bundle-ID", "").strip()
+    if not user_agent.startswith("OpenMates-Apple/") or client not in APPLE_DEVICE_CLIENTS or not bundle_id:
+        return None
+
+    fingerprint = hashlib.sha256(f"{user_id}:{client}:{bundle_id}".encode()).hexdigest()
+    return f"apple-{client}:{fingerprint}"
 
 
 # Request/Response models
@@ -189,16 +201,19 @@ async def get_session_or_api_key_info(
                 response=response,
                 request=request,
             )
-            # Detect CLI callers by User-Agent and generate a device_hash so
-            # usage entries are trackable in the API/device usage tab.
-            # CLI sends: "OpenMates CLI/0.1 (linux ...)"
+            # Detect CLI/Apple callers and generate a device_hash so session-auth
+            # app-skill usage is trackable in the API/device usage tab.
+            # CLI sends: "OpenMates CLI/0.1 (linux ...)".
             user_agent = request.headers.get("User-Agent", "")
             device_hash = None
             is_cli = user_agent.lower().startswith("openmates cli") or user_agent.lower().startswith("openmates-cli")
             if is_cli:
-                import hashlib
                 device_hash = hashlib.sha256(user_agent.encode()).hexdigest()
                 logger.debug(f"CLI request detected, device_hash: {device_hash[:8]}...")
+            else:
+                device_hash = _apple_session_device_hash(request, user.id)
+                if device_hash:
+                    logger.debug("Apple session request detected for app-skill usage attribution")
             return {
                 "user_id": user.id,
                 "api_key_encrypted_name": "",

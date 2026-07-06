@@ -502,6 +502,78 @@ cli_device:
   sv: CLI
   he: CLI
   verified_by_human: []
+apple_ios_device:
+  context: Label for Apple iOS app-skill usage entries in the API usage tab
+  en: Apple iOS
+  de: Apple iOS
+  zh: Apple iOS
+  es: Apple iOS
+  fr: Apple iOS
+  pt: Apple iOS
+  ru: Apple iOS
+  ja: Apple iOS
+  ko: Apple iOS
+  it: Apple iOS
+  tr: Apple iOS
+  vi: Apple iOS
+  id: Apple iOS
+  pl: Apple iOS
+  nl: Apple iOS
+  ar: Apple iOS
+  hi: Apple iOS
+  th: Apple iOS
+  cs: Apple iOS
+  sv: Apple iOS
+  he: Apple iOS
+  verified_by_human: []
+apple_macos_device:
+  context: Label for Apple macOS app-skill usage entries in the API usage tab
+  en: Apple macOS
+  de: Apple macOS
+  zh: Apple macOS
+  es: Apple macOS
+  fr: Apple macOS
+  pt: Apple macOS
+  ru: Apple macOS
+  ja: Apple macOS
+  ko: Apple macOS
+  it: Apple macOS
+  tr: Apple macOS
+  vi: Apple macOS
+  id: Apple macOS
+  pl: Apple macOS
+  nl: Apple macOS
+  ar: Apple macOS
+  hi: Apple macOS
+  th: Apple macOS
+  cs: Apple macOS
+  sv: Apple macOS
+  he: Apple macOS
+  verified_by_human: []
+apple_device:
+  context: Label for generic Apple app-skill usage entries in the API usage tab
+  en: Apple
+  de: Apple
+  zh: Apple
+  es: Apple
+  fr: Apple
+  pt: Apple
+  ru: Apple
+  ja: Apple
+  ko: Apple
+  it: Apple
+  tr: Apple
+  vi: Apple
+  id: Apple
+  pl: Apple
+  nl: Apple
+  ar: Apple
+  hi: Apple
+  th: Apple
+  cs: Apple
+  sv: Apple
+  he: Apple
+  verified_by_human: []
 chat_details:
   context: Chat details header
   en: Chat Details

@@ -14,6 +14,12 @@ from backend.core.api.app.utils.encryption import EncryptionService
 
 logger = logging.getLogger(__name__)
 
+
+def _api_device_summary_identifier(device_hash: str) -> str:
+    if device_hash.startswith("apple-"):
+        return device_hash
+    return f"cli:{device_hash}"
+
 class UsageMethods:
     def __init__(self, sdk, encryption_service: EncryptionService):
         self.sdk = sdk
@@ -406,16 +412,15 @@ class UsageMethods:
                     summary_type="api_key"
                 )
 
-            # CLI device tracking: when neither API key nor chat is present
-            # but a device_hash exists (CLI session auth), create a summary
-            # entry using "cli:<device_hash>" as the api_key_hash identifier.
-            # This makes CLI usage visible in the API/devices usage tab.
+            # Session-auth device tracking: when neither API key nor chat is present
+            # but a device_hash exists (CLI or native Apple app-skill calls), create
+            # a synthetic API/devices summary identifier.
             if device_hash and not api_key_hash and not chat_id:
                 await self._update_summary(
                     collection="usage_monthly_api_key_summaries",
                     user_id_hash=user_id_hash,
                     identifier_key="api_key_hash",
-                    identifier_value=f"cli:{device_hash}",
+                    identifier_value=_api_device_summary_identifier(device_hash),
                     year_month=year_month,
                     credits_charged=credits_charged,
                     log_prefix=log_prefix,
@@ -589,14 +594,14 @@ class UsageMethods:
                     log_prefix=log_prefix
                 )
 
-            # Update device daily summary for CLI direct calls (no api_key, no chat)
-            # Uses device_hash as identifier so CLI usage appears in the API/devices tab
+            # Update device daily summary for session-auth direct calls (no api_key, no chat).
+            # Uses a synthetic identifier so CLI/Apple usage appears in the API/devices tab.
             if device_hash and not api_key_hash and not chat_id:
                 await self._update_daily_summary(
                     collection="usage_daily_api_key_summaries",
                     user_id_hash=user_id_hash,
                     identifier_key="api_key_hash",
-                    identifier_value=f"cli:{device_hash}",
+                    identifier_value=_api_device_summary_identifier(device_hash),
                     date_str=date_str,
                     credits_charged=credits_charged,
                     log_prefix=log_prefix
@@ -1315,12 +1320,14 @@ class UsageMethods:
                 elif summary_type == "app":
                     filter_dict["app_id"] = {"_eq": identifier}
                 elif summary_type == "api_key":
-                    # CLI entries use a synthetic "cli:<device_hash>" identifier in summary tables,
-                    # but in the raw usage table they have api_key_hash=None and device_hash=<hash>.
-                    # Extract the device_hash and filter on that column instead.
+                    # Session-auth device entries use synthetic identifiers in summary tables,
+                    # but raw usage rows store api_key_hash=None and device_hash=<hash>.
+                    # Extract the stored device_hash and filter on that column instead.
                     if identifier.startswith("cli:"):
                         device_hash = identifier[4:]  # strip "cli:" prefix
                         filter_dict["device_hash"] = {"_eq": device_hash}
+                    elif identifier.startswith("apple-"):
+                        filter_dict["device_hash"] = {"_eq": identifier}
                     else:
                         filter_dict["api_key_hash"] = {"_eq": identifier}
                 

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import importlib
 import re
 import sys
@@ -200,6 +201,112 @@ async def test_session_or_api_key_auth_preserves_device_approval_errors(monkeypa
 
     assert exc.value.status_code == 403
     assert exc.value.detail == "New device detected"
+
+
+@pytest.mark.asyncio
+async def test_session_auth_tags_apple_client_with_device_hash(monkeypatch) -> None:
+    user = User(id="user-apple", username="alice", vault_key_id="vault-1", credits=10)
+
+    async def fake_get_current_user(**_kwargs):
+        return user
+
+    monkeypatch.setattr(apps_api, "get_current_user", fake_get_current_user)
+
+    request = types.SimpleNamespace(
+        headers={
+            "User-Agent": "OpenMates-Apple/1.2.3",
+            "X-OpenMates-Client": "ios",
+            "X-OpenMates-Bundle-ID": "org.openmates.app",
+        }
+    )
+
+    result = await apps_api.get_session_or_api_key_info(
+        request=request,
+        response=Response(),
+        cache_service=object(),
+        directus_service=object(),
+        refresh_token="session-token",
+    )
+
+    expected_hash = hashlib.sha256("user-apple:ios:org.openmates.app".encode()).hexdigest()
+    assert result["user_id"] == "user-apple"
+    assert result["api_key_hash"] is None
+    assert result["device_hash"] == f"apple-ios:{expected_hash}"
+    assert result["is_cli"] is False
+
+
+@pytest.mark.asyncio
+async def test_usage_summaries_use_apple_device_identifier(monkeypatch) -> None:
+    usage_module = importlib.import_module("backend.core.api.app.services.directus.usage")
+    usage = usage_module.UsageMethods(sdk=object(), encryption_service=object())
+    monthly_calls: list[dict[str, object]] = []
+    daily_calls: list[dict[str, object]] = []
+
+    async def fake_update_summary(**kwargs):
+        monthly_calls.append(kwargs)
+
+    async def fake_update_daily_summary(**kwargs):
+        daily_calls.append(kwargs)
+
+    monkeypatch.setattr(usage, "_update_summary", fake_update_summary)
+    monkeypatch.setattr(usage, "_update_daily_summary", fake_update_daily_summary)
+    usage.sdk = types.SimpleNamespace(cache=types.SimpleNamespace(delete=lambda *_args, **_kwargs: None))
+
+    async def fake_cache_delete(*_args, **_kwargs):
+        return None
+
+    usage.sdk.cache.delete = fake_cache_delete
+    device_hash = "apple-ios:" + "a" * 64
+
+    await usage._update_monthly_summaries(
+        user_id_hash="user-hash",
+        timestamp=1_720_000_000,
+        credits_charged=2,
+        chat_id=None,
+        app_id="events",
+        api_key_hash=None,
+        device_hash=device_hash,
+    )
+    await usage._update_daily_summaries(
+        user_id_hash="user-hash",
+        timestamp=1_720_000_000,
+        credits_charged=2,
+        chat_id=None,
+        app_id="events",
+        api_key_hash=None,
+        device_hash=device_hash,
+    )
+
+    assert any(call["identifier_value"] == device_hash for call in monthly_calls)
+    assert any(call["identifier_value"] == device_hash for call in daily_calls)
+
+
+@pytest.mark.asyncio
+async def test_usage_details_filter_apple_device_identifier() -> None:
+    usage_module = importlib.import_module("backend.core.api.app.services.directus.usage")
+    captured_params: dict[str, object] = {}
+    device_hash = "apple-ios:" + "b" * 64
+
+    class FakeSDK:
+        async def get_items(self, collection_name, params, no_cache=False):
+            if collection_name == "usage_monthly_api_key_summaries":
+                return [{"id": "summary-1", "is_archived": False, "archive_s3_key": None}]
+            captured_params.update(params)
+            return []
+
+    usage = usage_module.UsageMethods(sdk=FakeSDK(), encryption_service=object())
+
+    entries = await usage.get_usage_entries_for_summary(
+        user_id_hash="user-hash",
+        user_vault_key_id="vault-1",
+        summary_type="api_key",
+        identifier=device_hash,
+        year_month="2024-07",
+    )
+
+    assert entries == []
+    assert captured_params["filter"]["device_hash"] == {"_eq": device_hash}
+    assert "api_key_hash" not in captured_params["filter"]
 
 
 def test_code_run_app_skill_route_starts_direct_run(monkeypatch) -> None:
