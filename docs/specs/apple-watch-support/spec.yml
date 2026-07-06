@@ -101,12 +101,12 @@ apple_impact:
   verification:
     - python3 scripts/spec_validate.py docs/specs/apple-watch-support/spec.yml
     - python3 scripts/apple_remote.py status
-    - python3 scripts/apple_remote.py build-watch --simulator "Apple Watch Series 10 (46mm)"
-    - python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 10 (46mm)" --only-testing OpenMatesWatchTests/WatchPairLoginTests
-    - python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 10 (46mm)" --only-testing OpenMatesWatchTests/WatchChatRuntimeTests
-    - python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 10 (46mm)" --only-testing OpenMatesWatchUITests/WatchChatFlowUITests
-    - python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 10 (46mm)" --only-testing OpenMatesWatchUITests/WatchEmbedPreviewUITests
-    - python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 10 (46mm)" --only-testing OpenMatesWatchUITests/WatchAudioComposerUITests
+    - python3 scripts/apple_remote.py build-watch --simulator "Apple Watch Series 11 (46mm)"
+    - python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchTests/WatchPairLoginTests
+    - python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchTests/WatchChatRuntimeTests
+    - python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchUITests/WatchChatFlowUITests
+    - python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchUITests/WatchEmbedPreviewUITests
+    - python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchUITests/WatchAudioComposerUITests
   intentional_native_differences:
     - Watch does not render rich fullscreen embed details; the fullscreen/detail action always presents Open on iPhone / Mac continuation options.
     - Watch UI may use system text input/dictation/microphone permission surfaces because those are OS-owned capability boundaries.
@@ -414,7 +414,7 @@ tests:
   - id: T-WATCH-BUILD
     type: build
     file: apple/OpenMates.xcodeproj/project.pbxproj
-    command: python3 scripts/apple_remote.py build-watch --simulator "Apple Watch Series 10 (46mm)"
+    command: python3 scripts/apple_remote.py build-watch --simulator "Apple Watch Series 11 (46mm)"
     covers: [AC-9]
     assertions:
       - OpenMatesWatch target compiles for watchOS simulator.
@@ -425,7 +425,7 @@ tests:
   - id: T-WATCH-PAIR-LOGIN-UNIT
     type: unit
     file: apple/OpenMatesWatchTests/WatchPairLoginTests.swift
-    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 10 (46mm)" --only-testing OpenMatesWatchTests/WatchPairLoginTests
+    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchTests/WatchPairLoginTests
     covers: [AC-1]
     assertions:
       - Pair token initiation, polling, PIN sanitization, bundle decryption, expiry, invalid PIN, and retry states are covered with synthetic data.
@@ -436,7 +436,7 @@ tests:
   - id: T-WATCH-PAIR-LOGIN-UI
     type: unit
     file: apple/OpenMatesWatchUITests/WatchPairLoginUITests.swift
-    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 10 (46mm)" --only-testing OpenMatesWatchUITests/WatchPairLoginUITests
+    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchUITests/WatchPairLoginUITests
     covers: [AC-1, AC-3]
     assertions:
       - Unauthenticated Watch app shows compact dark QR/PIN login states.
@@ -447,7 +447,7 @@ tests:
   - id: T-WATCH-RUNTIME-UNIT
     type: unit
     file: apple/OpenMatesWatchTests/WatchChatRuntimeTests.swift
-    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 10 (46mm)" --only-testing OpenMatesWatchTests/WatchChatRuntimeTests
+    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchTests/WatchChatRuntimeTests
     covers: [AC-2, AC-4]
     assertions:
       - Watch chat runtime loads cached chats, requests phased sync, decrypts chat/message/embed content with local keys, and updates chat store.
@@ -458,7 +458,7 @@ tests:
   - id: T-WATCH-OFFLINE-UNIT
     type: unit
     file: apple/OpenMatesWatchTests/WatchOfflineSyncTests.swift
-    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 10 (46mm)" --only-testing OpenMatesWatchTests/WatchOfflineSyncTests
+    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchTests/WatchOfflineSyncTests
     covers: [AC-2, AC-8]
     assertions:
       - Cached chat list and message windows load without network.
@@ -469,7 +469,7 @@ tests:
   - id: T-WATCH-AUDIO-COMPOSER-UNIT
     type: unit
     file: apple/OpenMatesWatchTests/WatchAudioComposerTests.swift
-    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 10 (46mm)" --only-testing OpenMatesWatchTests/WatchAudioComposerTests
+    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchTests/WatchAudioComposerTests
     covers: [AC-5]
     assertions:
       - Watch recording state transitions cover start, cancel, finish, permission denied, upload error, transcription error, and success.
@@ -480,7 +480,7 @@ tests:
   - id: T-WATCH-EMBED-PREVIEW-UNIT
     type: unit
     file: apple/OpenMatesWatchTests/WatchEmbedPreviewTests.swift
-    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 10 (46mm)" --only-testing OpenMatesWatchTests/WatchEmbedPreviewTests
+    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchTests/WatchEmbedPreviewTests
     covers: [AC-6, AC-7]
     assertions:
       - Watch preview card contract maps all V1 supported embed families to full compact renderers.
@@ -492,7 +492,7 @@ tests:
   - id: T-WATCH-CHAT-FLOW-UI
     type: unit
     file: apple/OpenMatesWatchUITests/WatchChatFlowUITests.swift
-    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 10 (46mm)" --only-testing OpenMatesWatchUITests/WatchChatFlowUITests
+    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchUITests/WatchChatFlowUITests
     covers: [AC-3, AC-4, AC-8]
     assertions:
       - Authenticated Watch chat list displays synced/cached chats in dark UI.
@@ -503,7 +503,7 @@ tests:
   - id: T-WATCH-AUDIO-COMPOSER-UI
     type: unit
     file: apple/OpenMatesWatchUITests/WatchAudioComposerUITests.swift
-    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 10 (46mm)" --only-testing OpenMatesWatchUITests/WatchAudioComposerUITests
+    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchUITests/WatchAudioComposerUITests
     covers: [AC-5]
     assertions:
       - Watch composer shows text, microphone, recording, transcribing, pending audio embed, and manual send states.
@@ -514,7 +514,7 @@ tests:
   - id: T-WATCH-EMBED-PREVIEW-UI
     type: unit
     file: apple/OpenMatesWatchUITests/WatchEmbedPreviewUITests.swift
-    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 10 (46mm)" --only-testing OpenMatesWatchUITests/WatchEmbedPreviewUITests
+    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchUITests/WatchEmbedPreviewUITests
     covers: [AC-6, AC-7]
     assertions:
       - Watch displays compact previews for website, web video, image, audio recording, code, PDF, maps/place, search result groups, travel stays/connections, shopping product, weather, and reminder.
@@ -730,7 +730,7 @@ risks:
 
 open_questions:
   - id: OQ-1
-    question: Which Apple Watch hardware/simulator sizes are the official visual targets besides Apple Watch Series 10 46mm?
+    question: Which Apple Watch hardware/simulator sizes are the official visual targets besides the configured Apple Watch Series 11 46mm simulator?
     status: unresolved
   - id: OQ-2
     question: Should notification reply, complications, and Action Button shortcuts become V1.1 follow-up specs or remain out of scope until separate specs?

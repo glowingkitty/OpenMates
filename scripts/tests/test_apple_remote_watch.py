@@ -30,11 +30,11 @@ def load_apple_remote():
 def test_build_watch_command_targets_watch_scheme_and_simulator() -> None:
     apple_remote = load_apple_remote()
 
-    command = apple_remote.build_watch_command("Apple Watch Series 10 (46mm)")
+    command = apple_remote.build_watch_command("Apple Watch Series 11 (46mm)")
 
     assert "xcodebuild" in command
     assert "-scheme OpenMatesWatch" in command
-    assert "platform=watchOS Simulator,name=Apple Watch Series 10 (46mm)" in command
+    assert "platform=watchOS Simulator,name=Apple Watch Series 11 (46mm)" in command
     assert command.endswith(" build")
 
 
@@ -42,13 +42,13 @@ def test_test_watch_command_accepts_only_testing_filter() -> None:
     apple_remote = load_apple_remote()
 
     command = apple_remote.test_watch_command(
-        "Apple Watch Series 10 (46mm)",
+        "Apple Watch Series 11 (46mm)",
         "OpenMatesWatchTests/WatchPairLoginTests",
     )
 
     assert "xcodebuild test" in command
     assert "-scheme OpenMatesWatch" in command
-    assert "platform=watchOS Simulator,name=Apple Watch Series 10 (46mm)" in command
+    assert "platform=watchOS Simulator,name=Apple Watch Series 11 (46mm)" in command
     assert "-only-testing OpenMatesWatchTests/WatchPairLoginTests" in command
 
 
@@ -60,6 +60,6 @@ def test_watch_commands_are_registered_in_parser() -> None:
     test_args = parser.parse_args(["test-watch", "--only-testing", "OpenMatesWatchTests/WatchChatRuntimeTests"])
 
     assert build_args.command == "build-watch"
-    assert build_args.simulator == "Apple Watch Series 10 (46mm)"
+    assert build_args.simulator == "Apple Watch Series 11 (46mm)"
     assert test_args.command == "test-watch"
     assert test_args.only_testing == "OpenMatesWatchTests/WatchChatRuntimeTests"

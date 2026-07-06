@@ -2141,10 +2141,10 @@ def build_parser() -> argparse.ArgumentParser:
     test_parser.add_argument("--only-testing")
 
     build_watch_parser = subparsers.add_parser("build-watch", help="Build OpenMatesWatch remotely")
-    build_watch_parser.add_argument("--simulator", default="Apple Watch Series 10 (46mm)")
+    build_watch_parser.add_argument("--simulator", default="Apple Watch Series 11 (46mm)")
 
     test_watch_parser = subparsers.add_parser("test-watch", help="Run OpenMatesWatch tests remotely")
-    test_watch_parser.add_argument("--simulator", default="Apple Watch Series 10 (46mm)")
+    test_watch_parser.add_argument("--simulator", default="Apple Watch Series 11 (46mm)")
     test_watch_parser.add_argument("--only-testing")
 
     device_parser = subparsers.add_parser("device-status", help="Show sanitized physical iOS device readiness")
