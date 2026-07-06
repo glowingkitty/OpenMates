@@ -186,12 +186,15 @@ openmates server update --image-tag v0.13.0
 openmates server update --channel stable
 openmates server update --channel dev
 openmates server update --services api,task-worker
+openmates server update --exclude webapp
 openmates server update install-service --continuous --channel main --window "02:00-04:00 Europe/Berlin"
 openmates server update status
 openmates server update --force
 ```
 
 Image-mode installs refresh the runtime Compose template from the packaged CLI templates, update `OPENMATES_IMAGE_TAG`, create a rotating latest pre-update backup for data-bearing roles, run `docker compose pull`, restart selected services, and wait for role-specific health checks. By default, version-pinned installs target the current CLI version tag, so update the CLI first when you want the newest released self-host images. Installs already using a channel tag keep that channel unless you pass a different target.
+
+For backend-only production servers where the official web app is hosted separately, use `openmates server start --exclude webapp` after host restarts and `openmates server update --exclude webapp` for source-mode updates. The filtered update rebuilds/restarts every selected backend service and skips the web app health check.
 
 Source-mode installs run `git pull --ff-only`, rebuild containers, restart, and wait for health checks. The `--force` flag only applies to source-mode Git updates.
 
