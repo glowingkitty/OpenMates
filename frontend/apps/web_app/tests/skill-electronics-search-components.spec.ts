@@ -16,6 +16,7 @@ const {
 	archiveExistingScreenshots,
 	createStepScreenshotter,
 	getTestAccount,
+	getE2EDebugUrl,
 	withLiveMockMarker
 } = require('./signup-flow-helpers');
 const {
@@ -78,6 +79,32 @@ test.describe('App: Electronics / Skill: search_components', () => {
 		expect(results[0].part_number).toBeTruthy();
 		expect(results[0].product_url).toContain('ti.com/product/');
 		console.log(`[P2] electronics/search_components found ${results.length} component(s)`);
+	});
+
+	test('Phase 2b: example electronics component opens direct fullscreen detail', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(90_000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-buck-converters-24v-5v'), {
+			waitUntil: 'domcontentloaded'
+		});
+
+		const componentPreview = page
+			.locator(
+				'[data-testid="embed-preview"][data-app-id="electronics"][data-skill-id="search_components"][data-status="finished"]'
+			)
+			.filter({ hasText: 'TPS543021DRLR' })
+			.first();
+		await expect(componentPreview).toBeVisible({ timeout: 30000 });
+
+		const fullscreenOverlay = await openFullscreen(page, componentPreview);
+		await expect(fullscreenOverlay.getByText('TPS543021DRLR').first()).toBeVisible({ timeout: 15000 });
+		await expect(fullscreenOverlay.getByText('TI WEBENCH').first()).toBeVisible({ timeout: 15000 });
+
+		await closeFullscreen(page, fullscreenOverlay);
 	});
 
 	test('Phase 3: Web chat triggers electronics search with embed', async ({ page }: { page: any }) => {
