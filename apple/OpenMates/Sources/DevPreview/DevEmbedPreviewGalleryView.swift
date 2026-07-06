@@ -84,26 +84,28 @@ struct DevQuickCaptureAttachmentPreviewView: View {
             .foregroundStyle(Color.fontPrimary)
             .accessibilityIdentifier("quick-capture-recent-chats")
 
-            MessageComposerView(
-                text: $messageText,
-                isFocused: $inputFocused,
-                compact: false,
-                placeholder: AppStrings.whatDoYouNeedHelpWith,
-                maxWidth: nil,
-                onSubmit: {}
-            ) {
-                HStack(spacing: .spacing6) {
-                    MessageComposerActionIcon(
-                        icon: "recordaudio",
-                        label: AppStrings.recordAudio,
-                        identifier: "quick-capture-record-audio-button"
-                    ) {}
-                    Spacer()
-                    MessageComposerSendButton(title: AppStrings.sendAction) {}
-                        .accessibilityIdentifier("quick-capture-send-button")
+            VStack(spacing: 0) {
+                MessageComposerView(
+                    text: $messageText,
+                    isFocused: $inputFocused,
+                    compact: false,
+                    placeholder: AppStrings.whatDoYouNeedHelpWith,
+                    maxWidth: nil,
+                    onSubmit: {}
+                ) {
+                    HStack(spacing: .spacing6) {
+                        MessageComposerActionIcon(
+                            icon: "recordaudio",
+                            label: AppStrings.recordAudio,
+                            identifier: "quick-capture-record-audio-button"
+                        ) {}
+                        Spacer()
+                        MessageComposerSendButton(title: AppStrings.sendAction) {}
+                            .accessibilityIdentifier("quick-capture-send-button")
+                    }
+                    .padding(.horizontal, .spacing5)
+                    .padding(.bottom, .spacing6)
                 }
-                .padding(.horizontal, .spacing5)
-                .padding(.bottom, .spacing6)
             }
             .accessibilityIdentifier("quick-capture-composer")
 

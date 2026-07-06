@@ -116,6 +116,7 @@
 		C0FFEE000000000000041004 /* MacMenuBarQuickCaptureUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000041001 /* MacMenuBarQuickCaptureUITests.swift */; };
 		C0FFEE000000000000043004 /* MacMenuBarQuickCaptureUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000041001 /* MacMenuBarQuickCaptureUITests.swift */; };
 		C0FFEE000000000000042004 /* ShareExtensionAttachmentParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000042001 /* ShareExtensionAttachmentParityUITests.swift */; };
+		C0FFEE000000000000044004 /* ComposerVisualParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000044001 /* ComposerVisualParityUITests.swift */; };
 		C0FFEE000000000000009004 /* ChatResponsiveParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */; };
 		C0FFEE000000000000010004 /* ChatShellResponsiveParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000010001 /* ChatShellResponsiveParityUITests.swift */; };
 		C0FFEE000000000000011004 /* EmbedRenderingParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000011001 /* EmbedRenderingParityUITests.swift */; };
@@ -153,6 +154,7 @@
 		C0FFEE000000000000038002 /* ChatStreamingLifecycleParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */; };
 		C0FFEE000000000000039002 /* BackgroundChatSenderParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000039001 /* BackgroundChatSenderParityTests.swift */; };
 		C0FFEE000000000000040002 /* AnonymousChatStreamingParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000040001 /* AnonymousChatStreamingParityTests.swift */; };
+		C0FFEE000000000000045002 /* MessageComposerConfigurationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000045001 /* MessageComposerConfigurationTests.swift */; };
 		C0FFEE000000000000036012 /* WorkflowsParityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036011 /* WorkflowsParityTests.swift */; };
 		C0FFEE000000000000036014 /* WorkflowsParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000036013 /* WorkflowsParityUITests.swift */; };
 		300707B1BAC8B4FE232B4215 /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF95252DD3548D54E1FCF816 /* KeyboardShortcuts.swift */; };
@@ -754,6 +756,7 @@
 		C0FFEE000000000000008001 /* MessageInputAudioRecordingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInputAudioRecordingUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000041001 /* MacMenuBarQuickCaptureUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacMenuBarQuickCaptureUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000042001 /* ShareExtensionAttachmentParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionAttachmentParityUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000044001 /* ComposerVisualParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerVisualParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatResponsiveParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000011001 /* EmbedRenderingParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedRenderingParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000010001 /* ChatShellResponsiveParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatShellResponsiveParityUITests.swift; sourceTree = "<group>"; };
@@ -788,6 +791,7 @@
 		C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStreamingLifecycleParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000039001 /* BackgroundChatSenderParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundChatSenderParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000040001 /* AnonymousChatStreamingParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnonymousChatStreamingParityTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000045001 /* MessageComposerConfigurationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageComposerConfigurationTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000036011 /* WorkflowsParityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowsParityTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000036013 /* WorkflowsParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkflowsParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000002002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -1340,6 +1344,7 @@
 				C0FFEE000000000000006001 /* BackgroundChatNotificationUITests.swift */,
 				C0FFEE000000000000007001 /* MessageInputAttachmentUITests.swift */,
 				C0FFEE000000000000008001 /* MessageInputAudioRecordingUITests.swift */,
+				C0FFEE000000000000044001 /* ComposerVisualParityUITests.swift */,
 				C0FFEE000000000000041001 /* MacMenuBarQuickCaptureUITests.swift */,
 				C0FFEE000000000000042001 /* ShareExtensionAttachmentParityUITests.swift */,
 				C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */,
@@ -1372,6 +1377,7 @@
 				C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */,
 				C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */,
 				C0FFEE000000000000039001 /* BackgroundChatSenderParityTests.swift */,
+				C0FFEE000000000000045001 /* MessageComposerConfigurationTests.swift */,
 				C0FFEE000000000000040001 /* AnonymousChatStreamingParityTests.swift */,
 				C0FFEE000000000000012001 /* ChatSyncParityTests.swift */,
 				C0FFEE000000000000013001 /* SubChatProcessingTests.swift */,
@@ -2394,6 +2400,7 @@
 				C0FFEE000000000000006004 /* BackgroundChatNotificationUITests.swift in Sources */,
 				C0FFEE000000000000007004 /* MessageInputAttachmentUITests.swift in Sources */,
 				C0FFEE000000000000008004 /* MessageInputAudioRecordingUITests.swift in Sources */,
+				C0FFEE000000000000044004 /* ComposerVisualParityUITests.swift in Sources */,
 				C0FFEE000000000000041004 /* MacMenuBarQuickCaptureUITests.swift in Sources */,
 				C0FFEE000000000000042004 /* ShareExtensionAttachmentParityUITests.swift in Sources */,
 				C0FFEE000000000000009004 /* ChatResponsiveParityUITests.swift in Sources */,
@@ -2433,6 +2440,7 @@
 				C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */,
 				C0FFEE000000000000038002 /* ChatStreamingLifecycleParityTests.swift in Sources */,
 				C0FFEE000000000000039002 /* BackgroundChatSenderParityTests.swift in Sources */,
+				C0FFEE000000000000045002 /* MessageComposerConfigurationTests.swift in Sources */,
 				C0FFEE000000000000040002 /* AnonymousChatStreamingParityTests.swift in Sources */,
 				C0FFEE000000000000012004 /* ChatSyncParityTests.swift in Sources */,
 				C0FFEE000000000000013004 /* SubChatProcessingTests.swift in Sources */,

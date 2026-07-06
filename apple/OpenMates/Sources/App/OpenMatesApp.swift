@@ -794,26 +794,28 @@ struct MacMenuBarQuickCaptureView: View {
     }
 
     private var composer: some View {
-        MessageComposerView(
-            text: $viewModel.message,
-            isFocused: $inputFocused,
-            compact: false,
-            placeholder: AppStrings.whatDoYouNeedHelpWith,
-            expandedMinHeight: MessageComposerMetric.expandedMinHeight,
-            maxWidth: nil,
-            accessibilityHint: AppStrings.whatDoYouNeedHelpWith,
-            onSubmit: sendQuickCaptureMessage
-        ) {
-            HStack(spacing: .spacing6) {
-                recordButton
-                Spacer()
-                MessageComposerSendButton(title: AppStrings.sendAction, disabled: !viewModel.canSend) {
-                    sendQuickCaptureMessage()
+        VStack(spacing: 0) {
+            MessageComposerView(
+                text: $viewModel.message,
+                isFocused: $inputFocused,
+                compact: false,
+                placeholder: AppStrings.whatDoYouNeedHelpWith,
+                expandedMinHeight: MessageComposerMetric.expandedMinHeight,
+                maxWidth: nil,
+                accessibilityHint: AppStrings.whatDoYouNeedHelpWith,
+                onSubmit: sendQuickCaptureMessage
+            ) {
+                HStack(spacing: .spacing6) {
+                    recordButton
+                    Spacer()
+                    MessageComposerSendButton(title: AppStrings.sendAction, disabled: !viewModel.canSend) {
+                        sendQuickCaptureMessage()
+                    }
+                    .accessibilityIdentifier("quick-capture-send-button")
                 }
-                .accessibilityIdentifier("quick-capture-send-button")
+                .padding(.horizontal, .spacing5)
+                .padding(.bottom, .spacing6)
             }
-            .padding(.horizontal, .spacing5)
-            .padding(.bottom, .spacing6)
         }
         .onDrop(of: [UTType.fileURL.identifier], isTargeted: nil) { providers in
             loadDroppedURLs(from: providers)

@@ -23,7 +23,9 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["New Chat"].exists)
         XCTAssertTrue(app.staticTexts["UI Test Chat"].exists)
         XCTAssertTrue(element(in: app, identifier: "quick-capture-composer").exists)
-        XCTAssertTrue(element(in: app, identifier: "quick-capture-message-editor").exists)
+        XCTAssertTrue(element(in: app, identifier: "message-composer").exists)
+        XCTAssertTrue(element(in: app, identifier: "message-field").exists)
+        XCTAssertTrue(element(in: app, identifier: "message-editor").exists)
         XCTAssertTrue(element(in: app, identifier: "quick-capture-record-audio-button").exists)
         XCTAssertTrue(sendButton(in: app).exists)
     }
@@ -56,6 +58,9 @@ final class MacMenuBarQuickCaptureUITests: XCTestCase {
         XCTAssertTrue(element(in: app, identifier: "quick-capture-pending-attachments").waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Shared fixture.pdf"].exists)
         XCTAssertTrue(element(in: app, identifier: "quick-capture-status-list").exists)
+        XCTAssertTrue(element(in: app, identifier: "message-composer").exists)
+        XCTAssertTrue(element(in: app, identifier: "message-field").exists)
+        XCTAssertTrue(element(in: app, identifier: "message-editor").exists)
         XCTAssertTrue(sendButton(in: app).isEnabled)
     }
 

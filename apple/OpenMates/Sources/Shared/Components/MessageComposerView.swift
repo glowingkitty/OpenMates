@@ -36,6 +36,30 @@ struct MessageComposerCapabilities: Equatable {
     static let mainChat = MessageComposerCapabilities(files: true, maps: true, sketch: true, camera: true, recordAudio: true, send: true)
     static let welcome = MessageComposerCapabilities(files: true, maps: true, sketch: true, camera: true, recordAudio: true, send: true)
     static let quickCapture = MessageComposerCapabilities(files: false, maps: false, sketch: false, camera: false, recordAudio: true, send: true)
+
+    var orderedActions: [MessageComposerAction] {
+        var actions: [MessageComposerAction] = []
+        if files { actions.append(.files) }
+        if maps { actions.append(.maps) }
+        if sketch { actions.append(.sketch) }
+        if camera { actions.append(.camera) }
+        if recordAudio { actions.append(.recordAudio) }
+        if send { actions.append(.send) }
+        return actions
+    }
+
+    func showsSendButton(text: String, hasPendingEmbeds: Bool) -> Bool {
+        send && (!text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || hasPendingEmbeds)
+    }
+}
+
+enum MessageComposerAction: Equatable {
+    case files
+    case maps
+    case sketch
+    case camera
+    case recordAudio
+    case send
 }
 
 struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionButtons: View>: View {
