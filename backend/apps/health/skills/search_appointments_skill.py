@@ -449,6 +449,21 @@ NOISE_MOTIVE_PATTERNS: List[str] = [
 
 NEGATION_TERMS_PATTERN = re.compile(r"\b(?:nicht|kein|keine|ohne|not|no)\b")
 
+EXISTING_PATIENT_MOTIVE_PATTERN = re.compile(
+    r"\b(?:bestandspatient(?:in)?|bekannter\s+patient|bekannte\s+patientin|"
+    r"kontroll|wiedervorstellung|nachsorge)\b"
+)
+
+PRIVATE_PRACTICE_NAME_PATTERN = re.compile(
+    r"\b(?:privatpraxis|privat\s*-?\s*praxis)\b"
+)
+
+PAID_SERVICE_TEXT_PATTERN = re.compile(
+    r"(?:kostenpflichtig|selbstzahler|selbstzahlerleistung|privatleistung|"
+    r"privatsprechstunde|\bigel\b|\b[0-9]+(?:[,.][0-9]{2})?\s*(?:€|eur)\b)",
+    re.IGNORECASE,
+)
+
 PROCEDURE_INTENT_ALIASES: Dict[str, str] = {
     "mrt": "mrt",
     "mri": "mrt",
@@ -558,6 +573,9 @@ def _matches_motive_category(motive_name: str, category: str) -> bool:
 
     name_lower = motive_name.lower()
 
+    if category != "followup" and EXISTING_PATIENT_MOTIVE_PATTERN.search(name_lower):
+        return False
+
     # Check if it matches the requested category
     category_match = False
     for pattern in VISIT_MOTIVE_CATEGORIES[category]:
@@ -650,8 +668,31 @@ def _jameda_service_matches_requested_insurance(
     if insurance_sector not in ("public", "private"):
         return True
     if insurance_sector == "public":
-        return service.get("insuranceProviderId") == 1 and not bool(service.get("selfpayer"))
+        return (
+            service.get("insuranceProviderId") == 1
+            and not _jameda_service_requires_payment(service)
+        )
     return service.get("insuranceProviderId") == 2
+
+
+def _jameda_service_requires_payment(service: Dict[str, Any]) -> bool:
+    if bool(service.get("selfpayer")) or bool(service.get("private")):
+        return True
+    if service.get("price") not in (None, "", 0, 0.0):
+        return True
+    service_text = " ".join(
+        str(service.get(key) or "")
+        for key in ("itemServiceName", "name", "description")
+    )
+    return bool(PAID_SERVICE_TEXT_PATTERN.search(service_text))
+
+
+def _is_private_practice_name(name: str) -> bool:
+    return bool(PRIVATE_PRACTICE_NAME_PATTERN.search(str(name or "").lower()))
+
+
+def _doctolib_motive_allows_new_patients(visit_motive: Dict[str, Any]) -> bool:
+    return bool(visit_motive.get("allowNewPatients", True))
 
 
 def _select_jameda_services_for_request(
@@ -1349,6 +1390,7 @@ async def _process_single_doctolib_request(
                     visit_motive_category,
                 )
             )
+            and _doctolib_motive_allows_new_patients(p.get("matchedVisitMotive") or {})
         ]
         if len(providers) != pre_filter_count:
             logger.info(
@@ -1784,6 +1826,10 @@ async def _process_single_jameda_request(
                 " ".join(str(spec) for spec in doc.get("specializations", [])),
                 doc.get("name", ""),
             )
+            and not (
+                request.get("insurance_sector") == "public"
+                and _is_private_practice_name(doc.get("name", ""))
+            )
         ]
         if not doctor_infos:
             return request_id, [], None
@@ -1855,6 +1901,16 @@ async def _process_single_jameda_request(
                 insurance_sector=request.get("insurance_sector"),
             )
             for service in selected_services:
+                service_name = _jameda_service_name(service)
+                specs_for_filter = doc_info.get("specializations", [])
+                spec_display_for_filter = str(specs_for_filter[0]) if specs_for_filter else speciality_slug
+                if not _matches_speciality_intent(
+                    speciality_raw,
+                    spec_display_for_filter,
+                    doc_info.get("name", ""),
+                    service_name,
+                ):
+                    continue
                 did = doc_info["doctor_id"]
                 aid = str(addr.get("id", ""))
                 service_id = _jameda_service_id(service)

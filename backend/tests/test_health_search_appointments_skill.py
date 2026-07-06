@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from backend.apps.health.skills.search_appointments_skill import (
     _cities_match,
+    _doctolib_motive_allows_new_patients,
+    _is_private_practice_name,
     _jameda_service_matches_requested_insurance,
     _matches_motive_category,
     _matches_procedure_intent,
@@ -46,12 +48,32 @@ def test_motive_category_filter_handles_negation_and_overbroad_speech_hours() ->
     assert _matches_motive_category("Allgemeine Sprechstunde", "general") is True
     assert _matches_motive_category("Schnarchsprechstunde", "general") is False
     assert _matches_motive_category("Behandlung von Kopfschmerzen/ Schwindel", "general") is False
+    assert _matches_motive_category("Krebsvorsorge, bekannter Patient", "checkup") is False
+    assert _matches_motive_category("Videosprechstunde - Bestandspatient", "general") is False
+    assert _matches_motive_category("Kontrolluntersuchung / Wiedervorstellung", "followup") is True
 
 
 def test_speciality_guard_rejects_obvious_cross_speciality_results() -> None:
     assert _matches_speciality_intent("kinderarzt", "Kinder- und Jugendarzt", "Praxis") is True
     assert _matches_speciality_intent("kinderarzt", "Zahnärztin", "Dr. Danja Dosch") is False
     assert _matches_speciality_intent("hno", "Hals-Nasen-Ohren-Arzt", "Praxis") is True
+    assert _matches_speciality_intent(
+        "kardiologie",
+        "Internist",
+        "Thomas Hilzinger",
+        "Herz-Kreislauf-Untersuchung",
+    ) is False
+
+
+def test_doctolib_new_patient_filter_rejects_existing_patient_only_motives() -> None:
+    assert _doctolib_motive_allows_new_patients({}) is True
+    assert _doctolib_motive_allows_new_patients({"allowNewPatients": True}) is True
+    assert _doctolib_motive_allows_new_patients({"allowNewPatients": False}) is False
+
+
+def test_public_request_rejects_private_practice_names() -> None:
+    assert _is_private_practice_name("Naser Hatami - Privatpraxis") is True
+    assert _is_private_practice_name("Praxis für Orthopädie") is False
 
 
 def test_jameda_service_selection_uses_calendar_service_ids() -> None:
@@ -83,3 +105,40 @@ def test_jameda_public_insurance_rejects_selfpayer_services() -> None:
         {"insuranceProviderId": 2, "selfpayer": False},
         "public",
     ) is False
+    assert _jameda_service_matches_requested_insurance(
+        {"insuranceProviderId": 1, "selfpayer": False, "price": 188.37},
+        "public",
+    ) is False
+    assert _jameda_service_matches_requested_insurance(
+        {"insuranceProviderId": 1, "itemServiceName": "Vorsorge PLUS (kostenpflichtig:188,37€)"},
+        "public",
+    ) is False
+
+
+def test_jameda_service_selection_drops_public_paid_and_existing_patient_noise() -> None:
+    services = [
+        {
+            "addressServiceId": 1,
+            "itemServiceName": "Vorsorge PLUS (kostenpflichtig:188,37€)",
+            "insuranceProviderId": 1,
+        },
+        {
+            "addressServiceId": 2,
+            "itemServiceName": "Vorsorgeuntersuchung / Krebsvorsorge",
+            "insuranceProviderId": 1,
+        },
+        {
+            "addressServiceId": 3,
+            "itemServiceName": "Krebsvorsorge, bekannter Patient",
+            "insuranceProviderId": 1,
+        },
+    ]
+
+    selected = _select_jameda_services_for_request(
+        services,
+        speciality_raw="urologie",
+        visit_motive_category="checkup",
+        insurance_sector="public",
+    )
+
+    assert [svc["addressServiceId"] for svc in selected] == [2]
