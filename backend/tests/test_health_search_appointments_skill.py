@@ -95,6 +95,10 @@ def test_doctolib_public_insurance_rejects_explicit_paid_motives() -> None:
         {"name": "Hautkrebsvorsorge mit Videodokumentation Fotofinder"},
         "public",
     ) is False
+    assert _doctolib_motive_matches_requested_insurance(
+        {"name": "MRT nach Arbeitsunfall zu Lasten der Berufsgenossenschaft mit Überweisung vom D-Arzt"},
+        "public",
+    ) is False
 
 
 def test_doctolib_public_insurance_rejects_private_telemedicine_practices() -> None:

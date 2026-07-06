@@ -470,7 +470,8 @@ PRIVATE_PRACTICE_NAME_PATTERN = re.compile(
 
 PAID_SERVICE_TEXT_PATTERN = re.compile(
     r"(?:kostenpflichtig|selbstzahler|selbstzahlerleistung|privatleistung|"
-    r"privatsprechstunde|fotofinder|zusätzlich|\bigel\b|\b[0-9]+(?:[,.][0-9]{2})?\s*(?:€|eur))",
+    r"privatsprechstunde|fotofinder|berufsgenossenschaft|arbeitsunfall|d\s*-?\s*arzt|"
+    r"durchgangsarzt|zusätzlich|\bigel\b|\b[0-9]+(?:[,.][0-9]{2})?\s*(?:€|eur))",
     re.IGNORECASE,
 )
 
