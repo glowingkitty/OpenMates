@@ -382,8 +382,11 @@ private struct WatchQRCodeMatrix {
     }
 
     private mutating func drawCodewords(_ codewords: [UInt8]) {
-        let bits = codewords.flatMap { codeword in
-            (0..<8).reversed().map { ((codeword >> UInt8($0)) & 1) == 1 }
+        var bits: [Bool] = []
+        for codeword in codewords {
+            for shift in stride(from: 7, through: 0, by: -1) {
+                bits.append(((codeword >> UInt8(shift)) & 1) == 1)
+            }
         }
         var bitIndex = 0
         var upward = true
