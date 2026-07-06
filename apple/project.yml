@@ -152,6 +152,7 @@ targets:
       - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
       - path: OpenMates/Sources/Core/Networking/APIClient.swift
       - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+      - path: OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
       - path: OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
       - path: OpenMates/Sources/Shared/Extensions/DataExtensions.swift
       - path: OpenMatesShared/OpenMatesSharedEnvironment.swift

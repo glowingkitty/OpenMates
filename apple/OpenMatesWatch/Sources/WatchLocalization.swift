@@ -49,8 +49,14 @@ enum WatchLocalization {
 
 @MainActor
 enum WatchStrings {
-    static var loadingChats: String { WatchLocalization.text("loading_chats") }
+    static var back: String { WatchLocalization.text("common.back") }
+    static var clientEncrypted: String { WatchLocalization.text("embeds.stored_encrypted") }
+    static var loadingChats: String { WatchLocalization.text("activity.loading_chats") }
     static var loginFailed: String { WatchLocalization.text("login.login_failed") }
+    static var messagePlaceholder: String { WatchLocalization.text("chat.placeholder.touch") }
+    static var newChat: String { WatchLocalization.text("chat.new_chat") }
+    static var noChats: String { WatchLocalization.text("activity.no_chats") }
+    static var offlineBanner: String { WatchLocalization.text("notifications.connection.offline_banner") }
     static var pairWaiting: String { WatchLocalization.text("settings.sessions.pair_waiting") }
     static var pairGenerating: String { WatchLocalization.text("settings.sessions.pair_generating") }
     static var pairExpired: String { WatchLocalization.text("settings.sessions.pair_expired") }
@@ -60,7 +66,11 @@ enum WatchStrings {
     static var pairPinPlaceholder: String { WatchLocalization.text("settings.sessions.pair_pin_placeholder") }
     static var pairLoggingIn: String { WatchLocalization.text("settings.sessions.pair_logging_in") }
     static var pairPinLocked: String { WatchLocalization.text("settings.sessions.pair_pin_locked") }
+    static var pendingSend: String { WatchLocalization.text("chat.sending") }
     static var scanCode: String { WatchLocalization.text("settings.sessions.pair_code_label") }
+    static var send: String { WatchLocalization.text("chat.send") }
+    static var syncing: String { WatchLocalization.text("activity.syncing") }
+    static var untitledChat: String { WatchLocalization.text("common.new_chat") }
     static func pairPinError(attempts: String) -> String {
         WatchLocalization.text("settings.sessions.pair_pin_error", replacements: ["n": attempts])
     }

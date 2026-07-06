@@ -1,7 +1,7 @@
 // OpenMates Watch root view.
 // Owns the top-level auth routing for the standalone watchOS client. Pair login
-// is implemented natively on Watch while later spec slices replace the temporary
-// authenticated loading shell with chat/offline sync surfaces.
+// is implemented natively on Watch and authenticated users enter the Watch chat
+// shell backed by direct backend refresh plus local offline cache.
 // The view deliberately avoids stock navigation/list chrome.
 
 // ─── Web source ─────────────────────────────────────────────────────
@@ -26,16 +26,7 @@ struct WatchRootView: View {
             case .unauthenticated:
                 WatchPairLoginView(authStore: authStore)
             case .authenticated:
-                VStack(spacing: .spacing3) {
-                    ProgressView()
-                        .controlSize(.small)
-                        .tint(Color.grey0)
-                    Text(WatchStrings.loadingChats)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.grey0.opacity(0.82))
-                        .multilineTextAlignment(.center)
-                }
-                .accessibilityIdentifier("watch-authenticated-loading")
+                WatchChatShellView()
             }
         }
         .task { await authStore.checkSession() }

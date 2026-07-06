@@ -1,0 +1,255 @@
+// Watch chat list, transcript, and composer shell.
+// Provides the dark Watch-native chat surface for the standalone watchOS client
+// without using stock List/Form/navigation chrome. Runtime state is supplied by
+// WatchChatRuntime so this file stays visual and platform-specific.
+
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/ChatHistory.svelte
+//          frontend/packages/ui/src/components/ChatMessage.svelte
+//          frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+// CSS:     frontend/packages/ui/src/styles/chat.css
+//          frontend/packages/ui/src/styles/fields.css
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
+import SwiftUI
+
+struct WatchChatShellView: View {
+    @StateObject private var runtime = WatchChatRuntime()
+
+    var body: some View {
+        TabView(selection: Binding(
+            get: { runtime.selectedChatId == nil ? "list" : "thread" },
+            set: { if $0 == "list" { runtime.selectedChatId = nil } }
+        )) {
+            WatchChatListView(runtime: runtime)
+                .tag("list")
+
+            WatchChatThreadView(runtime: runtime)
+                .tag("thread")
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .task {
+            await runtime.loadCachedSnapshot()
+            await runtime.refresh()
+        }
+        .accessibilityIdentifier("watch-chat-shell")
+    }
+}
+
+private struct WatchChatListView: View {
+    @ObservedObject var runtime: WatchChatRuntime
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: .spacing3) {
+                WatchChatHeader(title: WatchStrings.newChat, isSyncing: runtime.isSyncing)
+
+                if runtime.isOffline {
+                    WatchStatusPill(text: WatchStrings.offlineBanner)
+                }
+
+                if runtime.chats.isEmpty && !runtime.isSyncing {
+                    Text(WatchStrings.noChats)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.grey0.opacity(0.76))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, .spacing8)
+                        .accessibilityIdentifier("watch-chat-empty")
+                }
+
+                ForEach(runtime.chats) { chat in
+                    Button {
+                        Task { await runtime.openChat(chat) }
+                    } label: {
+                        WatchChatRow(chat: chat)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("watch-chat-row-\(chat.id)")
+                }
+            }
+            .padding(.horizontal, .spacing4)
+            .padding(.vertical, .spacing5)
+        }
+        .background(Color.grey100)
+        .accessibilityIdentifier("watch-chat-list")
+    }
+}
+
+private struct WatchChatThreadView: View {
+    @ObservedObject var runtime: WatchChatRuntime
+    @State private var draft = ""
+
+    var body: some View {
+        VStack(spacing: .spacing3) {
+            HStack(spacing: .spacing2) {
+                Button {
+                    runtime.selectedChatId = nil
+                } label: {
+                    Text("‹")
+                        .font(.omH2)
+                        .foregroundStyle(Color.grey0)
+                        .frame(width: .iconSizeMd, height: .iconSizeMd)
+                        .background(Color.grey90, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(WatchStrings.back)
+                .accessibilityIdentifier("watch-chat-back")
+
+                Text(runtime.selectedChat?.title ?? WatchStrings.untitledChat)
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.grey0)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, .spacing4)
+            .padding(.top, .spacing4)
+
+            ScrollView {
+                LazyVStack(spacing: .spacing3) {
+                    ForEach(runtime.selectedMessages) { message in
+                        WatchMessageBubble(message: message)
+                    }
+                }
+                .padding(.horizontal, .spacing4)
+                .padding(.vertical, .spacing2)
+            }
+
+            HStack(spacing: .spacing2) {
+                TextField(WatchStrings.messagePlaceholder, text: $draft)
+                    .font(.omXs)
+                    .foregroundStyle(Color.grey0)
+                    .tint(Color.buttonPrimary)
+                    .padding(.horizontal, .spacing3)
+                    .padding(.vertical, .spacing2)
+                    .background(Color.grey90, in: Capsule())
+                    .overlay(Capsule().stroke(Color.grey70, lineWidth: 1))
+                    .accessibilityIdentifier("watch-message-input")
+
+                Button {
+                    let text = draft
+                    draft = ""
+                    Task { await runtime.queueLocalText(text) }
+                } label: {
+                    Text(WatchStrings.send)
+                        .font(.omMicro)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontButton)
+                        .padding(.horizontal, .spacing3)
+                        .padding(.vertical, .spacing2)
+                        .background(Color.buttonPrimary, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .opacity(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.45 : 1)
+                .accessibilityIdentifier("watch-message-send")
+            }
+            .padding(.horizontal, .spacing4)
+            .padding(.bottom, .spacing4)
+        }
+        .background(Color.grey100)
+        .accessibilityIdentifier("watch-chat-thread")
+    }
+}
+
+private struct WatchChatHeader: View {
+    let title: String
+    let isSyncing: Bool
+
+    var body: some View {
+        HStack(spacing: .spacing3) {
+            Circle()
+                .fill(LinearGradient.primary)
+                .frame(width: .iconSizeLg, height: .iconSizeLg)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.omP)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.grey0)
+                Text(isSyncing ? WatchStrings.syncing : WatchStrings.loadingChats)
+                    .font(.omMicro)
+                    .foregroundStyle(Color.grey30)
+            }
+        }
+    }
+}
+
+private struct WatchChatRow: View {
+    let chat: WatchChatSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing1) {
+            HStack(spacing: .spacing2) {
+                Text(chat.title ?? WatchStrings.untitledChat)
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.grey0)
+                    .lineLimit(1)
+                if chat.isPinned {
+                    Circle()
+                        .fill(Color.buttonPrimary)
+                        .frame(width: 5, height: 5)
+                        .accessibilityHidden(true)
+                }
+            }
+            Text(chat.preview ?? WatchStrings.clientEncrypted)
+                .font(.omMicro)
+                .foregroundStyle(Color.grey30)
+                .lineLimit(2)
+        }
+        .padding(.horizontal, .spacing4)
+        .padding(.vertical, .spacing3)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.grey90, in: RoundedRectangle(cornerRadius: .radius6, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: .radius6, style: .continuous)
+                .stroke(Color.grey80, lineWidth: 1)
+        )
+    }
+}
+
+private struct WatchMessageBubble: View {
+    let message: WatchChatMessage
+
+    private var isUser: Bool { message.role == .user }
+
+    var body: some View {
+        HStack {
+            if isUser { Spacer(minLength: .spacing5) }
+            VStack(alignment: .leading, spacing: .spacing1) {
+                Text(message.content ?? WatchStrings.clientEncrypted)
+                    .font(.omXs)
+                    .foregroundStyle(isUser ? Color.grey100 : Color.fontPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if message.isPending {
+                    Text(WatchStrings.pendingSend)
+                        .font(.omMicro)
+                        .foregroundStyle(isUser ? Color.grey80 : Color.grey40)
+                }
+            }
+            .padding(.horizontal, .spacing3)
+            .padding(.vertical, .spacing2)
+            .background(isUser ? Color.greyBlue : Color.grey0, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            if !isUser { Spacer(minLength: .spacing5) }
+        }
+    }
+}
+
+private struct WatchStatusPill: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.omMicro)
+            .foregroundStyle(Color.grey0)
+            .padding(.horizontal, .spacing3)
+            .padding(.vertical, .spacing2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.grey90, in: Capsule())
+            .overlay(Capsule().stroke(Color.buttonPrimary.opacity(0.55), lineWidth: 1))
+    }
+}
