@@ -1356,14 +1356,14 @@ struct ChatView: View {
                 .accessibilityLabel(AppStrings.attachFiles)
                 .accessibilityIdentifier("attach-files-button")
 
-                inputActionButton(icon: "maps", label: AppStrings.shareLocation) {
+                MessageComposerActionIcon(icon: "maps", label: AppStrings.shareLocation) {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         composerOverlay = .location
                         isInputFocused = true
                     }
                 }
 
-                inputActionButton(icon: "whiteboard", label: AppStrings.sketchAction) {
+                MessageComposerActionIcon(icon: "whiteboard", label: AppStrings.sketchAction) {
                     #if os(iOS)
                     withAnimation(.easeInOut(duration: 0.2)) {
                         composerOverlay = .sketch
@@ -1377,32 +1377,21 @@ struct ChatView: View {
                 Spacer()
 
                 #if os(iOS)
-                inputActionButton(icon: "camera", label: AppStrings.takePhoto) {
+                MessageComposerActionIcon(icon: "camera", label: AppStrings.takePhoto, identifier: "take-photo-button") {
                     showCameraCapture = true
                 }
-                .accessibilityIdentifier("take-photo-button")
                 #endif
 
                 if messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !viewModel.isStreaming {
                     recordActionControls
                 } else {
-                    Button(action: sendMessage) {
-                        Text(AppStrings.sendAction)
-                            .font(.omP)
-                            .fontWeight(.medium)
-                            .foregroundStyle(Color.fontButton)
-                            .padding(.horizontal, .spacing8)
-                            .padding(.vertical, .spacing4)
-                            .frame(height: 40)
-                            .background(Color.buttonPrimary)
-                            .clipShape(RoundedRectangle(cornerRadius: .radius8))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(messageText.isEmpty && !viewModel.hasPendingComposerEmbeds)
-                    .opacity((messageText.isEmpty && !viewModel.hasPendingComposerEmbeds) ? 0.6 : 1.0)
-                    .accessibilityLabel(AppStrings.sendMessage)
+                    MessageComposerSendButton(
+                        title: AppStrings.sendAction,
+                        disabled: messageText.isEmpty && !viewModel.hasPendingComposerEmbeds,
+                        accessibilityLabel: AppStrings.sendMessage,
+                        action: sendMessage
+                    )
                     .accessibilityHint(AppStrings.typeMessage)
-                    .accessibilityIdentifier("send-button")
                     #if os(macOS)
                     .keyboardShortcut(.return, modifiers: .command)
                     #endif
@@ -1584,16 +1573,6 @@ struct ChatView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(messageText.isEmpty ? AppStrings.cancel : AppStrings.saveDraft)
-    }
-
-    private func inputActionButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Icon(icon, size: 25)
-                .foregroundStyle(LinearGradient.primary)
-                .frame(width: 25, height: 25)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
     }
 
     private var recordActionControls: some View {
