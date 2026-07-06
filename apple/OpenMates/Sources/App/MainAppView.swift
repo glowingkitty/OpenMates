@@ -3639,7 +3639,7 @@ private struct OpenMatesWebHeader: View {
     private var headerLogo: some View {
         if horizontalSizeClass == .compact && showWorkspaceSwitcher {
             Button(action: { onSelectWorkspace(.chat) }) {
-                Image("openmates")
+                Image("openmates-favicon-png")
                     .renderingMode(.original)
                     .resizable()
                     .scaledToFit()
