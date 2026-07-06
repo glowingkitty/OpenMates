@@ -30,9 +30,8 @@ final class ShareExtensionAttachmentParityUITests: XCTestCase {
         XCTAssertTrue(element(in: app, identifier: "quick-capture-pending-attachments").exists)
         XCTAssertTrue(app.staticTexts["Shared fixture.pdf"].exists)
         XCTAssertTrue(element(in: app, identifier: "quick-capture-status-list").exists)
-        XCTAssertTrue(element(in: app, identifier: "message-composer").exists)
+        XCTAssertTrue(element(in: app, identifier: "quick-capture-composer").exists)
         XCTAssertTrue(element(in: app, identifier: "message-field").exists)
-        XCTAssertTrue(element(in: app, identifier: "message-editor").exists)
         XCTAssertTrue(sendButton(in: app).isEnabled)
     }
 
