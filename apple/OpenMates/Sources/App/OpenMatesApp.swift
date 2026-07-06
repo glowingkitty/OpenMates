@@ -206,6 +206,15 @@ struct OpenMatesApp: App {
     }
 
     var body: some Scene {
+        mainWindowScene
+
+        #if os(macOS)
+        quickCaptureMenuBarScene
+        #endif
+    }
+
+    @SceneBuilder
+    private var mainWindowScene: some Scene {
         WindowGroup(id: Self.mainWindowID, for: AppWindowLaunchCommand.self) { launchCommand in
             RootView(launchCommand: launchCommand.wrappedValue)
                 .environmentObject(authManager)
@@ -278,7 +287,11 @@ struct OpenMatesApp: App {
                 .keyboardShortcut("i", modifiers: [.command, .shift])
             }
         }
+        #endif
+    }
 
+    #if os(macOS)
+    private var quickCaptureMenuBarScene: some Scene {
         MenuBarExtra {
             MacMenuBarQuickCaptureView()
                 .environmentObject(authManager)
@@ -292,8 +305,8 @@ struct OpenMatesApp: App {
                 .frame(width: 18, height: 18)
         }
         .menuBarExtraStyle(.window)
-        #endif
     }
+    #endif
 }
 
 #if os(macOS)
