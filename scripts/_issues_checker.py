@@ -14,14 +14,14 @@ Commands:
 Architecture:
     - Issues are stored in Directus and exposed via GET /v1/admin/debug/issues
     - The admin debug API requires a user API key with admin privileges (Bearer token)
-    - Key is read from SECRET__ADMIN__DEBUG_CLI__API_KEY — same var used by
-      triage_issues.py and imported into Vault by vault-setup
+    - Key is read from SECRET__ADMIN_DEBUG_CLI__PROD_API_KEY for production
+      Admin Debug API access
     - Git commit messages are expected to reference issue IDs (e.g. "fix: ... (issue abc123)")
     - claude is invoked with --share to produce a shareable analysis session URL
     - The session URL is logged to stdout for the calling shell script
 
 Env vars (read from .env automatically — sourced by nightly-issues-check.sh):
-    SECRET__ADMIN__DEBUG_CLI__API_KEY — admin user API key (required)
+    SECRET__ADMIN_DEBUG_CLI__PROD_API_KEY — prod admin user API key (required)
     INTERNAL_API_URL                  — base URL for the API (default: http://localhost:8000)
 
 Not intended to be called directly by users; use nightly-issues-check.sh instead.
@@ -53,9 +53,9 @@ ISSUES_LOOKBACK_HOURS = 24
 # The admin debug API key is only registered on the production Directus instance.
 ISSUES_API_URL = "https://api.openmates.org/v1/admin/debug/issues"
 
-# Env var name — same key used by triage_issues.py and vault-setup
-# (.env → vault-setup imports it as kv/data/providers/admin debug_cli__api_key)
-ADMIN_KEY_ENV_VAR = "SECRET__ADMIN__DEBUG_CLI__API_KEY"
+# Env var names for production Admin Debug API access.
+ADMIN_KEY_ENV_VAR = "SECRET__ADMIN_DEBUG_CLI__PROD_API_KEY"
+LEGACY_ADMIN_KEY_ENV_VAR = "SECRET__ADMIN__DEBUG_CLI__API_KEY"
 
 
 def _read_env_file(project_root: str) -> dict:
@@ -137,6 +137,10 @@ def get_admin_api_key(project_root: str) -> str | None:
     """
     dot_env = _read_env_file(project_root)
     key = os.environ.get(ADMIN_KEY_ENV_VAR) or dot_env.get(ADMIN_KEY_ENV_VAR, "")
+    if not key or key == "IMPORTED_TO_VAULT":
+        key = os.environ.get(LEGACY_ADMIN_KEY_ENV_VAR) or dot_env.get(LEGACY_ADMIN_KEY_ENV_VAR, "")
+    if key == "IMPORTED_TO_VAULT":
+        return None
     return key or None
 
 

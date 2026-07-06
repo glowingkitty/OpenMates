@@ -405,6 +405,13 @@ class SecretsManager:
         except httpx.HTTPStatusError as e:
             # Common setup case: the provider path doesn't exist yet.
             if e.response.status_code == 404:
+                if not log_missing:
+                    logger.debug(
+                        f"Vault secret not found at '{secret_path}' (key '{secret_key}'); "
+                        "optional key, fallback used by caller."
+                    )
+                    return None
+
                 provider_id = None
                 if secret_path.startswith("kv/data/providers/"):
                     provider_id = secret_path.split("kv/data/providers/", 1)[1].strip("/") or None

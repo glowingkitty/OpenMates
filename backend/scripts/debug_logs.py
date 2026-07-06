@@ -90,7 +90,7 @@ from debug_utils import (
     configure_script_logging,
     hash_email_sha256,
     hash_user_id,
-    get_api_key_from_vault,
+    get_admin_debug_api_key,
     C_RESET,
     C_BOLD,
     C_DIM,
@@ -903,8 +903,9 @@ async def follow_mode(
 
 # ─── Production mode (Admin Debug API) ────────────────────────────────────────
 
-# Admin Debug API base URL (production) — accessed from inside the Docker network
+# Admin Debug API base URLs.
 PROD_API_BASE = "https://api.openmates.org/v1/admin/debug"
+DEV_API_BASE = "https://api.dev.openmates.org/v1/admin/debug"
 
 # Services to query for user-specific logs — mirrors the OpenObserve queries in gather_all_events
 PROD_LOG_SERVICES = ["api", "task-worker", "task-scheduler", "app-ai", "app-ai-worker",
@@ -1032,7 +1033,7 @@ async def run_prod_mode(
       3. Query /logs with search=<user_id> for each service group
       4. Parse, filter, and display the timeline
     """
-    api_key = await get_api_key_from_vault()
+    api_key = await get_admin_debug_api_key("prod")
 
     # Step 1: Resolve user via Admin Debug API
     print(f"{C_DIM}Resolving user via Admin Debug API...{C_RESET}", end="", flush=True)
@@ -1336,7 +1337,7 @@ async def _browser_logs_prod_fallback(
     as_json: bool,
 ) -> None:
     """Query browser console logs via the production Admin Debug API."""
-    api_key = await get_api_key_from_vault()
+    api_key = await get_admin_debug_api_key("prod")
 
     # Build search term — combine user and search filters
     search_parts = []
@@ -1867,6 +1868,7 @@ async def _o2_preset_web_app_health(args) -> None:
         ),
         since_minutes=args.since,
         max_rows=args.max_rows,
+        production=args.prod,
     )
 
     warn_hits = await _query_openobserve_sql_hits(
@@ -1877,6 +1879,7 @@ async def _o2_preset_web_app_health(args) -> None:
         ),
         since_minutes=args.since,
         max_rows=args.max_rows,
+        production=args.prod,
     )
 
     level_rows = [
@@ -1923,6 +1926,7 @@ async def _o2_preset_web_search_failures(args) -> None:
         ),
         since_minutes=args.since,
         max_rows=args.max_rows,
+        production=args.prod,
     )
 
     categories: Counter[str] = Counter()
@@ -1959,6 +1963,7 @@ async def _o2_preset_api_failed_requests(args) -> None:
         ),
         since_minutes=args.since,
         max_rows=args.max_rows,
+        production=args.prod,
     )
 
     hits = _apply_quiet_health_filter(hits, args.quiet_health)
@@ -1992,6 +1997,7 @@ async def _o2_preset_top_warnings_errors(args) -> None:
         ),
         since_minutes=args.since,
         max_rows=args.max_rows,
+        production=args.prod,
     )
 
     rows = []
@@ -2060,7 +2066,7 @@ async def _o2_structured_query(args) -> None:
     if "limit" not in body and getattr(args, "max_rows", None):
         body["limit"] = args.max_rows
 
-    if is_prod:
+    if is_prod or getattr(args, "dev", False):
         await _structured_query_via_http(args, body, as_json_out)
     else:
         await _structured_query_direct_dev(args, body, as_json_out)
@@ -2200,32 +2206,32 @@ def _filters_repr(filters) -> str:
 
 
 async def _structured_query_via_http(args, body: Dict[str, Any], as_json_out: bool) -> None:
-    """Run a structured query against PROD's Admin Debug API over HTTPS.
+    """Run a structured query against a remote Admin Debug API over HTTPS.
 
-    Only used when --prod is set. Requires an admin API key in Vault
-    (kv/data/providers/admin:debug_cli__api_key) with admin privileges
-    on the production Directus instance.
+    Used when --prod or --dev is set. Requires the corresponding Admin Debug
+    API key in Vault with admin privileges on the target Directus instance.
     """
-    api_key = await get_api_key_from_vault()
+    target = "dev" if getattr(args, "dev", False) else "prod"
+    api_key = await get_admin_debug_api_key(target)
     if not api_key:
-        msg = "Cannot reach Admin Debug API: no admin API key in Vault"
+        msg = f"Cannot reach {target} Admin Debug API: no admin API key in Vault"
         if as_json_out:
             print(json.dumps({"error": msg}))
         else:
             print(f"{C_RED}{msg}{C_RESET}", file=sys.stderr)
         return
 
-    base_url = "https://api.openmates.org/v1/admin/debug"
+    base_url = DEV_API_BASE if target == "dev" else PROD_API_BASE
 
     if not as_json_out:
-        print(f"{C_DIM}Querying production via Admin Debug API (/logs/query)...{C_RESET}")
+        print(f"{C_DIM}Querying {target} via Admin Debug API (/logs/query)...{C_RESET}")
 
     try:
         resp = await _prod_api_post_request(
             "logs/query", api_key, body, base_url=base_url,
         )
     except Exception as e:
-        error_msg = f"Failed to reach production Admin Debug API: {e}"
+        error_msg = f"Failed to reach {target} Admin Debug API: {e}"
         script_logger.error(error_msg)
         if as_json_out:
             print(json.dumps({"error": error_msg}))
@@ -2255,7 +2261,7 @@ async def _structured_query_via_http(args, body: Dict[str, Any], as_json_out: bo
         print(json.dumps(resp, indent=2, default=str))
         return
 
-    print(f"{C_BOLD}Structured log query (production){C_RESET}")
+    print(f"{C_BOLD}Structured log query ({target}){C_RESET}")
     print(f"{C_DIM}Rows: {resp.get('total', len(rows))}  "
           f"duration={resp.get('duration_ms', '?')}ms  "
           f"stream={resp.get('stream')}  mode={resp.get('mode')}{C_RESET}")
@@ -2303,9 +2309,9 @@ async def _o2_preset_chat_processing(args) -> None:
     )
 
     api_hits, ai_hits, worker_hits = await asyncio.gather(
-        _query_openobserve_sql_hits(api_sql, since, 200),
-        _query_openobserve_sql_hits(ai_sql, since, 100),
-        _query_openobserve_sql_hits(worker_sql, since, 200),
+        _query_openobserve_sql_hits(api_sql, since, 200, production=args.prod),
+        _query_openobserve_sql_hits(ai_sql, since, 100, production=args.prod),
+        _query_openobserve_sql_hits(worker_sql, since, 200, production=args.prod),
     )
 
     # Merge and sort all hits by timestamp
@@ -2440,8 +2446,8 @@ async def _o2_preset_test_events(args) -> None:
         "LIMIT 10"
     )
     events, runs = await asyncio.gather(
-        _query_openobserve_sql_hits(events_sql, since, 100),
-        _query_openobserve_sql_hits(runs_sql, since, 10),
+        _query_openobserve_sql_hits(events_sql, since, 100, production=args.prod),
+        _query_openobserve_sql_hits(runs_sql, since, 10, production=args.prod),
     )
 
     print(f"{C_BOLD}OpenObserve preset: test-events{C_RESET}")
@@ -2539,6 +2545,14 @@ async def run_o2_logs_mode(args) -> None:
     if getattr(args, "query_json", None):
         await _o2_structured_query(args)
         return
+
+    if getattr(args, "dev", False):
+        print(
+            "Error: --dev in --o2 mode is only supported with --query-json. "
+            "Preset queries already read dev OpenObserve directly by default.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     if not args.preset:
         print(
@@ -2737,6 +2751,9 @@ async def main():
                         help="Poll for new events every 5s (Ctrl+C to stop)")
     parser.add_argument("--prod", action="store_true",
                         help="Query production server (via Admin Debug API) instead of dev")
+    parser.add_argument("--dev", action="store_true",
+                        help="Query dev server through the Admin Debug API instead of local direct OpenObserve. "
+                             "Currently supported by --o2 --query-json.")
 
     # User timeline options
     parser.add_argument("--category", type=str, default=None,
@@ -2768,12 +2785,12 @@ async def main():
                         help="Preset for --o2 mode")
     parser.add_argument("--query-json", type=str, default=None, dest="query_json",
                         help=(
-                            "Structured log query as a JSON string matching LogQueryRequest "
-                            "(backend/core/api/app/routes/admin_debug.py). Works on both dev "
-                            "and --prod. Example: '{\"stream\":\"default\",\"filters\":"
-                            "[{\"field\":\"message\",\"op\":\"like\",\"value\":\"%passkey%\"}],"
-                            "\"since_minutes\":30,\"limit\":20}'"
-                        ))
+                             "Structured log query as a JSON string matching LogQueryRequest "
+                             "(backend/core/api/app/routes/admin_debug.py). Works on both dev "
+                             "and --prod. Example: '{\"stream\":\"default\",\"filters\":"
+                             "[{\"field\":\"message\",\"op\":\"like\",\"value\":\"%%passkey%%\"}],"
+                             "\"since_minutes\":30,\"limit\":20}'"
+                         ))
     parser.add_argument("--max-rows", type=int, default=O2_DEFAULT_MAX_ROWS,
                         help="Row cap for --o2 mode (default: 200)")
     parser.add_argument("--raw", action="store_true",
@@ -2790,6 +2807,9 @@ async def main():
                         help="Number of log lines (satellite modes, default: 200)")
 
     args = parser.parse_args()
+
+    if args.dev and args.prod:
+        parser.error("--dev and --prod are mutually exclusive")
 
     # ── Route to the correct mode ────────────────────────────────────────────
 

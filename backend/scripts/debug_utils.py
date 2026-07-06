@@ -283,6 +283,17 @@ def colorize(text: str, color: str) -> str:
 PROD_API_URL = "https://api.openmates.org/v1/admin/debug"
 DEV_API_URL  = "https://api.dev.openmates.org/v1/admin/debug"
 
+# Vault locations for remote Admin Debug API credentials. These are separate
+# from sidecar ADMIN_LOG_API_KEY secrets used for software-update/log sidecars.
+ADMIN_DEBUG_CLI_VAULT_PATH = "kv/data/providers/admin_debug_cli"
+ADMIN_DEBUG_CLI_DEV_KEY = "dev_api_key"
+ADMIN_DEBUG_CLI_PROD_KEY = "prod_api_key"
+
+# Legacy single-key slot. Treat it as a production fallback only so existing
+# deployments keep working while .env files migrate to explicit dev/prod names.
+LEGACY_ADMIN_DEBUG_CLI_VAULT_PATH = "kv/data/providers/admin"
+LEGACY_ADMIN_DEBUG_CLI_KEY = "debug_cli__api_key"
+
 # HTTP timeout for production API requests (seconds).
 PROD_API_TIMEOUT_SECONDS = 60.0
 
@@ -292,53 +303,96 @@ def get_base_url(use_dev: bool = False) -> str:
     return DEV_API_URL if use_dev else PROD_API_URL
 
 
-async def get_api_key_from_vault() -> str:
-    """Retrieve the admin API key from Vault.
+async def get_admin_debug_api_key(target: str = "prod") -> str:
+    """Retrieve the Admin Debug API key for a target environment from Vault.
 
-    The ``SECRET__ADMIN__DEBUG_CLI__API_KEY`` env var is imported by
-    ``vault-setup`` into ``kv/data/providers/admin`` with key
-    ``debug_cli__api_key`` (following the ``SECRET__{PROVIDER}__{KEY}``
-    convention).
+    The explicit env names are imported by ``vault-setup`` using the
+    ``SECRET__{PROVIDER}__{KEY}`` convention:
 
-    Returns:
-        The admin API key string.
+    * ``SECRET__ADMIN_DEBUG_CLI__DEV_API_KEY`` →
+      ``kv/data/providers/admin_debug_cli:dev_api_key``
+    * ``SECRET__ADMIN_DEBUG_CLI__PROD_API_KEY`` →
+      ``kv/data/providers/admin_debug_cli:prod_api_key``
 
-    Raises:
-        SystemExit: If the key cannot be found in Vault.
+    The old ``SECRET__ADMIN__DEBUG_CLI__API_KEY`` slot is still accepted as a
+    production fallback only.
     """
     from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+    normalized_target = target.lower().strip()
+    if normalized_target not in {"dev", "prod"}:
+        raise ValueError(f"Unknown Admin Debug API target: {target!r}")
+
+    vault_key = (
+        ADMIN_DEBUG_CLI_DEV_KEY
+        if normalized_target == "dev"
+        else ADMIN_DEBUG_CLI_PROD_KEY
+    )
+    env_name = (
+        "SECRET__ADMIN_DEBUG_CLI__DEV_API_KEY"
+        if normalized_target == "dev"
+        else "SECRET__ADMIN_DEBUG_CLI__PROD_API_KEY"
+    )
 
     secrets_manager = SecretsManager()
     await secrets_manager.initialize()
 
     try:
         api_key = await secrets_manager.get_secret(
-            "kv/data/providers/admin", "debug_cli__api_key"
+            ADMIN_DEBUG_CLI_VAULT_PATH, vault_key, log_missing=False
         )
-        if not api_key:
-            print(
-                "Error: Admin API key not found in Vault at "
-                "kv/data/providers/admin (key: debug_cli__api_key)",
-                file=sys.stderr,
+        if api_key:
+            return api_key
+
+        if normalized_target == "prod":
+            legacy_api_key = await secrets_manager.get_secret(
+                LEGACY_ADMIN_DEBUG_CLI_VAULT_PATH,
+                LEGACY_ADMIN_DEBUG_CLI_KEY,
+                log_missing=False,
             )
-            print("", file=sys.stderr)
-            print("To set up the admin API key:", file=sys.stderr)
-            print(
-                "1. Generate an API key for an admin user in the OpenMates app",
-                file=sys.stderr,
-            )
-            print(
-                "2. Add to your environment: SECRET__ADMIN__DEBUG_CLI__API_KEY=sk-api-xxxxx",
-                file=sys.stderr,
-            )
-            print(
-                "3. Restart the vault-setup container to import the secret",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        return api_key
+            if legacy_api_key:
+                print(
+                    "Warning: using legacy production Admin Debug API key from "
+                    f"{LEGACY_ADMIN_DEBUG_CLI_VAULT_PATH}:"
+                    f"{LEGACY_ADMIN_DEBUG_CLI_KEY}. Migrate to "
+                    "SECRET__ADMIN_DEBUG_CLI__PROD_API_KEY.",
+                    file=sys.stderr,
+                )
+                return legacy_api_key
+
+        print(
+            "Error: Admin Debug API key for "
+            f"{normalized_target} not found in Vault at "
+            f"{ADMIN_DEBUG_CLI_VAULT_PATH} (key: {vault_key})",
+            file=sys.stderr,
+        )
+        print("", file=sys.stderr)
+        print(f"To set up the {normalized_target} Admin Debug API key:", file=sys.stderr)
+        print(
+            "1. Generate an API key for an admin user on the target server",
+            file=sys.stderr,
+        )
+        print(
+            f"2. Add to the dev server .env: {env_name}=sk-api-xxxxx",
+            file=sys.stderr,
+        )
+        print(
+            "3. Recreate vault-setup to import the secret",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     finally:
         await secrets_manager.aclose()
+
+
+async def get_api_key_from_vault() -> str:
+    """Retrieve the production Admin Debug API key from Vault.
+
+    Deprecated compatibility wrapper for older scripts. New code should call
+    :func:`get_admin_debug_api_key` with an explicit ``"dev"`` or ``"prod"``
+    target.
+    """
+    return await get_admin_debug_api_key("prod")
 
 
 async def make_prod_api_request(
@@ -719,7 +773,7 @@ async def _query_prod_api(
     if not endpoint_prefix:
         return None
 
-    api_key = await get_api_key_from_vault()
+    api_key = await get_admin_debug_api_key("prod")
     base_url = PROD_API_URL
 
     endpoint = f"{endpoint_prefix}/{identifier}"
@@ -805,7 +859,7 @@ async def auto_resolve_entity(
     if prod_data:
         print(f"  {colorize('Found on production server', C_GREEN)}")
         # Retrieve api_key again for the caller (cheap — cached in Vault).
-        api_key = await get_api_key_from_vault()
+        api_key = await get_admin_debug_api_key("prod")
         return ResolveResult(source="prod", data=prod_data, api_key=api_key)
 
     # ── Step 3: Not found anywhere ────────────────────────────────────────
@@ -860,7 +914,7 @@ async def auto_resolve_server() -> ServerInfo:
         return ServerInfo(source="local", base_url=DEV_API_URL)
 
     print(f"  {colorize('Using production server', C_YELLOW)}")
-    api_key = await get_api_key_from_vault()
+    api_key = await get_admin_debug_api_key("prod")
     return ServerInfo(source="prod", base_url=PROD_API_URL, api_key=api_key)
 
 

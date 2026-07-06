@@ -126,12 +126,20 @@ docker exec api python /app/backend/scripts/debug.py logs --o2 --preset api-fail
 docker exec api python /app/backend/scripts/debug.py logs --o2 --query-json \
   '{"stream":"default","filters":[{"field":"service","op":"in","value":["api","task-worker"]},{"field":"job","op":"eq","value":"container-logs"}],"since_minutes":60,"limit":200}'
 
-# Same query against prod — requires admin API key in Vault (kv/data/providers/admin).
+# Same query against remote dev via the Admin Debug API — requires
+# SECRET__ADMIN_DEBUG_CLI__DEV_API_KEY imported into Vault.
+docker exec api python /app/backend/scripts/debug.py logs --o2 --dev --query-json \
+  '{"stream":"default","filters":[{"field":"service","op":"in","value":["api","task-worker"]},{"field":"job","op":"eq","value":"container-logs"}],"since_minutes":60,"limit":200}'
+
+# Same query against prod via the Admin Debug API — requires
+# SECRET__ADMIN_DEBUG_CLI__PROD_API_KEY imported into Vault.
 docker exec api python /app/backend/scripts/debug.py logs --o2 --prod --query-json \
   '{"stream":"default","filters":[{"field":"service","op":"in","value":["api","task-worker"]},{"field":"job","op":"eq","value":"container-logs"}],"since_minutes":60,"limit":200}'
 ```
 
 **`--query-json` vs `--sql`:** the `--sql` flag was removed because its prod fallback silently routed to the canned `/errors/logs` top-errors endpoint (ignoring the filter entirely). `--query-json` accepts a strict Pydantic schema (`LogQueryRequest`) and composes whitelisted SQL server-side against OpenObserve. Allowed streams: `default`, `client_console`. Allowed ops: `eq, neq, like, not_like, in, gt, gte, lt, lte`. Two modes: `select` (raw rows) and `count_by` (GROUP BY + COUNT). Hard caps: `limit <= 1000`, `since_minutes <= 10080`, 15 filters max. Every call is audit-logged to the `[ADMIN_LOG_QUERY]` channel. See the module-level docstring in `backend/core/api/app/routes/admin_debug.py` for the full security model.
+
+Admin Debug API keys are target-specific because dev and production use separate Directus databases. Store them on the dev server as `SECRET__ADMIN_DEBUG_CLI__DEV_API_KEY` and `SECRET__ADMIN_DEBUG_CLI__PROD_API_KEY`, then run `docker compose --env-file .env -f backend/core/docker-compose.yml up -d --force-recreate vault-setup` to import them. Verify access with `docker exec api python /app/backend/scripts/debug.py health --log-access`.
 
 Fallback (`docker compose logs`) commands:
 

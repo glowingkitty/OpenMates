@@ -88,7 +88,7 @@ from debug_utils import (
     format_timestamp,
     truncate_string,
     censor_email,
-    get_api_key_from_vault,
+    get_admin_debug_api_key,
     make_prod_api_request,
     PROD_API_URL,
     DEV_API_URL,
@@ -115,7 +115,7 @@ async def fetch_issue_from_production_api(
     Returns:
         Parsed JSON response from the API, or None if not found (404).
     """
-    api_key = await get_api_key_from_vault()
+    api_key = await get_admin_debug_api_key("dev" if use_dev else "prod")
     base_url = DEV_API_URL if use_dev else PROD_API_URL
 
     source_label = "dev" if use_dev else "production"
@@ -152,7 +152,7 @@ async def fetch_issues_list_from_production_api(
     Returns:
         Parsed JSON response with issues list, or None on error.
     """
-    api_key = await get_api_key_from_vault()
+    api_key = await get_admin_debug_api_key("dev" if use_dev else "prod")
     base_url = DEV_API_URL if use_dev else PROD_API_URL
 
     source_label = "dev" if use_dev else "production"
@@ -190,7 +190,7 @@ async def delete_issue_via_production_api(
     Returns:
         Parsed JSON response, or None if not found.
     """
-    api_key = await get_api_key_from_vault()
+    api_key = await get_admin_debug_api_key("dev" if use_dev else "prod")
     base_url = DEV_API_URL if use_dev else PROD_API_URL
 
     source_label = "dev" if use_dev else "production"
@@ -989,7 +989,7 @@ async def fetch_issue_timeline_remote(
     Calls GET /v1/admin/debug/issues/{issue_id}/timeline with before/after params.
     Returns the raw API response dict, or None on failure.
     """
-    api_key  = await get_api_key_from_vault()
+    api_key  = await get_admin_debug_api_key("dev" if use_dev else "prod")
     base_url = DEV_API_URL if use_dev else PROD_API_URL
 
     return await make_prod_api_request(

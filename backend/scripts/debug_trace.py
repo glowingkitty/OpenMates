@@ -570,11 +570,11 @@ def _time_range(duration_s: int) -> Tuple[int, int]:
 def _get_admin_api_key() -> str:
     """Get admin API key from Vault (sync wrapper around async function)."""
     import asyncio
-    from debug_utils import get_api_key_from_vault
+    from debug_utils import get_admin_debug_api_key
 
     try:
         loop = asyncio.new_event_loop()
-        return loop.run_until_complete(get_api_key_from_vault())
+        return loop.run_until_complete(get_admin_debug_api_key("prod"))
     finally:
         loop.close()
 

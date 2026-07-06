@@ -71,7 +71,7 @@ from debug_utils import (
     format_timestamp,
     truncate_string,
     collect_timestamp_issues,
-    get_api_key_from_vault,
+    get_admin_debug_api_key,
     make_prod_api_request,
     resolve_vault_key_id,
     decrypt_and_decode_toon,
@@ -117,7 +117,7 @@ async def fetch_chat_from_production_api(
     Raises:
         SystemExit: On authentication failure, 404, or connection error.
     """
-    api_key = await get_api_key_from_vault()
+    api_key = await get_admin_debug_api_key("dev" if use_dev else "prod")
     base_url = DEV_API_URL if use_dev else PROD_API_URL
     
     script_logger.info(
