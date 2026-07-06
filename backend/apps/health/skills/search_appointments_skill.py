@@ -649,7 +649,9 @@ def _jameda_service_matches_requested_insurance(
 ) -> bool:
     if insurance_sector not in ("public", "private"):
         return True
-    return _jameda_insurance_from_service(service) in (insurance_sector, "unknown")
+    if insurance_sector == "public":
+        return service.get("insuranceProviderId") == 1 and not bool(service.get("selfpayer"))
+    return service.get("insuranceProviderId") == 2
 
 
 def _select_jameda_services_for_request(

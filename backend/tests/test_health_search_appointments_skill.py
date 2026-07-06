@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from backend.apps.health.skills.search_appointments_skill import (
     _cities_match,
+    _jameda_service_matches_requested_insurance,
     _matches_motive_category,
     _matches_procedure_intent,
     _matches_speciality_intent,
@@ -67,3 +68,18 @@ def test_jameda_service_selection_uses_calendar_service_ids() -> None:
     )
 
     assert [svc["addressServiceId"] for svc in selected] == [2]
+
+
+def test_jameda_public_insurance_rejects_selfpayer_services() -> None:
+    assert _jameda_service_matches_requested_insurance(
+        {"insuranceProviderId": 1, "selfpayer": False},
+        "public",
+    ) is True
+    assert _jameda_service_matches_requested_insurance(
+        {"insuranceProviderId": 1, "selfpayer": True},
+        "public",
+    ) is False
+    assert _jameda_service_matches_requested_insurance(
+        {"insuranceProviderId": 2, "selfpayer": False},
+        "public",
+    ) is False
