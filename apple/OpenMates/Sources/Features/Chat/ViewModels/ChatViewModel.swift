@@ -1029,7 +1029,8 @@ final class ChatViewModel: ObservableObject {
                     if !IncognitoChatSession.isIncognitoChatId(chatId) {
                         await persistCompletedAssistantMessage(
                             assistantMessage,
-                            userMessageId: userMessageIdByAssistantMessageId[messageId]
+                            userMessageId: userMessageIdByAssistantMessageId[messageId],
+                            canonicalContent: content
                         )
                     }
                 }
@@ -1181,14 +1182,19 @@ final class ChatViewModel: ObservableObject {
         )
     }
 
-    private func persistCompletedAssistantMessage(_ message: Message, userMessageId: String?) async {
+    private func persistCompletedAssistantMessage(
+        _ message: Message,
+        userMessageId: String?,
+        canonicalContent: String? = nil
+    ) async {
         guard !IncognitoChatSession.isIncognitoChatId(message.chatId) else { return }
         do {
             let persisted = try await sendPipeline.persistCompletedAssistantMessage(
                 message,
                 userMessageId: userMessageId,
                 wsManager: wsManager,
-                chatStore: chatStore
+                chatStore: chatStore,
+                canonicalContent: canonicalContent
             )
             appendOrReplaceLocalMessage(persisted)
         } catch {
@@ -3413,7 +3419,8 @@ final class ChatSendPipeline {
         _ message: Message,
         userMessageId: String?,
         wsManager: WebSocketManager?,
-        chatStore: ChatStore?
+        chatStore: ChatStore?,
+        canonicalContent: String? = nil
     ) async throws -> Message {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
         guard !completedAssistantStorageSent.contains(message.id) else { return message }
@@ -3423,7 +3430,11 @@ final class ChatSendPipeline {
         if let existing = message.encryptedContent {
             encryptedContent = existing
         } else {
-            encryptedContent = try await crypto.encryptContent(message.content ?? "", key: keyMaterial.key)
+            let contentForPersistence = Self.canonicalAssistantContentForPersistence(
+                displayContent: message.content,
+                canonicalStreamContent: canonicalContent
+            )
+            encryptedContent = try await crypto.encryptContent(contentForPersistence, key: keyMaterial.key)
         }
         let encryptedCategory = try await encryptOptional(message.appId, key: keyMaterial.key)
         let encryptedModelName = try await encryptOptional(message.modelName, key: keyMaterial.key)
@@ -3566,6 +3577,17 @@ final class ChatSendPipeline {
                 "last_edited_overall_timestamp": createdAtUnix
             ]
         ]
+    }
+
+    static func canonicalAssistantContentForPersistence(
+        displayContent: String?,
+        canonicalStreamContent: String?
+    ) -> String {
+        let canonical = canonicalStreamContent?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if canonical?.isEmpty == false {
+            return canonicalStreamContent ?? ""
+        }
+        return displayContent ?? ""
     }
 
     func sendPostProcessingMetadata(

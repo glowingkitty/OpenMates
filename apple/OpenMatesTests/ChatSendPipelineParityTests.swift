@@ -489,6 +489,39 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(versions?["last_edited_overall_timestamp"], createdAt)
     }
 
+    func testAssistantCompletionPersistenceUsesCanonicalEmbedMarkdown() {
+        let canonicalContent = """
+        Here is the result.
+
+        ```json
+        {"type":"app_skill_use","embed_id":"embed-1","app_id":"web","skill_id":"search"}
+        ```
+        """
+        let displayMessage = Message(
+            id: "assistant-embed-1",
+            chatId: "chat-1",
+            role: .assistant,
+            content: canonicalContent,
+            encryptedContent: nil,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            appId: "web",
+            isStreaming: false,
+            embedRefs: nil,
+            modelName: "test-model"
+        )
+        let attached = PublicChatContent.attachEmbeds(to: [displayMessage]).messages.first
+
+        XCTAssertTrue(attached?.content?.contains("[[embed:embed-1]]") == true)
+        XCTAssertEqual(
+            ChatSendPipeline.canonicalAssistantContentForPersistence(
+                displayContent: attached?.content,
+                canonicalStreamContent: canonicalContent
+            ),
+            canonicalContent
+        )
+    }
+
     func testPendingAssistantResponseQueueStoresOnlyIdsAndDedupes() throws {
         let suiteName = "ChatSendPipelineParityTests"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
