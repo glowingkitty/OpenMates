@@ -381,7 +381,7 @@ enum AppStrings {
     // MARK: - Auth
     static var login: String { L("login.login") }
     static var signup: String { L("signup.sign_up") }
-    static var loginSignup: String { "\(login) / \(signup)" }
+    static var loginSignup: String { L("header.login_signup") }
     static var signupVersionTitle: String { L("signup.version_title") }
     static var logout: String { L("settings.logout") }
     static var logOut: String { L("settings.logout") }
@@ -441,6 +441,8 @@ enum AppStrings {
     static var shareLocation: String { L("enter_message.attachments.share_location") }
     static var sketchAction: String { L("enter_message.attachments.sketch") }
     static var takePhoto: String { L("enter_message.attachments.take_photo") }
+    static var enterFullscreen: String { L("enter_message.fullscreen.enter_fullscreen") }
+    static var exitFullscreen: String { L("enter_message.fullscreen.exit_fullscreen") }
     static var recordAudio: String { L("enter_message.attachments.record_audio") }
     static var pressAndHoldToRecord: String { L("enter_message.record_audio.press_and_hold_reminder") }
     static var releaseToFinishRecording: String { L("enter_message.record_audio.release_to_finish") }

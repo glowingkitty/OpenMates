@@ -3476,6 +3476,7 @@ private enum WorkspaceDestination: String, CaseIterable, Identifiable {
 
 private struct OpenMatesWebHeader: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.openURL) private var openURL
 
     let isAuthenticated: Bool
     let isChatsPanelOpen: Bool
@@ -3492,6 +3493,7 @@ private struct OpenMatesWebHeader: View {
     let onOpenSettings: () -> Void
     let onOpenReferral: () -> Void
     let onOpenAuth: () -> Void
+    private static let githubURL = URL(string: "https://github.com/glowingkitty/OpenMates")!
 
     var body: some View {
         ZStack {
@@ -3515,20 +3517,33 @@ private struct OpenMatesWebHeader: View {
                 Spacer(minLength: .spacing4)
 
                 if !isAuthenticated {
+                    if horizontalSizeClass != .compact {
+                        Button {
+                            openURL(Self.githubURL)
+                        } label: {
+                            Icon("github", size: 20)
+                                .foregroundStyle(Color.grey60)
+                                .frame(width: 36, height: 36)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("github-repo-button")
+                        .accessibilityLabel(LocalizationManager.shared.text("signup.view_on_github"))
+                    }
+
                     Button(action: onOpenAuth) {
-                        Text(AppStrings.signup)
+                        Text(AppStrings.loginSignup)
                             .font(.omP)
-                            .fontWeight(.bold)
                             .foregroundStyle(Color.fontButton)
                             .lineLimit(1)
-                            .padding(.horizontal, .spacing8)
+                            .padding(.horizontal, .spacing6)
                             .padding(.vertical, .spacing4)
                             .background(Color.buttonPrimary)
-                            .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                            .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                            .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
                     }
                     .buttonStyle(.plain)
-                    .accessibilityIdentifier("login-signup-button")
-                    .accessibilityLabel(AppStrings.signup)
+                    .accessibilityIdentifier("header-login-signup-btn")
+                    .accessibilityLabel(AppStrings.loginSignup)
                 }
 
                 if isAuthenticated {
@@ -4004,6 +4019,43 @@ private struct WebHeaderIconButtonStyle: ButtonStyle {
     }
 }
 
+private struct DailyInspirationCarouselProgressBar: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    let restartToken: Int
+    let duration: TimeInterval
+    let onComplete: () -> Void
+
+    @State private var progress: CGFloat = 0
+
+    var body: some View {
+        GeometryReader { proxy in
+            Rectangle()
+                .fill(Color.white.opacity(0.2))
+                .frame(width: proxy.size.width * progress, height: proxy.size.height, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .frame(height: 2)
+        .accessibilityElement(children: .ignore)
+        .accessibilityIdentifier("daily-inspiration-carousel-progress")
+        .task(id: restartToken) {
+            progress = 0
+            guard !reduceMotion else { return }
+            await Task.yield()
+            withAnimation(.linear(duration: duration)) {
+                progress = 1
+            }
+            do {
+                try await Task.sleep(for: .seconds(duration))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            onComplete()
+        }
+    }
+}
+
 // MARK: - Inline new chat welcome screen
 // Shown for ALL users (authenticated and unauthenticated) when no chat is selected.
 // Matches the web app's ActiveChat.svelte showWelcome state.
@@ -4183,6 +4235,7 @@ struct NewChatWelcomeView: View {
     @State private var suggestions: [NewChatSuggestionsView.ChatSuggestion] = []
     @State private var hiddenSuggestionIds = Set<String>()
     @State private var inspirationIndex = 0
+    @State private var inspirationProgressRestartToken = 0
     @State private var viewedInspirationIds = Set<String>()
     @State private var isComposerExpanded = false
     @State private var guestSelectedInterestTagIds: [InterestTagId] = []
@@ -4193,6 +4246,8 @@ struct NewChatWelcomeView: View {
     @State private var piiExclusions = Set<String>()
     @StateObject private var piiPrivacySettingsStore = PIIPrivacySettingsStore.shared
     @FocusState private var isFocused: Bool
+
+    private static let inspirationAutoRotationInterval: TimeInterval = 20
 
     private var activeInspiration: DailyInspirationBanner.DailyInspiration? {
         guard !inspirations.isEmpty else { return nil }
@@ -4324,7 +4379,7 @@ struct NewChatWelcomeView: View {
                     .transition(.opacity)
                 }
 
-                if isComposerActive && !suggestions.isEmpty && !shouldShowGuestInterestTags {
+                if isComposerActive && !suggestions.isEmpty {
                     suggestionsCarousel
                         .frame(maxWidth: .infinity)
                         .padding(.bottom, composerReserve)
@@ -4492,20 +4547,26 @@ struct NewChatWelcomeView: View {
     }
 
     private func inspirationCarousel(_ activeInspiration: DailyInspirationBanner.DailyInspiration) -> some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             InspirationCard(inspiration: activeInspiration) {
                 createChatWith(message: activeInspiration.text)
             }
             .frame(maxWidth: .infinity)
 
             if inspirations.count > 1 {
+                DailyInspirationCarouselProgressBar(
+                    restartToken: inspirationProgressRestartToken,
+                    duration: Self.inspirationAutoRotationInterval,
+                    onComplete: showNextInspiration
+                )
+
                 HStack {
                     carouselArrow(label: AppStrings.previousInspiration) {
-                        inspirationIndex = (inspirationIndex - 1 + inspirations.count) % inspirations.count
+                        showPreviousInspiration()
                     }
                     Spacer()
                     carouselArrow(label: AppStrings.nextInspiration) {
-                        inspirationIndex = (inspirationIndex + 1) % inspirations.count
+                        showNextInspiration()
                     }
                     .scaleEffect(x: -1, y: 1)
                 }
@@ -4519,6 +4580,22 @@ struct NewChatWelcomeView: View {
                 sendViewedEvent(for: current)
             }
         }
+    }
+
+    private func showPreviousInspiration() {
+        guard inspirations.count > 1 else { return }
+        inspirationIndex = (inspirationIndex - 1 + inspirations.count) % inspirations.count
+        restartInspirationProgress()
+    }
+
+    private func showNextInspiration() {
+        guard inspirations.count > 1 else { return }
+        inspirationIndex = (inspirationIndex + 1) % inspirations.count
+        restartInspirationProgress()
+    }
+
+    private func restartInspirationProgress() {
+        inspirationProgressRestartToken += 1
     }
 
     private func welcomeClusterCenterY(for size: CGSize, composerReserve: CGFloat) -> CGFloat {
@@ -5086,23 +5163,40 @@ private struct WelcomeComposer: View {
             MessageComposerView(
                 text: $text,
                 isFocused: $isFocused,
-                compact: !hasContent,
+                compact: !isOpen,
                 placeholder: AppStrings.typeMessage,
                 compactHeight: 60,
                 compactCornerRadius: 24,
                 showActionButtonsWhenCompact: isOpen,
-                expandedMinHeight: 112,
+                expandedMinHeight: isExpanded ? 360 : 112,
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 onSubmit: { canSubmit ? onSend() : onOpenAuth() }
             ) {
+                if isOpen {
+                    Button {
+                        isExpanded.toggle()
+                        isFocused = true
+                    } label: {
+                        Icon(isExpanded ? "minimize" : "fullscreen", size: 20)
+                            .foregroundStyle(LinearGradient.primary)
+                            .frame(width: 30, height: 30)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 10)
+                    .padding(.trailing, 15)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .accessibilityLabel(isExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen)
+                    .accessibilityIdentifier("message-input-fullscreen-button")
+                }
+            } actionButtons: {
                 HStack(spacing: .spacing5) {
-                    MessageComposerActionIcon(icon: "files", label: AppStrings.attachFiles) {}
-                    MessageComposerActionIcon(icon: "maps", label: AppStrings.shareLocation) {}
-                    MessageComposerActionIcon(icon: "modify", label: AppStrings.sketchAction) {}
+                    MessageComposerActionIcon(icon: "files", label: AppStrings.attachFiles, identifier: "attach-files-button") {}
+                    MessageComposerActionIcon(icon: "maps", label: AppStrings.shareLocation, identifier: "share-location-button") {}
+                    MessageComposerActionIcon(icon: "whiteboard", label: AppStrings.sketchAction, identifier: "sketch-button") {}
                     Spacer()
-                    MessageComposerActionIcon(icon: "take_photo", label: AppStrings.takePhoto) {}
-                    MessageComposerActionIcon(icon: "recordaudio", label: AppStrings.recordAudio) {}
+                    MessageComposerActionIcon(icon: "camera", label: AppStrings.takePhoto, identifier: "take-photo-button") {}
+                    MessageComposerActionIcon(icon: "recordaudio", label: AppStrings.recordAudio, identifier: "record-audio-button") {}
                     if hasContent {
                         MessageComposerSendButton(title: canSubmit ? AppStrings.sendAction : AppStrings.signUp) {
                             canSubmit ? onSend() : onOpenAuth()
@@ -5113,12 +5207,6 @@ private struct WelcomeComposer: View {
                 .padding(.bottom, .spacing4)
                 .transition(.opacity)
             }
-            .onChange(of: isFocused) { _, newValue in
-                if newValue {
-                    isExpanded = true
-                }
-            }
-
             if isOpen {
                 Button {
                     isFocused = false

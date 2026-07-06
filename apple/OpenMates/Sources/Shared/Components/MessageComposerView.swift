@@ -141,6 +141,41 @@ extension MessageComposerView where PreFieldContent == EmptyView, OverlayContent
     }
 }
 
+extension MessageComposerView where PreFieldContent == EmptyView {
+    init(
+        text: Binding<String>,
+        isFocused: FocusState<Bool>.Binding,
+        compact: Bool,
+        placeholder: String,
+        compactHeight: CGFloat = MessageComposerMetric.inlineCompactHeight,
+        compactCornerRadius: CGFloat = .radiusFull,
+        showActionButtonsWhenCompact: Bool = false,
+        expandedMinHeight: CGFloat = MessageComposerMetric.expandedMinHeight,
+        maxWidth: CGFloat? = MessageComposerMetric.mainAppMaxWidth,
+        accessibilityHint: String = AppStrings.typeMessage,
+        onSubmit: @escaping () -> Void,
+        @ViewBuilder overlayContent: @escaping () -> OverlayContent,
+        @ViewBuilder actionButtons: @escaping () -> ActionButtons
+    ) {
+        self.init(
+            text: text,
+            isFocused: isFocused,
+            compact: compact,
+            placeholder: placeholder,
+            compactHeight: compactHeight,
+            compactCornerRadius: compactCornerRadius,
+            showActionButtonsWhenCompact: showActionButtonsWhenCompact,
+            expandedMinHeight: expandedMinHeight,
+            maxWidth: maxWidth,
+            accessibilityHint: accessibilityHint,
+            onSubmit: onSubmit,
+            preFieldContent: { EmptyView() },
+            overlayContent: overlayContent,
+            actionButtons: actionButtons
+        )
+    }
+}
+
 extension MessageComposerView where OverlayContent == EmptyView {
     init(
         text: Binding<String>,

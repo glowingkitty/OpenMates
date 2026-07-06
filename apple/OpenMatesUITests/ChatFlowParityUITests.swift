@@ -22,6 +22,7 @@ final class ChatFlowParityUITests: XCTestCase {
 
         XCTAssertTrue(app.descendants(matching: .any)["compact-logo-button"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["daily-inspiration-card"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.descendants(matching: .any)["daily-inspiration-carousel-progress"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["What are your interests?"].exists)
         XCTAssertFalse(app.staticTexts["common.skip"].exists)
@@ -181,6 +182,28 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
 
         attachScreenshot(name: "Guest interest tag selection filters suggestions")
+    }
+
+    func testGuestDefaultSuggestionsShowWhenComposerFocusedBeforeInterestSelection() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
+        app.launch()
+
+        XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
+        XCTAssertFalse(app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.discover_web_search"].exists)
+
+        let messageEditor = app.textFields["message-editor"]
+        XCTAssertTrue(messageEditor.waitForExistence(timeout: 5))
+        messageEditor.tap()
+
+        XCTAssertTrue(app.buttons["message-input-fullscreen-button"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["sketch-button"].exists)
+        XCTAssertTrue(app.buttons["take-photo-button"].exists)
+        XCTAssertTrue(app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.discover_web_search"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.discover_image_generate"].exists)
+        XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
+
+        attachScreenshot(name: "Guest default suggestions before interest selection")
     }
 
     private func tapVisibleInterestTags(count: Int, in app: XCUIApplication) {

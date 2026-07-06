@@ -36,7 +36,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
             extraArguments: ["--ui-test-start-new-chat"]
         )
 
-        XCTAssertTrue(app.buttons["login-signup-button"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["header-login-signup-btn"].waitForExistence(timeout: 15))
         RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: anonymousPrompt)
         RealAccountUITestSupport.assertAssistantResponds(app: app, timeout: assistantResponseTimeout)
     }

@@ -16,7 +16,7 @@ final class AuthSecurityParityUITests: XCTestCase {
         app.launchArguments = ["--ui-test-disable-auth-cache"]
         app.launch()
 
-        let loginSignupButton = app.buttons["login-signup-button"]
+        let loginSignupButton = app.buttons["header-login-signup-btn"]
         XCTAssertTrue(loginSignupButton.waitForExistence(timeout: 15))
         loginSignupButton.tap()
 

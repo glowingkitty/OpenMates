@@ -44,7 +44,7 @@ enum RealAccountUITestSupport {
     }
 
     static func logIn(app: XCUIApplication, credentials: RealAccountTestCredentials) {
-        let loginSignupButton = app.buttons["login-signup-button"]
+        let loginSignupButton = app.buttons["header-login-signup-btn"]
         if !loginSignupButton.waitForExistence(timeout: 6), waitForMessageEditor(in: app, timeout: 2) != nil {
             return
         }

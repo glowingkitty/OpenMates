@@ -290,6 +290,24 @@ test.describe('Guest interest smart selection', () => {
 		expect(await page.evaluate((key: string) => localStorage.getItem(key), GUEST_TOPIC_PREFERENCES_STORAGE_KEY)).toBeNull();
 	});
 
+	test('fresh guest sees default suggestions when focusing composer before selecting interests', async ({ page }: { page: any }) => {
+		test.setTimeout(45000);
+		await page.setViewportSize({ width: 1280, height: 800 });
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		await expect(page.getByTestId('guest-interest-tags')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('new-chat-suggestion-card')).toHaveCount(0);
+
+		await page.getByTestId('message-editor').click();
+		await expect(page.getByTestId('suggestions-wrapper')).toBeVisible({ timeout: 15000 });
+
+		const suggestionIds = await visibleSuggestionIds(page);
+		expect(suggestionIds.length).toBeGreaterThan(0);
+		expect(suggestionIds.every((id) => id.startsWith('chat.new_chat_suggestions.'))).toBe(true);
+	});
+
 	test('mobile guest intro alternates copy and video', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 390, height: 844 });

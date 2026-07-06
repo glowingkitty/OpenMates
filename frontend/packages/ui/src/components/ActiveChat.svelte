@@ -11714,7 +11714,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                       {$text('enter_message.attachments.remove_pending_file')}
                                   </button>
                               </div>
-                          {:else if showWelcome && ($authStore.isAuthenticated || guestInterestContinueConfirmed) && !messageInputMapsOpen && messageInputRecentlyFocused}
+                          {:else if showWelcome && !messageInputMapsOpen && messageInputRecentlyFocused}
                                 <NewChatSuggestions
                                    messageInputContent={activeSuggestionSearchText}
                                    selectedInterestTagIds={selectedGuestInterestTagIds}
