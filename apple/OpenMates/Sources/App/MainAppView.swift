@@ -97,6 +97,10 @@ struct MainAppView: View {
         self.launchCommand = launchCommand
     }
 
+    #if DEBUG
+    private static let welcomeRecentOverflowUITestSeedCount = 10
+    #endif
+
     /// Whether the user is currently authenticated
     private var isAuthenticated: Bool {
         authManager.state == .authenticated
@@ -167,6 +171,15 @@ struct MainAppView: View {
     private var isUITestShellMetricsEnabled: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-shell-metrics")
             || ProcessInfo.processInfo.environment["UI_TEST_SHELL_METRICS"] == "1"
+    }
+
+    private var isWelcomeRecentOverflowUITestEnabled: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--ui-test-welcome-recent-overflow")
+            || ProcessInfo.processInfo.environment["UI_TEST_WELCOME_RECENT_OVERFLOW"] == "1"
+        #else
+        false
+        #endif
     }
 
     private func isSettingsSideBySide(width: CGFloat) -> Bool {
@@ -791,6 +804,7 @@ struct MainAppView: View {
         } else {
             // Unauthenticated: populate the sidebar, but keep the welcome/new-chat surface active.
             loadDemoChats(selectDefault: false)
+            seedWelcomeRecentOverflowUITestStateIfNeeded()
             openNewChatScreen()
             await anonymousFreeUsage.refreshStatus()
             await anonymousFreeUsage.loadAnonymousChats(into: chatStore)
@@ -1228,7 +1242,7 @@ struct MainAppView: View {
         } else if showNewChat || selectedChatId == nil {
             NewChatWelcomeView(
                 inspirations: dailyInspirations,
-                isAuthenticated: isAuthenticated,
+                isAuthenticated: isAuthenticated || isWelcomeRecentOverflowUITestEnabled,
                 currentUser: authManager.currentUser,
                 chats: chatStore.chats,
                 totalChatCount: totalChatCount,
@@ -1766,6 +1780,34 @@ struct MainAppView: View {
         if selectDefault {
             selectedChatId = "demo-for-everyone"
         }
+    }
+
+    private func seedWelcomeRecentOverflowUITestStateIfNeeded() {
+        #if DEBUG
+        guard isWelcomeRecentOverflowUITestEnabled else { return }
+        let formatter = ISO8601DateFormatter()
+        let now = Date()
+        let seededChats = (0..<Self.welcomeRecentOverflowUITestSeedCount).map { index in
+            let timestamp = formatter.string(from: now.addingTimeInterval(TimeInterval(-index * 60)))
+            Chat(
+                id: "ui-test-welcome-recent-\(index)",
+                title: "Recent Chat \(index + 1)",
+                lastMessageAt: timestamp,
+                createdAt: timestamp,
+                updatedAt: timestamp,
+                isArchived: false,
+                isPinned: index == 0,
+                appId: "openmates",
+                category: "productivity",
+                icon: "message-square",
+                chatSummary: "Seeded compact recent card",
+                encryptedTitle: nil,
+                encryptedChatKey: nil
+            )
+        }
+        chatStore.upsertChats(seededChats)
+        totalChatCount = Self.welcomeRecentOverflowUITestSeedCount + 4
+        #endif
     }
 
     /// Returns the gradient banner state for a given demo/legal/example chat ID.
@@ -4485,7 +4527,7 @@ struct NewChatWelcomeView: View {
                         }
                     }
                     if overflowCount > 0 {
-                        OverflowCard(count: overflowCount)
+                        OverflowCard(count: overflowCount, compact: !usesLargeCards)
                     }
                 }
                 .padding(.leading, sideInset)
@@ -4493,6 +4535,7 @@ struct NewChatWelcomeView: View {
                 .padding(.top, usesLargeCards ? 35 : 12)
                 .padding(.bottom, 12)
             }
+            .accessibilityIdentifier("welcome-chat-cards-carousel")
         }
         .frame(height: usesLargeCards ? 247 : 84)
     }
@@ -5114,19 +5157,33 @@ struct LucideNativeIcon: View {
 
 private struct OverflowCard: View {
     let count: Int
+    let compact: Bool
+
+    private var width: CGFloat {
+        compact ? 60 : 92
+    }
+
+    private var height: CGFloat {
+        compact ? 44 : 200
+    }
+
+    private var cornerRadius: CGFloat {
+        compact ? 18 : .radius8
+    }
 
     var body: some View {
         Text("+\(count)")
-            .font(.omH3)
+            .font(compact ? .omP : .omH3)
             .fontWeight(.bold)
             .foregroundStyle(Color.fontPrimary)
-            .frame(width: 92, height: 200)
+            .frame(width: width, height: height)
             .background(Color.grey10)
-            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             .overlay(
-                RoundedRectangle(cornerRadius: .radius8)
+                RoundedRectangle(cornerRadius: cornerRadius)
                     .stroke(Color.grey20, lineWidth: 1)
             )
+            .accessibilityIdentifier(compact ? "welcome-chat-overflow-compact" : "welcome-chat-overflow-large")
     }
 }
 
@@ -5168,7 +5225,7 @@ private struct WelcomeComposer: View {
                 compactHeight: 60,
                 compactCornerRadius: 24,
                 showActionButtonsWhenCompact: isOpen,
-                expandedMinHeight: isExpanded ? 360 : 112,
+                expandedMinHeight: isExpanded ? 360 : MessageComposerMetric.expandedMinHeight,
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 onSubmit: { canSubmit ? onSend() : onOpenAuth() },
@@ -5209,7 +5266,7 @@ private struct WelcomeComposer: View {
                     .transition(.opacity)
                 }
             )
-            if isOpen {
+            if isOpen && !isFocused {
                 Button {
                     isFocused = false
                     isExpanded = false

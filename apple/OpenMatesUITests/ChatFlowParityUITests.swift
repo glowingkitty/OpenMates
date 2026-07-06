@@ -194,6 +194,15 @@ final class ChatFlowParityUITests: XCTestCase {
         let messageEditor = waitForMessageEditor(in: app)
         messageEditor.tap()
 
+        let messageField = app.descendants(matching: .any)["message-field"]
+        XCTAssertTrue(messageField.waitForExistence(timeout: 5))
+        XCTAssertTrue(messageField.isHittable, "Focused welcome composer field should stay visible and hittable")
+        XCTAssertGreaterThanOrEqual(
+            messageField.frame.height,
+            90,
+            "Focused welcome composer should expand to the web-like message-field height instead of collapsing/disappearing"
+        )
+
         XCTAssertTrue(app.buttons["message-input-fullscreen-button"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["sketch-button"].exists)
         XCTAssertTrue(app.buttons["take-photo-button"].exists)
@@ -202,6 +211,42 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
 
         attachScreenshot(name: "Guest default suggestions before interest selection")
+    }
+
+    func testWelcomeRecentOverflowUsesCompactHeightOnPhone() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat",
+            "--ui-test-welcome-recent-overflow"
+        ]
+        app.launch()
+
+        let carousel = app.scrollViews["welcome-chat-cards-carousel"]
+        XCTAssertTrue(carousel.waitForExistence(timeout: 15))
+
+        let compactCard = app.buttons["welcome-chat-compact-card-ui-test-welcome-recent-0"]
+        XCTAssertTrue(compactCard.waitForExistence(timeout: 5))
+
+        let overflow = app.descendants(matching: .any)["welcome-chat-overflow-compact"]
+        for _ in 0..<12 where !overflow.isHittable {
+            carousel.swipeLeft()
+        }
+
+        XCTAssertTrue(overflow.waitForExistence(timeout: 5))
+        XCTAssertTrue(overflow.isHittable, "Expected compact overflow counter to be reachable in the recent-chat carousel")
+        XCTAssertLessThanOrEqual(
+            overflow.frame.height,
+            50,
+            "Compact overflow counter should match the web compact 44px treatment instead of using large-card height"
+        )
+        XCTAssertLessThanOrEqual(
+            overflow.frame.height,
+            compactCard.frame.height + 1,
+            "Compact overflow counter must not be taller than compact recent cards"
+        )
+
+        attachScreenshot(name: "Welcome compact recent overflow height")
     }
 
     private func tapVisibleInterestTags(count: Int, in app: XCUIApplication) {
