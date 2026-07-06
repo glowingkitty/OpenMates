@@ -20,6 +20,8 @@ enum MessageComposerMetric {
     static let mainAppMaxWidth: CGFloat = 629
     /// Web `MessageInput.styles.css`: `.message-field { min-height: 100px; border-radius: 24px; padding-bottom: 60px; }`.
     static let expandedMinHeight: CGFloat = 100
+    /// Browser-computed focused empty field height at 393x852: 117.59px from MessageInput's editor line box plus action row.
+    static let focusedEmptyHeight: CGFloat = 118
     static let expandedCornerRadius: CGFloat = 24
     /// Web `MessageInput.styles.css`: `.message-field.inline-compact { min-height/max-height: 48px; border-radius: radius-full; }`.
     static let inlineCompactHeight: CGFloat = 48

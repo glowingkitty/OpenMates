@@ -11,6 +11,9 @@ import UIKit
 
 @MainActor
 final class ChatFlowParityUITests: XCTestCase {
+    private let focusedWebComposerMinHeight: CGFloat = 100
+    private let focusedWebComposerMaxHeight: CGFloat = 140
+
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
@@ -201,15 +204,20 @@ final class ChatFlowParityUITests: XCTestCase {
 
         let messageField = app.descendants(matching: .any)["message-field"]
         XCTAssertTrue(messageField.waitForExistence(timeout: 5))
-        waitForFrameHeight(atLeast: 90, element: messageField, timeout: 5)
+        waitForFrameHeight(atLeast: focusedWebComposerMinHeight, element: messageField, timeout: 5)
         let focusedScreenshot = XCUIScreen.main.screenshot()
         attachScreenshot(focusedScreenshot, name: "Focused welcome message input visible")
         XCTAssertTrue(messageField.isHittable, "Focused welcome composer field should stay visible and hittable")
         assertElementIsVisibleInScreenshot(messageField, in: app, screenshot: focusedScreenshot)
         XCTAssertGreaterThanOrEqual(
             messageField.frame.height,
-            90,
+            focusedWebComposerMinHeight,
             "Focused welcome composer should expand to the web-like message-field height instead of collapsing/disappearing"
+        )
+        XCTAssertLessThanOrEqual(
+            messageField.frame.height,
+            focusedWebComposerMaxHeight,
+            "Focused welcome composer must match the web bottom composer height instead of stretching into a full-screen panel"
         )
         let keyboard = app.keyboards.firstMatch
         if keyboard.exists {

@@ -69,6 +69,14 @@ struct OMMessageInputField<ActionButtons: View>: View {
         compact ? compactHeight : expandedMinHeight
     }
 
+    private var resolvedFieldHeight: CGFloat? {
+        if compact { return compactHeight }
+        if text.isEmpty && expandedMinHeight <= MessageComposerMetric.focusedEmptyHeight {
+            return MessageComposerMetric.focusedEmptyHeight
+        }
+        return nil
+    }
+
     private var cornerRadius: CGFloat {
         compact ? compactCornerRadius : 24
     }
@@ -125,13 +133,9 @@ struct OMMessageInputField<ActionButtons: View>: View {
                 overlayContent
             }
         }
-        .frame(maxWidth: .infinity, minHeight: fieldHeight, maxHeight: compact ? fieldHeight : nil)
+        .frame(maxWidth: .infinity, minHeight: fieldHeight, maxHeight: resolvedFieldHeight)
         .background(Color.greyBlue)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .stroke(isFocused.wrappedValue ? Color.buttonPrimary.opacity(0.6) : Color.clear, lineWidth: 2)
-        )
         .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
         .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
         .onTapGesture {
