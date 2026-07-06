@@ -35,6 +35,8 @@ _FAKE_WS_MANAGER.broadcast_to_user = AsyncMock()
 _FAKE_CELERY_APP = MagicMock(name="fake_celery_app")
 _FAKE_CELERY_APP.send_task = MagicMock()
 
+_STUBBED_MODULES: dict[str, tuple[bool, types.ModuleType | None, bool, object | None]] = {}
+
 
 class _FakeTranslationService:
     def warm_cache(self, *_languages: str) -> None:
@@ -70,12 +72,37 @@ def _force_stub_leaf_module(dotted_name: str, **attrs) -> types.ModuleType:
             stub_parent.__path__ = []
             sys.modules[parent_name] = stub_parent
     parent = sys.modules[parent_name]
+    if dotted_name not in _STUBBED_MODULES:
+        _STUBBED_MODULES[dotted_name] = (
+            dotted_name in sys.modules,
+            sys.modules.get(dotted_name),
+            hasattr(parent, leaf),
+            getattr(parent, leaf, None),
+        )
     stub = types.ModuleType(dotted_name)
     for key, value in attrs.items():
         setattr(stub, key, value)
     sys.modules[dotted_name] = stub
     setattr(parent, leaf, stub)
     return stub
+
+
+def _restore_stub_leaf_modules() -> None:
+    for dotted_name, (had_module, original_module, had_parent_attr, original_parent_attr) in reversed(
+        list(_STUBBED_MODULES.items())
+    ):
+        parent_name, _, leaf = dotted_name.rpartition(".")
+        parent = sys.modules.get(parent_name)
+        if had_module and original_module is not None:
+            sys.modules[dotted_name] = original_module
+        else:
+            sys.modules.pop(dotted_name, None)
+        if parent is not None:
+            if had_parent_attr:
+                setattr(parent, leaf, original_parent_attr)
+            elif hasattr(parent, leaf):
+                delattr(parent, leaf)
+    _STUBBED_MODULES.clear()
 
 
 _force_stub_leaf_module(
@@ -102,6 +129,24 @@ except ImportError as _exc:
     # Fallback definitions so function signatures at module level evaluate without NameError.
     DEFAULT_MESSAGE_TEMPLATE = ""
     WEBHOOK_TASK_TEMPLATE = ""
+finally:
+    _restore_stub_leaf_modules()
+
+
+@pytest.fixture(autouse=True)
+def _webhook_stub_modules():
+    _force_stub_leaf_module(
+        "backend.core.api.app.routes.websockets",
+        manager=_FAKE_WS_MANAGER,
+    )
+    _force_stub_leaf_module(
+        "backend.core.api.app.tasks.celery_config",
+        app=_FAKE_CELERY_APP,
+        TranslationService=_FakeTranslationService,
+        warm_translation_cache=_fake_warm_translation_cache,
+    )
+    yield
+    _restore_stub_leaf_modules()
 
 
 def _webhook_incoming_handler():

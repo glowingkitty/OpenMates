@@ -237,6 +237,11 @@
     }
   }
 
+  function handleRemoteFullscreenKeydown(event: KeyboardEvent): void {
+    if (!activeRemoteFullscreen || event.key !== 'Escape') return;
+    closeRemotePreview();
+  }
+
   function getRemotePreviewEntries(source: ProjectSourceViewModel): RemotePreviewEntry[] {
     const candidates = getRemotePreviewCandidates(source.metadata);
     return candidates.flatMap((candidate) => {
@@ -625,6 +630,8 @@
     />
   </div>
 {/if}
+
+<svelte:window onkeydown={handleRemoteFullscreenKeydown} />
 
 <style>
   .projects-page {

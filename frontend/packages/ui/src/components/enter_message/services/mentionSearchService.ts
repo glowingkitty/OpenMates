@@ -401,6 +401,9 @@ export async function searchProjectMentions(
   query: string,
   limit: number = PROJECT_MENTION_LIMIT,
 ): Promise<ProjectMentionResult[]> {
+  const profile = get(userProfile);
+  if (!profile.user_id) return [];
+
   try {
     const projects = await listProjects();
     const results: ProjectMentionResult[] = [];

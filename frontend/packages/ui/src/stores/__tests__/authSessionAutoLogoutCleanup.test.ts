@@ -300,7 +300,9 @@ vi.stubGlobal("window", {
     origin: "http://test",
     search: "",
   },
+  addEventListener: vi.fn(),
   dispatchEvent: mockWindowDispatchEvent,
+  removeEventListener: vi.fn(),
 });
 
 function createStorageMock(): Storage {
