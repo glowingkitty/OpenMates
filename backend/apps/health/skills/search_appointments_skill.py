@@ -38,6 +38,7 @@ import json
 import logging
 import re
 import time
+import unicodedata
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import urlencode
@@ -485,6 +486,33 @@ def _is_noise_motive(motive_name: str) -> bool:
     return any(
         re.search(pattern, name_lower)
         for pattern in NOISE_MOTIVE_PATTERNS
+    )
+
+
+def _normalize_city_for_comparison(city: str) -> str:
+    """Normalize German display names and URL slugs to one comparable form."""
+    if not city:
+        return ""
+
+    raw = str(city).strip().lower()
+    for source, replacement in (
+        ("ä", "ae"),
+        ("ö", "oe"),
+        ("ü", "ue"),
+        ("ß", "ss"),
+    ):
+        raw = raw.replace(source, replacement)
+
+    normalized = unicodedata.normalize("NFKD", raw)
+    ascii_only = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z0-9]+", "", ascii_only)
+
+
+def _cities_match(address_city: str, requested_city_slug: str) -> bool:
+    """Return True when a provider display city matches a request city slug."""
+    return bool(address_city and requested_city_slug) and (
+        _normalize_city_for_comparison(address_city)
+        == _normalize_city_for_comparison(requested_city_slug)
     )
 
 # ---------------------------------------------------------------------------
@@ -1531,7 +1559,7 @@ async def _process_single_jameda_request(
             matched_addr: Optional[Dict[str, Any]] = None
             for addr in addrs:
                 addr_city = str(addr.get("city_name", "")).lower().strip()
-                if addr_city and addr_city == city_slug_lc:
+                if _cities_match(addr_city, city_slug_lc):
                     matched_addr = addr
                     break
             if matched_addr is not None:
