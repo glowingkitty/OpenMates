@@ -276,6 +276,7 @@ final class WatchChatRuntime: ObservableObject {
         pendingTextSends.append(pendingSend)
         try? await persistSnapshot()
         await replayPendingTextSends()
+        try? await persistSnapshot()
     }
 
     private func apply(_ snapshot: WatchChatSnapshot) {
@@ -328,6 +329,7 @@ final class WatchChatRuntime: ObservableObject {
             }
         }
         pendingTextSends = remaining
+        try? await persistSnapshot()
     }
 
     private func markPendingMessageSent(messageId: String, chatId: String) {
