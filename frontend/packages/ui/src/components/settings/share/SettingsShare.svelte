@@ -965,6 +965,33 @@
         }
     }
 
+    async function stopSharingCurrentChat() {
+        const chatId = sharedChatId || currentChatId;
+        if (!chatId || isEmbedSharing) return;
+
+        try {
+            const { chatDB } = await import('../../../services/db');
+            const chat = await chatDB.getChat(chatId);
+            if (!chat) return;
+
+            await chatDB.updateChat({
+                ...chat,
+                is_shared: false,
+                is_private: true,
+                share_pii: false,
+                share_highlights: false,
+                encrypted_shared_short_url: null,
+            });
+            resetGeneratedState();
+            currentChatId = chatId;
+            autoRestoreSuppressedChatId = chatId;
+            window.dispatchEvent(new CustomEvent('chatSharingStopped', { detail: { chat_id: chatId } }));
+            console.debug('[SettingsShare] Stopped sharing chat:', chatId);
+        } catch (error) {
+            console.error('[SettingsShare] Error stopping chat sharing:', error);
+        }
+    }
+
     async function restoreExistingSharedLink(chat: ChatInterface, chatId: string) {
         if (
             isEmbedSharing ||
@@ -2118,6 +2145,13 @@
                 >
                     {$text('settings.share.change_settings')}
                 </button>
+                <button
+                    class="stop-sharing-button"
+                    data-testid="share-stop-sharing"
+                    onclick={() => void stopSharingCurrentChat()}
+                >
+                    Stop sharing
+                </button>
             {/if}
         </div>
     {/if}
@@ -2412,6 +2446,23 @@
     .back-to-config-button:hover {
         background-color: var(--color-grey-15, #e8e8e8);
         border-color: var(--color-grey-40);
+    }
+
+    .stop-sharing-button {
+        width: 100%;
+        padding: var(--spacing-6) var(--spacing-10);
+        background-color: var(--color-grey-0);
+        color: var(--color-error, #c0392b);
+        border: 1px solid color-mix(in srgb, var(--color-error, #c0392b) 36%, var(--color-grey-30));
+        border-radius: var(--radius-4);
+        font-size: var(--font-size-small);
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--duration-normal) var(--easing-default);
+    }
+
+    .stop-sharing-button:hover {
+        background-color: color-mix(in srgb, var(--color-error, #c0392b) 8%, var(--color-grey-0));
     }
     
     /* Generated link section */

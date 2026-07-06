@@ -111,6 +111,7 @@ type KnownMessageTypes =
   // === Server to Client ===
   | "initial_sync_response" // Legacy: no longer sent by server (replaced by phased_sync_handler.py phases 1-3)
   | "priority_chat_ready" // Section 4.2, Phase 1: Server notification that target chat (from last_opened_path) is ready in cache
+  | "phase_1b_chat_content_ready" // Phased sync: initial chat message/embed content has been delivered
   | "cache_primed" // Section 4.2, Phase 2: Server notification that general cache warming (e.g., 1000 chats list_item_data & versions) is ready
   | "chat_title_updated" // Section 6.3 & title_update_handler.py: Broadcast of title change (includes new title_v)
   | "chat_draft_updated" // Section 7.3 & draft_update_handler.py: Broadcast of draft change (includes new draft_v). Note: Does NOT include last_edited_overall_timestamp (only messages update that)

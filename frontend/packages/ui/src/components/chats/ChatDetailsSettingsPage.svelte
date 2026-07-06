@@ -20,6 +20,7 @@
   } from '../settings/elements';
   import type { Chat, Message } from '../../types/chat';
   import { embedStore, type UploadedFileSearchResult } from '../../services/embedStore';
+  import { downloadChatAsYaml } from '../../services/chatExportService';
   import { downloadChatAsZip } from '../../services/zipExportService';
   import { notificationStore } from '../../stores/notificationStore';
 
@@ -108,6 +109,42 @@
     }
   }
 
+  async function handleDownloadYaml(): Promise<void> {
+    try {
+      await downloadChatAsYaml(chat, messages);
+    } catch (error) {
+      console.error('[ChatDetailsSettingsPage] Failed to download chat YAML:', error);
+      notificationStore.error('Could not download chat YAML');
+    }
+  }
+
+  function downloadTextFile(content: string, filename: string, type: string): void {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function handleDownloadFileReference(file: UploadedFileSearchResult): void {
+    const payload = {
+      chat_id: chat.chat_id,
+      embed_id: file.embedId,
+      content_ref: file.contentRef,
+      title: file.title,
+      type: file.type,
+      node_type: file.nodeType,
+      created_at: file.createdAt,
+      updated_at: file.updatedAt,
+    };
+    const safeName = (file.title || file.embedId).replace(/[<>:"/\\|?*]/g, '').slice(0, 80) || file.embedId;
+    downloadTextFile(JSON.stringify(payload, null, 2), `${safeName}.json`, 'application/json;charset=utf-8');
+  }
+
   function handleTabChange(tabId: string): void {
     activeTab = tabId as ChatDetailsTab;
   }
@@ -117,31 +154,48 @@
     return typeof value === 'number' && Number.isFinite(value) ? value : 0;
   }
 
-  function buildUsageRows(items: Message[]): Array<{ label: string; count: number; tokens: number }> {
-    const rows = new Map<string, { label: string; count: number; tokens: number }>();
+  function stringField(message: Message, key: string): string {
+    const value = (message as unknown as Record<string, unknown>)[key];
+    return typeof value === 'string' && value.trim() ? value.trim() : '';
+  }
+
+  function buildUsageRows(items: Message[]): Array<{ label: string; provider: string; count: number; tokens: number; credits: number }> {
+    const rows = new Map<string, { label: string; provider: string; count: number; tokens: number; credits: number }>();
     for (const message of items) {
-      const label = message.role === 'assistant' ? 'Assistant responses' : message.role === 'user' ? 'User messages' : 'System messages';
-      const existing = rows.get(label) ?? { label, count: 0, tokens: 0 };
+      const provider = stringField(message, 'provider_name') || (message.role === 'assistant' ? 'Unknown provider' : 'Local');
+      const label = message.role === 'assistant'
+        ? `${provider} responses`
+        : message.role === 'user'
+          ? 'User messages'
+          : 'System messages';
+      const existing = rows.get(label) ?? { label, provider, count: 0, tokens: 0, credits: 0 };
       existing.count += 1;
       existing.tokens += numericField(message, 'total_tokens')
         + numericField(message, 'actual_input_tokens')
         + numericField(message, 'actual_output_tokens')
         + numericField(message, 'thinking_token_count');
+      existing.credits += numericField(message, 'credits_charged')
+        + numericField(message, 'example_response_credits');
       rows.set(label, existing);
     }
     return [...rows.values()];
   }
 
   function downloadUsageCsv(): void {
-    const header = 'group,count,known_tokens\n';
-    const body = usageRows.map((row) => `${JSON.stringify(row.label)},${row.count},${row.tokens}`).join('\n');
-    const blob = new Blob([`${header}${body}\n`], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `chat-usage-${chat.chat_id}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const header = 'group,provider,count,known_tokens,known_credits\n';
+    const body = usageRows.map((row) => `${JSON.stringify(row.label)},${JSON.stringify(row.provider)},${row.count},${row.tokens},${row.credits}`).join('\n');
+    downloadTextFile(`${header}${body}\n`, `chat-usage-${chat.chat_id}.csv`, 'text/csv;charset=utf-8');
+  }
+
+  function downloadUsageYaml(): void {
+    const body = usageRows.map((row) => [
+      `  - group: ${JSON.stringify(row.label)}`,
+      `    provider: ${JSON.stringify(row.provider)}`,
+      `    count: ${row.count}`,
+      `    known_tokens: ${row.tokens}`,
+      `    known_credits: ${row.credits}`,
+    ].join('\n')).join('\n');
+    downloadTextFile(`chat_id: ${JSON.stringify(chat.chat_id)}\nusage:\n${body}\n`, `chat-usage-${chat.chat_id}.yml`, 'text/yaml;charset=utf-8');
   }
 
   $effect(() => {
@@ -187,7 +241,7 @@
         <SettingsCard>
           <SettingsDetailRow label="Referenced files and embeds" value={`${fileReferenceCount}`} highlight={fileReferenceCount > 0} />
           <div class="file-actions">
-            <SettingsButton variant="secondary" onClick={() => void handleDownloadArchive()}>Download chat archive</SettingsButton>
+            <SettingsButton variant="secondary" onClick={() => void handleDownloadArchive()}>Download files archive</SettingsButton>
           </div>
           {#if isLoadingFiles}
             <p class="panel-note" data-testid="chat-files-loading">Loading file details...</p>
@@ -199,7 +253,10 @@
                     <strong>{file.title}</strong>
                     <span>{file.subtitle} · {file.contentRef}</span>
                   </div>
-                  <button type="button" onclick={() => void copyFileRef(file.contentRef)} data-testid="chat-file-copy-ref">Copy ref</button>
+                  <div class="file-row-actions">
+                    <button type="button" onclick={() => handleDownloadFileReference(file)} data-testid="chat-file-download">Download</button>
+                    <button type="button" onclick={() => void copyFileRef(file.contentRef)} data-testid="chat-file-copy-ref">Copy ref</button>
+                  </div>
                 </article>
               {/each}
             </div>
@@ -219,12 +276,13 @@
           <SettingsDetailRow label="Last updated" value={updatedAt} muted />
           <div class="usage-actions">
             <SettingsButton variant="secondary" onClick={downloadUsageCsv}>Download usage CSV</SettingsButton>
+            <SettingsButton variant="secondary" onClick={downloadUsageYaml}>Download usage YAML</SettingsButton>
           </div>
           <div class="usage-list" data-testid="chat-usage-list">
             {#each usageRows as row}
               <article class="usage-row" data-testid="chat-usage-row">
                 <strong>{row.label}</strong>
-                <span>{row.count} entries · {row.tokens} known tokens</span>
+                <span>{row.count} entries · {row.tokens} known tokens · {row.credits} known credits</span>
               </article>
             {/each}
           </div>
@@ -234,6 +292,10 @@
         <p class="section-description">Create an encrypted share link for this chat.</p>
         <SettingsCard>
           <SettingsShare activeSettingsView="shared/share" />
+          <div class="share-download-actions">
+            <SettingsButton variant="secondary" onClick={() => void handleDownloadArchive()}>Download chat ZIP</SettingsButton>
+            <SettingsButton variant="secondary" onClick={() => void handleDownloadYaml()}>Download chat YAML</SettingsButton>
+          </div>
         </SettingsCard>
       {/if}
 
@@ -304,14 +366,19 @@
     line-height: 1.45;
   }
 
-  .file-actions {
+  .file-actions,
+  .share-download-actions {
     display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
     justify-content: flex-end;
     margin-top: 12px;
   }
 
   .usage-actions {
     display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
     justify-content: flex-end;
     margin-top: 12px;
   }
@@ -378,6 +445,14 @@
     font-size: var(--font-size-small);
     font-weight: 700;
     cursor: pointer;
+  }
+
+  .file-row .file-row-actions {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
   }
 
   .section-description {
