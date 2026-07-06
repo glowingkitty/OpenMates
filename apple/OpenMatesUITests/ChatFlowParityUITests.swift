@@ -172,8 +172,7 @@ final class ChatFlowParityUITests: XCTestCase {
         let codingSuggestion = app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.learn_coding"]
         XCTAssertTrue(codingSuggestion.waitForExistence(timeout: 10))
 
-        let messageEditor = app.textFields["message-editor"]
-        XCTAssertTrue(messageEditor.waitForExistence(timeout: 5))
+        let messageEditor = waitForMessageEditor(in: app)
         messageEditor.tap()
         messageEditor.typeText("coding")
 
@@ -192,8 +191,7 @@ final class ChatFlowParityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["guest-interest-tags"].waitForExistence(timeout: 15))
         XCTAssertFalse(app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.discover_web_search"].exists)
 
-        let messageEditor = app.textFields["message-editor"]
-        XCTAssertTrue(messageEditor.waitForExistence(timeout: 5))
+        let messageEditor = waitForMessageEditor(in: app)
         messageEditor.tap()
 
         XCTAssertTrue(app.buttons["message-input-fullscreen-button"].waitForExistence(timeout: 5))
@@ -256,6 +254,21 @@ final class ChatFlowParityUITests: XCTestCase {
         let menuEntry = app.buttons[testId]
         XCTAssertTrue(menuEntry.waitForExistence(timeout: 5), "Expected native workspace menu entry \(testId)")
         menuEntry.tap()
+    }
+
+    private func waitForMessageEditor(in app: XCUIApplication) -> XCUIElement {
+        let candidates = [
+            app.textFields.matching(identifier: "message-editor").firstMatch,
+            app.textViews.matching(identifier: "message-editor").firstMatch,
+            app.descendants(matching: .any)["message-editor"],
+        ]
+
+        for candidate in candidates where candidate.waitForExistence(timeout: 5) {
+            return candidate
+        }
+
+        XCTFail("Expected message-editor to exist as a text field, text view, or accessibility element")
+        return candidates[0]
     }
 
     private func attachScreenshot(name: String) {
