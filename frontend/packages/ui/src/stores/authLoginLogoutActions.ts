@@ -33,6 +33,7 @@ import { resetChatNavigationList } from "./chatNavigationStore";
 import { activeChatStore } from "./activeChatStore";
 import { clientLogForwarder } from "../services/clientLogForwarder";
 import { resetUserAvailableSkills } from "./appSkillsStore";
+import { workflowWorkspaceStore } from "./workflowWorkspaceStore";
 import { applyServerDarkMode } from "./theme";
 import { applyServerUiFont } from "./uiFont";
 import { promoteGuestTopicPreferencesIfNeeded } from "../services/topicPreferencesSync";
@@ -98,6 +99,7 @@ export function resetLocalLogoutState(): void {
   phasedSyncState.reset();
   aiTypingStore.reset();
   resetUserAvailableSkills();
+  workflowWorkspaceStore.reset();
   dailyInspirationStore.reset();
   // Immediately repopulate public default inspirations in the same tab session.
   // We intentionally skip IndexedDB on logout because the master key was just

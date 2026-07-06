@@ -9,6 +9,7 @@
 //  - chatDB.clearAllChatKeys not called → stale encryption keys
 //  - resetChatNavigationList not called → hasPrev=true on intro chat post-logout
 //  - phasedSyncState not reset → sync skipped on next login
+//  - workflowWorkspaceStore not reset → stale workflow titles after account switch
 //
 // Architecture: frontend/packages/ui/src/stores/authLoginLogoutActions.ts
 
@@ -107,6 +108,12 @@ vi.mock("../aiTypingStore", () => ({
 vi.mock("../dailyInspirationStore", () => ({
   dailyInspirationStore: {
     reset: vi.fn(() => cleanupCalls.push("dailyInspirationStore.reset")),
+  },
+}));
+
+vi.mock("../workflowWorkspaceStore", () => ({
+  workflowWorkspaceStore: {
+    reset: vi.fn(() => cleanupCalls.push("workflowWorkspaceStore.reset")),
   },
 }));
 
@@ -270,6 +277,7 @@ describe("logout cleanup completeness", () => {
     expect(cleanupCalls).toContain("activeChatStore.clearActiveChat");
     expect(cleanupCalls).toContain("phasedSyncState.reset");
     expect(cleanupCalls).toContain("aiTypingStore.reset");
+    expect(cleanupCalls).toContain("workflowWorkspaceStore.reset");
     expect(cleanupCalls).toContain("dailyInspirationStore.reset");
     expect(cleanupCalls).toContain("resetUserAvailableSkills");
     expect(cleanupCalls).toContain("clearKeyFromStorage");

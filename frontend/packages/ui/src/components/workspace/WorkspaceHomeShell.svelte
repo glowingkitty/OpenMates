@@ -300,17 +300,17 @@
     height: 100%;
     min-height: 0;
     position: relative;
-    padding: clamp(14px, 2vw, 24px);
-    border-radius: var(--radius-16, 32px);
-    background: var(--color-grey-0);
+    padding: 0;
+    border-radius: 17px;
+    background: transparent;
     color: var(--color-font-primary);
     overflow: hidden;
   }
 
   .workspace-daily-inspiration-area {
     width: 100%;
-    max-width: 1180px;
-    margin: 0 auto;
+    max-width: none;
+    margin: 0;
     flex-shrink: 0;
   }
 
@@ -354,9 +354,10 @@
   }
 
   .workspace-center-content .workspace-subtitle {
-    margin: 10px 0 0;
+    margin: 8px 0 0;
     color: var(--color-grey-60);
     font-size: var(--font-size-p);
+    font-weight: 600;
   }
 
   .workspace-continue-label {
@@ -525,13 +526,16 @@
     position: absolute;
     left: 50%;
     right: auto;
-    bottom: clamp(14px, 2vh, 24px);
+    bottom: 0;
     transform: translateX(-50%);
-    width: min(920px, calc(100% - 48px));
+    width: 100%;
     display: grid;
     gap: var(--spacing-4);
     z-index: var(--z-index-raised-2);
     pointer-events: auto;
+    padding: 15px;
+    box-sizing: border-box;
+    justify-items: center;
   }
 
   .resume-chat-large-card {
@@ -729,9 +733,7 @@
     }
 
     .workspace-composer-slot {
-      width: calc(100% - 48px);
       padding-inline: var(--spacing-5);
-      box-sizing: border-box;
     }
   }
 </style>

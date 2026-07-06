@@ -14,6 +14,7 @@
     import { demoMode } from '../stores/demoModeStore';
     import { signupFreeTestingCreditsPromotion } from '../stores/serverStatusStore';
     import { featureAvailabilityStore, initializeFeatureAvailability } from '../stores/appSkillsStore';
+    import { prefetchWorkspaceForHref, scheduleIdleWorkspacePrefetch } from '../services/workspacePrefetchService';
     import { getLastAuthMethod, type LastAuthMethod } from '../utils/lastAuthMethod';
 
     // Props using Svelte 5 runes
@@ -107,6 +108,11 @@
     let hoveredWorkspaceIndex = $state<number | null>(null);
     let selectedWorkspaceHref = $state('/');
 
+    const prefetchWorkspaceIfReady = (href: string) => {
+        if (context !== 'webapp' || !$authStore.isInitialized || !$authStore.isAuthenticated || !$featureAvailabilityStore.initialized) return;
+        prefetchWorkspaceForHref(href);
+    };
+
     $effect(() => {
         selectedWorkspaceHref = activeWorkspaceHref;
     });
@@ -119,7 +125,13 @@
             return;
         }
 
+        prefetchWorkspaceIfReady(selectedTab.href);
         await goto(selectedTab.href, { replaceState: false });
+    };
+
+    const handleWorkspaceIntent = (item: WorkspaceTab, index: number) => {
+        hoveredWorkspaceIndex = item.active ? null : index;
+        prefetchWorkspaceIfReady(item.href);
     };
 
     // Define the type for social links
@@ -258,6 +270,12 @@
     $effect(() => {
         if (!$authStore.isAuthenticated && !$loginInterfaceOpen) {
             lastAuthMethod = getLastAuthMethod();
+        }
+    });
+
+    $effect(() => {
+        if (context === 'webapp' && $authStore.isAuthenticated && $featureAvailabilityStore.initialized) {
+            scheduleIdleWorkspacePrefetch();
         }
     });
 
@@ -470,9 +488,9 @@
                                     data-testid={item.testId}
                                     aria-label={item.label}
                                     onclick={(e) => handleClick(e, item.href)}
-                                    onmouseenter={() => { hoveredWorkspaceIndex = item.active ? null : index; }}
+                                    onmouseenter={() => handleWorkspaceIntent(item, index)}
                                     onmouseleave={() => { hoveredWorkspaceIndex = null; }}
-                                    onfocus={() => { hoveredWorkspaceIndex = item.active ? null : index; }}
+                                    onfocus={() => handleWorkspaceIntent(item, index)}
                                     onblur={() => { hoveredWorkspaceIndex = null; }}
                                 >
                                     <span class={`workspace-icon ${item.iconClass}`} aria-hidden="true"></span>

@@ -247,6 +247,12 @@ vi.mock("../dailyInspirationStore", () => ({
   },
 }));
 
+vi.mock("../workflowWorkspaceStore", () => ({
+  workflowWorkspaceStore: {
+    reset: vi.fn(() => cleanupCalls.push("workflowWorkspaceStore.reset")),
+  },
+}));
+
 vi.mock("../appSkillsStore", () => ({
   resetUserAvailableSkills: vi.fn(() => cleanupCalls.push("resetUserAvailableSkills")),
 }));
@@ -354,6 +360,7 @@ describe("checkAuth auto logout cleanup", () => {
     expect(cleanupCalls).toContain("clearAllSessionStorageDrafts");
     expect(cleanupCalls).toContain("resetChatNavigationList");
     expect(cleanupCalls).toContain("aiTypingStore.reset");
+    expect(cleanupCalls).toContain("workflowWorkspaceStore.reset");
 
     const authState = get(authStore);
     expect(authState.isAuthenticated).toBe(false);

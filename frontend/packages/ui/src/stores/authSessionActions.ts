@@ -43,6 +43,7 @@ import { text } from "../i18n/translations"; // Import text store for translatio
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
 import { chatMetadataCache } from "../services/chatMetadataCache"; // Import chatMetadataCache to clear stale decrypted title/metadata cache on logout
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
+import { workflowWorkspaceStore } from "./workflowWorkspaceStore";
 import { isValidLocale } from "../i18n/types"; // Import to validate localStorage language values (OPE-39)
 import { clientLogForwarder } from "../services/clientLogForwarder"; // Admin live log streaming to OpenObserve
 import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import to pre-load entries for @ mention dropdown
@@ -1006,6 +1007,7 @@ export async function checkAuth(
 
         // CRITICAL: Clear in-memory chat caches during orphaned database cleanup
         chatListCache.clear();
+        workflowWorkspaceStore.reset();
         chatDB.clearAllChatKeys();
         chatMetadataCache.clearAll();
         clearAllSharedChatKeys().catch(() => {});

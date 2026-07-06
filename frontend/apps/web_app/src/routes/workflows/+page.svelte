@@ -11,46 +11,9 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { Header, Settings, Notification, WorkspaceHomeShell, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability } from '@repo/ui';
-  import { getApiEndpoint } from '@repo/ui/config/api';
+  import { Header, Settings, Notification, WorkspaceHomeShell, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, workflowWorkspaceStore, workflowApiRequest } from '@repo/ui';
   import { userProfile } from '@repo/ui/stores/userProfile';
-  import type { DailyInspiration } from '@repo/ui';
-
-  type WorkflowNodeType = 'schedule_trigger' | 'manual_trigger' | 'app_skill_action' | 'decision' | 'repeat' | 'create_chat_report' | 'send_notification' | 'send_email_notification' | 'end';
-
-  type WorkflowNode = { id: string; type: WorkflowNodeType; title?: string; config?: Record<string, unknown> };
-
-  type WorkflowGraph = {
-    version: number;
-    trigger_node_id: string;
-    nodes: WorkflowNode[];
-    edges: Array<{ from: string; to: string; branch?: string }>;
-    limits?: Record<string, unknown>;
-  };
-
-  type WorkflowSummary = {
-    id: string;
-    title: string;
-    status: string;
-    enabled: boolean;
-    trigger_summary?: string | null;
-    last_run_status?: string | null;
-    run_content_retention?: 'last_5' | 'none';
-    current_version_id: string;
-  };
-
-  type WorkflowDetail = WorkflowSummary & { graph: WorkflowGraph };
-  type WorkflowRun = {
-    id: string;
-    status: string;
-    trigger_type: string;
-    started_at?: number | null;
-    content_retention_mode?: 'last_5' | 'none';
-    content_available?: boolean;
-    content_storage?: 'durable' | 'ephemeral' | 'deleted' | null;
-    content_expires_at?: number | null;
-    node_runs?: Array<{ node_id: string; status: string; output_summary?: Record<string, unknown> }>;
-  };
+  import type { DailyInspiration, WorkflowDetail, WorkflowGraph, WorkflowNode, WorkflowNodeType, WorkflowRun, WorkflowSummary } from '@repo/ui';
 
   type WorkflowInputEvent = {
     event_id: number;
@@ -69,11 +32,6 @@
     undo_available: boolean;
   };
 
-  type WorkflowRequestInit = {
-    method?: string;
-    body?: string;
-  };
-
   type WorkflowContinueItem = {
     id: string;
     title: string;
@@ -90,24 +48,26 @@
     | { kind: 'placeholder'; id: string; label: string }
     | { kind: 'node'; id: string; node: WorkflowNode; index: number; branch?: boolean };
 
-  let workflows = $state<WorkflowSummary[]>([]);
-  let selectedWorkflow = $state<WorkflowDetail | null>(null);
-  let runs = $state<WorkflowRun[]>([]);
-  let loading = $state(true);
+  let workflows = $derived<WorkflowSummary[]>($workflowWorkspaceStore.workflows);
+  let selectedWorkflow = $derived<WorkflowDetail | null>($workflowWorkspaceStore.selectedWorkflow);
+  let runs = $derived<WorkflowRun[]>($workflowWorkspaceStore.runs);
   let saving = $state(false);
   let running = $state(false);
-  let error = $state<string | null>(null);
+  let routeError = $state<string | null>(null);
+  let error = $derived(routeError ?? $workflowWorkspaceStore.error);
   let runContentRetention = $state<'last_5' | 'none'>('last_5');
   let selectedRunContentRetention = $state<'last_5' | 'none'>('last_5');
   let editorTitle = $state('');
   let editorGraph = $state<WorkflowGraph | null>(null);
   let editorDirty = $state(false);
+  let hydratedEditorWorkflowId = $state<string | null>(null);
   let expandedNodeId = $state<string | null>(null);
   let showAllWorkflows = $state(false);
   let workflowInputText = $state('');
   let workflowInputBusy = $state(false);
   let workflowInputSession = $state<WorkflowInputSession | null>(null);
   let workflowInputEvents = $state<WorkflowInputEvent[]>([]);
+  let observedWorkflowGeneration = $state(workflowWorkspaceStore.getGeneration());
 
   let recentWorkflows = $derived(workflows.slice(0, 6));
   let workflowStarterItems: WorkflowContinueItem[] = [
@@ -153,9 +113,17 @@
   let workflowGreetingName = $derived($userProfile.username?.trim() || 'there');
   let workflowCountLabel = $derived(workflows.length === 1 ? '1 workflow ready' : `${workflows.length} workflows ready`);
   let isManageView = $derived(page.url.searchParams.get('view') === 'manage');
+  let requestedWorkflowId = $derived(page.url.searchParams.get('workflow'));
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
-  let workflowsEnabled = $derived($featureAvailabilityStore.disabledById?.['platform:workflows'] !== true && $featureAvailabilityStore.disabledById !== null);
+  let routeReady = $derived($authStore.isInitialized && featureAvailabilityLoaded);
+  let workflowsEnabled = $derived(!featureAvailabilityLoaded || ($featureAvailabilityStore.disabledById?.['platform:workflows'] !== true && $featureAvailabilityStore.disabledById !== null));
+  let canLoadWorkflows = $derived(routeReady && $authStore.isAuthenticated && workflowsEnabled);
+  let canRenderWorkflowData = $derived(routeReady && $authStore.isAuthenticated);
+  let showManageView = $derived(canRenderWorkflowData && isManageView);
+  let visibleWorkflowGreetingName = $derived(canRenderWorkflowData ? workflowGreetingName : 'there');
+  let visibleWorkflowHomeItems = $derived(canRenderWorkflowData ? workflowHomeItems : []);
+  let workflowsLoading = $derived($workflowWorkspaceStore.listStatus === 'loading' && workflows.length === 0);
 
   onMount(() => {
     void initializeWorkflowsRoute();
@@ -165,57 +133,67 @@
     try {
       await initialize();
       await initializeFeatureAvailability();
-      if ($authStore.isAuthenticated && $featureAvailabilityStore.disabledById?.['platform:workflows'] !== true) {
-        await loadWorkflows();
-      }
-    } catch (routeError) {
-      console.error('[WorkflowsRoute] Failed to initialize:', routeError);
-      error = routeError instanceof Error ? routeError.message : 'Failed to load workflows.';
-    } finally {
-      loading = false;
+    } catch (initError) {
+      console.error('[WorkflowsRoute] Failed to initialize:', initError);
+      routeError = initError instanceof Error ? initError.message : 'Failed to load workflows.';
     }
-  }
-
-  async function workflowRequest<T>(path: string, init: WorkflowRequestInit = {}): Promise<T> {
-    const headers = new Headers();
-    headers.set('Accept', 'application/json');
-    headers.set('Content-Type', 'application/json');
-    const response = await fetch(getApiEndpoint(path), {
-      ...init,
-      credentials: 'include',
-      headers
-    });
-    if (!response.ok) {
-      throw new Error(`Workflow request failed with HTTP ${response.status}`);
-    }
-    return (await response.json()) as T;
   }
 
   async function loadWorkflows() {
-    error = null;
-    const data = await workflowRequest<{ workflows: WorkflowSummary[] }>('/v1/workflows');
-    workflows = data.workflows;
-    if (workflows.length > 0) {
-      const requestedWorkflowId = page.url.searchParams.get('workflow');
-      const workflowId = workflows.find((workflow) => workflow.id === requestedWorkflowId)?.id ?? workflows[0].id;
-      await selectWorkflow(workflowId);
-    } else {
-      selectedWorkflow = null;
-      runs = [];
-    }
+    routeError = null;
+    return workflowWorkspaceStore.loadWorkflows({ force: true });
   }
 
   async function selectWorkflow(workflowId: string) {
-    error = null;
-    const [workflowData, runsData] = await Promise.all([
-      workflowRequest<{ workflow: WorkflowDetail }>(`/v1/workflows/${encodeURIComponent(workflowId)}`),
-      workflowRequest<{ runs: WorkflowRun[] }>(`/v1/workflows/${encodeURIComponent(workflowId)}/runs`)
-    ]);
-    selectedWorkflow = workflowData.workflow;
-    selectedRunContentRetention = workflowData.workflow.run_content_retention ?? 'last_5';
-    resetEditor(workflowData.workflow);
-    runs = runsData.runs;
+    routeError = null;
+    const workflow = await workflowWorkspaceStore.selectWorkflow(workflowId);
+    selectedRunContentRetention = workflow.run_content_retention ?? 'last_5';
+    resetEditor(workflow);
   }
+
+  $effect(() => {
+    if (!canLoadWorkflows) return;
+    void workflowWorkspaceStore.loadWorkflows().catch((loadError) => {
+      console.error('[WorkflowsRoute] Failed to warm workflow cache:', loadError);
+    });
+  });
+
+  $effect(() => {
+    if (!canLoadWorkflows) return;
+    const requestedWorkflow = requestedWorkflowId
+      ? workflows.find((workflow) => workflow.id === requestedWorkflowId)
+      : null;
+    const workflowId = requestedWorkflow?.id ?? (isManageView ? workflows[0]?.id : null);
+    if (requestedWorkflowId && !workflowId && $workflowWorkspaceStore.listStatus === 'ready') {
+      void goto('/workflows?view=manage', { replaceState: true });
+      return;
+    }
+    if (!workflowId || workflowId === $workflowWorkspaceStore.selectedWorkflowId) return;
+    if (requestedWorkflowId && requestedWorkflowId !== workflowId) {
+      void goto(`/workflows?view=manage&workflow=${encodeURIComponent(workflowId)}`, { replaceState: true });
+    }
+    void selectWorkflow(workflowId).catch((selectError) => {
+      console.error('[WorkflowsRoute] Failed to select workflow:', selectError);
+    });
+  });
+
+  $effect(() => {
+    if (!selectedWorkflow || hydratedEditorWorkflowId === selectedWorkflow.id) return;
+    selectedRunContentRetention = selectedWorkflow.run_content_retention ?? 'last_5';
+    resetEditor(selectedWorkflow);
+    hydratedEditorWorkflowId = selectedWorkflow.id;
+  });
+
+  $effect(() => {
+    const generation = workflowWorkspaceStore.getGeneration();
+    const storeSelectedWorkflowId = $workflowWorkspaceStore.selectedWorkflowId;
+    if (!canRenderWorkflowData || generation !== observedWorkflowGeneration) {
+      observedWorkflowGeneration = generation;
+      routeError = null;
+      clearWorkflowInputState();
+    }
+    void storeSelectedWorkflowId;
+  });
 
   async function createRainWorkflow() {
     await createWorkflow('Daily rain alert', rainAlertGraph(), true);
@@ -230,15 +208,18 @@
   }
 
   function startWorkflowFromInspiration(inspiration: DailyInspiration) {
+    if (!canRenderWorkflowData) return;
     workflowInputText = inspiration.phrase || inspiration.title || '';
   }
 
   async function continueWorkflowFromCard(item: WorkflowContinueItem) {
+    if (!canLoadWorkflows) return;
     await selectWorkflow(item.id);
     await goto(`/workflows?view=manage&workflow=${encodeURIComponent(item.id)}`);
   }
 
   async function startWorkflowFromCard(item: WorkflowContinueItem) {
+    if (!canLoadWorkflows) return;
     if (item.id === 'starter-rain') {
       await createRainWorkflow();
     } else if (item.id === 'starter-news') {
@@ -252,37 +233,49 @@
 
   async function submitWorkflowInput() {
     const text = workflowInputText.trim();
-    if (!text || workflowInputBusy) return;
+    if (!text || workflowInputBusy || !canLoadWorkflows) return;
+    const requestGeneration = workflowWorkspaceStore.getGeneration();
     workflowInputBusy = true;
-    error = null;
+    routeError = null;
     try {
       const path = workflowInputSession?.session_id && workflowInputSession.status !== 'undone'
         ? `/v1/workflows/input/${encodeURIComponent(workflowInputSession.session_id)}/follow-up`
         : '/v1/workflows/input';
-      const data = await workflowRequest<{ session: WorkflowInputSession }>(path, {
+      const data = await workflowApiRequest<{ session: WorkflowInputSession }>(path, {
         method: 'POST',
         body: JSON.stringify(path.endsWith('/input')
           ? { text, selected_workflow_id: selectedWorkflow?.id ?? null }
           : { text })
       });
+      if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
       workflowInputText = '';
-      await applyWorkflowInputSession(data.session);
+      await applyWorkflowInputSession(data.session, requestGeneration);
     } catch (inputError) {
-      error = inputError instanceof Error ? inputError.message : 'Failed to process workflow input.';
+      if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
+      routeError = inputError instanceof Error ? inputError.message : 'Failed to process workflow input.';
     } finally {
       workflowInputBusy = false;
     }
   }
 
+  function clearWorkflowInputState() {
+    workflowInputText = '';
+    workflowInputBusy = false;
+    workflowInputSession = null;
+    workflowInputEvents = [];
+  }
+
   async function stopWorkflowInput() {
     if (!workflowInputSession || workflowInputBusy) return;
+    const requestGeneration = workflowWorkspaceStore.getGeneration();
     workflowInputBusy = true;
     try {
-      const data = await workflowRequest<{ session: WorkflowInputSession }>(`/v1/workflows/input/${encodeURIComponent(workflowInputSession.session_id)}/stop`, {
+      const data = await workflowApiRequest<{ session: WorkflowInputSession }>(`/v1/workflows/input/${encodeURIComponent(workflowInputSession.session_id)}/stop`, {
         method: 'POST',
         body: JSON.stringify({})
       });
-      await applyWorkflowInputSession(data.session);
+      if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
+      await applyWorkflowInputSession(data.session, requestGeneration);
     } finally {
       workflowInputBusy = false;
     }
@@ -290,46 +283,54 @@
 
   async function undoWorkflowInput() {
     if (!workflowInputSession || !workflowInputSession.undo_available || workflowInputBusy) return;
+    const requestGeneration = workflowWorkspaceStore.getGeneration();
     workflowInputBusy = true;
     try {
-      const data = await workflowRequest<{ session: WorkflowInputSession }>(`/v1/workflows/input/${encodeURIComponent(workflowInputSession.session_id)}/undo`, {
+      const data = await workflowApiRequest<{ session: WorkflowInputSession }>(`/v1/workflows/input/${encodeURIComponent(workflowInputSession.session_id)}/undo`, {
         method: 'POST',
         body: JSON.stringify({})
       });
-      await applyWorkflowInputSession(data.session);
+      if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
+      await applyWorkflowInputSession(data.session, requestGeneration);
+      if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
       await loadWorkflows();
     } finally {
       workflowInputBusy = false;
     }
   }
 
-  async function applyWorkflowInputSession(session: WorkflowInputSession) {
+  async function applyWorkflowInputSession(session: WorkflowInputSession, requestGeneration = workflowWorkspaceStore.getGeneration()) {
+    if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
     workflowInputSession = session;
-    await refreshWorkflowInputEvents(session.session_id, Math.max(0, session.event_cursor - 20));
+    await refreshWorkflowInputEvents(session.session_id, Math.max(0, session.event_cursor - 20), requestGeneration);
+    if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
     if (session.workflow) {
-      workflows = [session.workflow, ...workflows.filter((workflow) => workflow.id !== session.workflow?.id)];
+      workflowWorkspaceStore.upsertWorkflow(session.workflow);
       await selectWorkflow(session.workflow.id);
     }
   }
 
-  async function refreshWorkflowInputEvents(sessionId: string, afterEventId = 0) {
-    const data = await workflowRequest<{ events: WorkflowInputEvent[] }>(`/v1/workflows/input/${encodeURIComponent(sessionId)}/events?after_event_id=${afterEventId}`);
+  async function refreshWorkflowInputEvents(sessionId: string, afterEventId = 0, requestGeneration = workflowWorkspaceStore.getGeneration()) {
+    const data = await workflowApiRequest<{ events: WorkflowInputEvent[] }>(`/v1/workflows/input/${encodeURIComponent(sessionId)}/events?after_event_id=${afterEventId}`);
+    if (!workflowWorkspaceStore.isCurrentGeneration(requestGeneration)) return;
     workflowInputEvents = data.events;
   }
 
   async function createWorkflow(title: string, graph: WorkflowGraph, enabled: boolean) {
+    if (!canLoadWorkflows) return;
     saving = true;
-    error = null;
+    routeError = null;
     try {
-      const data = await workflowRequest<{ workflow: WorkflowDetail }>('/v1/workflows', {
-        method: 'POST',
-        body: JSON.stringify({ title, graph, enabled, run_content_retention: runContentRetention })
+      const workflow = await workflowWorkspaceStore.createWorkflow({
+        title,
+        graph,
+        enabled,
+        runContentRetention,
       });
-      workflows = [data.workflow, ...workflows];
-      await selectWorkflow(data.workflow.id);
-      await goto(`/workflows?view=manage&workflow=${encodeURIComponent(data.workflow.id)}`);
+      await selectWorkflow(workflow.id);
+      await goto(`/workflows?view=manage&workflow=${encodeURIComponent(workflow.id)}`);
     } catch (createError) {
-      error = createError instanceof Error ? createError.message : 'Failed to create workflow.';
+      routeError = createError instanceof Error ? createError.message : 'Failed to create workflow.';
     } finally {
       saving = false;
     }
@@ -338,17 +339,12 @@
   async function setSelectedWorkflowEnabled(enabled: boolean) {
     if (!selectedWorkflow) return;
     saving = true;
-    error = null;
+    routeError = null;
     try {
-      const action = enabled ? 'enable' : 'disable';
-      const data = await workflowRequest<{ workflow: WorkflowDetail }>(`/v1/workflows/${encodeURIComponent(selectedWorkflow.id)}/${action}`, {
-        method: 'POST',
-        body: JSON.stringify({})
-      });
-      selectedWorkflow = data.workflow;
-      workflows = workflows.map((workflow) => workflow.id === data.workflow.id ? data.workflow : workflow);
+      const workflow = await workflowWorkspaceStore.setWorkflowEnabled(selectedWorkflow.id, enabled);
+      resetEditor(workflow);
     } catch (saveError) {
-      error = saveError instanceof Error ? saveError.message : 'Failed to update workflow.';
+      routeError = saveError instanceof Error ? saveError.message : 'Failed to update workflow.';
     } finally {
       saving = false;
     }
@@ -357,16 +353,14 @@
   async function updateSelectedWorkflowRetention() {
     if (!selectedWorkflow) return;
     saving = true;
-    error = null;
+    routeError = null;
     try {
-      const data = await workflowRequest<{ workflow: WorkflowDetail }>(`/v1/workflows/${encodeURIComponent(selectedWorkflow.id)}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ run_content_retention: selectedRunContentRetention })
+      const workflow = await workflowWorkspaceStore.patchWorkflow(selectedWorkflow.id, {
+        run_content_retention: selectedRunContentRetention
       });
-      selectedWorkflow = data.workflow;
-      workflows = workflows.map((workflow) => workflow.id === data.workflow.id ? data.workflow : workflow);
+      resetEditor(workflow);
     } catch (saveError) {
-      error = saveError instanceof Error ? saveError.message : 'Failed to update workflow retention.';
+      routeError = saveError instanceof Error ? saveError.message : 'Failed to update workflow retention.';
     } finally {
       saving = false;
     }
@@ -375,21 +369,16 @@
   async function saveSelectedWorkflow() {
     if (!selectedWorkflow || !editorGraph) return;
     saving = true;
-    error = null;
+    routeError = null;
     try {
-      const data = await workflowRequest<{ workflow: WorkflowDetail }>(`/v1/workflows/${encodeURIComponent(selectedWorkflow.id)}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          title: editorTitle.trim() || selectedWorkflow.title,
-          graph: editorGraph,
-          run_content_retention: selectedRunContentRetention
-        })
+      const workflow = await workflowWorkspaceStore.patchWorkflow(selectedWorkflow.id, {
+        title: editorTitle.trim() || selectedWorkflow.title,
+        graph: editorGraph,
+        run_content_retention: selectedRunContentRetention
       });
-      selectedWorkflow = data.workflow;
-      workflows = workflows.map((workflow) => workflow.id === data.workflow.id ? data.workflow : workflow);
-      resetEditor(data.workflow);
+      resetEditor(workflow);
     } catch (saveError) {
-      error = saveError instanceof Error ? saveError.message : 'Failed to save workflow.';
+      routeError = saveError instanceof Error ? saveError.message : 'Failed to save workflow.';
     } finally {
       saving = false;
     }
@@ -398,21 +387,14 @@
   async function deleteSelectedWorkflow() {
     if (!selectedWorkflow) return;
     saving = true;
-    error = null;
+    routeError = null;
     try {
       const workflowId = selectedWorkflow.id;
-      await workflowRequest<{ deleted: boolean }>(`/v1/workflows/${encodeURIComponent(workflowId)}`, {
-        method: 'DELETE'
-      });
-      workflows = workflows.filter((workflow) => workflow.id !== workflowId);
-      if (workflows.length > 0) {
-        await selectWorkflow(workflows[0].id);
-      } else {
-        selectedWorkflow = null;
-        runs = [];
-      }
+      const nextWorkflow = workflows.find((workflow) => workflow.id !== workflowId) ?? null;
+      await workflowWorkspaceStore.deleteWorkflow(workflowId);
+      if (nextWorkflow) await selectWorkflow(nextWorkflow.id);
     } catch (deleteError) {
-      error = deleteError instanceof Error ? deleteError.message : 'Failed to delete workflow.';
+      routeError = deleteError instanceof Error ? deleteError.message : 'Failed to delete workflow.';
     } finally {
       saving = false;
     }
@@ -421,16 +403,11 @@
   async function runSelectedWorkflow() {
     if (!selectedWorkflow) return;
     running = true;
-    error = null;
+    routeError = null;
     try {
-      const data = await workflowRequest<{ run: WorkflowRun }>(`/v1/workflows/${encodeURIComponent(selectedWorkflow.id)}/run`, {
-        method: 'POST',
-        body: JSON.stringify({ mode: 'test', input: {} })
-      });
-      runs = [data.run, ...runs];
-      workflows = workflows.map((workflow) => workflow.id === selectedWorkflow?.id ? { ...workflow, last_run_status: data.run.status } : workflow);
+      await workflowWorkspaceStore.runWorkflow(selectedWorkflow.id);
     } catch (runError) {
-      error = runError instanceof Error ? runError.message : 'Failed to run workflow.';
+      routeError = runError instanceof Error ? runError.message : 'Failed to run workflow.';
     } finally {
       running = false;
     }
@@ -496,6 +473,7 @@
     editorTitle = workflow.title;
     editorGraph = cloneGraph(workflow.graph);
     editorDirty = false;
+    hydratedEditorWorkflowId = workflow.id;
     expandedNodeId = null;
   }
 
@@ -769,30 +747,34 @@
   }
 </script>
 
-{#if !$authStore.isInitialized || !featureAvailabilityLoaded || loading}
-  <main class="workflows-route-state" data-testid="workflows-auth-loading">Loading workflows...</main>
-{:else if !workflowsEnabled}
+{#if routeReady && !workflowsEnabled}
   <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
   <main class="workflows-route-state" data-testid="workflows-feature-disabled">
     <h1>Workflows unavailable</h1>
     <p>Workflows are disabled on this server.</p>
   </main>
-{:else if $authStore.isAuthenticated}
+{:else if routeReady && !$authStore.isAuthenticated}
+  <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
+  <main class="workflows-route-state" data-testid="workflows-auth-required">
+    <h1>Workflows</h1>
+    <p>Please log in to create, manage, and run server-side workflows.</p>
+  </main>
+{:else}
   <div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
-    <div class="workflows-container" class:menu-open={$panelState.isSettingsOpen}>
-      <main class="workflows-start" class:management-view={isManageView} data-testid="workflows-page">
+    <div class="chat-container workflows-container" class:menu-open={$panelState.isSettingsOpen}>
+      <main class="active-chat-container workflows-start" class:management-view={showManageView} data-testid="workflows-page">
         {#if error}
           <div class="error-banner" data-testid="workflows-error">{error}</div>
         {/if}
 
-        {#if !isManageView}
+        {#if !showManageView}
           <WorkspaceHomeShell
             surface="workflows"
             testId="workflows-start-screen"
-            heading={`Hey ${workflowGreetingName}, what should OpenMates automate?`}
-            subtitle="Describe the outcome in natural language. You can stop, refine, or undo the last workflow change."
-            actionItems={workflowHomeItems}
+            heading={`Hey ${visibleWorkflowGreetingName}!`}
+            subtitle="What do you want to automate next?"
+            actionItems={visibleWorkflowHomeItems}
             actionItemsTestId="workflow-recommendations"
             continueSectionTestId="recent-workflows"
             onContinueItem={continueWorkflowFromCard}
@@ -806,19 +788,19 @@
                   bind:value={workflowInputText}
                   rows="1"
                   placeholder="Ask OpenMates to create or update a workflow..."
-                  disabled={workflowInputBusy}
+                  disabled={workflowInputBusy || !canRenderWorkflowData}
                 ></textarea>
                 <div class="workflow-input-actions">
-                  {#if workflowInputSession && workflowInputSession.status === 'running'}
+                  {#if canRenderWorkflowData && workflowInputSession && workflowInputSession.status === 'running'}
                     <button type="button" data-testid="workflow-input-stop" onclick={stopWorkflowInput} disabled={workflowInputBusy}>Stop</button>
                   {/if}
-                  {#if workflowInputSession?.undo_available}
+                  {#if canRenderWorkflowData && workflowInputSession?.undo_available}
                     <button type="button" data-testid="workflow-input-undo" onclick={undoWorkflowInput} disabled={workflowInputBusy}>Undo</button>
                   {/if}
-                  <button type="submit" data-testid="workflow-input-submit" disabled={workflowInputBusy || !workflowInputText.trim()}>{workflowInputBusy ? 'Working...' : 'Send'}</button>
+                  <button type="submit" data-testid="workflow-input-submit" disabled={workflowInputBusy || !canRenderWorkflowData || !workflowInputText.trim()}>{workflowInputBusy ? 'Working...' : 'Send'}</button>
                 </div>
               </form>
-              {#if workflowInputSession}
+              {#if canRenderWorkflowData && workflowInputSession}
                 <div class="workflow-input-status" data-testid="workflow-input-status" data-status={workflowInputSession.status}>
                   <strong>{workflowInputSession.status}</strong>
                   {#if workflowInputSession.message}<span>{workflowInputSession.message}</span>{/if}
@@ -830,7 +812,7 @@
           </WorkspaceHomeShell>
         {/if}
 
-        {#if isManageView}
+        {#if showManageView}
         <section class="workflow-management" data-testid="workflow-management">
           <div class="management-header">
             <div>
@@ -873,7 +855,9 @@
                 <p>Library</p>
                 <h3>Recent workflows</h3>
               </div>
-              {#if workflows.length === 0}
+              {#if workflowsLoading}
+                <p class="empty-copy">Loading saved workflows...</p>
+              {:else if workflows.length === 0}
                 <p class="empty-copy">Create one of the starter workflows to test the server-side runner.</p>
               {:else}
                 {#each listedWorkflows as workflow (workflow.id)}
@@ -1132,12 +1116,6 @@
       </div>
     </div>
   </div>
-{:else}
-  <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
-  <main class="workflows-route-state" data-testid="workflows-auth-required">
-    <h1>Workflows</h1>
-    <p>Please log in to create, manage, and run server-side workflows.</p>
-  </main>
 {/if}
 
 <div class="notification-container">
@@ -1184,10 +1162,15 @@
   .workflows-start {
     flex: 1;
     min-width: 0;
+    height: 100%;
     overflow: auto;
     display: grid;
     gap: 28px;
     color: var(--color-font-primary);
+    background-color: var(--color-grey-20);
+    border-radius: 17px;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+    position: relative;
     scroll-behavior: smooth;
   }
 
@@ -1684,43 +1667,57 @@
   }
 
   .workflow-input-composer {
-    width: min(920px, 100%);
+    width: min(629px, 100%);
+    min-height: 60px;
     z-index: 3;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: end;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
     margin: 0 auto;
-    padding: 12px;
-    border: 1px solid var(--color-grey-20);
-    border-radius: var(--radius-full, 999px);
-    background: color-mix(in srgb, var(--color-grey-0) 94%, transparent);
-    box-shadow: 0 18px 54px rgba(0, 0, 0, 0.16);
-    backdrop-filter: blur(14px);
+    padding: 0 var(--spacing-5);
+    border: 0;
+    border-radius: 24px;
+    background: var(--color-grey-blue);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-sizing: border-box;
   }
 
   .workflow-input-composer textarea {
     width: 100%;
-    min-height: 44px;
+    min-height: 40px;
     max-height: 160px;
-    resize: vertical;
+    resize: none;
+    flex: 1;
+    min-width: 0;
     border: 0;
     outline: none;
-    padding: 12px 14px;
-    border-radius: var(--radius-full, 999px);
+    padding: 10px 0;
+    border-radius: 0;
     color: var(--color-font-primary);
-    background: var(--color-grey-10);
+    background: transparent;
     font: inherit;
+    font-size: var(--font-size-p);
+  }
+
+  .workflow-input-composer textarea::placeholder {
+    color: var(--color-grey-60);
+    font-weight: 600;
   }
 
   .workflow-input-actions {
     display: flex;
-    gap: 8px;
+    align-items: center;
+    gap: var(--spacing-3);
+    flex-shrink: 0;
   }
 
   .workflow-input-actions button {
     color: var(--color-font-primary);
     background: var(--color-grey-20);
+    min-height: 40px;
+    padding: var(--spacing-4) var(--spacing-8);
+    border-radius: var(--radius-8);
+    font-weight: 500;
   }
 
   .workflow-input-actions button[type="submit"] {
@@ -1792,8 +1789,10 @@
     }
 
     .workflow-input-composer {
-      grid-template-columns: 1fr;
-      border-radius: 26px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      padding-block: var(--spacing-4);
+      border-radius: 24px;
     }
 
     .workflow-input-actions {
