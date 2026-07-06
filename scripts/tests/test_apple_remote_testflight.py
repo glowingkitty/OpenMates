@@ -52,6 +52,15 @@ def test_ios_archive_entitlements_are_checked_before_upload() -> None:
     assert "APP_GROUP_IDENTIFIER" in script
 
 
+def test_created_profiles_use_decoded_installed_uuid_for_export() -> None:
+    apple_remote = load_apple_remote()
+    script = apple_remote.TESTFLIGHT_IOS_SCRIPT
+
+    assert "profile_data = decoded_profile(profile_path)" in script
+    assert "installed_uuid = profile_data.get(\"UUID\") if profile_data else None" in script
+    assert "profile_names[identifier] = installed_uuid or profile_uuid" in script
+
+
 def test_deploy_latest_testflight_syncs_then_uploads_both_platforms() -> None:
     apple_remote = load_apple_remote()
 

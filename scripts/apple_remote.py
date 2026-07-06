@@ -691,7 +691,9 @@ def create_or_download_app_store_profiles():
         for profiles_dir in profile_dirs:
             (profiles_dir / f"{profile_uuid}.{profile_extension}").write_bytes(profile_bytes)
         assert_profile_supports_app_group(identifier, profile_path)
-        profile_names[identifier] = profile_uuid
+        profile_data = decoded_profile(profile_path)
+        installed_uuid = profile_data.get("UUID") if profile_data else None
+        profile_names[identifier] = installed_uuid or profile_uuid
         print(f"profile_create=passed:{identifier}")
 
 
