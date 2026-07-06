@@ -12,6 +12,7 @@ from backend.apps.health.skills.search_appointments_skill import (
     _cities_match,
     _doctolib_motive_allows_new_patients,
     _doctolib_motive_matches_requested_insurance,
+    _doctolib_provider_matches_requested_insurance,
     _is_private_practice_name,
     _jameda_service_matches_requested_insurance,
     _matches_motive_category,
@@ -90,6 +91,31 @@ def test_doctolib_public_insurance_rejects_explicit_paid_motives() -> None:
         {"name": "Privatsprechstunde"},
         "public",
     ) is False
+    assert _doctolib_motive_matches_requested_insurance(
+        {"name": "Hautkrebsvorsorge mit Videodokumentation Fotofinder"},
+        "public",
+    ) is False
+
+
+def test_doctolib_public_insurance_rejects_private_telemedicine_practices() -> None:
+    assert _doctolib_provider_matches_requested_insurance(
+        {
+            "link": "/telemedizinische-praxis/muenchen/cardiotelemed-prof-dr-dr-med-juergen-haase",
+            "onlineBooking": {"telehealth": True},
+            "regulationSector": None,
+            "matchedVisitMotive": {"name": "Videosprechstunde - Neupatient"},
+        },
+        "public",
+    ) is False
+    assert _doctolib_provider_matches_requested_insurance(
+        {
+            "link": "/facharzt-fur-hno/berlin/example",
+            "onlineBooking": {"telehealth": False},
+            "regulationSector": "akzeptiert_gesetzlich_versicherte_patient",
+            "matchedVisitMotive": {"name": "Erstuntersuchung Neupatient:in"},
+        },
+        "public",
+    ) is True
 
 
 def test_public_request_rejects_private_practice_names() -> None:

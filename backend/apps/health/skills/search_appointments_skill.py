@@ -470,7 +470,7 @@ PRIVATE_PRACTICE_NAME_PATTERN = re.compile(
 
 PAID_SERVICE_TEXT_PATTERN = re.compile(
     r"(?:kostenpflichtig|selbstzahler|selbstzahlerleistung|privatleistung|"
-    r"privatsprechstunde|zusätzlich|\bigel\b|\b[0-9]+(?:[,.][0-9]{2})?\s*(?:€|eur))",
+    r"privatsprechstunde|fotofinder|zusätzlich|\bigel\b|\b[0-9]+(?:[,.][0-9]{2})?\s*(?:€|eur))",
     re.IGNORECASE,
 )
 
@@ -712,6 +712,29 @@ def _doctolib_motive_matches_requested_insurance(
     if insurance_sector != "public":
         return True
     return not bool(PAID_SERVICE_TEXT_PATTERN.search(str(visit_motive.get("name") or "")))
+
+
+def _doctolib_provider_matches_requested_insurance(
+    provider: Dict[str, Any],
+    insurance_sector: Optional[str],
+) -> bool:
+    if insurance_sector != "public":
+        return True
+    if not _doctolib_motive_matches_requested_insurance(
+        provider.get("matchedVisitMotive") or {},
+        insurance_sector,
+    ):
+        return False
+
+    link = str(provider.get("link") or "").lower()
+    online_booking = provider.get("onlineBooking") or {}
+    if (
+        "/telemedizinische-praxis/" in link
+        and bool(online_booking.get("telehealth"))
+        and not provider.get("regulationSector")
+    ):
+        return False
+    return True
 
 
 def _select_jameda_services_for_request(
@@ -1410,8 +1433,8 @@ async def _process_single_doctolib_request(
                 )
             )
             and _doctolib_motive_allows_new_patients(p.get("matchedVisitMotive") or {})
-            and _doctolib_motive_matches_requested_insurance(
-                p.get("matchedVisitMotive") or {},
+            and _doctolib_provider_matches_requested_insurance(
+                p,
                 insurance_sector,
             )
         ]
