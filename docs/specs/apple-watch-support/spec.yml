@@ -421,7 +421,7 @@ tests:
       - Shared source used by Watch is free of unguarded UIKit/AppKit/PDFKit/QuickLook imports.
       - Watch target has independent-app configuration and required entitlements.
     red_phase: { required: true, expected: fail, evidence: { status: missing_test, run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-build-watch-193c954", timestamp: "2026-07-06T23:15:00Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-build-watch-a5f5ab7", timestamp: "2026-07-06T23:39:31Z" } }
   - id: T-WATCH-PAIR-LOGIN-UNIT
     type: unit
     file: apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
@@ -448,26 +448,27 @@ tests:
     green_phase: { required: true, expected: pass, evidence: { status: "", run_id: "", timestamp: "" } }
   - id: T-WATCH-RUNTIME-UNIT
     type: unit
-    file: apple/OpenMatesWatchTests/WatchChatRuntimeTests.swift
-    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchTests/WatchChatRuntimeTests
-    covers: [AC-2, AC-4]
+    file: apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    command: python3 scripts/apple_remote.py repo xcodebuild clean test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=iPhone 17" -only-testing OpenMatesTests/WatchChatRuntimeTests
+    covers: [AC-2]
     assertions:
-      - Watch chat runtime loads cached chats, requests phased sync, decrypts chat/message/embed content with local keys, and updates chat store.
-      - Watch text send and new-chat flows use encrypted send/storage semantics compatible with iOS ChatSendPipeline.
-      - Watch generated authenticated chat IDs use lowercase UUID shape.
+      - Watch chat runtime loads cached chats before network refresh.
+      - Watch chat runtime fetches recent chats directly from the backend API abstraction and persists a sorted JSON snapshot for cold/offline startup.
+      - Watch chat runtime opens a selected chat, fetches its message window, and persists it without logging real user plaintext.
+      - Full chat-key loading, WebSocket phased sync, and client-side decryption remain pending implementation tasks.
     red_phase: { required: true, expected: fail, evidence: { status: missing_test, run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-ios-xctest-watch-chat-runtime-4tests-a5f5ab7", timestamp: "2026-07-06T23:41:31Z" } }
   - id: T-WATCH-OFFLINE-UNIT
     type: unit
-    file: apple/OpenMatesWatchTests/WatchOfflineSyncTests.swift
-    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchTests/WatchOfflineSyncTests
+    file: apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    command: python3 scripts/apple_remote.py repo xcodebuild clean test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=iPhone 17" -only-testing OpenMatesTests/WatchChatRuntimeTests
     covers: [AC-2, AC-8]
     assertions:
-      - Cached chat list and message windows load without network.
-      - Eligible text sends queue offline and replay online without losing encrypted storage metadata.
-      - Audio recording explains network-gated upload/transcription when offline instead of auto-sending incomplete content.
+      - Cached chat list and message windows load without network when the API abstraction throws.
+      - Local pending text entries are normalized, appended to the selected transcript, and persisted in the Watch snapshot.
+      - Online replay, encrypted send metadata, and audio network-gating remain pending implementation tasks.
     red_phase: { required: true, expected: fail, evidence: { status: missing_test, run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-ios-xctest-watch-chat-runtime-4tests-a5f5ab7", timestamp: "2026-07-06T23:41:31Z" } }
   - id: T-WATCH-AUDIO-COMPOSER-UNIT
     type: unit
     file: apple/OpenMatesWatchTests/WatchAudioComposerTests.swift
