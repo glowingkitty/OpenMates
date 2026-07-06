@@ -351,9 +351,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "apple_remote_test_ios_SettingsFullParityTests_14_pass"
-        timestamp: "2026-07-04T22:30:11Z"
-        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 14 tests."
+        run_id: "apple_remote_test_ios_SettingsFullParityTests_18_pass"
+        timestamp: "2026-07-06T15:24:30Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 18 tests on commit 6a2f663."
 
   - id: T-APPLE-UNIT-002
     type: unit
@@ -378,9 +378,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "apple_remote_test_ios_SettingsFullParityTests_14_pass"
-        timestamp: "2026-07-04T22:30:11Z"
-        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 14 tests."
+        run_id: "apple_remote_test_ios_SettingsFullParityTests_18_pass"
+        timestamp: "2026-07-06T15:24:30Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 18 tests on commit 6a2f663."
 
   - id: T-APPLE-UNIT-003
     type: unit
@@ -404,9 +404,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "apple_remote_test_ios_SettingsFullParityTests_14_pass"
-        timestamp: "2026-07-04T22:30:11Z"
-        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 14 tests."
+        run_id: "apple_remote_test_ios_SettingsFullParityTests_18_pass"
+        timestamp: "2026-07-06T15:24:30Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 18 tests on commit 6a2f663."
 
   - id: T-APPLE-UNIT-004
     type: unit
@@ -433,9 +433,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "apple_remote_test_ios_SettingsFullParityTests_14_pass"
-        timestamp: "2026-07-04T22:30:11Z"
-        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 14 tests."
+        run_id: "apple_remote_test_ios_SettingsFullParityTests_18_pass"
+        timestamp: "2026-07-06T15:24:30Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 18 tests on commit 6a2f663."
 
   - id: T-APPLE-UNIT-005
     type: unit
@@ -460,9 +460,9 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "apple_remote_test_ios_SettingsFullParityTests_14_pass"
-        timestamp: "2026-07-04T22:30:11Z"
-        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 14 tests."
+        run_id: "apple_remote_test_ios_SettingsFullParityTests_18_pass"
+        timestamp: "2026-07-06T15:24:30Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 18 tests on commit 6a2f663."
 
   - id: T-APPLE-UI-001
     type: unit
@@ -488,8 +488,8 @@ tests:
       evidence:
         status: passed
         run_id: "apple_remote_ui_SettingsFullParityUITests_report_issue_pass"
-        timestamp: "2026-07-04T22:30:11Z"
-        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesUITests/SettingsFullParityUITests/testReportIssueSubmissionSucceedsAndUploadsSimulatorLogs passed."
+        timestamp: "2026-07-06T15:26:48Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesUITests/SettingsFullParityUITests/testReportIssueSubmissionSucceedsAndUploadsSimulatorLogs passed on commit 6a2f663."
 
   - id: T-STATIC-001
     type: manual
@@ -514,7 +514,7 @@ tests:
       evidence:
         status: passed
         run_id: "spec_validate_static_review"
-        timestamp: "2026-07-04T22:30:11Z"
+        timestamp: "2026-07-06T15:27:13Z"
         summary: "Apple diagnostics instructions in apple/AGENTS.md and .claude/rules/apple-ui.md include NativeDiagnostics, performance helpers, and privacy boundaries."
 
 verifications:
@@ -528,8 +528,8 @@ verifications:
     status: passed
     evidence:
       status: passed
-      summary: "python3 scripts/apple_remote.py build-ios --simulator \"iPhone 17\" succeeded after commit 14d1b42."
-      timestamp: "2026-07-04T22:30:11Z"
+      summary: "python3 scripts/apple_remote.py build-ios --simulator \"iPhone 17\" succeeded on commit 6a2f663."
+      timestamp: "2026-07-06T15:27:13Z"
   - id: V-PRIVACY-REVIEW-001
     kind: artifact_review
     phase: final
@@ -540,7 +540,7 @@ verifications:
     evidence:
       status: passed
       summary: "Changed diagnostics sanitize emails, tokens, share keys, private paths, UUIDs, and long blobs; tests verify seeded sensitive values are absent from issue/debug/telemetry payloads."
-      timestamp: "2026-07-04T22:30:11Z"
+      timestamp: "2026-07-06T15:27:13Z"
 
 implementation_plan:
   existing_patterns:
