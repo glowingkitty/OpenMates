@@ -174,7 +174,7 @@ final class ChatFlowParityUITests: XCTestCase {
 
         let messageEditor = waitForMessageEditor(in: app)
         messageEditor.tap()
-        messageEditor.typeText("coding")
+        app.typeText("coding")
 
         XCTAssertTrue(codingSuggestion.waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.cover_letter"].isHittable)
@@ -261,13 +261,15 @@ final class ChatFlowParityUITests: XCTestCase {
             app.textFields.matching(identifier: "message-editor").firstMatch,
             app.textViews.matching(identifier: "message-editor").firstMatch,
             app.descendants(matching: .any)["message-editor"],
+            app.descendants(matching: .any)["message-field"],
+            app.descendants(matching: .any)["message-composer"],
         ]
 
         for candidate in candidates where candidate.waitForExistence(timeout: 5) {
             return candidate
         }
 
-        XCTFail("Expected message-editor to exist as a text field, text view, or accessibility element")
+        XCTFail("Expected message composer input to exist as an editor or composer wrapper")
         return candidates[0]
     }
 
