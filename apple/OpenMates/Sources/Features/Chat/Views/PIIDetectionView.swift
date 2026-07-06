@@ -861,7 +861,7 @@ enum EnhancedPIIModelStatus: Equatable, Sendable {
 }
 
 protocol EnhancedPIIModelDownloading: Sendable {
-    func download(_ manifest: EnhancedPIIModelManifest, progress: (Double) async -> Void) async throws -> URL
+    func download(_ manifest: EnhancedPIIModelManifest, progress: @MainActor @Sendable (Double) async -> Void) async throws -> URL
 }
 
 struct URLSessionEnhancedPIIModelDownloader: EnhancedPIIModelDownloading {
@@ -869,7 +869,7 @@ struct URLSessionEnhancedPIIModelDownloader: EnhancedPIIModelDownloading {
         case checksumMismatch
     }
 
-    func download(_ manifest: EnhancedPIIModelManifest, progress: (Double) async -> Void) async throws -> URL {
+    func download(_ manifest: EnhancedPIIModelManifest, progress: @MainActor @Sendable (Double) async -> Void) async throws -> URL {
         await progress(0.05)
         let (temporaryURL, _) = try await URLSession.shared.download(from: manifest.remoteURL)
         await progress(0.85)
@@ -1039,9 +1039,7 @@ final class EnhancedPIIModelDownloadController: ObservableObject {
         status = .downloading(progress: 0)
         do {
             let url = try await downloader.download(manifest) { [weak self] progress in
-                await MainActor.run {
-                    self?.status = .downloading(progress: min(max(progress, 0), 1))
-                }
+                self?.status = .downloading(progress: min(max(progress, 0), 1))
             }
             artifactURL = url
             persistReady(version: manifest.version, sizeBytes: manifest.sizeBytes, url: url)
