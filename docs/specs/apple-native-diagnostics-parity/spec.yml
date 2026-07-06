@@ -20,6 +20,10 @@ scope:
     - Add report-time rolling frame/jank metrics using a lightweight display-link monitor on iOS.
     - Add MetricKit setup for daily metric reports and event diagnostics where supported, storing recent sanitized summaries for issue report context.
     - Implement Apple debug-session live forwarding to `/v1/settings/debug-logs` and default anonymized warn/error telemetry to `/v1/client-logs` for authenticated users who have not opted out.
+    - Include structured native sync phase summaries with run IDs, elapsed timings, duplicate/dedup warning counts, and recent phase fields so performance reports do not rely on truncated console text.
+    - Include native log-forwarder status in issue reports: default/debug running state, opt-out state, last flush timestamp, status, and count.
+    - Best-effort flush default telemetry and active debug-session logs immediately after issue creation, before uploading issue-time logs.
+    - Include non-identifying device/build state such as app build, OS version, model identifier, battery state, memory, and processor count.
     - Update Apple agent instructions to require `NativeDiagnostics`/metrics APIs for new Apple logging and performance instrumentation.
     - Add unit/UI tests proving payload richness, redaction, log bridging, default telemetry sanitization, debug-session forwarding payload shape, and report issue upload behavior.
   out:
@@ -331,6 +335,7 @@ tests:
       - AC-2
     assertions:
       - issue payload includes native runtime diagnostics, offline inspection, frame metrics, MetricKit summary field, and action history
+      - runtime diagnostics include structured sync summary, forwarder status, and device/build state
       - redaction removes emails, tokens, share keys, private paths, long/base64 blobs, and raw typed message examples
       - report issue still includes backend-compatible `/v1/settings/issues` fields
     red_phase:
@@ -358,6 +363,7 @@ tests:
       - AC-3
     assertions:
       - calling `NativeSyncPerfLog.info` adds a sanitized entry to `NativeClientLogCollector`
+      - native sync phase summaries extract elapsed timing and duplicate embed/dedup warning fields into structured JSON
       - warning/error entries survive buffer churn
     red_phase:
       required: true
@@ -413,6 +419,7 @@ tests:
       - debug-session batch includes `debugging_id`, metadata, and sanitized log entries
       - default telemetry batch includes only warn/error entries and no user identity
       - opt-out disables default telemetry
+      - forwarder status snapshots expose running state and report-time flush results
     red_phase:
       required: true
       expected: fail
@@ -556,6 +563,8 @@ implementation_plan:
     - "`NativeClientLogCollector` keeps bounded all-level and warning/error buffers."
     - "`NativeActionTracker` records stable screen/control events."
     - "`NativeRuntimeSnapshotProvider` reads current app/session/chat/network/performance state at report time."
+    - "`NativeSyncDiagnosticsStore` stores structured native sync phase summaries with bounded recent phases."
+    - "`NativeLogForwarder` records status and drains best-effort report-time flushes before issue logs upload."
     - "`NativeIssueContextProvider` assembles console logs, action history, offline inspection, frame metrics, MetricKit summaries, and runtime debug state."
     - "`ReportIssueView` submits the enriched issue payload and then pushes issue-time logs."
     - "`NativeLogForwarder` forwards debug-session and default telemetry batches under the existing backend contracts."

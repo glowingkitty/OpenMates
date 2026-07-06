@@ -21,12 +21,14 @@ enum NativeSyncPerfLog {
         let sanitized = NativeClientLogCollector.sanitize(message)
         logger.info("\(sanitized, privacy: .public)")
         NativeClientLogCollector.shared.record(level: .info, category: "native_sync_perf", message: sanitized)
+        NativeSyncDiagnosticsStore.shared.record(level: .info, message: sanitized)
     }
 
     static func warning(_ message: String) {
         let sanitized = NativeClientLogCollector.sanitize(message)
         logger.warning("\(sanitized, privacy: .public)")
         NativeClientLogCollector.shared.record(level: .warning, category: "native_sync_perf", message: sanitized)
+        NativeSyncDiagnosticsStore.shared.record(level: .warning, message: sanitized)
     }
 }
 

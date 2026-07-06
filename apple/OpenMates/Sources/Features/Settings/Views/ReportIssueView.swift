@@ -296,6 +296,7 @@ struct ReportIssueView: View {
                 submittedIssueReference = reference.isEmpty ? AppStrings.done : reference
                 NativeDiagnostics.info("Native issue report submitted", category: "report_issue")
                 if let issueId = response.issueId {
+                    await NativeLogForwarder.shared.flushForIssueReport()
                     await sendIssueLogs(issueId: issueId)
                 }
             } catch {
@@ -476,6 +477,7 @@ enum IssueReportPayloadBuilder {
         .joined(separator: "\n\n")
     }
 
+    @MainActor
     static func runtimeDebugState() -> [String: Any] {
         NativeRuntimeSnapshotProvider.snapshot()
     }

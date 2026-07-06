@@ -1814,8 +1814,8 @@ async def list_error_logs(
 #    Pydantic schema using only whitelisted identifiers (stream name, column names,
 #    operators). User input only reaches SQL as escaped quoted literals or as
 #    parseable numeric/timestamp values.
-# 3. Stream whitelist: {default, client_console}. Audit/compliance streams are NOT
-#    reachable from this endpoint.
+# 3. Stream whitelist: {default, client_console, client_issue_report}.
+#    Audit/compliance streams are NOT reachable from this endpoint.
 # 4. Field whitelist per stream — attempts to query unknown fields fail validation.
 # 5. Operator whitelist — only eq, neq, like, not_like, in, gt, gte, lt, lte. No
 #    raw boolean logic, no subqueries, no CTEs, no UNION.
@@ -1848,6 +1848,10 @@ _LOG_QUERY_STREAM_FIELDS: Dict[str, frozenset[str]] = {
     "client_console": frozenset({
         "_timestamp", "message", "level", "device_type", "user_id",
         "user_email", "debugging_id", "page_url",
+    }),
+    "client_issue_report": frozenset({
+        "_timestamp", "message", "issue_id", "user_id", "server_env",
+        "source", "job",
     }),
 }
 
@@ -1992,6 +1996,8 @@ def _compose_log_query_sql(req: "LogQueryRequest") -> str:
             select_cols = ["_timestamp", "message", "level", "service"]
         elif req.stream == "client_console":
             select_cols = ["_timestamp", "message", "level", "device_type"]
+        elif req.stream == "client_issue_report":
+            select_cols = ["_timestamp", "message", "issue_id", "source"]
         else:
             # Defensive: should be unreachable thanks to the Literal stream type
             select_cols = ["_timestamp", "message", "level"]
@@ -2055,7 +2061,7 @@ class LogQueryRequest(BaseModel):
     No raw SQL fragment is ever accepted.  See the module-level section
     ``STRUCTURED LOG QUERY`` for the security rationale.
     """
-    stream: Literal["default", "client_console"]
+    stream: Literal["default", "client_console", "client_issue_report"]
     mode: Literal["select", "count_by"] = "select"
 
     # mode="select" fields

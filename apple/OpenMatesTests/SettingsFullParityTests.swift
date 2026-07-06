@@ -145,6 +145,7 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertTrue(logs.contains("<email>"))
     }
 
+    @MainActor
     func testIssueReportPayloadIncludesNativeDeviceDiagnostics() throws {
         let payload = IssueReportPayloadBuilder.makePayload(
             title: "Simulator diagnostics",
@@ -191,11 +192,14 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertFalse(logs.contains("api_key=secret"))
     }
 
+    @MainActor
     func testIssueReportPayloadIncludesNativeDiagnosticsContextAndStrongRedaction() throws {
         NativeClientLogCollector.shared.resetForTests()
         NativeActionTracker.shared.resetForTests()
         NativePerformanceMonitor.shared.resetForTests()
         NativeMetricKitReporter.shared.resetForTests()
+        NativeSyncDiagnosticsStore.shared.resetForTests()
+        NativeLogForwarder.shared.resetForTests()
 
         NativeActionTracker.shared.recordRoute("chat/detail")
         NativeActionTracker.shared.recordControl("settings/report_issue/open")
@@ -232,6 +236,9 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertNotNil(diagnostics["offline_inspection"] as? [String: Any])
         XCTAssertNotNil(diagnostics["frame_metrics"] as? [String: Any])
         XCTAssertNotNil(diagnostics["metric_kit"] as? [[String: Any]])
+        XCTAssertNotNil(diagnostics["device_state"] as? [String: Any])
+        XCTAssertNotNil(diagnostics["sync_summary"] as? [String: Any])
+        XCTAssertNotNil(diagnostics["forwarder_status"] as? [String: Any])
 
         let actionHistory = payload["action_history"] as? String ?? ""
         XCTAssertTrue(actionHistory.contains("chat/detail"))
@@ -249,7 +256,10 @@ final class SettingsFullParityTests: XCTestCase {
 
     func testNativeSyncPerfLogBridgesIntoDiagnosticsAndPreservesWarningsUnderChurn() {
         NativeClientLogCollector.shared.resetForTests()
+        NativeSyncDiagnosticsStore.shared.resetForTests()
         NativeSyncPerfLog.warning("phase=importantWarning email=person@example.org")
+        NativeSyncPerfLog.info("phase=offlineColdLoad elapsedMs=321 chatCount=20")
+        NativeSyncPerfLog.warning("phase=embedDedup duplicateEntries=64 chatCount=9")
         for index in 0..<260 {
             NativeClientLogCollector.shared.record(level: .debug, category: "noise", message: "debug entry \(index)")
         }
@@ -261,6 +271,15 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertTrue(logs.contains("<email>"))
         XCTAssertFalse(logs.contains("person@example.org"))
         XCTAssertFalse(logs.contains("token=secret"))
+
+        let syncSummary = NativeSyncDiagnosticsStore.shared.summary()
+        XCTAssertGreaterThanOrEqual(syncSummary["phase_count"] as? Int ?? 0, 4)
+        XCTAssertEqual(syncSummary["slowest_elapsed_ms"] as? Int, 321)
+        XCTAssertGreaterThanOrEqual(syncSummary["duplicate_warning_count"] as? Int ?? 0, 1)
+        let phases = syncSummary["recent_phases"] as? [[String: Any]] ?? []
+        XCTAssertTrue(phases.contains { ($0["phase"] as? String) == "offlineColdLoad" })
+        XCTAssertTrue(phases.contains { ($0["duplicate_entries"] as? Int) == 64 })
+        XCTAssertFalse(String(describing: syncSummary).contains("person@example.org"))
     }
 
     func testNativeActionTrackerRecordsStableActionsAndSuppressesTypedText() {
@@ -321,12 +340,33 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertFalse(NativeLogForwarder.shared.isDefaultTelemetryRunningForTests())
     }
 
+    func testNativeLogForwarderStatusSnapshotAndIssueFlushWithoutLogs() async throws {
+        NativeClientLogCollector.shared.resetForTests()
+        NativeLogForwarder.shared.resetForTests()
+        NativeLogForwarder.shared.startDefaultTelemetry(intervalNanoseconds: 60_000_000_000)
+
+        var status = NativeLogForwarder.shared.statusSnapshot()
+        XCTAssertEqual(status["default_telemetry_running"] as? Bool, true)
+        XCTAssertEqual(status["debug_session_active"] as? Bool, false)
+
+        await NativeLogForwarder.shared.flushForIssueReport()
+        status = NativeLogForwarder.shared.statusSnapshot()
+        XCTAssertEqual(status["last_default_flush_status"] as? String, "empty")
+        XCTAssertEqual(status["last_default_flush_count"] as? Int, 0)
+        XCTAssertNotEqual(status["last_default_flush_at"] as? String, "never")
+
+        NativeLogForwarder.shared.stopDefaultTelemetry()
+    }
+
+    @MainActor
     func testNativePerformanceAndMetricKitSummariesExposeAvailabilityAndFrameMetrics() throws {
         NativePerformanceMonitor.shared.resetForTests()
         NativeMetricKitReporter.shared.resetForTests()
 
         let absentMetricKit = NativeMetricKitReporter.shared.latestSummaries()
         XCTAssertEqual(absentMetricKit.first?["status"] as? String, "unavailable")
+        let deviceState = NativeRuntimeSnapshotProvider.snapshot()["native_diagnostics"] as? [String: Any]
+        XCTAssertNotNil(deviceState?["device_state"] as? [String: Any])
 
         NativePerformanceMonitor.shared.recordFrame(durationMS: 17)
         NativePerformanceMonitor.shared.recordFrame(durationMS: 70)

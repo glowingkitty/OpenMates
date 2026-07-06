@@ -84,6 +84,107 @@ enum NativeDiagnostics {
     }
 }
 
+final class NativeSyncDiagnosticsStore: @unchecked Sendable {
+    static let shared = NativeSyncDiagnosticsStore()
+    private static let maxPhases = 80
+
+    private let lock = NSLock()
+    private var phases: [[String: Any]] = []
+    private var runCounter = 0
+    private var currentRunID = "sync-run-0"
+
+    private init() {}
+
+    func record(level: NativeClientLogLevel, message: String) {
+        let fields = Self.parseFields(message)
+        lock.lock()
+        if Self.startsNewRun(fields) {
+            runCounter += 1
+            currentRunID = "sync-run-\(runCounter)"
+        }
+
+        var phase: [String: Any] = [
+            "recorded_at": NativeDiagnosticsDateFormatter.string(from: Date()),
+            "level": level.forwardingValue,
+            "run_id": currentRunID,
+            "message": NativeClientLogCollector.sanitize(message),
+        ]
+        for (key, value) in fields {
+            phase[key] = value
+        }
+
+        phases.append(phase)
+        if phases.count > Self.maxPhases {
+            phases.removeFirst(phases.count - Self.maxPhases)
+        }
+        lock.unlock()
+    }
+
+    func summary() -> [String: Any] {
+        lock.lock()
+        let snapshot = phases
+        let runID = currentRunID
+        lock.unlock()
+
+        let warnings = snapshot.filter { ($0["level"] as? String) == "warn" }.count
+        let duplicateWarnings = snapshot.filter { phase in
+            let message = phase["message"] as? String ?? ""
+            return message.localizedCaseInsensitiveContains("duplicate")
+                || message.localizedCaseInsensitiveContains("dedup")
+        }.count
+        let elapsedValues = snapshot.compactMap { $0["elapsed_ms"] as? Int }
+        return [
+            "phase_count": snapshot.count,
+            "warning_count": warnings,
+            "duplicate_warning_count": duplicateWarnings,
+            "latest_run_id": snapshot.last?["run_id"] as? String ?? runID,
+            "slowest_elapsed_ms": elapsedValues.max() ?? 0,
+            "recent_phases": Array(snapshot.suffix(20)),
+        ]
+    }
+
+    func resetForTests() {
+        lock.lock()
+        phases.removeAll()
+        runCounter = 0
+        currentRunID = "sync-run-0"
+        lock.unlock()
+    }
+
+    private static func startsNewRun(_ fields: [String: Any]) -> Bool {
+        guard let phase = fields["phase"] as? String else { return false }
+        return phase == "offlineColdLoad" || phase == "phase1a" || phase == "metadataSync"
+    }
+
+    private static func parseFields(_ message: String) -> [String: Any] {
+        var fields: [String: Any] = [:]
+        for token in message.split(separator: " ") {
+            let parts = token.split(separator: "=", maxSplits: 1).map(String.init)
+            guard parts.count == 2 else { continue }
+            let key = normalizeKey(parts[0])
+            let rawValue = NativeClientLogCollector.sanitize(parts[1])
+            if let intValue = Int(rawValue) {
+                fields[key] = intValue
+            } else {
+                fields[key] = rawValue
+            }
+        }
+        return fields
+    }
+
+    private static func normalizeKey(_ key: String) -> String {
+        switch key {
+        case "elapsedMs": return "elapsed_ms"
+        case "chatCount": return "chat_count"
+        case "totalChats": return "total_chats"
+        case "duplicateCount": return "duplicate_count"
+        case "duplicateEntries": return "duplicate_entries"
+        default:
+            return key.replacingOccurrences(of: "-", with: "_")
+        }
+    }
+}
+
 final class NativeClientLogCollector: @unchecked Sendable {
     static let shared = NativeClientLogCollector()
     private static let maxEntries = 200
@@ -294,6 +395,7 @@ final class NativeIssueContextProvider: @unchecked Sendable {
 
     private init() {}
 
+    @MainActor
     func context() -> NativeIssueContext {
         let actions = NativeActionTracker.shared.actionsAsText(limit: 50)
         return NativeIssueContext(
@@ -305,17 +407,22 @@ final class NativeIssueContextProvider: @unchecked Sendable {
 }
 
 enum NativeRuntimeSnapshotProvider {
+    @MainActor
     static func snapshot() -> [String: Any] {
         [
             "platform": "apple_native",
             "bundle_id": Bundle.main.bundleIdentifier ?? "org.openmates.app",
             "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+            "app_build": Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "unknown",
             "native_diagnostics": [
                 "generated_at": NativeDiagnosticsDateFormatter.string(from: Date()),
                 "system_state": NativePerformanceMonitor.systemState(),
+                "device_state": NativeDeviceInfo.deviceState(),
                 "offline_inspection": NativeOfflineInspection.summary(),
                 "frame_metrics": NativePerformanceMonitor.shared.summary(),
                 "metric_kit": NativeMetricKitReporter.shared.latestSummaries(),
+                "sync_summary": NativeSyncDiagnosticsStore.shared.summary(),
+                "forwarder_status": NativeLogForwarder.shared.statusSnapshot(),
                 "recent_warning_error_count": NativeClientLogCollector.shared.entriesSnapshot(limit: 200, minimumLevel: .warning).count,
             ],
         ]
@@ -566,6 +673,13 @@ final class NativeLogForwarder: @unchecked Sendable {
     private var debugSessionTask: Task<Void, Never>?
     private var lastDefaultTelemetrySequence = 0
     private var lastDebugSessionSequence = 0
+    private var activeDebuggingID: String?
+    private var lastDefaultFlushAt: Date?
+    private var lastDefaultFlushStatus = "never"
+    private var lastDefaultFlushCount = 0
+    private var lastDebugFlushAt: Date?
+    private var lastDebugFlushStatus = "never"
+    private var lastDebugFlushCount = 0
     private let sessionPseudonym = UUID().uuidString.lowercased()
 
     private init() {}
@@ -635,6 +749,7 @@ final class NativeLogForwarder: @unchecked Sendable {
     func startDebugSession(debuggingID: String, intervalNanoseconds: UInt64 = defaultFlushIntervalNanoseconds) {
         let safeDebuggingID = NativeClientLogCollector.sanitize(debuggingID)
         lock.lock()
+        activeDebuggingID = safeDebuggingID
         debugSessionTask?.cancel()
         debugSessionTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -649,6 +764,7 @@ final class NativeLogForwarder: @unchecked Sendable {
         lock.lock()
         debugSessionTask?.cancel()
         debugSessionTask = nil
+        activeDebuggingID = nil
         lock.unlock()
     }
 
@@ -673,21 +789,61 @@ final class NativeLogForwarder: @unchecked Sendable {
     }
 
     func flushDefaultTelemetry() async {
-        guard !NativeDiagnosticsPreferences.defaultTelemetryOptedOut else { return }
+        guard !NativeDiagnosticsPreferences.defaultTelemetryOptedOut else {
+            updateDefaultFlush(status: "opted_out", count: 0)
+            return
+        }
         let lastSequence = readLastDefaultTelemetrySequence()
         let entries = NativeClientLogCollector.shared.entriesAfter(sequence: lastSequence, limit: 50, minimumLevel: .warning)
-        guard let payload = Self.defaultTelemetryPayload(entries: entries, sessionPseudonym: sessionPseudonym) else { return }
-        await post(path: "/v1/client-logs", payload: payload)
-        updateLastDefaultTelemetrySequence(entries.last?.sequence ?? lastSequence)
+        guard let payload = Self.defaultTelemetryPayload(entries: entries, sessionPseudonym: sessionPseudonym) else {
+            updateDefaultFlush(status: "empty", count: 0)
+            return
+        }
+        let sent = await post(path: "/v1/client-logs", payload: payload)
+        if sent {
+            updateLastDefaultTelemetrySequence(entries.last?.sequence ?? lastSequence)
+        }
+        updateDefaultFlush(status: sent ? "sent" : "failed", count: entries.count)
     }
 
     func flushDebugSession(debuggingID: String) async {
         let lastSequence = readLastDebugSessionSequence()
         let entries = NativeClientLogCollector.shared.entriesAfter(sequence: lastSequence, limit: 50)
-        guard !entries.isEmpty else { return }
+        guard !entries.isEmpty else {
+            updateDebugFlush(status: "empty", count: 0)
+            return
+        }
         let payload = Self.debugSessionPayload(debuggingID: debuggingID, entries: entries)
-        await post(path: "/v1/settings/debug-logs", payload: payload)
-        updateLastDebugSessionSequence(entries.last?.sequence ?? lastSequence)
+        let sent = await post(path: "/v1/settings/debug-logs", payload: payload)
+        if sent {
+            updateLastDebugSessionSequence(entries.last?.sequence ?? lastSequence)
+        }
+        updateDebugFlush(status: sent ? "sent" : "failed", count: entries.count)
+    }
+
+    func flushForIssueReport() async {
+        await flushDefaultTelemetry()
+        if let debuggingID = currentDebuggingID() {
+            await flushDebugSession(debuggingID: debuggingID)
+        }
+    }
+
+    func statusSnapshot() -> [String: Any] {
+        lock.lock()
+        let snapshot: [String: Any] = [
+            "default_telemetry_running": defaultTelemetryTask != nil,
+            "default_telemetry_opted_out": NativeDiagnosticsPreferences.defaultTelemetryOptedOut,
+            "debug_session_running": debugSessionTask != nil,
+            "debug_session_active": activeDebuggingID != nil,
+            "last_default_flush_at": lastDefaultFlushAt.map(NativeDiagnosticsDateFormatter.string(from:)) ?? "never",
+            "last_default_flush_status": lastDefaultFlushStatus,
+            "last_default_flush_count": lastDefaultFlushCount,
+            "last_debug_flush_at": lastDebugFlushAt.map(NativeDiagnosticsDateFormatter.string(from:)) ?? "never",
+            "last_debug_flush_status": lastDebugFlushStatus,
+            "last_debug_flush_count": lastDebugFlushCount,
+        ]
+        lock.unlock()
+        return snapshot
     }
 
     func resetForTests() {
@@ -696,8 +852,15 @@ final class NativeLogForwarder: @unchecked Sendable {
         debugSessionTask?.cancel()
         defaultTelemetryTask = nil
         debugSessionTask = nil
+        activeDebuggingID = nil
         lastDefaultTelemetrySequence = 0
         lastDebugSessionSequence = 0
+        lastDefaultFlushAt = nil
+        lastDefaultFlushStatus = "never"
+        lastDefaultFlushCount = 0
+        lastDebugFlushAt = nil
+        lastDebugFlushStatus = "never"
+        lastDebugFlushCount = 0
         lock.unlock()
     }
 
@@ -708,17 +871,42 @@ final class NativeLogForwarder: @unchecked Sendable {
         return running
     }
 
-    private func post(path: String, payload: [String: Any]) async {
+    private func post(path: String, payload: [String: Any]) async -> Bool {
         do {
             let data = try JSONSerialization.data(withJSONObject: payload)
             let _: Data = try await APIClient.shared.request(.post, path: path, body: JSONRawBody(data: data))
+            return true
         } catch {
             NativeClientLogCollector.shared.record(
                 level: .warning,
                 category: "native_log_forwarder",
                 message: "Forwarding to \(path) failed: \(error.localizedDescription)"
             )
+            return false
         }
+    }
+
+    private func currentDebuggingID() -> String? {
+        lock.lock()
+        let value = activeDebuggingID
+        lock.unlock()
+        return value
+    }
+
+    private func updateDefaultFlush(status: String, count: Int) {
+        lock.lock()
+        lastDefaultFlushAt = Date()
+        lastDefaultFlushStatus = status
+        lastDefaultFlushCount = count
+        lock.unlock()
+    }
+
+    private func updateDebugFlush(status: String, count: Int) {
+        lock.lock()
+        lastDebugFlushAt = Date()
+        lastDebugFlushStatus = status
+        lastDebugFlushCount = count
+        lock.unlock()
     }
 
     private func readLastDefaultTelemetrySequence() -> Int {
@@ -795,6 +983,55 @@ private enum NativeDeviceInfo {
         return "OpenMates-Apple"
         #endif
     }
+
+    static func deviceState() -> [String: Any] {
+        var state: [String: Any] = [
+            "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
+            "app_build": Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "unknown",
+            "os_version": ProcessInfo.processInfo.operatingSystemVersionString,
+            "physical_memory_mb": Int(ProcessInfo.processInfo.physicalMemory / 1_048_576),
+            "processor_count": ProcessInfo.processInfo.processorCount,
+        ]
+        #if os(iOS)
+        state["device_model"] = modelIdentifier()
+        state["battery_state"] = batteryState()
+        state["battery_level_percent"] = batteryLevelPercent()
+        #elseif os(macOS)
+        state["device_model"] = "mac"
+        #endif
+        return state
+    }
+
+    #if os(iOS)
+    private static func modelIdentifier() -> String {
+        var systemInfo = utsname()
+        uname(&systemInfo)
+        let mirror = Mirror(reflecting: systemInfo.machine)
+        let identifier = mirror.children.reduce(into: "") { result, element in
+            guard let value = element.value as? Int8, value != 0 else { return }
+            result.append(String(UnicodeScalar(UInt8(value))))
+        }
+        return NativeClientLogCollector.sanitize(identifier)
+    }
+
+    private static func batteryState() -> String {
+        UIDevice.current.isBatteryMonitoringEnabled = true
+        switch UIDevice.current.batteryState {
+        case .unknown: return "unknown"
+        case .unplugged: return "unplugged"
+        case .charging: return "charging"
+        case .full: return "full"
+        @unknown default: return "unknown"
+        }
+    }
+
+    private static func batteryLevelPercent() -> Int {
+        UIDevice.current.isBatteryMonitoringEnabled = true
+        let level = UIDevice.current.batteryLevel
+        guard level >= 0 else { return -1 }
+        return Int((level * 100).rounded())
+    }
+    #endif
 }
 
 private enum NativeDiagnosticsDateFormatter {
