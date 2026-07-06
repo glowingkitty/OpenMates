@@ -12,14 +12,12 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
-import CoreImage.CIFilterBuiltins
 import SwiftUI
 
 @MainActor
 final class WatchPairLoginState: ObservableObject {
     @Published var token: String?
     @Published var pairURLString: String?
-    @Published var qrImage: Image?
     @Published var status: PairLoginStatus = .generating
     @Published var pin = ""
     @Published var errorMessage: String?
@@ -36,7 +34,6 @@ final class WatchPairLoginState: ObservableObject {
         pollTask = nil
         token = nil
         pairURLString = nil
-        qrImage = nil
         status = .generating
         pin = ""
         errorMessage = nil
@@ -56,11 +53,8 @@ struct WatchPairLoginView: View {
                 VStack(spacing: .spacing4) {
                     statusView
 
-                    if let qrImage = pairState.qrImage {
-                        qrImage
-                            .interpolation(.none)
-                            .resizable()
-                            .scaledToFit()
+                    if let pairURLString = pairState.pairURLString {
+                        WatchQRCodeView(payload: pairURLString)
                             .frame(width: 118, height: 118)
                             .padding(.spacing2)
                             .background(Color.white)
@@ -192,7 +186,6 @@ struct WatchPairLoginView: View {
             let initiation = try await PairLoginRuntime.initiate()
             pairState.token = initiation.token
             pairState.pairURLString = initiation.pairURLString
-            pairState.qrImage = generateQRCode(from: initiation.pairURLString)
             pairState.status = .waiting
             startPolling(token: initiation.token)
         } catch {
@@ -278,14 +271,284 @@ struct WatchPairLoginView: View {
         }
     }
 
-    private func generateQRCode(from string: String) -> Image? {
-        let context = CIContext()
-        let filter = CIFilter.qrCodeGenerator()
-        filter.message = Data(string.utf8)
-        filter.correctionLevel = "M"
-        guard let output = filter.outputImage else { return nil }
-        let scaled = output.transformed(by: CGAffineTransform(scaleX: 8, y: 8))
-        guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return nil }
-        return Image(decorative: cgImage, scale: 1, orientation: .up)
+}
+
+private struct WatchQRCodeView: View {
+    let payload: String
+
+    var body: some View {
+        let matrix = WatchQRCodeMatrix(payload: payload)
+        Canvas { context, size in
+            let moduleSize = min(size.width, size.height) / CGFloat(matrix.size)
+            for row in 0..<matrix.size {
+                for column in 0..<matrix.size where matrix.isDark(row: row, column: column) {
+                    let rect = CGRect(
+                        x: CGFloat(column) * moduleSize,
+                        y: CGFloat(row) * moduleSize,
+                        width: moduleSize,
+                        height: moduleSize
+                    )
+                    context.fill(Path(rect), with: .color(.black))
+                }
+            }
+        }
+        .background(Color.white)
+    }
+}
+
+private struct WatchQRCodeMatrix {
+    let size = 33
+
+    private var modules: [Bool]
+    private var reserved: [Bool]
+
+    init(payload: String) {
+        modules = Array(repeating: false, count: size * size)
+        reserved = Array(repeating: false, count: size * size)
+
+        drawFunctionPatterns()
+        let dataCodewords = Self.encodeData(payload)
+        let errorCodewords = Self.reedSolomonRemainder(dataCodewords, degree: 20)
+        drawCodewords(dataCodewords + errorCodewords)
+        applyMask0()
+        drawFormatBits()
+    }
+
+    func isDark(row: Int, column: Int) -> Bool {
+        modules[index(row: row, column: column)]
+    }
+
+    private func index(row: Int, column: Int) -> Int {
+        row * size + column
+    }
+
+    private mutating func set(row: Int, column: Int, dark: Bool, reserve: Bool = true) {
+        guard row >= 0, row < size, column >= 0, column < size else { return }
+        let position = index(row: row, column: column)
+        modules[position] = dark
+        if reserve { reserved[position] = true }
+    }
+
+    private mutating func drawFunctionPatterns() {
+        drawFinder(row: 0, column: 0)
+        drawFinder(row: 0, column: size - 7)
+        drawFinder(row: size - 7, column: 0)
+        drawTimingPatterns()
+        drawAlignment(row: 26, column: 26)
+
+        set(row: size - 8, column: 8, dark: true)
+        reserveFormatAreas()
+    }
+
+    private mutating func drawFinder(row: Int, column: Int) {
+        for y in -1...7 {
+            for x in -1...7 {
+                let isInside = x >= 0 && x <= 6 && y >= 0 && y <= 6
+                let isBorder = x == 0 || x == 6 || y == 0 || y == 6
+                let isCenter = x >= 2 && x <= 4 && y >= 2 && y <= 4
+                set(row: row + y, column: column + x, dark: isInside && (isBorder || isCenter))
+            }
+        }
+    }
+
+    private mutating func drawTimingPatterns() {
+        for i in 8..<(size - 8) {
+            let dark = i.isMultiple(of: 2)
+            set(row: 6, column: i, dark: dark)
+            set(row: i, column: 6, dark: dark)
+        }
+    }
+
+    private mutating func drawAlignment(row: Int, column: Int) {
+        for y in -2...2 {
+            for x in -2...2 {
+                let distance = max(abs(x), abs(y))
+                set(row: row + y, column: column + x, dark: distance != 1)
+            }
+        }
+    }
+
+    private mutating func reserveFormatAreas() {
+        for i in 0..<9 {
+            if i != 6 {
+                set(row: 8, column: i, dark: false)
+                set(row: i, column: 8, dark: false)
+            }
+        }
+        for i in 0..<8 {
+            set(row: 8, column: size - 1 - i, dark: false)
+            set(row: size - 1 - i, column: 8, dark: false)
+        }
+    }
+
+    private mutating func drawCodewords(_ codewords: [UInt8]) {
+        let bits = codewords.flatMap { codeword in
+            (0..<8).reversed().map { ((codeword >> UInt8($0)) & 1) == 1 }
+        }
+        var bitIndex = 0
+        var upward = true
+        var column = size - 1
+
+        while column > 0 {
+            if column == 6 { column -= 1 }
+            let rowRange = upward ? stride(from: size - 1, through: 0, by: -1) : stride(from: 0, through: size - 1, by: 1)
+            for row in rowRange {
+                for offset in 0...1 {
+                    let currentColumn = column - offset
+                    let position = index(row: row, column: currentColumn)
+                    if reserved[position] { continue }
+                    let dark = bitIndex < bits.count ? bits[bitIndex] : false
+                    modules[position] = dark
+                    bitIndex += 1
+                }
+            }
+            upward.toggle()
+            column -= 2
+        }
+    }
+
+    private mutating func applyMask0() {
+        for row in 0..<size {
+            for column in 0..<size where !reserved[index(row: row, column: column)] {
+                if (row + column).isMultiple(of: 2) {
+                    modules[index(row: row, column: column)].toggle()
+                }
+            }
+        }
+    }
+
+    private mutating func drawFormatBits() {
+        let bits = Self.formatBits(errorCorrectionBits: 1, mask: 0)
+        for i in 0..<15 {
+            let dark = ((bits >> i) & 1) == 1
+            let first = Self.formatBitCoordinateA(i)
+            let second = Self.formatBitCoordinateB(i, size: size)
+            set(row: first.row, column: first.column, dark: dark)
+            set(row: second.row, column: second.column, dark: dark)
+        }
+    }
+
+    private static func encodeData(_ payload: String) -> [UInt8] {
+        var bits: [Bool] = []
+        append(0b0100, bitCount: 4, to: &bits)
+        let bytes = Array(payload.utf8.prefix(78))
+        append(bytes.count, bitCount: 8, to: &bits)
+        for byte in bytes {
+            append(Int(byte), bitCount: 8, to: &bits)
+        }
+        append(0, bitCount: min(4, max(0, 640 - bits.count)), to: &bits)
+        while !bits.count.isMultiple(of: 8) { bits.append(false) }
+
+        var codewords = stride(from: 0, to: bits.count, by: 8).map { offset -> UInt8 in
+            var value: UInt8 = 0
+            for bit in 0..<8 where bits[offset + bit] {
+                value |= 1 << UInt8(7 - bit)
+            }
+            return value
+        }
+        var pad: UInt8 = 0xEC
+        while codewords.count < 80 {
+            codewords.append(pad)
+            pad = pad == 0xEC ? 0x11 : 0xEC
+        }
+        return Array(codewords.prefix(80))
+    }
+
+    private static func append(_ value: Int, bitCount: Int, to bits: inout [Bool]) {
+        guard bitCount > 0 else { return }
+        for shift in (0..<bitCount).reversed() {
+            bits.append(((value >> shift) & 1) == 1)
+        }
+    }
+
+    private static func reedSolomonRemainder(_ data: [UInt8], degree: Int) -> [UInt8] {
+        let generator = reedSolomonGenerator(degree: degree)
+        var result = Array(repeating: UInt8(0), count: degree)
+        for byte in data {
+            let factor = byte ^ result.removeFirst()
+            result.append(0)
+            for i in 0..<degree {
+                result[i] ^= multiply(generator[i], factor)
+            }
+        }
+        return result
+    }
+
+    private static func reedSolomonGenerator(degree: Int) -> [UInt8] {
+        var result: [UInt8] = [1]
+        for i in 0..<degree {
+            result.append(0)
+            let root = exp(i)
+            for j in stride(from: result.count - 1, through: 1, by: -1) {
+                result[j] = result[j - 1] ^ multiply(result[j], root)
+            }
+            result[0] = multiply(result[0], root)
+        }
+        return result
+    }
+
+    private static func multiply(_ x: UInt8, _ y: UInt8) -> UInt8 {
+        if x == 0 || y == 0 { return 0 }
+        return exp(log(x) + log(y))
+    }
+
+    private static func exp(_ power: Int) -> UInt8 {
+        var value = 1
+        for _ in 0..<(power % 255) {
+            value <<= 1
+            if value >= 0x100 { value ^= 0x11D }
+        }
+        return UInt8(value)
+    }
+
+    private static func log(_ value: UInt8) -> Int {
+        var current: UInt8 = 1
+        for i in 0..<255 {
+            if current == value { return i }
+            current = multiplyNoLog(current, 2)
+        }
+        return 0
+    }
+
+    private static func multiplyNoLog(_ x: UInt8, _ y: UInt8) -> UInt8 {
+        var a = Int(x)
+        var b = Int(y)
+        var result = 0
+        while b > 0 {
+            if b & 1 != 0 { result ^= a }
+            a <<= 1
+            if a & 0x100 != 0 { a ^= 0x11D }
+            b >>= 1
+        }
+        return UInt8(result & 0xFF)
+    }
+
+    private static func formatBits(errorCorrectionBits: Int, mask: Int) -> Int {
+        let data = (errorCorrectionBits << 3) | mask
+        var value = data << 10
+        let generator = 0x537
+        for shift in stride(from: 14, through: 10, by: -1) {
+            if ((value >> shift) & 1) != 0 {
+                value ^= generator << (shift - 10)
+            }
+        }
+        return ((data << 10) | value) ^ 0x5412
+    }
+
+    private static func formatBitCoordinateA(_ index: Int) -> (row: Int, column: Int) {
+        switch index {
+        case 0...5: return (8, index)
+        case 6: return (8, 7)
+        case 7: return (8, 8)
+        case 8: return (7, 8)
+        default: return (14 - index, 8)
+        }
+    }
+
+    private static func formatBitCoordinateB(_ index: Int, size: Int) -> (row: Int, column: Int) {
+        if index < 8 {
+            return (size - 1 - index, 8)
+        }
+        return (8, size - 15 + index)
     }
 }
