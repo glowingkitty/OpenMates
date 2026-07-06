@@ -130,7 +130,7 @@ enum PairLoginRuntime {
         return PairLoginResult(loginResponse: loginResponse, masterKey: masterKey)
     }
 
-    private static func decryptLoginBundle(
+    static func decryptLoginBundle(
         from response: PairCompleteResponse,
         token: String,
         pin: String
