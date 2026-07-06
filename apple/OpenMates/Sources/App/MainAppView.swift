@@ -1789,7 +1789,7 @@ struct MainAppView: View {
         let now = Date()
         let seededChats = (0..<Self.welcomeRecentOverflowUITestSeedCount).map { index in
             let timestamp = formatter.string(from: now.addingTimeInterval(TimeInterval(-index * 60)))
-            Chat(
+            return Chat(
                 id: "ui-test-welcome-recent-\(index)",
                 title: "Recent Chat \(index + 1)",
                 lastMessageAt: timestamp,
