@@ -614,8 +614,8 @@ verifications:
     status: passed
     evidence:
       status: "passed"
-      summary: "python3 scripts/apple_remote.py build-ios passed at 295c43419; xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_macOS CODE_SIGNING_ALLOWED=NO build passed at fd78409b6; python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesTests/BackgroundChatSenderParityTests passed with 7 tests, 0 failures; OpenMatesMacUITests target and OpenMates_macOS test scheme built at b1fa3dc before the runner connection hang. After the macOS scene-order regression fix, python3 scripts/apple_remote.py sync-repo --branch dev && python3 scripts/apple_remote.py repo -- xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_macOS -destination 'platform=macOS' build CODE_SIGNING_ALLOWED=NO passed at 212cc75c9."
-      timestamp: "2026-07-06T11:51:36Z"
+      summary: "python3 scripts/apple_remote.py build-ios passed at 295c43419; xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_macOS CODE_SIGNING_ALLOWED=NO build passed at fd78409b6; python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesTests/BackgroundChatSenderParityTests passed with 7 tests, 0 failures; OpenMatesMacUITests target and OpenMates_macOS test scheme built at b1fa3dc before the runner connection hang. After the macOS scene-order regression fix, python3 scripts/apple_remote.py sync-repo --branch dev && python3 scripts/apple_remote.py repo -- xcodebuild -project apple/OpenMates.xcodeproj -scheme OpenMates_macOS -destination 'platform=macOS' build CODE_SIGNING_ALLOWED=NO passed at 212cc75c9. After the glyph-only status icon and Quick Capture auth-refresh fix, the same remote macOS build passed at 20b31f1, and python3 scripts/apple_remote.py test-ios --simulator 'iPhone 17' --only-testing OpenMatesTests/ChatManagementSharingParityTests passed 7 tests, 0 failures."
+      timestamp: "2026-07-06T12:35:37Z"
 
   - id: V-TESTFLIGHT-001
     kind: manual_check
@@ -626,8 +626,8 @@ verifications:
     status: passed
     evidence:
       status: "passed"
-      summary: "User explicitly waived the macOS Quick Capture UI green gate for manual TestFlight testing after the remote Mac XCUITest runner repeatedly failed before product assertions with LocalAuthentication 'System authentication is running'. Initial waived upload at d1089bc7d succeeded, but manual follow-up found the macOS app opened menu-bar-only and the menu icon rendered as a blank square. After fixing the macOS scene order and original OpenMates menu bar image rendering, python3 scripts/apple_remote.py deploy-latest-testflight --branch dev synced remote dev at 212cc75c9 and uploaded both OpenMates_iOS IPA and OpenMates_macOS PKG; App Store Connect reported upload succeeded and package processing started for both."
-      timestamp: "2026-07-06T12:09:47Z"
+      summary: "User explicitly waived the macOS Quick Capture UI green gate for manual TestFlight testing after the remote Mac XCUITest runner repeatedly failed before product assertions with LocalAuthentication 'System authentication is running'. Initial waived upload at d1089bc7d succeeded, but manual follow-up found the macOS app opened menu-bar-only and the menu icon rendered as a blank square. A follow-up upload at 212cc75c9 restored primary window launch but still used the full blue app icon and could fail Quick Capture auth refresh. After replacing the menu bar label with a glyph-only OpenMates person/sparkles icon and refreshing the shared native auth session before menu bar load/send/attachment actions, python3 scripts/apple_remote.py deploy-latest-testflight --branch dev synced remote dev at 20b31f1 and uploaded both OpenMates_iOS IPA and OpenMates_macOS PKG; App Store Connect reported upload succeeded and package processing started for both."
+      timestamp: "2026-07-06T12:45:40Z"
 
 implementation_plan:
   existing_patterns:
