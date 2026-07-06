@@ -1605,6 +1605,7 @@ struct ChatView: View {
                         finishRecordAttempt()
                     }
             )
+            .accessibilityElement(children: .ignore)
             .accessibilityLabel(AppStrings.recordAudio)
             .accessibilityAddTraits(.isButton)
             .accessibilityIdentifier("record-audio-button")
