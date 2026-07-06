@@ -661,8 +661,9 @@ def assert_profile_supports_app_group(identifier, profile_path):
 
 def create_or_download_app_store_profiles():
     certificate_id = matching_distribution_certificate_id()
-    profiles_dir = pathlib.Path.home() / "Library" / "MobileDevice" / "Provisioning Profiles"
-    profiles_dir.mkdir(parents=True, exist_ok=True)
+    profile_dirs = provisioning_profile_dirs()
+    for profiles_dir in profile_dirs:
+        profiles_dir.mkdir(parents=True, exist_ok=True)
     for identifier in BUNDLE_IDS:
         profile_name = f"OpenMates {target_platform} App Store {identifier}"
         delete_existing_profile(profile_name)
@@ -685,8 +686,10 @@ def create_or_download_app_store_profiles():
         if not profile_content or not profile_uuid:
             print(f"profile_create=missing_content:{identifier}")
             sys.exit(1)
-        profile_path = profiles_dir / f"{profile_uuid}.{profile_extension}"
-        profile_path.write_bytes(base64.b64decode(profile_content))
+        profile_bytes = base64.b64decode(profile_content)
+        profile_path = profile_dirs[0] / f"{profile_uuid}.{profile_extension}"
+        for profiles_dir in profile_dirs:
+            (profiles_dir / f"{profile_uuid}.{profile_extension}").write_bytes(profile_bytes)
         assert_profile_supports_app_group(identifier, profile_path)
         profile_names[identifier] = profile_uuid
         print(f"profile_create=passed:{identifier}")
