@@ -205,6 +205,7 @@ struct OpenMatesApp: App {
         NativeMetricKitReporter.shared.start()
     }
 
+    @SceneBuilder
     var body: some Scene {
         mainWindowScene
 
