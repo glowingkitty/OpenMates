@@ -13,6 +13,8 @@
 		01A6184F6B962FB34FA5B574 /* EmbedFullscreenContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F59D6321EE1553D0589225B /* EmbedFullscreenContainer.swift */; };
 		02C2F9D9D1747B51FD08AF8F /* OfflineSyncBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B6AD3DACC91432F04B1E17 /* OfflineSyncBridge.swift */; };
 		033A6721A553CE34ADB246BA /* OMDesignPrimitives.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90F73912048C468D3CC42BC0 /* OMDesignPrimitives.swift */; };
+		C0FFEE000000000000046002 /* MessageComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046001 /* MessageComposerView.swift */; };
+		C0FFEE000000000000046003 /* MessageComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000046001 /* MessageComposerView.swift */; };
 		04B767719514CAB080FEB1CB /* LucideIcons in Frameworks */ = {isa = PBXBuildFile; productRef = 8FC7D47DA7AECCBB2EBDABE9 /* LucideIcons */; };
 		054A74F600EA9DCABA103B0A /* EditMessageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4011158DF04A05A08516EA7D /* EditMessageStore.swift */; };
 		0651B4D9F35E780990F06473 /* DataExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A6630F3C041702710BABA2 /* DataExtensions.swift */; };
@@ -743,6 +745,7 @@
 		BD9E81BC0C64D0292A9B5A8E /* SettingsShareDebugLogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsShareDebugLogsView.swift; sourceTree = "<group>"; };
 		BE1031D79B03616FF9E0E7F7 /* OpenMates.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenMates.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C085AAB1B7660B7EB15B8A54 /* VoiceRecordingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRecordingView.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000046001 /* MessageComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageComposerView.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000000001 /* DevChatOpeningPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevChatOpeningPreviewView.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000001001 /* ChatOpeningScalabilityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOpeningScalabilityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000001002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -1019,6 +1022,7 @@
 				DF95252DD3548D54E1FCF816 /* KeyboardShortcuts.swift */,
 				38D934941E331ECEAA249618 /* NetworkStatusView.swift */,
 				E8CE5605C33C752A2F0375B4 /* NotificationBanners.swift */,
+				C0FFEE000000000000046001 /* MessageComposerView.swift */,
 				196E2615E6B7768CDD149B36 /* OMButtonStyles.swift */,
 				90F73912048C468D3CC42BC0 /* OMDesignPrimitives.swift */,
 				96B5D464AD5823963A861166 /* RichMarkdownRenderer.swift */,
@@ -2061,6 +2065,7 @@
 				55A5191AF7E81A1B3329FE23 /* NotificationBanners.swift in Sources */,
 				77F5787BA1CA6159CB2E3BE6 /* NutritionSearchIntent.swift in Sources */,
 				1AE4F40CB96111DE493AF333 /* OMButtonStyles.swift in Sources */,
+				C0FFEE000000000000046002 /* MessageComposerView.swift in Sources */,
 				033A6721A553CE34ADB246BA /* OMDesignPrimitives.swift in Sources */,
 				D3FBB64A5CD7FE15DC4EAF62 /* OfflineStore.swift in Sources */,
 				BD39ADEB1143AFB7A91C5EB4 /* OfflineSyncBridge.swift in Sources */,
@@ -2271,6 +2276,7 @@
 				A10000000000000000000002 /* NotificationPreviewCrypto.swift in Sources */,
 				0BA7A4B79D29807CCFE43528 /* NutritionSearchIntent.swift in Sources */,
 				E84BB9B91F18230E57348D8B /* OMButtonStyles.swift in Sources */,
+				C0FFEE000000000000046003 /* MessageComposerView.swift in Sources */,
 				896CD28E397C1F666609BB1E /* OMDesignPrimitives.swift in Sources */,
 				25468B39379E6020F76E58A4 /* OfflineStore.swift in Sources */,
 				02C2F9D9D1747B51FD08AF8F /* OfflineSyncBridge.swift in Sources */,
