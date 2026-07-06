@@ -718,7 +718,10 @@ def clean_openmates_provisioning_profiles():
             if ".org.openmates.app" not in app_identifier and "org.openmates.app" not in profile_name:
                 continue
             target = backup_dir / profile.name
-            profile.replace(target)
+            try:
+                profile.replace(target)
+            except FileNotFoundError:
+                continue
             moved += 1
     print(f"provisioning_profile_cleanup=moved:{moved}")
 
