@@ -445,6 +445,15 @@ NOISE_MOTIVE_PATTERNS: List[str] = [
     r"kosmetisch",
     r"bleaching",
     r"professionelle\s+zahnreinigung",  # PZR — dental cleaning, not a medical visit
+    r"knie\s*-?\s*op",
+    r"\bop\s*-?\s*planung\b",
+    r"eingewachsene[rr]?\s+zehennagel",
+    r"nagelbettentzündung",
+    r"nackentransparenz",
+    r"erst\s*-?\s*trimester",
+    r"ersttrimester",
+    r"feindiagnostik",
+    r"schwangerschaft",
 ]
 
 NEGATION_TERMS_PATTERN = re.compile(r"\b(?:nicht|kein|keine|ohne|not|no)\b")
