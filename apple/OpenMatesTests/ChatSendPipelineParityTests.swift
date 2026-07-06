@@ -270,6 +270,160 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(merged, [textMapping, attachmentMapping])
     }
 
+    func testPrivacyFilterTokenDecoderBuildsExactSpansFromBIOESLabels() {
+        let text = "Tell Ada Lovelace the token is hunter2."
+        let nsText = text as NSString
+        let predictions = [
+            PrivacyFilterTokenPrediction(label: "B-private_person", range: nsText.range(of: "Ada"), score: 0.9),
+            PrivacyFilterTokenPrediction(label: "E-private_person", range: nsText.range(of: "Lovelace"), score: 0.8),
+            PrivacyFilterTokenPrediction(label: "O", range: nsText.range(of: "the"), score: 0.99),
+            PrivacyFilterTokenPrediction(label: "S-secret", range: nsText.range(of: "hunter2"), score: 0.95),
+        ]
+
+        let spans = PrivacyFilterTokenSpanDecoder.decode(predictions, in: text)
+
+        XCTAssertEqual(spans.count, 2)
+        XCTAssertEqual(spans[0].label, .privatePerson)
+        XCTAssertEqual(nsText.substring(with: spans[0].range), "Ada Lovelace")
+        XCTAssertEqual(spans[0].score, 0.85, accuracy: 0.0001)
+        XCTAssertEqual(spans[1].label, .secret)
+        XCTAssertEqual(nsText.substring(with: spans[1].range), "hunter2")
+    }
+
+    func testPrivacyFilterNativeDetectorRespectsSettingsScoreAndRanges() async throws {
+        let text = "Email alice@example.com, account 42424242, and keep Project Orchid private."
+        let nsText = text as NSString
+        let detector = PrivacyFilterNativeDetector(
+            runner: MockPrivacyFilterModelRunner(spans: [
+                PrivacyFilterModelSpan(label: .privateEmail, range: nsText.range(of: "alice@example.com"), score: 0.99),
+                PrivacyFilterModelSpan(label: .accountNumber, range: nsText.range(of: "42424242"), score: 0.99),
+                PrivacyFilterModelSpan(label: .secret, range: nsText.range(of: "Project Orchid"), score: 0.99),
+                PrivacyFilterModelSpan(label: .privatePerson, range: nsText.range(of: "private"), score: 0.2),
+                PrivacyFilterModelSpan(label: .privateAddress, range: NSRange(location: nsText.length + 1, length: 5), score: 0.99),
+            ]),
+            minimumScore: 0.5
+        )
+
+        let options = PIIDetectionOptions(disabledCategories: ["credit_card_numbers", "email_addresses"])
+        let spans = try await detector.detectModelSpans(in: text, options: options)
+
+        XCTAssertEqual(spans.map(\.label), [.secret])
+        XCTAssertEqual(nsText.substring(with: try XCTUnwrap(spans.first?.range)), "Project Orchid")
+
+        let matches = try await detector.detectedMatches(in: text, options: options)
+        XCTAssertEqual(matches.map(\.type), [.genericSecret])
+        XCTAssertEqual(matches.first?.value, "Project Orchid")
+    }
+
+    func testPrivacyFilterNativeDetectorKeepsRegexPrecedenceWhenMerging() async throws {
+        let text = "Email alice@example.com about Project Orchid."
+        let nsText = text as NSString
+        let detector = PrivacyFilterNativeDetector(
+            runner: MockPrivacyFilterModelRunner(spans: [
+                PrivacyFilterModelSpan(label: .privateEmail, range: nsText.range(of: "alice@example.com"), score: 0.99),
+                PrivacyFilterModelSpan(label: .secret, range: nsText.range(of: "Project Orchid"), score: 0.98),
+                PrivacyFilterModelSpan(label: .privatePerson, range: nsText.range(of: "Orchid"), score: 0.97),
+            ])
+        )
+
+        let merged = try await detector.detectedMatches(in: text)
+
+        XCTAssertEqual(merged.count, 2)
+        XCTAssertEqual(merged[0].type, .email)
+        XCTAssertEqual(merged[0].placeholder, "[EMAIL_1_com]")
+        XCTAssertEqual(nsText.substring(with: merged[0].range), "alice@example.com")
+        let expectedModelId = "pii-model-secret-\(nsText.range(of: "Project Orchid").location)"
+        XCTAssertEqual(merged[1].id, expectedModelId)
+        XCTAssertEqual(merged[1].type, .genericSecret)
+        XCTAssertEqual(merged[1].placeholder, "[SECRET_1_hid]")
+        XCTAssertEqual(nsText.substring(with: merged[1].range), "Project Orchid")
+
+        let redaction = PIIDetector.redactionResult(in: text, matches: merged)
+        XCTAssertFalse(redaction.redactedText.contains("alice@example.com"))
+        XCTAssertFalse(redaction.redactedText.contains("Project Orchid"))
+        XCTAssertTrue(redaction.mappings.contains { $0.original == "Project Orchid" && $0.type == "GENERIC_SECRET" })
+    }
+
+    func testPrivacyFilterNativeDetectorDoesNotLoadModelForEmptyInput() async throws {
+        let detector = PrivacyFilterNativeDetector(runner: ThrowingPrivacyFilterModelRunner())
+
+        let spans = try await detector.detectModelSpans(in: "   \n")
+
+        XCTAssertTrue(spans.isEmpty)
+    }
+
+    func testEnhancedPIIFallsBackToRegexWhenModelUnavailable() async {
+        let text = "Email alice@example.com before launch."
+        let detector = EnhancedPIIDetector(modelDetector: nil)
+
+        let result = await detector.detect(in: text)
+
+        XCTAssertEqual(result.mode, .regexOnly)
+        XCTAssertTrue(result.matches.contains { $0.type == .email && $0.value == "alice@example.com" })
+        XCTAssertFalse(result.sanitizedStatus.contains("alice@example.com"))
+    }
+
+    func testEnhancedPIIComposerSuggestionBackoff() {
+        var policy = EnhancedPIIRecommendationPolicy()
+        let matches = PIIDetector.detect(in: "Email alice@example.com")
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+
+        XCTAssertFalse(policy.shouldRecommend(regexMatches: [], modelStatus: .notDownloaded, now: now))
+        XCTAssertTrue(policy.shouldRecommend(regexMatches: matches, modelStatus: .notDownloaded, now: now))
+        XCTAssertFalse(policy.shouldRecommend(regexMatches: matches, modelStatus: .ready(version: "1", sizeBytes: 10), now: now))
+
+        policy.dismiss(now: now)
+        XCTAssertFalse(policy.shouldRecommend(regexMatches: matches, modelStatus: .notDownloaded, now: now.addingTimeInterval(60)))
+        XCTAssertTrue(policy.shouldRecommend(regexMatches: matches, modelStatus: .notDownloaded, now: now.addingTimeInterval(31 * 24 * 60 * 60)))
+    }
+
+    func testEnhancedPIIModelSpansMergeIntoMappings() async {
+        let text = "Email alice@example.com about Project Orchid."
+        let nsText = text as NSString
+        let detector = EnhancedPIIDetector(
+            modelDetector: PrivacyFilterNativeDetector(
+                runner: MockPrivacyFilterModelRunner(spans: [
+                    PrivacyFilterModelSpan(label: .privateEmail, range: nsText.range(of: "alice@example.com"), score: 0.99),
+                    PrivacyFilterModelSpan(label: .secret, range: nsText.range(of: "Project Orchid"), score: 0.98),
+                    PrivacyFilterModelSpan(label: .privatePerson, range: nsText.range(of: "Orchid"), score: 0.97),
+                ])
+            )
+        )
+
+        let result = await detector.detect(in: text)
+
+        XCTAssertEqual(result.mode, .enhanced)
+        XCTAssertEqual(result.matches.count, 2)
+        XCTAssertEqual(result.matches[0].type, .email)
+        XCTAssertEqual(result.matches[1].type, .genericSecret)
+        XCTAssertEqual(result.matches[1].value, "Project Orchid")
+        let redaction = PIIDetector.redactionResult(in: text, matches: result.matches)
+        XCTAssertFalse(redaction.redactedText.contains("Project Orchid"))
+        XCTAssertTrue(redaction.mappings.contains { $0.original == "Project Orchid" && $0.type == "GENERIC_SECRET" })
+    }
+
+    func testEnhancedPIIModelTimeoutFallsBackToRegex() async {
+        let text = "Email alice@example.com about Project Orchid."
+        let nsText = text as NSString
+        let detector = EnhancedPIIDetector(
+            modelDetector: PrivacyFilterNativeDetector(
+                runner: SlowPrivacyFilterModelRunner(
+                    delayNanoseconds: 100_000_000,
+                    spans: [PrivacyFilterModelSpan(label: .secret, range: nsText.range(of: "Project Orchid"), score: 0.99)]
+                )
+            ),
+            modelTimeoutNanoseconds: 1_000_000
+        )
+
+        let result = await detector.detect(in: text)
+
+        XCTAssertEqual(result.mode, .regexFallback(reason: .timeout))
+        XCTAssertTrue(result.matches.contains { $0.type == .email })
+        XCTAssertFalse(result.matches.contains { $0.value == "Project Orchid" })
+        XCTAssertFalse(result.sanitizedStatus.contains("Project Orchid"))
+        XCTAssertFalse(result.sanitizedStatus.contains("alice@example.com"))
+    }
+
     func testCompletedAssistantVersionAdvancesPastUserMessageVersion() {
         let pipeline = ChatSendPipeline()
 
@@ -444,5 +598,33 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(history?.count, 1)
         XCTAssertEqual(history?.first?["content"] as? String, "Private prompt")
         XCTAssertNil(history?.first?["encrypted_content"])
+    }
+}
+
+private struct MockPrivacyFilterModelRunner: PrivacyFilterModelRunning {
+    let spans: [PrivacyFilterModelSpan]
+
+    func detectedSpans(in text: String) async throws -> [PrivacyFilterModelSpan] {
+        spans
+    }
+}
+
+private struct ThrowingPrivacyFilterModelRunner: PrivacyFilterModelRunning {
+    enum RunnerError: Error {
+        case unexpectedlyCalled
+    }
+
+    func detectedSpans(in text: String) async throws -> [PrivacyFilterModelSpan] {
+        throw RunnerError.unexpectedlyCalled
+    }
+}
+
+private struct SlowPrivacyFilterModelRunner: PrivacyFilterModelRunning {
+    let delayNanoseconds: UInt64
+    let spans: [PrivacyFilterModelSpan]
+
+    func detectedSpans(in text: String) async throws -> [PrivacyFilterModelSpan] {
+        try await Task.sleep(nanoseconds: delayNanoseconds)
+        return spans
     }
 }

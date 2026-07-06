@@ -24,6 +24,40 @@ final class SettingsFullParityTests: XCTestCase {
         XCTAssertTrue(SettingsRouteInventory.nativeEquivalentOrPlannedRoutes.contains("account/security/recovery-key"))
     }
 
+    func testEnhancedPIIModelSettingsLifecycle() async {
+        let manifest = EnhancedPIIModelManifest(
+            version: "2026-07-privacy-filter-q4",
+            sizeBytes: 771_740_000,
+            remoteURL: URL(string: "https://example.invalid/openmates/privacy-filter.onnx")!,
+            sha256: String(repeating: "a", count: 64)
+        )
+        let downloader = MockEnhancedPIIModelDownloader()
+        let controller = EnhancedPIIModelDownloadController(manifest: manifest, downloader: downloader)
+
+        XCTAssertEqual(controller.status, .notDownloaded)
+        XCTAssertTrue(controller.statusCopy.contains("Download"))
+        XCTAssertTrue(controller.statusCopy.contains("local"))
+        XCTAssertTrue(controller.sizeCopy.contains("735.99 MB"))
+
+        await controller.download()
+        XCTAssertEqual(controller.status, .ready(version: manifest.version, sizeBytes: manifest.sizeBytes))
+        XCTAssertEqual(downloader.downloadedManifests, [manifest])
+
+        controller.markUpdateAvailable(version: "2026-08-privacy-filter-q4", sizeBytes: 800_000_000)
+        XCTAssertEqual(
+            controller.status,
+            .updateAvailable(currentVersion: manifest.version, newVersion: "2026-08-privacy-filter-q4", sizeBytes: 800_000_000)
+        )
+
+        await controller.remove()
+        XCTAssertEqual(controller.status, .notDownloaded)
+
+        let failing = EnhancedPIIModelDownloadController(manifest: nil, downloader: downloader)
+        await failing.download()
+        XCTAssertEqual(failing.status, .failed(reason: .modelNotConfigured))
+        XCTAssertFalse(failing.statusCopy.contains("example.invalid"))
+    }
+
     func testAppMetadataDecoderPreservesWebFields() throws {
         let data = Data(Self.metadataFixture.utf8)
         let response = try Self.metadataDecoder.decode(SettingsAppsFullView.AppsMetadataResponse.self, from: data)
@@ -392,4 +426,15 @@ final class SettingsFullParityTests: XCTestCase {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return decoder
     }()
+}
+
+private final class MockEnhancedPIIModelDownloader: EnhancedPIIModelDownloading, @unchecked Sendable {
+    private(set) var downloadedManifests: [EnhancedPIIModelManifest] = []
+
+    func download(_ manifest: EnhancedPIIModelManifest, progress: (Double) async -> Void) async throws -> URL {
+        downloadedManifests.append(manifest)
+        await progress(0.25)
+        await progress(1.0)
+        return URL(fileURLWithPath: "/tmp/openmates-privacy-filter.onnx")
+    }
 }

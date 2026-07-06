@@ -267,6 +267,18 @@ enum AppStrings {
     static var privacyFormTextToHide: String { L("settings.privacy.form.text_to_hide") }
     static var privacyFormReplaceWith: String { L("settings.privacy.form.replace_with") }
     static var privacyEncryptionNote: String { L("settings.privacy.encryption_note") }
+    static var enhancedPIIModelTitle: String { L("settings.privacy.enhanced_pii_model.title") }
+    static var enhancedPIIModelDescription: String { L("settings.privacy.enhanced_pii_model.description") }
+    static var enhancedPIIModelDownload: String { L("settings.privacy.enhanced_pii_model.download") }
+    static var enhancedPIIModelDownloading: String { L("settings.privacy.enhanced_pii_model.downloading") }
+    static var enhancedPIIModelReady: String { L("settings.privacy.enhanced_pii_model.ready") }
+    static var enhancedPIIModelUpdateAvailable: String { L("settings.privacy.enhanced_pii_model.update_available") }
+    static var enhancedPIIModelFailed: String { L("settings.privacy.enhanced_pii_model.failed") }
+    static var enhancedPIIModelRemove: String { L("settings.privacy.enhanced_pii_model.remove") }
+    static var enhancedPIIModelStatusNotDownloaded: String { L("settings.privacy.enhanced_pii_model.status_not_downloaded") }
+    static var enhancedPIIModelStatusLocalReady: String { L("settings.privacy.enhanced_pii_model.status_local_ready") }
+    static var enhancedPIIModelComposerSuggestionTitle: String { L("settings.privacy.enhanced_pii_model.composer_suggestion_title") }
+    static var enhancedPIIModelComposerSuggestionDescription: String { L("settings.privacy.enhanced_pii_model.composer_suggestion_description") }
     static var autoDeleteChats: String { L("settings.privacy.auto_deletion") }
     static var shareDebugLogs: String { L("settings.privacy.debug_logging_title") }
     static var never: String { L("common.never") }

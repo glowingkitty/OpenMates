@@ -129,6 +129,8 @@ struct ChatView: View {
     @StateObject private var viewModel = ChatViewModel()
     @StateObject private var handoffManager = HandoffManager()
     @StateObject private var piiPrivacySettingsStore = PIIPrivacySettingsStore.shared
+    @StateObject private var enhancedPIIModelController = EnhancedPIIModelDownloadController.shared
+    @StateObject private var enhancedPIIRecommendationStore = EnhancedPIIRecommendationStore.shared
     @State private var messageText = ""
     @State private var selectedEmbed: EmbedRecord?
     @State private var showEmbedFullscreen = false
@@ -145,6 +147,7 @@ struct ChatView: View {
     @State private var recordHintTask: Task<Void, Never>?
     @State private var detectedPIIMatches: [PIIMatch] = []
     @State private var piiExclusions: Set<String> = []
+    @State private var enhancedPIIDetectionTask: Task<Void, Never>?
     @State private var mentionQuery: String?
     @State private var actionMessage: Message?
     @State private var chatViewportHeight: CGFloat = 0
@@ -1277,6 +1280,17 @@ struct ChatView: View {
                 piiExclusions.formUnion(detectedPIIMatches.map(\.id))
             }
 
+            if enhancedPIIModelController.isDownloadConfigured,
+               enhancedPIIRecommendationStore.shouldRecommend(
+                   regexMatches: activePIIMatches,
+                   modelStatus: enhancedPIIModelController.status
+               ) {
+                EnhancedPIIModelSuggestionBanner(
+                    onDownload: { Task { await enhancedPIIModelController.performPrimaryAction() } },
+                    onDismiss: { enhancedPIIRecommendationStore.dismiss() }
+                )
+            }
+
             PIIHighlightStrip(matches: activePIIMatches) { match in
                 piiExclusions.insert(match.id)
             }
@@ -1730,31 +1744,31 @@ struct ChatView: View {
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty || viewModel.hasPendingComposerEmbeds else { return }
-        let redaction = PIIDetector.redactionResult(
-            in: text,
-            excludedIds: piiExclusions,
-            options: piiPrivacySettingsStore.detectionOptions()
-        )
-        let sanitizedText = redaction.redactedText
-        let piiMappings = redaction.mappings
-        if let chatId = viewModel.chat?.id, pendingUploads.hasActiveUploads(chatId: chatId) {
-            let blockingIds = Set(pendingUploads.uploadsForChat(chatId).map(\.id))
-            pendingUploads.addPendingSend(
-                chatId: chatId,
-                content: sanitizedText,
-                piiMappings: piiMappings,
-                blockingUploadIds: blockingIds,
-                dispatchThroughActiveComposer: true
-            )
-            messageText = ""
-            return
+        let excludedIds = piiExclusions
+        let pendingChatId = viewModel.chat?.id
+        let blockingUploadIds = pendingChatId.flatMap { chatId -> Set<String>? in
+            guard pendingUploads.hasActiveUploads(chatId: chatId) else { return nil }
+            return Set(pendingUploads.uploadsForChat(chatId).map(\.id))
         }
         messageText = ""
         detectedPIIMatches = []
         piiExclusions = []
         mentionQuery = nil
 
-        Task {
+        Task { @MainActor in
+            let redaction = await enhancedRedactionResult(in: text, excludedIds: excludedIds)
+            let sanitizedText = redaction.redactedText
+            let piiMappings = redaction.mappings
+            if let chatId = pendingChatId, let blockingUploadIds {
+                pendingUploads.addPendingSend(
+                    chatId: chatId,
+                    content: sanitizedText,
+                    piiMappings: piiMappings,
+                    blockingUploadIds: blockingUploadIds,
+                    dispatchThroughActiveComposer: true
+                )
+                return
+            }
             await viewModel.sendMessage(
                 sanitizedText,
                 piiMappings: piiMappings,
@@ -1800,9 +1814,38 @@ struct ChatView: View {
     }
 
     private func updatePIIMatches(for text: String) {
-        detectedPIIMatches = PIIDetector.detect(in: text, options: piiPrivacySettingsStore.detectionOptions())
+        let options = piiPrivacySettingsStore.detectionOptions()
+        let regexMatches = PIIDetector.detect(in: text, options: options)
+        detectedPIIMatches = regexMatches
         let currentIds = Set(detectedPIIMatches.map(\.id))
         piiExclusions = piiExclusions.intersection(currentIds)
+
+        enhancedPIIDetectionTask?.cancel()
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              enhancedPIIModelController.modelDetector != nil else { return }
+        let snapshot = text
+        enhancedPIIDetectionTask = Task { @MainActor in
+            let result = await enhancedDetector.detect(in: snapshot, options: options)
+            guard !Task.isCancelled, snapshot == messageText else { return }
+            detectedPIIMatches = result.matches
+            let currentIds = Set(result.matches.map(\.id))
+            piiExclusions = piiExclusions.intersection(currentIds)
+        }
+    }
+
+    private var enhancedDetector: EnhancedPIIDetector {
+        EnhancedPIIDetector(modelDetector: enhancedPIIModelController.modelDetector)
+    }
+
+    private func enhancedRedactionResult(in text: String, excludedIds: Set<String>) async -> PIIRedactionResult {
+        let options = piiPrivacySettingsStore.detectionOptions()
+        let detection = await enhancedDetector.detect(in: text, options: options)
+        return PIIDetector.redactionResult(
+            in: text,
+            matches: detection.matches,
+            excludedIds: excludedIds,
+            options: options
+        )
     }
 
     private func updateMentionQuery(for text: String) {

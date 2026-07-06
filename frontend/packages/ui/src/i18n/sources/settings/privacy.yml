@@ -166,6 +166,54 @@ hide_personal_data.description:
   sv: OpenMates ersätter automatiskt känslig data med platshållare innan de skickas till OpenMates-servern och externa leverantörer för att skydda din integritet. Ersatt data är visuellt markerad. Du kan alltid klicka på en ersatt datapost för att skriva över ersättningen, eller stänga av funktionaliteten helt här.
   he: OpenMates תחליף באופן אוטומטי נתונים רגישים בממלאי מקום, לפני שליחתם לשרת של OpenMates ולכל ספק חיצוני, כדי להגן על הפרטיות שלך. נתונים שהוחלפו מודגשים באופן חזותי. תמיד ניתן ללחוץ על ערך נתונים שהוחלף כדי לדרוס את ההחלפה, או לכבות את הפונקציונליות לחלוטין כאן.
   verified_by_human: []
+enhanced_pii_model.title:
+  context: Settings section title for optional on-device enhanced PII model.
+  en: Enhanced personal data detection
+  verified_by_human: [en]
+enhanced_pii_model.description:
+  context: Settings description for optional on-device enhanced PII model.
+  en: Download an optional on-device model to detect contextual personal data like names, addresses, and dates. Detection runs locally; your text is not sent anywhere.
+  verified_by_human: [en]
+enhanced_pii_model.download:
+  context: Button label to download optional on-device enhanced PII model.
+  en: Download model
+  verified_by_human: [en]
+enhanced_pii_model.downloading:
+  context: Status label while optional enhanced PII model downloads.
+  en: Downloading model
+  verified_by_human: [en]
+enhanced_pii_model.ready:
+  context: Status label when optional enhanced PII model is ready.
+  en: Enhanced detection ready
+  verified_by_human: [en]
+enhanced_pii_model.update_available:
+  context: Status label when optional enhanced PII model update is available.
+  en: Model update available
+  verified_by_human: [en]
+enhanced_pii_model.failed:
+  context: Status label when optional enhanced PII model download failed.
+  en: Model download failed
+  verified_by_human: [en]
+enhanced_pii_model.remove:
+  context: Button label to remove optional on-device enhanced PII model.
+  en: Remove model
+  verified_by_human: [en]
+enhanced_pii_model.status_not_downloaded:
+  context: Status copy before downloading optional enhanced PII model.
+  en: Download the local model for stronger personal data detection.
+  verified_by_human: [en]
+enhanced_pii_model.status_local_ready:
+  context: Status copy when optional enhanced PII model is ready.
+  en: The model is stored locally and ready to use.
+  verified_by_human: [en]
+enhanced_pii_model.composer_suggestion_title:
+  context: Composer inline suggestion title for optional enhanced PII model.
+  en: Improve personal data detection
+  verified_by_human: [en]
+enhanced_pii_model.composer_suggestion_description:
+  context: Composer inline suggestion body for optional enhanced PII model.
+  en: Download the optional on-device model to catch more personal details before sending. Your text stays local.
+  verified_by_human: [en]
 connected_accounts.title:
   context: Privacy settings sub-page title for encrypted third-party connected accounts.
   en: Connected accounts

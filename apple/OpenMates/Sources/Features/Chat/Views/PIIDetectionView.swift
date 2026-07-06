@@ -3,6 +3,7 @@
 // Replaces PII with placeholders like [EMAIL_1], [PHONE_1] on send.
 
 import SwiftUI
+import CryptoKit
 
 struct PIIMatch: Identifiable, Equatable, Sendable {
     let id: String
@@ -377,7 +378,7 @@ enum PIIDetector {
             .joined(separator: ", ")
     }
 
-    private static func placeholder(for type: PIIType, count: Int, value: String) -> String {
+    static func placeholder(for type: PIIType, count: Int, value: String) -> String {
         switch type {
         case .awsAccessKey: return "[AWS_KEY_\(count)_\(suffix(value))]"
         case .awsSecretKey: return "[AWS_SECRET_\(count)_\(suffix(value))]"
@@ -548,6 +549,676 @@ enum PIIDetector {
     }
 }
 
+enum PrivacyFilterSpanSource: String, Sendable {
+    case regex
+    case model
+}
+
+enum PrivacyFilterModelLabel: String, CaseIterable, Sendable {
+    case accountNumber = "account_number"
+    case privateAddress = "private_address"
+    case privateDate = "private_date"
+    case privateEmail = "private_email"
+    case privatePerson = "private_person"
+    case privatePhone = "private_phone"
+    case privateURL = "private_url"
+    case secret
+
+    var categoryKeys: Set<String> {
+        switch self {
+        case .privateEmail:
+            return ["email_addresses"]
+        case .privatePhone:
+            return ["phone_numbers"]
+        case .privateAddress:
+            return ["addresses"]
+        case .accountNumber:
+            return ["credit_card_numbers", "iban_bank_account"]
+        case .secret, .privateDate, .privatePerson, .privateURL:
+            return ["generic_secrets"]
+        }
+    }
+
+    var piiType: PIIType {
+        switch self {
+        case .privateEmail:
+            return .email
+        case .privatePhone:
+            return .phone
+        case .privateAddress:
+            return .address
+        case .accountNumber, .secret, .privateDate, .privatePerson, .privateURL:
+            return .genericSecret
+        }
+    }
+}
+
+struct PrivacyFilterModelSpan: Equatable, Sendable {
+    let label: PrivacyFilterModelLabel
+    let range: NSRange
+    let score: Double
+}
+
+struct PrivacyFilterTokenPrediction: Equatable, Sendable {
+    let label: String
+    let range: NSRange
+    let score: Double
+}
+
+enum PrivacyFilterTokenSpanDecoder {
+    static func decode(_ predictions: [PrivacyFilterTokenPrediction], in text: String) -> [PrivacyFilterModelSpan] {
+        let nsText = text as NSString
+        var spans: [PrivacyFilterModelSpan] = []
+        var currentLabel: PrivacyFilterModelLabel?
+        var currentRange: NSRange?
+        var currentScores: [Double] = []
+
+        func flushCurrent() {
+            guard let label = currentLabel, let range = currentRange, !currentScores.isEmpty else { return }
+            let score = currentScores.reduce(0, +) / Double(currentScores.count)
+            spans.append(PrivacyFilterModelSpan(label: label, range: range, score: score))
+            currentLabel = nil
+            currentRange = nil
+            currentScores = []
+        }
+
+        func appendCurrent(label: PrivacyFilterModelLabel, range: NSRange, score: Double) {
+            if currentLabel == label, let existing = currentRange {
+                currentRange = NSUnionRange(existing, range)
+                currentScores.append(score)
+            } else {
+                flushCurrent()
+                currentLabel = label
+                currentRange = range
+                currentScores = [score]
+            }
+        }
+
+        for prediction in predictions.sorted(by: { $0.range.location < $1.range.location }) {
+            guard prediction.range.location >= 0,
+                  prediction.range.length > 0,
+                  NSMaxRange(prediction.range) <= nsText.length else {
+                continue
+            }
+            guard let decoded = decodeLabel(prediction.label) else {
+                flushCurrent()
+                continue
+            }
+
+            switch decoded.prefix {
+            case "S":
+                flushCurrent()
+                spans.append(PrivacyFilterModelSpan(label: decoded.label, range: prediction.range, score: prediction.score))
+            case "B":
+                flushCurrent()
+                currentLabel = decoded.label
+                currentRange = prediction.range
+                currentScores = [prediction.score]
+            case "I":
+                appendCurrent(label: decoded.label, range: prediction.range, score: prediction.score)
+            case "E":
+                appendCurrent(label: decoded.label, range: prediction.range, score: prediction.score)
+                flushCurrent()
+            default:
+                flushCurrent()
+                spans.append(PrivacyFilterModelSpan(label: decoded.label, range: prediction.range, score: prediction.score))
+            }
+        }
+        flushCurrent()
+        return spans.sorted { $0.range.location < $1.range.location }
+    }
+
+    private static func decodeLabel(_ rawLabel: String) -> (prefix: String?, label: PrivacyFilterModelLabel)? {
+        guard rawLabel != "O" else { return nil }
+        let parts = rawLabel.split(separator: "-", maxSplits: 1).map(String.init)
+        if parts.count == 2, ["B", "I", "E", "S"].contains(parts[0]) {
+            guard let label = PrivacyFilterModelLabel(rawValue: parts[1]) else { return nil }
+            return (prefix: parts[0], label: label)
+        }
+        guard let label = PrivacyFilterModelLabel(rawValue: rawLabel) else { return nil }
+        return (prefix: nil, label: label)
+    }
+}
+
+struct PrivacyFilterMergedSpan: Equatable, Sendable {
+    let source: PrivacyFilterSpanSource
+    let label: String
+    let range: NSRange
+    let score: Double?
+}
+
+protocol PrivacyFilterModelRunning: Sendable {
+    func detectedSpans(in text: String) async throws -> [PrivacyFilterModelSpan]
+}
+
+struct PrivacyFilterNativeDetector: Sendable {
+    static let defaultMinimumScore = 0.5
+
+    let runner: any PrivacyFilterModelRunning
+    let minimumScore: Double
+
+    init(runner: any PrivacyFilterModelRunning, minimumScore: Double = defaultMinimumScore) {
+        self.runner = runner
+        self.minimumScore = minimumScore
+    }
+
+    func detectModelSpans(
+        in text: String,
+        options: PIIDetectionOptions = PIIDetectionOptions()
+    ) async throws -> [PrivacyFilterModelSpan] {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
+        let nsText = text as NSString
+        return try await runner.detectedSpans(in: text)
+            .filter { span in
+                span.score >= minimumScore
+                    && span.range.location >= 0
+                    && span.range.length > 0
+                    && NSMaxRange(span.range) <= nsText.length
+                    && options.disabledCategories.isDisjoint(with: span.label.categoryKeys)
+            }
+            .sorted { $0.range.location < $1.range.location }
+    }
+
+    func mergedSpans(
+        in text: String,
+        regexMatches: [PIIMatch],
+        options: PIIDetectionOptions = PIIDetectionOptions()
+    ) async throws -> [PrivacyFilterMergedSpan] {
+        let modelSpans = try await detectModelSpans(in: text, options: options)
+        return PrivacyFilterSpanMerger.merge(regexMatches: regexMatches, modelSpans: modelSpans)
+    }
+
+    func detectedMatches(
+        in text: String,
+        options: PIIDetectionOptions = PIIDetectionOptions()
+    ) async throws -> [PIIMatch] {
+        let regexMatches = PIIDetector.detect(in: text, options: options)
+        let modelSpans = try await detectModelSpans(in: text, options: options)
+        return PrivacyFilterSpanMerger.mergeMatches(
+            text: text,
+            regexMatches: regexMatches,
+            modelSpans: modelSpans,
+            excludedIds: options.excludedIds
+        )
+    }
+}
+
+enum PrivacyFilterSpanMerger {
+    static func merge(regexMatches: [PIIMatch], modelSpans: [PrivacyFilterModelSpan]) -> [PrivacyFilterMergedSpan] {
+        var merged = regexMatches.map { match in
+            PrivacyFilterMergedSpan(
+                source: .regex,
+                label: match.type.rawValue,
+                range: match.range,
+                score: nil
+            )
+        }
+        for span in selectedModelSpans(regexMatches: regexMatches, modelSpans: modelSpans) {
+            merged.append(
+                PrivacyFilterMergedSpan(
+                    source: .model,
+                    label: span.label.rawValue,
+                    range: span.range,
+                    score: span.score
+                )
+            )
+        }
+        return merged.sorted { $0.range.location < $1.range.location }
+    }
+
+    static func mergeMatches(
+        text: String,
+        regexMatches: [PIIMatch],
+        modelSpans: [PrivacyFilterModelSpan],
+        excludedIds: Set<String>
+    ) -> [PIIMatch] {
+        let nsText = text as NSString
+        var counters = Dictionary(grouping: regexMatches, by: \.type).mapValues(\.count)
+        var matches = regexMatches
+
+        for span in selectedModelSpans(regexMatches: regexMatches, modelSpans: modelSpans) {
+            let type = span.label.piiType
+            let id = "pii-model-\(span.label.rawValue)-\(span.range.location)"
+            guard !excludedIds.contains(id) else { continue }
+            let value = nsText.substring(with: span.range)
+            let count = (counters[type] ?? 0) + 1
+            counters[type] = count
+            matches.append(
+                PIIMatch(
+                    id: id,
+                    type: type,
+                    value: value,
+                    range: span.range,
+                    placeholder: PIIDetector.placeholder(for: type, count: count, value: value)
+                )
+            )
+        }
+
+        return matches.sorted { $0.range.location < $1.range.location }
+    }
+
+    private static func selectedModelSpans(
+        regexMatches: [PIIMatch],
+        modelSpans: [PrivacyFilterModelSpan]
+    ) -> [PrivacyFilterModelSpan] {
+        var occupied = regexMatches.map(\.range)
+        var selected: [PrivacyFilterModelSpan] = []
+        let ranked = modelSpans.sorted {
+            if $0.score != $1.score { return $0.score > $1.score }
+            if $0.range.length != $1.range.length { return $0.range.length > $1.range.length }
+            return $0.range.location < $1.range.location
+        }
+
+        for span in ranked where !occupied.contains(where: { NSIntersectionRange($0, span.range).length > 0 }) {
+            selected.append(span)
+            occupied.append(span.range)
+        }
+        return selected.sorted { $0.range.location < $1.range.location }
+    }
+}
+
+enum EnhancedPIIModelConfiguration {
+    // Set this once the OpenMates-hosted artifact URL, SHA-256, and size are finalized.
+    static let productionManifest: EnhancedPIIModelManifest? = nil
+}
+
+struct EnhancedPIIModelManifest: Equatable, Sendable {
+    let version: String
+    let sizeBytes: Int
+    let remoteURL: URL
+    let sha256: String
+}
+
+enum EnhancedPIIModelFailureReason: String, Equatable, Sendable {
+    case modelNotConfigured = "model_not_configured"
+    case downloadFailed = "download_failed"
+    case removalFailed = "removal_failed"
+    case timeout
+    case runtimeFailed = "runtime_failed"
+}
+
+enum EnhancedPIIModelStatus: Equatable, Sendable {
+    case notDownloaded
+    case downloading(progress: Double)
+    case ready(version: String, sizeBytes: Int)
+    case failed(reason: EnhancedPIIModelFailureReason)
+    case updateAvailable(currentVersion: String, newVersion: String, sizeBytes: Int)
+    case removing
+
+    var isReady: Bool {
+        if case .ready = self { return true }
+        return false
+    }
+
+    var canRecommendDownload: Bool {
+        switch self {
+        case .notDownloaded, .failed, .updateAvailable:
+            return true
+        case .downloading, .ready, .removing:
+            return false
+        }
+    }
+}
+
+protocol EnhancedPIIModelDownloading: Sendable {
+    func download(_ manifest: EnhancedPIIModelManifest, progress: (Double) async -> Void) async throws -> URL
+}
+
+struct URLSessionEnhancedPIIModelDownloader: EnhancedPIIModelDownloading {
+    enum DownloadError: Error {
+        case checksumMismatch
+    }
+
+    func download(_ manifest: EnhancedPIIModelManifest, progress: (Double) async -> Void) async throws -> URL {
+        await progress(0.05)
+        let (temporaryURL, _) = try await URLSession.shared.download(from: manifest.remoteURL)
+        await progress(0.85)
+        let digest = try sha256Hex(for: temporaryURL)
+        guard digest.caseInsensitiveCompare(manifest.sha256) == .orderedSame else {
+            throw DownloadError.checksumMismatch
+        }
+
+        let directory = try modelDirectory()
+        let targetURL = directory.appendingPathComponent("privacy-filter-\(manifest.version).onnx")
+        try removeExistingModelArtifacts(in: directory, excluding: targetURL)
+        if FileManager.default.fileExists(atPath: targetURL.path) {
+            try FileManager.default.removeItem(at: targetURL)
+        }
+        try FileManager.default.moveItem(at: temporaryURL, to: targetURL)
+        await progress(1.0)
+        return targetURL
+    }
+
+    private func modelDirectory() throws -> URL {
+        let appSupport = try FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        let directory = appSupport.appendingPathComponent("EnhancedPIIModel", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    private func removeExistingModelArtifacts(in directory: URL, excluding targetURL: URL) throws {
+        let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+        for file in files where file.lastPathComponent.hasPrefix("privacy-filter-") && file != targetURL {
+            try FileManager.default.removeItem(at: file)
+        }
+    }
+
+    private func sha256Hex(for url: URL) throws -> String {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        var hasher = SHA256()
+        while true {
+            let data = try handle.read(upToCount: 1024 * 1024) ?? Data()
+            guard !data.isEmpty else { break }
+            hasher.update(data: data)
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+typealias EnhancedPIIModelRunnerFactory = @Sendable (URL) -> (any PrivacyFilterModelRunning)?
+
+@MainActor
+final class EnhancedPIIModelDownloadController: ObservableObject {
+    static let shared = EnhancedPIIModelDownloadController(
+        manifest: EnhancedPIIModelConfiguration.productionManifest,
+        downloader: URLSessionEnhancedPIIModelDownloader(),
+        defaults: .standard
+    )
+
+    @Published private(set) var status: EnhancedPIIModelStatus = .notDownloaded
+
+    private let manifest: EnhancedPIIModelManifest?
+    private let downloader: any EnhancedPIIModelDownloading
+    private let defaults: UserDefaults?
+    private let runnerFactory: EnhancedPIIModelRunnerFactory?
+    private var artifactURL: URL?
+
+    init(
+        manifest: EnhancedPIIModelManifest?,
+        downloader: any EnhancedPIIModelDownloading,
+        defaults: UserDefaults? = nil,
+        runnerFactory: EnhancedPIIModelRunnerFactory? = nil
+    ) {
+        self.manifest = manifest
+        self.downloader = downloader
+        self.defaults = defaults
+        self.runnerFactory = runnerFactory
+        if let defaults,
+           let version = defaults.string(forKey: Self.versionKey),
+           let path = defaults.string(forKey: Self.pathKey) {
+            let sizeBytes = defaults.integer(forKey: Self.sizeKey)
+            let url = URL(fileURLWithPath: path)
+            if FileManager.default.fileExists(atPath: url.path) {
+                self.artifactURL = url
+                self.status = .ready(version: version, sizeBytes: sizeBytes)
+            }
+        }
+    }
+
+    var isDownloadConfigured: Bool { manifest != nil }
+
+    var modelDetector: PrivacyFilterNativeDetector? {
+        guard case .ready = status,
+              let artifactURL,
+              let runner = runnerFactory?(artifactURL) else { return nil }
+        return PrivacyFilterNativeDetector(runner: runner)
+    }
+
+    var sizeCopy: String {
+        guard let sizeBytes = manifest?.sizeBytes ?? status.sizeBytes else { return "" }
+        return Self.sizeCopy(for: sizeBytes)
+    }
+
+    static func sizeCopy(for sizeBytes: Int) -> String {
+        String(format: "%.2f MB", Double(sizeBytes) / 1_048_576)
+    }
+
+    var statusCopy: String {
+        switch status {
+        case .notDownloaded:
+            return "\(AppStrings.enhancedPIIModelStatusNotDownloaded) \(AppStrings.enhancedPIIModelDescription)"
+        case .downloading:
+            return AppStrings.enhancedPIIModelDownloading
+        case .ready:
+            return AppStrings.enhancedPIIModelStatusLocalReady
+        case .failed:
+            return AppStrings.enhancedPIIModelFailed
+        case .updateAvailable:
+            return AppStrings.enhancedPIIModelUpdateAvailable
+        case .removing:
+            return AppStrings.enhancedPIIModelRemove
+        }
+    }
+
+    var actionTitle: String {
+        switch status {
+        case .ready, .removing:
+            return AppStrings.enhancedPIIModelRemove
+        case .failed:
+            return AppStrings.retry
+        case .downloading:
+            return AppStrings.enhancedPIIModelDownloading
+        case .notDownloaded, .updateAvailable:
+            return AppStrings.enhancedPIIModelDownload
+        }
+    }
+
+    var isActionDisabled: Bool {
+        switch status {
+        case .downloading, .removing:
+            return true
+        case .notDownloaded, .failed, .updateAvailable:
+            return !isDownloadConfigured
+        case .ready:
+            return false
+        }
+    }
+
+    func performPrimaryAction() async {
+        switch status {
+        case .ready:
+            await remove()
+        case .notDownloaded, .failed, .updateAvailable:
+            await download()
+        case .downloading, .removing:
+            break
+        }
+    }
+
+    func download() async {
+        guard let manifest else {
+            status = .failed(reason: .modelNotConfigured)
+            return
+        }
+        status = .downloading(progress: 0)
+        do {
+            let url = try await downloader.download(manifest) { [weak self] progress in
+                await MainActor.run {
+                    self?.status = .downloading(progress: min(max(progress, 0), 1))
+                }
+            }
+            artifactURL = url
+            persistReady(version: manifest.version, sizeBytes: manifest.sizeBytes, url: url)
+            status = .ready(version: manifest.version, sizeBytes: manifest.sizeBytes)
+        } catch {
+            status = .failed(reason: .downloadFailed)
+        }
+    }
+
+    func markUpdateAvailable(version: String, sizeBytes: Int) {
+        let currentVersion: String
+        switch status {
+        case .ready(let version, _):
+            currentVersion = version
+        case .updateAvailable(let version, _, _):
+            currentVersion = version
+        default:
+            currentVersion = manifest?.version ?? "unknown"
+        }
+        status = .updateAvailable(currentVersion: currentVersion, newVersion: version, sizeBytes: sizeBytes)
+    }
+
+    func remove() async {
+        status = .removing
+        if let artifactURL, FileManager.default.fileExists(atPath: artifactURL.path) {
+            do {
+                try FileManager.default.removeItem(at: artifactURL)
+            } catch {
+                status = .failed(reason: .removalFailed)
+                return
+            }
+        }
+        self.artifactURL = nil
+        clearPersistedReadyState()
+        status = .notDownloaded
+    }
+
+    private func persistReady(version: String, sizeBytes: Int, url: URL) {
+        defaults?.set(version, forKey: Self.versionKey)
+        defaults?.set(sizeBytes, forKey: Self.sizeKey)
+        defaults?.set(url.path, forKey: Self.pathKey)
+    }
+
+    private func clearPersistedReadyState() {
+        defaults?.removeObject(forKey: Self.versionKey)
+        defaults?.removeObject(forKey: Self.sizeKey)
+        defaults?.removeObject(forKey: Self.pathKey)
+    }
+
+    private static let versionKey = "enhanced_pii_model.version"
+    private static let sizeKey = "enhanced_pii_model.size_bytes"
+    private static let pathKey = "enhanced_pii_model.path"
+}
+
+struct EnhancedPIIRecommendationPolicy: Equatable, Sendable {
+    static let defaultDismissalBackoff: TimeInterval = 30 * 24 * 60 * 60
+
+    var dismissedAt: Date?
+    var dismissalBackoff: TimeInterval = defaultDismissalBackoff
+
+    func shouldRecommend(regexMatches: [PIIMatch], modelStatus: EnhancedPIIModelStatus, now: Date = Date()) -> Bool {
+        guard !regexMatches.isEmpty, modelStatus.canRecommendDownload else { return false }
+        guard let dismissedAt else { return true }
+        return now.timeIntervalSince(dismissedAt) >= dismissalBackoff
+    }
+
+    mutating func dismiss(now: Date = Date()) {
+        dismissedAt = now
+    }
+}
+
+@MainActor
+final class EnhancedPIIRecommendationStore: ObservableObject {
+    static let shared = EnhancedPIIRecommendationStore(defaults: .standard)
+
+    @Published private(set) var policy: EnhancedPIIRecommendationPolicy
+
+    private let defaults: UserDefaults
+    private static let dismissedAtKey = "enhanced_pii_model.recommendation_dismissed_at"
+
+    init(defaults: UserDefaults) {
+        self.defaults = defaults
+        let timestamp = defaults.double(forKey: Self.dismissedAtKey)
+        self.policy = EnhancedPIIRecommendationPolicy(
+            dismissedAt: timestamp > 0 ? Date(timeIntervalSince1970: timestamp) : nil
+        )
+    }
+
+    func shouldRecommend(regexMatches: [PIIMatch], modelStatus: EnhancedPIIModelStatus, now: Date = Date()) -> Bool {
+        policy.shouldRecommend(regexMatches: regexMatches, modelStatus: modelStatus, now: now)
+    }
+
+    func dismiss(now: Date = Date()) {
+        policy.dismiss(now: now)
+        defaults.set(now.timeIntervalSince1970, forKey: Self.dismissedAtKey)
+    }
+}
+
+enum EnhancedPIIDetectionMode: Equatable, Sendable {
+    case regexOnly
+    case enhanced
+    case regexFallback(reason: EnhancedPIIModelFailureReason)
+}
+
+struct EnhancedPIIDetectionResult: Equatable, Sendable {
+    let matches: [PIIMatch]
+    let mode: EnhancedPIIDetectionMode
+
+    var sanitizedStatus: String {
+        switch mode {
+        case .regexOnly:
+            return "mode=regex_only matches=\(matches.count)"
+        case .enhanced:
+            return "mode=enhanced matches=\(matches.count)"
+        case .regexFallback(let reason):
+            return "mode=regex_fallback reason=\(reason.rawValue) matches=\(matches.count)"
+        }
+    }
+}
+
+struct EnhancedPIIDetector: Sendable {
+    static let defaultModelTimeoutNanoseconds: UInt64 = 250_000_000
+
+    let modelDetector: PrivacyFilterNativeDetector?
+    let modelTimeoutNanoseconds: UInt64
+
+    init(
+        modelDetector: PrivacyFilterNativeDetector?,
+        modelTimeoutNanoseconds: UInt64 = defaultModelTimeoutNanoseconds
+    ) {
+        self.modelDetector = modelDetector
+        self.modelTimeoutNanoseconds = modelTimeoutNanoseconds
+    }
+
+    func detect(in text: String, options: PIIDetectionOptions = PIIDetectionOptions()) async -> EnhancedPIIDetectionResult {
+        let regexMatches = PIIDetector.detect(in: text, options: options)
+        guard let modelDetector else {
+            return EnhancedPIIDetectionResult(matches: regexMatches, mode: .regexOnly)
+        }
+
+        do {
+            guard let matches = try await withModelTimeout {
+                try await modelDetector.detectedMatches(in: text, options: options)
+            } else {
+                return EnhancedPIIDetectionResult(matches: regexMatches, mode: .regexFallback(reason: .timeout))
+            }
+            return EnhancedPIIDetectionResult(matches: matches, mode: .enhanced)
+        } catch {
+            return EnhancedPIIDetectionResult(matches: regexMatches, mode: .regexFallback(reason: .runtimeFailed))
+        }
+    }
+
+    private func withModelTimeout(_ operation: @escaping @Sendable () async throws -> [PIIMatch]) async throws -> [PIIMatch]? {
+        try await withThrowingTaskGroup(of: [PIIMatch]?.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(nanoseconds: modelTimeoutNanoseconds)
+                return nil
+            }
+            let result = try await group.next() ?? nil
+            group.cancelAll()
+            return result
+        }
+    }
+}
+
+private extension EnhancedPIIModelStatus {
+    var sizeBytes: Int? {
+        switch self {
+        case .ready(_, let sizeBytes), .updateAvailable(_, _, let sizeBytes):
+            return sizeBytes
+        case .notDownloaded, .downloading, .failed, .removing:
+            return nil
+        }
+    }
+}
+
 struct PIIWarningBanner: View {
     let matches: [PIIMatch]
     let onUndoAll: () -> Void
@@ -598,6 +1269,55 @@ struct PIIWarningBanner: View {
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("pii-warning-banner")
         }
+    }
+}
+
+struct EnhancedPIIModelSuggestionBanner: View {
+    let onDownload: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: .spacing5) {
+            Icon("shield", size: 20)
+                .foregroundStyle(Color.buttonPrimary)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: .spacing1) {
+                Text(AppStrings.enhancedPIIModelComposerSuggestionTitle)
+                    .font(.omXs.weight(.semibold))
+                    .foregroundStyle(Color.fontPrimary)
+                Text(AppStrings.enhancedPIIModelComposerSuggestionDescription)
+                    .font(.omTiny)
+                    .foregroundStyle(Color.grey60)
+            }
+
+            Spacer(minLength: .spacing4)
+
+            Button(action: onDownload) {
+                Text(AppStrings.enhancedPIIModelDownload)
+                    .font(.omTiny.weight(.semibold))
+                    .foregroundStyle(Color.fontButton)
+                    .padding(.horizontal, .spacing6)
+                    .padding(.vertical, .spacing3)
+                    .background(Color.buttonPrimary)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius2))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("enhanced-pii-model-download")
+
+            OMIconButton(icon: "close", label: AppStrings.close, size: 28, iconSize: 14, action: onDismiss)
+                .accessibilityIdentifier("enhanced-pii-model-dismiss")
+        }
+        .padding(.vertical, .spacing4)
+        .padding(.horizontal, .spacing6)
+        .background(Color.grey10)
+        .overlay(
+            RoundedRectangle(cornerRadius: .radius3)
+                .stroke(Color.grey30, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: .radius3))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("enhanced-pii-model-suggestion")
     }
 }
 

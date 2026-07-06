@@ -513,6 +513,7 @@ final class ApplePrivacySettingsService: ObservableObject {
 
 struct SettingsHidePersonalDataView: View {
     @StateObject private var privacyService = ApplePrivacySettingsService.shared
+    @StateObject private var enhancedPIIModelController = EnhancedPIIModelDownloadController.shared
     @State private var addEntryType: ApplePersonalDataType = .custom
     @State private var showAddEntrySheet = false
     @State private var pendingDeleteEntry: ApplePrivacyPersonalDataEntry?
@@ -546,6 +547,8 @@ struct SettingsHidePersonalDataView: View {
                         .padding(.horizontal, .spacing8)
                         .padding(.vertical, .spacing4)
                 }
+
+                enhancedPIIModelSection
 
                 if privacyService.state.detectionSettings.masterEnabled {
                     contactsSection
@@ -633,6 +636,40 @@ struct SettingsHidePersonalDataView: View {
             .lineSpacing(3)
             .padding(.horizontal, .spacing8)
             .padding(.vertical, .spacing5)
+    }
+
+    private var enhancedPIIModelSection: some View {
+        OMSettingsSection(AppStrings.enhancedPIIModelTitle, icon: "shield") {
+            VStack(alignment: .leading, spacing: .spacing4) {
+                Text(AppStrings.enhancedPIIModelDescription)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .lineSpacing(3)
+
+                if !enhancedPIIModelController.sizeCopy.isEmpty {
+                    Text(enhancedPIIModelController.sizeCopy)
+                        .font(.omXs.weight(.semibold))
+                        .foregroundStyle(Color.grey60)
+                }
+
+                Text(enhancedPIIModelController.statusCopy)
+                    .font(.omXs)
+                    .foregroundStyle(Color.grey60)
+                    .lineSpacing(2)
+
+                Button {
+                    Task { await enhancedPIIModelController.performPrimaryAction() }
+                } label: {
+                    Text(enhancedPIIModelController.actionTitle)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(OMPrimaryButtonStyle())
+                .disabled(enhancedPIIModelController.isActionDisabled)
+                .accessibilityIdentifier("settings-enhanced-pii-model-action")
+            }
+            .padding(.horizontal, .spacing8)
+            .padding(.vertical, .spacing5)
+        }
     }
 
     private func categorySection(title: String, icon: String, rows: [PrivacyCategoryRow]) -> some View {
