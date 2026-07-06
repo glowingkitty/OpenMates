@@ -136,10 +136,10 @@ async def _check_user_offline_and_send_email(
             logger.debug(f"{log_prefix} Skipping notification - response contains error")
             return
 
-    # Retry loop: check if user reconnects within ~15 s
+    # Retry loop: suppress only when a foreground client is visibly viewing this chat.
     for attempt in range(1, max_attempts + 1):
-        if manager.is_user_active(user_id):
-            logger.debug(f"{log_prefix} User came online (attempt {attempt}/{max_attempts}), skipping notification")
+        if manager.has_foreground_connection_for_chat(user_id, chat_id):
+            logger.debug(f"{log_prefix} Chat became foreground-visible (attempt {attempt}/{max_attempts}), skipping notification")
             return
 
         if attempt < max_attempts:
@@ -149,9 +149,9 @@ async def _check_user_offline_and_send_email(
     # User is still offline after all attempts.
     logger.info(f"{log_prefix} User offline after {max_attempts} attempts — queuing pending delivery + notifications")
 
-    # 1. Queue the AI response for delivery when the user reconnects (up to 60 days)
+    # 1. Queue the AI response for delivery when no foreground client can persist it.
     try:
-        if hasattr(app.state, 'cache_service'):
+        if hasattr(app.state, 'cache_service') and not manager.is_user_completion_capable_active(user_id):
             cache_service: CacheService = app.state.cache_service
             delivery_payload = {
                 "type": "ai_response",  # Distinguishes from "reminder" system messages
@@ -202,8 +202,8 @@ async def _check_user_offline_and_send_email(
         logger.info(f"{log_prefix} Push sent — waiting 60 s before email fallback")
         await asyncio.sleep(60)
 
-        if manager.is_user_active(user_id):
-            logger.info(f"{log_prefix} User came online after push — skipping email")
+        if manager.has_foreground_connection_for_chat(user_id, chat_id) or manager.is_user_active(user_id):
+            logger.info(f"{log_prefix} User active after push — skipping email")
             return
         logger.info(f"{log_prefix} User still offline 60 s after push — sending email fallback")
 
@@ -846,10 +846,10 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     was_interrupted = redis_payload.get("interrupted_by_revocation", False)
                     
                     if is_final_marker and not redis_payload.get("external_request") and not was_interrupted:
-                        # Check if user has ANY active connections
-                        if not manager.is_user_completion_capable_active(user_id_uuid):
-                            # User appears offline - spawn background task to retry and send email
-                            # Also queues the AI response for pending delivery on reconnect (60-day TTL)
+                        # Notify unless a foreground client is visibly viewing this chat.
+                        # A hidden/background tab may keep its WebSocket open, but it
+                        # should not suppress iOS/browser push for completed work.
+                        if not manager.has_foreground_connection_for_chat(user_id_uuid, chat_id_from_payload):
                             asyncio.create_task(
                                 _check_user_offline_and_send_email(
                                     app=app,

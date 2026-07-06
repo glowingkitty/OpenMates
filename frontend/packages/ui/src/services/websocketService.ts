@@ -309,8 +309,13 @@ class WebSocketService extends EventTarget {
       // and the ping/pong mechanism may not fire (timers are throttled in background tabs).
       // This handler runs an immediate liveness check when the user returns to the page.
       document.addEventListener("visibilitychange", () => {
+        this.sendClientLifecycle(document.visibilityState === "visible", "visibilitychange");
         if (document.visibilityState !== "visible") return;
         this.handlePageResume("visibilitychange");
+      });
+
+      window.addEventListener("pagehide", () => {
+        this.sendClientLifecycle(false, "pagehide");
       });
 
       // Listen for Safari BFCache page restore (pageshow event).
@@ -657,6 +662,10 @@ class WebSocketService extends EventTarget {
           this.stopPeriodicRetry(); // Stop periodic retry since we're now connected
           this.dispatchEvent(new CustomEvent("open"));
           websocketStatus.setStatus("connected"); // Update status
+          this.sendClientLifecycle(
+            typeof document === "undefined" || document.visibilityState === "visible",
+            "open",
+          );
           this.startPing(); // Start pinging on successful connection
           if (this.resolveConnectionPromise) {
             this.resolveConnectionPromise();
@@ -1341,6 +1350,27 @@ class WebSocketService extends EventTarget {
 
   public isConnected(): boolean {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+  }
+
+  private sendClientLifecycle(isForeground: boolean, source: string): void {
+    if (!this.isConnected()) return;
+    try {
+      this.ws?.send(
+        JSON.stringify({
+          type: "native_client_lifecycle",
+          payload: {
+            is_foreground: isForeground,
+            client_type: "web",
+            source,
+          },
+        }),
+      );
+      console.debug(
+        `[WebSocketService] Sent lifecycle state: foreground=${isForeground}, source=${source}`,
+      );
+    } catch (error) {
+      console.warn("[WebSocketService] Failed to send lifecycle state:", error);
+    }
   }
 
   public async sendMessage(type: string, payload: unknown): Promise<void> {

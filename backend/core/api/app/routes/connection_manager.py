@@ -405,6 +405,15 @@ class ConnectionManager:
                 return True
         return False
 
+    def has_foreground_connection_for_chat(self, user_id: str, chat_id: str) -> bool:
+        """True when a fresh foreground connection is actively viewing this chat."""
+        for device_fingerprint_hash in self.active_connections.get(user_id, {}):
+            if not self.is_connection_completion_capable(user_id, device_fingerprint_hash):
+                continue
+            if self.get_active_chat(user_id, device_fingerprint_hash) == chat_id:
+                return True
+        return False
+
     def set_connection_foreground(self, user_id: str, device_fingerprint_hash: str, is_foreground: bool):
         """Mark whether a client is foregrounded enough to consume AI completions."""
         connection_key = (user_id, device_fingerprint_hash)
@@ -414,8 +423,6 @@ class ConnectionManager:
 
         if websocket_instance or is_in_grace:
             self.connection_foreground_state[connection_key] = is_foreground
-            if not is_foreground:
-                self.active_chat_per_connection[connection_key] = None
             logger.debug(
                 f"User {user_id}, Device {device_fingerprint_hash}: Foreground state set to {is_foreground}."
             )

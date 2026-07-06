@@ -165,13 +165,48 @@ def test_native_background_connection_is_not_completion_capable():
 
     assert manager.is_user_active(user_id) is True
     assert manager.is_user_completion_capable_active(user_id) is False
-    assert manager.get_active_chat(user_id, device_hash) is None
+    assert manager.active_chat_per_connection[connection_key] == "chat-123"
 
     manager.set_connection_foreground(user_id, device_hash, is_foreground=True)
     manager.set_active_chat(user_id, device_hash, "chat-123")
 
     assert manager.is_user_completion_capable_active(user_id) is True
     assert manager.get_active_chat(user_id, device_hash) == "chat-123"
+
+
+def test_foreground_chat_visibility_is_chat_specific():
+    manager = ConnectionManager()
+    user_id = "user-123"
+    chat_id = "chat-123"
+    other_chat_id = "chat-456"
+    device_hash = "device-123"
+    connection_key = (user_id, device_hash)
+
+    manager.active_connections[user_id] = {device_hash: object()}
+    manager.active_chat_per_connection[connection_key] = other_chat_id
+    manager.connection_foreground_state[connection_key] = True
+
+    assert manager.has_foreground_connection_for_chat(user_id, chat_id) is False
+    assert manager.has_foreground_connection_for_chat(user_id, other_chat_id) is True
+
+
+def test_hidden_connection_does_not_suppress_chat_notifications():
+    manager = ConnectionManager()
+    user_id = "user-123"
+    chat_id = "chat-123"
+    device_hash = "device-123"
+    connection_key = (user_id, device_hash)
+
+    manager.active_connections[user_id] = {device_hash: object()}
+    manager.active_chat_per_connection[connection_key] = chat_id
+    manager.connection_foreground_state[connection_key] = True
+
+    assert manager.has_foreground_connection_for_chat(user_id, chat_id) is True
+
+    manager.set_connection_foreground(user_id, device_hash, is_foreground=False)
+
+    assert manager.has_foreground_connection_for_chat(user_id, chat_id) is False
+    assert manager.is_user_completion_capable_active(user_id) is False
 
 
 def test_native_background_grace_period_is_not_completion_capable():
@@ -185,12 +220,13 @@ def test_native_background_grace_period_is_not_completion_capable():
 
     assert manager.is_user_active(user_id) is True
     assert manager.is_user_completion_capable_active(user_id) is True
+    assert manager.has_foreground_connection_for_chat(user_id, "chat-123") is False
 
     manager.set_connection_foreground(user_id, device_hash, is_foreground=False)
 
     assert manager.is_user_active(user_id) is True
     assert manager.is_user_completion_capable_active(user_id) is False
-    assert manager.get_active_chat(user_id, device_hash) is None
+    assert manager.active_chat_per_connection[connection_key] == "chat-123"
 
     manager.set_connection_foreground(user_id, device_hash, is_foreground=True)
     manager.set_active_chat(user_id, device_hash, "chat-123")
