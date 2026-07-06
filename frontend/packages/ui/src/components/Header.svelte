@@ -1,3 +1,7 @@
+<!--
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/App/MainAppView.swift
+-->
 <script lang="ts">
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
@@ -640,15 +644,11 @@
         width: 30px;
         height: 30px;
         flex-shrink: 0;
-        background: var(--gradient-primary, linear-gradient(135deg, var(--color-primary), var(--color-button-primary)));
-        -webkit-mask-image: url('@openmates/ui/static/icons/mate.svg');
-        mask-image: url('@openmates/ui/static/icons/mate.svg');
-        -webkit-mask-size: contain;
-        mask-size: contain;
-        -webkit-mask-position: center;
-        mask-position: center;
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
+        border-radius: var(--radius-4, 8px);
+        background-image: url('@openmates/ui/static/icons/openmates.svg');
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
     }
     
     /* Server edition text displayed under the logo - absolutely positioned to not affect header height */

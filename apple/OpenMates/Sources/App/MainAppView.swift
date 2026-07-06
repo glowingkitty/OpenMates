@@ -3643,11 +3643,10 @@ private struct OpenMatesWebHeader: View {
                     .renderingMode(.original)
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 25, height: 25)
+                    .frame(width: 30, height: 30)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
                     .accessibilityIdentifier("compact-logo-image")
                     .frame(width: 38, height: 38)
-                    .background(Color.grey10)
-                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("compact-logo-button")
