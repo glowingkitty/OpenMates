@@ -194,8 +194,11 @@ final class ChatFlowParityUITests: XCTestCase {
         let messageEditor = waitForMessageEditor(in: app)
         messageEditor.tap()
 
+        XCTAssertTrue(app.buttons["message-input-fullscreen-button"].waitForExistence(timeout: 5))
+
         let messageField = app.descendants(matching: .any)["message-field"]
         XCTAssertTrue(messageField.waitForExistence(timeout: 5))
+        waitForFrameHeight(atLeast: 90, element: messageField, timeout: 5)
         XCTAssertTrue(messageField.isHittable, "Focused welcome composer field should stay visible and hittable")
         XCTAssertGreaterThanOrEqual(
             messageField.frame.height,
@@ -203,7 +206,6 @@ final class ChatFlowParityUITests: XCTestCase {
             "Focused welcome composer should expand to the web-like message-field height instead of collapsing/disappearing"
         )
 
-        XCTAssertTrue(app.buttons["message-input-fullscreen-button"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["sketch-button"].exists)
         XCTAssertTrue(app.buttons["take-photo-button"].exists)
         XCTAssertTrue(app.buttons["new-chat-suggestion-card-chat.new_chat_suggestions.discover_web_search"].waitForExistence(timeout: 10))
@@ -316,6 +318,13 @@ final class ChatFlowParityUITests: XCTestCase {
 
         XCTFail("Expected message composer input to exist as an editor or composer wrapper")
         return candidates[0]
+    }
+
+    private func waitForFrameHeight(atLeast minimumHeight: CGFloat, element: XCUIElement, timeout: TimeInterval) {
+        let deadline = Date().addingTimeInterval(timeout)
+        while element.exists && element.frame.height < minimumHeight && Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
     }
 
     private func attachScreenshot(name: String) {

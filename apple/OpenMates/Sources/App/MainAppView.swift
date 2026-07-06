@@ -3590,11 +3590,21 @@ private struct OpenMatesWebHeader: View {
 
                 if isAuthenticated {
                     Button(action: onOpenReferral) {
-                        Icon("gift", size: 22)
-                            .foregroundStyle(LinearGradient.primary)
-                            .frame(width: 38, height: 38)
-                            .background(Color.grey10)
-                            .clipShape(Circle())
+                        HStack(spacing: .spacing3) {
+                            Icon("gift", size: 22)
+                                .foregroundStyle(LinearGradient.primary)
+                                .frame(width: 38, height: 38)
+                                .background(Color.grey10)
+                                .clipShape(Circle())
+
+                            if horizontalSizeClass != .compact {
+                                Text(AppStrings.getFreeCredits)
+                                    .font(.omSmall)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(LinearGradient.primary)
+                                    .lineLimit(1)
+                            }
+                        }
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("referral-cta")
