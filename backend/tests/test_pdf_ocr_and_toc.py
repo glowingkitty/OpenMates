@@ -1,7 +1,7 @@
 # backend/tests/test_pdf_ocr_and_toc.py
 #
 # Integration test for the PDF processing pipeline:
-#   1. OCR via Mistral Document AI (mistral-ocr-latest)
+#   1. OCR via Mistral Document AI (mistral-ocr-2512 / OCR 3)
 #   2. TOC / Legend detection via Groq (gpt-oss-20b) with tool use
 #
 # PDFs under test:
@@ -94,6 +94,7 @@ LEGEND_SEARCH_LAST_N_PAGES = 5
 
 # Groq model for TOC / legend detection
 TOC_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"  # fast, cheap; fall back to 70b if needed
+MISTRAL_OCR_MODEL = "mistral-ocr-2512"
 
 
 # ---------------------------------------------------------------------------
@@ -147,7 +148,7 @@ async def run_ocr(pdf_key: str, pdf_url: str, mistral_api_key: str) -> dict[str,
         }
 
     response = client.ocr.process(
-        model="mistral-ocr-latest",
+        model=MISTRAL_OCR_MODEL,
         document=document_payload,
         include_image_base64=False,  # We don't need base64 for this test
         table_format="html",
