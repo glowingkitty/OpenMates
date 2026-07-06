@@ -19,6 +19,7 @@
 		C0FFEE000000000000047004 /* WatchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000047003 /* WatchRootView.swift */; };
 		C0FFEE000000000000047006 /* DataExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A6630F3C041702710BABA2 /* DataExtensions.swift */; };
 		C0FFEE000000000000047008 /* ColorTokens.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C9535F0FF42FE0BC7095410 /* ColorTokens.generated.swift */; };
+		C0FFEE000000000000047024 /* GradientTokens.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8091075B043B717B7D8BC5A8 /* GradientTokens.generated.swift */; };
 		C0FFEE000000000000047010 /* SpacingTokens.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB325B83486580D9A5294F46 /* SpacingTokens.generated.swift */; };
 		C0FFEE000000000000047012 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3FF87BFEDD0901768A27407A /* Assets.xcassets */; };
 		04B767719514CAB080FEB1CB /* LucideIcons in Frameworks */ = {isa = PBXBuildFile; productRef = 8FC7D47DA7AECCBB2EBDABE9 /* LucideIcons */; };
@@ -2008,6 +2009,7 @@
 				C0FFEE000000000000047004 /* WatchRootView.swift in Sources */,
 				C0FFEE000000000000047006 /* DataExtensions.swift in Sources */,
 				C0FFEE000000000000047008 /* ColorTokens.generated.swift in Sources */,
+				C0FFEE000000000000047024 /* GradientTokens.generated.swift in Sources */,
 				C0FFEE000000000000047010 /* SpacingTokens.generated.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

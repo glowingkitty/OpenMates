@@ -149,6 +149,8 @@ targets:
       - path: OpenMates/Sources/Shared/Extensions/DataExtensions.swift
       - path: ../frontend/packages/ui/src/tokens/generated/swift/ColorTokens.generated.swift
         name: ColorTokens.generated.swift
+      - path: ../frontend/packages/ui/src/tokens/generated/swift/GradientTokens.generated.swift
+        name: GradientTokens.generated.swift
       - path: ../frontend/packages/ui/src/tokens/generated/swift/SpacingTokens.generated.swift
         name: SpacingTokens.generated.swift
     resources:
