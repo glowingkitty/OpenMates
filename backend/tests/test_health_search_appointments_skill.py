@@ -44,6 +44,7 @@ def test_motive_category_filter_handles_negation_and_overbroad_speech_hours() ->
     assert _matches_motive_category("Privatsprechstunde (nicht Hautkrebsvorsorge)", "checkup") is False
     assert _matches_motive_category("Allgemeine Sprechstunde", "general") is True
     assert _matches_motive_category("Schnarchsprechstunde", "general") is False
+    assert _matches_motive_category("Behandlung von Kopfschmerzen/ Schwindel", "general") is False
 
 
 def test_speciality_guard_rejects_obvious_cross_speciality_results() -> None:

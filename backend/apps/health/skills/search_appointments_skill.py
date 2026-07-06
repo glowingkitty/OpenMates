@@ -388,11 +388,9 @@ VISIT_MOTIVE_CATEGORIES: Dict[str, List[str]] = {
         r"(?:^|\s)termin(?:vereinbarung)?$",
         r"hausärztlich",
         r"hausarzt",
-        r"schmerz",              # Schmerztermin (dentist pain appointment)
         r"beschwerden",          # Akute Beschwerden (already covered by akut, but explicit)
         r"notfall",              # Notfall / Notfallsprechstunde
         r"untersuchung",         # General examination
-        r"behandlung(?!\s+bot)", # Behandlung but NOT "Behandlung Botox..."
     ],
     # Preventive checkups and screenings
     "checkup": [
