@@ -206,18 +206,6 @@ struct OpenMatesApp: App {
     }
 
     var body: some Scene {
-        #if os(macOS)
-        MenuBarExtra {
-            MacMenuBarQuickCaptureView()
-                .environmentObject(authManager)
-                .environmentObject(locManager)
-                .frame(width: 430)
-        } label: {
-            Icon("openmates", size: 18)
-        }
-        .menuBarExtraStyle(.window)
-        #endif
-
         WindowGroup(id: Self.mainWindowID, for: AppWindowLaunchCommand.self) { launchCommand in
             RootView(launchCommand: launchCommand.wrappedValue)
                 .environmentObject(authManager)
@@ -290,6 +278,20 @@ struct OpenMatesApp: App {
                 .keyboardShortcut("i", modifiers: [.command, .shift])
             }
         }
+
+        MenuBarExtra {
+            MacMenuBarQuickCaptureView()
+                .environmentObject(authManager)
+                .environmentObject(locManager)
+                .frame(width: 430)
+        } label: {
+            Image("openmates")
+                .renderingMode(.original)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 18, height: 18)
+        }
+        .menuBarExtraStyle(.window)
         #endif
     }
 }
