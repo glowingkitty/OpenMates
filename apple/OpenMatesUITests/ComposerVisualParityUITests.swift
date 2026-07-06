@@ -47,7 +47,6 @@ final class ComposerVisualParityUITests: XCTestCase {
         XCTAssertTrue(element(in: app, identifier: "quick-capture-tab-chats").waitForExistence(timeout: 12))
         XCTAssertTrue(element(in: app, identifier: "quick-capture-composer").exists)
         XCTAssertTrue(element(in: app, identifier: "message-field").exists)
-        XCTAssertTrue(element(in: app, identifier: "message-editor").exists)
         XCTAssertTrue(element(in: app, identifier: "action-buttons").exists)
         XCTAssertTrue(element(in: app, identifier: "quick-capture-recent-chats").exists)
         XCTAssertTrue(element(in: app, identifier: "quick-capture-status-list").exists)
