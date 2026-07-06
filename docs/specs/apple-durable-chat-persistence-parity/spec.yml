@@ -246,9 +246,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-mac-openmatestests-backgroundchatsenderparity-e1c987332-2026-07-06
+        timestamp: "2026-07-06T15:02:09Z"
 
   - id: T-APPLE-FOREGROUND-STORAGE
     type: unit
@@ -270,9 +270,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-mac-openmatestests-chatsendpipelineparity-e1c987332-2026-07-06
+        timestamp: "2026-07-06T15:00:58Z"
 
   - id: T-APPLE-LOWERCASE-UUIDS
     type: unit
@@ -294,9 +294,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: remote-mac-openmatestests-backgroundchatsenderparity-e1c987332-2026-07-06
+        timestamp: "2026-07-06T15:02:09Z"
 
   - id: T-BACKEND-VERSION-REPAIR
     type: pytest
