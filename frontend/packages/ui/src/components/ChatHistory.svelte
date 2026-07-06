@@ -1226,10 +1226,10 @@
   // Only shown for new chats — existing chats opened from the sidebar never show this.
   // The header is visible as long as any of these are true:
   //   a) isNewChatGeneratingTitle is true (shimmer placeholder state), or
-  //   b) we have both a title and a category (loaded state), or
+  //   b) we have a title (loaded state; category may be missing on older partial metadata), or
   //   c) isNewChatCreditsError is true (credits error state), or
   //   d) isIncognito is true (always show the incognito header immediately)
-  let showChatHeader = $derived(isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!(chatTitle && chatCategory));
+  let showChatHeader = $derived(isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle);
 
   $effect(() => {
     const requestId = ++headerImageBubbleRequestId;

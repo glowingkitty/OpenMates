@@ -3690,7 +3690,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             activeChatDecryptedIcon = decryptedIcon;
             activeChatDecryptedSummary = decryptedSummary;
 
-            if (activeChatDecryptedTitle && activeChatDecryptedCategory) {
+            if (activeChatDecryptedTitle) {
                 isNewChatGeneratingTitle = false;
                 console.info(`[ActiveChat] ${reason}: Refreshed active chat header from stored metadata:`, activeChatDecryptedTitle, activeChatDecryptedCategory, activeChatDecryptedIcon);
             }
@@ -7536,8 +7536,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     activeChatDecryptedCategory = decryptedCategory;
                     activeChatDecryptedIcon = decryptedIcon;
 
-                    // Once we have at least a title, reveal the full card and hide the placeholder.
-                    if (activeChatDecryptedTitle && activeChatDecryptedCategory) {
+                    // Once we have at least a title, reveal the card. Category/icon
+                    // can be absent on legacy Apple-created partial metadata.
+                    if (activeChatDecryptedTitle) {
                         isNewChatGeneratingTitle = false;
                         console.info('[ActiveChat] Chat header ready:', activeChatDecryptedTitle, activeChatDecryptedCategory, activeChatDecryptedIcon);
                         // Scroll the user message to the top of the viewport 3 s after the
@@ -10685,8 +10686,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
             // OPE-327: Re-decrypt chat header metadata (category/icon/title) when key arrives.
             // Without this, the ChatHeader stays in "Creating new chat..." shimmer forever
-            // because activeChatDecryptedCategory remains null from the failed initial decrypt.
-            if (!activeChatDecryptedCategory) {
+            // because header metadata remains unavailable after the failed initial decrypt.
+            if (!activeChatDecryptedTitle) {
                 console.info(`[ActiveChat] Key ready for chat ${readyChatId}, re-decrypting header metadata`);
                 try {
                     const chatForHeader = await chatDB.getChat(readyChatId);
@@ -10710,7 +10711,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             if (chatForHeader.encrypted_chat_summary) {
                                 try { s = await decryptWithChatKey(chatForHeader.encrypted_chat_summary, chatKey, { chatId: readyChatId, fieldName: 'encrypted_chat_summary' }); } catch { /* keep null */ }
                             }
-                            if (t && c) {
+                            if (t) {
                                 activeChatDecryptedTitle = t;
                                 activeChatDecryptedCategory = c;
                                 activeChatDecryptedIcon = ic;

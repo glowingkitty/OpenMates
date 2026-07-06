@@ -59,8 +59,85 @@ class FakeDirectusService:
         self.chat = FakeChatService()
 
 
+class FakeNewChatService:
+    async def check_chat_ownership(self, chat_id: str, user_id: str) -> bool:
+        return False
+
+    async def get_chat_metadata(self, chat_id: str) -> dict | None:
+        return None
+
+
+class FakeNewChatDirectusService:
+    def __init__(self) -> None:
+        self.chat = FakeNewChatService()
+
+
 def test_mismatched_chat_key_rejects_entire_encrypted_payload(monkeypatch):
     asyncio.run(_run_mismatched_chat_key_rejects_entire_encrypted_payload(monkeypatch))
+
+
+def test_incomplete_initial_chat_metadata_rejects_entire_payload(monkeypatch):
+    asyncio.run(_run_incomplete_initial_chat_metadata_rejects_entire_payload(monkeypatch))
+
+
+async def _run_incomplete_initial_chat_metadata_rejects_entire_payload(monkeypatch):
+    queued_tasks: list[tuple[str, list, str | None]] = []
+
+    def fake_send_task(name: str, args: list | None = None, queue: str | None = None):
+        queued_tasks.append((name, args or [], queue))
+        return SimpleNamespace(id="unexpected-task")
+
+    monkeypatch.setattr(
+        encrypted_chat_metadata_handler.celery_app,
+        "send_task",
+        fake_send_task,
+    )
+
+    manager = FakeManager()
+    payload = {
+        "chat_id": "new-chat-123",
+        "message_id": "message-123",
+        "encrypted_content": "encrypted-user-message",
+        "encrypted_sender_name": "sender",
+        "encrypted_category": "message-category",
+        "encrypted_title": "encrypted-title",
+        "encrypted_chat_key": "encrypted-chat-key",
+        "created_at": 1_778_686_000,
+        "versions": {
+            "messages_v": 1,
+            "title_v": 1,
+            "last_edited_overall_timestamp": 1_778_686_000,
+        },
+    }
+
+    await handle_encrypted_chat_metadata(
+        websocket=None,
+        manager=manager,
+        cache_service=FakeCacheService(),
+        directus_service=FakeNewChatDirectusService(),
+        encryption_service=None,
+        user_id="user-123",
+        user_id_hash="user-hash-123",
+        device_fingerprint_hash="device-123",
+        payload=payload,
+    )
+
+    assert queued_tasks == []
+    assert manager.broadcasts == []
+    assert len(manager.personal_messages) == 1
+
+    message, user_id, device_hash = manager.personal_messages[0]
+    assert user_id == "user-123"
+    assert device_hash == "device-123"
+    assert message == {
+        "type": "incomplete_chat_metadata",
+        "payload": {
+            "chat_id": "new-chat-123",
+            "message_id": "message-123",
+            "code": "incomplete_chat_metadata",
+            "message": "Initial encrypted chat metadata must include title, icon, and category.",
+        },
+    }
 
 
 async def _run_mismatched_chat_key_rejects_entire_encrypted_payload(monkeypatch):

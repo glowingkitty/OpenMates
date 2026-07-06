@@ -121,6 +121,25 @@ final class BackgroundChatSenderParityTests: XCTestCase {
         XCTAssertEqual(taskId, "active-task-1")
     }
 
+    func testNewChatMetadataRequiresTitleAndCategoryBeforeStorage() {
+        XCTAssertTrue(BackgroundChatStorageContract.hasCompleteNewChatMetadata(
+            title: "Trip plan",
+            category: "travel"
+        ))
+        XCTAssertFalse(BackgroundChatStorageContract.hasCompleteNewChatMetadata(
+            title: "Trip plan",
+            category: nil
+        ))
+        XCTAssertFalse(BackgroundChatStorageContract.hasCompleteNewChatMetadata(
+            title: "   ",
+            category: "travel"
+        ))
+        XCTAssertFalse(BackgroundChatStorageContract.hasCompleteNewChatMetadata(
+            title: "Trip plan",
+            category: "   "
+        ))
+    }
+
     func testBackgroundAttachmentClassificationMatchesComposerSupportedTypes() {
         XCTAssertEqual(BackgroundAttachmentClassifier.classification(filename: "photo.png", contentType: "image/png")?.embedType, "images-image")
         XCTAssertEqual(BackgroundAttachmentClassifier.classification(filename: "brief.pdf", contentType: "application/pdf")?.embedType, "pdf")

@@ -91,8 +91,17 @@ struct BackgroundPIIRedactionResult: Equatable, Sendable {
 }
 
 enum BackgroundChatStorageContract {
+    private static func hasText(_ value: String?) -> Bool {
+        guard let value else { return false }
+        return !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     static func shouldSendEncryptedStoragePackage(afterInboundEventType _: String) -> Bool {
         true
+    }
+
+    static func hasCompleteNewChatMetadata(title: String?, category: String?) -> Bool {
+        hasText(title) && hasText(category)
     }
 
     static func storageTaskId(taskId: String?, aiTaskId: String?, activeTaskId: String?) -> String? {
@@ -836,7 +845,13 @@ actor BackgroundChatSender {
 
         try await ws.sendText(webSocketText(type: "chat_message_added", payload: outboundPayload))
 
-        if let storage = try await waitForAssistantStart(ws: ws, chatId: chatId, userMessageId: messageId) {
+        let isNewChat = request.destination == nil || (request.destination?.titleV ?? 0) == 0
+        if let storage = try await waitForAssistantStart(
+            ws: ws,
+            chatId: chatId,
+            userMessageId: messageId,
+            requiresCompleteNewChatMetadata: isNewChat
+        ) {
             try await sendEncryptedUserStoragePackage(
                 ws: ws,
                 chatId: chatId,
@@ -849,7 +864,7 @@ actor BackgroundChatSender {
                 encryptedPIIMappings: encryptedPIIMappings,
                 taskId: storage.taskId,
                 metadata: storage.metadata,
-                isNewChat: request.destination == nil || (request.destination?.titleV ?? 0) == 0,
+                isNewChat: isNewChat,
                 messagesV: nextMessagesV,
                 currentTitleV: request.destination?.titleV ?? 0
             )
@@ -932,11 +947,27 @@ actor BackgroundChatSender {
     private func waitForAssistantStart(
         ws: BackgroundWebSocket,
         chatId: String,
-        userMessageId: String
+        userMessageId: String,
+        requiresCompleteNewChatMetadata: Bool
     ) async throws -> (taskId: String, metadata: ChatMetadata)? {
         var taskId: String?
         var metadata: ChatMetadata?
         var deadline = Date().addingTimeInterval(20)
+
+        func hasRequiredMetadata(_ metadata: ChatMetadata?) -> Bool {
+            guard requiresCompleteNewChatMetadata else { return true }
+            return BackgroundChatStorageContract.hasCompleteNewChatMetadata(
+                title: metadata?.title,
+                category: metadata?.category
+            )
+        }
+
+        func shrinkDeadlineForMetadataGrace() {
+            let metadataGraceDeadline = Date().addingTimeInterval(2)
+            if metadataGraceDeadline < deadline {
+                deadline = metadataGraceDeadline
+            }
+        }
 
         while Date() < deadline {
             guard let data = try await receiveData(ws, before: deadline) else { break }
@@ -947,11 +978,8 @@ actor BackgroundChatSender {
                    inbound.stringField("user_message_id") == userMessageId {
                     taskId = inbound.stringField("ai_task_id") ?? inbound.stringField("task_id")
                     if let taskId {
-                        if let metadata { return (taskId, metadata) }
-                        let metadataGraceDeadline = Date().addingTimeInterval(1)
-                        if metadataGraceDeadline < deadline {
-                            deadline = metadataGraceDeadline
-                        }
+                        if let metadata, hasRequiredMetadata(metadata) { return (taskId, metadata) }
+                        shrinkDeadlineForMetadataGrace()
                     }
                 }
             case "ai_typing_started":
@@ -979,17 +1007,23 @@ actor BackgroundChatSender {
                     aiTaskId: inbound.stringField("ai_task_id"),
                     activeTaskId: inbound.stringField("active_task_id")
                 ) {
-                    return (queuedTaskId, metadata ?? ChatMetadata.empty(userMessageId: userMessageId))
+                    taskId = queuedTaskId
+                    if hasRequiredMetadata(metadata) {
+                        return (queuedTaskId, metadata ?? ChatMetadata.empty(userMessageId: userMessageId))
+                    }
                 }
             default:
                 break
             }
-            if let taskId, let metadata {
+            if let taskId, let metadata, hasRequiredMetadata(metadata) {
                 return (taskId, metadata)
             }
         }
 
         if let taskId {
+            guard hasRequiredMetadata(metadata) else {
+                throw BackgroundChatSendError.incompleteNewChatMetadata
+            }
             return (taskId, metadata ?? ChatMetadata.empty(userMessageId: userMessageId))
         }
         return nil
@@ -1453,6 +1487,7 @@ enum BackgroundChatSendError: LocalizedError {
     case unsupportedAttachment
     case notAuthenticated
     case missingMasterKey
+    case incompleteNewChatMetadata
     case network
     case encoding
     case server(Int)
@@ -1467,6 +1502,8 @@ enum BackgroundChatSendError: LocalizedError {
             return "Open OpenMates and sign in first."
         case .missingMasterKey:
             return "Open OpenMates and sign in again to unlock encryption on this device."
+        case .incompleteNewChatMetadata:
+            return "The assistant did not return complete chat metadata. Please try again."
         case .network:
             return "OpenMates could not connect. Please try again."
         case .encoding:
