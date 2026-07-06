@@ -984,6 +984,7 @@ private enum NativeDeviceInfo {
         #endif
     }
 
+    @MainActor
     static func deviceState() -> [String: Any] {
         var state: [String: Any] = [
             "app_version": Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown",
@@ -1014,6 +1015,7 @@ private enum NativeDeviceInfo {
         return NativeClientLogCollector.sanitize(identifier)
     }
 
+    @MainActor
     private static func batteryState() -> String {
         UIDevice.current.isBatteryMonitoringEnabled = true
         switch UIDevice.current.batteryState {
@@ -1025,6 +1027,7 @@ private enum NativeDeviceInfo {
         }
     }
 
+    @MainActor
     private static func batteryLevelPercent() -> Int {
         UIDevice.current.isBatteryMonitoringEnabled = true
         let level = UIDevice.current.batteryLevel
