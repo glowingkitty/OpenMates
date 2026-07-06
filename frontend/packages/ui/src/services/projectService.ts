@@ -143,6 +143,52 @@ export interface ProjectViewModel {
   encrypted: EncryptedProjectRecord;
 }
 
+const REMOTE_CODE_UPLOAD_EXTENSIONS = new Set([
+  "c",
+  "cpp",
+  "css",
+  "go",
+  "h",
+  "html",
+  "java",
+  "js",
+  "json",
+  "jsx",
+  "md",
+  "py",
+  "rs",
+  "svelte",
+  "swift",
+  "ts",
+  "tsx",
+  "txt",
+  "yaml",
+  "yml",
+]);
+
+const REMOTE_CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
+  c: "c",
+  cpp: "cpp",
+  css: "css",
+  go: "go",
+  h: "c",
+  html: "html",
+  java: "java",
+  js: "javascript",
+  json: "json",
+  jsx: "javascript",
+  md: "markdown",
+  py: "python",
+  rs: "rust",
+  svelte: "svelte",
+  swift: "swift",
+  ts: "typescript",
+  tsx: "typescript",
+  txt: "text",
+  yaml: "yaml",
+  yml: "yaml",
+};
+
 function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
@@ -405,6 +451,23 @@ function embedTypeForUpload(upload: UploadFileResponse): string {
   return "file";
 }
 
+function getFilenameExtension(filename: string): string {
+  const basename = filename.toLowerCase().replace(/\\/g, "/").split("/").filter(Boolean).pop() ?? "";
+  const extensionIndex = basename.lastIndexOf(".");
+  return extensionIndex > 0 ? basename.slice(extensionIndex + 1) : "";
+}
+
+function shouldCreateRemoteCodeEmbed(file: File, metadata: ProjectUploadMetadata): boolean {
+  if (metadata.imported_from_remote_source !== true) return false;
+  const extension = getFilenameExtension(file.name);
+  return REMOTE_CODE_UPLOAD_EXTENSIONS.has(extension) || file.type.startsWith("text/");
+}
+
+function languageForCodeUpload(file: File): string {
+  const extension = getFilenameExtension(file.name);
+  return REMOTE_CODE_LANGUAGE_BY_EXTENSION[extension] ?? "text";
+}
+
 function isMindMapUploadFilename(filename: string): boolean {
   const lower = filename.toLowerCase();
   return lower.endsWith(".ommindmap") || lower.endsWith(".openmates-mindmap.json");
@@ -514,11 +577,112 @@ async function uploadMindMapToProject(
   embedStore.registerEmbedRef(embedRef, embedId, "mindmap");
 }
 
+async function uploadRemoteCodeFileToProject(
+  project: ProjectViewModel,
+  file: File,
+  metadata: ProjectUploadMetadata,
+): Promise<void> {
+  const source = await file.text();
+  const timestampMs = Date.now();
+  const timestamp = Math.floor(timestampMs / 1000);
+  const embedId = crypto.randomUUID();
+  const embedType = "code-code";
+  const embedKey = generateEmbedKey();
+  const embedRef = generateDirectEmbedRef("code", embedId, { filename: file.name });
+  const contentHash = await computeSHA256(source);
+  const embedContent = JSON.stringify({
+    type: "code",
+    app_id: "code",
+    skill_id: "code",
+    language: languageForCodeUpload(file),
+    code: source,
+    filename: file.name,
+    embed_ref: embedRef,
+    status: "finished",
+    line_count: source.split("\n").length,
+    content_hash: contentHash,
+  });
+  const hashedEmbedId = await computeSHA256(embedId);
+  const hashedProjectId = await computeSHA256(project.project_id);
+  const wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKey);
+  const wrappedProjectKey = await wrapEmbedKeyWithChatKey(embedKey, project.projectKey);
+  if (!wrappedMasterKey || !wrappedProjectKey) throw new Error("Could not wrap code embed keys");
+
+  await requestJson(`/v1/projects/${project.project_id}/upload-embed`, {
+    method: "POST",
+    body: JSON.stringify({
+      embed: {
+        embed_id: embedId,
+        encrypted_type: await encryptWithEmbedKey(embedType, embedKey),
+        status: "finished",
+        encrypted_content: await encryptWithEmbedKey(embedContent, embedKey),
+        encrypted_text_preview: await encryptWithEmbedKey(file.name, embedKey),
+        content_hash: contentHash,
+        created_at: timestamp,
+        updated_at: timestamp,
+        encryption_mode: "client",
+        is_private: true,
+        is_shared: false,
+      },
+      embed_keys: [
+        {
+          hashed_embed_id: hashedEmbedId,
+          key_type: "master",
+          encrypted_embed_key: wrappedMasterKey,
+          created_at: timestamp,
+        },
+        {
+          hashed_embed_id: hashedEmbedId,
+          key_type: "project",
+          hashed_project_id: hashedProjectId,
+          encrypted_embed_key: wrappedProjectKey,
+          created_at: timestamp,
+        },
+      ],
+      item: {
+        project_item_id: crypto.randomUUID(),
+        item_type: "embed",
+        target_id: embedId,
+        target_id_encrypted: await encryptWithEmbedKey(embedId, project.projectKey),
+        encrypted_display_name: await encryptWithEmbedKey(file.name, project.projectKey),
+        encrypted_note: await encryptWithEmbedKey("", project.projectKey),
+        encrypted_metadata: await encryptWithEmbedKey(
+          JSON.stringify({ ...metadata, embed_type: embedType }),
+          project.projectKey,
+        ),
+        created_at: timestamp,
+        updated_at: timestamp,
+        position: timestamp,
+      },
+    }),
+  });
+
+  await embedStore.put(
+    `embed:${embedId}`,
+    {
+      embed_id: embedId,
+      type: embedType as never,
+      status: "finished",
+      content: embedContent,
+      text_preview: file.name,
+      createdAt: timestampMs,
+      updatedAt: timestampMs,
+    },
+    embedType as never,
+  );
+  embedStore.registerEmbedRef(embedRef, embedId, "code");
+}
+
 export async function uploadFileToProject(
   project: ProjectViewModel,
   file: File,
   metadata: ProjectUploadMetadata = {},
 ): Promise<void> {
+  if (shouldCreateRemoteCodeEmbed(file, metadata)) {
+    await uploadRemoteCodeFileToProject(project, file, metadata);
+    return;
+  }
+
   if (isMindMapUploadFilename(file.name)) {
     const source = await file.text();
     const classification = classifyMindMapUploadSource(file.name, source, file.size);
