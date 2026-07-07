@@ -172,20 +172,34 @@ const embedById = new Map<
   string,
   { embed: ExampleChatEmbed; chatId: string }
 >();
+const parentEmbedIdByChildId = new Map<string, string>();
 
 const LOOKUP_EXAMPLE_CHATS = [...ALL_EXAMPLE_CHATS, ...INTERNAL_EXAMPLE_CHATS];
+
+function indexExampleEmbed(embed: ExampleChatEmbed, chatId: string): void {
+  const embedId = normalizeEmbedId(embed.embed_id);
+  embedById.set(embedId, { embed, chatId });
+
+  if (embed.parent_embed_id) {
+    parentEmbedIdByChildId.set(embedId, normalizeEmbedId(embed.parent_embed_id));
+  }
+
+  for (const childEmbedId of embed.embed_ids ?? []) {
+    parentEmbedIdByChildId.set(normalizeEmbedId(childEmbedId), embedId);
+  }
+}
 
 for (const example of LOOKUP_EXAMPLE_CHATS) {
   chatById.set(example.chat_id, example);
   chatBySlug.set(example.slug, example);
   chatRecordById.set(example.chat_id, { example, rootOrder: example.metadata.order });
   for (const embed of example.embeds) {
-    embedById.set(embed.embed_id, { embed, chatId: example.chat_id });
+    indexExampleEmbed(embed, example.chat_id);
   }
   for (const subChat of example.sub_chats ?? []) {
     chatRecordById.set(subChat.chat_id, { example: subChat, rootOrder: example.metadata.order });
     for (const embed of subChat.embeds) {
-      embedById.set(embed.embed_id, { embed, chatId: subChat.chat_id });
+      indexExampleEmbed(embed, subChat.chat_id);
     }
   }
 }
@@ -295,6 +309,14 @@ export function resolveExampleFullscreenTarget(embedId: string): {
 } | null {
   const normalizedEmbedId = normalizeEmbedId(embedId);
   if (!embedById.has(normalizedEmbedId)) return null;
+
+  const structuredParentEmbedId = parentEmbedIdByChildId.get(normalizedEmbedId);
+  if (structuredParentEmbedId && embedById.has(structuredParentEmbedId)) {
+    return {
+      targetEmbedId: structuredParentEmbedId,
+      focusChildEmbedId: normalizedEmbedId,
+    };
+  }
 
   for (const example of LOOKUP_EXAMPLE_CHATS) {
     const records = [example, ...(example.sub_chats ?? [])];
