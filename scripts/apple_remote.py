@@ -974,7 +974,7 @@ export_path = pathlib.Path(derived) / "export"
 export_options_path = pathlib.Path(derived) / "ExportOptions.plist"
 
 export_options = {
-    "destination": "upload",
+    "destination": "export" if target_platform == "watchos" else "upload",
     "method": "release-testing" if target_platform == "watchos" else "app-store-connect",
     "manageAppVersionAndBuildNumber": True,
     "provisioningProfiles": profile_names,
@@ -1062,6 +1062,31 @@ if export.returncode != 0:
             if "requires a provisioning profile" in log_text or "Provisioning" in log_text:
                 print_tail("export_log", log_text, derived, limit=220)
     sys.exit(export.returncode)
+if target_platform == "watchos":
+    ipa_candidates = sorted(export_path.rglob("*.ipa"))
+    if not ipa_candidates:
+        print("upload_status=no_watch_ipa")
+        sys.exit(1)
+    upload = subprocess.run(
+        [
+            "xcrun",
+            "altool",
+            "--upload-package",
+            str(ipa_candidates[0]),
+            "--api-key",
+            os.environ["APP_STORE_CONNECT_API_KEY_ID"],
+            "--api-issuer",
+            os.environ["APP_STORE_CONNECT_API_ISSUER_ID"],
+            "--p8-file-path",
+            os.environ["APP_STORE_CONNECT_API_KEY_PATH"],
+        ],
+        capture_output=True,
+        text=True,
+        timeout=1800,
+    )
+    if upload.returncode != 0:
+        print_tail("upload_status", upload.stdout + upload.stderr, derived)
+        sys.exit(upload.returncode)
 print("upload_status=passed")
 for line in (export.stdout + export.stderr).replace(derived, "<macos-peer-tmp>").splitlines()[-40:]:
     print(line)

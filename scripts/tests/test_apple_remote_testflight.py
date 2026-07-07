@@ -94,7 +94,10 @@ def test_upload_testflight_watch_uses_watch_scheme_and_profile_contract() -> Non
     assert 'if target_platform == "watchos":' in script
     assert "PROVISIONING_PROFILE_SPECIFIER={watch_profile}" in script
     assert "CODE_SIGN_STYLE=Manual" in script
+    assert '"destination": "export" if target_platform == "watchos" else "upload"' in script
     assert '"method": "release-testing" if target_platform == "watchos" else "app-store-connect"' in script
+    assert '"--upload-package"' in script
+    assert '"--p8-file-path"' in script
 
 
 def test_deploy_latest_testflight_parser_has_no_platform_override() -> None:
