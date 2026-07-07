@@ -9,24 +9,23 @@
 
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-
-  interface FitnessResult {
-    name?: string;
-    venue_name?: string;
-    date?: string;
-    time_range?: string;
-    distance_km?: number;
-    plans_required?: string[];
-  }
+  import {
+    asText,
+    getFitnessResultTitle,
+    normalizeFitnessSearchContent,
+    type FitnessResult,
+    type FitnessSkillId,
+    type FitnessStatus,
+  } from './fitnessEmbedData';
 
   interface Props {
     id: string;
-    skillId: 'search_locations' | 'search_classes';
+    skillId: FitnessSkillId;
     query?: string;
     provider?: string;
     summary?: string;
     filters?: Record<string, unknown>;
-    status: 'processing' | 'finished' | 'error' | 'cancelled';
+    status: FitnessStatus;
     results?: FitnessResult[];
     result_count?: number;
     taskId?: string;
@@ -54,7 +53,7 @@
   let localProvider = $state('Urban Sports Club');
   let localSummary = $state('');
   let localFilters = $state<Record<string, unknown>>({});
-  let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
+  let localStatus = $state<FitnessStatus>('processing');
   let localResults = $state<FitnessResult[]>([]);
   let localResultCount = $state(0);
 
@@ -69,24 +68,20 @@
   });
 
   async function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> }) {
-    if (data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled') {
-      localStatus = data.status;
-    }
-    const firstGroup = Array.isArray(data.decodedContent?.results)
-      ? data.decodedContent.results[0] as Record<string, unknown> | undefined
-      : undefined;
-    if (firstGroup) {
-      if (typeof firstGroup.summary === 'string') localSummary = firstGroup.summary;
-      if (typeof firstGroup.provider === 'string') localProvider = firstGroup.provider;
-      if (typeof firstGroup.result_count === 'number') localResultCount = firstGroup.result_count;
-      if (firstGroup.filters && typeof firstGroup.filters === 'object') localFilters = firstGroup.filters as Record<string, unknown>;
-      if (Array.isArray(firstGroup.results)) localResults = firstGroup.results as FitnessResult[];
-    }
+    const normalized = normalizeFitnessSearchContent(data.decodedContent, skillId);
+    localStatus = data.status === 'processing' || data.status === 'finished' || data.status === 'error' || data.status === 'cancelled'
+      ? data.status
+      : normalized.status;
+    localSummary = normalized.summary;
+    localProvider = normalized.provider;
+    localResultCount = normalized.resultCount;
+    localFilters = normalized.filters;
+    localResults = normalized.results;
   }
 
   let title = $derived(skillId === 'search_classes' ? 'Fitness classes' : 'Fitness locations');
   let countLabel = $derived(`${localResultCount} ${skillId === 'search_classes' ? 'classes' : 'locations'}`);
-  let locationLabel = $derived(String(localFilters.address || localFilters.city || localQuery || 'Urban Sports'));
+  let locationLabel = $derived(asText(localFilters.address || localFilters.city || localQuery || 'Urban Sports'));
   let filterChips = $derived.by(() => {
     const chips = [];
     if (localFilters.radius_km) chips.push(`${localFilters.radius_km} km`);
@@ -110,7 +105,7 @@
         <div class="fitness-search-results">
           {#each localResults.slice(0, 2) as result}
             <div class="fitness-search-result">
-              <span>{result.name}</span>
+              <span>{getFitnessResultTitle(result)}</span>
               {#if result.venue_name}<small>{result.venue_name}</small>{/if}
             </div>
           {/each}

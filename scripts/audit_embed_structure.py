@@ -149,6 +149,24 @@ def audit_fullscreen_primary_ctas(embeds_root: Path = EMBEDS_ROOT) -> list[str]:
     return issues
 
 
+def preview_uses_unified_base(path: Path) -> bool:
+    return file_contains(path, "<UnifiedEmbedPreview")
+
+
+def fullscreen_uses_approved_base(path: Path) -> bool:
+    if not path.exists():
+        return False
+    source = path.read_text(encoding="utf-8")
+    return any(
+        token in source
+        for token in (
+            "<UnifiedEmbedFullscreen",
+            "<SearchResultsTemplate",
+            "<EntryWithMapTemplate",
+        )
+    )
+
+
 def audit_embed_structure() -> AuditResult:
     registry = load_registry()
     issues: list[str] = []
@@ -171,6 +189,8 @@ def audit_embed_structure() -> AuditResult:
             issues.append(f"{label}: missing parent preview registry entry {parent_registry_key}")
         elif not component_path(parent_preview).exists():
             issues.append(f"{label}: parent preview file missing: {parent_preview}")
+        elif not preview_uses_unified_base(component_path(parent_preview)):
+            issues.append(f"{label}: parent preview {parent_preview} does not use UnifiedEmbedPreview")
 
         if not parent_fullscreen:
             issues.append(f"{label}: missing parent fullscreen registry entry {parent_registry_key}")
@@ -185,11 +205,18 @@ def audit_embed_structure() -> AuditResult:
             issues.append(f"{label}: missing child preview registry entry {child_registry_key}")
         elif not component_path(child_preview).exists():
             issues.append(f"{label}: child preview file missing: {child_preview}")
+        elif not preview_uses_unified_base(component_path(child_preview)):
+            issues.append(f"{label}: child preview {child_preview} does not use UnifiedEmbedPreview")
 
         if not child_fullscreen:
             issues.append(f"{label}: missing child fullscreen registry entry {child_registry_key}")
         elif not component_path(child_fullscreen).exists():
             issues.append(f"{label}: child fullscreen file missing: {child_fullscreen}")
+        elif not fullscreen_uses_approved_base(component_path(child_fullscreen)):
+            issues.append(
+                f"{label}: child fullscreen {child_fullscreen} does not use UnifiedEmbedFullscreen, "
+                "SearchResultsTemplate, or EntryWithMapTemplate"
+            )
 
         source = parent_fullscreen_path.read_text(encoding="utf-8")
         uses_search_template = "<SearchResultsTemplate" in source

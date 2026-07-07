@@ -111,3 +111,27 @@ def test_mutually_exclusive_primary_states_with_same_test_id_are_allowed(tmp_pat
     )
 
     assert module.audit_fullscreen_primary_ctas(tmp_path / "embeds") == []
+
+
+def test_preview_base_detection_requires_unified_embed_preview(tmp_path: Path) -> None:
+    module = load_module()
+    preview = tmp_path / "embeds" / "fitness" / "FitnessResultEmbedPreview.svelte"
+    write(preview, "<UnifiedEmbedPreview appId=\"fitness\" />\n")
+
+    assert module.preview_uses_unified_base(preview) is True
+
+    write(preview, "<article class=\"custom-card\">Result</article>\n")
+
+    assert module.preview_uses_unified_base(preview) is False
+
+
+def test_fullscreen_base_detection_allows_approved_templates(tmp_path: Path) -> None:
+    module = load_module()
+    fullscreen = tmp_path / "embeds" / "fitness" / "FitnessSearchEmbedFullscreen.svelte"
+    write(fullscreen, "<SearchResultsTemplate appId=\"fitness\" />\n")
+
+    assert module.fullscreen_uses_approved_base(fullscreen) is True
+
+    write(fullscreen, "<div class=\"custom-fullscreen\">Result</div>\n")
+
+    assert module.fullscreen_uses_approved_base(fullscreen) is False

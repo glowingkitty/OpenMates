@@ -10,9 +10,14 @@ embed_types:
     skill_id: search_locations
     frontend_type: app-skill-use
     backend_type: app_skill_use
-    has_children: false
+    has_children: true
+    child_type: location
+    child_frontend_type: fitness-location
+    groupable: false
     preview_component: fitness/FitnessSearchEmbedPreview.svelte
     fullscreen_component: fitness/FitnessSearchEmbedFullscreen.svelte
+    child_preview_component: fitness/FitnessResultEmbedPreview.svelte
+    child_fullscreen_component: fitness/FitnessResultEmbedFullscreen.svelte
     icon: fitness
     gradient_var: "--color-app-fitness"
     i18n_namespace: embeds.fitness.search_locations
@@ -21,9 +26,14 @@ embed_types:
     skill_id: search_classes
     frontend_type: app-skill-use
     backend_type: app_skill_use
-    has_children: false
+    has_children: true
+    child_type: class
+    child_frontend_type: fitness-class
+    groupable: false
     preview_component: fitness/FitnessSearchEmbedPreview.svelte
     fullscreen_component: fitness/FitnessSearchEmbedFullscreen.svelte
+    child_preview_component: fitness/FitnessResultEmbedPreview.svelte
+    child_fullscreen_component: fitness/FitnessResultEmbedFullscreen.svelte
     icon: fitness
     gradient_var: "--color-app-fitness"
     i18n_namespace: embeds.fitness.search_classes

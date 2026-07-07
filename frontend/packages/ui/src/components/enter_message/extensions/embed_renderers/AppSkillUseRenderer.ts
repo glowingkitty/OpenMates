@@ -52,6 +52,7 @@ import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchE
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
 import FitnessSearchEmbedPreview from "../../../embeds/fitness/FitnessSearchEmbedPreview.svelte";
+import { normalizeFitnessSearchContent } from "../../../embeds/fitness/fitnessEmbedData";
 import MathCalculateEmbedPreview from "../../../embeds/math/MathCalculateEmbedPreview.svelte";
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
 import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
@@ -1980,12 +1981,9 @@ export class AppSkillUseRenderer implements EmbedRenderer {
     decodedContent: any,
     content: HTMLElement,
   ): void {
-    const firstGroup = Array.isArray(decodedContent?.results) ? decodedContent.results[0] : null;
-    const filters = firstGroup?.filters || {};
-    const results = Array.isArray(firstGroup?.results) ? firstGroup.results : [];
     const skillId = decodedContent?.skill_id || embedData?.skill_id || (attrs as any).skill_id || "search_classes";
-    const status = decodedContent?.status || embedData?.status || attrs.status || "processing";
-    const resultCount = typeof firstGroup?.result_count === "number" ? firstGroup.result_count : results.length;
+    const normalized = normalizeFitnessSearchContent(decodedContent, skillId);
+    const status = decodedContent?.status || embedData?.status || attrs.status || normalized.status || "processing";
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
       try {
@@ -2001,14 +1999,14 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         target: content,
         props: {
           id: embedId,
-          skillId,
-          query: decodedContent?.query || filters.query || "",
-          provider: firstGroup?.provider || decodedContent?.provider || "Urban Sports Club",
-          summary: firstGroup?.summary || "",
-          filters,
+          skillId: normalized.skillId,
+          query: normalized.query,
+          provider: normalized.provider,
+          summary: normalized.summary,
+          filters: normalized.filters,
           status,
-          results,
-          result_count: resultCount,
+          results: normalized.results,
+          result_count: normalized.resultCount,
           taskId: decodedContent?.task_id || "",
           skillTaskId: decodedContent?.skill_task_id || "",
           isMobile: false,

@@ -1,6 +1,6 @@
 search_locations:
   context: Skill name for fitness location search
-  en: Search fitness locations
+  en: Search locations
   de: Fitness-Standorte suchen
   zh: 搜索健身地点
   es: Buscar centros de fitness
@@ -75,7 +75,7 @@ search_locations.how_to_use.1:
 
 search_classes:
   context: Skill name for fitness class search
-  en: Search fitness classes
+  en: Search classes
   de: Fitness-Kurse suchen
   zh: 搜索健身课程
   es: Buscar clases de fitness

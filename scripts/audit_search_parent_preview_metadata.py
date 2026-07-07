@@ -29,6 +29,8 @@ PARENT_PREVIEW_METADATA_COVERAGE: set[str] = {
     "code:search_repos",
     "electronics:search_components",
     "events:search",
+    "fitness:search_classes",
+    "fitness:search_locations",
     "health:search_appointments",
     "home:search",
     "images:search",

@@ -4,6 +4,7 @@
  */
 
 import { str, trunc, resolveResultCount } from '../../../data/embedTextRenderers';
+import { getFitnessResultAddress, getFitnessResultTitle } from './fitnessEmbedData';
 
 export function renderFitnessSearch(c: Record<string, unknown>): string {
 	const groups = Array.isArray(c.results) ? c.results as Record<string, unknown>[] : [];
@@ -18,5 +19,15 @@ export function renderFitnessSearch(c: Record<string, unknown>): string {
 	if (location) lines.push(`Location: ${trunc(location, 80)}`);
 	if (count !== null) lines.push(`${count} results`);
 	if (summary) lines.push(summary);
+	return lines.join('\n');
+}
+
+export function renderFitnessResult(c: Record<string, unknown>): string {
+	const title = getFitnessResultTitle(c);
+	const subtitle = str(c.venue_name) ?? getFitnessResultAddress(c);
+	const lines = [`**${title}**`];
+	if (subtitle) lines.push(trunc(subtitle, 100));
+	if (c.date || c.time_range) lines.push([c.date, c.time_range].filter(Boolean).join(' '));
+	if (c.distance_km !== null && c.distance_km !== undefined) lines.push(`${c.distance_km} km`);
 	return lines.join('\n');
 }

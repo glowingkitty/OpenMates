@@ -1,0 +1,17 @@
+# backend/providers/urban_sports_club.yml
+#
+# Configuration for Urban Sports Club provider metadata.
+# Used by the Fitness app for searching public locations and class availability.
+
+provider_id: "urban_sports_club"
+name: "Urban Sports Club"
+description: "Urban Sports Club fitness venues and class availability across Europe."
+logo_svg: "icons/urban_sports_club.png"
+region: "EU"
+privacy_policy: "https://urbansportsclub.com/en/privacy-policy"
+
+# No API key required — uses public Urban Sports Club endpoints.
+no_api_key: true
+
+pricing:
+  per_request_credits: 5
