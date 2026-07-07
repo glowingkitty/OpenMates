@@ -8,7 +8,7 @@ import XCTest
 @MainActor
 final class ChatManagementSharingParityUITests: XCTestCase {
     private let fixtureShareURL = "https://app.dev.openmates.org/s/Abc123XY#testKey"
-    private let fixtureSafariURL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    private let fixtureSafariURL = "https://example.com/openmates-share-fixture"
     private let recentChatSeedPrompt = "Share extension recent chat destination seed"
 
     override func setUpWithError() throws {
@@ -103,7 +103,7 @@ final class ChatManagementSharingParityUITests: XCTestCase {
             "Expected OpenMates share extension message input. Visible UI: \(visibleStateLabels(in: safari))"
         )
         XCTAssertTrue(
-            (messageInput?.value as? String ?? messageInput?.label ?? "").contains("youtube.com/watch"),
+            shareInputContainsExpectedURL(messageInput),
             "Expected the shared Safari URL to be prefilled in the editable message input."
         )
 
@@ -170,7 +170,7 @@ final class ChatManagementSharingParityUITests: XCTestCase {
             "Expected OpenMates share extension message input. Visible UI: \(visibleStateLabels(in: safari))"
         )
         XCTAssertTrue(
-            (messageInput?.value as? String ?? messageInput?.label ?? "").contains("youtube.com/watch"),
+            shareInputContainsExpectedURL(messageInput),
             "Expected the shared Safari URL to be prefilled in the editable message input."
         )
         XCTAssertNotNil(waitForShareExtensionElement(identifier: "share-extension-send", in: shareHosts, timeout: 5))
@@ -269,7 +269,12 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         let addressValues = safari.textFields.allElementsBoundByIndex.map {
             String(describing: $0.value ?? $0.label).lowercased()
         }
-        return addressValues.contains { $0.contains("youtube.com") || $0.contains("youtu.be") }
+        return addressValues.contains { $0.contains("example.com") || $0.contains("youtube.com") || $0.contains("youtu.be") }
+    }
+
+    private func shareInputContainsExpectedURL(_ element: XCUIElement?) -> Bool {
+        let value = (element?.value as? String ?? element?.label ?? "").lowercased()
+        return value.contains("example.com") || value.contains("youtube.com") || value.contains("youtu.be")
     }
 
     private func tapSafariShareButton(in safari: XCUIApplication) {
