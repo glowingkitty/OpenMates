@@ -45,16 +45,100 @@ struct WatchPendingTextSend: Codable, Equatable, Identifiable, Sendable {
     let createdAt: String
 }
 
+struct WatchUploadedFileVariant: Codable, Equatable, Sendable {
+    let s3Key: String
+    let sizeBytes: Int?
+    let width: Int?
+    let height: Int?
+    let format: String?
+}
+
+struct WatchUploadedAudio: Codable, Equatable, Sendable {
+    let embedId: String
+    let filename: String
+    let contentType: String
+    let contentHash: String?
+    let files: [String: WatchUploadedFileVariant]
+    let s3BaseUrl: String
+    let aesKey: String
+    let aesNonce: String
+    let vaultWrappedAesKey: String
+}
+
+struct WatchPendingAudioEmbed: Codable, Equatable, Identifiable, Sendable {
+    let id: String
+    let filename: String
+    let transcript: String?
+    let duration: TimeInterval
+    let content: String
+
+    var markdownReference: String {
+        "```json\n{\"type\": \"audio-recording\", \"embed_id\": \"\(id)\"}\n```"
+    }
+
+    static func from(upload: WatchUploadedAudio, transcript: String?, duration: TimeInterval) -> WatchPendingAudioEmbed {
+        let contentObject = audioContentObject(upload: upload, transcript: transcript, duration: duration)
+        return WatchPendingAudioEmbed(
+            id: upload.embedId,
+            filename: upload.filename,
+            transcript: transcript,
+            duration: duration,
+            content: jsonString(contentObject)
+        )
+    }
+
+    private static func audioContentObject(
+        upload: WatchUploadedAudio,
+        transcript: String?,
+        duration: TimeInterval
+    ) -> [String: Any] {
+        var object: [String: Any] = [
+            "app_id": "audio",
+            "type": "audio-recording",
+            "status": "finished",
+            "filename": upload.filename,
+            "s3_base_url": upload.s3BaseUrl,
+            "files": upload.files.mapValues { variant in
+                var item: [String: Any] = ["s3_key": variant.s3Key]
+                if let sizeBytes = variant.sizeBytes { item["size_bytes"] = sizeBytes }
+                if let width = variant.width { item["width"] = width }
+                if let height = variant.height { item["height"] = height }
+                if let format = variant.format { item["format"] = format }
+                return item
+            },
+            "aes_key": upload.aesKey,
+            "aes_nonce": upload.aesNonce,
+            "vault_wrapped_aes_key": upload.vaultWrappedAesKey,
+            "skill_id": "transcribe",
+            "duration": duration,
+        ]
+        if let contentHash = upload.contentHash { object["content_hash"] = contentHash }
+        if let transcript { object["transcript"] = transcript }
+        return object
+    }
+
+    private static func jsonString(_ object: [String: Any]) -> String {
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]),
+              let string = String(data: data, encoding: .utf8) else {
+            return "{}"
+        }
+        return string
+    }
+}
+
 struct WatchChatSnapshot: Codable, Equatable, Sendable {
     var chats: [WatchChatSummary]
     var messagesByChatId: [String: [WatchChatMessage]]
     var pendingTextSends: [WatchPendingTextSend]
+    var pendingAudioEmbeds: [WatchPendingAudioEmbed]
     var savedAt: Date
 
     static let empty = WatchChatSnapshot(
         chats: [],
         messagesByChatId: [:],
         pendingTextSends: [],
+        pendingAudioEmbeds: [],
         savedAt: .distantPast
     )
 
@@ -62,11 +146,13 @@ struct WatchChatSnapshot: Codable, Equatable, Sendable {
         chats: [WatchChatSummary],
         messagesByChatId: [String: [WatchChatMessage]],
         pendingTextSends: [WatchPendingTextSend] = [],
+        pendingAudioEmbeds: [WatchPendingAudioEmbed] = [],
         savedAt: Date
     ) {
         self.chats = chats
         self.messagesByChatId = messagesByChatId
         self.pendingTextSends = pendingTextSends
+        self.pendingAudioEmbeds = pendingAudioEmbeds
         self.savedAt = savedAt
     }
 
@@ -75,6 +161,7 @@ struct WatchChatSnapshot: Codable, Equatable, Sendable {
         chats = try container.decode([WatchChatSummary].self, forKey: .chats)
         messagesByChatId = try container.decode([String: [WatchChatMessage]].self, forKey: .messagesByChatId)
         pendingTextSends = try container.decodeIfPresent([WatchPendingTextSend].self, forKey: .pendingTextSends) ?? []
+        pendingAudioEmbeds = try container.decodeIfPresent([WatchPendingAudioEmbed].self, forKey: .pendingAudioEmbeds) ?? []
         savedAt = try container.decode(Date.self, forKey: .savedAt)
     }
 }
@@ -116,6 +203,8 @@ protocol WatchChatAPI: Sendable {
     func fetchRecentChats(limit: Int) async throws -> [WatchRemoteChat]
     func fetchMessages(chatId: String) async throws -> [WatchRemoteMessage]
     func sendPendingText(_ pending: WatchPendingTextSend) async throws
+    func uploadAudioRecording(data: Data, filename: String, chatId: String) async throws -> WatchUploadedAudio
+    func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String) async throws -> String?
 }
 
 @MainActor
@@ -181,6 +270,7 @@ final class WatchChatRuntime: ObservableObject {
     @Published private(set) var isSyncing = false
     @Published private(set) var isOffline = false
     @Published private(set) var errorMessage: String?
+    @Published private(set) var pendingAudioEmbeds: [WatchPendingAudioEmbed] = []
 
     private let api: any WatchChatAPI
     private let cache: WatchChatOfflineCache
@@ -309,10 +399,36 @@ final class WatchChatRuntime: ObservableObject {
         try? await persistSnapshot()
     }
 
+    func prepareAudioRecording(data: Data, filename: String, duration: TimeInterval) async -> String? {
+        guard let selectedChatId else { return nil }
+        do {
+            let upload = try await api.uploadAudioRecording(
+                data: data,
+                filename: filename,
+                chatId: selectedChatId
+            )
+            let transcript = try await api.transcribeAudioRecording(upload, chatId: selectedChatId)
+            let pendingEmbed = WatchPendingAudioEmbed.from(
+                upload: upload,
+                transcript: transcript,
+                duration: duration
+            )
+            pendingAudioEmbeds.removeAll { $0.id == pendingEmbed.id }
+            pendingAudioEmbeds.append(pendingEmbed)
+            errorMessage = nil
+            try? await persistSnapshot()
+            return transcript
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
     private func apply(_ snapshot: WatchChatSnapshot) {
         chats = Self.sortedChats(snapshot.chats)
         messagesByChatId = snapshot.messagesByChatId.mapValues(Self.sortedMessages)
         pendingTextSends = snapshot.pendingTextSends
+        pendingAudioEmbeds = snapshot.pendingAudioEmbeds
         if selectedChatId == nil {
             selectedChatId = chats.first?.id
         }
@@ -324,6 +440,7 @@ final class WatchChatRuntime: ObservableObject {
                 chats: chats,
                 messagesByChatId: messagesByChatId,
                 pendingTextSends: pendingTextSends,
+                pendingAudioEmbeds: pendingAudioEmbeds,
                 savedAt: Date()
             )
         )
@@ -413,6 +530,60 @@ extension APIClient: WatchChatAPI {
             "versions": ["last_edited_overall_timestamp": createdAtUnix]
         ]
         let _: Data = try await request(.post, path: "/v1/chats/\(pending.chatId)/messages", body: payload)
+    }
+
+    func uploadAudioRecording(data: Data, filename: String, chatId: String) async throws -> WatchUploadedAudio {
+        let boundary = UUID().uuidString
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: audio/mp4\r\n\r\n".data(using: .utf8)!)
+        body.append(data)
+        body.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n".data(using: .utf8)!)
+        body.append(chatId.data(using: .utf8)!)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+
+        let uploadURL = await uploadBaseURL.appendingPathComponent("v1/upload/file")
+        var request = URLRequest(url: uploadURL)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.httpBody = body
+
+        let (responseData, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw WatchChatRuntimeError.audioUploadFailed
+        }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(WatchUploadedAudio.self, from: responseData)
+    }
+
+    func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String) async throws -> String? {
+        let s3Key = upload.files["original"]?.s3Key ?? upload.files.values.first?.s3Key
+        guard let s3Key else { throw WatchChatRuntimeError.audioUploadFailed }
+        let embedId = UUID().uuidString
+        let request: [String: Any] = [
+            "requests": [[
+                "id": embedId,
+                "embed_id": upload.embedId,
+                "s3_key": s3Key,
+                "s3_base_url": upload.s3BaseUrl,
+                "aes_key": upload.aesKey,
+                "aes_nonce": upload.aesNonce,
+                "vault_wrapped_aes_key": upload.vaultWrappedAesKey,
+                "filename": upload.filename,
+                "mime_type": upload.contentType,
+                "chat_id": chatId,
+            ]]
+        ]
+        let response: WatchTranscribeSkillResponse = try await self.request(
+            .post,
+            path: "apps/audio/skills/transcribe",
+            body: request
+        )
+        return response.data.results.first?.results.first?.transcript
     }
 }
 
@@ -574,13 +745,32 @@ private final class WatchChatCryptoService: WatchChatCrypto {
 
 enum WatchChatRuntimeError: LocalizedError {
     case missingChatKey
+    case audioUploadFailed
 
     var errorDescription: String? {
         switch self {
         case .missingChatKey:
             return "Missing local chat key"
+        case .audioUploadFailed:
+            return "Audio upload failed"
         }
     }
+}
+
+private struct WatchTranscribeSkillResponse: Decodable {
+    struct ResponseData: Decodable {
+        struct ResultGroup: Decodable {
+            struct Result: Decodable {
+                let transcript: String?
+            }
+
+            let results: [Result]
+        }
+
+        let results: [ResultGroup]
+    }
+
+    let data: ResponseData
 }
 
 private struct WatchChatListEnvelope: Decodable {

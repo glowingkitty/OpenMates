@@ -181,6 +181,37 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual(socket.connectedSyncState?.clientEmbedIds, [])
     }
 
+    func testAudioRecordingCreatesPendingEmbedWithoutSendingMessage() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let chat = Self.chat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")
+        let api = FakeWatchChatAPI(
+            chats: [Self.remoteChat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z")],
+            messagesByChatId: ["chat-a": []],
+            uploadedAudio: Self.uploadedAudio()
+        )
+        let runtime = WatchChatRuntime(api: api, cache: cache, crypto: FakeWatchChatCrypto())
+
+        await runtime.refresh()
+        await runtime.openChat(chat)
+        let transcript = await runtime.prepareAudioRecording(
+            data: Data([0, 1, 2, 3]),
+            filename: "watch-recording.m4a",
+            duration: 4.2
+        )
+
+        XCTAssertEqual(transcript, "Watch transcript")
+        XCTAssertEqual(api.uploadedAudioRequests.first?.chatId, "chat-a")
+        XCTAssertEqual(api.transcribedAudioIds, ["watch-audio-embed"])
+        XCTAssertEqual(api.sentMessages.count, 0)
+        XCTAssertEqual(runtime.pendingAudioEmbeds.count, 1)
+        XCTAssertEqual(runtime.pendingAudioEmbeds.first?.markdownReference, "```json\n{\"type\": \"audio-recording\", \"embed_id\": \"watch-audio-embed\"}\n```")
+        XCTAssertTrue(runtime.pendingAudioEmbeds.first?.content.contains("Watch transcript") == true)
+        let cached = await cache.loadSnapshot()
+        XCTAssertEqual(cached.pendingAudioEmbeds.first?.id, "watch-audio-embed")
+    }
+
     private func temporaryDirectory() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent("watch-chat-runtime-tests-\(UUID().uuidString)", isDirectory: true)
@@ -252,6 +283,34 @@ final class WatchChatRuntimeTests: XCTestCase {
             createdAt: "2026-07-06T10:00:00Z"
         )
     }
+
+    private static func uploadedAudio() -> WatchUploadedAudio {
+        WatchUploadedAudio(
+            embedId: "watch-audio-embed",
+            filename: "watch-recording.m4a",
+            contentType: "audio/mp4",
+            contentHash: "audio-hash",
+            files: [
+                "original": WatchUploadedFileVariant(
+                    s3Key: "recordings/watch-recording.m4a",
+                    sizeBytes: 4,
+                    width: nil,
+                    height: nil,
+                    format: "m4a"
+                )
+            ],
+            s3BaseUrl: "https://files.example.invalid",
+            aesKey: "redacted-aes-key",
+            aesNonce: "redacted-aes-nonce",
+            vaultWrappedAesKey: "redacted-wrapped-key"
+        )
+    }
+}
+
+private struct FakeAudioUploadRequest: Equatable {
+    let data: Data
+    let filename: String
+    let chatId: String
 }
 
 private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
@@ -259,18 +318,23 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
     private let shouldThrowOnSend: Bool
     private let chats: [WatchRemoteChat]
     private let messagesByChatId: [String: [WatchRemoteMessage]]
+    private let uploadedAudio: WatchUploadedAudio?
     private(set) var sentMessages: [WatchPendingTextSend] = []
+    private(set) var uploadedAudioRequests: [FakeAudioUploadRequest] = []
+    private(set) var transcribedAudioIds: [String] = []
 
     init(
         chats: [WatchRemoteChat] = [],
         messagesByChatId: [String: [WatchRemoteMessage]] = [:],
         shouldThrow: Bool = false,
-        shouldThrowOnSend: Bool = false
+        shouldThrowOnSend: Bool = false,
+        uploadedAudio: WatchUploadedAudio? = nil
     ) {
         self.chats = chats
         self.messagesByChatId = messagesByChatId
         self.shouldThrow = shouldThrow
         self.shouldThrowOnSend = shouldThrowOnSend
+        self.uploadedAudio = uploadedAudio
     }
 
     func fetchRecentChats(limit: Int) async throws -> [WatchRemoteChat] {
@@ -286,6 +350,19 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
     func sendPendingText(_ pending: WatchPendingTextSend) async throws {
         if shouldThrow || shouldThrowOnSend { throw URLError(.notConnectedToInternet) }
         sentMessages.append(pending)
+    }
+
+    func uploadAudioRecording(data: Data, filename: String, chatId: String) async throws -> WatchUploadedAudio {
+        if shouldThrow { throw URLError(.notConnectedToInternet) }
+        uploadedAudioRequests.append(FakeAudioUploadRequest(data: data, filename: filename, chatId: chatId))
+        guard let uploadedAudio else { throw WatchChatRuntimeError.audioUploadFailed }
+        return uploadedAudio
+    }
+
+    func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String) async throws -> String? {
+        if shouldThrow { throw URLError(.notConnectedToInternet) }
+        transcribedAudioIds.append(upload.embedId)
+        return "Watch transcript"
     }
 }
 
