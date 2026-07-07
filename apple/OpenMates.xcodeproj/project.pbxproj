@@ -1785,7 +1785,7 @@
 			);
 			productName = OpenMates;
 			productReference = C0FFEE000000000000047015 /* OpenMatesWatch.app */;
-			productType = "com.apple.product-type.application";
+			productType = "com.apple.product-type.application.watchapp2";
 		};
 		02E5AB06E9CF5357E7F6C413 /* OpenMates_iOS */ = {
 			isa = PBXNativeTarget;
