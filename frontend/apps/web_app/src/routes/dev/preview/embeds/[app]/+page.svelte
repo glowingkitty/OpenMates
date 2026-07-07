@@ -472,6 +472,17 @@
 				quoteText: 'Bio Vollmilch-Joghurt Naturell, 500g, 1,39 EUR.'
 			}
 		],
+		fitness: [
+			{
+				skillLabel: 'Classes',
+				appId: 'fitness',
+				previewPath: 'embeds/fitness/FitnessSearchEmbedPreview',
+				fullscreenPath: 'embeds/fitness/FitnessSearchEmbedFullscreen',
+				inlineLinkText: 'Yoga classes near Sorauer Str. 12',
+				quoteText: 'Found 3 Urban Sports classes nearby. Top pick: Morning Yoga Flow at Yoga Studio Kreuzberg.',
+				isAppSkill: true
+			}
+		],
 		electronics: [
 			{
 				skillLabel: 'Search Components',
@@ -560,6 +571,7 @@
 		mail: 'mail',
 		pdf: 'pdf',
 		shopping: 'shopping',
+		fitness: 'fitness',
 		electronics: 'pcbdesign',
 		home: 'home',
 		nutrition: 'nutrition',
@@ -586,6 +598,7 @@
 		'mail',
 		'pdf',
 		'shopping',
+		'fitness',
 		'electronics',
 		'home',
 		'nutrition',
