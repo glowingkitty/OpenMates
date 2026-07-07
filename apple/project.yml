@@ -148,8 +148,40 @@ targets:
     type: application.watchapp2
     platform: watchOS
     deploymentTarget: "10.0"
+    sources:
+      - path: OpenMatesWatch/Sources
+      - path: OpenMates/Sources/Core/Models/AuthError.swift
+      - path: OpenMates/Sources/Core/Models/AuthModels.swift
+      - path: OpenMates/Sources/Core/Crypto/CryptoManager.swift
+      - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
+      - path: OpenMates/Sources/Core/Models/EmbedModels.swift
+      - path: OpenMates/Sources/Core/Networking/APIClient.swift
+      - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+      - path: OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+      - path: OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+      - path: OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+      - path: OpenMates/Sources/Shared/Extensions/AnyCodable.swift
+      - path: OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+      - path: OpenMatesShared/OpenMatesSharedEnvironment.swift
+      - path: ../frontend/packages/ui/src/tokens/generated/swift/ColorTokens.generated.swift
+        name: ColorTokens.generated.swift
+      - path: ../frontend/packages/ui/src/tokens/generated/swift/GradientTokens.generated.swift
+        name: GradientTokens.generated.swift
+      - path: ../frontend/packages/ui/src/tokens/generated/swift/SpacingTokens.generated.swift
+        name: SpacingTokens.generated.swift
+      - path: ../frontend/packages/ui/src/tokens/generated/swift/TypographyTokens.generated.swift
+        name: TypographyTokens.generated.swift
     resources:
       - path: OpenMatesWatch/Assets.xcassets
+      - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
+      - path: OpenMates/Resources/Fonts
+        buildPhase: resources
+        name: Fonts
+        type: folder
+      - path: ../frontend/packages/ui/src/i18n/locales
+        buildPhase: resources
+        name: i18n
+        type: folder
     settings:
       base:
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: YES
@@ -184,83 +216,10 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         WKCompanionAppBundleIdentifier: org.openmates.app
-        WKWatchKitApp: true
-    dependencies:
-      - target: OpenMatesWatchExtension
-        embed: true
-
-  OpenMatesWatchExtension:
-    type: watchkit2-extension
-    platform: watchOS
-    deploymentTarget: "10.0"
-    sources:
-      - path: OpenMatesWatch/Sources
-      - path: OpenMates/Sources/Core/Models/AuthError.swift
-      - path: OpenMates/Sources/Core/Models/AuthModels.swift
-      - path: OpenMates/Sources/Core/Crypto/CryptoManager.swift
-      - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
-      - path: OpenMates/Sources/Core/Models/EmbedModels.swift
-      - path: OpenMates/Sources/Core/Networking/APIClient.swift
-      - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
-      - path: OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
-      - path: OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
-      - path: OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
-      - path: OpenMates/Sources/Shared/Extensions/AnyCodable.swift
-      - path: OpenMates/Sources/Shared/Extensions/DataExtensions.swift
-      - path: OpenMatesShared/OpenMatesSharedEnvironment.swift
-      - path: ../frontend/packages/ui/src/tokens/generated/swift/ColorTokens.generated.swift
-        name: ColorTokens.generated.swift
-      - path: ../frontend/packages/ui/src/tokens/generated/swift/GradientTokens.generated.swift
-        name: GradientTokens.generated.swift
-      - path: ../frontend/packages/ui/src/tokens/generated/swift/SpacingTokens.generated.swift
-        name: SpacingTokens.generated.swift
-      - path: ../frontend/packages/ui/src/tokens/generated/swift/TypographyTokens.generated.swift
-        name: TypographyTokens.generated.swift
-    resources:
-      - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
-      - path: OpenMates/Resources/Fonts
-        buildPhase: resources
-        name: Fonts
-        type: folder
-      - path: ../frontend/packages/ui/src/i18n/locales
-        buildPhase: resources
-        name: i18n
-        type: folder
-    settings:
-      base:
-        APPLICATION_EXTENSION_API_ONLY: YES
-        CODE_SIGN_ENTITLEMENTS: OpenMatesWatchExtension/OpenMatesWatchExtension.entitlements
-        INFOPLIST_FILE: OpenMatesWatchExtension/Info.plist
-        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
-        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.watch.watchkitextension
-        PRODUCT_NAME: OpenMatesWatchExtension
-        SDKROOT: watchos
-        SKIP_INSTALL: YES
-        SWIFT_VERSION: "6.0"
-        TARGETED_DEVICE_FAMILY: "4"
-      configs:
-        Debug:
-          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
-        Release:
-          SWIFT_OPTIMIZATION_LEVEL: -Owholemodule
-    entitlements:
-      path: OpenMatesWatchExtension/OpenMatesWatchExtension.entitlements
-    info:
-      path: OpenMatesWatchExtension/Info.plist
-      properties:
-        CFBundleDisplayName: OpenMates
-        CFBundleExecutable: $(EXECUTABLE_NAME)
-        CFBundleName: OpenMatesWatchExtension
-        CFBundlePackageType: XPC!
-        CFBundleShortVersionString: $(MARKETING_VERSION)
-        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        ITSAppUsesNonExemptEncryption: false
-        NSExtension:
-          NSExtensionAttributes:
-            WKAppBundleIdentifier: org.openmates.app.watch
-          NSExtensionPointIdentifier: com.apple.watchkit
-        NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
+        WKApplication: true
         WKRunsIndependentlyOfCompanionApp: true
+        ITSAppUsesNonExemptEncryption: false
+        NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
         UIAppFonts:
           - LexendDeca-Light.ttf
           - LexendDeca-Regular.ttf

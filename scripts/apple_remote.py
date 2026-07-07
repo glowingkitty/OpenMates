@@ -299,11 +299,9 @@ if target_platform == "ios":
         "org.openmates.app.notification-service",
         "org.openmates.app.widget",
         "org.openmates.app.watch",
-        "org.openmates.app.watch.watchkitextension",
     )
     REQUIRED_APP_GROUP_BUNDLE_IDS = set(BUNDLE_IDS) - {
         "org.openmates.app.watch",
-        "org.openmates.app.watch.watchkitextension",
     }
     REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set()
 elif target_platform == "macos":
@@ -332,7 +330,6 @@ elif target_platform == "watchos":
     archive_without_signing = False
     BUNDLE_IDS = (
         "org.openmates.app.watch",
-        "org.openmates.app.watch.watchkitextension",
     )
     REQUIRED_APP_GROUP_BUNDLE_IDS = set()
     REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set()
@@ -1086,6 +1083,9 @@ def assert_ios_archive_embeds_watch_companion():
     bundle_id = info.get("CFBundleIdentifier")
     companion_id = info.get("WKCompanionAppBundleIdentifier")
     executable = info.get("CFBundleExecutable")
+    modern_watch_app = info.get("WKApplication") is True
+    legacy_watchkit_app = info.get("WKWatchKitApp") is True
+    runs_independently = info.get("WKRunsIndependentlyOfCompanionApp")
     if bundle_id != "org.openmates.app.watch" or companion_id != "org.openmates.app":
         print("archive_watch_companion=invalid_metadata")
         print(f"watch_bundle_id={bundle_id or 'missing'}")
@@ -1093,6 +1093,19 @@ def assert_ios_archive_embeds_watch_companion():
         sys.exit(1)
     if not executable:
         print("archive_watch_companion=missing_executable_metadata")
+        sys.exit(1)
+    if modern_watch_app:
+        if runs_independently is not True:
+            print("archive_watch_companion=invalid_modern_metadata")
+            print(f"watch_runs_independently={runs_independently!r}")
+            sys.exit(1)
+        if (watch_apps[0] / "PlugIns" / "OpenMatesWatchExtension.appex").exists():
+            print("archive_watch_companion=unexpected_extension")
+            sys.exit(1)
+        print("archive_watch_companion=passed")
+        return
+    if not legacy_watchkit_app:
+        print("archive_watch_companion=missing_watch_application_marker")
         sys.exit(1)
     extension_path = watch_apps[0] / "PlugIns" / "OpenMatesWatchExtension.appex" / "Info.plist"
     if not extension_path.exists():
