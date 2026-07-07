@@ -5309,7 +5309,27 @@ private struct WelcomeComposer: View {
                 },
                 actionButtons: {
                     HStack(spacing: .spacing5) {
+                        MessageComposerActionIcon(icon: "files", label: AppStrings.attachFiles, identifier: "attach-files-button") {
+                            isActivated = true
+                            isFocused = true
+                        }
+                        MessageComposerActionIcon(icon: "maps", label: AppStrings.shareLocation, identifier: "share-location-button") {
+                            isActivated = true
+                            isFocused = true
+                        }
+                        MessageComposerActionIcon(icon: "whiteboard", label: AppStrings.sketchAction, identifier: "sketch-button") {
+                            isActivated = true
+                            isFocused = true
+                        }
                         Spacer()
+                        MessageComposerActionIcon(icon: "camera", label: AppStrings.takePhoto, identifier: "take-photo-button") {
+                            isActivated = true
+                            isFocused = true
+                        }
+                        MessageComposerActionIcon(icon: "recordaudio", label: AppStrings.recordAudio, identifier: "record-audio-button") {
+                            isActivated = true
+                            isFocused = true
+                        }
                         if hasContent {
                             MessageComposerSendButton(title: canSubmit ? AppStrings.sendAction : AppStrings.signUp) {
                                 canSubmit ? onSend() : onOpenAuth()
