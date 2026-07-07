@@ -2731,7 +2731,7 @@
 				);
 				OPENMATES_DEV_WEBCREDENTIALS = "webcredentials:app.dev.openmates.org";
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app;
-				PRODUCT_NAME = OpenMates;
+				PRODUCT_NAME = OpenMatesWatch;
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -2750,7 +2750,7 @@
 				);
 				OPENMATES_DEV_WEBCREDENTIALS = "webcredentials:app.dev.openmates.org";
 				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app;
-				PRODUCT_NAME = OpenMates;
+				PRODUCT_NAME = OpenMatesWatch;
 				SDKROOT = iphoneos;
 				STOREKIT_CONFIGURATION = OpenMates/Resources/OpenMates.storekit;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;

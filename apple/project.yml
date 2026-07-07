@@ -187,7 +187,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: OpenMatesWatch/OpenMatesWatch.entitlements
         INFOPLIST_FILE: OpenMatesWatch/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.watch
-        PRODUCT_NAME: OpenMates
+        PRODUCT_NAME: OpenMatesWatch
         SDKROOT: watchos
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "4"

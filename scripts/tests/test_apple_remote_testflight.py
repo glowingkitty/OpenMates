@@ -133,6 +133,7 @@ def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     assert "embed: true" in project_yaml
     assert "WKCompanionAppBundleIdentifier" in project_yaml
     assert "WKRunsIndependentlyOfCompanionApp" in project_yaml
+    assert "PRODUCT_NAME: OpenMatesWatch" in project_yaml
     assert "WKWatchOnly" not in watch_info
     assert "WKCompanionAppBundleIdentifier" in watch_info
     assert "WKRunsIndependentlyOfCompanionApp" in watch_info
