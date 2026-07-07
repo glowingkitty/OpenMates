@@ -65,10 +65,6 @@ struct DevChatOpeningPreviewView: View {
                     headerContractProbe
                 }
 
-                if isUITestPerformanceMetricsEnabled && !isUITestVisualSnapshotEnabled {
-                    performanceMetricsProbe
-                }
-
                 if seeded {
                     ChatView(
                         chatId: fixture.chat.id,
@@ -111,6 +107,14 @@ struct DevChatOpeningPreviewView: View {
                     .padding(.horizontal, .spacing5)
                     .padding(.vertical, .spacing8)
                     .accessibilityIdentifier("dev-report-issue-overlay")
+            }
+
+            if isUITestPerformanceMetricsEnabled && !isUITestVisualSnapshotEnabled {
+                VStack(spacing: 0) {
+                    performanceMetricsProbe
+                    Spacer(minLength: 0)
+                }
+                .allowsHitTesting(false)
             }
         }
     }
