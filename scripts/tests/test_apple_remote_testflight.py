@@ -133,9 +133,6 @@ def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     assert "- target: OpenMatesWatch" in project_yaml
     assert "platforms: [iOS]" in project_yaml
     assert "embed: false" in project_yaml
-    assert "Embed Watch Companion" in project_yaml
-    assert "$(CONFIGURATION)-watchos/OpenMatesWatch.app" in project_yaml
-    assert "ENABLE_USER_SCRIPT_SANDBOXING: false" in project_yaml
     assert "WKCompanionAppBundleIdentifier" in project_yaml
     assert "WKRunsIndependentlyOfCompanionApp" in project_yaml
     assert "PRODUCT_NAME: OpenMatesWatch" in project_yaml
@@ -143,9 +140,6 @@ def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     assert "WKWatchOnly" not in watch_info
     assert "WKCompanionAppBundleIdentifier" in watch_info
     assert "WKRunsIndependentlyOfCompanionApp" in watch_info
-    assert "Embed Watch Companion" in xcode_project
-    assert "$(CONFIGURATION)-watchos/OpenMatesWatch.app" in xcode_project
-    assert "ENABLE_USER_SCRIPT_SANDBOXING = NO;" in xcode_project
     assert "C0FFEE000000000000047018 /* OpenMatesWatch */" in xcode_project
     assert "PRODUCT_NAME = OpenMatesWatch;" in xcode_project
     assert "productType = \"com.apple.product-type.application\";" in xcode_project

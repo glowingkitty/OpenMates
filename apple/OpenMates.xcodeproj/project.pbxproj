@@ -1783,7 +1783,6 @@
 				B4B0CAA1635A0D7801CFC6A2 /* Resources */,
 				90DC7917B175D3B5F3EF4AFE /* Frameworks */,
 				953B1F3E0F10C6DD7636355F /* Embed Foundation Extensions */,
-				C0FFEE000000000000049024 /* Embed Watch Companion */,
 			);
 			buildRules = (
 			);
@@ -2083,30 +2082,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		C0FFEE000000000000049024 /* Embed Watch Companion */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(BUILT_PRODUCTS_DIR)/../$(CONFIGURATION)-watchos/OpenMatesWatch.app",
-				"$(BUILT_PRODUCTS_DIR)/../$(CONFIGURATION)-watchsimulator/OpenMatesWatch.app",
-			);
-			name = "Embed Watch Companion";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(TARGET_BUILD_DIR)/$(WRAPPER_NAME)/Watch/OpenMatesWatch.app",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nif [ \"${PLATFORM_NAME}\" != \"iphoneos\" ] && [ \"${PLATFORM_NAME}\" != \"iphonesimulator\" ]; then\n  exit 0\nfi\nwatch_platform=\"watchos\"\nif [ \"${PLATFORM_NAME}\" = \"iphonesimulator\" ]; then\n  watch_platform=\"watchsimulator\"\nfi\nsource_app=\"${BUILT_PRODUCTS_DIR%/*}/${CONFIGURATION}-${watch_platform}/OpenMatesWatch.app\"\ndest_dir=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Watch\"\ndest_app=\"${dest_dir}/OpenMatesWatch.app\"\nif [ ! -d \"${source_app}\" ]; then\n  echo \"error: Missing Watch companion at ${source_app}\" >&2\n  exit 1\nfi\nmkdir -p \"${dest_dir}\"\nrm -rf \"${dest_app}\"\nditto \"${source_app}\" \"${dest_app}\"\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		C0FFEE000000000000047020 /* Sources */ = {
@@ -2736,7 +2711,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = OpenMates/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -2756,7 +2730,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMates/Resources/OpenMatesPasskey.entitlements;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = OpenMates/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

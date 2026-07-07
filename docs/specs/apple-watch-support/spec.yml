@@ -746,6 +746,9 @@ risks:
   - id: R-4
     description: Watch UI may become too dense if all embed previews try to preserve iOS content density.
     mitigation: Use a Watch-specific card contract with essential fields only and require design artifact review.
+  - id: R-5
+    description: App Store/TestFlight distribution requires an Xcode-recognized WatchKit container/app structure. A manually copied plain watchOS app can pass archive content checks but still fails App Store export.
+    mitigation: Add a follow-up implementation slice that restructures the Apple project to the Xcode template-compatible iOS app + WatchKit app container + WatchKit extension model, while preserving the existing independent Watch runtime code.
 
 open_questions:
   - id: OQ-1
