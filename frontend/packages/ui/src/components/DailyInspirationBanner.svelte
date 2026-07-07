@@ -1172,7 +1172,7 @@
   }
 
   .guest-intro-variant .banner-inner {
-    width: min(calc(100% - 80px), clamp(960px, 72vw, 1080px));
+    width: min(calc(100% - 80px), clamp(960px, 72vw, 1480px));
     max-width: none;
     padding: 8px 40px;
     justify-content: center;
