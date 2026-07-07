@@ -140,8 +140,10 @@ export function isInternalHashLink(href: string): boolean {
   const normalizedHref = href.startsWith("/#") ? href.substring(1) : href;
   return (
     normalizedHref.startsWith("#chat-id=") ||
+    normalizedHref.startsWith("#message=") ||
     normalizedHref.startsWith("#settings") ||
     normalizedHref.includes("#chat-id=") ||
+    normalizedHref.includes("#message=") ||
     normalizedHref.includes("#settings/")
   );
 }
@@ -199,6 +201,7 @@ export function normalizeSettingsDeepLinkPath(href: string): string | null {
 export function isRenderableInternalHref(href: string): boolean {
   if (!isInternalHashLink(href)) return true;
   if (href.includes("#chat-id=")) return true;
+  if (href.includes("#message=")) return true;
 
   const settingsPath = normalizeSettingsDeepLinkPath(href);
   if (settingsPath === null) return false;
@@ -213,6 +216,7 @@ export function buildMessagePrefillHref(text: string): string {
 export function getRenderableInternalHref(href: string, fallbackText = ""): string | null {
   if (!isInternalHashLink(href)) return href;
   if (href.includes("#chat-id=")) return href.startsWith("/#") ? href.substring(1) : href;
+  if (href.includes("#message=")) return href.startsWith("/#") ? href.substring(1) : href;
 
   const settingsPath = normalizeSettingsDeepLinkPath(href);
   if (settingsPath === null || !isExistingSettingsPath(settingsPath) || !hasValidPrefillFields(href, settingsPath)) {

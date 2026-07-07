@@ -56,6 +56,7 @@ export const MarkdownHighlight = Highlight.configure({
  * Check if a href is an internal hash-based link
  * Internal links include:
  * - #chat-id= or /#chat-id= - Chat deep links
+ * - #message= or /#message= - Message composer prefill links
  * - #settings/ or /#settings/ - Settings deep links (including Apps)
  */
 function isInternalHashLink(href: string): boolean {
@@ -63,10 +64,33 @@ function isInternalHashLink(href: string): boolean {
   const normalizedHref = href.startsWith('/#') ? href.substring(1) : href;
   return (
     normalizedHref.startsWith('#chat-id=') ||
+    normalizedHref.startsWith('#message=') ||
     normalizedHref.startsWith('#settings') ||
     normalizedHref.includes('#chat-id=') ||
+    normalizedHref.includes('#message=') ||
     normalizedHref.includes('#settings/')
   );
+}
+
+function dispatchMessagePrefillFromHref(href: string): boolean {
+  const normalizedHref = href.startsWith('/') ? href.substring(1) : href;
+  if (!normalizedHref.startsWith('#message=')) return false;
+
+  const encodedText = normalizedHref.slice('#message='.length);
+  if (!encodedText) return false;
+
+  try {
+    window.dispatchEvent(new CustomEvent('docsMessagePrefill', {
+      detail: {
+        text: decodeURIComponent(encodedText),
+        autoSend: false,
+      },
+    }));
+    return true;
+  } catch (error) {
+    if (!(error instanceof URIError)) throw error;
+    return false;
+  }
 }
 
 /**
@@ -180,9 +204,13 @@ export const MarkdownLink = Link.extend({
                   // Normalize href (remove leading / if present)
                   const normalizedHref = href.startsWith('/') ? href.substring(1) : href;
                   
-                  // Navigate to hash (triggers hashchange event)
+                  // Composer prefill links should update the currently mounted
+                  // message input directly, not navigate or open a new tab.
                   if (typeof window !== 'undefined') {
-                    window.location.hash = normalizedHref;
+                    if (!dispatchMessagePrefillFromHref(normalizedHref)) {
+                      // Navigate to hash (triggers hashchange event)
+                      window.location.hash = normalizedHref;
+                    }
                   }
                   
                   return true; // Indicate we handled the click

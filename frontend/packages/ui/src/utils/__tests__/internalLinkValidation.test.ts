@@ -67,6 +67,11 @@ describe("internal link validation", () => {
     expect(isRenderableInternalHref("/#chat-id=abc123")).toBe(true);
   });
 
+  it("keeps message prefill links renderable as internal composer actions", () => {
+    expect(isRenderableInternalHref("#message=Save%20place")).toBe(true);
+    expect(getRenderableInternalHref("/#message=Save%20place")).toBe("#message=Save%20place");
+  });
+
   it("accepts public memories aliases for app settings and canonicalizes them", () => {
     const href = "/#settings/apps/maps/memories/favorite_places/create?prefill=%7B%22name%22%3A%22Kottbusser%20Tor%22%7D";
 

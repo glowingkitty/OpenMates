@@ -11,7 +11,6 @@ import { deriveEmbedDisplayTextFromRef } from "../../../utils/embedDisplayText";
 import {
   getRenderableInternalHref,
   isInternalHashLink,
-  isRenderableInternalHref,
 } from "../../../utils/internalLinkValidation";
 // Note: We don't use markdown-it-katex or other math plugins for rendering because we extract math formulas
 // ourselves and convert them to TipTap Mathematics nodes. This gives us better control
@@ -188,10 +187,18 @@ function extractMathFormulas(markdownText: string): {
 function rewriteSettingsMarkdownLinks(markdownText: string): string {
   return markdownText.replace(
     SETTINGS_MARKDOWN_LINK_RE,
-    (fullMatch, label: string, href: string) => {
+    (fullMatch, label: string, href: string, offset: number, source: string) => {
       const renderableHref = getRenderableInternalHref(href.trim(), label);
       if (!renderableHref) return label;
-      return `[${label}](${renderableHref})`;
+      const markdownLink = `[${label}](${renderableHref})`;
+      if (!renderableHref.startsWith("#message=")) return markdownLink;
+
+      const nextText = source.slice(offset + fullMatch.length);
+      const nextNonWhitespace = nextText.match(/\S/)?.[0] ?? "";
+      if (!nextNonWhitespace || [".", ",", ";", ":", "!", "?"].includes(nextNonWhitespace)) {
+        return markdownLink;
+      }
+      return `${markdownLink}\n\n`;
     },
   );
 }
@@ -894,7 +901,7 @@ function convertNodeToTiptap(node: Node): any {
       if (href) {
         const linkLabel = textFromNodes(content);
         const renderableHref = getRenderableInternalHref(href, linkLabel);
-        if (!renderableHref || !isRenderableInternalHref(renderableHref)) {
+        if (!renderableHref) {
           return content;
         }
 
