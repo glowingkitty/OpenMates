@@ -370,11 +370,10 @@ test.describe('Unauthenticated app load', () => {
 
 		await page.getByTestId('daily-inspiration-next').click();
 		const manuallyAdvancedPhrase = await expectDailyInspirationPhraseToChange(page, secondPhrase);
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(manuallyAdvancedPhrase);
 		await page.getByTestId('daily-inspiration-carousel-progress').evaluate((el: HTMLElement) => {
 			el.style.setProperty('--carousel-progress-duration', '250ms');
 		});
-		await page.waitForTimeout(500);
-		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(manuallyAdvancedPhrase);
 		const nextAutoPhrase = await expectDailyInspirationPhraseToChange(page, manuallyAdvancedPhrase);
 
 		await page.getByTestId('daily-inspiration-carousel-progress').evaluate((el: HTMLElement) => {
