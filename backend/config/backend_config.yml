@@ -16,10 +16,7 @@
 # Admin overrides. `enabled` is only needed to opt into features that ship with
 # default_enabled: false. `disabled` can disable default-on features.
 feature_overrides:
-  enabled:
-    - "platform:projects"
-    - "platform:tasks"
-    - "platform:workflows"
+  enabled: []
   disabled:
     # Empty / no implemented skills or focus modes declared
     - "app:3d"
