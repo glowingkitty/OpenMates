@@ -527,14 +527,17 @@ struct MainAppView: View {
         ]
         if isShellPerformanceUITestEnabled {
             let frameSummary = NativePerformanceMonitor.shared.summary()
+            let frameSamples = intMetric("sample_count", in: frameSummary)
+            let worstFrameMS = intMetric("worst_frame_ms", in: frameSummary)
+            let jankCount = intMetric("jank_count", in: frameSummary)
             metrics.append("shell-performance=true")
             metrics.append("seeded-chat-count=\(shellPerformanceUITestSeedCount)")
             metrics.append("stored-chat-count=\(chatStore.chats.count)")
             metrics.append("filtered-unpinned-count=\(filteredUnpinnedChats.count)")
             metrics.append("visible-unpinned-count=\(visibleFilteredUnpinnedChats.count)")
-            metrics.append("frame-samples=\(intMetric(\"sample_count\", in: frameSummary))")
-            metrics.append("worst-frame-ms=\(intMetric(\"worst_frame_ms\", in: frameSummary))")
-            metrics.append("jank-count=\(intMetric(\"jank_count\", in: frameSummary))")
+            metrics.append("frame-samples=\(frameSamples)")
+            metrics.append("worst-frame-ms=\(worstFrameMS)")
+            metrics.append("jank-count=\(jankCount)")
         }
         return metrics.joined(separator: "; ")
     }
