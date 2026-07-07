@@ -975,7 +975,7 @@ export_options_path = pathlib.Path(derived) / "ExportOptions.plist"
 
 export_options = {
     "destination": "upload",
-    "method": "app-store-connect",
+    "method": "release-testing" if target_platform == "watchos" else "app-store-connect",
     "manageAppVersionAndBuildNumber": True,
     "provisioningProfiles": profile_names,
     "signingCertificate": distribution_identity_sha1 if target_platform == "macos" else distribution_identity_name,
