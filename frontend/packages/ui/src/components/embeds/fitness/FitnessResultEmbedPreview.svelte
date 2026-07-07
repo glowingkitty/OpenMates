@@ -51,6 +51,7 @@
   {id}
   appId="fitness"
   skillId={skillId}
+  appIconName="fitness"
   skillIconName="fitness"
   status="finished"
   skillName={title}

@@ -7,6 +7,7 @@
 -->
 
 <script lang="ts">
+  import { text } from '@repo/ui';
   import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import FitnessResultEmbedPreview from './FitnessResultEmbedPreview.svelte';
   import FitnessResultEmbedFullscreen from './FitnessResultEmbedFullscreen.svelte';
@@ -58,7 +59,7 @@
   let status: FitnessStatus = $derived(normalized.status);
   let embedIds = $derived(normalized.embedIds ?? data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
-  let title = $derived(normalized.query || (skillId === 'search_locations' ? 'Fitness locations' : 'Fitness classes'));
+  let title = $derived(normalized.query || (skillId === 'search_locations' ? $text('app_skills.fitness.search_locations') : $text('app_skills.fitness.search_classes')));
   let headerSubtitle = $derived.by(() => {
     const summary = normalized.summary || `${normalized.resultCount} ${skillId === 'search_locations' ? 'locations' : 'classes'}`;
     return [normalized.provider, summary].filter(Boolean).join(' · ');
@@ -93,7 +94,7 @@
   {skillId}
   embedHeaderTitle={title}
   embedHeaderSubtitle={headerSubtitle}
-  skillIconName="fitness"
+  skillIconName="search"
   showSkillIcon={true}
   {onClose}
   currentEmbedId={embedId}

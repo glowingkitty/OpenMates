@@ -338,6 +338,25 @@ describe("Embed Registry — metadata completeness", () => {
       `Orphaned EMBED_CHILD_TYPE_MAP entries:\n${orphaned.join("\n")}`,
     ).toHaveLength(0);
   });
+
+  it("EMBED_CHILD_TYPE_MAP returns frontend child types for fullscreen routing", () => {
+    const mismatches: string[] = [];
+
+    for (const [compositeKey, childType] of Object.entries(EMBED_CHILD_TYPE_MAP)) {
+      const [appId, skillId] = compositeKey.split(":");
+      const metaKey = `app:${appId}:${skillId}`;
+      const expected = EMBED_METADATA[metaKey]?.childFrontendType;
+
+      if (childType !== expected) {
+        mismatches.push(`${compositeKey}: got '${childType}', expected '${expected}'`);
+      }
+    }
+
+    expect(
+      mismatches,
+      `Child routing must use frontend child types:\n${mismatches.join("\n")}`,
+    ).toHaveLength(0);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

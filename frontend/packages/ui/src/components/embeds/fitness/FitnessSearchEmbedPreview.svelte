@@ -8,6 +8,7 @@
 -->
 
 <script lang="ts">
+  import { text } from '@repo/ui';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import {
     asText,
@@ -79,7 +80,7 @@
     localResults = normalized.results;
   }
 
-  let title = $derived(skillId === 'search_classes' ? 'Fitness classes' : 'Fitness locations');
+  let title = $derived(skillId === 'search_classes' ? $text('app_skills.fitness.search_classes') : $text('app_skills.fitness.search_locations'));
   let countLabel = $derived(`${localResultCount} ${skillId === 'search_classes' ? 'classes' : 'locations'}`);
   let locationLabel = $derived(asText(localFilters.address || localFilters.city || localQuery || 'Urban Sports'));
   let filterChips = $derived.by(() => {

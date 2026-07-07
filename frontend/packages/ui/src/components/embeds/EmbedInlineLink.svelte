@@ -27,6 +27,7 @@
 
   import { embedStore, embedRefIndexVersion } from '../../services/embedStore';
   import { resolveEmbedDisplayText } from '../../utils/embedDisplayText';
+  import { resolveIconName } from '../../utils/iconNameResolver';
 
   interface Props {
     /** Short slug from the LLM (e.g. "ryanair-0600-k8D") */
@@ -115,6 +116,10 @@
     effectiveAppId
       ? `--_link-color-light: var(--color-app-${effectiveAppId}-start); --_link-color-dark: var(--color-app-${effectiveAppId}-end);`
       : '',
+  );
+
+  let inlineAppIconStyle = $derived(
+    effectiveAppId ? `--embed-app-icon-url: var(--icon-url-${resolveIconName(effectiveAppId)});` : '',
   );
 
   let effectiveDisplayText = $derived(resolveEmbedDisplayText(displayText, embedRef));
@@ -207,7 +212,7 @@
 <span class="embed-inline-link" class:embed-inline-link--broken={repairState === 'broken'} role="link" tabindex="0" onclick={handleClick} onkeydown={(e) => { if (e.key === 'Enter') handleClick(e as unknown as MouseEvent); }}>
   <!-- Small circular app-icon badge -->
   <span class="embed-inline-badge" style={gradientStyle} aria-hidden="true">
-    <span class="icon_rounded {effectiveAppId || ''}"></span>
+    <span class="icon_rounded {effectiveAppId || ''}" style={inlineAppIconStyle}></span>
   </span>
   <!-- Solid-colour display text — colour adapts to light/dark mode via CSS -->
   <span class="embed-inline-text" class:has-app-color={!!effectiveAppId} class:broken={repairState === 'broken'} style={textColorVarsStyle}>{effectiveDisplayText}</span>
@@ -274,6 +279,7 @@
      our 10px element), which clips the SVG. Override with 'contain' so the icon
      SVG scales down to fit within the available area instead of being cropped. */
   .embed-inline-badge :global(.icon_rounded::after) {
+    background-image: var(--embed-app-icon-url, none);
     filter: brightness(0) invert(1);
     width: 100%;
     height: 100%;

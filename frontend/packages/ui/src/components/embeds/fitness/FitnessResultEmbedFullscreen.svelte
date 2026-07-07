@@ -66,6 +66,7 @@
   {skillId}
   embedHeaderTitle={title}
   embedHeaderSubtitle={subtitle}
+  appIconName="fitness"
   skillIconName="fitness"
   showSkillIcon={true}
   {onClose}

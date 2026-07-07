@@ -152,19 +152,20 @@ function buildTypeNormalizationMap(allEmbedTypes) {
 }
 
 /**
- * Build the child embed type resolution map.
- * This replaces the hand-maintained get_child_embed_type() in embed_service.py.
+ * Build the child embed type resolution map for frontend routing.
+ * Backend child_type values are persistence types like "location"; frontend
+ * click/fullscreen routing needs child_frontend_type such as "fitness-location".
  *
  * @param {Array<Object>} allEmbedTypes - All embed type definitions
- * @returns {Record<string, string>} Map from "app_id:skill_id" to child_type
+ * @returns {Record<string, string>} Map from "app_id:skill_id" to child_frontend_type
  */
 function buildChildTypeMap(allEmbedTypes) {
   const childMap = {};
 
   for (const def of allEmbedTypes) {
-    if (def.has_children && def.child_type && def.skill_id && def.app_id) {
+    if (def.has_children && def.child_frontend_type && def.skill_id && def.app_id) {
       const key = `${def.app_id}:${def.skill_id}`;
-      childMap[key] = def.child_type;
+      childMap[key] = def.child_frontend_type;
     }
   }
 

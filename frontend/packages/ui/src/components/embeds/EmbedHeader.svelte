@@ -100,11 +100,16 @@
    * This prevents the full app icon (with gradient background) from appearing in the banner.
    */
   let useDecoSkillIcon = $derived(!!skillIconName);
-  let safeAppIconName = $derived(normalizeIconName(appIconName));
+  let safeAppIconName = $derived(normalizeIconName(appIconName ? resolveIconName(appIconName) : undefined));
   let appIconStyle = $derived(safeAppIconName ? `--embed-app-icon-url: var(--icon-url-${safeAppIconName});` : '');
+  let fallbackAppIconName = $derived(normalizeIconName(resolveIconName(appId)));
+  let fallbackAppIconStyle = $derived(fallbackAppIconName ? `--embed-app-icon-url: var(--icon-url-${fallbackAppIconName});` : '');
+  let safeSkillIconName = $derived(normalizeIconName(resolveIconName(skillIconName)));
+  let skillIconStyle = $derived(safeSkillIconName ? `--embed-skill-icon-url: var(--icon-url-${safeSkillIconName});` : '');
 
   import { handleImageError } from '../../utils/offlineImageHandler';
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../utils/imageProxy';
+  import { resolveIconName } from '../../utils/iconNameResolver';
 
   // SECURITY: Defense-in-depth — ensure favicon URLs are always proxied even if
   // the caller forgot. Prevents user IP leaks to external favicon hosts.
@@ -204,20 +209,20 @@
          app icon appearing in the banner. showSkillIcon only governs the center icon. -->
     <div class="deco-icon deco-icon-left">
       {#if useDecoSkillIcon}
-        <div class="deco-skill-icon" data-skill-icon={skillIconName}></div>
+        <div class="deco-skill-icon" data-skill-icon={skillIconName} style={skillIconStyle}></div>
       {:else if safeAppIconName}
         <div class="deco-app-icon-mask" style={appIconStyle}></div>
       {:else}
-        <div class="deco-app-icon icon_rounded {appId}"></div>
+        <div class="deco-app-icon icon_rounded {appId}" style={fallbackAppIconStyle}></div>
       {/if}
     </div>
     <div class="deco-icon deco-icon-right">
       {#if useDecoSkillIcon}
-        <div class="deco-skill-icon" data-skill-icon={skillIconName}></div>
+        <div class="deco-skill-icon" data-skill-icon={skillIconName} style={skillIconStyle}></div>
       {:else if safeAppIconName}
         <div class="deco-app-icon-mask" style={appIconStyle}></div>
       {:else}
-        <div class="deco-app-icon icon_rounded {appId}"></div>
+        <div class="deco-app-icon icon_rounded {appId}" style={fallbackAppIconStyle}></div>
       {/if}
     </div>
 
@@ -231,21 +236,21 @@
           aria-label="Open skill settings"
         >
           {#if useSkillIcon}
-            <div class="header-skill-icon" data-skill-icon={skillIconName}></div>
+            <div class="header-skill-icon" data-skill-icon={skillIconName} style={skillIconStyle}></div>
           {:else if safeAppIconName}
             <div class="header-app-icon-mask" style={appIconStyle} data-app-icon={appId}></div>
           {:else}
-            <div class="header-app-icon icon_rounded {appId}" data-app-icon={appId}></div>
+            <div class="header-app-icon icon_rounded {appId}" style={fallbackAppIconStyle} data-app-icon={appId}></div>
           {/if}
         </button>
       {:else}
         <div class="header-icon">
           {#if useSkillIcon}
-            <div class="header-skill-icon" data-skill-icon={skillIconName}></div>
+            <div class="header-skill-icon" data-skill-icon={skillIconName} style={skillIconStyle}></div>
           {:else if safeAppIconName}
             <div class="header-app-icon-mask" style={appIconStyle} data-app-icon={appId}></div>
           {:else}
-            <div class="header-app-icon icon_rounded {appId}" data-app-icon={appId}></div>
+            <div class="header-app-icon icon_rounded {appId}" style={fallbackAppIconStyle} data-app-icon={appId}></div>
           {/if}
         </div>
       {/if}
@@ -464,6 +469,8 @@
     width: 126px;
     height: 126px;
     background-color: white;
+    -webkit-mask-image: var(--embed-skill-icon-url, none);
+    mask-image: var(--embed-skill-icon-url, none);
     -webkit-mask-position: center;
     mask-position: center;
     -webkit-mask-repeat: no-repeat;
@@ -484,6 +491,7 @@
 
   /* Force app icon to render white inside the gradient banner */
   .deco-app-icon::after {
+    background-image: var(--embed-app-icon-url, none);
     filter: brightness(0) invert(1) !important;
     background-size: 60px 60px !important;
   }
@@ -571,6 +579,8 @@
     width: 38px;
     height: 38px;
     background-color: white;
+    -webkit-mask-image: var(--embed-skill-icon-url, none);
+    mask-image: var(--embed-skill-icon-url, none);
     -webkit-mask-position: center;
     mask-position: center;
     -webkit-mask-repeat: no-repeat;
@@ -590,6 +600,7 @@
   }
 
   .header-app-icon::after {
+    background-image: var(--embed-app-icon-url, none);
     filter: brightness(0) invert(1) !important;
     background-size: 20px 20px !important;
   }

@@ -1,7 +1,7 @@
 // frontend/packages/ui/scripts/validate-icon-refs.js
 //
-// Build-time validation: ensures every icon name referenced in SettingsItem
-// and AppDetailsHeader components resolves to a valid --icon-url-{name} CSS variable.
+// Build-time validation: ensures every icon name referenced by settings and
+// embed components resolves to a valid --icon-url-{name} CSS variable.
 //
 // Catches mismatches like icon="mates" → --icon-url-mates (doesn't exist;
 // the SVG is mate.svg → --icon-url-mate). Runs as part of the build pipeline
@@ -11,6 +11,8 @@
 //   1. ICON_NAME_MAP values in iconNameResolver.ts point to real SVG files
 //   2. Icon names used in components resolve (via ICON_NAME_MAP or directly)
 //      to an existing --icon-url-{name} CSS variable
+//   3. Literal appIconName/skillIconName values in embed components resolve to
+//      existing --icon-url-{name} variables used by the shared embed icon fallback
 //
 // Architecture: docs/architecture/settings-ui.md
 // Related: scripts/generate-icon-urls.js, src/utils/iconNameResolver.ts
@@ -160,10 +162,56 @@ function findSettingsIconUsages() {
   return usages;
 }
 
+/**
+ * Find literal appIconName="..." and skillIconName="..." usages in embed
+ * components. Dynamic expressions are ignored because they need component-level
+ * tests, but literal props must map to generated CSS icon variables.
+ */
+function findEmbedIconUsages() {
+  const usages = [];
+  const embedsDir = resolve(__dirname, "../src/components/embeds");
+
+  if (!existsSync(embedsDir)) return usages;
+
+  let files;
+  try {
+    files = execSync(
+      `find ${embedsDir} -type f -name '*.svelte' ! -path '*/node_modules/*'`,
+      { encoding: "utf-8" },
+    )
+      .trim()
+      .split("\n")
+      .filter(Boolean);
+  } catch {
+    return usages;
+  }
+
+  for (const file of files) {
+    const content = readFileSync(file, "utf-8");
+    const propRe = /\b(appIconName|skillIconName)\s*=\s*"([^"]+)"/g;
+    let m;
+    while ((m = propRe.exec(content)) !== null) {
+      const icon = m[2];
+      if (icon.includes("{") || icon.includes("$") || icon.startsWith("/")) {
+        continue;
+      }
+      usages.push({
+        file: file.replace(resolve(__dirname, "../../..") + "/", ""),
+        prop: m[1],
+        icon,
+        line: content.substring(0, m.index).split("\n").length,
+      });
+    }
+  }
+
+  return usages;
+}
+
 function validate() {
   const availableNames = getAvailableIconNames();
   const iconNameMap = parseIconNameMap();
   const usages = findSettingsIconUsages();
+  const embedUsages = findEmbedIconUsages();
   const errors = [];
 
   // 1. Validate ICON_NAME_MAP values point to real SVG names
@@ -177,7 +225,7 @@ function validate() {
 
   // 2. Validate each icon usage resolves to an available CSS variable
   const seen = new Set();
-  for (const { file, icon, line } of usages) {
+  for (const { icon } of usages) {
     const resolved = resolveIconName(icon, iconNameMap);
     const key = `${icon}→${resolved}`;
     if (seen.has(key)) continue;
@@ -191,6 +239,27 @@ function validate() {
         .join(", ");
       errors.push(
         `icon="${icon}" resolves to --icon-url-${resolved} (no matching SVG). Used in: ${examples}`,
+      );
+    }
+  }
+
+  // 3. Validate literal embed icon props used by shared embed primitives.
+  const seenEmbedIcon = new Set();
+  for (const { prop, icon } of embedUsages) {
+    const key = `${prop}:${icon}`;
+    if (seenEmbedIcon.has(key)) continue;
+    seenEmbedIcon.add(key);
+
+    const resolved = resolveIconName(icon, iconNameMap);
+
+    if (!availableNames.has(resolved)) {
+      const examples = embedUsages
+        .filter((u) => u.prop === prop && u.icon === icon)
+        .slice(0, 2)
+        .map((u) => `${u.file}:${u.line}`)
+        .join(", ");
+      errors.push(
+        `${prop}="${icon}" resolves to --icon-url-${resolved} (no matching SVG). Used in: ${examples}`,
       );
     }
   }
@@ -209,7 +278,7 @@ function validate() {
   }
 
   console.log(
-    `[validate-icon-refs] ✅ All ${seen.size} icon references resolve to valid CSS variables`,
+    `[validate-icon-refs] ✅ All ${seen.size + seenEmbedIcon.size} icon references resolve to valid CSS variables`,
   );
 }
 
