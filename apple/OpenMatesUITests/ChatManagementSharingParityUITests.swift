@@ -236,6 +236,14 @@ final class ChatManagementSharingParityUITests: XCTestCase {
             continueButton.tap()
         }
 
+        if safariAlreadyShowsFixturePage(safari) {
+            XCTAssertTrue(
+                waitForSafariShareSurface(in: safari, timeout: 20),
+                "Expected Safari to expose a share surface for the existing fixture page. Visible UI: \(visibleStateLabels(in: safari))"
+            )
+            return
+        }
+
         let addressCandidates = [
             safari.textFields["Address"],
             safari.textFields["Search or enter website name"],
@@ -255,6 +263,13 @@ final class ChatManagementSharingParityUITests: XCTestCase {
             waitForSafariShareSurface(in: safari, timeout: 20),
             "Expected Safari to load the fixture URL and expose a share surface. Visible UI: \(visibleStateLabels(in: safari))"
         )
+    }
+
+    private func safariAlreadyShowsFixturePage(_ safari: XCUIApplication) -> Bool {
+        let addressValues = safari.textFields.allElementsBoundByIndex.map {
+            String(describing: $0.value ?? $0.label).lowercased()
+        }
+        return addressValues.contains { $0.contains("youtube.com") || $0.contains("youtu.be") }
     }
 
     private func tapSafariShareButton(in safari: XCUIApplication) {
