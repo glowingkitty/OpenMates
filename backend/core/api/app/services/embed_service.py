@@ -3685,6 +3685,8 @@ class EmbedService:
         ("shopping", "search_products"): "product",
         ("news", "search"): "website",
         ("web", "search"): "website",
+        ("fitness", "search_locations"): "location",
+        ("fitness", "search_classes"): "class",
         ("nutrition", "search_recipes"): "recipe",
         ("code", "search_repos"): "repo",
         ("weather", "forecast"): "weather_day",
