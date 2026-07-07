@@ -92,30 +92,39 @@ final class ChatManagementSharingParityUITests: XCTestCase {
             "Expected OpenMates in the iOS share sheet. Visible Safari UI: \(visibleStateLabels(in: safari))"
         )
 
-        let messageInput = safari.textViews["share-extension-message-input"]
+        let shareHosts = shareExtensionHosts(in: safari)
+        let messageInput = waitForShareExtensionElement(
+            identifier: "share-extension-message-input",
+            in: shareHosts,
+            timeout: 20
+        )
         XCTAssertTrue(
-            messageInput.waitForExistence(timeout: 20),
+            messageInput?.exists == true,
             "Expected OpenMates share extension message input. Visible UI: \(visibleStateLabels(in: safari))"
         )
         XCTAssertTrue(
-            (messageInput.value as? String ?? messageInput.label).contains("youtube.com/watch"),
+            (messageInput?.value as? String ?? messageInput?.label ?? "").contains("youtube.com/watch"),
             "Expected the shared Safari URL to be prefilled in the editable message input."
         )
 
-        let recentChat = safari.descendants(matching: .any)["share-extension-chat-destination"]
+        let recentChat = waitForShareExtensionElement(
+            identifier: "share-extension-chat-destination",
+            in: shareHosts,
+            timeout: 20
+        )
         XCTAssertTrue(
-            recentChat.waitForExistence(timeout: 20),
+            recentChat?.exists == true,
             "Expected at least one selectable recent chat destination. Status: \(safari.staticTexts["share-extension-status"].label)"
         )
-        recentChat.tap()
-        XCTAssertEqual(recentChat.value as? String, "Selected")
+        recentChat?.tap()
+        XCTAssertEqual(recentChat?.value as? String, "Selected")
 
-        messageInput.tap()
-        messageInput.typeText("\nSummarize this video for me")
+        messageInput?.tap()
+        messageInput?.typeText("\nSummarize this video for me")
 
-        let sendButton = safari.buttons["share-extension-send"]
-        XCTAssertTrue(sendButton.waitForExistence(timeout: 5))
-        sendButton.tap()
+        let sendButton = waitForShareExtensionElement(identifier: "share-extension-send", in: shareHosts, timeout: 5)
+        XCTAssertTrue(sendButton?.exists == true)
+        sendButton?.tap()
 
         XCTAssertTrue(
             waitForShareExtensionToClose(in: safari, timeout: 45),
@@ -137,29 +146,34 @@ final class ChatManagementSharingParityUITests: XCTestCase {
             "Expected OpenMates in the iOS share sheet. Visible Safari UI: \(visibleStateLabels(in: safari))"
         )
 
-        XCTAssertTrue(
-            safari.descendants(matching: .any)["share-extension-root"].waitForExistence(timeout: 20),
+        let shareHosts = shareExtensionHosts(in: safari)
+        XCTAssertNotNil(
+            waitForShareExtensionElement(identifier: "share-extension-root", in: shareHosts, timeout: 20),
             "Expected OpenMates share extension root. Visible UI: \(visibleStateLabels(in: safari))"
         )
-        XCTAssertTrue(
-            safari.descendants(matching: .any)["message-composer"].waitForExistence(timeout: 5),
+        XCTAssertNotNil(
+            waitForShareExtensionElement(identifier: "message-composer", in: shareHosts, timeout: 5),
             "Expected share extension to expose the unified message composer container."
         )
-        XCTAssertTrue(
-            safari.descendants(matching: .any)["message-field"].waitForExistence(timeout: 5),
+        XCTAssertNotNil(
+            waitForShareExtensionElement(identifier: "message-field", in: shareHosts, timeout: 5),
             "Expected share extension to expose the unified message field."
         )
 
-        let messageInput = safari.textViews["share-extension-message-input"]
+        let messageInput = waitForShareExtensionElement(
+            identifier: "share-extension-message-input",
+            in: shareHosts,
+            timeout: 5
+        )
         XCTAssertTrue(
-            messageInput.waitForExistence(timeout: 5),
+            messageInput?.exists == true,
             "Expected OpenMates share extension message input. Visible UI: \(visibleStateLabels(in: safari))"
         )
         XCTAssertTrue(
-            (messageInput.value as? String ?? messageInput.label).contains("youtube.com/watch"),
+            (messageInput?.value as? String ?? messageInput?.label ?? "").contains("youtube.com/watch"),
             "Expected the shared Safari URL to be prefilled in the editable message input."
         )
-        XCTAssertTrue(safari.buttons["share-extension-send"].waitForExistence(timeout: 5))
+        XCTAssertNotNil(waitForShareExtensionElement(identifier: "share-extension-send", in: shareHosts, timeout: 5))
 
         attachScreenshot(name: "Safari share extension unified composer")
     }
@@ -177,6 +191,26 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         let textViews = elementSummaries(app.textViews.allElementsBoundByIndex, prefix: "textView")
         let staticTexts = elementSummaries(app.staticTexts.allElementsBoundByIndex, prefix: "text")
         return (buttons + textFields + textViews + staticTexts).prefix(30).joined(separator: " | ")
+    }
+
+    private func shareExtensionHosts(in safari: XCUIApplication) -> [XCUIApplication] {
+        [safari, XCUIApplication(bundleIdentifier: "org.openmates.app.share")]
+    }
+
+    private func waitForShareExtensionElement(
+        identifier: String,
+        in hosts: [XCUIApplication],
+        timeout: TimeInterval
+    ) -> XCUIElement? {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            for host in hosts {
+                let element = host.descendants(matching: .any)[identifier]
+                if element.exists { return element }
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        } while Date() < deadline
+        return nil
     }
 
     private func waitForSystemShareSheet(in app: XCUIApplication, timeout: TimeInterval) -> Bool {
@@ -318,7 +352,8 @@ final class ChatManagementSharingParityUITests: XCTestCase {
     }
 
     private func elementSummaries(_ elements: [XCUIElement], prefix: String) -> [String] {
-        elements.compactMap { element in
+        elements.prefix(4).compactMap { element in
+            guard element.exists else { return nil }
             let identifier = element.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
             let label = element.label.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !identifier.isEmpty || !label.isEmpty else { return nil }
