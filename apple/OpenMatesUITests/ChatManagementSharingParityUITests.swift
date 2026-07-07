@@ -256,19 +256,30 @@ final class ChatManagementSharingParityUITests: XCTestCase {
     }
 
     private func tapOpenMatesShareTarget(timeout: TimeInterval) -> Bool {
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let shareSheetHosts = [
+            XCUIApplication(bundleIdentifier: "com.apple.springboard"),
+            XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
+        ]
         let deadline = Date().addingTimeInterval(timeout)
 
         repeat {
-            let target = springboard.descendants(matching: .any)
-                .matching(NSPredicate(format: "label == %@ OR identifier == %@", "OpenMates", "OpenMates"))
-                .firstMatch
-            if target.exists {
-                target.tap()
-                return true
+            for host in shareSheetHosts {
+                let target = host.descendants(matching: .any)
+                    .matching(NSPredicate(format: "label == %@ OR identifier == %@", "OpenMates", "OpenMates"))
+                    .firstMatch
+                if target.exists {
+                    target.tap()
+                    return true
+                }
             }
 
-            springboard.collectionViews.firstMatch.swipeLeft()
+            for host in shareSheetHosts {
+                let carousel = host.collectionViews.firstMatch
+                if carousel.exists {
+                    carousel.swipeLeft()
+                    break
+                }
+            }
             RunLoop.current.run(until: Date().addingTimeInterval(0.4))
         } while Date() < deadline
 
