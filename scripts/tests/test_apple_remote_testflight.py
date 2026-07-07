@@ -9,6 +9,7 @@ intended source of truth.
 
 from __future__ import annotations
 
+import base64
 import importlib.util
 import sys
 from argparse import Namespace
@@ -67,6 +68,7 @@ def test_deploy_latest_testflight_syncs_then_uploads_both_platforms() -> None:
     command = apple_remote.deploy_latest_testflight_command(
         "dev",
         True,
+        whats_new="Release notes",
         api_key_path="/private/key.p8",
         api_key_id="KEY123",
         api_issuer_id="ISSUER123",
@@ -80,9 +82,63 @@ def test_deploy_latest_testflight_syncs_then_uploads_both_platforms() -> None:
     assert "macos" in command
 
 
+def test_upload_testflight_ios_can_attach_whats_new_text() -> None:
+    apple_remote = load_apple_remote()
+
+    command = apple_remote.upload_testflight_ios_command(
+        True,
+        whats_new="Fixed login and sync.",
+        whats_new_locale="en-US",
+    )
+    encoded = base64.b64encode(b"Fixed login and sync.").decode("ascii")
+    script = apple_remote.TESTFLIGHT_IOS_SCRIPT
+
+    assert encoded in command
+    assert "en-US" in command
+    assert "upsert_testflight_whats_new()" in script
+    assert "betaBuildLocalizations" in script
+    assert "whats_new_previous_build=" in script
+    assert script.index('print("upload_status=passed")') < script.rindex("upsert_testflight_whats_new()")
+
+
+def test_deploy_latest_testflight_passes_whats_new_to_all_platform_commands() -> None:
+    apple_remote = load_apple_remote()
+
+    command = apple_remote.deploy_latest_testflight_command("dev", True, whats_new="Release notes")
+    encoded = base64.b64encode(b"Release notes").decode("ascii")
+
+    assert command.count(encoded) == 3
+    assert "whats_new_status=skipped_watchos" in apple_remote.TESTFLIGHT_IOS_SCRIPT
+
+
+def test_testflight_notes_options_rejects_duplicate_sources() -> None:
+    apple_remote = load_apple_remote()
+
+    with pytest.raises(apple_remote.AppleRemoteError, match="either --whats-new or --whats-new-file"):
+        apple_remote.testflight_notes_options(
+            Namespace(whats_new="Inline", whats_new_file="notes.txt", whats_new_locale="en-US")
+        )
+
+
+def test_testflight_notes_options_requires_changelog() -> None:
+    apple_remote = load_apple_remote()
+
+    with pytest.raises(apple_remote.AppleRemoteError, match="require --whats-new or --whats-new-file"):
+        apple_remote.testflight_notes_options(
+            Namespace(whats_new=None, whats_new_file=None, whats_new_locale="en-US")
+        )
+
+
+def test_upload_testflight_command_requires_changelog() -> None:
+    apple_remote = load_apple_remote()
+
+    with pytest.raises(apple_remote.AppleRemoteError, match="require --whats-new or --whats-new-file"):
+        apple_remote.upload_testflight_ios_command(True)
+
+
 def test_upload_testflight_watch_uses_watch_scheme_and_profile_contract() -> None:
     apple_remote = load_apple_remote()
-    command = apple_remote.upload_testflight_watch_command(True)
+    command = apple_remote.upload_testflight_watch_command(True, whats_new="Release notes")
     script = apple_remote.TESTFLIGHT_IOS_SCRIPT
 
     assert "watchos" in command

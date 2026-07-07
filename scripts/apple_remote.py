@@ -11,6 +11,7 @@ aliases, device names, and local Mac paths do not leak into committed artifacts.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import re
@@ -266,11 +267,22 @@ import urllib.request
 
 internal_only = sys.argv[1] == "1"
 target_platform = sys.argv[2] if len(sys.argv) > 2 else "ios"
+testflight_whats_new = ""
+testflight_whats_new_locale = "en-US"
+if len(sys.argv) > 3 and sys.argv[3]:
+    testflight_whats_new = base64.b64decode(sys.argv[3]).decode("utf-8").strip()
+if len(sys.argv) > 4 and sys.argv[4]:
+    testflight_whats_new_locale = sys.argv[4]
+if len(testflight_whats_new) > 4000:
+    print("whats_new_status=too_long")
+    print("hint=App Store Connect TestFlight What to Test text must be 4000 characters or less.")
+    sys.exit(2)
 build_keychain_path = None
 distribution_identity_name = ""
 distribution_identity_sha1 = ""
 installer_identity_sha1 = ""
 profile_names = {}
+previous_testflight_build_id = None
 APP_GROUP_IDENTIFIER = "group.org.openmates.app.shared"
 if target_platform == "ios":
     scheme_name = "OpenMates_iOS"
@@ -447,6 +459,100 @@ def asc_request(path, method="GET", body=None):
             time.sleep(3)
     print("asc_request=failed")
     sys.exit(1)
+
+
+def latest_app_store_build_for_notes(excluded_build_id=None, wait_for_new=True):
+    apps_query = urllib.parse.urlencode({"filter[bundleId]": "org.openmates.app", "limit": "10"})
+    apps = asc_request(f"apps?{apps_query}").get("data", [])
+    if not apps:
+        print("whats_new_status=missing_app")
+        sys.exit(1)
+
+    expected_platform = "MAC_OS" if target_platform == "macos" else "IOS"
+    attempts = 20 if wait_for_new else 1
+    for attempt in range(attempts):
+        for app in apps:
+            app_id = app.get("id")
+            builds_query = urllib.parse.urlencode({
+                "filter[app]": app_id,
+                "include": "preReleaseVersion",
+                "limit": "20",
+                "sort": "-uploadedDate",
+            })
+            response = asc_request(f"builds?{builds_query}")
+            pre_release_versions = {
+                item.get("id"): item.get("attributes", {})
+                for item in response.get("included", [])
+                if item.get("type") == "preReleaseVersions"
+            }
+            for build in response.get("data", []):
+                pre_release_id = build.get("relationships", {}).get("preReleaseVersion", {}).get("data", {}).get("id")
+                platform = pre_release_versions.get(pre_release_id, {}).get("platform")
+                if platform == expected_platform and build.get("id") != excluded_build_id:
+                    return build
+        if attempt < attempts - 1:
+            time.sleep(30)
+
+    if not wait_for_new:
+        return None
+
+    print(f"whats_new_status=missing_build:{expected_platform}")
+    sys.exit(1)
+
+
+def upsert_testflight_whats_new():
+    if not testflight_whats_new:
+        return
+    if target_platform == "watchos":
+        print("whats_new_status=skipped_watchos")
+        return
+
+    build = latest_app_store_build_for_notes(excluded_build_id=previous_testflight_build_id)
+    build_id = build.get("id")
+    if not build_id:
+        print("whats_new_status=missing_build_id")
+        sys.exit(1)
+
+    localizations = asc_request(f"builds/{build_id}/betaBuildLocalizations?limit=200").get("data", [])
+    existing = next(
+        (
+            item for item in localizations
+            if item.get("attributes", {}).get("locale") == testflight_whats_new_locale
+        ),
+        None,
+    )
+    if existing and existing.get("id"):
+        asc_request(
+            f"betaBuildLocalizations/{existing['id']}",
+            method="PATCH",
+            body={
+                "data": {
+                    "type": "betaBuildLocalizations",
+                    "id": existing["id"],
+                    "attributes": {"whatsNew": testflight_whats_new},
+                }
+            },
+        )
+        print(f"whats_new_status=updated:{testflight_whats_new_locale}")
+        return
+
+    asc_request(
+        "betaBuildLocalizations",
+        method="POST",
+        body={
+            "data": {
+                "type": "betaBuildLocalizations",
+                "attributes": {
+                    "locale": testflight_whats_new_locale,
+                    "whatsNew": testflight_whats_new,
+                },
+                "relationships": {
+                    "build": {"data": {"type": "builds", "id": build_id}}
+                },
+            }
+        },
+    )
+    print(f"whats_new_status=created:{testflight_whats_new_locale}")
 
 
 def parse_keychain_list(output):
@@ -1045,6 +1151,11 @@ export_cmd = [
     *common_auth_args,
 ]
 
+if testflight_whats_new and target_platform != "watchos":
+    previous_build = latest_app_store_build_for_notes(wait_for_new=False)
+    previous_testflight_build_id = previous_build.get("id") if previous_build else None
+    print(f"whats_new_previous_build={previous_testflight_build_id or 'none'}")
+
 print("upload_status=started")
 export = subprocess.run(export_cmd, capture_output=True, text=True, timeout=1800)
 if export.returncode != 0:
@@ -1088,6 +1199,7 @@ if target_platform == "watchos":
         print_tail("upload_status", upload.stdout + upload.stderr, derived)
         sys.exit(upload.returncode)
 print("upload_status=passed")
+upsert_testflight_whats_new()
 for line in (export.stdout + export.stderr).replace(derived, "<macos-peer-tmp>").splitlines()[-40:]:
     print(line)
 '''
@@ -1868,6 +1980,31 @@ def add_app_store_connect_api_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--api-issuer-id", help="App Store Connect API issuer ID")
 
 
+def add_testflight_notes_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--whats-new", help="Required TestFlight What to Test text to attach to the uploaded build")
+    parser.add_argument("--whats-new-file", help="Required local file containing TestFlight What to Test text")
+    parser.add_argument("--whats-new-locale", default="en-US", help="Locale for TestFlight What to Test text, default: en-US")
+
+
+def testflight_notes_options(args: argparse.Namespace) -> dict[str, str | None]:
+    whats_new = getattr(args, "whats_new", None)
+    whats_new_file = getattr(args, "whats_new_file", None)
+    if whats_new and whats_new_file:
+        raise AppleRemoteError("Pass either --whats-new or --whats-new-file, not both")
+    if whats_new_file:
+        whats_new = Path(whats_new_file).read_text(encoding="utf-8")
+    if whats_new is not None:
+        whats_new = whats_new.strip()
+    if not whats_new:
+        raise AppleRemoteError("TestFlight uploads require --whats-new or --whats-new-file")
+    if whats_new and len(whats_new) > 4000:
+        raise AppleRemoteError("TestFlight What to Test text must be 4000 characters or less")
+    return {
+        "whats_new": whats_new or None,
+        "whats_new_locale": getattr(args, "whats_new_locale", "en-US") or "en-US",
+    }
+
+
 def first_config_value(config: dict[str, str], *keys: str) -> str | None:
     for key in keys:
         value = config.get(key)
@@ -1919,6 +2056,12 @@ def require_app_store_connect_api_options(options: dict[str, str | None], comman
             "app_store_connect_api_issuer_id in ~/.config/openmates/apple-remote.json, "
             "or pass --api-key-path/--api-key-id/--api-issuer-id."
         )
+
+
+def encoded_testflight_whats_new(whats_new: str | None) -> str:
+    if not whats_new or not whats_new.strip():
+        raise AppleRemoteError("TestFlight uploads require --whats-new or --whats-new-file")
+    return base64.b64encode(whats_new.strip().encode("utf-8")).decode("ascii")
 
 
 def repo_command(config: RemoteConfig, parts: Sequence[str]) -> str:
@@ -2052,12 +2195,18 @@ def upload_testflight_ios_command(
     api_key_path: str | None = None,
     api_key_id: str | None = None,
     api_issuer_id: str | None = None,
+    whats_new: str | None = None,
+    whats_new_locale: str = "en-US",
 ) -> str:
+    encoded_whats_new = encoded_testflight_whats_new(whats_new)
     command = shell_join([
         "python3",
         "-c",
         TESTFLIGHT_IOS_SCRIPT,
         "1" if internal_only else "0",
+        "ios",
+        encoded_whats_new,
+        whats_new_locale,
     ])
     return app_store_connect_env_prefix(
         command,
@@ -2073,13 +2222,18 @@ def upload_testflight_macos_command(
     api_key_path: str | None = None,
     api_key_id: str | None = None,
     api_issuer_id: str | None = None,
+    whats_new: str | None = None,
+    whats_new_locale: str = "en-US",
 ) -> str:
+    encoded_whats_new = encoded_testflight_whats_new(whats_new)
     command = shell_join([
         "python3",
         "-c",
         TESTFLIGHT_IOS_SCRIPT,
         "1" if internal_only else "0",
         "macos",
+        encoded_whats_new,
+        whats_new_locale,
     ])
     return app_store_connect_env_prefix(
         command,
@@ -2095,13 +2249,18 @@ def upload_testflight_watch_command(
     api_key_path: str | None = None,
     api_key_id: str | None = None,
     api_issuer_id: str | None = None,
+    whats_new: str | None = None,
+    whats_new_locale: str = "en-US",
 ) -> str:
+    encoded_whats_new = encoded_testflight_whats_new(whats_new)
     command = shell_join([
         "python3",
         "-c",
         TESTFLIGHT_IOS_SCRIPT,
         "1" if internal_only else "0",
         "watchos",
+        encoded_whats_new,
+        whats_new_locale,
     ])
     return app_store_connect_env_prefix(
         command,
@@ -2118,6 +2277,8 @@ def deploy_latest_testflight_command(
     api_key_path: str | None = None,
     api_key_id: str | None = None,
     api_issuer_id: str | None = None,
+    whats_new: str | None = None,
+    whats_new_locale: str = "en-US",
 ) -> str:
     commands = [
         sync_repo_command(branch),
@@ -2126,18 +2287,24 @@ def deploy_latest_testflight_command(
             api_key_path=api_key_path,
             api_key_id=api_key_id,
             api_issuer_id=api_issuer_id,
+            whats_new=whats_new,
+            whats_new_locale=whats_new_locale,
         ),
         upload_testflight_watch_command(
             internal_only,
             api_key_path=api_key_path,
             api_key_id=api_key_id,
             api_issuer_id=api_issuer_id,
+            whats_new=whats_new,
+            whats_new_locale=whats_new_locale,
         ),
         upload_testflight_macos_command(
             internal_only,
             api_key_path=api_key_path,
             api_key_id=api_key_id,
             api_issuer_id=api_issuer_id,
+            whats_new=whats_new,
+            whats_new_locale=whats_new_locale,
         ),
     ]
     return " && ".join(commands)
@@ -2277,6 +2444,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Do not mark the uploaded build as internal-testing-only",
     )
+    add_testflight_notes_args(testflight_parser)
     add_app_store_connect_api_args(testflight_parser)
 
     testflight_macos_parser = subparsers.add_parser("upload-testflight-macos", help="Archive and upload OpenMates_macOS to TestFlight")
@@ -2285,6 +2453,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Do not mark the uploaded build as internal-testing-only",
     )
+    add_testflight_notes_args(testflight_macos_parser)
     add_app_store_connect_api_args(testflight_macos_parser)
 
     testflight_watch_parser = subparsers.add_parser("upload-testflight-watch", help="Archive and upload OpenMatesWatch to TestFlight")
@@ -2293,6 +2462,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Do not mark the uploaded build as internal-testing-only",
     )
+    add_testflight_notes_args(testflight_watch_parser)
     add_app_store_connect_api_args(testflight_watch_parser)
 
     deploy_testflight_parser = subparsers.add_parser(
@@ -2305,6 +2475,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Do not mark uploaded builds as internal-testing-only",
     )
+    add_testflight_notes_args(deploy_testflight_parser)
     add_app_store_connect_api_args(deploy_testflight_parser)
 
     certificate_parser = subparsers.add_parser(
@@ -2429,6 +2600,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 ]),
             )
         if args.command == "upload-testflight-ios":
+            notes_options = testflight_notes_options(args)
+            require_app_store_connect_api_options(api_options, "upload-testflight-ios --whats-new")
             return run_remote(
                 config,
                 repo_command(config, [
@@ -2437,10 +2610,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                     upload_testflight_ios_command(
                         not args.external_capable,
                         **api_options,
+                        **notes_options,
                     ),
                 ]),
             )
         if args.command == "upload-testflight-macos":
+            notes_options = testflight_notes_options(args)
+            require_app_store_connect_api_options(api_options, "upload-testflight-macos --whats-new")
             return run_remote(
                 config,
                 repo_command(config, [
@@ -2449,10 +2625,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                     upload_testflight_macos_command(
                         not args.external_capable,
                         **api_options,
+                        **notes_options,
                     ),
                 ]),
             )
         if args.command == "upload-testflight-watch":
+            notes_options = testflight_notes_options(args)
+            require_app_store_connect_api_options(api_options, "upload-testflight-watch --whats-new")
             return run_remote(
                 config,
                 repo_command(config, [
@@ -2461,11 +2640,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                     upload_testflight_watch_command(
                         not args.external_capable,
                         **api_options,
+                        **notes_options,
                     ),
                 ]),
             )
         if args.command == "deploy-latest-testflight":
-            require_app_store_connect_api_options(api_options, "deploy-latest-testflight")
+            notes_options = testflight_notes_options(args)
+            require_app_store_connect_api_options(api_options, "deploy-latest-testflight --whats-new")
             return run_remote(
                 config,
                 repo_command(config, [
@@ -2475,6 +2656,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         args.branch,
                         not args.external_capable,
                         **api_options,
+                        **notes_options,
                     ),
                 ]),
                 allow_destructive=True,
