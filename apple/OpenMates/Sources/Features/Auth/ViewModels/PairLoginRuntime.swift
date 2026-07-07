@@ -324,11 +324,13 @@ final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate
     }
 
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        Task { @MainActor in self.isPhoneReachable = session.isReachable }
+        let isReachable = session.isReachable
+        Task { @MainActor in self.isPhoneReachable = isReachable }
     }
 
     nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
-        Task { @MainActor in self.isPhoneReachable = session.isReachable }
+        let isReachable = session.isReachable
+        Task { @MainActor in self.isPhoneReachable = isReachable }
     }
 
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
