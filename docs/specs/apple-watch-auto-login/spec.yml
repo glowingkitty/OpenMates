@@ -1,0 +1,344 @@
+id: apple-watch-auto-login
+title: Apple Watch Auto Login Via Connected iPhone
+status: approved
+
+goal: >
+  Let an unauthenticated Apple Watch request login from the paired iPhone when
+  the iPhone is reachable, while preserving explicit user consent and keeping
+  the existing standalone QR/PIN pair-login fallback for cases where the phone
+  is unavailable or the user chooses to log in without it.
+
+scope:
+  in:
+    - WatchConnectivity handoff from Watch to paired iPhone for a pair-login token.
+    - Mandatory iPhone user consent before the iPhone authorizes a Watch login.
+    - iPhone notification when possible, plus in-app pending approval under connected devices.
+    - Watch unauthenticated state that shows "Confirm login on iPhone" only when the iPhone is connected.
+    - '"Login without iPhone" fallback that reveals the full pair URL, a large centered 6-character token, and a "Show QR code" button.'
+    - Full-screen Watch QR view optimized for maximum scan size and quiet zone.
+    - Reuse of the existing pair-login backend, PIN, encrypted bundle, and Watch-local completion flow.
+  out:
+    - Silent Watch login without explicit iPhone consent.
+    - Sending raw auth cookies, session tokens, or plaintext master keys over WatchConnectivity.
+    - New backend auth endpoints or changed pair-login security policy.
+    - iCloud Keychain, CloudKit, or Apple account-based key sync.
+    - Rich Watch settings beyond the login approval surface.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me returned 401 Bad credentials."
+    - "gh issue list --repo glowingkitty/OpenMates --search 'Watch pair login OR WatchConnectivity OR Apple Watch login OR QR login' --state all returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/apple-watch-support/spec.yml
+    - docs/specs/apple-auth-security-parity/spec.yml
+    - apple/AGENTS.md
+    - .claude/rules/apple-ui.md
+  code_patterns:
+    - apple/OpenMatesWatch/Sources/WatchPairLoginView.swift currently renders a small inline QR and PIN input.
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift builds pair URLs as https://<web-host>/#pair=<TOKEN> and completes login locally on the initiating device.
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift contains the native iPhone pair-authorize screen and pair bundle encryption pattern.
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift already captures #pair tokens for native iPhone routing.
+    - No WatchConnectivity or WCSession usage exists in apple/**/*.swift before this spec.
+  tests:
+    - apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    - apple/OpenMatesUITests/AuthSecurityParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMatesWatch/Sources/WatchPairLoginView.swift
+    - apple/OpenMatesWatch/Sources/WatchRootView.swift
+    - apple/OpenMatesWatch/Sources/WatchAuthStore.swift
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Networking/DeepLinkHandler.swift
+    - apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
+    - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+  parity_expectations:
+    - Pair-login cryptography and backend semantics remain identical to web/iOS pair login.
+    - Watch login can be started without the iPhone, and the Watch remains an independent client after login.
+    - iPhone consent is explicit and visible; notification is a convenience, not the trust boundary.
+  verification:
+    - python3 scripts/spec_validate.py docs/specs/apple-watch-auto-login/spec.yml
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-watch --simulator "Apple Watch Series 11 (46mm)"
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchEmbedPreviewTests
+  intentional_native_differences:
+    - Watch uses WatchConnectivity for token/PIN handoff only when the paired iPhone is reachable.
+    - Watch QR is displayed in a full-screen native view instead of inline web-style QR layout.
+
+clarification:
+  rounds:
+    - question: Should the connected iPhone auto-approve the Watch login silently when the iPhone app is already logged in, or should it show a one-tap approval prompt on the iPhone before sending the PIN/auth bundle to the Watch?
+      answer: The iPhone must send a notification and require explicit user confirmation before login, to ensure consent.
+    - question: When the iPhone is not reachable or not logged in, should the Watch fallback screen show the full URL as selectable/copyable text plus a manual 6-character token, or only the full URL and "Show QR code"?
+      answer: Show the full URL, the 6-character token larger in the center, and a button for QR code under it.
+    - question: If iPhone notification permission is disabled or the iPhone app cannot show a system notification, should the iPhone still show the pending Watch login approval as an in-app prompt the next time OpenMates opens?
+      answer: Yes. Auto-open settings to a connected-devices sub-setting for connecting Apple Watch, and show on Watch that the login must be confirmed on iPhone when connected.
+  vision_summary: >
+    The Watch should prefer a connected-iPhone login request, but never silently
+    approve. If the phone is connected, Watch shows a "Confirm login on iPhone"
+    state with a "Login without iPhone" escape hatch. Fallback mode shows the
+    pair URL, prominent token, and a full-screen scan-friendly QR code.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Watch requests login from reachable iPhone
+    given:
+      - Alice has the OpenMates iPhone app installed and paired with her Apple Watch.
+      - Alice is logged into OpenMates on the iPhone.
+      - The Watch app is unauthenticated and can reach the backend.
+    when:
+      - Alice opens OpenMates on Watch.
+    then:
+      - The Watch creates a normal pair-login token.
+      - The Watch sends only the token and display metadata to the iPhone over WatchConnectivity.
+      - The Watch shows "Confirm login on iPhone" and a "Login without iPhone" button.
+  - id: S-2
+    title: iPhone requires explicit approval
+    given:
+      - The iPhone receives a Watch login request.
+    when:
+      - Alice taps the notification or opens OpenMates.
+    then:
+      - OpenMates opens settings to connected devices > connect Apple Watch.
+      - Alice sees the requesting Watch details and must tap Allow before authorization.
+      - Deny or dismiss leaves the Watch unauthenticated and able to use fallback login.
+  - id: S-3
+    title: Approved iPhone login completes on Watch
+    given:
+      - Alice approves the Watch login on iPhone.
+    when:
+      - The iPhone authorizes the existing pair-login token and sends the generated PIN to the Watch over WatchConnectivity.
+    then:
+      - The Watch calls the existing pair complete flow with the PIN.
+      - The Watch decrypts the bundle locally and stores its own session and master key.
+      - The iPhone never sends plaintext master keys, cookies, or session tokens over WatchConnectivity.
+  - id: S-4
+    title: Watch fallback login is explicit and scan-friendly
+    given:
+      - The iPhone is not connected, not logged in, notification delivery fails, or Alice taps "Login without iPhone".
+    when:
+      - The Watch shows fallback login.
+    then:
+      - The fallback view shows the full pair URL.
+      - The 6-character token is large and centered.
+      - The "Show QR code" button opens a full-screen QR code with maximum practical Watch display size and a white quiet zone.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A reachable paired iPhone receives only a pair-login token request from WatchConnectivity, and Watch shows "Confirm login on iPhone" plus "Login without iPhone".
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-001, T-APPLE-002]
+  - id: AC-2
+    scenario: S-2
+    text: iPhone approval is explicit and routed to connected devices > connect Apple Watch, with notification and in-app fallback support.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-001]
+  - id: AC-3
+    scenario: S-3
+    text: Approved iPhone login reuses existing pair-login authorization and sends only the generated PIN/result metadata back to Watch.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-001, T-APPLE-003]
+  - id: AC-4
+    scenario: S-4
+    text: Fallback Watch UI shows full URL, prominent 6-character token, and full-screen optimized QR code behind a "Show QR code" button.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-002]
+
+contracts:
+  api:
+    - route: POST /v1/auth/pair/initiate
+      behavior: Watch creates the same unauthenticated pair-login token as other initiating devices.
+    - route: POST /v1/auth/pair/authorize/{token}
+      behavior: iPhone authorizes only after user approval, using existing encrypted bundle semantics.
+    - route: POST /v1/auth/pair/complete/{token}
+      behavior: Watch completes login locally after receiving the generated PIN.
+  data:
+    - WatchConnectivity messages contain token, pair URL, timestamp, and display metadata only.
+    - WatchConnectivity approval replies contain generated PIN and non-sensitive status metadata only.
+  ui_states:
+    - Watch generating token.
+    - Watch waiting for iPhone confirmation.
+    - Watch fallback URL/token/QR.
+    - iPhone pending Apple Watch login approval under connected devices.
+    - iPhone approved/denied/error states.
+  privacy_security:
+    - Explicit iPhone consent is mandatory.
+    - No raw master key, auth cookie, session token, WebSocket token, or user plaintext is sent over WatchConnectivity.
+    - Existing pair-login AES/PBKDF2 bundle remains the only path for transferring auth material.
+
+tests:
+  - id: T-APPLE-001
+    type: unit
+    file: apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchPairLoginRuntimeTests
+    covers: [AC-1, AC-2, AC-3]
+    assertions:
+      - WatchConnectivity request payload contains token/url only and no secret fields.
+      - iPhone approval helper produces pair authorize input only after an explicit approval call.
+      - Approval reply payload contains generated PIN/status only and no raw secret fields.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+  - id: T-APPLE-002
+    type: unit
+    file: apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WatchEmbedPreviewTests
+    covers: [AC-1, AC-4]
+    assertions:
+      - Watch pair-login UI contract includes confirm-on-iPhone, fallback, token, URL, show-QR, and full-screen QR identifiers.
+      - QR payload remains the exact pair URL.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_run
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+  - id: T-APPLE-003
+    type: build
+    file: apple/OpenMates.xcodeproj/project.pbxproj
+    command: python3 scripts/apple_remote.py build-watch --simulator "Apple Watch Series 11 (46mm)"
+    covers: [AC-3]
+    assertions:
+      - Watch target builds with WatchConnectivity imports and full-screen QR UI.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+implementation_plan:
+  existing_patterns:
+    - PairLoginRuntime.initiate/poll/complete for Watch-side login.
+    - CLIPairAuthorizeView for iPhone-side pair authorization and PIN generation.
+    - DeepLinkHandler/MainAppView settings route handling for pair tokens.
+  architecture: >
+    Add a small WatchConnectivity coordinator shared by iPhone and Watch. Watch
+    initiates pair-login as today, then attempts a token handoff to the paired
+    iPhone. iPhone stores a pending request, raises a notification when possible,
+    opens the connected-device approval UI, and only after approval authorizes the
+    token and returns the generated PIN to Watch. Watch completes the existing
+    pair-login flow locally. If connectivity is missing or the user opts out,
+    Watch displays URL/token/QR fallback.
+  data_flow:
+    - Watch calls /v1/auth/pair/initiate and builds https://<web-host>/#pair=<TOKEN>.
+    - Watch sends token/url/device hint to iPhone via WCSession.
+    - iPhone stores pending request and routes user to connected devices > connect Apple Watch.
+    - User approves; iPhone authorizes the token using existing pair-login encrypted bundle semantics.
+    - iPhone sends generated PIN/status to Watch via WCSession.
+    - Watch calls /pair/complete and /auth/login through PairLoginRuntime.complete.
+  affected_files:
+    - path: apple/OpenMatesWatch/Sources/WatchPairLoginView.swift
+      reason: Watch auto-login/fallback/QR UI.
+    - path: apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+      reason: iPhone connected-device Apple Watch approval surface.
+    - path: apple/OpenMates/Sources/App/MainAppView.swift
+      reason: route pending Watch approval to settings overlay/subpage.
+    - path: apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+      reason: shared payload helpers and authorization reuse.
+    - path: apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
+      reason: security/payload contract tests.
+    - path: apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+      reason: Watch login UI contract identifiers.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/apple-watch-auto-login/spec.yml
+    - python3 scripts/spec_verify.py docs/specs/apple-watch-auto-login/spec.yml --phase green
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/apple_remote.py build-watch --simulator "Apple Watch Series 11 (46mm)"
+  verification_order:
+    - Apple unit contract tests.
+    - iPhone and Watch remote builds.
+
+tasks:
+  - id: TASK-1
+    title: Add WatchConnectivity auto-login payload contracts
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-3]
+      acceptance_criteria: [AC-1, AC-3]
+    expected_files:
+      - apple/OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+      - apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
+    verification: [T-APPLE-001]
+    verification_ids: [T-APPLE-001]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-2
+    title: Add Watch auto-login and fallback UI
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-4]
+      acceptance_criteria: [AC-1, AC-4]
+    expected_files:
+      - apple/OpenMatesWatch/Sources/WatchPairLoginView.swift
+      - apple/OpenMatesTests/WatchEmbedPreviewTests.swift
+    verification: [T-APPLE-002, T-APPLE-003]
+    verification_ids: [T-APPLE-002, T-APPLE-003]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-3
+    title: Add iPhone connected-device approval surface
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-2, S-3]
+      acceptance_criteria: [AC-2, AC-3]
+    expected_files:
+      - apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift
+      - apple/OpenMates/Sources/App/MainAppView.swift
+    verification: [T-APPLE-001]
+    verification_ids: [T-APPLE-001]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false

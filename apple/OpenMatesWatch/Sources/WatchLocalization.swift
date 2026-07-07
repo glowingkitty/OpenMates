@@ -58,6 +58,11 @@ enum WatchStrings {
     static var noChats: String { WatchLocalization.text("activity.no_chats") }
     static var offlineBanner: String { WatchLocalization.text("notifications.connection.offline_banner") }
     static var pairWaiting: String { WatchLocalization.text("settings.sessions.pair_waiting") }
+    static var pairConfirmOnIphone: String { WatchLocalization.text("settings.sessions.pair_confirm_on_iphone") }
+    static var pairConfirmOnIphoneDescription: String { WatchLocalization.text("settings.sessions.pair_confirm_on_iphone_description") }
+    static var pairLoginWithoutIphone: String { WatchLocalization.text("settings.sessions.pair_login_without_iphone") }
+    static var pairShowQRCode: String { WatchLocalization.text("settings.sessions.pair_show_qr_code") }
+    static var pairFullURLLabel: String { WatchLocalization.text("settings.sessions.pair_full_url_label") }
     static var pairGenerating: String { WatchLocalization.text("settings.sessions.pair_generating") }
     static var pairExpired: String { WatchLocalization.text("settings.sessions.pair_expired") }
     static var pairRefresh: String { WatchLocalization.text("settings.sessions.pair_refresh") }

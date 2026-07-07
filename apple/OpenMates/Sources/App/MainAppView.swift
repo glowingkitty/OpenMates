@@ -50,6 +50,9 @@ struct MainAppView: View {
     @StateObject private var handoffManager = HandoffManager()
     @StateObject private var authFlowState = AuthFlowState()
     @StateObject private var anonymousFreeUsage = AnonymousFreeUsageService.shared
+    #if os(iOS)
+    @StateObject private var phoneWatchLoginBridge = PhoneWatchLoginBridge.shared
+    #endif
     @State private var syncBridge: OfflineSyncBridge?
     @State private var selectedChatId: String?
     @State private var selectedWorkspace: WorkspaceDestination = .chat
@@ -64,6 +67,7 @@ struct MainAppView: View {
     @State private var showHiddenChats = false
     @State private var hiddenChatsUnlocked = false
     @State private var showPairAuthorize = false
+    @State private var showAppleWatchPairAuthorize = false
     @State private var pairToken: String?
     @State private var searchText = ""
     @State private var searchSelection: ChatSearchSelection?
@@ -288,6 +292,9 @@ struct MainAppView: View {
         .onChange(of: deepLinkHandler.pendingChatId, pendingDeepLinkChatDidChange)
         .onChange(of: deepLinkHandler.pendingPairToken, pendingPairTokenDidChange)
         .onChange(of: deepLinkHandler.pendingInspirationId, pendingInspirationDidChange)
+        #if os(iOS)
+        .onChange(of: phoneWatchLoginBridge.pendingRequest, phoneWatchLoginRequestDidChange)
+        #endif
         .onReceive(NotificationCenter.default.publisher(for: .newChat)) { _ in
             openNewChatScreen()
         }
@@ -310,6 +317,9 @@ struct MainAppView: View {
         }
         #endif
         .task {
+            #if os(iOS)
+            phoneWatchLoginBridge.start()
+            #endif
             await runStartupTask()
         }
         .onReceive(NotificationCenter.default.publisher(for: .wsMessageReceived)) { notification in
@@ -407,6 +417,17 @@ struct MainAppView: View {
             deepLinkHandler.pendingPairToken = nil
         }
     }
+
+    #if os(iOS)
+    private func phoneWatchLoginRequestDidChange(_ oldValue: WatchPairLoginRequest?, _ request: WatchPairLoginRequest?) {
+        guard request != nil else {
+            showAppleWatchPairAuthorize = false
+            return
+        }
+        showSettings = true
+        showAppleWatchPairAuthorize = true
+    }
+    #endif
 
     private func pendingInspirationDidChange(_ oldValue: String?, _ inspirationId: String?) {
         if inspirationId != nil {
@@ -1052,6 +1073,16 @@ struct MainAppView: View {
                 CLIPairAuthorizeView(token: pairToken)
             }
         }
+
+        #if os(iOS)
+        if showAppleWatchPairAuthorize, phoneWatchLoginBridge.pendingRequest != nil {
+            appOverlay(title: AppStrings.pairConnectAppleWatchTitle, isPresented: $showAppleWatchPairAuthorize) {
+                AppleWatchPairAuthorizeView(bridge: phoneWatchLoginBridge) {
+                    showAppleWatchPairAuthorize = false
+                }
+            }
+        }
+        #endif
 
         if showRenameAlert {
             renameOverlay

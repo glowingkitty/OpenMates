@@ -44,6 +44,9 @@ final class WatchPairLoginState: ObservableObject {
 struct WatchPairLoginView: View {
     @ObservedObject var authStore: WatchAuthStore
     @StateObject private var pairState = WatchPairLoginState()
+    @StateObject private var phoneBridge = WatchPhoneLoginBridge()
+    @State private var showManualFallback = false
+    @State private var showFullScreenQRCode = false
 
     var body: some View {
         ZStack {
@@ -53,14 +56,12 @@ struct WatchPairLoginView: View {
                 VStack(spacing: .spacing4) {
                     statusView
 
-                    if let pairURLString = pairState.pairURLString {
-                        WatchQRCodeView(payload: pairURLString)
-                            .frame(width: 118, height: 118)
-                            .padding(.spacing2)
-                            .background(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: .radius4))
-                            .accessibilityLabel(WatchStrings.scanCode)
-                            .accessibilityIdentifier("watch-pair-qr-code")
+                    if pairState.status == .waiting,
+                       phoneBridge.isPhoneReachable,
+                       !showManualFallback {
+                        confirmOnIPhoneView
+                    } else if pairState.pairURLString != nil {
+                        manualFallbackView
                     }
 
                     if pairState.status == .ready {
@@ -87,8 +88,24 @@ struct WatchPairLoginView: View {
                 .padding(.horizontal, .spacing3)
                 .padding(.vertical, .spacing4)
             }
+
+            if showFullScreenQRCode, let pairURLString = pairState.pairURLString {
+                WatchFullScreenQRCodeView(payload: pairURLString) {
+                    showFullScreenQRCode = false
+                }
+                .transition(.opacity)
+                .zIndex(2)
+            }
         }
-        .task { await initiatePairingIfNeeded() }
+        .task {
+            phoneBridge.start { approval in
+                handlePhoneApproval(approval)
+            }
+            await initiatePairingIfNeeded()
+        }
+        .onChange(of: phoneBridge.isPhoneReachable) { _, isReachable in
+            if isReachable { sendPhoneLoginRequestIfPossible() }
+        }
         .accessibilityIdentifier("watch-pair-login")
     }
 
@@ -157,6 +174,87 @@ struct WatchPairLoginView: View {
         }
     }
 
+    private var confirmOnIPhoneView: some View {
+        VStack(spacing: .spacing3) {
+            Text(WatchStrings.pairConfirmOnIphone)
+                .font(.omSmall)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.grey0)
+                .multilineTextAlignment(.center)
+                .accessibilityIdentifier("watch-pair-confirm-iphone-title")
+
+            Text(WatchStrings.pairConfirmOnIphoneDescription)
+                .font(.omXs)
+                .foregroundStyle(Color.grey0.opacity(0.72))
+                .multilineTextAlignment(.center)
+                .accessibilityIdentifier("watch-pair-confirm-iphone-description")
+
+            Button {
+                showManualFallback = true
+            } label: {
+                Text(WatchStrings.pairLoginWithoutIphone)
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontButton)
+                    .padding(.horizontal, .spacing4)
+                    .padding(.vertical, .spacing2)
+                    .background(LinearGradient.primary)
+                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("watch-pair-login-without-iphone-button")
+        }
+        .padding(.spacing3)
+        .background(Color.grey80.opacity(0.55))
+        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+    }
+
+    private var manualFallbackView: some View {
+        VStack(spacing: .spacing3) {
+            if let token = pairState.token {
+                Text(token)
+                    .font(.omH2.monospaced())
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.grey0)
+                    .multilineTextAlignment(.center)
+                    .accessibilityIdentifier("watch-pair-token")
+            }
+
+            if let pairURLString = pairState.pairURLString {
+                VStack(spacing: .spacing1) {
+                    Text(WatchStrings.pairFullURLLabel)
+                        .font(.omXs)
+                        .foregroundStyle(Color.grey0.opacity(0.72))
+                    Text(pairURLString)
+                        .font(.omTiny)
+                        .foregroundStyle(Color.grey0.opacity(0.82))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .accessibilityIdentifier("watch-pair-url")
+                }
+            }
+
+            Button {
+                showFullScreenQRCode = true
+            } label: {
+                Text(WatchStrings.pairShowQRCode)
+                    .font(.omSmall)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontButton)
+                    .padding(.horizontal, .spacing4)
+                    .padding(.vertical, .spacing2)
+                    .background(LinearGradient.primary)
+                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("watch-pair-show-qr-button")
+        }
+        .padding(.spacing3)
+        .background(Color.grey80.opacity(0.55))
+        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        .accessibilityIdentifier("watch-pair-manual-fallback")
+    }
+
     private func messageBox(text: String) -> some View {
         Text(text)
             .font(.omXs)
@@ -188,6 +286,7 @@ struct WatchPairLoginView: View {
             pairState.pairURLString = initiation.pairURLString
             pairState.status = .waiting
             startPolling(token: initiation.token)
+            sendPhoneLoginRequestIfPossible()
         } catch {
             pairState.errorMessage = error.localizedDescription
             pairState.status = .failed
@@ -231,6 +330,24 @@ struct WatchPairLoginView: View {
         }
         pairState.errorMessage = nil
         if sanitized.count == 6 { submitPinIfReady() }
+    }
+
+    private func sendPhoneLoginRequestIfPossible() {
+        guard let token = pairState.token,
+              let pairURLString = pairState.pairURLString else { return }
+        let request = WatchPairLoginRequest(
+            token: token,
+            pairURLString: pairURLString,
+            deviceName: PairLoginRuntime.officialAppDeviceHint,
+            createdAt: Int(Date().timeIntervalSince1970)
+        )
+        _ = phoneBridge.sendLoginRequest(request)
+    }
+
+    private func handlePhoneApproval(_ approval: WatchPairLoginApproval) {
+        guard approval.token == pairState.token else { return }
+        pairState.pin = approval.pin
+        if pairState.status == .ready { submitPinIfReady() }
     }
 
     private func submitPinIfReady() {
@@ -293,6 +410,40 @@ private struct WatchQRCodeView: View {
             }
         }
         .background(Color.white)
+    }
+}
+
+private struct WatchFullScreenQRCodeView: View {
+    let payload: String
+    let onClose: () -> Void
+
+    var body: some View {
+        GeometryReader { geometry in
+            let side = max(120, min(geometry.size.width, geometry.size.height) - 18)
+            ZStack {
+                Color.grey100.ignoresSafeArea()
+
+                VStack(spacing: .spacing3) {
+                    WatchQRCodeView(payload: payload)
+                        .frame(width: side, height: side)
+                        .padding(.spacing3)
+                        .background(Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                        .accessibilityLabel(WatchStrings.scanCode)
+                        .accessibilityIdentifier("watch-pair-qr-code")
+
+                    Button(WatchStrings.back) {
+                        onClose()
+                    }
+                    .buttonStyle(.plain)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.grey0)
+                    .accessibilityIdentifier("watch-pair-qr-close-button")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .accessibilityIdentifier("watch-pair-qr-fullscreen")
     }
 }
 

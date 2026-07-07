@@ -424,6 +424,10 @@ enum AppStrings {
     static var pairCopyLink: String { L("settings.sessions.pair_copy_link") }
     static var pairCopied: String { L("settings.sessions.pair_copied") }
     static var pairUrlLabel: String { L("settings.sessions.pair_url_label") }
+    static var pairConnectAppleWatchTitle: String { L("settings.sessions.pair_connect_apple_watch_title") }
+    static var pairConnectAppleWatchDescription: String { L("settings.sessions.pair_connect_apple_watch_description") }
+    static var pairApproveWatchLogin: String { L("settings.sessions.pair_approve_watch_login") }
+    static var pairWatchLoginApproved: String { L("settings.sessions.pair_watch_login_approved") }
     // Web currently renders this label as literal copy in SettingsSessionsPairInitiate.svelte.
     static var pairScanCode: String { "Scan code:" }
     static var pairEnterPinTitle: String { L("settings.sessions.pair_enter_pin_title") }

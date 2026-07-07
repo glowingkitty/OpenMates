@@ -31,6 +31,42 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         XCTAssertEqual(PairLoginRuntime.failureKind(for: nil), .generic)
     }
 
+    func testWatchConnectivityLoginRequestPayloadContainsNoSecrets() {
+        let request = WatchPairLoginRequest(
+            token: "abc123",
+            pairURLString: "https://app.dev.openmates.org/#pair=ABC123",
+            deviceName: "OpenMates Apple Watch app",
+            createdAt: 1_777_777_777
+        )
+
+        let message = WatchPairLoginConnectivityPayload.requestMessage(request)
+        let parsed = WatchPairLoginConnectivityPayload.parseRequest(message)
+
+        XCTAssertEqual(parsed, WatchPairLoginRequest(
+            token: "ABC123",
+            pairURLString: "https://app.dev.openmates.org/#pair=ABC123",
+            deviceName: "OpenMates Apple Watch app",
+            createdAt: 1_777_777_777
+        ))
+        XCTAssertFalse(WatchPairLoginConnectivityPayload.containsForbiddenSecretKeys(message))
+        XCTAssertNil(message["master_key_exported"])
+        XCTAssertNil(message["ws_token"])
+        XCTAssertNil(message["cookie"])
+    }
+
+    func testWatchConnectivityApprovalPayloadContainsOnlyPinAndToken() {
+        let approval = WatchPairLoginApproval(token: "abc123", pin: "A3F8Q6")
+
+        let message = WatchPairLoginConnectivityPayload.approvalMessage(approval)
+        let parsed = WatchPairLoginConnectivityPayload.parseApproval(message)
+
+        XCTAssertEqual(parsed, WatchPairLoginApproval(token: "ABC123", pin: "A3F8Q6"))
+        XCTAssertFalse(WatchPairLoginConnectivityPayload.containsForbiddenSecretKeys(message))
+        XCTAssertNil(message["encrypted_bundle"])
+        XCTAssertNil(message["session_token"])
+        XCTAssertNil(message["master_key"])
+    }
+
     func testDecryptLoginBundleReturnsBundleAndMasterKey() async throws {
         let token = "ABC123"
         let pin = "9Z8Y7X"

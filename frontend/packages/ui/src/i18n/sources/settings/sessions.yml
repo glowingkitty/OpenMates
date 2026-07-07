@@ -806,6 +806,51 @@ pair_url_label:
   he: או פתח את הקישור הזה
 
   verified_by_human: []
+pair_confirm_on_iphone:
+  context: Watch login state shown when a paired iPhone is reachable and must approve the login request
+  en: Confirm login on iPhone
+
+  verified_by_human: []
+pair_confirm_on_iphone_description:
+  context: Description on Apple Watch explaining that the iPhone must approve the login request
+  en: We sent a login request to your connected iPhone. Approve it there to continue.
+
+  verified_by_human: []
+pair_login_without_iphone:
+  context: Button on Apple Watch that reveals the manual pair-login fallback
+  en: Login without iPhone
+
+  verified_by_human: []
+pair_show_qr_code:
+  context: Button on Apple Watch that opens the full-screen pair-login QR code
+  en: Show QR code
+
+  verified_by_human: []
+pair_full_url_label:
+  context: Label for the full pair-login URL shown on Apple Watch fallback
+  en: Full login URL
+
+  verified_by_human: []
+pair_connect_apple_watch_title:
+  context: iPhone approval screen title for logging in a paired Apple Watch
+  en: Connect Apple Watch
+
+  verified_by_human: []
+pair_connect_apple_watch_description:
+  context: iPhone approval screen description for an Apple Watch login request
+  en: Your Apple Watch is asking to log in to OpenMates. Only approve this if you started the request.
+
+  verified_by_human: []
+pair_approve_watch_login:
+  context: iPhone button label to approve an Apple Watch login request
+  en: Allow Watch Login
+
+  verified_by_human: []
+pair_watch_login_approved:
+  context: Success message after the iPhone approves an Apple Watch login request
+  en: Apple Watch login approved.
+
+  verified_by_human: []
 pair_auto_logout_label:
   context: Label for the auto-logout timer selector on the pair initiation page
   en: Auto-logout after

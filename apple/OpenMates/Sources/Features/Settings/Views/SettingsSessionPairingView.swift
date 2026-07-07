@@ -341,14 +341,14 @@ struct CLIPairAuthorizeView: View {
     private func loadDeviceInfo() async {
         step = .loading
         do {
-            let response: [String: AnyCodable] = try await APIClient.shared.request(
+            let response: PairInfoResponse = try await APIClient.shared.request(
                 .get, path: "/v1/auth/pair/info/\(token)"
             )
             deviceInfo = DeviceInfo(
-                name: response["device_name"]?.value as? String,
-                ip: response["anonymized_ip"]?.value as? String,
-                city: response["city"]?.value as? String,
-                country: response["country"]?.value as? String
+                name: response.deviceName,
+                ip: response.ipTruncated,
+                city: response.city,
+                country: response.countryCode
             )
             step = .confirm
         } catch {
@@ -361,40 +361,15 @@ struct CLIPairAuthorizeView: View {
         isAuthorizing = true
         Task {
             do {
-                // Generate 6-char PIN
-                let pin = generatePIN()
-                generatedPIN = pin
-
-                // Derive AES key from PIN using PBKDF2
-                let salt = token.uppercased()
-                let pinData = Data(pin.utf8)
-                let saltData = Data(salt.utf8)
-                let derivedKey = try deriveKey(from: pinData, salt: saltData)
-
-                // Build auth bundle
-                let bundle: [String: String] = [
-                    "hashed_email": authManager.currentUser?.id ?? "",
-                    "session_id": UUID().uuidString,
-                ]
-                let bundleJSON = try JSONSerialization.data(withJSONObject: bundle)
-
-                // Encrypt with AES-256-GCM
-                let symmetricKey = SymmetricKey(data: derivedKey)
-                let sealedBox = try AES.GCM.seal(bundleJSON, using: symmetricKey)
-                let encryptedBundle = sealedBox.ciphertext + sealedBox.tag
-                let iv = sealedBox.nonce
-
-                // Send to server
-                let _: Data = try await APIClient.shared.request(
-                    .post, path: "/v1/auth/pair/authorize/\(token)",
-                    body: [
-                        "encrypted_bundle": encryptedBundle.base64EncodedString(),
-                        "iv": Data(iv).base64EncodedString(),
-                        "pin": pin,
-                        "device_name": deviceDisplayName(),
-                    ]
+                guard let currentUser = authManager.currentUser else {
+                    throw AuthError.invalidCredentials
+                }
+                let pin = try await PairLoginRuntime.authorize(
+                    token: token,
+                    currentUser: currentUser,
+                    authorizerDeviceName: deviceDisplayName()
                 )
-
+                generatedPIN = pin
                 step = .pinDisplay
                 pollForCompletion()
             } catch {
@@ -461,6 +436,125 @@ struct CLIPairAuthorizeView: View {
         #endif
     }
 }
+
+// MARK: - Apple Watch Pair Authorize
+
+#if os(iOS)
+struct AppleWatchPairAuthorizeView: View {
+    @ObservedObject var bridge: PhoneWatchLoginBridge
+    @EnvironmentObject var authManager: AuthManager
+    let onDone: () -> Void
+
+    @State private var isApproving = false
+    @State private var error: String?
+    @State private var didApprove = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: .spacing6) {
+                Circle()
+                    .fill(LinearGradient.primary)
+                    .frame(width: 42, height: 42)
+                    .overlay {
+                        Circle()
+                            .stroke(Color.grey0.opacity(0.82), lineWidth: 2)
+                            .padding(.spacing2)
+                    }
+                    .accessibilityHidden(true)
+
+                Text(AppStrings.pairConnectAppleWatchTitle)
+                    .font(.omH2)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .multilineTextAlignment(.center)
+
+                Text(AppStrings.pairConnectAppleWatchDescription)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .multilineTextAlignment(.center)
+
+                if let request = bridge.pendingRequest {
+                    VStack(alignment: .leading, spacing: .spacing3) {
+                        Label(request.deviceName, systemImage: "applewatch")
+                            .font(.omSmall)
+                            .foregroundStyle(Color.fontPrimary)
+                        Text(request.pairURLString)
+                            .font(.omXs)
+                            .foregroundStyle(Color.fontSecondary)
+                            .lineLimit(2)
+                            .textSelection(.enabled)
+                        Text(request.token)
+                            .font(.omH2.monospaced())
+                            .fontWeight(.bold)
+                            .foregroundStyle(Color.buttonPrimary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                    .padding(.spacing4)
+                    .background(Color.grey10)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                    .accessibilityIdentifier("settings-apple-watch-login-request")
+                }
+
+                if didApprove {
+                    Text(AppStrings.pairWatchLoginApproved)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.buttonPrimary)
+                        .multilineTextAlignment(.center)
+                        .accessibilityIdentifier("settings-apple-watch-login-approved")
+                }
+
+                if let error {
+                    Text(error)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.error)
+                        .multilineTextAlignment(.center)
+                        .accessibilityIdentifier("settings-apple-watch-login-error")
+                }
+
+                HStack(spacing: .spacing4) {
+                    Button(AppStrings.cancel) {
+                        bridge.denyPendingRequest()
+                        onDone()
+                    }
+                    .buttonStyle(OMSecondaryButtonStyle())
+                    .accessibilityIdentifier("settings-apple-watch-login-deny")
+
+                    Button {
+                        approve()
+                    } label: {
+                        if isApproving {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Text(AppStrings.pairApproveWatchLogin)
+                        }
+                    }
+                    .buttonStyle(OMPrimaryButtonStyle())
+                    .disabled(isApproving || bridge.pendingRequest == nil)
+                    .accessibilityIdentifier("settings-apple-watch-login-approve")
+                }
+            }
+            .padding(.spacing8)
+        }
+        .accessibilityIdentifier("settings-apple-watch-login-page")
+    }
+
+    private func approve() {
+        isApproving = true
+        error = nil
+        Task {
+            do {
+                try await bridge.approvePendingRequest(authManager: authManager)
+                didApprove = true
+                onDone()
+            } catch {
+                self.error = error.localizedDescription
+            }
+            isApproving = false
+        }
+    }
+}
+#endif
 
 // Need CommonCrypto for PBKDF2
 import CommonCrypto

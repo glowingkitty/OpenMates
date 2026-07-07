@@ -9,7 +9,16 @@ final class WatchEmbedPreviewTests: XCTestCase {
     func testWatchPairLoginUIContractIdentifiersAreStable() {
         XCTAssertEqual(Set(WatchUIContract.pairLoginIdentifiers), [
             "watch-pair-login",
+            "watch-pair-confirm-iphone-title",
+            "watch-pair-confirm-iphone-description",
+            "watch-pair-login-without-iphone-button",
+            "watch-pair-manual-fallback",
+            "watch-pair-token",
+            "watch-pair-url",
+            "watch-pair-show-qr-button",
             "watch-pair-qr-code",
+            "watch-pair-qr-fullscreen",
+            "watch-pair-qr-close-button",
             "watch-pair-waiting-label",
             "watch-pair-pin-input",
             "watch-pair-refresh-button",
