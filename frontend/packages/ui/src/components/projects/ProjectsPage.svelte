@@ -1018,7 +1018,7 @@
   .projects-remote-fullscreen {
     position: fixed;
     inset: 0;
-    z-index: var(--z-index-modal);
+    z-index: var(--z-index-popover);
     background: var(--color-grey-0);
   }
 
