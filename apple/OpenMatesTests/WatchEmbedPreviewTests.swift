@@ -6,6 +6,60 @@ import XCTest
 @testable import OpenMates
 
 final class WatchEmbedPreviewTests: XCTestCase {
+    func testWatchPairLoginUIContractIdentifiersAreStable() {
+        XCTAssertEqual(Set(WatchUIContract.pairLoginIdentifiers), [
+            "watch-pair-login",
+            "watch-pair-qr-code",
+            "watch-pair-waiting-label",
+            "watch-pair-pin-input",
+            "watch-pair-refresh-button",
+        ])
+        XCTAssertNoDuplicates(WatchUIContract.pairLoginIdentifiers)
+    }
+
+    func testWatchChatAndAudioComposerUIContractIdentifiersAreStable() {
+        XCTAssertTrue(WatchUIContract.chatFlowIdentifiers.contains("watch-chat-shell"))
+        XCTAssertTrue(WatchUIContract.chatFlowIdentifiers.contains("watch-chat-list"))
+        XCTAssertTrue(WatchUIContract.chatFlowIdentifiers.contains("watch-chat-thread"))
+        XCTAssertTrue(WatchUIContract.chatFlowIdentifiers.contains("watch-message-input"))
+        XCTAssertTrue(WatchUIContract.chatFlowIdentifiers.contains("watch-message-send"))
+        XCTAssertTrue(WatchUIContract.chatFlowIdentifiers.contains("watch-audio-record-button"))
+        XCTAssertTrue(WatchUIContract.chatFlowIdentifiers.contains("watch-pending-audio-embed"))
+
+        XCTAssertEqual(Set(WatchUIContract.audioComposerIdentifiers), [
+            "watch-audio-record-button",
+            "watch-audio-stop-button",
+            "watch-audio-transcribing",
+            "watch-pending-audio-embed",
+            "watch-audio-error",
+        ])
+        XCTAssertNoDuplicates(WatchUIContract.chatFlowIdentifiers)
+        XCTAssertNoDuplicates(WatchUIContract.audioComposerIdentifiers)
+    }
+
+    func testWatchEmbedPreviewUIContractIdentifiersAreStable() {
+        XCTAssertEqual(Set(WatchUIContract.embedPreviewIdentifiers), [
+            "watch-embed-preview",
+            "watch-embed-continuation",
+            "watch-embed-open-device",
+            "watch-embed-qr-payload",
+        ])
+        XCTAssertNoDuplicates(WatchUIContract.embedPreviewIdentifiers)
+    }
+
+    func testWatchDesignReviewContractRejectsStockProductChrome() {
+        XCTAssertEqual(Set(WatchUIContract.forbiddenProductChrome), [
+            "List",
+            "Form",
+            "NavigationStack",
+            "navigationTitle",
+            "toolbar",
+        ])
+        XCTAssertTrue(WatchUIContract.designEvidence.contains { $0.contains("Color.grey100") })
+        XCTAssertTrue(WatchUIContract.designEvidence.contains { $0.contains("ScrollView/LazyVStack") })
+        XCTAssertTrue(WatchUIContract.designEvidence.contains { $0.contains("pending audio-recording embed") })
+    }
+
     func testMapsSupportedV1EmbedFamiliesToCompactPreviewModels() throws {
         let cases: [(EmbedType, WatchEmbedPreviewFamily, [String: AnyCodable])] = [
             (.webWebsite, .website, ["title": AnyCodable("Example article"), "url": AnyCodable("https://example.com/post")]),
@@ -94,5 +148,13 @@ final class WatchEmbedPreviewTests: XCTestCase {
             embedIds: nil,
             createdAt: "2026-07-07T00:00:00Z"
         )
+    }
+
+    private func XCTAssertNoDuplicates(
+        _ values: [String],
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertEqual(values.count, Set(values).count, file: file, line: line)
     }
 }

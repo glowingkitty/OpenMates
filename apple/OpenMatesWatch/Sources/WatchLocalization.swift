@@ -70,7 +70,14 @@ enum WatchStrings {
     static var scanCode: String { WatchLocalization.text("settings.sessions.pair_code_label") }
     static var send: String { WatchLocalization.text("chat.send") }
     static var syncing: String { WatchLocalization.text("activity.syncing") }
+    static var microphoneBlocked: String { WatchLocalization.text("enter_message.record_audio.microphone_blocked") }
+    static var transcribing: String { WatchLocalization.text("app_skills.audio.transcribe.transcribing") }
     static var untitledChat: String { WatchLocalization.text("common.new_chat") }
+    static var voiceRecording: String { WatchLocalization.text("app_skills.audio.transcribe.audio_recording") }
+    static func recordingDuration(seconds: TimeInterval) -> String {
+        let roundedSeconds = max(0, Int(seconds.rounded()))
+        return "\(roundedSeconds)s"
+    }
     static func pairPinError(attempts: String) -> String {
         WatchLocalization.text("settings.sessions.pair_pin_error", replacements: ["n": attempts])
     }

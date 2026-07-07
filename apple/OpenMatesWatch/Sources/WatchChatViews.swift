@@ -12,7 +12,74 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+import AVFoundation
 import SwiftUI
+
+@MainActor
+private final class WatchAudioRecorder: ObservableObject {
+    @Published private(set) var isRecording = false
+    @Published private(set) var duration: TimeInterval = 0
+    @Published var errorMessage: String?
+
+    private var audioRecorder: AVAudioRecorder?
+    private var recordingURL: URL?
+    private var timer: Timer?
+
+    func requestPermission() async -> Bool {
+        await withCheckedContinuation { continuation in
+            AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                continuation.resume(returning: granted)
+            }
+        }
+    }
+
+    func startRecording() async {
+        errorMessage = nil
+        guard await requestPermission() else {
+            errorMessage = WatchStrings.microphoneBlocked
+            return
+        }
+
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("watch-recording-\(Int(Date().timeIntervalSince1970)).m4a")
+        recordingURL = url
+        let settings: [String: Any] = [
+            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+            AVSampleRateKey: 44_100.0,
+            AVNumberOfChannelsKey: 1,
+            AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue,
+        ]
+
+        do {
+            audioRecorder = try AVAudioRecorder(url: url, settings: settings)
+            audioRecorder?.record()
+            isRecording = true
+            duration = 0
+            timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.duration += 0.1 }
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func stopRecording() -> URL? {
+        guard isRecording else { return nil }
+        audioRecorder?.stop()
+        timer?.invalidate()
+        timer = nil
+        isRecording = false
+        return recordingURL
+    }
+}
 
 struct WatchChatShellView: View {
     @StateObject private var runtime: WatchChatRuntime
@@ -89,7 +156,9 @@ private struct WatchChatListView: View {
 
 private struct WatchChatThreadView: View {
     @ObservedObject var runtime: WatchChatRuntime
+    @StateObject private var audioRecorder = WatchAudioRecorder()
     @State private var draft = ""
+    @State private var isPreparingAudio = false
 
     var body: some View {
         VStack(spacing: .spacing3) {
@@ -129,6 +198,21 @@ private struct WatchChatThreadView: View {
             }
 
             HStack(spacing: .spacing2) {
+                Button {
+                    Task { await toggleAudioRecording() }
+                } label: {
+                    Text(audioRecorder.isRecording ? "■" : "●")
+                        .font(.omMicro)
+                        .fontWeight(.bold)
+                        .foregroundStyle(Color.grey0)
+                        .frame(width: .iconSizeMd, height: .iconSizeMd)
+                        .background(audioRecorder.isRecording ? Color.error : Color.grey90, in: Circle())
+                        .overlay(Circle().stroke(Color.grey70, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .disabled(isPreparingAudio)
+                .accessibilityIdentifier(audioRecorder.isRecording ? "watch-audio-stop-button" : "watch-audio-record-button")
+
                 TextField(WatchStrings.messagePlaceholder, text: $draft)
                     .font(.omXs)
                     .foregroundStyle(Color.grey0)
@@ -158,10 +242,76 @@ private struct WatchChatThreadView: View {
                 .accessibilityIdentifier("watch-message-send")
             }
             .padding(.horizontal, .spacing4)
-            .padding(.bottom, .spacing4)
+
+            if isPreparingAudio {
+                WatchStatusPill(text: WatchStrings.transcribing)
+                    .padding(.horizontal, .spacing4)
+                    .accessibilityIdentifier("watch-audio-transcribing")
+            }
+
+            if let errorMessage = audioRecorder.errorMessage ?? runtime.errorMessage, !errorMessage.isEmpty {
+                WatchStatusPill(text: errorMessage)
+                    .padding(.horizontal, .spacing4)
+                    .accessibilityIdentifier("watch-audio-error")
+            }
+
+            ForEach(runtime.pendingAudioEmbeds) { embed in
+                WatchPendingAudioEmbedView(embed: embed)
+                    .padding(.horizontal, .spacing4)
+            }
+
+            if audioRecorder.isRecording {
+                Text(WatchStrings.recordingDuration(seconds: audioRecorder.duration))
+                    .font(.omMicro)
+                    .foregroundStyle(Color.grey30)
+                    .accessibilityIdentifier("watch-audio-recording-duration")
+            }
         }
+        .padding(.bottom, .spacing4)
         .background(Color.grey100)
         .accessibilityIdentifier("watch-chat-thread")
+    }
+
+    private func toggleAudioRecording() async {
+        if audioRecorder.isRecording {
+            guard let url = audioRecorder.stopRecording(),
+                  let data = try? Data(contentsOf: url) else { return }
+            isPreparingAudio = true
+            _ = await runtime.prepareAudioRecording(
+                data: data,
+                filename: url.lastPathComponent,
+                duration: audioRecorder.duration
+            )
+            isPreparingAudio = false
+        } else {
+            await audioRecorder.startRecording()
+        }
+    }
+}
+
+private struct WatchPendingAudioEmbedView: View {
+    let embed: WatchPendingAudioEmbed
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing1) {
+            Text(WatchStrings.voiceRecording)
+                .font(.omMicro)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.grey30)
+            Text(embed.transcript ?? embed.filename)
+                .font(.omXs)
+                .foregroundStyle(Color.grey0)
+                .lineLimit(2)
+        }
+        .padding(.horizontal, .spacing3)
+        .padding(.vertical, .spacing2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.grey90, in: RoundedRectangle(cornerRadius: .radius6, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: .radius6, style: .continuous)
+                .stroke(Color.buttonPrimary.opacity(0.55), lineWidth: 1)
+        )
+        .accessibilityIdentifier("watch-pending-audio-embed")
     }
 }
 

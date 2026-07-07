@@ -9,6 +9,56 @@ import CryptoKit
 import Foundation
 import SwiftUI
 
+enum WatchUIContract {
+    static let pairLoginIdentifiers = [
+        "watch-pair-login",
+        "watch-pair-qr-code",
+        "watch-pair-waiting-label",
+        "watch-pair-pin-input",
+        "watch-pair-refresh-button",
+    ]
+
+    static let chatFlowIdentifiers = [
+        "watch-chat-shell",
+        "watch-chat-list",
+        "watch-chat-thread",
+        "watch-message-input",
+        "watch-message-send",
+        "watch-audio-record-button",
+        "watch-pending-audio-embed",
+    ]
+
+    static let audioComposerIdentifiers = [
+        "watch-audio-record-button",
+        "watch-audio-stop-button",
+        "watch-audio-transcribing",
+        "watch-pending-audio-embed",
+        "watch-audio-error",
+    ]
+
+    static let embedPreviewIdentifiers = [
+        "watch-embed-preview",
+        "watch-embed-continuation",
+        "watch-embed-open-device",
+        "watch-embed-qr-payload",
+    ]
+
+    static let forbiddenProductChrome = [
+        "List",
+        "Form",
+        "NavigationStack",
+        "navigationTitle",
+        "toolbar",
+    ]
+
+    static let designEvidence = [
+        "Dark Watch shell uses Color.grey100, Color.grey90, Color.grey0, Color.buttonPrimary, and generated spacing/typography tokens.",
+        "Chat and embed surfaces use ScrollView/LazyVStack/custom buttons instead of List, Form, default navigation chrome, or stock product controls.",
+        "Embed previews preserve OpenMates app/embed semantics through WatchEmbedPreviewModel and route detail actions to continuation metadata instead of rich fullscreen Watch consumption.",
+        "Audio composer mirrors iOS behavior by creating a pending audio-recording embed and requiring explicit manual send.",
+    ]
+}
+
 struct WatchChatSummary: Codable, Equatable, Identifiable, Sendable {
     let id: String
     var title: String?
