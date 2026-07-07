@@ -24,3 +24,10 @@ def test_skill_resolver_preserves_underscored_skill_ids() -> None:
     assert resolver["code-search_repos"] == "code-search_repos"
     assert resolver["code-search-repos"] == "code-search_repos"
     assert resolver["code_search_repos"] == "code-search_repos"
+
+
+def test_skill_resolver_handles_dot_form_app_skill_names() -> None:
+    resolver = _build_skill_resolver_map(["fitness-search_classes"])
+
+    assert resolver["fitness.search_classes"] == "fitness-search_classes"
+    assert resolver["fitness.search-classes"] == "fitness-search_classes"

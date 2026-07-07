@@ -224,6 +224,7 @@ def _build_skill_resolver_map(available_skill_ids: List[str]) -> Dict[str, str]:
             for skill_variant in skill_variants:
                 skill_resolver_map[f"{app_variant}-{skill_variant}"] = valid_skill
                 skill_resolver_map[f"{app_variant}_{skill_variant}"] = valid_skill
+                skill_resolver_map[f"{app_variant}.{skill_variant}"] = valid_skill
 
         # Handle duplicated segment pattern: app-skill-skill -> app-skill.
         # Example: web-search-search -> web-search.
