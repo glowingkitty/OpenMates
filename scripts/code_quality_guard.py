@@ -41,6 +41,12 @@ SETTINGS_UI_PATH_RE = re.compile(r"^frontend/packages/ui/src/components/(Setting
 SETTINGS_NATIVE_DIALOG_RE = re.compile(r"\b(?:window\.)?(alert|confirm|prompt)\s*\(")
 REPORTED_ISSUE_FINDING_RE = re.compile(r"^docs/findings/issues/(?!README\.md$).+\.md$")
 EMBED_VAULT_INFERENCE_CACHE_MARKER = "EMBED_VAULT_INFERENCE_CACHE_OK"
+VERCEL_PROJECT_MUTATION_RE = re.compile(
+    r"(?i)(api\.vercel\.com/.*/projects|api\.vercel\.com/v\d+/projects|\bvercel\s+project\b)"
+)
+VERCEL_PAID_BUILD_MACHINE_RE = re.compile(
+    r"(?i)(buildMachine(Type|Selection|Elastic)?|elasticConcurrency|resourceConfig|turbo|dynamic build)"
+)
 
 BLOCK_PATTERNS = {
     "hardcoded secret-like assignment": re.compile(r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"][^'\"]{8,}"),
@@ -245,6 +251,22 @@ def _audit_settings_native_dialogs(added_lines: list[tuple[str, int, str]]) -> l
     return issues
 
 
+def _audit_vercel_project_mutations(added_lines: list[tuple[str, int, str]]) -> list[str]:
+    issues: list[str] = []
+    for path, line_no, line in added_lines:
+        if path.startswith("scripts/tests/"):
+            continue
+        if not VERCEL_PROJECT_MUTATION_RE.search(line):
+            continue
+        if not VERCEL_PAID_BUILD_MACHINE_RE.search(line):
+            continue
+        issues.append(
+            f"{path}:{line_no}: Vercel build-machine/project setting mutations are forbidden in repo scripts; "
+            "keep Vercel buildMachineType=standard and buildMachineSelection=fixed"
+        )
+    return issues
+
+
 def main() -> int:
     strict = os.environ.get("CODE_QUALITY_GUARD_STRICT", "").lower() in {"1", "true", "yes"}
     blocks: list[str] = []
@@ -301,6 +323,9 @@ def main() -> int:
 
     for issue in _audit_settings_native_dialogs(added_lines_with_numbers):
         blocks.append(f"settings native dialog: {issue}")
+
+    for issue in _audit_vercel_project_mutations(added_lines_with_numbers):
+        blocks.append(f"vercel build machine guard: {issue}")
 
     added_lines = [(path, line) for path, _line_no, line in added_lines_with_numbers]
     for path, line in added_lines:

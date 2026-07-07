@@ -94,3 +94,28 @@ def test_settings_native_dialog_guard_covers_settings_shell():
 
     assert len(issues) == 1
     assert "native browser confirm() dialogs are not allowed" in issues[0]
+
+
+def test_vercel_project_mutation_guard_blocks_paid_build_machine_update():
+    guard = load_guard_module()
+
+    issues = guard._audit_vercel_project_mutations([
+        (
+            "scripts/example.py",
+            12,
+            "client.patch('https://api.vercel.com/v9/projects/prj_123', json={'resourceConfig': {'buildMachineType': 'turbo'}})",
+        )
+    ])
+
+    assert len(issues) == 1
+    assert "Vercel build-machine/project setting mutations are forbidden" in issues[0]
+
+
+def test_vercel_project_mutation_guard_allows_read_only_project_fetch():
+    guard = load_guard_module()
+
+    issues = guard._audit_vercel_project_mutations([
+        ("scripts/example.py", 12, "client.get('https://api.vercel.com/v9/projects/prj_123')")
+    ])
+
+    assert issues == []
