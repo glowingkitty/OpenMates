@@ -2093,7 +2093,8 @@
 			inputFileListPaths = (
 			);
 			inputPaths = (
-				"$(BUILT_PRODUCTS_DIR)/OpenMatesWatch.app",
+				"$(BUILT_PRODUCTS_DIR)/../$(CONFIGURATION)-watchos/OpenMatesWatch.app",
+				"$(BUILT_PRODUCTS_DIR)/../$(CONFIGURATION)-watchsimulator/OpenMatesWatch.app",
 			);
 			name = "Embed Watch Companion";
 			outputFileListPaths = (
@@ -2103,7 +2104,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nif [ \"${PLATFORM_NAME}\" != \"iphoneos\" ] && [ \"${PLATFORM_NAME}\" != \"iphonesimulator\" ]; then\n  exit 0\nfi\nsource_app=\"${BUILT_PRODUCTS_DIR}/OpenMatesWatch.app\"\ndest_dir=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Watch\"\ndest_app=\"${dest_dir}/OpenMatesWatch.app\"\nif [ ! -d \"${source_app}\" ]; then\n  echo \"error: Missing Watch companion at ${source_app}\" >&2\n  exit 1\nfi\nmkdir -p \"${dest_dir}\"\nrm -rf \"${dest_app}\"\nditto \"${source_app}\" \"${dest_app}\"\n";
+			shellScript = "set -euo pipefail\nif [ \"${PLATFORM_NAME}\" != \"iphoneos\" ] && [ \"${PLATFORM_NAME}\" != \"iphonesimulator\" ]; then\n  exit 0\nfi\nwatch_platform=\"watchos\"\nif [ \"${PLATFORM_NAME}\" = \"iphonesimulator\" ]; then\n  watch_platform=\"watchsimulator\"\nfi\nsource_app=\"${BUILT_PRODUCTS_DIR%/*}/${CONFIGURATION}-${watch_platform}/OpenMatesWatch.app\"\ndest_dir=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Watch\"\ndest_app=\"${dest_dir}/OpenMatesWatch.app\"\nif [ ! -d \"${source_app}\" ]; then\n  echo \"error: Missing Watch companion at ${source_app}\" >&2\n  exit 1\nfi\nmkdir -p \"${dest_dir}\"\nrm -rf \"${dest_app}\"\nditto \"${source_app}\" \"${dest_app}\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

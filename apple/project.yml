@@ -149,7 +149,11 @@ targets:
           if [ "${PLATFORM_NAME}" != "iphoneos" ] && [ "${PLATFORM_NAME}" != "iphonesimulator" ]; then
             exit 0
           fi
-          source_app="${BUILT_PRODUCTS_DIR}/OpenMatesWatch.app"
+          watch_platform="watchos"
+          if [ "${PLATFORM_NAME}" = "iphonesimulator" ]; then
+            watch_platform="watchsimulator"
+          fi
+          source_app="${BUILT_PRODUCTS_DIR%/*}/${CONFIGURATION}-${watch_platform}/OpenMatesWatch.app"
           dest_dir="${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Watch"
           dest_app="${dest_dir}/OpenMatesWatch.app"
           if [ ! -d "${source_app}" ]; then
@@ -160,7 +164,8 @@ targets:
           rm -rf "${dest_app}"
           ditto "${source_app}" "${dest_app}"
         inputFiles:
-          - $(BUILT_PRODUCTS_DIR)/OpenMatesWatch.app
+          - $(BUILT_PRODUCTS_DIR)/../$(CONFIGURATION)-watchos/OpenMatesWatch.app
+          - $(BUILT_PRODUCTS_DIR)/../$(CONFIGURATION)-watchsimulator/OpenMatesWatch.app
         outputFiles:
           - $(TARGET_BUILD_DIR)/$(WRAPPER_NAME)/Watch/OpenMatesWatch.app
 
