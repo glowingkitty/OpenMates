@@ -64,7 +64,7 @@ skills:
                 type: number
           description: Location search requests.
     class_path: |
-      skills.search_locations.SearchLocationsSkill
+      backend.apps.fitness.skills.search_locations.SearchLocationsSkill
     providers:
       - name: Urban Sports Club
         id: urban_sports_club
@@ -120,7 +120,7 @@ skills:
                 type: number
           description: Class search requests.
     class_path: |
-      skills.search_classes.SearchClassesSkill
+      backend.apps.fitness.skills.search_classes.SearchClassesSkill
     providers:
       - name: Urban Sports Club
         id: urban_sports_club
