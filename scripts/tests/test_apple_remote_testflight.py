@@ -144,7 +144,7 @@ def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     assert "CFBundleIconName: WatchAppIcon" in project_yaml
     assert "ASSETCATALOG_COMPILER_APPICON_NAME: WatchAppIcon" in project_yaml
     assert "OpenMatesWatch/Assets.xcassets" in project_yaml
-    assert "type: application" in project_yaml
+    assert "type: application.watchapp2" in project_yaml
     assert "WKWatchOnly" not in watch_info
     assert "WKCompanionAppBundleIdentifier" in watch_info
     assert "WKRunsIndependentlyOfCompanionApp" in watch_info
@@ -160,7 +160,7 @@ def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     watch_icon_index = xcode_project.rindex("ASSETCATALOG_COMPILER_APPICON_NAME = WatchAppIcon;", 0, watch_bundle_index)
     assert watch_icon_index < watch_bundle_index
     assert "C0FFEE000000000000049025 /* Assets.xcassets in Resources */" in xcode_project
-    assert "productType = \"com.apple.product-type.application\";" in xcode_project
+    assert "productType = \"com.apple.product-type.application.watchapp2\";" in xcode_project
 
 
 def test_testflight_notes_options_rejects_duplicate_sources() -> None:
