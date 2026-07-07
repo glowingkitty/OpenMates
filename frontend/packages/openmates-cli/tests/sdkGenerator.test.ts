@@ -13,12 +13,18 @@ import assert from "node:assert/strict";
 const { APP_SKILL_METADATA, GeneratedAppSkills } = await import("../src/generated/appSkills.ts");
 
 describe("generated npm SDK app skills", () => {
-  it("includes native web search and images generate metadata", () => {
+  it("includes native web search, images generate, and fitness metadata", () => {
     const webSearch = APP_SKILL_METADATA.find(
       (skill) => skill.app_id === "web" && skill.skill_id === "search",
     );
     const imageGenerate = APP_SKILL_METADATA.find(
       (skill) => skill.app_id === "images" && skill.skill_id === "generate",
+    );
+    const fitnessLocations = APP_SKILL_METADATA.find(
+      (skill) => skill.app_id === "fitness" && skill.skill_id === "search_locations",
+    );
+    const fitnessClasses = APP_SKILL_METADATA.find(
+      (skill) => skill.app_id === "fitness" && skill.skill_id === "search_classes",
     );
 
     assert.ok(webSearch);
@@ -30,6 +36,16 @@ describe("generated npm SDK app skills", () => {
     assert.ok(imageGenerate);
     assert.equal(imageGenerate.app_namespace_ts, "images");
     assert.equal(imageGenerate.skill_method_ts, "generate");
+
+    assert.ok(fitnessLocations);
+    assert.equal(fitnessLocations.app_namespace_ts, "fitness");
+    assert.equal(fitnessLocations.skill_method_ts, "searchLocations");
+    assert.ok(fitnessLocations.schema.properties.requests);
+
+    assert.ok(fitnessClasses);
+    assert.equal(fitnessClasses.app_namespace_ts, "fitness");
+    assert.equal(fitnessClasses.skill_method_ts, "searchClasses");
+    assert.ok(fitnessClasses.schema.properties.requests);
   });
 
   it("delegates native methods to the app-skill runner", async () => {
@@ -40,9 +56,12 @@ describe("generated npm SDK app skills", () => {
     });
 
     const result = await apps.web.search({ requests: [{ query: "hello" }] });
+    const fitnessResult = await apps.fitness.searchClasses({ requests: [{ address: "Sorauer Str. 12" }] });
     assert.deepEqual(result, { ok: true });
+    assert.deepEqual(fitnessResult, { ok: true });
     assert.deepEqual(calls, [
       { appId: "web", skillId: "search", input: { requests: [{ query: "hello" }] } },
+      { appId: "fitness", skillId: "search_classes", input: { requests: [{ address: "Sorauer Str. 12" }] } },
     ]);
   });
 });

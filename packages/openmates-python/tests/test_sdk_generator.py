@@ -9,7 +9,7 @@ Run: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py
 from openmates.generated.app_skills import APP_SKILL_METADATA, GeneratedAppSkills
 
 
-def test_generated_metadata_includes_web_search_and_images_generate():
+def test_generated_metadata_includes_web_search_images_generate_and_fitness():
     web_search = next(
         skill for skill in APP_SKILL_METADATA if skill["app_id"] == "web" and skill["skill_id"] == "search"
     )
@@ -17,6 +17,16 @@ def test_generated_metadata_includes_web_search_and_images_generate():
         skill
         for skill in APP_SKILL_METADATA
         if skill["app_id"] == "images" and skill["skill_id"] == "generate"
+    )
+    fitness_locations = next(
+        skill
+        for skill in APP_SKILL_METADATA
+        if skill["app_id"] == "fitness" and skill["skill_id"] == "search_locations"
+    )
+    fitness_classes = next(
+        skill
+        for skill in APP_SKILL_METADATA
+        if skill["app_id"] == "fitness" and skill["skill_id"] == "search_classes"
     )
 
     assert web_search["app_namespace_py"] == "web"
@@ -26,6 +36,14 @@ def test_generated_metadata_includes_web_search_and_images_generate():
 
     assert image_generate["app_namespace_py"] == "images"
     assert image_generate["skill_method_py"] == "generate"
+
+    assert fitness_locations["app_namespace_py"] == "fitness"
+    assert fitness_locations["skill_method_py"] == "search_locations"
+    assert "requests" in fitness_locations["schema"]["properties"]
+
+    assert fitness_classes["app_namespace_py"] == "fitness"
+    assert fitness_classes["skill_method_py"] == "search_classes"
+    assert "requests" in fitness_classes["schema"]["properties"]
 
 
 def test_generated_native_methods_delegate_to_runner():
@@ -37,8 +55,15 @@ def test_generated_native_methods_delegate_to_runner():
 
     apps = GeneratedAppSkills(run_skill)
     result = apps.web.search({"requests": [{"query": "hello"}]})
+    fitness_result = apps.fitness.search_classes({"requests": [{"address": "Sorauer Str. 12"}]})
 
     assert result == {"ok": True}
+    assert fitness_result == {"ok": True}
     assert calls == [
         {"app_id": "web", "skill_id": "search", "input_data": {"requests": [{"query": "hello"}]}},
+        {
+            "app_id": "fitness",
+            "skill_id": "search_classes",
+            "input_data": {"requests": [{"address": "Sorauer Str. 12"}]},
+        },
     ]

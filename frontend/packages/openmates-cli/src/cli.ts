@@ -5669,6 +5669,39 @@ function printSkillResultItem(
     return;
   }
 
+  // ── Fitness result (Urban Sports Club locations/classes) ────────────────
+  if (str(item.provider) === "Urban Sports Club" && (item.venue_id || item.appointment_id)) {
+    const name = str(item.name) ?? "Unknown fitness result";
+    const isClass = typeof item.appointment_id === "string";
+    const plans = Array.isArray(item.plans_required)
+      ? (item.plans_required as unknown[]).map((value) => String(value)).join(", ")
+      : null;
+    const distance = typeof item.distance_km === "number" ? `${item.distance_km} km` : null;
+    const rating = item.rating ? `★ ${item.rating}` : null;
+    const spots = str(item.spots_display);
+    const mode = str(item.attendance_mode);
+    const summary = [isClass ? str(item.category) : null, mode, distance, rating, spots, plans ? `plans: ${plans}` : null]
+      .filter(Boolean)
+      .join(" · ");
+
+    console.log(`${numLabel}\x1b[1m${name}\x1b[0m${summary ? `  ${summary}` : ""}`);
+    const date = str(item.date);
+    const timeRange = str(item.time_range);
+    if (date || timeRange) console.log(`  ${[date, timeRange].filter(Boolean).join("  ")}`);
+    const venueName = str(item.venue_name);
+    const venueAddress = str(item.venue_address) ?? str(item.address);
+    if (venueName) kv("venue", venueName, 14);
+    if (venueAddress) kv("address", venueAddress, 14);
+    const disciplines = Array.isArray(item.disciplines)
+      ? (item.disciplines as unknown[]).map((value) => String(value)).slice(0, 6)
+      : [];
+    if (disciplines.length > 0) kv("disciplines", disciplines.join(", "), 14);
+    const url = str(item.detail_url) ?? str(item.url) ?? str(item.venue_url);
+    if (url) kv("url", url, 14);
+    console.log("");
+    return;
+  }
+
   // ── Generic item — just number + printGenericObject for all fields ─────
   // Works for web/news search results, events, shopping, health, etc.
   const title = str(item.title) ?? str(item.name) ?? str(item.headline);

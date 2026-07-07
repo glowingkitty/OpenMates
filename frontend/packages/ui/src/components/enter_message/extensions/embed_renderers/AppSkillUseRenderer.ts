@@ -51,6 +51,7 @@ import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPr
 import ShoppingSearchEmbedPreview from "../../../embeds/shopping/ShoppingSearchEmbedPreview.svelte";
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
+import FitnessSearchEmbedPreview from "../../../embeds/fitness/FitnessSearchEmbedPreview.svelte";
 import MathCalculateEmbedPreview from "../../../embeds/math/MathCalculateEmbedPreview.svelte";
 import ImagesSearchEmbedPreview from "../../../embeds/images/ImagesSearchEmbedPreview.svelte";
 import ImageResultEmbedPreview from "../../../embeds/images/ImageResultEmbedPreview.svelte";
@@ -595,6 +596,15 @@ export class AppSkillUseRenderer implements EmbedRenderer {
       // For events search, render events search preview using Svelte component
       if (appId === "events" && skillId === "search") {
         return this.renderEventsSearchComponent(
+          attrs,
+          embedData,
+          decodedContent,
+          content,
+        );
+      }
+
+      if (appId === "fitness" && (skillId === "search_locations" || skillId === "search_classes")) {
+        return this.renderFitnessSearchComponent(
           attrs,
           embedData,
           decodedContent,
@@ -1960,6 +1970,54 @@ export class AppSkillUseRenderer implements EmbedRenderer {
         "[AppSkillUseRenderer] Error mounting EventsSearchEmbedPreview:",
         error,
       );
+      this.renderGenericSkill(attrs, embedData, decodedContent, content);
+    }
+  }
+
+  private renderFitnessSearchComponent(
+    attrs: EmbedNodeAttributes,
+    embedData: any,
+    decodedContent: any,
+    content: HTMLElement,
+  ): void {
+    const firstGroup = Array.isArray(decodedContent?.results) ? decodedContent.results[0] : null;
+    const filters = firstGroup?.filters || {};
+    const results = Array.isArray(firstGroup?.results) ? firstGroup.results : [];
+    const skillId = decodedContent?.skill_id || embedData?.skill_id || (attrs as any).skill_id || "search_classes";
+    const status = decodedContent?.status || embedData?.status || attrs.status || "processing";
+    const resultCount = typeof firstGroup?.result_count === "number" ? firstGroup.result_count : results.length;
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[AppSkillUseRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+    try {
+      const embedId = attrs.contentRef?.replace("embed:", "") || "";
+      const component = mount(FitnessSearchEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          skillId,
+          query: decodedContent?.query || filters.query || "",
+          provider: firstGroup?.provider || decodedContent?.provider || "Urban Sports Club",
+          summary: firstGroup?.summary || "",
+          filters,
+          status,
+          results,
+          result_count: resultCount,
+          taskId: decodedContent?.task_id || "",
+          skillTaskId: decodedContent?.skill_task_id || "",
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(attrs, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[AppSkillUseRenderer] Error mounting FitnessSearchEmbedPreview:", error);
       this.renderGenericSkill(attrs, embedData, decodedContent, content);
     }
   }

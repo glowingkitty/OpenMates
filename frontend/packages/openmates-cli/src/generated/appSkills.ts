@@ -420,16 +420,122 @@ export const APP_SKILL_METADATA = [
   },
   {
     "app_id": "fitness",
-    "skill_id": "search_locations_and_courses",
+    "skill_id": "search_locations",
     "app_namespace_ts": "fitness",
-    "skill_method_ts": "searchLocationsAndCourses",
+    "skill_method_ts": "searchLocations",
     "app_namespace_py": "fitness",
-    "skill_method_py": "search_locations_and_courses",
-    "description_key": "fitness.search_locations_and_courses.description",
-    "description": "Run this OpenMates app skill.",
+    "skill_method_py": "search_locations",
+    "description_key": "fitness.search_locations.description",
+    "description": "Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches.",
     "schema": {
       "type": "object",
-      "properties": {}
+      "properties": {
+        "requests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              },
+              "address": {
+                "type": "string"
+              },
+              "lat": {
+                "type": "number"
+              },
+              "lon": {
+                "type": "number"
+              },
+              "radius_km": {
+                "type": "number"
+              },
+              "plan": {
+                "type": "string"
+              },
+              "category": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "number"
+              }
+            }
+          },
+          "description": "Location search requests."
+        }
+      }
+    }
+  },
+  {
+    "app_id": "fitness",
+    "skill_id": "search_classes",
+    "app_namespace_ts": "fitness",
+    "skill_method_ts": "searchClasses",
+    "app_namespace_py": "fitness",
+    "skill_method_py": "search_classes",
+    "description_key": "fitness.search_classes.description",
+    "description": "Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              },
+              "address": {
+                "type": "string"
+              },
+              "lat": {
+                "type": "number"
+              },
+              "lon": {
+                "type": "number"
+              },
+              "radius_km": {
+                "type": "number"
+              },
+              "start_date": {
+                "type": "string"
+              },
+              "end_date": {
+                "type": "string"
+              },
+              "days": {
+                "type": "number"
+              },
+              "plan": {
+                "type": "string"
+              },
+              "attendance_mode": {
+                "type": "string"
+              },
+              "min_spots": {
+                "type": "number"
+              },
+              "category": {
+                "type": "string"
+              },
+              "venue_id": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "number"
+              }
+            }
+          },
+          "description": "Class search requests."
+        }
+      }
     }
   },
   {
@@ -3035,12 +3141,20 @@ export class FitnessAppSkills {
     this.runSkill = runSkill;
   }
   /**
-   * Run this OpenMates app skill.
-   * Description key: fitness.search_locations_and_courses.description
-   * Skill: fitness/search_locations_and_courses
+   * Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max.
+   * Description key: fitness.search_classes.description
+   * Skill: fitness/search_classes
    */
-  async searchLocationsAndCourses<T = unknown>(input: SkillInput): Promise<T> {
-    return this.runSkill<T>("fitness", "search_locations_and_courses", input);
+  async searchClasses<T = unknown>(input: SkillInput): Promise<T> {
+    return this.runSkill<T>("fitness", "search_classes", input);
+  }
+  /**
+   * Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches.
+   * Description key: fitness.search_locations.description
+   * Skill: fitness/search_locations
+   */
+  async searchLocations<T = unknown>(input: SkillInput): Promise<T> {
+    return this.runSkill<T>("fitness", "search_locations", input);
   }
 }
 

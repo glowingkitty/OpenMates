@@ -57,6 +57,7 @@ import SocialMediaGetPostsEmbedPreview from "../../../embeds/social_media/Social
 import SocialMediaPostEmbedPreview from "../../../embeds/social_media/SocialMediaPostEmbedPreview.svelte";
 import SocialMediaSearchEmbedPreview from "../../../embeds/social_media/SocialMediaSearchEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
+import FitnessSearchEmbedPreview from "../../../embeds/fitness/FitnessSearchEmbedPreview.svelte";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointmentEmbedPreview.svelte";
 import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecastEmbedPreview.svelte";
@@ -1384,6 +1385,30 @@ export class GroupRenderer implements EmbedRenderer {
             status,
             results,
             result_count: resultCount || childEmbedIds.length,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "fitness" && (skillId === "search_locations" || skillId === "search_classes")) {
+        const firstGroup = Array.isArray(decodedContent?.results) ? decodedContent.results[0] : null;
+        const fitnessResults = Array.isArray(firstGroup?.results) ? firstGroup.results : results;
+        const component = mount(FitnessSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            skillId,
+            query: query || firstGroup?.filters?.query || "",
+            provider: firstGroup?.provider || provider || "Urban Sports Club",
+            summary: firstGroup?.summary || "",
+            filters: firstGroup?.filters || {},
+            status,
+            results: fitnessResults,
+            result_count: typeof firstGroup?.result_count === "number" ? firstGroup.result_count : fitnessResults.length,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,

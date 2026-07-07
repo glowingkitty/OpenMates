@@ -923,8 +923,9 @@ async function withCodeRunStreamingMockApi<T>(
 }
 
 async function withSkillFormattingMockApi<T>(
-  run: (params: { apiUrl: string }) => T | Promise<T>,
+  run: (params: { apiUrl: string; requests: Array<{ url: string; body: Record<string, unknown> }> }) => T | Promise<T>,
 ): Promise<T> {
+  const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
   const server = createServer(async (request, response) => {
     try {
       if (request.method === "POST" && request.url === "/v1/apps/events/skills/search") {
@@ -1030,6 +1031,79 @@ async function withSkillFormattingMockApi<T>(
         });
         return;
       }
+      if (request.method === "POST" && request.url === "/v1/apps/fitness/skills/search_locations") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            provider: "Urban Sports Club",
+            results: [{
+              id: "nearby",
+              provider: "Urban Sports Club",
+              result_count: 1,
+              filters: { query: "hiit", address: "Sorauer Str. 12", radius_km: 1, plan: "all" },
+              summary: "Found 1 Urban Sports locations. Searched all Urban Sports plans.",
+              results: [{
+                id: "beat81-paul-lincke-ufer",
+                provider: "Urban Sports Club",
+                venue_id: "beat81-paul-lincke-ufer",
+                name: "BEAT81 - Paul-Lincke-Ufer",
+                address: "Paul-Lincke-Ufer 19, 10999 Berlin",
+                distance_km: 0.714,
+                disciplines: ["HIIT", "Strength"],
+                plans_required: ["Premium", "Max"],
+                image_url: "https://example.test/fitness.jpg",
+                lat: 52.493788701,
+                lon: 13.430159621,
+                url: "https://urbansportsclub.com/en/venues/beat81-paul-lincke-ufer",
+              }],
+            }],
+            ignore_fields_for_inference: ["image_url", "lat", "lon"],
+          },
+          credits_charged: 5,
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/fitness/skills/search_classes") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            provider: "Urban Sports Club",
+            results: [{
+              id: "classes",
+              provider: "Urban Sports Club",
+              result_count: 1,
+              filters: { query: "yoga", address: "Sorauer Str. 12", radius_km: 1, plan: "all", attendance_mode: "onsite" },
+              summary: "Found 1 Urban Sports classes in onsite mode. Searched all Urban Sports plans.",
+              results: [{
+                id: "appointment-1",
+                provider: "Urban Sports Club",
+                appointment_id: "appointment-1",
+                name: "Morning Yoga Flow",
+                category: "Yoga",
+                attendance_mode: "onsite",
+                date: "2026-07-10",
+                time_range: "07:30 - 08:30",
+                venue_name: "Yoga Studio Kreuzberg",
+                venue_address: "Oranienstr. 1, 10997 Berlin",
+                distance_km: 0.9,
+                spots_display: "5 spots left",
+                plans_required: ["Classic", "Premium", "Max"],
+                detail_url: "https://urbansportsclub.com/en/class-details/appointment-1",
+                image_url: "https://example.test/class.jpg",
+                venue_lat: 52.5,
+                venue_lon: 13.4,
+              }],
+            }],
+            ignore_fields_for_inference: ["image_url", "venue_lat", "venue_lon"],
+          },
+          credits_charged: 5,
+        });
+        return;
+      }
       response.writeHead(404);
       response.end();
     } catch (error) {
@@ -1041,7 +1115,7 @@ async function withSkillFormattingMockApi<T>(
   const address = server.address();
   assert.ok(address && typeof address === "object");
   try {
-    return await run({ apiUrl: `http://127.0.0.1:${address.port}` });
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, requests });
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -1558,6 +1632,40 @@ describe("apps skill formatted output", () => {
       assert.match(output, /Relax the date window/);
       assert.match(output, /Try a nearby city/);
       assert.doesNotMatch(output, /\{\s*"results"/);
+    });
+  });
+
+  it("prints concise Fitness cards and sends canonical Urban Sports requests", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      const locationsOutput = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "fitness", "search_locations",
+        "--input", JSON.stringify({ requests: [{ query: "hiit", address: "Sorauer Str. 12", radius_km: 1, limit: 2 }] }),
+      ]);
+      const classesOutput = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "fitness", "search_classes",
+        "--input", JSON.stringify({ requests: [{ query: "yoga", address: "Sorauer Str. 12", radius_km: 1, start_date: "2026-07-10", attendance_mode: "onsite", limit: 2 }] }),
+      ]);
+
+      assert.match(locationsOutput, /BEAT81 - Paul-Lincke-Ufer/);
+      assert.match(locationsOutput, /0\.714 km/);
+      assert.match(locationsOutput, /plans: Premium, Max/);
+      assert.match(classesOutput, /Morning Yoga Flow/);
+      assert.match(classesOutput, /2026-07-10/);
+      assert.match(classesOutput, /Yoga Studio Kreuzberg/);
+      assert.doesNotMatch(`${locationsOutput}\n${classesOutput}`, /image_url|venue_lat|venue_lon|lat:|lon:/);
+
+      assert.deepEqual(requests.map((entry) => entry.url), [
+        "/v1/apps/fitness/skills/search_locations",
+        "/v1/apps/fitness/skills/search_classes",
+      ]);
+      assert.deepEqual(requests[0].body, {
+        requests: [{ query: "hiit", address: "Sorauer Str. 12", radius_km: 1, limit: 2 }],
+      });
+      assert.deepEqual(requests[1].body, {
+        requests: [{ query: "yoga", address: "Sorauer Str. 12", radius_km: 1, start_date: "2026-07-10", attendance_mode: "onsite", limit: 2 }],
+      });
     });
   });
 });

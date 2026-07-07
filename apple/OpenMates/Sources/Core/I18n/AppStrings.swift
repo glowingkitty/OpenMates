@@ -505,6 +505,8 @@ enum AppStrings {
     static var codeRunHideOutput: String { L("app_skills.code.run.hide_output") }
     static var codeRunRequiredFile: String { L("app_skills.code.run.required_file") }
     static var reportBadAnswer: String { L("chat.report_bad_answer.button_text") }
+    static var fitnessSearchLocations: String { L("app_skills.fitness.search_locations") }
+    static var fitnessSearchClasses: String { L("app_skills.fitness.search_classes") }
 
     static func openOnProvider(_ provider: String) -> String {
         LocalizationManager.shared.text("embeds.open_on_provider", replacements: ["provider": provider])

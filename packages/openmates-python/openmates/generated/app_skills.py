@@ -670,12 +670,57 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'fitness',
   'app_namespace_py': 'fitness',
   'app_namespace_ts': 'fitness',
-  'description': 'Run this OpenMates app skill.',
-  'description_key': 'fitness.search_locations_and_courses.description',
-  'schema': {'properties': {}, 'type': 'object'},
-  'skill_id': 'search_locations_and_courses',
-  'skill_method_py': 'search_locations_and_courses',
-  'skill_method_ts': 'searchLocationsAndCourses'},
+  'description': 'Search Urban Sports Club public fitness locations. Use this when the user asks '
+                 'for gyms, studios, pools, or Urban Sports locations near a city, address, or '
+                 'radius. Do not use it for class availability; use fitness.search_classes for '
+                 'dated class searches.',
+  'description_key': 'fitness.search_locations.description',
+  'schema': {'properties': {'requests': {'description': 'Location search requests.',
+                                         'items': {'properties': {'address': {'type': 'string'},
+                                                                  'category': {'type': 'string'},
+                                                                  'city': {'type': 'string'},
+                                                                  'lat': {'type': 'number'},
+                                                                  'limit': {'type': 'number'},
+                                                                  'lon': {'type': 'number'},
+                                                                  'plan': {'type': 'string'},
+                                                                  'query': {'type': 'string'},
+                                                                  'radius_km': {'type': 'number'}},
+                                                   'type': 'object'},
+                                         'type': 'array'}},
+             'type': 'object'},
+  'skill_id': 'search_locations',
+  'skill_method_py': 'search_locations',
+  'skill_method_ts': 'searchLocations'},
+ {'app_id': 'fitness',
+  'app_namespace_py': 'fitness',
+  'app_namespace_ts': 'fitness',
+  'description': 'Search available Urban Sports Club public fitness classes. Use this when the '
+                 'user asks for dated fitness classes, course availability, free spots, on-site '
+                 'classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless '
+                 'the user explicitly asks for Essential, Classic, Premium, or Max.',
+  'description_key': 'fitness.search_classes.description',
+  'schema': {'properties': {'requests': {'description': 'Class search requests.',
+                                         'items': {'properties': {'address': {'type': 'string'},
+                                                                  'attendance_mode': {'type': 'string'},
+                                                                  'category': {'type': 'string'},
+                                                                  'city': {'type': 'string'},
+                                                                  'days': {'type': 'number'},
+                                                                  'end_date': {'type': 'string'},
+                                                                  'lat': {'type': 'number'},
+                                                                  'limit': {'type': 'number'},
+                                                                  'lon': {'type': 'number'},
+                                                                  'min_spots': {'type': 'number'},
+                                                                  'plan': {'type': 'string'},
+                                                                  'query': {'type': 'string'},
+                                                                  'radius_km': {'type': 'number'},
+                                                                  'start_date': {'type': 'string'},
+                                                                  'venue_id': {'type': 'string'}},
+                                                   'type': 'object'},
+                                         'type': 'array'}},
+             'type': 'object'},
+  'skill_id': 'search_classes',
+  'skill_method_py': 'search_classes',
+  'skill_method_ts': 'searchClasses'},
  {'app_id': 'health',
   'app_namespace_py': 'health',
   'app_namespace_ts': 'health',
@@ -4778,13 +4823,21 @@ class FitnessAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
 
-    def search_locations_and_courses(self, input_data: dict[str, Any]) -> dict[str, Any]:
-        """Run this OpenMates app skill.
+    def search_classes(self, input_data: dict[str, Any]) -> dict[str, Any]:
+        """Search available Urban Sports Club public fitness classes. Use this when the user asks for dated fitness classes, course availability, free spots, on-site classes, online classes, or plan-filtered Urban Sports classes. Omit plan unless the user explicitly asks for Essential, Classic, Premium, or Max.
 
-        Description key: fitness.search_locations_and_courses.description
-        Skill: fitness/search_locations_and_courses
+        Description key: fitness.search_classes.description
+        Skill: fitness/search_classes
         """
-        return self._run_skill("fitness", "search_locations_and_courses", input_data)
+        return self._run_skill("fitness", "search_classes", input_data)
+
+    def search_locations(self, input_data: dict[str, Any]) -> dict[str, Any]:
+        """Search Urban Sports Club public fitness locations. Use this when the user asks for gyms, studios, pools, or Urban Sports locations near a city, address, or radius. Do not use it for class availability; use fitness.search_classes for dated class searches.
+
+        Description key: fitness.search_locations.description
+        Skill: fitness/search_locations
+        """
+        return self._run_skill("fitness", "search_locations", input_data)
 
 class HealthAppSkills:
     def __init__(self, run_skill: SkillRunner):

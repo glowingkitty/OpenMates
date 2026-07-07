@@ -320,6 +320,13 @@ export function buildPrivacyPolicyContent(
   renderProvider("legal.privacy.providers.health.doctolib", privacyPolicyLinks.doctolib);
   renderProvider("legal.privacy.providers.health.jameda", privacyPolicyLinks.jameda);
 
+  // Group I2 — Fitness
+  lines.push(`### ${t("legal.privacy.providers.fitness.heading")}`);
+  lines.push("");
+  lines.push(t("legal.privacy.providers.fitness.description"));
+  lines.push("");
+  renderProvider("legal.privacy.providers.fitness.urban_sports_club", privacyPolicyLinks.urbanSportsClub);
+
   // Group I — Shopping
   lines.push(`### ${t("legal.privacy.providers.shopping.heading")}`);
   lines.push("");
