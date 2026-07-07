@@ -6,7 +6,8 @@
 -->
 
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
+  import { featureAvailabilityStore, initializeFeatureAvailability } from '../../stores/appSkillsStore';
   import { notificationStore } from '../../stores/notificationStore';
   import {
     createUserTask,
@@ -30,6 +31,12 @@
   let isSaving = $state(false);
 
   const hasProposals = $derived(proposals.length > 0 || updateProposals.length > 0);
+  const featureAvailabilityReady = $derived($featureAvailabilityStore.initialized && $featureAvailabilityStore.disabledById !== null);
+  const tasksEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true);
+
+  onMount(() => {
+    void initializeFeatureAvailability();
+  });
 
   function broadcastTasksChanged(): void {
     if (typeof window === 'undefined') return;
@@ -37,7 +44,7 @@
   }
 
   async function acceptProposals(): Promise<void> {
-    if (isSaving) return;
+    if (isSaving || !tasksEnabled) return;
     isSaving = true;
     try {
       for (const proposal of proposals) {
@@ -80,7 +87,7 @@
   }
 </script>
 
-{#if hasProposals}
+{#if hasProposals && tasksEnabled}
   <section class="task-proposal-review" data-testid="task-proposal-review" aria-label="Task proposals">
     <div class="proposal-copy">
       <p class="proposal-eyebrow">Suggested tasks</p>

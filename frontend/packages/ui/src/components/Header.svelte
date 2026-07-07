@@ -87,7 +87,7 @@
     };
     let chatsEnabled = $derived(isWorkspaceFeatureEnabled('platform:chats'));
     let projectsEnabled = $derived(isWorkspaceFeatureEnabled('platform:projects', false));
-    let plansEnabled = $derived($featureAvailabilityStore.initialized && isWorkspaceFeatureEnabled('platform:plans'));
+    let plansEnabled = $derived(isWorkspaceFeatureEnabled('platform:plans', false));
     let workflowsEnabled = $derived(isWorkspaceFeatureEnabled('platform:workflows', false));
     let tasksEnabled = $derived(isWorkspaceFeatureEnabled('platform:tasks', false));
     let webappWorkspaceTabs: WorkspaceTab[] = $derived([

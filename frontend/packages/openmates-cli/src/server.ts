@@ -78,6 +78,7 @@ const LOCAL_AI_MODELS_FILE = "local-ai-models.yml";
 const OFF_BY_DEFAULT_FEATURES = new Map<string, string>([
   ["embed:code:application", "Application previews are still unstable"],
   ["platform:projects", "Projects workspace is not ready by default"],
+  ["platform:plans", "Plans workspace is not ready by default"],
   ["platform:workflows", "Workflows workspace is off by default"],
   ["platform:tasks", "Tasks workspace is not implemented yet"],
 ]);

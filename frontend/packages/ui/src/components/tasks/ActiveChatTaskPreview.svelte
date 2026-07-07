@@ -7,6 +7,7 @@
 
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { featureAvailabilityStore, initializeFeatureAvailability } from '../../stores/appSkillsStore';
   import {
     listUserTasks,
     updateUserTask,
@@ -47,9 +48,12 @@
       ?? plans.find((plan) => plan.status === 'draft')
       ?? null,
   );
+  const featureAvailabilityReady = $derived($featureAvailabilityStore.initialized && $featureAvailabilityStore.disabledById !== null);
+  const tasksEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true);
+  const plansEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true);
 
   async function refreshTasks(): Promise<void> {
-    if (!chatId) {
+    if (!chatId || (!tasksEnabled && !plansEnabled)) {
       tasks = [];
       plans = [];
       selectedTaskId = null;
@@ -57,8 +61,8 @@
     }
     try {
       const [nextTasks, nextPlans] = await Promise.all([
-        listUserTasks({ chatId }),
-        listUserPlans({ chatId, limit: 3 }),
+        tasksEnabled ? listUserTasks({ chatId }) : Promise.resolve([]),
+        plansEnabled ? listUserPlans({ chatId, limit: 3 }) : Promise.resolve([]),
       ]);
       tasks = nextTasks;
       plans = nextPlans;
@@ -72,7 +76,7 @@
 
   async function toggleCurrentTask(event: Event): Promise<void> {
     event.stopPropagation();
-    if (!currentTask) return;
+    if (!currentTask || !tasksEnabled) return;
     const nextStatus = currentTask.status === 'done' ? 'todo' : 'done';
     const previous = tasks;
     tasks = tasks.map((task) => task.task_id === currentTask.task_id ? { ...task, status: nextStatus } : task);
@@ -107,10 +111,14 @@
 
   $effect(() => {
     void chatId;
+    void tasksEnabled;
+    void plansEnabled;
+    if (!$featureAvailabilityStore.initialized) return;
     void refreshTasks();
   });
 
   onMount(() => {
+    void initializeFeatureAvailability();
     window.addEventListener('openmates-user-tasks-changed', handleTaskChange);
     window.addEventListener('openmates-user-plans-changed', handlePlanChange);
   });

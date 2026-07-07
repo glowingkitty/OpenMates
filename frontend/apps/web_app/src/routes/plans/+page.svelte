@@ -14,20 +14,35 @@
     Settings,
     TasksPage,
     authStore,
+    featureAvailabilityStore,
     initialize,
+    initializeFeatureAvailability,
     notificationStore,
     panelState,
   } from '@repo/ui';
+
+  let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
+  let plansEnabled = $derived($featureAvailabilityStore.disabledById?.['platform:plans'] !== true && $featureAvailabilityStore.disabledById !== null);
 
   onMount(() => {
     initialize().catch((error) => {
       console.error('[PlansRoute] Failed to initialize auth:', error);
     });
+
+    initializeFeatureAvailability().catch((error: unknown) => {
+      console.warn('[PlansRoute] Failed to load feature availability:', error);
+    });
   });
 </script>
 
-{#if !$authStore.isInitialized}
+{#if !$authStore.isInitialized || !featureAvailabilityLoaded}
   <main class="plans-route-state" data-testid="plans-auth-loading">Loading plans...</main>
+{:else if !plansEnabled}
+  <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
+  <main class="plans-route-state" data-testid="plans-feature-disabled">
+    <h1>Plans unavailable</h1>
+    <p>Plans are disabled on this server.</p>
+  </main>
 {:else if $authStore.isAuthenticated}
   <div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />

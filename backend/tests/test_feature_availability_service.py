@@ -13,6 +13,7 @@ from backend.core.api.app.routes import features as features_route
 from backend.core.api.app.services.feature_availability_service import (
     FeatureAvailabilityService,
     FeatureDefinition,
+    PLATFORM_FEATURES,
     migrate_legacy_disabled_apps,
 )
 from backend.core.api.app.routes.features import _definitions_from_raw_manifests
@@ -74,6 +75,21 @@ def test_sparse_disabled_feature_ids_do_not_list_enabled_defaults() -> None:
     )
 
     assert service.list_disabled_feature_ids() == ["app:videos", "embed:code:application"]
+
+
+def test_unfinished_platform_features_are_default_disabled() -> None:
+    disabled_platform_ids = {
+        definition.id
+        for definition in PLATFORM_FEATURES
+        if definition.kind == "platform" and definition.default_enabled is False
+    }
+
+    assert disabled_platform_ids >= {
+        "platform:projects",
+        "platform:plans",
+        "platform:workflows",
+        "platform:tasks",
+    }
 
 
 def test_availability_route_returns_sparse_disabled_ids(monkeypatch) -> None:

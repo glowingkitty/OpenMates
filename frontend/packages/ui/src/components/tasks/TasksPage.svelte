@@ -7,6 +7,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import TaskBoard from './TaskBoard.svelte';
+  import { featureAvailabilityStore, initializeFeatureAvailability } from '../../stores/appSkillsStore';
   import { notificationStore } from '../../stores/notificationStore';
   import {
     createUserTask,
@@ -55,6 +56,9 @@
   let correctedTranscriptText = $state('');
   let isExtracting = $state(false);
   let extractedProposals = $state<UserTaskProposal[]>([]);
+  let featureAvailabilityReady = $derived($featureAvailabilityStore.initialized && $featureAvailabilityStore.disabledById !== null);
+  let tasksEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true);
+  let plansEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true);
 
   const totalCount = $derived(tasks.length);
   const activeCount = $derived(tasks.filter((task) => task.status === 'in_progress').length);
@@ -84,6 +88,11 @@
   }
 
   async function refreshTasks(): Promise<void> {
+    if (!tasksEnabled) {
+      tasks = [];
+      isLoading = false;
+      return;
+    }
     isLoading = true;
     try {
       hasLoadError = false;
@@ -98,6 +107,11 @@
   }
 
   async function refreshPlans(): Promise<void> {
+    if (!plansEnabled) {
+      plans = [];
+      isLoadingPlans = false;
+      return;
+    }
     isLoadingPlans = true;
     try {
       plans = await listUserPlans({
@@ -189,6 +203,7 @@
   }
 
   async function handleCreatePlan(): Promise<void> {
+    if (!plansEnabled) return;
     const trimmedTitle = planTitle.trim();
     if (!trimmedTitle || isSaving) return;
     isSaving = true;
@@ -240,6 +255,7 @@
   }
 
   async function handleActivatePlan(plan: UserPlanViewModel): Promise<void> {
+    if (!plansEnabled) return;
     planActionId = plan.plan_id;
     try {
       const updated = await activateUserPlan(plan);
@@ -255,6 +271,7 @@
   }
 
   async function handleCompletePlan(plan: UserPlanViewModel): Promise<void> {
+    if (!plansEnabled) return;
     planActionId = plan.plan_id;
     try {
       const updated = await completeUserPlan(plan);
@@ -270,11 +287,28 @@
   }
 
   onMount(() => {
+    void initializeFeatureAvailability();
+  });
+
+  $effect(() => {
+    void projectId;
+    void chatId;
+    void tasksEnabled;
+    void plansEnabled;
+    if (!$featureAvailabilityStore.initialized) return;
     void refreshTasks();
     void refreshPlans();
   });
 </script>
 
+{#if !tasksEnabled && !plansEnabled}
+  <section class="tasks-page" class:compact data-testid="tasks-feature-disabled">
+    <div class="tasks-state">
+      <h2>{focus === 'plans' ? 'Plans unavailable' : 'Tasks unavailable'}</h2>
+      <p>{focus === 'plans' ? 'Plans are disabled on this server.' : 'Tasks are disabled on this server.'}</p>
+    </div>
+  </section>
+{:else}
 <section class="tasks-page" class:compact data-testid={compact ? 'project-tasks-page' : focus === 'plans' ? 'plans-page' : 'tasks-page'}>
   {#if !compact}
     <header class="tasks-hero">
@@ -297,6 +331,7 @@
     </header>
   {/if}
 
+  {#if plansEnabled}
   <section class="plans-strip" data-testid="linked-plans-section" aria-label="Linked plans">
     <div class="plans-strip-heading">
       <div>
@@ -342,6 +377,7 @@
       <div class="plans-empty" data-testid="plans-empty">Create a plan above to coordinate tasks and verification.</div>
     {/if}
   </section>
+  {/if}
 
   <form class="task-create-card" class:compact onsubmit={(event) => { event.preventDefault(); void handleCreateTask(); }} data-testid="task-create-form">
     <div>
@@ -438,6 +474,7 @@
     <TaskBoard {tasks} onMove={(task, status) => void handleMove(task, status)} onStartAI={(task) => void handleStartAI(task)} />
   {/if}
 </section>
+{/if}
 
 <style>
   .tasks-page {

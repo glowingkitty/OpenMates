@@ -4,11 +4,12 @@
     import { cubicOut } from 'svelte/easing';
     import { userProfile } from '../../stores/userProfile';
     import { authStore } from '../../stores/authStore';
+    import { featureAvailabilityStore, initializeFeatureAvailability } from '../../stores/appSkillsStore';
     import { incognitoMode } from '../../stores/incognitoModeStore'; // Import incognito mode store
     import { isLearningModeAuthError, learningMode } from '../../stores/learningModeStore';
     import { notificationStore } from '../../stores/notificationStore';
     import SettingsItem from '../SettingsItem.svelte';
-    import { createEventDispatcher, tick } from 'svelte';
+    import { createEventDispatcher, onMount, tick } from 'svelte';
     import type { SvelteComponent } from 'svelte';
 
     // Props using Svelte 5 runes
@@ -89,6 +90,7 @@
     
     let isAuthenticated = $derived($authStore.isAuthenticated);
     let profileImageUrl = $derived($userProfile.profile_image_url);
+    let disabledFeatures = $derived($featureAvailabilityStore.disabledById);
     
     // Local state for incognito toggle that syncs with store
     let incognitoToggleChecked = $state(false);
@@ -127,7 +129,7 @@
     $effect(() => {
         // Count only top-level settings items (exclude nested routes like apps/web, billing/buy-credits, etc.)
         // This matches what's actually displayed in the main menu (filtered by isTopLevelView)
-        const topLevelSettingsCount = Object.keys(settingsViews).filter(key => isTopLevelView(key)).length;
+        const topLevelSettingsCount = Object.keys(settingsViews).filter(key => isVisibleTopLevelView(key)).length;
         // Add 1 for logout button (only shown for authenticated users, but we count it for consistent height)
         const settingsCount = topLevelSettingsCount + 1;
         // Quick settings are currently commented out (TODO), so don't reduce height in signup mode
@@ -185,9 +187,22 @@
     // and must NOT appear in the settings nav sidebar.
     const DEEPLINK_ONLY_VIEWS = new Set(['fork']);
 
+    onMount(() => {
+        void initializeFeatureAvailability();
+    });
+
     // Add function to filter out nested views from main menu
     function isTopLevelView(key: string): boolean {
         return !key.includes('/') && !DEEPLINK_ONLY_VIEWS.has(key);
+    }
+
+    function isSettingsViewFeatureEnabled(key: string): boolean {
+        if (key !== 'projects') return true;
+        return disabledFeatures !== null && disabledFeatures['platform:projects'] !== true;
+    }
+
+    function isVisibleTopLevelView(key: string): boolean {
+        return isTopLevelView(key) && isSettingsViewFeatureEnabled(key);
     }
 
     function handleLogout() {
@@ -423,7 +438,7 @@
             </div>
 
             <!-- Regular Settings -->
-            {#each Object.entries(settingsViews).filter(([key]) => isTopLevelView(key) && (key !== 'logs' || isAdminUser)) as [key]}
+            {#each Object.entries(settingsViews).filter(([key]) => isVisibleTopLevelView(key) && (key !== 'logs' || isAdminUser)) as [key]}
                 <SettingsItem
                     type="submenu"
                     icon={key === 'logs' ? 'server' : key}
@@ -447,7 +462,7 @@
     <!-- Render only the active subsettings view -->
     {#each Object.entries(settingsViews) as [key, component]}
         {@const Component = component}
-        {#if activeSettingsView === key}
+        {#if activeSettingsView === key && isSettingsViewFeatureEnabled(key)}
             <div 
                 class="settings-submenu-content active"
                 in:slideIn={{ dir: direction }}

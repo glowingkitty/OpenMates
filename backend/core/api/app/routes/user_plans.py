@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
+from backend.core.api.app.services.feature_availability_guards import ensure_plans_enabled
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.user_plan_service import (
     UserPlanConflictError,
@@ -21,7 +22,7 @@ from backend.core.api.app.services.user_plan_service import (
 from backend.core.api.app.services.user_task_service import UserTaskService
 
 
-router = APIRouter(prefix="/v1/user-plans", tags=["User Plans"])
+router = APIRouter(prefix="/v1/user-plans", tags=["User Plans"], dependencies=[Depends(ensure_plans_enabled)])
 
 PlanStatus = Literal["draft", "awaiting_confirmation", "active", "executing", "blocked", "completed", "archived"]
 CriterionStatus = Literal["pending", "satisfied", "failed", "waived"]
