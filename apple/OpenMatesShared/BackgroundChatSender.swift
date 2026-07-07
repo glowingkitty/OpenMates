@@ -1316,6 +1316,9 @@ actor BackgroundChatSender {
         request.setValue("OpenMates-Apple/\(appVersion)", forHTTPHeaderField: "User-Agent")
         request.setValue(platformIdentifier, forHTTPHeaderField: "X-OpenMates-Client")
         request.setValue(Bundle.main.bundleIdentifier ?? "org.openmates.app", forHTTPHeaderField: "X-OpenMates-Bundle-ID")
+        if let cookieHeader = OpenMatesSharedEnvironment.cookieHeader(for: url) {
+            request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        }
         return request
     }
 
@@ -1429,6 +1432,9 @@ private final class BackgroundWebSocket: @unchecked Sendable {
         request.setValue(ServerConfiguration.current.webAppURL.absoluteString, forHTTPHeaderField: "Origin")
         request.setValue("OpenMates-Apple/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")", forHTTPHeaderField: "User-Agent")
         request.setValue(Bundle.main.bundleIdentifier ?? "org.openmates.app", forHTTPHeaderField: "X-OpenMates-Bundle-ID")
+        if let cookieHeader = OpenMatesSharedEnvironment.cookieHeader(for: url) {
+            request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        }
 
         let task = session.webSocketTask(with: request)
         task.resume()

@@ -3,6 +3,14 @@
 // user add a task instruction, choose New Chat or a recent chat, then send
 // through the shared native background chat pipeline with embed parity.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+// CSS:     frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+//          Classes: .message-field, .action-buttons
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import UIKit
 import UniformTypeIdentifiers
 
@@ -16,6 +24,12 @@ final class ShareViewController: UIViewController {
         static let composerCornerRadius: CGFloat = 24
         static let composerBorderWidth: CGFloat = 2
         static let composerHeight: CGFloat = 116
+        static let composerHorizontalInset: CGFloat = 16
+        static let composerTopInset: CGFloat = 16
+        static let composerBottomInset: CGFloat = 60
+        static let composerSendHeight: CGFloat = 40
+        static let composerSendTrailing: CGFloat = 12
+        static let composerSendBottom: CGFloat = 12
     }
 
     private var sharedParts: [SharedPart] = []
@@ -194,12 +208,14 @@ final class ShareViewController: UIViewController {
         headerLabel.text = "OpenMates"
         headerLabel.font = .systemFont(ofSize: 17, weight: .semibold)
         headerLabel.textAlignment = .center
+        headerLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
         header.addArrangedSubview(headerLabel)
 
         sendButton.setTitle("Send", for: .normal)
         sendButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
         sendButton.addTarget(self, action: #selector(sendTapped), for: .touchUpInside)
-        header.addArrangedSubview(sendButton)
+        let trailingSpacer = UIView()
+        header.addArrangedSubview(trailingSpacer)
 
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(scrollView)
@@ -220,18 +236,36 @@ final class ShareViewController: UIViewController {
 
         messageComposerView.accessibilityIdentifier = "message-composer"
         messageFieldView.accessibilityIdentifier = "message-field"
-        messageFieldView.backgroundColor = .secondarySystemBackground
-        messageFieldView.layer.borderColor = UIColor.separator.cgColor
-        messageFieldView.layer.borderWidth = Layout.composerBorderWidth
+        messageFieldView.backgroundColor = .omGreyBlue
+        messageFieldView.layer.borderColor = UIColor.clear.cgColor
+        messageFieldView.layer.borderWidth = 0
         messageFieldView.layer.cornerRadius = Layout.composerCornerRadius
-        messageFieldView.layer.masksToBounds = true
-        messageTextView.font = .systemFont(ofSize: 16)
-        messageTextView.accessibilityIdentifier = "message-editor"
+        messageFieldView.layer.masksToBounds = false
+        messageFieldView.layer.shadowColor = UIColor.black.cgColor
+        messageFieldView.layer.shadowOpacity = 0.08
+        messageFieldView.layer.shadowRadius = 12
+        messageFieldView.layer.shadowOffset = CGSize(width: 0, height: 4)
+        messageTextView.font = UIFont(name: "LexendDeca-Regular", size: 16) ?? .systemFont(ofSize: 16)
+        messageTextView.accessibilityIdentifier = "share-extension-message-input"
         messageTextView.backgroundColor = .clear
-        messageTextView.textContainerInset = UIEdgeInsets(top: 12, left: 10, bottom: 12, right: 10)
+        messageTextView.textColor = .omFontPrimary
+        messageTextView.tintColor = .omButtonPrimary
+        messageTextView.delegate = self
+        messageTextView.textContainerInset = UIEdgeInsets(
+            top: Layout.composerTopInset,
+            left: Layout.composerHorizontalInset - 5,
+            bottom: Layout.composerBottomInset,
+            right: 90
+        )
         messageTextView.translatesAutoresizingMaskIntoConstraints = false
         messageFieldView.translatesAutoresizingMaskIntoConstraints = false
+        sendButton.backgroundColor = .omButtonPrimary
+        sendButton.tintColor = .white
+        sendButton.layer.cornerRadius = 20
+        sendButton.contentEdgeInsets = UIEdgeInsets(top: 6, left: 16, bottom: 6, right: 16)
+        sendButton.translatesAutoresizingMaskIntoConstraints = false
         messageFieldView.addSubview(messageTextView)
+        messageFieldView.addSubview(sendButton)
         messageComposerView.addSubview(messageFieldView)
         stackView.addArrangedSubview(messageComposerView)
 
@@ -271,6 +305,7 @@ final class ShareViewController: UIViewController {
             header.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
             header.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
             header.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            trailingSpacer.widthAnchor.constraint(equalTo: cancelButton.widthAnchor),
 
             scrollView.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 14),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -292,6 +327,9 @@ final class ShareViewController: UIViewController {
             messageTextView.leadingAnchor.constraint(equalTo: messageFieldView.leadingAnchor),
             messageTextView.trailingAnchor.constraint(equalTo: messageFieldView.trailingAnchor),
             messageTextView.bottomAnchor.constraint(equalTo: messageFieldView.bottomAnchor),
+            sendButton.trailingAnchor.constraint(equalTo: messageFieldView.trailingAnchor, constant: -Layout.composerSendTrailing),
+            sendButton.bottomAnchor.constraint(equalTo: messageFieldView.bottomAnchor, constant: -Layout.composerSendBottom),
+            sendButton.heightAnchor.constraint(equalToConstant: Layout.composerSendHeight),
         ])
 
         sendButton.accessibilityIdentifier = "share-extension-send"
@@ -381,7 +419,7 @@ final class ShareViewController: UIViewController {
         }
         previewLabel.text = previewLines.isEmpty ? "No supported URL, text, or file was found." : previewLines.joined(separator: "\n")
         messageTextView.text = sharedText
-        sendButton.isEnabled = !sharedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !sharedAttachments.isEmpty
+        updateSendButtonState()
     }
 
     private func loadRecentChats() {
@@ -444,7 +482,7 @@ final class ShareViewController: UIViewController {
                 await MainActor.run {
                     showFailure(error.localizedDescription)
                     isSubmitting = false
-                    sendButton.isEnabled = true
+                    updateSendButtonState()
                     cancelButton.isEnabled = true
                     spinner.stopAnimating()
                 }
@@ -502,9 +540,21 @@ final class ShareViewController: UIViewController {
         newChatButton.layer.borderWidth = selected ? 1 : 0
     }
 
+    private func updateSendButtonState() {
+        let hasText = !messageTextView.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        sendButton.isEnabled = !isSubmitting && (hasText || !sharedAttachments.isEmpty)
+        sendButton.alpha = sendButton.isEnabled ? 1 : 0.6
+    }
+
     private func showFailure(_ message: String) {
         statusLabel.textColor = .systemRed
         statusLabel.text = message
+    }
+}
+
+extension ShareViewController: UITextViewDelegate {
+    func textViewDidChange(_ textView: UITextView) {
+        updateSendButtonState()
     }
 }
 
@@ -529,6 +579,12 @@ extension ShareViewController: UITableViewDataSource, UITableViewDelegate {
         updateNewChatSelection(false)
         tableView.reloadData()
     }
+}
+
+private extension UIColor {
+    static let omGreyBlue = UIColor(named: "grey-blue") ?? UIColor(red: 0.09, green: 0.15, blue: 0.20, alpha: 1)
+    static let omFontPrimary = UIColor(named: "font-primary") ?? .label
+    static let omButtonPrimary = UIColor(red: 1.0, green: 0.333, blue: 0.231, alpha: 1)
 }
 
 private final class ChatDestinationCell: UITableViewCell {

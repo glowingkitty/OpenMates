@@ -131,6 +131,49 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         attachScreenshot(name: "Safari share to OpenMates extension completed")
     }
 
+    func testSafariShareSheetShowsUnifiedOpenMatesComposer() throws {
+        let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
+        openSafariURL(fixtureSafariURL, in: safari)
+
+        let shareButton = safari.buttons["Share"]
+        XCTAssertTrue(
+            shareButton.waitForExistence(timeout: 15),
+            "Expected Safari Share button before opening OpenMates extension. Visible UI: \(visibleStateLabels(in: safari))"
+        )
+        shareButton.tap()
+
+        XCTAssertTrue(
+            tapOpenMatesShareTarget(timeout: 15),
+            "Expected OpenMates in the iOS share sheet. Visible Safari UI: \(visibleStateLabels(in: safari))"
+        )
+
+        XCTAssertTrue(
+            safari.descendants(matching: .any)["share-extension-root"].waitForExistence(timeout: 20),
+            "Expected OpenMates share extension root. Visible UI: \(visibleStateLabels(in: safari))"
+        )
+        XCTAssertTrue(
+            safari.descendants(matching: .any)["message-composer"].waitForExistence(timeout: 5),
+            "Expected share extension to expose the unified message composer container."
+        )
+        XCTAssertTrue(
+            safari.descendants(matching: .any)["message-field"].waitForExistence(timeout: 5),
+            "Expected share extension to expose the unified message field."
+        )
+
+        let messageInput = safari.textViews["share-extension-message-input"]
+        XCTAssertTrue(
+            messageInput.waitForExistence(timeout: 5),
+            "Expected OpenMates share extension message input. Visible UI: \(visibleStateLabels(in: safari))"
+        )
+        XCTAssertTrue(
+            (messageInput.value as? String ?? messageInput.label).contains("youtube.com/watch"),
+            "Expected the shared Safari URL to be prefilled in the editable message input."
+        )
+        XCTAssertTrue(safari.buttons["share-extension-send"].waitForExistence(timeout: 5))
+
+        attachScreenshot(name: "Safari share extension unified composer")
+    }
+
     private func attachScreenshot(name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
@@ -141,8 +184,9 @@ final class ChatManagementSharingParityUITests: XCTestCase {
     private func visibleStateLabels(in app: XCUIApplication) -> String {
         let buttons = elementSummaries(app.buttons.allElementsBoundByIndex, prefix: "button")
         let textFields = elementSummaries(app.textFields.allElementsBoundByIndex, prefix: "textField")
+        let textViews = elementSummaries(app.textViews.allElementsBoundByIndex, prefix: "textView")
         let staticTexts = elementSummaries(app.staticTexts.allElementsBoundByIndex, prefix: "text")
-        return (buttons + textFields + staticTexts).prefix(30).joined(separator: " | ")
+        return (buttons + textFields + textViews + staticTexts).prefix(30).joined(separator: " | ")
     }
 
     private func waitForSystemShareSheet(in app: XCUIApplication, timeout: TimeInterval) -> Bool {

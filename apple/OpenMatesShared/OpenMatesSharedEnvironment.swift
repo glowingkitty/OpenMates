@@ -21,4 +21,20 @@ enum OpenMatesSharedEnvironment {
         HTTPCookieStorage.sharedCookieStorage(forGroupContainerIdentifier: appGroupIdentifier)
         #endif
     }
+
+    static func cookieHeader(for url: URL) -> String? {
+        let cookieURL = httpCookieURL(for: url)
+        let cookies = cookieStorage.cookies(for: cookieURL) ?? []
+        guard !cookies.isEmpty else { return nil }
+        return HTTPCookie.requestHeaderFields(with: cookies)["Cookie"]
+    }
+
+    private static func httpCookieURL(for url: URL) -> URL {
+        guard url.scheme == "wss" || url.scheme == "ws",
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url
+        }
+        components.scheme = url.scheme == "wss" ? "https" : "http"
+        return components.url ?? url
+    }
 }
