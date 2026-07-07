@@ -45,6 +45,36 @@ test.describe('App: Fitness / Skills: Urban Sports Club search', () => {
 		await expect(page.getByTestId('fitness-search-preview').first()).toBeVisible();
 	});
 
+	test('Phase 1b: Fitness app card renders the official Urban Sports favicon', async ({ page }: { page: any }) => {
+		test.setTimeout(60_000);
+
+		await page.goto('/#settings/apps', { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		const settingsMenu = page.getByTestId('settings-menu');
+		await expect(settingsMenu).toBeVisible({ timeout: 10_000 });
+		const fitnessCard = settingsMenu
+			.locator('[data-testid="app-store-card"][data-app-id="fitness"]')
+			.first();
+		await expect(fitnessCard).toBeVisible({ timeout: 10_000 });
+
+		const urbanSportsIcon = fitnessCard
+			.locator('[data-testid="provider-icon-image"][data-provider-name="Urban Sports Club"]')
+			.first();
+		await expect(urbanSportsIcon).toBeVisible({ timeout: 10_000 });
+
+		const dimensions = await urbanSportsIcon.evaluate((img: HTMLImageElement) => ({
+			naturalWidth: img.naturalWidth,
+			naturalHeight: img.naturalHeight,
+			src: img.currentSrc || img.src
+		}));
+
+		expect(dimensions.src).toContain('urban_sports_club');
+		expect(dimensions.naturalWidth).toBeGreaterThanOrEqual(100);
+		expect(dimensions.naturalHeight).toBeGreaterThanOrEqual(100);
+		expect(dimensions.naturalWidth).toBe(dimensions.naturalHeight);
+	});
+
 	test('Phase 2: CLI apps fitness skills return Urban Sports results', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
