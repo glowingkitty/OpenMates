@@ -636,8 +636,10 @@ def sync_bundle_capabilities():
             enable_bundle_capability(bundle_id, "APP_GROUPS")
             print(f"capability_sync=passed:{identifier}:APP_GROUPS")
         if identifier in REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS:
-            enable_bundle_capability(bundle_id, "KEYCHAIN_SHARING")
-            print(f"capability_sync=passed:{identifier}:KEYCHAIN_SHARING")
+            # App Store Connect does not expose KEYCHAIN_SHARING as a Bundle ID
+            # capability. Keep validating the generated provisioning profile
+            # entitlement below, but do not attempt an ASC capability mutation.
+            print(f"capability_sync=skipped:{identifier}:KEYCHAIN_SHARING:not_app_store_connect_capability")
         if identifier == "org.openmates.app":
             enable_bundle_capability(bundle_id, "ASSOCIATED_DOMAINS")
             print(f"capability_sync=passed:{identifier}:ASSOCIATED_DOMAINS")
