@@ -16,7 +16,6 @@ import time
 import os
 import uuid
 from typing import Dict, Any, List, Optional
-import httpx
 from pydantic import ValidationError
 from celery.exceptions import Ignore, SoftTimeLimitExceeded
 from celery.states import REVOKED as TASK_STATE_REVOKED # Module-level import
@@ -27,6 +26,7 @@ from backend.core.api.app.tasks import celery_config
 # Import services to be instantiated directly in the task
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService # Assuming this is the correct path
+from backend.core.api.app.services.skill_registry import build_skill_registry
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.log_sanitization import sanitize_request_data_for_logging
@@ -320,12 +320,6 @@ async def _cleanup_on_task_failure(
 # Note: Avoid internal API lookups per task to keep latency low. We rely on
 # the worker-local ConfigManager (see celery_config) and fail fast if configs are missing.
 
-# Internal API configuration for fallback cache refresh
-# This is used when discovered_apps_metadata is missing from cache (e.g., cache expired or flushed)
-INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
-INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
-INTERNAL_API_TIMEOUT = 10.0  # Timeout for internal API requests in seconds
-
 # Critical apps that should normally be available for full functionality
 # If these are missing, the AI will have reduced capabilities
 CRITICAL_APPS = ["web", "ai"]
@@ -371,10 +365,11 @@ async def _fetch_and_cache_apps_metadata(
     task_id: str
 ) -> Dict[str, AppYAML]:
     """
-    Fallback mechanism to fetch discovered apps metadata from the API when cache is empty.
+    Fallback mechanism to rebuild discovered apps metadata when cache is empty.
     
-    This handles cases where the cache has expired or been flushed while the API is still running.
-    The API's /apps/metadata endpoint returns all discovered apps, and we re-cache them here.
+    This handles cases where the cache has expired or been flushed. Celery workers already
+    build an in-process SkillRegistry at startup, so rebuilding metadata from the same
+    filesystem source keeps worker behavior independent of API-only routes.
     
     CRITICAL: Without this fallback, the LLM has NO tools available (no web search, etc.)
     when the cache expires. This resulted in the LLM hallucinating search results instead
@@ -390,52 +385,24 @@ async def _fetch_and_cache_apps_metadata(
     log_prefix = f"[Task ID: {task_id}]"
     
     try:
-        # Prepare request headers
-        headers = {"Content-Type": "application/json"}
-        if INTERNAL_API_SHARED_TOKEN:
-            headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+        logger.info(f"{log_prefix} Rebuilding discovered_apps_metadata from local app registry")
+        _, discovered_apps_metadata = build_skill_registry()
         
-        url = f"{INTERNAL_API_BASE_URL}/apps/metadata"
-        logger.info(f"{log_prefix} Attempting to fetch discovered_apps_metadata from API: {url}")
+        if not discovered_apps_metadata:
+            logger.warning(f"{log_prefix} Local registry returned empty apps metadata")
+            return {}
+
+        if cache_service_instance:
+            try:
+                await cache_service_instance.set_discovered_apps_metadata(discovered_apps_metadata)
+                logger.info(f"{log_prefix} Successfully re-cached discovered_apps_metadata ({len(discovered_apps_metadata)} apps)")
+            except Exception as e_cache:
+                logger.error(f"{log_prefix} Failed to re-cache discovered_apps_metadata: {e_cache}")
         
-        async with httpx.AsyncClient(timeout=INTERNAL_API_TIMEOUT) as client:
-            response = await client.get(url, headers=headers)
-            response.raise_for_status()
-            
-            data = response.json()
-            apps_data = data.get("apps", {})
-            
-            if not apps_data:
-                logger.warning(f"{log_prefix} API returned empty apps metadata")
-                return {}
-            
-            # Parse the raw dict into AppYAML models
-            discovered_apps_metadata: Dict[str, AppYAML] = {}
-            for app_id, app_dict in apps_data.items():
-                try:
-                    discovered_apps_metadata[app_id] = AppYAML(**app_dict)
-                except Exception as e:
-                    logger.warning(f"{log_prefix} Failed to parse app '{app_id}' metadata: {e}")
-                    continue
-            
-            # Re-cache the metadata for future tasks
-            if discovered_apps_metadata and cache_service_instance:
-                try:
-                    await cache_service_instance.set_discovered_apps_metadata(discovered_apps_metadata)
-                    logger.info(f"{log_prefix} Successfully re-cached discovered_apps_metadata ({len(discovered_apps_metadata)} apps)")
-                except Exception as e_cache:
-                    logger.error(f"{log_prefix} Failed to re-cache discovered_apps_metadata: {e_cache}")
-            
-            return discovered_apps_metadata
-            
-    except httpx.HTTPStatusError as e:
-        logger.error(f"{log_prefix} HTTP error fetching apps metadata: {e.response.status_code} - {e.response.text}")
-        return {}
-    except httpx.RequestError as e:
-        logger.error(f"{log_prefix} Request error fetching apps metadata: {e}")
-        return {}
+        return discovered_apps_metadata
+
     except Exception as e:
-        logger.error(f"{log_prefix} Unexpected error fetching apps metadata: {e}", exc_info=True)
+        logger.error(f"{log_prefix} Unexpected error rebuilding apps metadata: {e}", exc_info=True)
         return {}
 
 
