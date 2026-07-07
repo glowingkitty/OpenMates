@@ -123,8 +123,9 @@ final class ComposerVisualParityUITests: XCTestCase {
         XCTAssertGreaterThan(visibleFrame.height, 18, "Expected \(identifier) visible height", file: file, line: line)
 
         #if canImport(UIKit)
-        guard let image = UIImage(data: screenshot.pngRepresentation), let cgImage = image.cgImage else {
-            XCTFail("Could not decode screenshot while checking \(identifier)", file: file, line: line)
+        let buttonScreenshot = button.screenshot()
+        guard let image = UIImage(data: buttonScreenshot.pngRepresentation), let cgImage = image.cgImage else {
+            XCTFail("Could not decode button screenshot while checking \(identifier)", file: file, line: line)
             return
         }
 
@@ -138,7 +139,7 @@ final class ComposerVisualParityUITests: XCTestCase {
             space: CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else {
-            XCTFail("Could not prepare screenshot pixels while checking \(identifier)", file: file, line: line)
+            XCTFail("Could not prepare button screenshot pixels while checking \(identifier)", file: file, line: line)
             return
         }
 
@@ -146,15 +147,13 @@ final class ComposerVisualParityUITests: XCTestCase {
         context.scaleBy(x: 1, y: -1)
         context.draw(cgImage, in: CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height))
 
-        let scaleX = CGFloat(cgImage.width) / windowFrame.width
-        let scaleY = CGFloat(cgImage.height) / windowFrame.height
         let highlightedPixelRatio = highlightedPixelRatio(
-            in: visibleFrame.insetBy(dx: -2, dy: -2),
+            in: CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height),
             pixels: pixels,
             imageWidth: cgImage.width,
             imageHeight: cgImage.height,
-            scaleX: scaleX,
-            scaleY: scaleY
+            scaleX: 1,
+            scaleY: 1
         )
         XCTAssertGreaterThan(
             highlightedPixelRatio,

@@ -111,6 +111,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
                 .fontWeight(compact ? .semibold : .regular)
                 .multilineTextAlignment(compact ? .center : .leading)
                 .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: compact ? .center : .topLeading)
+                .zIndex(1)
 
             if text.isEmpty && !isFocused.wrappedValue {
                 Text(placeholder)
@@ -127,10 +128,12 @@ struct OMMessageInputField<ActionButtons: View>: View {
 
             if shouldShowActionButtons {
                 actionButtons()
+                    .zIndex(2)
             }
 
             if let overlayContent {
                 overlayContent
+                    .zIndex(3)
             }
         }
         .frame(maxWidth: .infinity, minHeight: fieldHeight, maxHeight: resolvedFieldHeight)
