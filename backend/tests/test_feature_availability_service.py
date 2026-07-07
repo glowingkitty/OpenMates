@@ -138,3 +138,21 @@ embed_types:
 
     application = next(definition for definition in definitions if definition.id == "embed:code:application")
     assert application.default_enabled is False
+
+
+def test_raw_manifest_definitions_include_default_disabled_apps(tmp_path) -> None:
+    app_dir = tmp_path / "workflows"
+    app_dir.mkdir()
+    (app_dir / "app.yml").write_text(
+        """
+name_translation_key: workflows
+description_translation_key: workflows.description
+default_enabled: false
+""".strip(),
+        encoding="utf-8",
+    )
+
+    definitions = _definitions_from_raw_manifests(str(tmp_path))
+
+    workflows = next(definition for definition in definitions if definition.id == "app:workflows")
+    assert workflows.default_enabled is False

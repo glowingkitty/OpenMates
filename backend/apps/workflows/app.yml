@@ -1,5 +1,6 @@
 name_translation_key: workflows
 description_translation_key: workflows.description
+default_enabled: false
 icon_image: workflow.svg
 category: productivity
 last_updated: "2026-06-24"
