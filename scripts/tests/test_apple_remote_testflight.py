@@ -128,7 +128,7 @@ def test_ios_testflight_archive_requires_embedded_watch_companion() -> None:
     assert 'app_path / "PlugIns"' not in script
     assert "WKCompanionAppBundleIdentifier" in script
     assert "WKRunsIndependentlyOfCompanionApp" in script
-    assert "archive_watch_companion=invalid_direct_executable" in script
+    assert "archive_watch_companion=missing_executable_metadata" in script
     assert "OpenMatesWatchExtension.appex" in script
     assert "org.openmates.app.watch.watchkitextension" in script
     assert script.index("assert_ios_archive_embeds_watch_companion()") < script.index('print("upload_status=started")')
@@ -148,7 +148,7 @@ def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     assert "PRODUCT_NAME: OpenMatesWatch" in project_yaml
     assert "SKIP_INSTALL: YES" in project_yaml
     assert "CFBundlePackageType: APPL" in project_yaml
-    assert "CFBundleIconName: WatchAppIcon" in project_yaml
+    assert "CFBundleExecutable: $(EXECUTABLE_NAME)" in project_yaml
     assert "ASSETCATALOG_COMPILER_APPICON_NAME: WatchAppIcon" in project_yaml
     assert "OpenMatesWatch/Assets.xcassets" in project_yaml
     assert "type: application.watchapp2" in project_yaml
@@ -156,13 +156,17 @@ def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     assert "type: watchkit2-extension" in project_yaml
     assert "PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.watch.watchkitextension" in project_yaml
     assert "WKWatchKitApp" in watch_info
+    assert "CFBundleExecutable" in watch_info
+    assert "CFBundleExecutable" in watch_extension_info
+    assert "CFBundleIconName" not in watch_info
+    assert "NSMicrophoneUsageDescription" not in watch_info
+    assert "ITSAppUsesNonExemptEncryption" not in watch_info
     assert "WKWatchOnly" not in watch_info
     assert "WKCompanionAppBundleIdentifier" in watch_info
     assert "WKRunsIndependentlyOfCompanionApp" not in watch_info
     assert "WKRunsIndependentlyOfCompanionApp" in watch_extension_info
     assert "WKAppBundleIdentifier" in watch_extension_info
     assert "CFBundlePackageType" in watch_info
-    assert "CFBundleIconName" in watch_info
     assert "OpenMatesWatch.app in Embed Watch Content" in xcode_project
     assert 'dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";' in xcode_project
     assert "dstSubfolderSpec = 16;" in xcode_project
@@ -170,6 +174,15 @@ def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     assert "PRODUCT_NAME = OpenMatesWatch;" in xcode_project
     assert "SKIP_INSTALL = YES;" in xcode_project
     assert "ASSETCATALOG_COMPILER_APPICON_NAME = WatchAppIcon;" in xcode_project
+    watch_resources = xcode_project[
+        xcode_project.index("C0FFEE000000000000047021 /* Resources */ = {") : xcode_project.index(
+            "C0FFEE00000000000004A012 /* Resources */ = {"
+        )
+    ]
+    assert "C0FFEE000000000000049025 /* Assets.xcassets in Resources */" in watch_resources
+    assert "C0FFEE000000000000047012 /* Assets.xcassets in Resources */" not in watch_resources
+    assert "C0FFEE000000000000048025 /* Fonts in Resources */" not in watch_resources
+    assert "C0FFEE000000000000048022 /* i18n in Resources */" not in watch_resources
     assert "OpenMatesWatchExtension.appex in Embed App Extensions" in xcode_project
     assert "PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.watch.watchkitextension;" in xcode_project
     assert "productType = \"com.apple.product-type.watchkit2-extension\";" in xcode_project

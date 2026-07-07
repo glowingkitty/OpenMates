@@ -150,15 +150,6 @@ targets:
     deploymentTarget: "10.0"
     resources:
       - path: OpenMatesWatch/Assets.xcassets
-      - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
-      - path: OpenMates/Resources/Fonts
-        buildPhase: resources
-        name: Fonts
-        type: folder
-      - path: ../frontend/packages/ui/src/i18n/locales
-        buildPhase: resources
-        name: i18n
-        type: folder
     settings:
       base:
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: YES
@@ -186,23 +177,14 @@ targets:
       properties:
         CFBundleIconFiles:
           - WatchAppIcon
-        CFBundleIconName: WatchAppIcon
         CFBundleDisplayName: OpenMates
+        CFBundleExecutable: $(EXECUTABLE_NAME)
         CFBundleName: OpenMates
         CFBundlePackageType: APPL
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
-        ITSAppUsesNonExemptEncryption: false
         WKCompanionAppBundleIdentifier: org.openmates.app
         WKWatchKitApp: true
-        NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
-        UIAppFonts:
-          - LexendDeca-Light.ttf
-          - LexendDeca-Regular.ttf
-          - LexendDeca-Medium.ttf
-          - LexendDeca-SemiBold.ttf
-          - LexendDeca-Bold.ttf
-          - LexendDeca-ExtraBold.ttf
     dependencies:
       - target: OpenMatesWatchExtension
         embed: true
@@ -267,6 +249,7 @@ targets:
       path: OpenMatesWatchExtension/Info.plist
       properties:
         CFBundleDisplayName: OpenMates
+        CFBundleExecutable: $(EXECUTABLE_NAME)
         CFBundleName: OpenMatesWatchExtension
         CFBundlePackageType: XPC!
         CFBundleShortVersionString: $(MARKETING_VERSION)

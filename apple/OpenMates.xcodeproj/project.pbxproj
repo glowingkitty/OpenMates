@@ -2100,9 +2100,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				C0FFEE000000000000049025 /* Assets.xcassets in Resources */,
-				C0FFEE000000000000047012 /* Assets.xcassets in Resources */,
-				C0FFEE000000000000048025 /* Fonts in Resources */,
-				C0FFEE000000000000048022 /* i18n in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
