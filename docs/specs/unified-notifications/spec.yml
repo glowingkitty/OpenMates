@@ -242,9 +242,19 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: historical-red-phase-not-recorded
+        timestamp: "2026-07-06T23:59:00Z"
+        notes: "This spec predates strict red-phase evidence recording for this existing pytest; green evidence was re-run and recorded during notification lifecycle verification."
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-2026-07-06T23:56Z
+        timestamp: "2026-07-06T23:56:00Z"
+        notes: "python3 -m pytest backend/tests/test_unified_notifications.py backend/tests/test_notifications_api.py backend/tests/test_websocket_set_active_chat.py passed 12/12."
   - id: T-PYTEST-002
     type: pytest
     file: backend/tests/test_notifications_api.py
@@ -259,9 +269,19 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: historical-red-phase-not-recorded
+        timestamp: "2026-07-06T23:59:00Z"
+        notes: "This spec predates strict red-phase evidence recording for this existing pytest; green evidence was re-run and recorded during notification lifecycle verification."
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-2026-07-06T23:56Z
+        timestamp: "2026-07-06T23:56:00Z"
+        notes: "python3 -m pytest backend/tests/test_unified_notifications.py backend/tests/test_notifications_api.py backend/tests/test_websocket_set_active_chat.py passed 12/12."
   - id: T-APPLE-001
     type: unit
     file: apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
@@ -316,10 +336,15 @@ tests:
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: local-build-translations-2026-07-06T23:57Z
+        timestamp: "2026-07-06T23:57:00Z"
+        notes: "npm run build:translations completed successfully in frontend/packages/ui and generated 21 locale JSON files."
   - id: T-CLI-001
     type: unit
     file: frontend/packages/openmates-cli/tests/cli.test.ts
-    command: python3 scripts/run_tests.py --suite vitest
+    command: python3 scripts/tests.py run -- --suite vitest
     covers:
       - AC-10
     assertions:
@@ -329,9 +354,19 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: historical-red-phase-not-recorded
+        timestamp: "2026-07-06T23:59:00Z"
+        notes: "This spec predates strict red-phase evidence recording for this existing vitest suite; green evidence was re-run through scripts/tests.py and recorded."
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: "28831540315"
+        timestamp: "2026-07-06T23:58:15Z"
+        notes: "Unified test runner dispatched vitest to GitHub Actions; 488/488 passed."
   - id: T-PYTEST-003
     type: pytest
     file: backend/tests/test_websocket_set_active_chat.py
@@ -345,13 +380,23 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: historical-red-phase-not-recorded
+        timestamp: "2026-07-06T23:59:00Z"
+        notes: "The focused backend tests were added before this resumed verification step; no failing red run was preserved, so the gap is recorded explicitly."
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-2026-07-06T23:56Z
+        timestamp: "2026-07-06T23:56:00Z"
+        notes: "python3 -m pytest backend/tests/test_unified_notifications.py backend/tests/test_notifications_api.py backend/tests/test_websocket_set_active_chat.py passed 12/12."
   - id: T-E2E-001
     type: playwright
     file: frontend/apps/web_app/tests/web-lifecycle-notification-suppression.spec.ts
-    command: python3 scripts/tests.py run --spec web-lifecycle-notification-suppression.spec.ts
+    command: python3 scripts/tests.py run -- --spec web-lifecycle-notification-suppression.spec.ts
     target: app.dev.openmates.org
     covers:
       - AC-11
@@ -370,9 +415,9 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "28831379233"
+        timestamp: "2026-07-06T23:55:26Z"
 
 implementation_plan:
   existing_patterns:
@@ -437,10 +482,10 @@ implementation_plan:
   verification_strategy:
     - python3 -m pytest backend/tests/test_unified_notifications.py backend/tests/test_notifications_api.py
     - python3 -m pytest backend/tests/test_websocket_set_active_chat.py
-    - python3 scripts/tests.py run --spec web-lifecycle-notification-suppression.spec.ts
+    - python3 scripts/tests.py run -- --spec web-lifecycle-notification-suppression.spec.ts
     - python3 -m py_compile backend/core/api/app/services/notification_event_service.py backend/core/api/app/routes/notifications.py backend/core/api/app/services/push_notification_service.py
     - cd frontend/packages/ui && npm run build:translations
-    - python3 scripts/run_tests.py --suite vitest
+    - python3 scripts/tests.py run -- --suite vitest
     - python3 scripts/apple_background_notification_simulator_test.py --push-delay 75
   risks:
     - Notification Service Extension setup may require Xcode project changes that are hard to fully verify on Linux.
