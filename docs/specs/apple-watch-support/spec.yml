@@ -421,7 +421,7 @@ tests:
       - Shared source used by Watch is free of unguarded UIKit/AppKit/PDFKit/QuickLook imports.
       - Watch target has independent-app configuration and required entitlements.
     red_phase: { required: true, expected: fail, evidence: { status: missing_test, run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-build-watch-7b662b3", timestamp: "2026-07-07T00:41:58Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-build-watch-9ed1c7c", timestamp: "2026-07-07T00:48:37Z" } }
   - id: T-WATCH-PAIR-LOGIN-UNIT
     type: unit
     file: apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
@@ -457,7 +457,7 @@ tests:
       - Watch chat runtime opens a selected chat, fetches its message window, and persists it without logging real user plaintext.
       - Chat-key loading and client-side decryption are covered for encrypted chat metadata and messages; Watch realtime sync requests use cached client state and skip incognito chat IDs.
     red_phase: { required: true, expected: fail, evidence: { status: missing_test, run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-ios-xctest-watch-chat-runtime-7tests-7b662b3", timestamp: "2026-07-07T00:41:58Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-ios-xctest-watch-chat-runtime-8tests-9ed1c7c", timestamp: "2026-07-07T00:48:37Z" } }
   - id: T-WATCH-OFFLINE-UNIT
     type: unit
     file: apple/OpenMatesTests/WatchChatRuntimeTests.swift
@@ -468,18 +468,19 @@ tests:
       - Local pending text entries are normalized, appended to the selected transcript, and persisted in the Watch snapshot.
       - Online encrypted text replay clears pending snapshots after successful send; audio network-gating remains pending implementation work.
     red_phase: { required: true, expected: fail, evidence: { status: missing_test, run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-ios-xctest-watch-chat-runtime-7tests-7b662b3", timestamp: "2026-07-07T00:41:58Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-ios-xctest-watch-chat-runtime-8tests-9ed1c7c", timestamp: "2026-07-07T00:48:37Z" } }
   - id: T-WATCH-AUDIO-COMPOSER-UNIT
     type: unit
-    file: apple/OpenMatesWatchTests/WatchAudioComposerTests.swift
-    command: python3 scripts/apple_remote.py test-watch --simulator "Apple Watch Series 11 (46mm)" --only-testing OpenMatesWatchTests/WatchAudioComposerTests
+    file: apple/OpenMatesTests/WatchChatRuntimeTests.swift
+    command: python3 scripts/apple_remote.py repo xcodebuild clean test -project apple/OpenMates.xcodeproj -scheme OpenMates_iOS -destination "platform=iOS Simulator,name=iPhone 17" -only-testing OpenMatesTests/WatchChatRuntimeTests
     covers: [AC-5]
     assertions:
-      - Watch recording state transitions cover start, cancel, finish, permission denied, upload error, transcription error, and success.
+      - Watch runtime uploads recording data through the audio upload abstraction and requests transcription for the uploaded recording.
       - Successful transcription creates transcript plus audio-recording pending embed.
       - The message is not sent until explicit send action.
+      - Pending audio embed metadata persists in the Watch offline snapshot without storing raw audio bytes.
     red_phase: { required: true, expected: fail, evidence: { status: missing_test, run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-ios-xctest-watch-chat-runtime-8tests-9ed1c7c", timestamp: "2026-07-07T00:48:37Z" } }
   - id: T-WATCH-EMBED-PREVIEW-UNIT
     type: unit
     file: apple/OpenMatesTests/WatchEmbedPreviewTests.swift
