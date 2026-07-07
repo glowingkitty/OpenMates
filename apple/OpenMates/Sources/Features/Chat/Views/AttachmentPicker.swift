@@ -73,7 +73,7 @@ struct AttachmentPicker: View {
             }
         }
         .sheet(isPresented: $showDocumentPicker) {
-            DocumentPickerView(onFileSelected: onFileSelected)
+            AttachmentDocumentPickerView(onFileSelected: onFileSelected)
         }
         #else
         Button {
@@ -127,7 +127,7 @@ private struct AttachmentMenuRow: View {
 }
 
 #if os(iOS)
-struct DocumentPickerView: UIViewControllerRepresentable {
+struct AttachmentDocumentPickerView: UIViewControllerRepresentable {
     let onFileSelected: (Data, String) -> Void
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
