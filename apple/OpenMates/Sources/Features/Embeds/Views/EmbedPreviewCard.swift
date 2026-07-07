@@ -62,7 +62,7 @@ struct EmbedPreviewCard: View {
     }
 
     private var embedType: EmbedType? {
-        EmbedType(rawValue: embed.type)
+        EmbedType.normalized(rawValue: embed.type)
     }
 
     var body: some View {

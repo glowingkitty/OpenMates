@@ -1361,8 +1361,8 @@ struct ChatView: View {
                     onImageSelected: { data, filename in
                         Task { await viewModel.uploadAttachment(data: data, filename: filename) }
                     },
-                    onFileSelected: { url in
-                        Task { await viewModel.uploadFile(url: url) }
+                    onFileSelected: { data, filename in
+                        Task { await viewModel.uploadFile(data: data, filename: filename) }
                     }
                 )
                 .help(Text(AppStrings.attachFiles))
@@ -1490,9 +1490,7 @@ struct ChatView: View {
                     self.recordStartedFromKeyboard = false
                     self.recordDragOffsetX = 0
                     Task {
-                        if let transcript = await viewModel.uploadRecording(url: url, duration: composerRecorder.duration) {
-                            appendRecordingTranscript(transcript)
-                        }
+                        await viewModel.uploadRecording(url: url, duration: composerRecorder.duration)
                     }
                 },
                 onCancel: {
@@ -1720,9 +1718,7 @@ struct ChatView: View {
             recordStartedFromKeyboard = false
             recordDragOffsetX = 0
             Task {
-                if let transcript = await viewModel.uploadRecording(url: url, duration: composerRecorder.duration) {
-                    appendRecordingTranscript(transcript)
-                }
+                await viewModel.uploadRecording(url: url, duration: composerRecorder.duration)
             }
             return
         }
@@ -1823,12 +1819,6 @@ struct ChatView: View {
             guard !Task.isCancelled else { return }
             recordHintVisible = false
         }
-    }
-
-    private func appendRecordingTranscript(_ transcript: String) {
-        let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        messageText += messageText.isEmpty ? trimmed : "\n\(trimmed)"
     }
 
     private func sendMessage() {

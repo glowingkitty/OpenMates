@@ -634,6 +634,14 @@ enum EmbedType: String, CaseIterable {
     case socialMediaGetPosts = "app:social_media:get-posts"
     case socialMediaSearch = "app:social_media:search"
 
+    static func normalized(rawValue: String) -> EmbedType? {
+        switch rawValue {
+        case "audio-recording": return .recording
+        case "images-image": return .image
+        default: return EmbedType(rawValue: rawValue)
+        }
+    }
+
     var isComposite: Bool {
         switch self {
         case .codeRepoSearch, .electronicsSearch,

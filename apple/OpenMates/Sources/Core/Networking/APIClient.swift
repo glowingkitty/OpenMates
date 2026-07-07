@@ -58,6 +58,35 @@ actor APIClient {
         ServerConfiguration.current.uploadBaseURL
     }
 
+    func uploadFile(
+        data: Data,
+        filename: String,
+        contentType: String,
+        chatId: String
+    ) async throws -> Data {
+        let boundary = UUID().uuidString
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(contentType)\r\n\r\n".data(using: .utf8)!)
+        body.append(data)
+        body.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n".data(using: .utf8)!)
+        body.append(chatId.data(using: .utf8)!)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+
+        let uploadURL = uploadBaseURL.appendingPathComponent("v1/upload/file")
+        var request = URLRequest(url: uploadURL)
+        request.httpMethod = HTTPMethod.post.rawValue
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue(webAppURL.absoluteString, forHTTPHeaderField: "Origin")
+        Self.nativeClientHeaders.forEach { key, value in
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        request.httpBody = body
+        return try await execute(request)
+    }
+
     // MARK: - Encodable body
 
     func request(

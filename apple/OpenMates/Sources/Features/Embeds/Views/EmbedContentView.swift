@@ -46,7 +46,7 @@ struct EmbedContentView: View {
     }
 
     private var embedType: EmbedType? {
-        EmbedType(rawValue: embed.type)
+        EmbedType.normalized(rawValue: embed.type)
     }
 
     private var shouldUseCompositeRenderer: Bool {

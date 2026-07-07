@@ -44,7 +44,7 @@ struct EmbedFullscreenContainer: View {
 
     private var currentEmbedType: EmbedType? {
         guard let currentEmbed else { return nil }
-        return EmbedType(rawValue: currentEmbed.type)
+        return EmbedType.normalized(rawValue: currentEmbed.type)
     }
 
     private var isCodeEmbed: Bool {
@@ -709,7 +709,7 @@ struct EmbedFullscreenHeader: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var animateHeader = false
 
-    private var embedType: EmbedType? { EmbedType(rawValue: embed.type) }
+    private var embedType: EmbedType? { EmbedType.normalized(rawValue: embed.type) }
     private var appId: String { embed.appId ?? embedType?.appId ?? "web" }
     private var headerHeight: CGFloat { horizontalSizeClass == .compact ? 190 : 240 }
     private var headerFrameHeight: CGFloat {

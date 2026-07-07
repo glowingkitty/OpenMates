@@ -205,7 +205,7 @@ struct RemotionVideoCreateRenderer: View {
     @ViewBuilder
     private var thumbnailView: some View {
         if let thumbnailS3URL = model.thumbnailS3URL, let aesKey = model.aesKey, let aesNonce = model.aesNonce {
-            EncryptedImageView(s3Url: thumbnailS3URL, aesKey: aesKey, aesNonce: aesNonce, contentMode: .fill)
+            EncryptedImageView(s3Url: thumbnailS3URL, s3Key: nil, aesKey: aesKey, aesNonce: aesNonce, contentMode: .fill)
         } else if let thumbnailURL = model.thumbnailURL, let url = URL(string: thumbnailURL) {
             CachedRemoteImage(url: url) { image in
                 image.resizable().aspectRatio(contentMode: .fill)

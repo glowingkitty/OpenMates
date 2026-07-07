@@ -1715,6 +1715,12 @@ final class ChatViewModel: ObservableObject {
             return nil
         }
         let safeUpload = redactedUploadContentIfNeeded(data, filename: filename)
+        if let textContent = safeUpload.redactedText ?? String(data: data, encoding: .utf8), isSupportedPIIRedactableTextFile(filename) {
+            registerPendingComposerEmbed(
+                .document(filename: filename, textContent: textContent, piiMappings: safeUpload.piiMappings)
+            )
+            return nil
+        }
         let uploadId = UUID().uuidString
         PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
 
@@ -1722,13 +1728,13 @@ final class ChatViewModel: ObservableObject {
             safeUpload.data,
             filename: filename,
             uploadId: uploadId,
-            contentType: "application/octet-stream",
+            contentType: Self.contentType(for: filename, fallback: "application/octet-stream"),
             markFinishedOnSuccess: false
         ) else { return nil }
         registerPendingComposerEmbed(
             upload,
             localData: safeUpload.data,
-            transcript: nil,
+            transcription: nil,
             duration: nil,
             piiMappings: safeUpload.piiMappings,
             textContent: safeUpload.redactedText
@@ -1826,17 +1832,17 @@ final class ChatViewModel: ObservableObject {
                 path: "apps/audio/skills/transcribe",
                 body: request
             )
-            let transcript = response.data.results.first?.results.first?.transcript
+            let transcription = response.data.results.first?.results.first
             registerPendingComposerEmbed(
                 upload,
                 localData: data,
-                transcript: transcript,
+                transcription: transcription,
                 duration: duration,
                 piiMappings: [],
                 textContent: nil
             )
             PendingUploadStore.shared.markFinished(id: uploadId)
-            return transcript
+            return transcription?.displayTranscript
         } catch {
             print("[Chat] Recording transcription error: \(error)")
             PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
@@ -1853,33 +1859,13 @@ final class ChatViewModel: ObservableObject {
     ) async -> UploadFileResponse? {
         guard let chatId = chat?.id else { return nil }
 
-        let boundary = UUID().uuidString
-        var body = Data()
-
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: \(contentType)\r\n\r\n".data(using: .utf8)!)
-        body.append(data)
-        body.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n".data(using: .utf8)!)
-        body.append(chatId.data(using: .utf8)!)
-        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-
         do {
-            let uploadURL = await APIClient.shared.uploadBaseURL
-                .appendingPathComponent("v1/upload/file")
-            var request = URLRequest(url: uploadURL)
-            request.httpMethod = "POST"
-            request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-            request.httpBody = body
-
-            let (responseData, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode) else {
-                print("[Chat] Upload failed")
-                PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.error)
-                return nil
-            }
+            let responseData = try await APIClient.shared.uploadFile(
+                data: data,
+                filename: filename,
+                contentType: contentType,
+                chatId: chatId
+            )
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             let upload = try decoder.decode(UploadFileResponse.self, from: responseData)
@@ -1902,6 +1888,14 @@ final class ChatViewModel: ObservableObject {
         }
         guard let data = try? Data(contentsOf: url) else { return }
         await uploadAttachment(data: data, filename: url.lastPathComponent)
+    }
+
+    func uploadFile(data: Data, filename: String) async {
+        if let chatId = chat?.id, AnonymousFreeUsageService.shared.isAnonymousChat(chatId) {
+            ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
+            return
+        }
+        await uploadAttachment(data: data, filename: filename)
     }
 
     func removePendingComposerEmbed(id: String) {
@@ -1935,7 +1929,7 @@ final class ChatViewModel: ObservableObject {
         registerPendingComposerEmbed(
             upload,
             localData: Data(repeating: 0, count: 128),
-            transcript: nil,
+            transcription: nil,
             duration: nil,
             piiMappings: [],
             textContent: nil
@@ -1946,7 +1940,7 @@ final class ChatViewModel: ObservableObject {
     private func registerPendingComposerEmbed(
         _ upload: UploadFileResponse,
         localData: Data?,
-        transcript: String?,
+        transcription: TranscriptionMetadata?,
         duration: TimeInterval?,
         piiMappings: [PIIMapping],
         textContent: String?
@@ -1954,11 +1948,15 @@ final class ChatViewModel: ObservableObject {
         let embed = ComposerPendingEmbed.from(
             upload: upload,
             localData: localData,
-            transcript: transcript,
+            transcription: transcription,
             duration: duration,
             piiMappings: piiMappings,
             textContent: textContent
         )
+        registerPendingComposerEmbed(embed)
+    }
+
+    private func registerPendingComposerEmbed(_ embed: ComposerPendingEmbed) {
         pendingComposerEmbeds.removeAll { $0.id == embed.id }
         pendingComposerEmbeds.append(embed)
         embedRecords[embed.record.id] = embed.record
@@ -1972,6 +1970,26 @@ final class ChatViewModel: ObservableObject {
         let references = embeds.map(\.markdownReference).joined(separator: "\n")
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? references : "\(trimmed)\n\n\(references)"
+    }
+
+    private static func contentType(for filename: String, fallback: String) -> String {
+        switch URL(fileURLWithPath: filename).pathExtension.lowercased() {
+        case "jpg", "jpeg": return "image/jpeg"
+        case "png": return "image/png"
+        case "gif": return "image/gif"
+        case "webp": return "image/webp"
+        case "heic": return "image/heic"
+        case "heif": return "image/heif"
+        case "svg": return "image/svg+xml"
+        case "pdf": return "application/pdf"
+        case "m4a", "mp4": return "audio/mp4"
+        case "webm": return "audio/webm"
+        case "ogg": return "audio/ogg"
+        case "mp3": return "audio/mpeg"
+        case "wav": return "audio/wav"
+        case "aac": return "audio/aac"
+        default: return fallback
+        }
     }
 }
 
@@ -1995,6 +2013,38 @@ struct UploadedFileVariant: Decodable {
     let width: Int?
     let height: Int?
     let format: String?
+}
+
+struct TranscriptionMetadata: Decodable {
+    let transcript: String?
+    let transcriptOriginal: String?
+    let transcriptCorrected: String?
+    let useCorrected: Bool?
+    let model: String?
+    let correctionModel: String?
+
+    init(
+        transcript: String?,
+        transcriptOriginal: String? = nil,
+        transcriptCorrected: String? = nil,
+        useCorrected: Bool? = nil,
+        model: String? = nil,
+        correctionModel: String? = nil
+    ) {
+        self.transcript = transcript
+        self.transcriptOriginal = transcriptOriginal
+        self.transcriptCorrected = transcriptCorrected
+        self.useCorrected = useCorrected
+        self.model = model
+        self.correctionModel = correctionModel
+    }
+
+    var displayTranscript: String? {
+        if useCorrected == true, let transcriptCorrected, !transcriptCorrected.isEmpty {
+            return transcriptCorrected
+        }
+        return transcript
+    }
 }
 
 struct ComposerPendingEmbed: Identifiable {
@@ -2057,7 +2107,7 @@ struct ComposerPendingEmbed: Identifiable {
                 deduplicated: true
             ),
             localData: Data(repeating: 0, count: 128),
-            transcript: nil,
+            transcription: nil,
             duration: nil
         )
     }
@@ -2066,7 +2116,7 @@ struct ComposerPendingEmbed: Identifiable {
     static func from(
         upload: UploadFileResponse,
         localData: Data?,
-        transcript: String?,
+        transcription: TranscriptionMetadata?,
         duration: TimeInterval?,
         piiMappings: [PIIMapping] = [],
         textContent: String? = nil
@@ -2074,12 +2124,12 @@ struct ComposerPendingEmbed: Identifiable {
         let classification = ComposerUploadClassification(upload: upload)
         let contentObject = classification.contentObject(
             upload: upload,
-            transcript: transcript,
+            transcription: transcription,
             duration: duration,
             textContent: textContent
         )
         let content = classification.shouldSendContent ? jsonString(contentObject) : nil
-        let preview = transcript ?? upload.filename
+        let preview = transcription?.displayTranscript ?? upload.filename
         let record = EmbedRecord(
             id: upload.embedId,
             type: classification.embedType,
@@ -2102,6 +2152,45 @@ struct ComposerPendingEmbed: Identifiable {
             localData: localData,
             filename: upload.filename,
             size: localData?.count ?? upload.files.values.compactMap(\.sizeBytes).max() ?? 0,
+            piiMappings: piiMappings
+        )
+    }
+
+    static func document(filename: String, textContent: String, piiMappings: [PIIMapping]) -> ComposerPendingEmbed {
+        let embedId = UUID().uuidString.lowercased()
+        let now = String(Int(Date().timeIntervalSince1970))
+        let contentObject: [String: Any] = [
+            "app_id": "docs",
+            "type": "file",
+            "status": "finished",
+            "filename": filename,
+            "title": filename,
+            "content": textContent,
+            "word_count": textContent.split { $0.isWhitespace }.count
+        ]
+        let content = jsonString(contentObject)
+        let record = EmbedRecord(
+            id: embedId,
+            type: "docs-doc",
+            status: .finished,
+            data: .raw(contentObject.mapValues { AnyCodable($0) }),
+            parentEmbedId: nil,
+            appId: "docs",
+            skillId: nil,
+            embedIds: nil,
+            createdAt: now
+        )
+        return ComposerPendingEmbed(
+            id: embedId,
+            type: "docs-doc",
+            referenceType: "docs-doc",
+            status: "finished",
+            content: content,
+            textPreview: filename,
+            record: record,
+            localData: Data(textContent.utf8),
+            filename: filename,
+            size: textContent.utf8.count,
             piiMappings: piiMappings
         )
     }
@@ -2147,7 +2236,7 @@ private struct ComposerUploadClassification {
             status = upload.deduplicated == true ? "finished" : "processing"
             appId = "pdf"
             skillId = nil
-            shouldSendContent = upload.deduplicated == true
+            shouldSendContent = true
         } else {
             embedType = "docs-doc"
             referenceType = "file"
@@ -2158,7 +2247,7 @@ private struct ComposerUploadClassification {
         }
     }
 
-    func contentObject(upload: UploadFileResponse, transcript: String?, duration: TimeInterval?, textContent: String?) -> [String: Any] {
+    func contentObject(upload: UploadFileResponse, transcription: TranscriptionMetadata?, duration: TimeInterval?, textContent: String?) -> [String: Any] {
         var object: [String: Any] = [
             "app_id": appId,
             "type": referenceType,
@@ -2180,7 +2269,15 @@ private struct ComposerUploadClassification {
         if let skillId { object["skill_id"] = skillId }
         if let contentHash = upload.contentHash { object["content_hash"] = contentHash }
         if let pageCount = upload.pageCount { object["page_count"] = pageCount }
-        if let transcript { object["transcript"] = transcript }
+        if let transcription {
+            if let transcript = transcription.transcript { object["transcript"] = transcript }
+            if let displayTranscript = transcription.displayTranscript { object["transcription"] = displayTranscript }
+            if let transcriptOriginal = transcription.transcriptOriginal { object["transcript_original"] = transcriptOriginal }
+            if let transcriptCorrected = transcription.transcriptCorrected { object["transcript_corrected"] = transcriptCorrected }
+            if let useCorrected = transcription.useCorrected { object["use_corrected"] = useCorrected }
+            if let model = transcription.model { object["model"] = model }
+            if let correctionModel = transcription.correctionModel { object["correction_model"] = correctionModel }
+        }
         if let duration { object["duration"] = duration }
         if let textContent, !textContent.isEmpty, appId == "docs" {
             object["content"] = textContent
@@ -2194,10 +2291,7 @@ private struct ComposerUploadClassification {
 private struct TranscribeSkillResponse: Decodable {
     struct ResponseData: Decodable {
         struct ResultGroup: Decodable {
-            struct Result: Decodable {
-                let transcript: String?
-            }
-            let results: [Result]
+            let results: [TranscriptionMetadata]
         }
         let results: [ResultGroup]
     }

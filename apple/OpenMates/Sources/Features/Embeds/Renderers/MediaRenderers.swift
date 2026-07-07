@@ -72,6 +72,7 @@ struct CachedRemoteImage<Content: View, Placeholder: View>: View {
 
 struct EncryptedImageView: View {
     let s3Url: String?
+    let s3Key: String?
     let aesKey: String?
     let aesNonce: String?
     let contentMode: ContentMode
@@ -110,7 +111,10 @@ struct EncryptedImageView: View {
         }
         do {
             imageData = try await S3MediaClient.shared.fetchAndDecrypt(
-                s3Url: s3Url, aesKeyHex: aesKey, aesNonceHex: aesNonce
+                s3Url: s3Url,
+                aesKeyHex: aesKey,
+                aesNonceHex: aesNonce,
+                s3Key: s3Key
             )
         } catch {
             self.error = error.localizedDescription
@@ -218,6 +222,7 @@ extension NativeImagePreviewer: QLPreviewPanelDataSource, QLPreviewPanelDelegate
 
 struct TappableEncryptedImageView: View {
     let s3Url: String?
+    let s3Key: String?
     let aesKey: String?
     let aesNonce: String?
     let filename: String?
@@ -264,7 +269,10 @@ struct TappableEncryptedImageView: View {
         }
         do {
             imageData = try await S3MediaClient.shared.fetchAndDecrypt(
-                s3Url: s3Url, aesKeyHex: aesKey, aesNonceHex: aesNonce
+                s3Url: s3Url,
+                aesKeyHex: aesKey,
+                aesNonceHex: aesNonce,
+                s3Key: s3Key
             )
         } catch {
             self.error = error.localizedDescription
@@ -378,10 +386,13 @@ struct RecordingRenderer: View {
     let mode: EmbedDisplayMode
 
     private var duration: Double? { data?["duration"]?.value as? Double }
-    private var transcription: String? { data?["transcription"]?.value as? String }
-    private var s3Url: String? { data?["s3_url"]?.value as? String }
-    private var aesKey: String? { data?["aes_key"]?.value as? String }
-    private var aesNonce: String? { data?["aes_nonce"]?.value as? String }
+    private var transcription: String? {
+        EmbedMediaPayload.string(data, keys: ["transcription", "transcript_corrected", "transcript"])
+    }
+    private var s3Url: String? { EmbedMediaPayload.s3URL(from: data) }
+    private var s3Key: String? { EmbedMediaPayload.s3Key(from: data) }
+    private var aesKey: String? { EmbedMediaPayload.string(data, keys: ["aes_key"]) }
+    private var aesNonce: String? { EmbedMediaPayload.string(data, keys: ["aes_nonce"]) }
 
     @State private var isPlaying = false
     @State private var audioData: Data?
@@ -467,7 +478,10 @@ struct RecordingRenderer: View {
         Task {
             do {
                 let data = try await S3MediaClient.shared.fetchAndDecrypt(
-                    s3Url: s3Url, aesKeyHex: aesKey, aesNonceHex: aesNonce
+                    s3Url: s3Url,
+                    aesKeyHex: aesKey,
+                    aesNonceHex: aesNonce,
+                    s3Key: s3Key
                 )
                 audioData = data
 
@@ -496,9 +510,10 @@ struct PDFRenderer: View {
 
     private var filename: String? { data?["filename"]?.value as? String }
     private var pageCount: Int? { data?["page_count"]?.value as? Int }
-    private var s3Url: String? { data?["s3_url"]?.value as? String }
-    private var aesKey: String? { data?["aes_key"]?.value as? String }
-    private var aesNonce: String? { data?["aes_nonce"]?.value as? String }
+    private var s3Url: String? { EmbedMediaPayload.s3URL(from: data) }
+    private var s3Key: String? { EmbedMediaPayload.s3Key(from: data) }
+    private var aesKey: String? { EmbedMediaPayload.string(data, keys: ["aes_key"]) }
+    private var aesNonce: String? { EmbedMediaPayload.string(data, keys: ["aes_nonce"]) }
 
     @State private var pdfData: Data?
     @State private var isLoading = false
@@ -563,7 +578,10 @@ struct PDFRenderer: View {
         Task {
             do {
                 pdfData = try await S3MediaClient.shared.fetchAndDecrypt(
-                    s3Url: s3Url, aesKeyHex: aesKey, aesNonceHex: aesNonce
+                    s3Url: s3Url,
+                    aesKeyHex: aesKey,
+                    aesNonceHex: aesNonce,
+                    s3Key: s3Key
                 )
             } catch {
                 loadError = error.localizedDescription
