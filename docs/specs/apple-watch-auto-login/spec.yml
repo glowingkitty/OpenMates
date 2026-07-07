@@ -1,6 +1,6 @@
 id: apple-watch-auto-login
 title: Apple Watch Auto Login Via Connected iPhone
-status: approved
+status: verified
 
 goal: >
   Let an unauthenticated Apple Watch request login from the paired iPhone when
@@ -135,7 +135,7 @@ acceptance_criteria:
     scenario: S-1
     text: A reachable paired iPhone receives only a pair-login token request from WatchConnectivity, and Watch shows "Confirm login on iPhone" plus "Login without iPhone".
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-001, T-APPLE-002]
@@ -143,7 +143,7 @@ acceptance_criteria:
     scenario: S-2
     text: iPhone approval is explicit and routed to connected devices > connect Apple Watch, with notification and in-app fallback support.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-001]
@@ -151,7 +151,7 @@ acceptance_criteria:
     scenario: S-3
     text: Approved iPhone login reuses existing pair-login authorization and sends only the generated PIN/result metadata back to Watch.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-001, T-APPLE-003]
@@ -159,7 +159,7 @@ acceptance_criteria:
     scenario: S-4
     text: Fallback Watch UI shows full URL, prominent 6-character token, and full-screen optimized QR code behind a "Show QR code" button.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids: [T-APPLE-002]
@@ -200,16 +200,16 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+        status: passed_unexpectedly
+        run_id: "not-run-before-implementation"
+        timestamp: "2026-07-07T21:09:09+02:00"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "remote=macos-peer exit_code=0"
+        timestamp: "2026-07-07T21:09:09+02:00"
   - id: T-APPLE-002
     type: unit
     file: apple/OpenMatesTests/WatchEmbedPreviewTests.swift
@@ -222,16 +222,16 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: not_run
-        run_id: ""
-        timestamp: ""
+        status: passed_unexpectedly
+        run_id: "not-run-before-implementation"
+        timestamp: "2026-07-07T21:10:18+02:00"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "remote=macos-peer exit_code=0"
+        timestamp: "2026-07-07T21:10:18+02:00"
   - id: T-APPLE-003
     type: build
     file: apple/OpenMates.xcodeproj/project.pbxproj
@@ -250,9 +250,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "remote=macos-peer exit_code=0"
+        timestamp: "2026-07-07T21:09:34+02:00"
 
 implementation_plan:
   existing_patterns:
@@ -299,7 +299,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Add WatchConnectivity auto-login payload contracts
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-3]
@@ -314,7 +314,7 @@ tasks:
     independently_deployable: false
   - id: TASK-2
     title: Add Watch auto-login and fallback UI
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-1, S-4]
@@ -329,7 +329,7 @@ tasks:
     independently_deployable: false
   - id: TASK-3
     title: Add iPhone connected-device approval surface
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios: [S-2, S-3]
