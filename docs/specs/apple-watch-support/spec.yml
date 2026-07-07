@@ -3,7 +3,8 @@ title: Apple Watch Support
 status: verified
 
 goal: >
-  Add an independent Apple Watch app for OpenMates that logs in through the
+  Add an Apple Watch companion app for OpenMates with an independent Watch runtime
+  that logs in through the
   existing QR/PIN pair-login flow, syncs and caches chats directly, renders the
   regular OpenMates chat experience with Watch-adapted dark UI, supports compact
   unified embed previews, and lets users reply or start chats with text or audio
@@ -12,7 +13,8 @@ goal: >
 
 scope:
   in:
-    - New independent watchOS app target in the existing Apple project.
+    - New watchOS companion app target in the existing Apple project, bundled with the iOS app for TestFlight/App Store distribution.
+    - Watch runtime remains independent after install: direct backend/WebSocket sync, local session/key storage, and no dependence on a nearby powered-on iPhone.
     - Watch QR/PIN pair-login as the only V1 authentication path.
     - Watch-local authenticated session state, Keychain-backed master key storage, chat-key loading, WebSocket phased sync, and offline persistence.
     - Dark Watch-native chat UI based on the provided design direction for login, chat list, chat detail, composer, and embed detail shells.
@@ -22,7 +24,7 @@ scope:
     - Full Watch preview support for website, web video, image, audio recording, code, PDF, maps/place, search result groups, travel stays/connections, shopping product, weather, and reminder embeds.
     - Watch embed detail/fullscreen shell that always presents Open on iPhone / Mac instead of rich fullscreen interactions on the Watch.
     - Handoff/universal-link/QR continuation for opening the current chat or embed on iPhone or Mac, with WatchConnectivity as optional paired-iPhone enhancement only.
-    - Remote Mac verification support for watchOS build and targeted watchOS tests.
+    - Remote Mac verification support for watchOS build, targeted watchOS tests, and iOS TestFlight archive validation that embeds the Watch companion.
   out:
     - Native signup, password login, passkey login, recovery-key login, backup-code login, or billing on Watch in V1.
     - Stock watchOS UI rewrite using default product chrome instead of OpenMates primitives/tokens.
@@ -32,6 +34,7 @@ scope:
     - Apple Watch complications, widgets, notification reply flows, or Action Button shortcuts in the first implementation slice.
     - CloudKit, iCloud Keychain sync, or Apple cloud storage for OpenMates encryption keys.
     - Backend auth or encryption policy changes beyond minimal client metadata/device-info support if required for watchOS.
+    - Separate watchOS-only TestFlight upload automation; the Watch app ships through the iOS archive.
 
 context_discovery:
   github_issues:
@@ -49,6 +52,7 @@ context_discovery:
     - apple/CLAUDE.md
     - .claude/rules/apple-ui.md
     - "Apple Developer: Creating independent watchOS apps"
+    - "Apple Developer: WKRunsIndependentlyOfCompanionApp Info.plist key"
     - "Apple Developer: Transferring data with Watch Connectivity"
     - "Apple Developer: Implementing Handoff in Your App"
   code_patterns:
@@ -128,20 +132,25 @@ clarification:
         Same behavior as iOS: embed and require the user to send manually.
     - question: Should Watch V1 require internet access after QR/PIN login, or also support offline cached chat reading and queued sends from the first release?
       answer: Offline caching like the iOS app is required.
+    - question: Should the user install one iPhone app and receive the Watch app through the normal companion install flow, while the Watch app still works without the phone nearby after installation?
+      answer: Yes. Bundle the Watch app with iOS for distribution, but keep the Watch runtime independent.
   vision_summary: >
-    Build a standalone Apple Watch OpenMates app with dark Watch-native chat UI,
+    Build an Apple Watch OpenMates companion app with an independent runtime,
+    dark Watch-native chat UI,
     QR/PIN pair login, offline cached chat reading, queued sends, text/audio
     composer flows, and full compact preview support for the listed embed types.
     Watch embed previews keep existing OpenMates embed colors in a new small size,
     while any fullscreen/detail action becomes a continuation surface for opening
-    the chat/embed on iPhone or Mac.
+    the chat/embed on iPhone or Mac. The Watch app is bundled in the iOS archive
+    for TestFlight/App Store distribution so users install a single iPhone app,
+    but the Watch client does not rely on the phone being nearby or powered on.
   approved_by_user: true
 
 scenarios:
   - id: S-1
     title: User logs into Watch through QR/PIN pair login
     given:
-      - Alice installs the independent OpenMates Watch app without requiring the iPhone app to be installed.
+      - Alice installs the OpenMates iPhone app, and the bundled Watch companion is available for automatic or manual Apple Watch installation.
       - Alice has an OpenMates account that can authorize pair login from another signed-in device.
     when:
       - Alice opens the Watch app while unauthenticated.
@@ -298,22 +307,24 @@ acceptance_criteria:
     verification_ids: [T-WATCH-OFFLINE-UNIT, T-WATCH-CHAT-FLOW-UI]
   - id: AC-9
     scenario: S-1
-    text: Remote Apple tooling can build and test the watchOS target through sanitized scripts/apple_remote.py commands.
+    text: Remote Apple tooling can build and test the watchOS target, and TestFlight automation validates that the iOS archive embeds the independently runnable Watch companion instead of uploading a separate watchOS archive.
     required: true
     status: satisfied
     coverage_status: covered
     verification_scope: custom
-    verification_ids: [T-WATCH-REMOTE-TOOLING, T-WATCH-BUILD]
+    verification_ids: [T-WATCH-REMOTE-TOOLING, T-WATCH-BUILD, T-WATCH-TESTFLIGHT-DISTRIBUTION]
 
 assumptions:
   - id: A-1
-    text: Apple supports independent watchOS apps that run without installing the companion iOS app when configured as independent.
+    text: Apple supports watchOS companion apps that can run independently of the iOS companion after installation when WKRunsIndependentlyOfCompanionApp is enabled.
     category: platform
     required_before: implementation
     status: confirmed
     evidence:
-      - source: "Apple Developer: Creating independent watchOS apps"
-        summary: Apple documents independent watchOS apps that sign in, download data, request permissions, and sync directly without requiring a companion iOS app.
+      - source: "Apple Developer: WKRunsIndependentlyOfCompanionApp Info.plist key"
+        summary: Apple documents the key as allowing the user to install and run the watchOS app independently of its iOS companion app.
+      - source: apple/OpenMatesWatch/Info.plist
+        summary: The Watch app declares org.openmates.app as its companion and WKRunsIndependentlyOfCompanionApp=true, while omitting WKWatchOnly.
   - id: A-2
     text: WatchConnectivity may enhance paired-iPhone behavior but cannot be the primary data source for a standalone Watch app.
     category: platform
@@ -422,6 +433,17 @@ tests:
       - Watch target has independent-app configuration and required entitlements.
     red_phase: { required: true, expected: fail, evidence: { status: missing_test, run_id: "", timestamp: "" } }
     green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-build-watch-f10a174", timestamp: "2026-07-07T03:12:05Z" } }
+  - id: T-WATCH-TESTFLIGHT-DISTRIBUTION
+    type: pytest
+    file: scripts/tests/test_apple_remote_testflight.py
+    command: python3 -m pytest scripts/tests/test_apple_remote_testflight.py
+    covers: [AC-9]
+    assertions:
+      - The iOS target embeds OpenMatesWatch as an iOS companion dependency.
+      - The Watch Info.plist uses WKCompanionAppBundleIdentifier and WKRunsIndependentlyOfCompanionApp instead of WKWatchOnly.
+      - deploy-latest-testflight uploads iOS and macOS only, while the iOS upload validates an embedded Watch companion before upload.
+    red_phase: { required: true, expected: fail, evidence: { status: missing_test, run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "local-pytest-15-tests", timestamp: "2026-07-07T17:28:00Z" } }
   - id: T-WATCH-PAIR-LOGIN-UNIT
     type: unit
     file: apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift

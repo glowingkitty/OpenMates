@@ -139,6 +139,10 @@ targets:
         platforms: [macOS]
       - target: OpenMatesWidget
         platforms: [iOS]
+      - target: OpenMatesWatch
+        platforms: [iOS]
+        embed: true
+        codeSign: true
 
   # Independent watchOS app — starts with standalone target plumbing; auth/chat UI lands in later spec tasks.
   OpenMatesWatch:
@@ -202,8 +206,9 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
+        WKCompanionAppBundleIdentifier: org.openmates.app
         WKApplication: true
-        WKWatchOnly: true
+        WKRunsIndependentlyOfCompanionApp: true
         NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
         UIAppFonts:
           - LexendDeca-Light.ttf

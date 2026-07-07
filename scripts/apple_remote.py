@@ -1058,6 +1058,36 @@ def assert_ios_archive_passkey_entitlements():
     print("archive_entitlements_check=passed")
 
 
+def assert_ios_archive_embeds_watch_companion():
+    if target_platform != "ios":
+        return
+    watch_apps = sorted((archive_path / "Products" / "Applications" / "OpenMates.app" / "Watch").glob("*.app"))
+    if not watch_apps:
+        print("archive_watch_companion=missing")
+        print("hint=iOS TestFlight uploads must carry the OpenMates Watch companion app; do not upload a watchOS-only archive separately.")
+        sys.exit(1)
+    info_path = watch_apps[0] / "Info.plist"
+    if not info_path.exists():
+        print("archive_watch_companion=missing_info_plist")
+        sys.exit(1)
+    try:
+        with info_path.open("rb") as handle:
+            info = plistlib.load(handle)
+    except Exception as exc:
+        print(f"archive_watch_companion=invalid_info_plist:{type(exc).__name__}")
+        sys.exit(1)
+    bundle_id = info.get("CFBundleIdentifier")
+    companion_id = info.get("WKCompanionAppBundleIdentifier")
+    runs_independently = info.get("WKRunsIndependentlyOfCompanionApp")
+    if bundle_id != "org.openmates.app.watch" or companion_id != "org.openmates.app" or runs_independently is not True:
+        print("archive_watch_companion=invalid_metadata")
+        print(f"watch_bundle_id={bundle_id or 'missing'}")
+        print(f"watch_companion_bundle_id={companion_id or 'missing'}")
+        print(f"watch_runs_independently={runs_independently!r}")
+        sys.exit(1)
+    print("archive_watch_companion=passed")
+
+
 
 preflight_signing()
 build_translations()
@@ -1137,6 +1167,7 @@ if archive.returncode != 0:
 print("archive_status=passed")
 stamp_unsigned_macos_archive_entitlements()
 assert_ios_archive_passkey_entitlements()
+assert_ios_archive_embeds_watch_companion()
 
 export_cmd = [
     "xcodebuild",
@@ -2283,14 +2314,6 @@ def deploy_latest_testflight_command(
     commands = [
         sync_repo_command(branch),
         upload_testflight_ios_command(
-            internal_only,
-            api_key_path=api_key_path,
-            api_key_id=api_key_id,
-            api_issuer_id=api_issuer_id,
-            whats_new=whats_new,
-            whats_new_locale=whats_new_locale,
-        ),
-        upload_testflight_watch_command(
             internal_only,
             api_key_path=api_key_path,
             api_key_id=api_key_id,

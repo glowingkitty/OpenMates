@@ -20,6 +20,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = ROOT / "scripts" / "apple_remote.py"
+APPLE_PROJECT_YAML = ROOT / "apple" / "project.yml"
+WATCH_INFO_PLIST = ROOT / "apple" / "OpenMatesWatch" / "Info.plist"
 
 
 def load_apple_remote():
@@ -62,7 +64,7 @@ def test_created_profiles_use_decoded_installed_uuid_for_export() -> None:
     assert "profile_names[identifier] = installed_uuid or profile_uuid" in script
 
 
-def test_deploy_latest_testflight_syncs_then_uploads_both_platforms() -> None:
+def test_deploy_latest_testflight_syncs_then_uploads_ios_and_macos() -> None:
     apple_remote = load_apple_remote()
 
     command = apple_remote.deploy_latest_testflight_command(
@@ -75,10 +77,10 @@ def test_deploy_latest_testflight_syncs_then_uploads_both_platforms() -> None:
     )
 
     assert command.index("git fetch origin dev") < command.index("APP_STORE_CONNECT_API_KEY_PATH=/private/key.p8")
-    assert command.count("python3 -c") == 3
+    assert command.count("python3 -c") == 2
     assert "APP_STORE_CONNECT_API_KEY_ID=KEY123" in command
     assert "APP_STORE_CONNECT_API_ISSUER_ID=ISSUER123" in command
-    assert "watchos" in command
+    assert " watchos " not in command
     assert "macos" in command
 
 
@@ -101,14 +103,39 @@ def test_upload_testflight_ios_can_attach_whats_new_text() -> None:
     assert script.index('print("upload_status=passed")') < script.rindex("upsert_testflight_whats_new()")
 
 
-def test_deploy_latest_testflight_passes_whats_new_to_all_platform_commands() -> None:
+def test_deploy_latest_testflight_passes_whats_new_to_upload_commands() -> None:
     apple_remote = load_apple_remote()
 
     command = apple_remote.deploy_latest_testflight_command("dev", True, whats_new="Release notes")
     encoded = base64.b64encode(b"Release notes").decode("ascii")
 
-    assert command.count(encoded) == 3
+    assert command.count(encoded) == 2
     assert "whats_new_status=skipped_watchos" in apple_remote.TESTFLIGHT_IOS_SCRIPT
+
+
+def test_ios_testflight_archive_requires_embedded_watch_companion() -> None:
+    apple_remote = load_apple_remote()
+    script = apple_remote.TESTFLIGHT_IOS_SCRIPT
+
+    assert "assert_ios_archive_embeds_watch_companion()" in script
+    assert "archive_watch_companion=missing" in script
+    assert "WKCompanionAppBundleIdentifier" in script
+    assert "WKRunsIndependentlyOfCompanionApp" in script
+    assert script.index("assert_ios_archive_embeds_watch_companion()") < script.index('print("upload_status=started")')
+
+
+def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
+    project_yaml = APPLE_PROJECT_YAML.read_text(encoding="utf-8")
+    watch_info = WATCH_INFO_PLIST.read_text(encoding="utf-8")
+
+    assert "- target: OpenMatesWatch" in project_yaml
+    assert "platforms: [iOS]" in project_yaml
+    assert "embed: true" in project_yaml
+    assert "WKCompanionAppBundleIdentifier" in project_yaml
+    assert "WKRunsIndependentlyOfCompanionApp" in project_yaml
+    assert "WKWatchOnly" not in watch_info
+    assert "WKCompanionAppBundleIdentifier" in watch_info
+    assert "WKRunsIndependentlyOfCompanionApp" in watch_info
 
 
 def test_testflight_notes_options_rejects_duplicate_sources() -> None:
