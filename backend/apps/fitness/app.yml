@@ -65,6 +65,8 @@ skills:
           description: Location search requests.
     class_path: |
       backend.apps.fitness.skills.search_locations.SearchLocationsSkill
+    pricing:
+      fixed: 5
     providers:
       - name: Urban Sports Club
         id: urban_sports_club
@@ -121,6 +123,8 @@ skills:
           description: Class search requests.
     class_path: |
       backend.apps.fitness.skills.search_classes.SearchClassesSkill
+    pricing:
+      fixed: 5
     providers:
       - name: Urban Sports Club
         id: urban_sports_club
