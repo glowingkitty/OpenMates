@@ -14,6 +14,7 @@ import { appSkillsStore } from "../../../stores/appSkillsStore";
 import { get } from "svelte/store";
 import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesStore";
 import { isProviderHealthy } from "../../../stores/appHealthStore";
+import { authStore } from "../../../stores/authStore";
 import { text } from "../../../i18n/translations";
 import { userProfile } from "../../../stores/userProfile";
 import {
@@ -402,7 +403,7 @@ export async function searchProjectMentions(
   limit: number = PROJECT_MENTION_LIMIT,
 ): Promise<ProjectMentionResult[]> {
   const profile = get(userProfile);
-  if (!profile.user_id) return [];
+  if (!profile.user_id && !get(authStore).isAuthenticated) return [];
 
   try {
     const projects = await listProjects();
