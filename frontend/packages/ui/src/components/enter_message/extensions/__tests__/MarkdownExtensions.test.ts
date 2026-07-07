@@ -15,11 +15,16 @@ import {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  Reflect.deleteProperty(window, 'dispatchEvent');
 });
 
 describe('MarkdownLink', () => {
   it('prefills the current composer for message fallback links without navigating', () => {
-    const dispatchEvent = vi.spyOn(window, 'dispatchEvent').mockReturnValue(true);
+    const dispatchEvent = vi.fn((_event: Event) => true);
+    Object.defineProperty(window, 'dispatchEvent', {
+      configurable: true,
+      value: dispatchEvent,
+    });
 
     expect(isMarkdownInternalHashLink('#message=Save%20place')).toBe(true);
     expect(dispatchMessagePrefillFromHref('#message=Save%20place')).toBe(true);
