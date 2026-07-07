@@ -1,0 +1,795 @@
+title:
+  context: "Title of example chat: Urban Sports Fitness Studios in Berlin"
+  en: "Urban Sports Fitness Studios in Berlin"
+  de: "Urban Sports Fitnessstudios in Berlin"
+  zh: "Urban Sports Fitness Studios in Berlin"
+  es: "Urban Sports Fitness Studios in Berlin"
+  fr: "Urban Sports Fitness Studios in Berlin"
+  pt: "Urban Sports Fitness Studios in Berlin"
+  ru: "Urban Sports Fitness Studios in Berlin"
+  ja: "Urban Sports Fitness Studios in Berlin"
+  ko: "Urban Sports Fitness Studios in Berlin"
+  it: "Urban Sports Fitness Studios in Berlin"
+  tr: "Urban Sports Fitness Studios in Berlin"
+  vi: "Urban Sports Fitness Studios in Berlin"
+  id: "Urban Sports Fitness Studios in Berlin"
+  pl: "Urban Sports Fitness Studios in Berlin"
+  nl: "Urban Sports Fitness Studios in Berlin"
+  ar: "Urban Sports Fitness Studios in Berlin"
+  hi: "Urban Sports Fitness Studios in Berlin"
+  th: "Urban Sports Fitness Studios in Berlin"
+  cs: "Urban Sports Fitness Studios in Berlin"
+  sv: "Urban Sports Fitness Studios in Berlin"
+  he: "Urban Sports Fitness Studios in Berlin"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Urban Sports Fitness Studios in Berlin"
+  en: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  de: "Finde Fitnessstudios des Urban Sports Club in der Nähe mit Entfernung, Aktivitäten und unterstützten Tarifen."
+  zh: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  es: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  fr: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  pt: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  ru: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  ja: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  ko: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  it: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  tr: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  vi: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  id: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  pl: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  nl: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  ar: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  hi: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  th: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  cs: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  sv: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  he: "Find nearby Urban Sports Club fitness studios with distance, activities, and supported plans."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Urban Sports Fitness Studios in Berlin. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  de: "Finde die nächstgelegenen Fitnessstudios des Urban Sports Club in der Nähe der Sorauer Str. 12 in Berlin im Umkreis von 2 km. Gib mir eine kurze sortierte Liste mit Entfernung, Adresse, Aktivitäten und den Urban-Sports-Tarifen, die jeder Ort unterstützt."
+  zh: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  es: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  fr: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  pt: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  ru: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  ja: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  ko: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  it: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  tr: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  vi: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  id: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  pl: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  nl: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  ar: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  hi: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  th: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  cs: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  sv: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  he: "Find the closest Urban Sports Club fitness studios near Sorauer Str. 12, Berlin within 2 km. Give me a concise ranked list with distance, address, activities, and which Urban Sports plans each place supports."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Urban Sports Fitness Studios in Berlin. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Basierend auf deinem Standort an der Sorauer Str. 12 sind hier die nächstgelegenen Fitnessstudios des Urban Sports Club im Umkreis von 2 km, nach Entfernung sortiert:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Adresse:** Ohlauer Str. 38, 10999 Berlin
+        *   **Aktivitäten:** Bouldern
+        *   **Tarife:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Adresse:** Schleusenufer 4, 10997 Berlin
+        *   **Aktivitäten:** Skating
+        *   **Tarife:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Adresse:** Mariannenplatz 2, 10997 Berlin
+        *   **Aktivitäten:** Fechten
+        *   **Tarife:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Adresse:** Hasenheide 109, 10967 Berlin
+        *   **Aktivitäten:** Bootcamp
+        *   **Tarife:** Classic, Premium, Max
+    
+    Möchtest du die verfügbaren Zeitfenster für eine bestimmte Aktivität an einem dieser Orte sehen oder lieber nach einer anderen Trainingsart suchen?
+    ---
+    *⚠️ Dies ist nur eine Bildungsinformation und keine medizinische Beratung. Wende dich bei medizinischen Entscheidungen an deine Ärztin oder deinen Arzt.*
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "28e9c8ac-fcb8-4b6a-9664-5561bd323e4a", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Sorauer Str. 12"}
+    ```
+    
+    Based on your location at Sorauer Str. 12, here are the closest Urban Sports Club fitness studios within 2 km, ranked by distance:
+    
+    1.  **BOULDERKLUB Kreuzberg** (0.68 km)
+        *   **Address:** Ohlauer Str. 38, 10999 Berlin
+        *   **Activities:** Bouldering
+        *   **Plans:** Classic, Premium, Max
+    2.  **Jam Skate Club @Adidas Sports Base** (0.85 km)
+        *   **Address:** Schleusenufer 4, 10997 Berlin
+        *   **Activities:** Skating
+        *   **Plans:** Classic, Premium, Max
+    3.  **presence+blade @Bethanien** (1.09 km)
+        *   **Address:** Mariannenplatz 2, 10997 Berlin
+        *   **Activities:** Fencing
+        *   **Plans:** Essential, Classic, Premium, Max
+    4.  **STORM Bootcamp Berlin - Neue Welt** (1.80 km)
+        *   **Address:** Hasenheide 109, 10967 Berlin
+        *   **Activities:** Bootcamp
+        *   **Plans:** Classic, Premium, Max
+    
+    Would you like to see the available time slots for a specific activity at one of these locations, or perhaps look for a different type of workout?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  de: "Finde verfügbare Zeitfenster für Bootcamp bei STORM Bootcamp Berlin - Neue Welt"
+  zh: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  es: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  fr: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  pt: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  ru: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  ja: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  ko: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  it: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  tr: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  vi: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  id: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  pl: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  nl: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  ar: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  hi: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  th: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  cs: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  sv: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  he: "Find available time slots for bootcamp at STORM Bootcamp Berlin - Neue Welt"
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain the differences between the Urban Sports Club plans"
+  de: "Erkläre die Unterschiede zwischen den Urban-Sports-Club-Tarifen"
+  zh: "Explain the differences between the Urban Sports Club plans"
+  es: "Explain the differences between the Urban Sports Club plans"
+  fr: "Explain the differences between the Urban Sports Club plans"
+  pt: "Explain the differences between the Urban Sports Club plans"
+  ru: "Explain the differences between the Urban Sports Club plans"
+  ja: "Explain the differences between the Urban Sports Club plans"
+  ko: "Explain the differences between the Urban Sports Club plans"
+  it: "Explain the differences between the Urban Sports Club plans"
+  tr: "Explain the differences between the Urban Sports Club plans"
+  vi: "Explain the differences between the Urban Sports Club plans"
+  id: "Explain the differences between the Urban Sports Club plans"
+  pl: "Explain the differences between the Urban Sports Club plans"
+  nl: "Explain the differences between the Urban Sports Club plans"
+  ar: "Explain the differences between the Urban Sports Club plans"
+  hi: "Explain the differences between the Urban Sports Club plans"
+  th: "Explain the differences between the Urban Sports Club plans"
+  cs: "Explain the differences between the Urban Sports Club plans"
+  sv: "Explain the differences between the Urban Sports Club plans"
+  he: "Explain the differences between the Urban Sports Club plans"
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  de: "Suche Yogastudios in der Nähe der Sorauer Str. 12 im Umkreis von 3 km"
+  zh: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  es: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  fr: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  pt: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  ru: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  ja: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  ko: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  it: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  tr: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  vi: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  id: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  pl: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  nl: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  ar: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  hi: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  th: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  cs: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  sv: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  he: "Search for yoga studios near Sorauer Str. 12 within 3 km"
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  de: "Welche Vorteile hat Bouldern im BOULDERKLUB Kreuzberg?"
+  zh: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  es: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  fr: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  pt: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  ru: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  ja: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  ko: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  it: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  tr: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  vi: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  id: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  pl: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  nl: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  ar: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  hi: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  th: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  cs: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  sv: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  he: "What are the benefits of bouldering at BOULDERKLUB Kreuzberg?"
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Show me the fitness classes available at presence+blade @Bethanien"
+  de: "Zeige mir die verfügbaren Fitnesskurse bei presence+blade @Bethanien"
+  zh: "Show me the fitness classes available at presence+blade @Bethanien"
+  es: "Show me the fitness classes available at presence+blade @Bethanien"
+  fr: "Show me the fitness classes available at presence+blade @Bethanien"
+  pt: "Show me the fitness classes available at presence+blade @Bethanien"
+  ru: "Show me the fitness classes available at presence+blade @Bethanien"
+  ja: "Show me the fitness classes available at presence+blade @Bethanien"
+  ko: "Show me the fitness classes available at presence+blade @Bethanien"
+  it: "Show me the fitness classes available at presence+blade @Bethanien"
+  tr: "Show me the fitness classes available at presence+blade @Bethanien"
+  vi: "Show me the fitness classes available at presence+blade @Bethanien"
+  id: "Show me the fitness classes available at presence+blade @Bethanien"
+  pl: "Show me the fitness classes available at presence+blade @Bethanien"
+  nl: "Show me the fitness classes available at presence+blade @Bethanien"
+  ar: "Show me the fitness classes available at presence+blade @Bethanien"
+  hi: "Show me the fitness classes available at presence+blade @Bethanien"
+  th: "Show me the fitness classes available at presence+blade @Bethanien"
+  cs: "Show me the fitness classes available at presence+blade @Bethanien"
+  sv: "Show me the fitness classes available at presence+blade @Bethanien"
+  he: "Show me the fitness classes available at presence+blade @Bethanien"
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  de: "Wie bereite ich mich auf einen Fechtkurs bei presence+blade @Bethanien vor?"
+  zh: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  es: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  fr: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  pt: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  ru: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  ja: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  ko: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  it: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  tr: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  vi: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  id: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  pl: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  nl: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  ar: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  hi: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  th: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  cs: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  sv: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  he: "How do I prepare for a fencing class at presence+blade @Bethanien"
+  verified_by_human: []

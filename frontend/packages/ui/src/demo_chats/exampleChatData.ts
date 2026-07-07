@@ -95,6 +95,8 @@ import { usbC3v3LdoPcbSchematicChat } from "./data/example_chats/usb-c-3v3-ldo-p
 import { berlinMorningBikeForecastChat } from "./data/example_chats/berlin-morning-bike-forecast";
 import { privacyFirstProductLaunchMindMapChat } from "./data/example_chats/privacy-first-product-launch-mind-map";
 import { housingPolicyDinnerDiscussionChat } from "./data/example_chats/housing-policy-dinner-discussion";
+import { urbanSportsFitnessStudiosBerlinChat } from "./data/example_chats/urban-sports-fitness-studios-berlin";
+import { urbanSportsYogaClassesBerlinChat } from "./data/example_chats/urban-sports-yoga-classes-berlin";
 
 export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   giganticAirplanesChat,
@@ -184,6 +186,8 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   berlinMorningBikeForecastChat,
   privacyFirstProductLaunchMindMapChat,
   housingPolicyDinnerDiscussionChat,
+  urbanSportsFitnessStudiosBerlinChat,
+  urbanSportsYogaClassesBerlinChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 // Internal deterministic fixtures used by tests and direct hash navigation only.
