@@ -505,6 +505,7 @@ struct MainAppView: View {
                 .padding(.horizontal, .spacing5)
                 .padding(.vertical, .spacing1)
                 .background(Color.grey0.opacity(0.86))
+                .accessibilityElement(children: .ignore)
                 .accessibilityIdentifier("shell-responsive-metrics")
                 .accessibilityLabel(metrics)
         }

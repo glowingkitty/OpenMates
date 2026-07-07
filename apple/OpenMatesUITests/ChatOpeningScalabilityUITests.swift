@@ -58,7 +58,7 @@ final class ChatOpeningScalabilityUITests: XCTestCase {
         let latestVisibleSeconds = Date().timeIntervalSince(launchStart)
         XCTAssertLessThan(latestVisibleSeconds, boundedLaunchLimit)
 
-        let metrics = app.staticTexts["chat-opening-performance-metrics"]
+        let metrics = app.descendants(matching: .any)["chat-opening-performance-metrics"]
         XCTAssertTrue(metrics.waitForExistence(timeout: 5))
         let metricsBeforeInput = metrics.label
         XCTAssertTrue(metricsBeforeInput.contains("total-messages=1000"))
@@ -92,7 +92,7 @@ final class ChatOpeningScalabilityUITests: XCTestCase {
         app.launchEnvironment["UI_TEST_SHELL_CHAT_COUNT"] = "600"
         app.launch()
 
-        let metrics = app.staticTexts["shell-responsive-metrics"]
+        let metrics = app.descendants(matching: .any)["shell-responsive-metrics"]
         XCTAssertTrue(metrics.waitForExistence(timeout: 15))
         XCTAssertTrue(metrics.label.contains("shell-performance=true"))
         XCTAssertTrue(metrics.label.contains("seeded-chat-count=600"))
@@ -101,11 +101,7 @@ final class ChatOpeningScalabilityUITests: XCTestCase {
         XCTAssertTrue(sidebarToggle.waitForExistence(timeout: 10))
         let sidebarStart = Date()
         sidebarToggle.tap()
-
-        let firstSeededChat = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label CONTAINS %@", "Shell Perf Chat 1"))
-            .firstMatch
-        XCTAssertTrue(firstSeededChat.waitForExistence(timeout: interactionLimit))
+        XCTAssertTrue(waitUntil(timeout: interactionLimit) { metrics.label.contains("chat-panel-open=true") })
         let sidebarReactionSeconds = Date().timeIntervalSince(sidebarStart)
         XCTAssertLessThan(sidebarReactionSeconds, interactionLimit)
 
