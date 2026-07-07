@@ -6,10 +6,10 @@
 	<string>OpenMates</string>
 	<key>CFBundleIconFiles</key>
 	<array>
-		<string>AppIcon</string>
+		<string>WatchAppIcon</string>
 	</array>
 	<key>CFBundleIconName</key>
-	<string>AppIcon</string>
+	<string>WatchAppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleName</key>
