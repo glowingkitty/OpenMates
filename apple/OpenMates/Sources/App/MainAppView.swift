@@ -168,6 +168,10 @@ struct MainAppView: View {
         horizontalSizeClass == .compact
     }
 
+    private func isCompactShell(width: CGFloat) -> Bool {
+        horizontalSizeClass == .compact || width <= 730
+    }
+
     private var isUITestShellMetricsEnabled: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-shell-metrics")
             || ProcessInfo.processInfo.environment["UI_TEST_SHELL_METRICS"] == "1"
@@ -415,13 +419,14 @@ struct MainAppView: View {
     private var rootShell: some View {
         GeometryReader { geo in
             let viewportWidth = geo.size.width
+            let compactShell = isCompactShell(width: viewportWidth)
             let compactPanelWidth = min(viewportWidth - 10, 390)
-            let chatsPanelOffset = isCompactShell
+            let chatsPanelOffset = compactShell
                 ? (isChatsPanelOpen ? max(0, compactPanelWidth + shellDragOffset) : max(0, shellDragOffset))
                 : 0
 
             Group {
-                if isCompactShell {
+                if compactShell {
                     ZStack(alignment: .leading) {
                         activeAppChrome(viewportWidth: viewportWidth)
                             .offset(x: chatsPanelOffset)
@@ -476,9 +481,10 @@ struct MainAppView: View {
     }
 
     private func shellMetricsLabel(viewportWidth: CGFloat, compactPanelWidth: CGFloat) -> String {
-        let shellMode = isCompactShell ? "compact" : "regular"
-        let panelMode = isCompactShell ? "drawer" : "side-by-side"
-        let activeMainWidth = isCompactShell ? viewportWidth : regularMainWidth(for: viewportWidth)
+        let compactShell = isCompactShell(width: viewportWidth)
+        let shellMode = compactShell ? "compact" : "regular"
+        let panelMode = compactShell ? "drawer" : "side-by-side"
+        let activeMainWidth = compactShell ? viewportWidth : regularMainWidth(for: viewportWidth)
         return [
             "shell-width=\(Int(viewportWidth.rounded()))",
             "shell-mode=\(shellMode)",
@@ -492,7 +498,7 @@ struct MainAppView: View {
     }
 
     private func regularMainWidth(for viewportWidth: CGFloat) -> CGFloat {
-        guard !isCompactShell, isChatsPanelOpen else { return viewportWidth }
+        guard !isCompactShell(width: viewportWidth), isChatsPanelOpen else { return viewportWidth }
         return max(0, viewportWidth - Self.desktopChatsPanelWidth - .spacing5)
     }
 
@@ -951,6 +957,7 @@ struct MainAppView: View {
     private func activeAppChrome(viewportWidth: CGFloat) -> some View {
         VStack(spacing: 0) {
             OpenMatesWebHeader(
+                viewportWidth: viewportWidth,
                 isAuthenticated: shouldShowAuthenticatedHeaderAffordances || showAuthSheet,
                 isChatsPanelOpen: isChatsPanelOpen,
                 isSettingsOpen: showSettings,
@@ -3520,6 +3527,7 @@ private struct OpenMatesWebHeader: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.openURL) private var openURL
 
+    let viewportWidth: CGFloat
     let isAuthenticated: Bool
     let isChatsPanelOpen: Bool
     let isSettingsOpen: Bool
@@ -3536,6 +3544,10 @@ private struct OpenMatesWebHeader: View {
     let onOpenReferral: () -> Void
     let onOpenAuth: () -> Void
     private static let githubURL = URL(string: "https://github.com/glowingkitty/OpenMates")!
+
+    private var isCompact: Bool {
+        horizontalSizeClass == .compact || viewportWidth <= 730
+    }
 
     var body: some View {
         ZStack {
@@ -3559,7 +3571,7 @@ private struct OpenMatesWebHeader: View {
                 Spacer(minLength: .spacing4)
 
                 if !isAuthenticated {
-                    if horizontalSizeClass != .compact {
+                    if !isCompact {
                         Button {
                             openURL(Self.githubURL)
                         } label: {
@@ -3573,7 +3585,7 @@ private struct OpenMatesWebHeader: View {
                     }
 
                     Button(action: onOpenAuth) {
-                        Text(AppStrings.loginSignup)
+                        Text(isCompact ? AppStrings.login : AppStrings.loginSignup)
                             .font(.omP)
                             .foregroundStyle(Color.fontButton)
                             .lineLimit(1)
@@ -3585,7 +3597,7 @@ private struct OpenMatesWebHeader: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("header-login-signup-btn")
-                    .accessibilityLabel(AppStrings.loginSignup)
+                    .accessibilityLabel(isCompact ? AppStrings.login : AppStrings.loginSignup)
                 }
 
                 if isAuthenticated {
@@ -3597,7 +3609,7 @@ private struct OpenMatesWebHeader: View {
                                 .background(Color.grey10)
                                 .clipShape(Circle())
 
-                            if horizontalSizeClass != .compact {
+                            if !isCompact {
                                 Text(AppStrings.getFreeCredits)
                                     .font(.omSmall)
                                     .fontWeight(.semibold)
@@ -3622,6 +3634,7 @@ private struct OpenMatesWebHeader: View {
 
             if showWorkspaceSwitcher {
                 WorkspaceSwitcherTabs(
+                    isCompact: isCompact,
                     selectedWorkspace: selectedWorkspace,
                     onSelectWorkspace: onSelectWorkspace,
                     onNewChat: onNewChat
@@ -3637,7 +3650,7 @@ private struct OpenMatesWebHeader: View {
 
     @ViewBuilder
     private var headerLogo: some View {
-        if horizontalSizeClass == .compact && showWorkspaceSwitcher {
+        if isCompact {
             Button(action: { onSelectWorkspace(.chat) }) {
                 Image("openmates-favicon-png")
                     .renderingMode(.original)
@@ -3716,11 +3729,11 @@ private struct OpenMatesWebHeader: View {
 }
 
 private struct WorkspaceSwitcherTabs: View {
+    let isCompact: Bool
     let selectedWorkspace: WorkspaceDestination
     let onSelectWorkspace: (WorkspaceDestination) -> Void
     let onNewChat: () -> Void
 
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var hoveredTabId: WorkspaceDestination.ID?
 
     private static let tabWidth: CGFloat = 72
@@ -3728,10 +3741,6 @@ private struct WorkspaceSwitcherTabs: View {
     private static let tabRadius: CGFloat = 52
     private static let compactWidth: CGFloat = 120
     private static let compactHeight: CGFloat = 44
-
-    private var isCompact: Bool {
-        horizontalSizeClass == .compact
-    }
 
     private var tabs: [WorkspaceDestination] {
         WorkspaceDestination.allCases
@@ -4288,6 +4297,7 @@ struct NewChatWelcomeView: View {
     @State private var inspirationIndex = 0
     @State private var inspirationProgressRestartToken = 0
     @State private var viewedInspirationIds = Set<String>()
+    @State private var isComposerActivated = false
     @State private var isComposerExpanded = false
     @State private var guestSelectedInterestTagIds: [InterestTagId] = []
     @State private var appliedGuestInterestTagIds: [InterestTagId] = []
@@ -4360,7 +4370,7 @@ struct NewChatWelcomeView: View {
     }
 
     private var isComposerActive: Bool {
-        isFocused || isComposerExpanded || WelcomeScreenState.shouldShowInFieldSendButton(inputText: messageText)
+        isFocused || isComposerActivated || isComposerExpanded || WelcomeScreenState.shouldShowInFieldSendButton(inputText: messageText)
     }
 
     private var activePIIMatches: [PIIMatch] {
@@ -4395,10 +4405,17 @@ struct NewChatWelcomeView: View {
             ZStack(alignment: .bottom) {
                 Color.clear
                     .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        guard isComposerActive else { return }
+                        isFocused = false
+                        isComposerActivated = false
+                        isComposerExpanded = false
+                    }
 
                 VStack(spacing: 0) {
                     if let activeInspiration, !isComposerActive {
-                        inspirationCarousel(activeInspiration)
+                        inspirationCarousel(activeInspiration, containerSize: proxy.size)
                             .padding(.top, 0)
                             .transition(.opacity)
                     }
@@ -4439,6 +4456,7 @@ struct NewChatWelcomeView: View {
 
                 WelcomeComposer(
                     text: $messageText,
+                    isActivated: $isComposerActivated,
                     isExpanded: $isComposerExpanded,
                     isFocused: $isFocused,
                     isAuthenticated: isAuthenticated,
@@ -4599,9 +4617,10 @@ struct NewChatWelcomeView: View {
         .frame(height: 106)
     }
 
-    private func inspirationCarousel(_ activeInspiration: DailyInspirationBanner.DailyInspiration) -> some View {
+    private func inspirationCarousel(_ activeInspiration: DailyInspirationBanner.DailyInspiration, containerSize: CGSize) -> some View {
+        let bannerHeight = Self.inspirationBannerHeight(for: containerSize)
         ZStack(alignment: .bottom) {
-            InspirationCard(inspiration: activeInspiration) {
+            InspirationCard(inspiration: activeInspiration, containerSize: containerSize) {
                 createChatWith(message: activeInspiration.text)
             }
             .frame(maxWidth: .infinity)
@@ -4614,11 +4633,11 @@ struct NewChatWelcomeView: View {
                 )
 
                 HStack {
-                    carouselArrow(label: AppStrings.previousInspiration) {
+                    carouselArrow(label: AppStrings.previousInspiration, height: bannerHeight) {
                         showPreviousInspiration()
                     }
                     Spacer()
-                    carouselArrow(label: AppStrings.nextInspiration) {
+                    carouselArrow(label: AppStrings.nextInspiration, height: bannerHeight) {
                         showNextInspiration()
                     }
                     .scaleEffect(x: -1, y: 1)
@@ -4633,6 +4652,10 @@ struct NewChatWelcomeView: View {
                 sendViewedEvent(for: current)
             }
         }
+    }
+
+    private static func inspirationBannerHeight(for size: CGSize) -> CGFloat {
+        size.width <= 730 ? 190 : max(240, size.height * 0.35)
     }
 
     private func showPreviousInspiration() {
@@ -4657,11 +4680,11 @@ struct NewChatWelcomeView: View {
         return min(max(webLikeCenter, 330), max(330, size.height - composerReserve - 150))
     }
 
-    private func carouselArrow(label: String, action: @escaping () -> Void) -> some View {
+    private func carouselArrow(label: String, height: CGFloat, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Icon("back", size: 22)
                 .foregroundStyle(.white.opacity(0.85))
-                .frame(width: 40, height: 240)
+                .frame(width: 40, height: height)
                 .background(.white.opacity(0.001))
         }
         .buttonStyle(.plain)
@@ -4713,6 +4736,7 @@ struct NewChatWelcomeView: View {
         guard focusRequest > 0, handledFocusRequest != focusRequest else { return }
         handledFocusRequest = focusRequest
         isGuestInterestSelectionActive = false
+        isComposerActivated = true
         isComposerExpanded = true
         Task { @MainActor in
             await Task.yield()
@@ -4803,6 +4827,9 @@ struct NewChatWelcomeView: View {
             do {
                 let chatId = try await onCreateChatWithMessage(redaction.redactedText, redaction.mappings)
                 messageText = ""
+                isComposerActivated = false
+                isComposerExpanded = false
+                isFocused = false
                 detectedPIIMatches = []
                 piiExclusions = []
                 onChatCreated(chatId)
@@ -5199,6 +5226,7 @@ private struct OverflowCard: View {
 
 private struct WelcomeComposer: View {
     @Binding var text: String
+    @Binding var isActivated: Bool
     @Binding var isExpanded: Bool
     @FocusState.Binding var isFocused: Bool
     let isAuthenticated: Bool
@@ -5214,7 +5242,7 @@ private struct WelcomeComposer: View {
     }
 
     private var isOpen: Bool {
-        hasContent || isFocused || isExpanded
+        hasContent || isFocused || isActivated || isExpanded
     }
 
     private var canSubmit: Bool {
@@ -5276,8 +5304,15 @@ private struct WelcomeComposer: View {
                     .transition(.opacity)
                 }
             )
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    isActivated = true
+                    isFocused = true
+                }
+            )
             if isOpen && !isFocused {
                 Button {
+                    isActivated = false
                     isFocused = false
                     isExpanded = false
                 } label: {

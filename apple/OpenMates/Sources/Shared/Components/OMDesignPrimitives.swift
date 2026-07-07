@@ -141,6 +141,11 @@ struct OMMessageInputField<ActionButtons: View>: View {
         .onTapGesture {
             isFocused.wrappedValue = true
         }
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                isFocused.wrappedValue = true
+            }
+        )
         .animation(.easeInOut(duration: 0.25), value: compact)
     }
 }
