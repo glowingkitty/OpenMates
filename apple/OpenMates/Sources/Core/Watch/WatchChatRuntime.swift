@@ -187,7 +187,7 @@ final class WatchChatRuntime: ObservableObject {
         api: any WatchChatAPI = APIClient.shared,
         cache: WatchChatOfflineCache = WatchChatOfflineCache(),
         crypto: (any WatchChatCrypto)? = nil,
-        syncSocket: (any WatchChatSyncSocket)? = WebSocketManager(),
+        syncSocket: (any WatchChatSyncSocket)? = WatchRealtimeSyncSocket(),
         syncSession: WatchSyncSession? = nil
     ) {
         self.api = api
@@ -408,9 +408,85 @@ extension APIClient: WatchChatAPI {
     }
 }
 
+#if !os(watchOS)
 extension WebSocketManager: WatchChatSyncSocket {
     func connect(session: WatchSyncSession, syncState: SyncClientState) {
         connect(sessionId: session.sessionId, token: session.token, syncState: syncState)
+    }
+}
+#endif
+
+@MainActor
+private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
+    private var webSocketTask: URLSessionWebSocketTask?
+    private lazy var session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.httpCookieAcceptPolicy = .always
+        config.httpShouldSetCookies = true
+        config.httpCookieStorage = OpenMatesSharedEnvironment.cookieStorage
+        return URLSession(configuration: config)
+    }()
+
+    func connect(session syncSession: WatchSyncSession, syncState: SyncClientState) {
+        disconnect()
+        Task { @MainActor in
+            let baseURL = await APIClient.shared.baseURL
+            let origin = await APIClient.shared.webAppURL.absoluteString
+            guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else { return }
+            components.scheme = components.scheme == "https" ? "wss" : "ws"
+            components.path = "/v1/ws"
+            var queryItems = [URLQueryItem(name: "sessionId", value: syncSession.sessionId)]
+            if let token = syncSession.token, !token.isEmpty {
+                queryItems.append(URLQueryItem(name: "token", value: token))
+            }
+            components.queryItems = queryItems
+            guard let url = components.url else { return }
+
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 30
+            request.setValue(origin, forHTTPHeaderField: "Origin")
+            APIClient.nativeClientHeaders.forEach { key, value in
+                request.setValue(value, forHTTPHeaderField: key)
+            }
+
+            let task = session.webSocketTask(with: request)
+            webSocketTask = task
+            task.resume()
+            try? await Task.sleep(for: .milliseconds(250))
+            try? await sendPhasedSync(syncState)
+        }
+    }
+
+    func disconnect() {
+        webSocketTask?.cancel(with: .normalClosure, reason: nil)
+        webSocketTask = nil
+    }
+
+    private func sendPhasedSync(_ syncState: SyncClientState) async throws {
+        guard let webSocketTask else { return }
+        let message = WatchWSOutboundMessage(
+            type: "phased_sync_request",
+            payload: [
+                "phase": "all",
+                "client_chat_versions": syncState.clientChatVersions,
+                "client_chat_ids": syncState.clientChatIds,
+                "client_suggestions_count": syncState.clientSuggestionsCount,
+                "client_embed_ids": syncState.clientEmbedIds,
+            ]
+        )
+        let data = try JSONEncoder().encode(message)
+        guard let json = String(data: data, encoding: .utf8) else { return }
+        try await webSocketTask.send(.string(json))
+    }
+}
+
+private struct WatchWSOutboundMessage: Encodable {
+    let type: String
+    let payload: [String: AnyCodable]
+
+    init(type: String, payload: [String: Any]) {
+        self.type = type
+        self.payload = payload.mapValues { AnyCodable($0) }
     }
 }
 
