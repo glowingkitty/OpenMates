@@ -50,6 +50,8 @@ import secrets
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
@@ -523,6 +525,86 @@ def _run_cmd(cmd: list[str], cwd: str | None = None, timeout: int = 120) -> tupl
         timeout=timeout,
     )
     return result.returncode, result.stdout.strip(), result.stderr.strip()
+
+
+def _load_env_pairs(path: Path) -> dict[str, str]:
+    """Parse simple KEY=VALUE pairs from an env file without printing secrets."""
+    result: dict[str, str] = {}
+    if not path.exists():
+        return result
+    try:
+        lines = path.read_text().splitlines()
+    except OSError:
+        return result
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        result[key.strip()] = value.strip().strip('"').strip("'")
+    return result
+
+
+def _get_vercel_token_for_deploy_gate() -> str:
+    token = os.environ.get("VERCEL_TOKEN", "")
+    if token:
+        return token
+    return _load_env_pairs(ENV_FILE).get("VERCEL_TOKEN", "")
+
+
+def _load_web_app_vercel_project_config() -> tuple[str, str]:
+    project_json = PROJECT_ROOT / "frontend" / "apps" / "web_app" / ".vercel" / "project.json"
+    try:
+        data = json.loads(project_json.read_text())
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"Vercel project config missing: {project_json}") from exc
+    except (json.JSONDecodeError, OSError) as exc:
+        raise RuntimeError(f"Could not read Vercel project config: {exc}") from exc
+
+    team_id = str(data.get("orgId") or "")
+    project_id = str(data.get("projectId") or "")
+    if not team_id or not project_id:
+        raise RuntimeError("Vercel project config must include orgId and projectId")
+    return team_id, project_id
+
+
+def _extract_vercel_build_machine(project: dict) -> tuple[str, str]:
+    resource_config = project.get("resourceConfig") or {}
+    build_machine_type = str(resource_config.get("buildMachineType") or "").lower()
+    build_machine_selection = str(resource_config.get("buildMachineSelection") or "").lower()
+    return build_machine_type, build_machine_selection
+
+
+def _fetch_vercel_project_settings(token: str, team_id: str, project_id: str) -> dict:
+    url = f"https://api.vercel.com/v9/projects/{project_id}?teamId={team_id}"
+    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")[:300]
+        raise RuntimeError(f"Vercel project API returned HTTP {exc.code}: {body}") from exc
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Could not query Vercel project settings: {exc}") from exc
+
+
+def _enforce_vercel_standard_build_machine() -> None:
+    """Hard gate deploys so a push cannot trigger paid Turbo/Elastic builds."""
+    token = _get_vercel_token_for_deploy_gate()
+    if not token:
+        raise RuntimeError("VERCEL_TOKEN is required to verify the web app build machine before deploy")
+
+    team_id, project_id = _load_web_app_vercel_project_config()
+    project = _fetch_vercel_project_settings(token, team_id, project_id)
+    build_machine_type, build_machine_selection = _extract_vercel_build_machine(project)
+
+    if build_machine_type != "standard" or build_machine_selection != "fixed":
+        raise RuntimeError(
+            "Vercel web app build machine must be standard/fixed before deploy; "
+            f"current buildMachineType={build_machine_type or '<missing>'}, "
+            f"buildMachineSelection={build_machine_selection or '<missing>'}. "
+            "Fix Vercel Project Settings > Build Machine before pushing."
+        )
 
 
 def _get_commit_url(commit_hash: str) -> str | None:
@@ -3333,6 +3415,14 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             commit_hash_full = (commit_hash_full or "").strip() if rc == 0 else ""
             commit_hash = commit_hash_full[:7] if commit_hash_full else "unknown"
 
+            print("Checking Vercel web app build machine...")
+            try:
+                _enforce_vercel_standard_build_machine()
+            except RuntimeError as exc:
+                print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
+                sys.exit(1)
+            print("Vercel build machine: standard/fixed")
+
             print(f"No files to commit; pushing {git_summary['unpushed']} existing commit(s) to origin dev...")
             rc, stdout, stderr = _run_cmd(["git", "push", "origin", "dev"])
             if rc != 0:
@@ -3443,6 +3533,14 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     # 1d. Pytest gate — hard-block on failing related pytest unit tests
     _run_pytest_gate(to_commit, skip_reason=skip_tests_reason, no_verify=no_verify)
 
+    print("Checking Vercel web app build machine...")
+    try:
+        _enforce_vercel_standard_build_machine()
+    except RuntimeError as exc:
+        print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
+        sys.exit(1)
+    print("Vercel build machine: standard/fixed")
+
     # 2. Git add — reset any staged files not belonging to this session first,
     # to prevent index bleed from concurrent sessions that already ran git add.
     use_staged = getattr(args, "use_staged", False)
@@ -3530,6 +3628,15 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     commit_hash = commit_hash_full[:7] if commit_hash_full else "unknown"
 
     # 4. Git push
+    print("Rechecking Vercel web app build machine before push...")
+    try:
+        _enforce_vercel_standard_build_machine()
+    except RuntimeError as exc:
+        print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
+        print("Commit was created locally but not pushed.", file=sys.stderr)
+        sys.exit(1)
+    print("Vercel build machine: standard/fixed")
+
     print("Pushing to origin dev...")
     rc, stdout, stderr = _run_cmd(["git", "push", "origin", "dev"])
     if rc != 0:

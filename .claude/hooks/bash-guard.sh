@@ -84,7 +84,8 @@ for script_path in $(echo "$COMMAND" | grep -oE '(^|[[:space:];&|])([^[:space:];
     /home/superdev/projects/OpenMates/scripts/tests/*) continue ;;
   esac
   if grep -qiE 'api\.vercel\.com/.*/projects|api\.vercel\.com/v[0-9]+/projects|\bvercel\s+project\b' "$candidate" \
-    && grep -qiE 'buildMachine(Type|Selection)?|elasticConcurrency|buildMachineElastic|resourceConfig|Dynamic build' "$candidate"; then
+    && grep -qiE 'buildMachine(Type|Selection)?|elasticConcurrency|buildMachineElastic|resourceConfig|Dynamic build' "$candidate" \
+    && grep -qiE '(-X|--request)[[:space:]]*(PATCH|PUT|POST|DELETE)|\.(patch|put|post|delete)\s*\(|urlopen\([^)]*method=["'"'"'](PATCH|PUT|POST|DELETE)["'"'"']' "$candidate"; then
     echo '{"decision":"block","reason":"BLOCKED: Refusing to run a repo script that can mutate Vercel build-machine/project settings. Keep Vercel buildMachineType=standard and buildMachineSelection=fixed."}' >&2
     exit 2
   fi
