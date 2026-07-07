@@ -278,8 +278,7 @@ final class ChatManagementSharingParityUITests: XCTestCase {
     }
 
     private func tapSafariShareButton(in safari: XCUIApplication) {
-        let directShareButton = safari.buttons["Share"]
-        if directShareButton.waitForExistence(timeout: 3) {
+        if let directShareButton = waitForSafariShareAction(in: [safari], timeout: 3) {
             directShareButton.tap()
             return
         }
@@ -291,11 +290,27 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         )
         moreButton.tap()
 
+        let shareHosts = [safari, XCUIApplication(bundleIdentifier: "com.apple.springboard")]
+        let shareButton = waitForSafariShareAction(in: shareHosts, timeout: 5)
         XCTAssertTrue(
-            directShareButton.waitForExistence(timeout: 5),
+            shareButton?.exists == true,
             "Expected Share action inside Safari More menu. Visible UI: \(visibleStateLabels(in: safari))"
         )
-        directShareButton.tap()
+        shareButton?.tap()
+    }
+
+    private func waitForSafariShareAction(in hosts: [XCUIApplication], timeout: TimeInterval) -> XCUIElement? {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            for host in hosts {
+                let shareByLabel = host.buttons["Share"]
+                if shareByLabel.exists { return shareByLabel }
+                let shareByIdentifier = host.buttons["ShareButton"]
+                if shareByIdentifier.exists { return shareByIdentifier }
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        } while Date() < deadline
+        return nil
     }
 
     private func waitForSafariShareSurface(in safari: XCUIApplication, timeout: TimeInterval) -> Bool {
