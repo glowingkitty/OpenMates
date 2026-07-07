@@ -102,6 +102,7 @@ targets:
       path: OpenMates/Resources/Info.plist
       properties:
         CFBundleDisplayName: OpenMates
+        CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
         CFBundleName: OpenMates
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
