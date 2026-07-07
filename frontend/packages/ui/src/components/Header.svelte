@@ -240,7 +240,7 @@
         lastAuthMethod = getLastAuthMethod();
 
         const checkMobile = () => {
-            isMobile = window.innerWidth <= 817;
+            isMobile = window.innerWidth < 895;
         };
 
         checkMobile();
@@ -1123,7 +1123,7 @@
         display: none;
     }
 
-    @media (max-width: 817px) {
+    @media (max-width: 894px) {
         nav.webapp {
             min-height: 36px;
         }
