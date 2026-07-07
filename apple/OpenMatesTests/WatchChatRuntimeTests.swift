@@ -148,6 +148,39 @@ final class WatchChatRuntimeTests: XCTestCase {
         XCTAssertEqual(runtime.selectedMessages.first?.content, "Decrypted message")
     }
 
+    func testRealtimeSyncUsesCachedWatchClientStateWithoutIncognitoChats() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = WatchChatOfflineCache(directory: directory)
+        let socket = FakeWatchChatSyncSocket()
+        try await cache.saveSnapshot(
+            WatchChatSnapshot(
+                chats: [
+                    Self.chat(id: "chat-a", title: "Alpha", lastMessageAt: "2026-07-06T10:00:00Z"),
+                    Self.chat(id: "incognito-local", title: "Private", lastMessageAt: "2026-07-06T11:00:00Z"),
+                ],
+                messagesByChatId: [:],
+                pendingTextSends: [],
+                savedAt: Date()
+            )
+        )
+        let runtime = WatchChatRuntime(
+            api: FakeWatchChatAPI(),
+            cache: cache,
+            crypto: FakeWatchChatCrypto(),
+            syncSocket: socket,
+            syncSession: WatchSyncSession(sessionId: "watch-session", token: "watch-ws-token")
+        )
+
+        await runtime.loadCachedSnapshot()
+        await runtime.startRealtimeSync()
+
+        XCTAssertEqual(socket.connectedSession, WatchSyncSession(sessionId: "watch-session", token: "watch-ws-token"))
+        XCTAssertEqual(socket.connectedSyncState?.clientChatIds, ["chat-a"])
+        XCTAssertEqual(socket.connectedSyncState?.clientChatVersions, [:])
+        XCTAssertEqual(socket.connectedSyncState?.clientEmbedIds, [])
+    }
+
     private func temporaryDirectory() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent("watch-chat-runtime-tests-\(UUID().uuidString)", isDirectory: true)
@@ -253,6 +286,22 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
     func sendPendingText(_ pending: WatchPendingTextSend) async throws {
         if shouldThrow || shouldThrowOnSend { throw URLError(.notConnectedToInternet) }
         sentMessages.append(pending)
+    }
+}
+
+@MainActor
+private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
+    private(set) var connectedSession: WatchSyncSession?
+    private(set) var connectedSyncState: SyncClientState?
+    private(set) var didDisconnect = false
+
+    func connect(session: WatchSyncSession, syncState: SyncClientState) {
+        connectedSession = session
+        connectedSyncState = syncState
+    }
+
+    func disconnect() {
+        didDisconnect = true
     }
 }
 

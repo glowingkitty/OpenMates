@@ -31,6 +31,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     private var sessionId: String?
     private var authToken: String?
+    private var activeSyncState: SyncClientState = .empty
     private var shouldReconnect = false
     private var maxReconnectAttempts = 10
     private var reconnectDelay: TimeInterval = 1.0
@@ -65,6 +66,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
         self.sessionId = sessionId
         self.authToken = token
+        self.activeSyncState = syncState
         activeConnectionKey = nextKey
         shouldReconnect = true
         connectionState = .connecting
@@ -504,7 +506,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             try? await Task.sleep(for: .seconds(reconnectDelay))
             reconnectDelay = min(reconnectDelay * 2, 30)
             if let sessionId {
-                connect(sessionId: sessionId, token: authToken)
+                connect(sessionId: sessionId, token: authToken, syncState: activeSyncState)
             }
         }
     }

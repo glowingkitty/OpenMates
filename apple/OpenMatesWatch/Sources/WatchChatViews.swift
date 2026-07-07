@@ -17,8 +17,14 @@ import SwiftUI
 struct WatchChatShellView: View {
     @StateObject private var runtime: WatchChatRuntime
 
-    init(currentUserId: String?) {
-        _runtime = StateObject(wrappedValue: WatchChatRuntime(currentUserId: currentUserId))
+    init(currentUserId: String?, webSocketToken: String?) {
+        _runtime = StateObject(wrappedValue: WatchChatRuntime(
+            currentUserId: currentUserId,
+            syncSession: WatchSyncSession(
+                sessionId: WatchCompatibleSession.nativeSessionId,
+                token: webSocketToken
+            )
+        ))
     }
 
     var body: some View {
@@ -35,6 +41,7 @@ struct WatchChatShellView: View {
         .tabViewStyle(.page(indexDisplayMode: .never))
         .task {
             await runtime.loadCachedSnapshot()
+            await runtime.startRealtimeSync()
             await runtime.refresh()
         }
         .accessibilityIdentifier("watch-chat-shell")

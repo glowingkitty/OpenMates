@@ -79,6 +79,11 @@ struct WatchChatSnapshot: Codable, Equatable, Sendable {
     }
 }
 
+struct WatchSyncSession: Equatable, Sendable {
+    let sessionId: String
+    let token: String?
+}
+
 struct WatchRemoteChat: Equatable, Sendable {
     let id: String
     let title: String?
@@ -104,6 +109,12 @@ protocol WatchChatAPI: Sendable {
     func fetchRecentChats(limit: Int) async throws -> [WatchRemoteChat]
     func fetchMessages(chatId: String) async throws -> [WatchRemoteMessage]
     func sendPendingText(_ pending: WatchPendingTextSend) async throws
+}
+
+@MainActor
+protocol WatchChatSyncSocket: AnyObject {
+    func connect(session: WatchSyncSession, syncState: SyncClientState)
+    func disconnect()
 }
 
 @MainActor
@@ -167,17 +178,23 @@ final class WatchChatRuntime: ObservableObject {
     private let api: any WatchChatAPI
     private let cache: WatchChatOfflineCache
     private let crypto: any WatchChatCrypto
+    private let syncSocket: (any WatchChatSyncSocket)?
+    private let syncSession: WatchSyncSession?
     private var pendingTextSends: [WatchPendingTextSend] = []
 
     init(
         currentUserId: String? = nil,
         api: any WatchChatAPI = APIClient.shared,
         cache: WatchChatOfflineCache = WatchChatOfflineCache(),
-        crypto: (any WatchChatCrypto)? = nil
+        crypto: (any WatchChatCrypto)? = nil,
+        syncSocket: (any WatchChatSyncSocket)? = WebSocketManager(),
+        syncSession: WatchSyncSession? = nil
     ) {
         self.api = api
         self.cache = cache
         self.crypto = crypto ?? WatchChatCryptoService(currentUserId: currentUserId)
+        self.syncSocket = syncSocket
+        self.syncSession = syncSession
     }
 
     var selectedChat: WatchChatSummary? {
@@ -218,6 +235,11 @@ final class WatchChatRuntime: ObservableObject {
             }
         }
         isSyncing = false
+    }
+
+    func startRealtimeSync() async {
+        guard let syncSocket, let syncSession else { return }
+        syncSocket.connect(session: syncSession, syncState: makeSyncClientState())
     }
 
     func openChat(_ chat: WatchChatSummary) async {
@@ -332,6 +354,16 @@ final class WatchChatRuntime: ObservableObject {
         try? await persistSnapshot()
     }
 
+    private func makeSyncClientState() -> SyncClientState {
+        let syncableChats = chats.filter { !IncognitoChatSession.isIncognitoChatId($0.id) }
+        return SyncClientState(
+            clientChatVersions: [:],
+            clientChatIds: syncableChats.map(\.id),
+            clientSuggestionsCount: 0,
+            clientEmbedIds: []
+        )
+    }
+
     private func markPendingMessageSent(messageId: String, chatId: String) {
         guard var messages = messagesByChatId[chatId],
               let index = messages.firstIndex(where: { $0.id == messageId }) else { return }
@@ -373,6 +405,12 @@ extension APIClient: WatchChatAPI {
             "versions": ["last_edited_overall_timestamp": createdAtUnix]
         ]
         let _: Data = try await request(.post, path: "/v1/chats/\(pending.chatId)/messages", body: payload)
+    }
+}
+
+extension WebSocketManager: WatchChatSyncSocket {
+    func connect(session: WatchSyncSession, syncState: SyncClientState) {
+        connect(sessionId: session.sessionId, token: session.token, syncState: syncState)
     }
 }
 

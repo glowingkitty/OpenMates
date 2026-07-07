@@ -26,7 +26,10 @@ struct WatchRootView: View {
             case .unauthenticated:
                 WatchPairLoginView(authStore: authStore)
             case .authenticated:
-                WatchChatShellView(currentUserId: authStore.currentUser?.id)
+                WatchChatShellView(
+                    currentUserId: authStore.currentUser?.id,
+                    webSocketToken: authStore.webSocketToken
+                )
             }
         }
         .task { await authStore.checkSession() }

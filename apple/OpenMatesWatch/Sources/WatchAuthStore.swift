@@ -2,7 +2,8 @@
 // Persists only the authenticated user metadata and local master key needed to
 // bootstrap later Watch chat/offline slices. It intentionally avoids importing
 // the full iOS AuthManager dependency graph.
-// Chat sync and logout behavior are added by later Watch spec tasks.
+// Chat sync uses the restored WebSocket token from /v1/auth/session after
+// cached user and local master-key checks pass.
 
 import CryptoKit
 import Foundation
@@ -20,6 +21,8 @@ final class WatchAuthStore: ObservableObject {
     @Published private(set) var webSocketToken: String?
     @Published var errorMessage: String?
 
+    private let api = APIClient.shared
+
     private static let cachedUserDefaultsKey = "openmates.apple.auth.cached_user"
 
     func checkSession() async {
@@ -29,6 +32,7 @@ final class WatchAuthStore: ObservableObject {
             return
         }
         currentUser = user
+        await refreshSessionToken()
         state = .authenticated
     }
 
@@ -44,6 +48,31 @@ final class WatchAuthStore: ObservableObject {
         webSocketToken = result.loginResponse.wsToken
         cacheAuthenticatedUser(user)
         state = .authenticated
+    }
+
+    private func refreshSessionToken() async {
+        do {
+            let response: SessionResponse = try await api.request(
+                .post,
+                path: "/v1/auth/session",
+                body: SessionRequest(
+                    sessionId: WatchCompatibleSession.nativeSessionId,
+                    deviceInfo: WatchCompatibleSession.makeNativeDeviceInfo()
+                )
+            )
+            guard response.isAuthenticated, let user = response.user else {
+                webSocketToken = nil
+                errorMessage = response.reAuthReason ?? response.reAuthRequired ?? response.message
+                return
+            }
+            currentUser = user
+            webSocketToken = response.wsToken
+            cacheAuthenticatedUser(user)
+            errorMessage = nil
+        } catch {
+            webSocketToken = nil
+            errorMessage = error.localizedDescription
+        }
     }
 
     private func cacheAuthenticatedUser(_ user: UserProfile) {
