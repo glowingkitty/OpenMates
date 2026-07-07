@@ -188,6 +188,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.watch
         PRODUCT_NAME: OpenMatesWatch
         SDKROOT: watchos
+        SKIP_INSTALL: YES
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "4"
       configs:
