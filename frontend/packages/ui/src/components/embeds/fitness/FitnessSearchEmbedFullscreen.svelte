@@ -59,7 +59,7 @@
   let status: FitnessStatus = $derived(normalized.status);
   let embedIds = $derived(normalized.embedIds ?? data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
-  let title = $derived(normalized.query || (skillId === 'search_locations' ? $text('app_skills.fitness.search_locations') : $text('app_skills.fitness.search_classes')));
+  let title = $derived(skillId === 'search_locations' ? $text('app_skills.fitness.search_locations') : $text('app_skills.fitness.search_classes'));
   let headerSubtitle = $derived.by(() => {
     const summary = normalized.summary || `${normalized.resultCount} ${skillId === 'search_locations' ? 'locations' : 'classes'}`;
     return [normalized.provider, summary].filter(Boolean).join(' · ');
@@ -90,6 +90,9 @@
 </script>
 
 <SearchResultsTemplate
+  testId="fitness-search-fullscreen"
+  closeTestId="fitness-search-close"
+  emptyTestId="fitness-search-empty"
   appId="fitness"
   {skillId}
   embedHeaderTitle={title}

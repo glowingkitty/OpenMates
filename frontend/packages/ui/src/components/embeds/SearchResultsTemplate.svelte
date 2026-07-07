@@ -47,6 +47,8 @@
 
   interface Props {
     // ── UnifiedEmbedFullscreen passthrough props ──
+    testId?: string;
+    closeTestId?: string;
     appId: string;
     skillId?: string;
     embedHeaderTitle?: string;
@@ -89,6 +91,8 @@
     skeletonCount?: number;
     /** Error message to display (overrides default) */
     errorMessage?: string;
+    /** Optional data-testid for the empty state. */
+    emptyTestId?: string;
     /** Current status for error state display */
     status?: 'processing' | 'finished' | 'error' | 'cancelled';
     /**
@@ -109,6 +113,8 @@
 
   let {
     // Unified passthrough
+    testId,
+    closeTestId,
     appId,
     skillId,
     embedHeaderTitle,
@@ -140,6 +146,7 @@
     maxGridWidth = '1000px',
     skeletonCount = 6,
     errorMessage: errorMessageProp,
+    emptyTestId = 'search-template-empty',
     status = 'finished',
     query,
 
@@ -289,6 +296,8 @@
 -->
 
 <UnifiedEmbedFullscreen
+  {testId}
+  {closeTestId}
   {appId}
   {skillId}
   {embedHeaderTitle}
@@ -340,7 +349,7 @@
           {/each}
         </div>
       {:else}
-        <div class="search-template-empty" data-testid="search-template-empty">
+        <div class="search-template-empty" data-testid={emptyTestId}>
           <p data-testid="search-no-results-message">
             {#if query}
               {$text('embeds.search_no_results_for_query').replace('{query}', query)}

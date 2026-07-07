@@ -43,6 +43,7 @@
     showPIIIncludeOriginal?: boolean;
 
     onClose: () => void;
+    closeTestId?: string;
     onShare?: () => void;
     onCopy?: () => void;
     onDownload?: () => void;
@@ -74,6 +75,7 @@
     piiRevealed = false,
     showPIIIncludeOriginal = false,
     onClose,
+    closeTestId = 'embed-minimize',
     onShare,
     onCopy,
     onDownload,
@@ -239,7 +241,7 @@
     <div class="button-wrapper">
       <button
         class="clickable-icon icon_minimize top-button"
-        data-testid="embed-minimize"
+        data-testid={closeTestId}
         onclick={onClose}
         aria-label="Minimize"
         title="Minimize"
