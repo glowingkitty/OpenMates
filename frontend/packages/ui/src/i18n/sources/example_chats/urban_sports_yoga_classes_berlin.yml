@@ -1,1488 +1,1005 @@
 title:
-  context: "Title of example chat: Urban Sports Yoga Classes in Berlin"
-  en: "Urban Sports Yoga Classes in Berlin"
-  de: "Urban Sports Yogakurse in Berlin"
-  zh: "Urban Sports Yoga Classes in Berlin"
-  es: "Urban Sports Yoga Classes in Berlin"
-  fr: "Urban Sports Yoga Classes in Berlin"
-  pt: "Urban Sports Yoga Classes in Berlin"
-  ru: "Urban Sports Yoga Classes in Berlin"
-  ja: "Urban Sports Yoga Classes in Berlin"
-  ko: "Urban Sports Yoga Classes in Berlin"
-  it: "Urban Sports Yoga Classes in Berlin"
-  tr: "Urban Sports Yoga Classes in Berlin"
-  vi: "Urban Sports Yoga Classes in Berlin"
-  id: "Urban Sports Yoga Classes in Berlin"
-  pl: "Urban Sports Yoga Classes in Berlin"
-  nl: "Urban Sports Yoga Classes in Berlin"
-  ar: "Urban Sports Yoga Classes in Berlin"
-  hi: "Urban Sports Yoga Classes in Berlin"
-  th: "Urban Sports Yoga Classes in Berlin"
-  cs: "Urban Sports Yoga Classes in Berlin"
-  sv: "Urban Sports Yoga Classes in Berlin"
-  he: "Urban Sports Yoga Classes in Berlin"
+  context: "Title of example chat: Urban Sports yoga classes near Kottbusser Tor"
+  en: "Urban Sports yoga classes near Kottbusser Tor"
+  de: "Urban Sports Yogakurse nahe Kottbusser Tor"
+  zh: "Urban Sports yoga classes near Kottbusser Tor"
+  es: "Urban Sports yoga classes near Kottbusser Tor"
+  fr: "Urban Sports yoga classes near Kottbusser Tor"
+  pt: "Urban Sports yoga classes near Kottbusser Tor"
+  ru: "Urban Sports yoga classes near Kottbusser Tor"
+  ja: "Urban Sports yoga classes near Kottbusser Tor"
+  ko: "Urban Sports yoga classes near Kottbusser Tor"
+  it: "Urban Sports yoga classes near Kottbusser Tor"
+  tr: "Urban Sports yoga classes near Kottbusser Tor"
+  vi: "Urban Sports yoga classes near Kottbusser Tor"
+  id: "Urban Sports yoga classes near Kottbusser Tor"
+  pl: "Urban Sports yoga classes near Kottbusser Tor"
+  nl: "Urban Sports yoga classes near Kottbusser Tor"
+  ar: "Urban Sports yoga classes near Kottbusser Tor"
+  hi: "Urban Sports yoga classes near Kottbusser Tor"
+  th: "Urban Sports yoga classes near Kottbusser Tor"
+  cs: "Urban Sports yoga classes near Kottbusser Tor"
+  sv: "Urban Sports yoga classes near Kottbusser Tor"
+  he: "Urban Sports yoga classes near Kottbusser Tor"
   verified_by_human: []
 
 summary:
-  context: "Summary of example chat: Urban Sports Yoga Classes in Berlin"
-  en: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  de: "Finde kommende Vor-Ort-Yogakurse des Urban Sports Club mit Uhrzeit, Studio, Plätzen, Entfernung und benötigten Tarifen."
-  zh: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  es: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  fr: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  pt: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  ru: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  ja: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  ko: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  it: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  tr: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  vi: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  id: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  pl: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  nl: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  ar: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  hi: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  th: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  cs: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  sv: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
-  he: "Find upcoming onsite Urban Sports Club yoga classes with time, studio, spots, distance, and plan requirements."
+  context: "Summary of example chat: Urban Sports yoga classes near Kottbusser Tor"
+  en: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  de: "Finde Yoga- und Workout-Kurse bei Urban Sports Club nahe Kottbusser Tor in Berlin."
+  zh: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  es: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  fr: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  pt: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  ru: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  ja: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  ko: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  it: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  tr: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  vi: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  id: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  pl: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  nl: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  ar: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  hi: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  th: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  cs: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  sv: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  he: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
   verified_by_human: []
 
 message_1:
-  context: "user message 1 in example chat: Urban Sports Yoga Classes in Berlin. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
-  en: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  de: "Finde Vor-Ort-Yogakurse des Urban Sports Club in der Nähe der Sorauer Str. 12 in Berlin im Umkreis von 3 km für die nächsten 7 Tage. Reiner Text reicht; keine Fotos nötig. Liste bis zu 5 Kurse mit Datum, Uhrzeit, Studio, Entfernung, freien Plätzen und benötigten Tarifen auf."
-  zh: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  es: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  fr: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  pt: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  ru: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  ja: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  ko: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  it: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  tr: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  vi: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  id: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  pl: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  nl: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  ar: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  hi: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  th: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  cs: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  sv: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
-  he: "Find onsite Urban Sports Club yoga classes near Sorauer Str. 12, Berlin within 3 km for the next 7 days. Text-only is fine; no photos needed. List up to 5 classes with date, time, studio, distance, spots, and required plans."
+  context: "user message 1 in example chat: Urban Sports yoga classes near Kottbusser Tor. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  de: "Kannst du diese Woche bei Urban Sports Club nach Yoga- oder Workout-Kursen nahe Kottbusser Tor in Berlin suchen?"
+  zh: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  es: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  fr: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  pt: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  ru: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  ja: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  ko: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  it: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  tr: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  vi: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  id: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  pl: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  nl: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  ar: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  hi: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  th: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  cs: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  sv: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  he: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
   verified_by_human: []
 
 message_2:
-  context: "assistant message 2 in example chat: Urban Sports Yoga Classes in Berlin. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  context: "assistant message 2 in example chat: Urban Sports yoga classes near Kottbusser Tor. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   de: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Ja, diese Woche gibt es mehrere Urban-Sports-Club-Kurse nahe Kottbusser Tor (7. bis 12. Juli 2026).
     
-    Basierend auf dem aktuellen Datum und der Uhrzeit Dienstag, 7. Juli 2026, 09:29 Uhr, sind hier 5 kommende Vor-Ort-Yogakurse des Urban Sports Club im Umkreis von 3 km der Sorauer Str. 12 in Berlin:
+    Hier sind einige der naechstgelegenen Yoga- und Workout-Optionen in Laufnaehe:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Datum:** Heute, 7. Juli
-       - **Uhrzeit:** Nach Vereinbarung (Studio kontaktieren)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Entfernung:** 1,09 km
-       - **Plätze:** Unbegrenzt
-       - **Tarife:** Classic, Premium, Max
+    ### **Yogakurse**
+    *   **Lunch Break Vinyasa** bei [Green Yoga](embed:lunch-break-vinyasa-BHB): Ein passender Mittagsflow, nur etwa 0,5 km entfernt in der Oranienstrasse 163.
+    *   **Abhyasa** bei [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Fokus auf regelmaessige Praxis, nur 0,27 km entfernt.
+    *   **1:1 Yoga PT** bei [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individuelle Sessions die ganze Woche ueber, z. B. am [7. Juli](embed:1-1-yoga-k2o), [8. Juli](embed:1-1-yoga-Zda) und [9. Juli](embed:1-1-yoga-BuL).
+    *   **AcroYoga Freies Training** bei [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): Fuer alle, die Partnerakrobatik ausprobieren moechten, etwa 2,1 km entfernt am Schleusenufer.
     
-    2. **Abhyasa**
-       - **Datum:** Heute, 7. Juli
-       - **Uhrzeit:** Nach Vereinbarung (Studio kontaktieren)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Entfernung:** 1,09 km
-       - **Plätze:** Unbegrenzt
-       - **Tarife:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** bei [Vea Studio](embed:eldoa-athletic-stretching-p31): Eine spezialisierte Einheit fuer Wirbelsaeulengesundheit und sportliche Regeneration, 0,4 km entfernt in der Naunynstrasse.
     
-    3. **Yin Yoga**
-       - **Datum:** Heute, 7. Juli
-       - **Uhrzeit:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Entfernung:** 1,81 km
-       - **Plätze:** 33 verfügbar
-       - **Tarife:** Premium, Max
+    **Kurzuebersicht der Optionen:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Datum:** Heute, 7. Juli
-       - **Uhrzeit:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Entfernung:** 2,41 km
-       - **Plätze:** 25 verfügbar
-       - **Tarife:** Classic, Premium, Max
+    ### **Karte der Standorte**
+    Die Studios liegen gebuendelt im Bereich [Kreuzberg](wiki:Kreuzberg), vor allem entlang der Oranienstrasse und Naunynstrasse.
     
-    5. **Abhyasa**
-       - **Datum:** Heute, 7. Juli
-       - **Uhrzeit:** Nach Vereinbarung (Studio kontaktieren)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Entfernung:** 2,59 km
-       - **Plätze:** Unbegrenzt
-       - **Tarife:** Classic, Premium, Max
+    Soll ich bestimmte Zeiten am Wochenende pruefen, oder suchst du eher ein intensiveres [HIIT](wiki:High-intensity_interval_training)-Workout?
     
-    *Hinweis: Kurse mit der Angabe "Nach Vereinbarung" erfordern normalerweise, dass du den Anbieter direkt über die Urban-Sports-Club-App kontaktierst, um einen konkreten Termin zu vereinbaren.*
-    
-    Soll ich gezielt nach Kursen für morgen oder zu einer anderen Tageszeit suchen?
+    **Was kommt als Naechstes?**
+    - Soll ich fuer einen dieser Kurse ein bestimmtes Zeitfenster morgens oder abends finden?
+    - Ich kann auch nach anderen Aktivitaeten in der Naehe wie [Bouldern](wiki:Bouldering) oder [Pilates](wiki:Pilates) suchen.
     ---
-    *⚠️ Dies ist nur eine Bildungsinformation und keine medizinische Beratung. Wende dich bei medizinischen Entscheidungen an deine Ärztin oder deinen Arzt.*
+    *Hinweis: Das ist nur allgemeine Information und keine medizinische Beratung. Bitte konsultiere fuer medizinische Entscheidungen deine Aerztin oder deinen Arzt.*
   zh: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   es: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   fr: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   pt: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ru: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ja: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ko: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   it: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   tr: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   vi: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   id: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   pl: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   nl: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   ar: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   hi: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   th: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   cs: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   sv: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   he: |
     ```json
-    {"type": "app_skill_use", "embed_id": "08c465ee-0522-436f-9ee4-4204b84176e1", "app_id": "fitness", "skill_id": "search_classes", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
     ```json
-    {"type": "app_skill_use", "embed_id": "651bbcde-9063-450b-b0f9-4b8a6e2a52dc", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
     ```
     
-    ```json
-    {"type": "app_skill_use", "embed_id": "fdb4ce0e-ab33-4c54-8b7b-0acdb222e3aa", "app_id": "fitness", "skill_id": "search_classes", "query": "Yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Sorauer Str. 12, Berlin"}
-    ```
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
     
-    Based on the current date and time of Tuesday, July 7, 2026, 09:29 AM, here are 5 upcoming onsite Urban Sports Club yoga classes within 3 km of Sorauer Str. 12, Berlin:
+    Here are some of the closest yoga and workout options within walking distance:
     
-    1. **1:1 Yoga PT** (Personal Training)
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
     
-    2. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Kreuzberg)
-       - **Distance:** 1.09 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
     
-    3. **Yin Yoga**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Holmes Place Germany - Neue Welt
-       - **Distance:** 1.81 km
-       - **Spots:** 33 available
-       - **Plans:** Premium, Max
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
     
-    4. **HEALTHY BACK 🌿 Level I-II**
-       - **Date:** Today, July 7
-       - **Time:** 11:30 — 12:30
-       - **Studio:** Lotos Yoga
-       - **Distance:** 2.41 km
-       - **Spots:** 25 available
-       - **Plans:** Classic, Premium, Max
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
     
-    5. **Abhyasa**
-       - **Date:** Today, July 7
-       - **Time:** By appointment (Contact studio)
-       - **Studio:** Ayurveda Yoga & Healing Arts Berlin (Neukölln)
-       - **Distance:** 2.59 km
-       - **Spots:** Unlimited
-       - **Plans:** Classic, Premium, Max
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
     
-    *Note: Classes labeled "By appointment" usually require you to contact the venue directly via the Urban Sports Club app to schedule a specific slot.*
-    
-    Would you like me to look for classes specifically for tomorrow or a different time of day?
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
     ---
     *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
   verified_by_human: []
 
 follow_up_1:
   context: "Follow-up suggestion 1"
-  en: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  de: "Suche nach verfügbaren Plätzen im Yin-Yoga-Kurs bei Holmes Place Germany - Neue Welt"
-  zh: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  es: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  fr: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  pt: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  ru: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  ja: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  ko: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  it: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  tr: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  vi: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  id: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  pl: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  nl: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  ar: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  hi: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  th: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  cs: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  sv: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
-  he: "Search for available spots in the Yin Yoga class at Holmes Place Germany - Neue Welt"
+  en: "Search for available slots in the Lunch Break Vinyasa class"
+  de: "Suche freie Plaetze im Lunch Break Vinyasa Kurs"
+  zh: "Search for available slots in the Lunch Break Vinyasa class"
+  es: "Search for available slots in the Lunch Break Vinyasa class"
+  fr: "Search for available slots in the Lunch Break Vinyasa class"
+  pt: "Search for available slots in the Lunch Break Vinyasa class"
+  ru: "Search for available slots in the Lunch Break Vinyasa class"
+  ja: "Search for available slots in the Lunch Break Vinyasa class"
+  ko: "Search for available slots in the Lunch Break Vinyasa class"
+  it: "Search for available slots in the Lunch Break Vinyasa class"
+  tr: "Search for available slots in the Lunch Break Vinyasa class"
+  vi: "Search for available slots in the Lunch Break Vinyasa class"
+  id: "Search for available slots in the Lunch Break Vinyasa class"
+  pl: "Search for available slots in the Lunch Break Vinyasa class"
+  nl: "Search for available slots in the Lunch Break Vinyasa class"
+  ar: "Search for available slots in the Lunch Break Vinyasa class"
+  hi: "Search for available slots in the Lunch Break Vinyasa class"
+  th: "Search for available slots in the Lunch Break Vinyasa class"
+  cs: "Search for available slots in the Lunch Break Vinyasa class"
+  sv: "Search for available slots in the Lunch Break Vinyasa class"
+  he: "Search for available slots in the Lunch Break Vinyasa class"
   verified_by_human: []
 
 follow_up_2:
   context: "Follow-up suggestion 2"
-  en: "Explain the difference between Yin Yoga and Abhyasa"
-  de: "Erkläre den Unterschied zwischen Yin Yoga und Abhyasa"
-  zh: "Explain the difference between Yin Yoga and Abhyasa"
-  es: "Explain the difference between Yin Yoga and Abhyasa"
-  fr: "Explain the difference between Yin Yoga and Abhyasa"
-  pt: "Explain the difference between Yin Yoga and Abhyasa"
-  ru: "Explain the difference between Yin Yoga and Abhyasa"
-  ja: "Explain the difference between Yin Yoga and Abhyasa"
-  ko: "Explain the difference between Yin Yoga and Abhyasa"
-  it: "Explain the difference between Yin Yoga and Abhyasa"
-  tr: "Explain the difference between Yin Yoga and Abhyasa"
-  vi: "Explain the difference between Yin Yoga and Abhyasa"
-  id: "Explain the difference between Yin Yoga and Abhyasa"
-  pl: "Explain the difference between Yin Yoga and Abhyasa"
-  nl: "Explain the difference between Yin Yoga and Abhyasa"
-  ar: "Explain the difference between Yin Yoga and Abhyasa"
-  hi: "Explain the difference between Yin Yoga and Abhyasa"
-  th: "Explain the difference between Yin Yoga and Abhyasa"
-  cs: "Explain the difference between Yin Yoga and Abhyasa"
-  sv: "Explain the difference between Yin Yoga and Abhyasa"
-  he: "Explain the difference between Yin Yoga and Abhyasa"
+  en: "Explain the benefits of Vinyasa yoga"
+  de: "Erklaere die Vorteile von Vinyasa Yoga"
+  zh: "Explain the benefits of Vinyasa yoga"
+  es: "Explain the benefits of Vinyasa yoga"
+  fr: "Explain the benefits of Vinyasa yoga"
+  pt: "Explain the benefits of Vinyasa yoga"
+  ru: "Explain the benefits of Vinyasa yoga"
+  ja: "Explain the benefits of Vinyasa yoga"
+  ko: "Explain the benefits of Vinyasa yoga"
+  it: "Explain the benefits of Vinyasa yoga"
+  tr: "Explain the benefits of Vinyasa yoga"
+  vi: "Explain the benefits of Vinyasa yoga"
+  id: "Explain the benefits of Vinyasa yoga"
+  pl: "Explain the benefits of Vinyasa yoga"
+  nl: "Explain the benefits of Vinyasa yoga"
+  ar: "Explain the benefits of Vinyasa yoga"
+  hi: "Explain the benefits of Vinyasa yoga"
+  th: "Explain the benefits of Vinyasa yoga"
+  cs: "Explain the benefits of Vinyasa yoga"
+  sv: "Explain the benefits of Vinyasa yoga"
+  he: "Explain the benefits of Vinyasa yoga"
   verified_by_human: []
 
 follow_up_3:
   context: "Follow-up suggestion 3"
-  en: "Find more yoga classes at Lotos Yoga"
-  de: "Finde weitere Yogakurse bei Lotos Yoga"
-  zh: "Find more yoga classes at Lotos Yoga"
-  es: "Find more yoga classes at Lotos Yoga"
-  fr: "Find more yoga classes at Lotos Yoga"
-  pt: "Find more yoga classes at Lotos Yoga"
-  ru: "Find more yoga classes at Lotos Yoga"
-  ja: "Find more yoga classes at Lotos Yoga"
-  ko: "Find more yoga classes at Lotos Yoga"
-  it: "Find more yoga classes at Lotos Yoga"
-  tr: "Find more yoga classes at Lotos Yoga"
-  vi: "Find more yoga classes at Lotos Yoga"
-  id: "Find more yoga classes at Lotos Yoga"
-  pl: "Find more yoga classes at Lotos Yoga"
-  nl: "Find more yoga classes at Lotos Yoga"
-  ar: "Find more yoga classes at Lotos Yoga"
-  hi: "Find more yoga classes at Lotos Yoga"
-  th: "Find more yoga classes at Lotos Yoga"
-  cs: "Find more yoga classes at Lotos Yoga"
-  sv: "Find more yoga classes at Lotos Yoga"
-  he: "Find more yoga classes at Lotos Yoga"
+  en: "Find nearby bouldering gyms in Berlin"
+  de: "Finde Boulderhallen in der Naehe in Berlin"
+  zh: "Find nearby bouldering gyms in Berlin"
+  es: "Find nearby bouldering gyms in Berlin"
+  fr: "Find nearby bouldering gyms in Berlin"
+  pt: "Find nearby bouldering gyms in Berlin"
+  ru: "Find nearby bouldering gyms in Berlin"
+  ja: "Find nearby bouldering gyms in Berlin"
+  ko: "Find nearby bouldering gyms in Berlin"
+  it: "Find nearby bouldering gyms in Berlin"
+  tr: "Find nearby bouldering gyms in Berlin"
+  vi: "Find nearby bouldering gyms in Berlin"
+  id: "Find nearby bouldering gyms in Berlin"
+  pl: "Find nearby bouldering gyms in Berlin"
+  nl: "Find nearby bouldering gyms in Berlin"
+  ar: "Find nearby bouldering gyms in Berlin"
+  hi: "Find nearby bouldering gyms in Berlin"
+  th: "Find nearby bouldering gyms in Berlin"
+  cs: "Find nearby bouldering gyms in Berlin"
+  sv: "Find nearby bouldering gyms in Berlin"
+  he: "Find nearby bouldering gyms in Berlin"
   verified_by_human: []
 
 follow_up_4:
   context: "Follow-up suggestion 4"
-  en: "List the benefits of attending yoga classes regularly"
-  de: "Liste die Vorteile regelmäßiger Yogakurse auf"
-  zh: "List the benefits of attending yoga classes regularly"
-  es: "List the benefits of attending yoga classes regularly"
-  fr: "List the benefits of attending yoga classes regularly"
-  pt: "List the benefits of attending yoga classes regularly"
-  ru: "List the benefits of attending yoga classes regularly"
-  ja: "List the benefits of attending yoga classes regularly"
-  ko: "List the benefits of attending yoga classes regularly"
-  it: "List the benefits of attending yoga classes regularly"
-  tr: "List the benefits of attending yoga classes regularly"
-  vi: "List the benefits of attending yoga classes regularly"
-  id: "List the benefits of attending yoga classes regularly"
-  pl: "List the benefits of attending yoga classes regularly"
-  nl: "List the benefits of attending yoga classes regularly"
-  ar: "List the benefits of attending yoga classes regularly"
-  hi: "List the benefits of attending yoga classes regularly"
-  th: "List the benefits of attending yoga classes regularly"
-  cs: "List the benefits of attending yoga classes regularly"
-  sv: "List the benefits of attending yoga classes regularly"
-  he: "List the benefits of attending yoga classes regularly"
+  en: "List some beginner tips for AcroYoga"
+  de: "Liste Einsteiger-Tipps fuer AcroYoga auf"
+  zh: "List some beginner tips for AcroYoga"
+  es: "List some beginner tips for AcroYoga"
+  fr: "List some beginner tips for AcroYoga"
+  pt: "List some beginner tips for AcroYoga"
+  ru: "List some beginner tips for AcroYoga"
+  ja: "List some beginner tips for AcroYoga"
+  ko: "List some beginner tips for AcroYoga"
+  it: "List some beginner tips for AcroYoga"
+  tr: "List some beginner tips for AcroYoga"
+  vi: "List some beginner tips for AcroYoga"
+  id: "List some beginner tips for AcroYoga"
+  pl: "List some beginner tips for AcroYoga"
+  nl: "List some beginner tips for AcroYoga"
+  ar: "List some beginner tips for AcroYoga"
+  hi: "List some beginner tips for AcroYoga"
+  th: "List some beginner tips for AcroYoga"
+  cs: "List some beginner tips for AcroYoga"
+  sv: "List some beginner tips for AcroYoga"
+  he: "List some beginner tips for AcroYoga"
   verified_by_human: []
 
 follow_up_5:
   context: "Follow-up suggestion 5"
-  en: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  de: "Suche nach Fitnesskursen bei Holmes Place Germany - Neue Welt"
-  zh: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  es: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  fr: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  pt: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  ru: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  ja: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  ko: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  it: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  tr: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  vi: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  id: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  pl: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  nl: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  ar: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  hi: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  th: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  cs: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  sv: "Search for fitness classes at Holmes Place Germany - Neue Welt"
-  he: "Search for fitness classes at Holmes Place Germany - Neue Welt"
+  en: "Show me the weather forecast for Berlin this week"
+  de: "Zeig mir die Wettervorhersage fuer Berlin diese Woche"
+  zh: "Show me the weather forecast for Berlin this week"
+  es: "Show me the weather forecast for Berlin this week"
+  fr: "Show me the weather forecast for Berlin this week"
+  pt: "Show me the weather forecast for Berlin this week"
+  ru: "Show me the weather forecast for Berlin this week"
+  ja: "Show me the weather forecast for Berlin this week"
+  ko: "Show me the weather forecast for Berlin this week"
+  it: "Show me the weather forecast for Berlin this week"
+  tr: "Show me the weather forecast for Berlin this week"
+  vi: "Show me the weather forecast for Berlin this week"
+  id: "Show me the weather forecast for Berlin this week"
+  pl: "Show me the weather forecast for Berlin this week"
+  nl: "Show me the weather forecast for Berlin this week"
+  ar: "Show me the weather forecast for Berlin this week"
+  hi: "Show me the weather forecast for Berlin this week"
+  th: "Show me the weather forecast for Berlin this week"
+  cs: "Show me the weather forecast for Berlin this week"
+  sv: "Show me the weather forecast for Berlin this week"
+  he: "Show me the weather forecast for Berlin this week"
   verified_by_human: []
 
 follow_up_6:
   context: "Follow-up suggestion 6"
-  en: "Help me understand the different Urban Sports Club plans"
-  de: "Hilf mir, die verschiedenen Urban-Sports-Club-Tarife zu verstehen"
-  zh: "Help me understand the different Urban Sports Club plans"
-  es: "Help me understand the different Urban Sports Club plans"
-  fr: "Help me understand the different Urban Sports Club plans"
-  pt: "Help me understand the different Urban Sports Club plans"
-  ru: "Help me understand the different Urban Sports Club plans"
-  ja: "Help me understand the different Urban Sports Club plans"
-  ko: "Help me understand the different Urban Sports Club plans"
-  it: "Help me understand the different Urban Sports Club plans"
-  tr: "Help me understand the different Urban Sports Club plans"
-  vi: "Help me understand the different Urban Sports Club plans"
-  id: "Help me understand the different Urban Sports Club plans"
-  pl: "Help me understand the different Urban Sports Club plans"
-  nl: "Help me understand the different Urban Sports Club plans"
-  ar: "Help me understand the different Urban Sports Club plans"
-  hi: "Help me understand the different Urban Sports Club plans"
-  th: "Help me understand the different Urban Sports Club plans"
-  cs: "Help me understand the different Urban Sports Club plans"
-  sv: "Help me understand the different Urban Sports Club plans"
-  he: "Help me understand the different Urban Sports Club plans"
+  en: "Help me understand ELDOA stretching techniques"
+  de: "Hilf mir, ELDOA-Stretching-Techniken zu verstehen"
+  zh: "Help me understand ELDOA stretching techniques"
+  es: "Help me understand ELDOA stretching techniques"
+  fr: "Help me understand ELDOA stretching techniques"
+  pt: "Help me understand ELDOA stretching techniques"
+  ru: "Help me understand ELDOA stretching techniques"
+  ja: "Help me understand ELDOA stretching techniques"
+  ko: "Help me understand ELDOA stretching techniques"
+  it: "Help me understand ELDOA stretching techniques"
+  tr: "Help me understand ELDOA stretching techniques"
+  vi: "Help me understand ELDOA stretching techniques"
+  id: "Help me understand ELDOA stretching techniques"
+  pl: "Help me understand ELDOA stretching techniques"
+  nl: "Help me understand ELDOA stretching techniques"
+  ar: "Help me understand ELDOA stretching techniques"
+  hi: "Help me understand ELDOA stretching techniques"
+  th: "Help me understand ELDOA stretching techniques"
+  cs: "Help me understand ELDOA stretching techniques"
+  sv: "Help me understand ELDOA stretching techniques"
+  he: "Help me understand ELDOA stretching techniques"
   verified_by_human: []
