@@ -27,6 +27,7 @@ auto_logout.title:
   cs: Automatické odhlášení
   sv: Automatisk utloggning
   he: התנתקות אוטומטית
+  verified_by_human: []
 auto_logout.consider_stay_logged_in:
   context: Message suggesting to enable stay logged in
   en: "Consider activating 'Stay logged in'."
@@ -50,6 +51,7 @@ auto_logout.consider_stay_logged_in:
   cs: "Zvažte aktivaci 'Zůstat přihlášen'."
   sv: "Överväg att aktivera 'Håll mig inloggad'."
   he: "כדאי להפעיל את 'הישאר מחובר'."
+  verified_by_human: []
 auto_logout.during_login:
   context: Secondary message about when to enable the setting
   en: During login, to remain connected.
@@ -75,6 +77,7 @@ auto_logout.during_login:
   he: במהלך ההתחברות, כדי להישאר מחובר.
 
 # Connection problem notifications
+  verified_by_human: []
 connection.title:
   context: Title for connection problem notification
   en: "Can't connect to server."
@@ -98,6 +101,7 @@ connection.title:
   cs: "Nelze se připojit k serveru."
   sv: "Kan inte ansluta till servern."
   he: לא ניתן להתחבר לשרת.
+  verified_by_human: []
 connection.trying_to_reconnect:
   context: Message about reconnection attempt
   en: Trying to reconnect for {seconds} seconds.
@@ -121,6 +125,7 @@ connection.trying_to_reconnect:
   cs: Pokus o opětovné připojení po dobu {seconds} sekund.
   sv: Försöker återansluta sedan {seconds} sekunder.
   he: "מנסה להתחבר מחדש במשך {seconds} שניות."
+  verified_by_human: []
 connection.offline_mode:
   context: Secondary message about offline mode activation
   en: Else Offline Mode will be activated.
@@ -144,6 +149,7 @@ connection.offline_mode:
   cs: Jinak bude aktivován offline režim.
   sv: Annars aktiveras offlineläge.
   he: אחרת, מצב לא מקוון יופעל.
+  verified_by_human: []
 connection.offline_banner:
   context: Message shown in the notification when the device loses network connectivity
   en: You are offline. Your chats are still available.
@@ -167,6 +173,7 @@ connection.offline_banner:
   cs: Jste offline. Vaše chaty jsou stále dostupné.
   sv: Du är offline. Dina chattar är fortfarande tillgängliga.
   he: "אין חיבור לאינטרנט. הצ'אטים שלך עדיין זמינים."
+  verified_by_human: []
 connection.offline_banner.title:
   context: Title for the offline notification shown when the device loses network connectivity
   en: You are offline
@@ -190,6 +197,7 @@ connection.offline_banner.title:
   cs: Jste offline
   sv: Du är offline
   he: אין חיבור לאינטרנט
+  verified_by_human: []
 connection.tap_to_reconnect:
   context: Action button text on the offline notification, lets the user manually trigger a reconnection attempt
   en: Tap to reconnect
@@ -213,6 +221,7 @@ connection.tap_to_reconnect:
   cs: Klepnutím se znovu připojte
   sv: Tryck för att återansluta
   he: הקש להתחברות מחדש
+  verified_by_human: []
 connection.reconnecting.title:
   context: Title shown on the notification while a reconnection attempt is in progress
   en: Reconnecting...
@@ -236,6 +245,7 @@ connection.reconnecting.title:
   cs: Opětovné připojení...
   sv: Återansluter...
   he: מתחבר מחדש...
+  verified_by_human: []
 connection.reconnecting:
   context: Message shown on the notification while a reconnection attempt is in progress
   en: Attempting to reconnect to the server.
@@ -259,6 +269,7 @@ connection.reconnecting:
   cs: Pokus o opětovné připojení k serveru.
   sv: Försöker återansluta till servern.
   he: מנסה להתחבר מחדש לשרת.
+  verified_by_human: []
 connection.reconnected:
   context: Message shown in the success notification when the server connection is restored after an offline period
   en: Connection to server restored.
@@ -383,6 +394,7 @@ software_update.title:
   cs: Dostupná aktualizace softwaru
   sv: Programuppdatering tillgänglig
   he: עדכון תוכנה זמין
+  verified_by_human: []
 software_update.new_version:
   context: Message about new version availability
   en: OpenMates {version} is available now.
@@ -406,6 +418,7 @@ software_update.new_version:
   cs: OpenMates {version} je nyní k dispozici.
   sv: OpenMates {version} är nu tillgänglig.
   he: "OpenMates {version} זמינה כעת."
+  verified_by_human: []
 software_update.check_settings:
   context: Secondary message about where to install update
   en: Check your server settings to install it.
@@ -431,6 +444,7 @@ software_update.check_settings:
   he: בדוק את הגדרות השרת כדי להתקין אותו.
 
 # Web app version update notifications (shown when SvelteKit detects a new deployment)
+  verified_by_human: []
 software_update.web_app_available:
   context: Primary message shown in the notification when a new web app version is detected
   en: A new version is available. It will load on your next navigation.
@@ -454,6 +468,7 @@ software_update.web_app_available:
   cs: Je k dispozici nová verze. Načte se při příštím přechodu.
   sv: En ny version är tillgänglig. Den laddas vid nästa navigering.
   he: גרסה חדשה זמינה. היא תיטען במעבר הבא בין דפים.
+  verified_by_human: []
 software_update.refresh_now:
   context: Action button label to immediately refresh the page and load the new version
   en: Refresh now
@@ -479,6 +494,7 @@ software_update.refresh_now:
   he: רענן כעת
 
 # Chat message notifications
+  verified_by_human: []
 chat_message.new_ai_response:
   context: Default message for new AI response notification
   en: New AI response ready
@@ -502,6 +518,7 @@ chat_message.new_ai_response:
   cs: Nová odpověď AI připravena
   sv: Nytt AI-svar redo
   he: תגובת AI חדשה מוכנה
+  verified_by_human: []
 chat_message.new_message_received:
   context: Privacy-preserving notification body for new assistant messages; never include message content in native push alerts
   en: New message received
@@ -525,6 +542,7 @@ chat_message.new_message_received:
   cs: Přijata nová zpráva
   sv: Nytt meddelande mottaget
   he: התקבלה הודעה חדשה
+  verified_by_human: []
 click_to_respond:
   context: Button text for reply action in chat notification
   en: Click here to respond
@@ -550,6 +568,7 @@ click_to_respond:
   he: לחץ כאן כדי להגיב
 
 # Push notification permission banner
+  verified_by_human: []
 push.banner_title:
   context: Title for the push notification permission banner
   en: Want to receive notifications when your assistant responds?
@@ -573,6 +592,7 @@ push.banner_title:
   cs: Chcete dostávat oznámení, když váš asistent odpoví?
   sv: Vill du få meddelanden när din assistent svarar?
   he: "רוצה לקבל התראות כשהעוזר שלך מגיב?"
+  verified_by_human: []
 push.banner_subtitle:
   context: Subtitle explaining the benefit
   en: "Even when you're not in the app."
@@ -596,6 +616,7 @@ push.banner_subtitle:
   cs: "I když nejste v aplikaci."
   sv: "Även när du inte är i appen."
   he: גם כשאינך באפליקציה.
+  verified_by_human: []
 push.enable_btn:
   context: Button to enable notifications
   en: Enable Notifications
@@ -619,6 +640,7 @@ push.enable_btn:
   cs: Povolit oznámení
   sv: Aktivera aviseringar
   he: הפעל התראות
+  verified_by_human: []
 push.not_yet_btn:
   context: Button to dismiss the banner temporarily
   en: Not Yet
@@ -642,6 +664,7 @@ push.not_yet_btn:
   cs: Ještě ne
   sv: Inte nu
   he: לא כרגע
+  verified_by_human: []
 push.requesting:
   context: Loading state while requesting permission
   en: Requesting...
@@ -665,6 +688,7 @@ push.requesting:
   cs: Žádost...
   sv: Begär...
   he: מבקש...
+  verified_by_human: []
 push.ios_install_title:
   context: Title for iOS PWA installation instructions
   en: Install OpenMates First
@@ -688,6 +712,7 @@ push.ios_install_title:
   cs: Nejprve nainstalujte OpenMates
   sv: Installera OpenMates först
   he: התקן את OpenMates תחילה
+  verified_by_human: []
 push.ios_install_step1:
   context: Step 1 for iOS installation
   en: 1. Tap the Share button in Safari
@@ -711,6 +736,7 @@ push.ios_install_step1:
   cs: 1. Klepněte na tlačítko Sdílet v Safari
   sv: 1. Tryck på dela-knappen i Safari
   he: 1. הקש על כפתור השיתוף ב-Safari
+  verified_by_human: []
 push.ios_install_step2:
   context: Step 2 for iOS installation
   en: 2. Select "Add to Home Screen"
@@ -734,6 +760,7 @@ push.ios_install_step2:
   cs: 2. Vyberte "Přidat na plochu"
   sv: 2. Välj "Lägg till på hemskärmen"
   he: "2. בחר ב-\"הוסף למסך הבית\""
+  verified_by_human: []
 push.ios_install_step3:
   context: Step 3 for iOS installation
   en: 3. Open OpenMates from your home screen
@@ -757,6 +784,7 @@ push.ios_install_step3:
   cs: 3. Otevřete OpenMates z domovské obrazovky
   sv: 3. Öppna OpenMates från din hemskärm
   he: 3. פתח את OpenMates ממסך הבית
+  verified_by_human: []
 push.ios_install_step4:
   context: Step 4 for iOS installation
   en: 4. Then you can enable notifications
@@ -782,6 +810,7 @@ push.ios_install_step4:
   he: 4. לאחר מכן תוכל להפעיל התראות
 
 # Security reminder notification (shown after login when user has no 2FA/passkey)
+  verified_by_human: []
 security_reminder.title:
   context: Title for the security reminder notification shown after login when user has no 2FA or passkey configured
   en: Security Reminder

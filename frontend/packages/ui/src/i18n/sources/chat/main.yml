@@ -217,7 +217,27 @@ anonymous_free_usage.feature_notice:
 anonymous_free_usage.daily_credits_exhausted:
   context: Notification shown when an anonymous user tries to send after the free daily credits are used up
   en: You used up your free daily credits. Sign up & buy credits to make full use of OpenMates.
-  verified_by_human: []
+  de: Du hast deine kostenlosen Tagescredits aufgebraucht. Registriere dich und kaufe Credits, um OpenMates vollständig zu nutzen.
+  zh: 你已用完今日免费匿名额度。注册并购买积分，即可完整使用 OpenMates。
+  es: Has agotado tus créditos diarios gratuitos. Regístrate y compra créditos para aprovechar OpenMates al máximo.
+  fr: Vous avez utilisé vos crédits quotidiens gratuits. Inscrivez-vous et achetez des crédits pour profiter pleinement d'OpenMates.
+  pt: Você usou seus créditos diários gratuitos. Cadastre-se e compre créditos para aproveitar o OpenMates por completo.
+  ru: Вы израсходовали бесплатные дневные кредиты. Зарегистрируйтесь и купите кредиты, чтобы полноценно пользоваться OpenMates.
+  ja: 無料の1日分クレジットを使い切りました。OpenMates を最大限に利用するには、登録してクレジットを購入してください。
+  ko: 무료 일일 크레딧을 모두 사용했습니다. 가입하고 크레딧을 구매하여 OpenMates를 충분히 활용하세요.
+  it: Hai esaurito i crediti gratuiti giornalieri. Registrati e acquista crediti per usare OpenMates al meglio.
+  tr: Ücretsiz günlük kredilerinizi kullandınız. OpenMates'ten tam olarak yararlanmak için kaydolun ve kredi satın alın.
+  vi: Bạn đã dùng hết tín dụng miễn phí hằng ngày. Hãy đăng ký và mua tín dụng để sử dụng đầy đủ OpenMates.
+  id: Anda telah menghabiskan kredit harian gratis. Daftar dan beli kredit untuk menggunakan OpenMates sepenuhnya.
+  pl: Wykorzystałeś bezpłatne dzienne kredyty. Zarejestruj się i kup kredyty, aby w pełni korzystać z OpenMates.
+  nl: Je hebt je gratis dagelijkse credits opgebruikt. Meld je aan en koop credits om OpenMates volledig te gebruiken.
+  ar: لقد استخدمت رصيدك اليومي المجاني. سجّل واشترِ رصيدًا للاستفادة الكاملة من OpenMates.
+  hi: आपने अपने मुफ्त दैनिक क्रेडिट इस्तेमाल कर लिए हैं। OpenMates का पूरा उपयोग करने के लिए साइन अप करें और क्रेडिट खरीदें।
+  th: คุณใช้เครดิตฟรีรายวันหมดแล้ว สมัครสมาชิกและซื้อเครดิตเพื่อใช้ OpenMates ได้เต็มที่
+  cs: Vyčerpali jste své bezplatné denní kredity. Zaregistrujte se a kupte kredity, abyste mohli OpenMates využívat naplno.
+  sv: Du har använt upp dina kostnadsfria dagliga krediter. Registrera dig och köp krediter för att använda OpenMates fullt ut.
+  he: ניצלת את הקרדיטים היומיים החינמיים שלך. הירשם וקנה קרדיטים כדי להשתמש ב-OpenMates במלואו.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 interactive_question_failed:
   context: Fallback shown when an interactive question payload cannot be parsed or displayed
   en: Failed to display question.
@@ -560,143 +580,843 @@ permissions.reject_all:
 connected_account_permissions.title:
   context: Header for a connected account approval dialog in chat.
   en: Connected account approval
-  verified_by_human: [en]
+  de: Freigabe für verbundenes Konto
+  zh: 关联账户授权
+  es: Aprobación de cuenta conectada
+  fr: Approbation du compte connecté
+  pt: Aprovação da conta conectada
+  ru: Подтверждение подключённого аккаунта
+  ja: 接続済みアカウントの承認
+  ko: 연결된 계정 승인
+  it: Approvazione account collegato
+  tr: Bağlı hesap onayı
+  vi: Phê duyệt tài khoản đã kết nối
+  id: Persetujuan akun terhubung
+  pl: Zatwierdzenie połączonego konta
+  nl: Goedkeuring voor gekoppeld account
+  ar: موافقة الحساب المتصل
+  hi: कनेक्टेड खाते की स्वीकृति
+  th: การอนุมัติบัญชีที่เชื่อมต่อ
+  cs: Schválení připojeného účtu
+  sv: Godkännande för anslutet konto
+  he: אישור חשבון מחובר
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_permissions.question:
   context: Question asking user to allow one connected account action. The action replacement is a short action name such as read, write, update, or delete.
   en: Allow this chat to use your connected account for this {action} action?
-  verified_by_human: [en]
+  de: Darf dieser Chat dein verbundenes Konto für diese Aktion „{action}“ verwenden?
+  zh: 允许此聊天使用你的关联账户执行此 {action} 操作吗？
+  es: ¿Permitir que este chat use tu cuenta conectada para esta acción de {action}?
+  fr: Autoriser cette discussion à utiliser votre compte connecté pour cette action {action} ?
+  pt: Permitir que este chat use sua conta conectada para esta ação de {action}?
+  ru: Разрешить этому чату использовать ваш подключённый аккаунт для действия «{action}»?
+  ja: このチャットが接続済みアカウントを使用して {action} アクションを実行することを許可しますか？
+  ko: 이 채팅이 연결된 계정을 사용해 {action} 작업을 수행하도록 허용할까요?
+  it: Consentire a questa chat di usare il tuo account collegato per l'azione {action}?
+  tr: Bu sohbetin bağlı hesabınızı bu {action} işlemi için kullanmasına izin verilsin mi?
+  vi: Cho phép cuộc trò chuyện này dùng tài khoản đã kết nối của bạn cho hành động {action} này?
+  id: Izinkan chat ini menggunakan akun terhubung Anda untuk tindakan {action} ini?
+  pl: Czy zezwolić temu czatowi na użycie połączonego konta do działania {action}?
+  nl: Deze chat je gekoppelde account laten gebruiken voor deze actie {action}?
+  ar: هل تسمح لهذه المحادثة باستخدام حسابك المتصل لإجراء {action} هذا؟
+  hi: क्या इस चैट को इस {action} कार्रवाई के लिए आपका कनेक्टेड खाता उपयोग करने दें?
+  th: อนุญาตให้แชทนี้ใช้บัญชีที่เชื่อมต่อของคุณสำหรับการดำเนินการ {action} นี้หรือไม่?
+  cs: Povolit tomuto chatu použít váš připojený účet pro akci {action}?
+  sv: Tillåt att den här chatten använder ditt anslutna konto för åtgärden {action}?
+  he: לאפשר לצ'אט הזה להשתמש בחשבון המחובר שלך עבור פעולת {action} זו?
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_permissions.approve:
   context: Button that approves a connected account action request.
   en: Approve once
-  verified_by_human: [en]
+  de: Einmal genehmigen
+  zh: 批准一次
+  es: Aprobar una vez
+  fr: Approuver une fois
+  pt: Aprovar uma vez
+  ru: Разрешить один раз
+  ja: 1回だけ承認
+  ko: 한 번 승인
+  it: Approva una volta
+  tr: Bir kez onayla
+  vi: Phê duyệt một lần
+  id: Setujui sekali
+  pl: Zatwierdź jednorazowo
+  nl: Eenmalig goedkeuren
+  ar: الموافقة مرة واحدة
+  hi: एक बार स्वीकृत करें
+  th: อนุมัติครั้งเดียว
+  cs: Schválit jednou
+  sv: Godkänn en gång
+  he: אשר פעם אחת
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_permissions.approve_selected:
   context: Button that approves the selected connected-account action requests.
   en: Approve selected
-  verified_by_human: [en]
+  de: Ausgewählte genehmigen
+  zh: 批准所选
+  es: Aprobar seleccionados
+  fr: Approuver la sélection
+  pt: Aprovar selecionados
+  ru: Разрешить выбранные
+  ja: 選択項目を承認
+  ko: 선택 항목 승인
+  it: Approva selezionati
+  tr: Seçilenleri onayla
+  vi: Phê duyệt mục đã chọn
+  id: Setujui yang dipilih
+  pl: Zatwierdź wybrane
+  nl: Selectie goedkeuren
+  ar: الموافقة على المحدد
+  hi: चयनित को स्वीकृत करें
+  th: อนุมัติที่เลือก
+  cs: Schválit vybrané
+  sv: Godkänn valda
+  he: אשר את הנבחרים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_permissions.loading:
   context: Button/status text while connected account approval is being sent.
   en: Approving...
-  verified_by_human: [en]
+  de: Genehmigung läuft...
+  zh: 正在批准...
+  es: Aprobando...
+  fr: Approbation...
+  pt: Aprovando...
+  ru: Подтверждение...
+  ja: 承認中...
+  ko: 승인 중...
+  it: Approvazione...
+  tr: Onaylanıyor...
+  vi: Đang phê duyệt...
+  id: Menyetujui...
+  pl: Zatwierdzanie...
+  nl: Goedkeuren...
+  ar: جارٍ الموافقة...
+  hi: स्वीकृत किया जा रहा है...
+  th: กำลังอนุมัติ...
+  cs: Schvalování...
+  sv: Godkänner...
+  he: מאשר...
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_permissions.account:
   context: Label for a connected-account picker shown on one requested action in an approval dialog.
   en: Account
-  verified_by_human: [en]
+  de: Konto
+  zh: 账户
+  es: Cuenta
+  fr: Compte
+  pt: Conta
+  ru: Аккаунт
+  ja: アカウント
+  ko: 계정
+  it: Account
+  tr: Hesap
+  vi: Tài khoản
+  id: Akun
+  pl: Konto
+  nl: Account
+  ar: الحساب
+  hi: खाता
+  th: บัญชี
+  cs: Účet
+  sv: Konto
+  he: חשבון
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_permissions.request_title:
   context: Header for one requested connected-account action summary. The action replacement is a short action name such as read, write, update, or delete.
   en: Requested {action} action
-  verified_by_human: [en]
+  de: Angeforderte Aktion „{action}“
+  zh: 请求的 {action} 操作
+  es: Acción de {action} solicitada
+  fr: Action {action} demandée
+  pt: Ação de {action} solicitada
+  ru: Запрошенное действие «{action}»
+  ja: リクエストされた {action} アクション
+  ko: 요청된 {action} 작업
+  it: Azione {action} richiesta
+  tr: İstenen {action} işlemi
+  vi: Hành động {action} được yêu cầu
+  id: Tindakan {action} yang diminta
+  pl: Żądane działanie {action}
+  nl: Aangevraagde actie {action}
+  ar: إجراء {action} المطلوب
+  hi: अनुरोधित {action} कार्रवाई
+  th: การดำเนินการ {action} ที่ร้องขอ
+  cs: Požadovaná akce {action}
+  sv: Begärd åtgärd {action}
+  he: פעולת {action} שהתבקשה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_permissions.calendar:
   context: Label for the target calendar in a connected-account approval summary.
   en: Calendar
-  verified_by_human: [en]
+  de: Kalender
+  zh: 日历
+  es: Calendario
+  fr: Calendrier
+  pt: Calendário
+  ru: Календарь
+  ja: カレンダー
+  ko: 캘린더
+  it: Calendario
+  tr: Takvim
+  vi: Lịch
+  id: Kalender
+  pl: Kalendarz
+  nl: Agenda
+  ar: التقويم
+  hi: कैलेंडर
+  th: ปฏิทิน
+  cs: Kalendář
+  sv: Kalender
+  he: לוח שנה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_permissions.event_title:
   context: Label for the event title in a connected-account approval summary.
   en: Event
-  verified_by_human: [en]
+  de: Termin
+  zh: 事件
+  es: Evento
+  fr: Événement
+  pt: Evento
+  ru: Событие
+  ja: イベント
+  ko: 이벤트
+  it: Evento
+  tr: Etkinlik
+  vi: Sự kiện
+  id: Acara
+  pl: Wydarzenie
+  nl: Gebeurtenis
+  ar: الحدث
+  hi: इवेंट
+  th: กิจกรรม
+  cs: Událost
+  sv: Händelse
+  he: אירוע
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_permissions.event_id:
   context: Label for the provider event id in a connected-account approval summary.
   en: Event ID
-  verified_by_human: [en]
+  de: Termin-ID
+  zh: 事件 ID
+  es: ID del evento
+  fr: ID de l'événement
+  pt: ID do evento
+  ru: ID события
+  ja: イベント ID
+  ko: 이벤트 ID
+  it: ID evento
+  tr: Etkinlik kimliği
+  vi: ID sự kiện
+  id: ID acara
+  pl: ID wydarzenia
+  nl: Gebeurtenis-ID
+  ar: معرّف الحدث
+  hi: इवेंट ID
+  th: ID กิจกรรม
+  cs: ID události
+  sv: Händelse-ID
+  he: מזהה אירוע
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_permissions.start:
   context: Label for the event start time in a connected-account approval summary.
   en: Start
-  verified_by_human: [en]
+  de: Beginn
+  zh: 开始
+  es: Inicio
+  fr: Début
+  pt: Início
+  ru: Начало
+  ja: 開始
+  ko: 시작
+  it: Inizio
+  tr: Başlangıç
+  vi: Bắt đầu
+  id: Mulai
+  pl: Początek
+  nl: Begin
+  ar: البداية
+  hi: शुरू
+  th: เริ่ม
+  cs: Začátek
+  sv: Start
+  he: התחלה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_permissions.end:
   context: Label for the event end time in a connected-account approval summary.
   en: End
-  verified_by_human: [en]
+  de: Ende
+  zh: 结束
+  es: Fin
+  fr: Fin
+  pt: Fim
+  ru: Конец
+  ja: 終了
+  ko: 종료
+  it: Fine
+  tr: Bitiş
+  vi: Kết thúc
+  id: Selesai
+  pl: Koniec
+  nl: Einde
+  ar: النهاية
+  hi: समाप्ति
+  th: สิ้นสุด
+  cs: Konec
+  sv: Slut
+  he: סיום
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_permissions.from:
   context: Label for the beginning of a Calendar read range in a connected-account approval summary.
   en: From
-  verified_by_human: [en]
+  de: Von
+  zh: 从
+  es: Desde
+  fr: De
+  pt: De
+  ru: С
+  ja: 開始
+  ko: 시작
+  it: Da
+  tr: Başlangıç
+  vi: Từ
+  id: Dari
+  pl: Od
+  nl: Van
+  ar: من
+  hi: से
+  th: จาก
+  cs: Od
+  sv: Från
+  he: מ-
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_permissions.to:
   context: Label for the end of a Calendar read range in a connected-account approval summary.
   en: To
-  verified_by_human: [en]
+  de: Bis
+  zh: 到
+  es: Hasta
+  fr: À
+  pt: Até
+  ru: По
+  ja: 終了
+  ko: 종료
+  it: A
+  tr: Bitiş
+  vi: Đến
+  id: Sampai
+  pl: Do
+  nl: Tot
+  ar: إلى
+  hi: तक
+  th: ถึง
+  cs: Do
+  sv: Till
+  he: עד
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.completed:
   context: System receipt shown after a connected-account action completed. The action replacement is a localized action label such as Calendar read or Calendar write.
   en: "{action} completed."
-  verified_by_human: [en]
+  de: "{action} abgeschlossen."
+  zh: "{action} 已完成。"
+  es: "{action} completada."
+  fr: "{action} terminée."
+  pt: "{action} concluída."
+  ru: "{action} выполнено."
+  ja: "{action} が完了しました。"
+  ko: "{action} 완료됨."
+  it: "{action} completata."
+  tr: "{action} tamamlandı."
+  vi: "{action} đã hoàn tất."
+  id: "{action} selesai."
+  pl: "{action} zakończono."
+  nl: "{action} voltooid."
+  ar: "اكتمل {action}."
+  hi: "{action} पूरी हुई।"
+  th: "{action} เสร็จแล้ว"
+  cs: "{action} dokončeno."
+  sv: "{action} slutförd."
+  he: "{action} הושלמה."
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.undone:
   context: System receipt shown after a connected-account action was undone.
   en: Action undone.
-  verified_by_human: [en]
+  de: Aktion rückgängig gemacht.
+  zh: 操作已撤销。
+  es: Acción deshecha.
+  fr: Action annulée.
+  pt: Ação desfeita.
+  ru: Действие отменено.
+  ja: アクションを元に戻しました。
+  ko: 작업이 실행 취소되었습니다.
+  it: Azione annullata.
+  tr: İşlem geri alındı.
+  vi: Đã hoàn tác hành động.
+  id: Tindakan dibatalkan.
+  pl: Cofnięto działanie.
+  nl: Actie ongedaan gemaakt.
+  ar: تم التراجع عن الإجراء.
+  hi: कार्रवाई पूर्ववत की गई।
+  th: ย้อนกลับการดำเนินการแล้ว
+  cs: Akce byla vrácena zpět.
+  sv: Åtgärden har ångrats.
+  he: הפעולה בוטלה.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.rejected:
   context: System receipt shown after the user rejects a connected-account action. The action replacement is a localized action label.
   en: "{action} rejected."
-  verified_by_human: [en]
+  de: "{action} abgelehnt."
+  zh: "{action} 已拒绝。"
+  es: "{action} rechazada."
+  fr: "{action} refusée."
+  pt: "{action} rejeitada."
+  ru: "{action} отклонено."
+  ja: "{action} を拒否しました。"
+  ko: "{action} 거부됨."
+  it: "{action} rifiutata."
+  tr: "{action} reddedildi."
+  vi: "{action} đã bị từ chối."
+  id: "{action} ditolak."
+  pl: "{action} odrzucono."
+  nl: "{action} geweigerd."
+  ar: "تم رفض {action}."
+  hi: "{action} अस्वीकार की गई।"
+  th: "ปฏิเสธ {action} แล้ว"
+  cs: "{action} odmítnuto."
+  sv: "{action} avvisad."
+  he: "{action} נדחתה."
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.cancelled:
   context: System receipt shown after the user cancels a connected-account action. The action replacement is a localized action label.
   en: "{action} cancelled."
-  verified_by_human: [en]
+  de: "{action} abgebrochen."
+  zh: "{action} 已取消。"
+  es: "{action} cancelada."
+  fr: "{action} annulée."
+  pt: "{action} cancelada."
+  ru: "{action} отменено."
+  ja: "{action} をキャンセルしました。"
+  ko: "{action} 취소됨."
+  it: "{action} annullata."
+  tr: "{action} iptal edildi."
+  vi: "{action} đã bị hủy."
+  id: "{action} dibatalkan."
+  pl: "{action} anulowano."
+  nl: "{action} geannuleerd."
+  ar: "تم إلغاء {action}."
+  hi: "{action} रद्द की गई।"
+  th: "ยกเลิก {action} แล้ว"
+  cs: "{action} zrušeno."
+  sv: "{action} avbruten."
+  he: "{action} בוטלה."
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.pending_cancel:
   context: System receipt shown while an auto-approved connected-account action is waiting during its short cancel window. The action replacement is a localized action label.
   en: "{action} auto-approved. Press to cancel before it starts."
-  verified_by_human: [en]
+  de: "{action} automatisch genehmigt. Drücke, um abzubrechen, bevor es startet."
+  zh: "{action} 已自动批准。开始前按下即可取消。"
+  es: "{action} se aprobó automáticamente. Pulsa para cancelar antes de que empiece."
+  fr: "{action} approuvée automatiquement. Appuyez pour annuler avant le démarrage."
+  pt: "{action} aprovada automaticamente. Pressione para cancelar antes de começar."
+  ru: "{action} одобрено автоматически. Нажмите, чтобы отменить до запуска."
+  ja: "{action} は自動承認されました。開始前にキャンセルするには押してください。"
+  ko: "{action} 자동 승인됨. 시작되기 전에 눌러 취소하세요."
+  it: "{action} approvata automaticamente. Premi per annullare prima dell'avvio."
+  tr: "{action} otomatik onaylandı. Başlamadan önce iptal etmek için basın."
+  vi: "{action} đã được tự động phê duyệt. Nhấn để hủy trước khi bắt đầu."
+  id: "{action} disetujui otomatis. Tekan untuk membatalkan sebelum dimulai."
+  pl: "{action} zatwierdzono automatycznie. Naciśnij, aby anulować przed rozpoczęciem."
+  nl: "{action} automatisch goedgekeurd. Druk om te annuleren voordat het start."
+  ar: "تمت الموافقة على {action} تلقائيًا. اضغط للإلغاء قبل أن تبدأ."
+  hi: "{action} अपने-आप स्वीकृत हो गई। शुरू होने से पहले रद्द करने के लिए दबाएँ।"
+  th: "อนุมัติ {action} อัตโนมัติแล้ว กดเพื่อยกเลิกก่อนเริ่ม"
+  cs: "{action} automaticky schváleno. Stisknutím zrušíte před spuštěním."
+  sv: "{action} godkänd automatiskt. Tryck för att avbryta innan den startar."
+  he: "{action} אושרה אוטומטית. לחץ כדי לבטל לפני שהיא מתחילה."
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.failed:
   context: System receipt shown after a connected-account action fails or is technically blocked. The action replacement is a localized action label.
   en: "{action} could not be completed."
-  verified_by_human: [en]
+  de: "{action} konnte nicht abgeschlossen werden."
+  zh: "{action} 无法完成。"
+  es: "No se pudo completar {action}."
+  fr: "Impossible de terminer {action}."
+  pt: "Não foi possível concluir {action}."
+  ru: "Не удалось выполнить {action}."
+  ja: "{action} を完了できませんでした。"
+  ko: "{action}을(를) 완료할 수 없습니다."
+  it: "Impossibile completare {action}."
+  tr: "{action} tamamlanamadı."
+  vi: "Không thể hoàn tất {action}."
+  id: "{action} tidak dapat diselesaikan."
+  pl: "Nie udało się ukończyć {action}."
+  nl: "{action} kon niet worden voltooid."
+  ar: "تعذر إكمال {action}."
+  hi: "{action} पूरी नहीं की जा सकी।"
+  th: "ไม่สามารถทำ {action} ให้เสร็จได้"
+  cs: "{action} se nepodařilo dokončit."
+  sv: "{action} kunde inte slutföras."
+  he: "לא ניתן היה להשלים את {action}."
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.undo:
   context: Button label that undoes a connected-account action when undo is available.
   en: Undo
-  verified_by_human: [en]
+  de: Rückgängig
+  zh: 撤销
+  es: Deshacer
+  fr: Annuler
+  pt: Desfazer
+  ru: Отменить
+  ja: 元に戻す
+  ko: 실행 취소
+  it: Annulla
+  tr: Geri al
+  vi: Hoàn tác
+  id: Urungkan
+  pl: Cofnij
+  nl: Ongedaan maken
+  ar: تراجع
+  hi: पूर्ववत करें
+  th: ย้อนกลับ
+  cs: Vrátit zpět
+  sv: Ångra
+  he: בטל
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.undoing:
   context: Button/status label while a connected-account undo request is in progress.
   en: Undoing...
-  verified_by_human: [en]
+  de: Wird rückgängig gemacht...
+  zh: 正在撤销...
+  es: Deshaciendo...
+  fr: Annulation...
+  pt: Desfazendo...
+  ru: Отмена...
+  ja: 元に戻しています...
+  ko: 실행 취소 중...
+  it: Annullamento...
+  tr: Geri alınıyor...
+  vi: Đang hoàn tác...
+  id: Mengurungkan...
+  pl: Cofanie...
+  nl: Ongedaan maken...
+  ar: جارٍ التراجع...
+  hi: पूर्ववत किया जा रहा है...
+  th: กำลังย้อนกลับ...
+  cs: Vracení zpět...
+  sv: Ångrar...
+  he: מבטל...
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.undo_started:
   context: Toast shown after a connected-account undo request has been accepted.
   en: Undo completed
-  verified_by_human: [en]
+  de: Rückgängig machen abgeschlossen
+  zh: 撤销已完成
+  es: Deshacer completado
+  fr: Annulation terminée
+  pt: Ação desfeita
+  ru: Отмена выполнена
+  ja: 元に戻しました
+  ko: 실행 취소 완료
+  it: Annullamento completato
+  tr: Geri alma tamamlandı
+  vi: Đã hoàn tác xong
+  id: Urung selesai
+  pl: Cofanie zakończone
+  nl: Ongedaan maken voltooid
+  ar: اكتمل التراجع
+  hi: पूर्ववत पूरा हुआ
+  th: ย้อนกลับเสร็จแล้ว
+  cs: Vrácení zpět dokončeno
+  sv: Ångring slutförd
+  he: הביטול הושלם
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.undo_failed:
   context: Inline error shown when a connected-account undo request fails.
   en: Could not undo this action.
-  verified_by_human: [en]
+  de: Diese Aktion konnte nicht rückgängig gemacht werden.
+  zh: 无法撤销此操作。
+  es: No se pudo deshacer esta acción.
+  fr: Impossible d'annuler cette action.
+  pt: Não foi possível desfazer esta ação.
+  ru: Не удалось отменить это действие.
+  ja: このアクションを元に戻せませんでした。
+  ko: 이 작업을 실행 취소할 수 없습니다.
+  it: Impossibile annullare questa azione.
+  tr: Bu işlem geri alınamadı.
+  vi: Không thể hoàn tác hành động này.
+  id: Tidak dapat mengurungkan tindakan ini.
+  pl: Nie udało się cofnąć tego działania.
+  nl: Kon deze actie niet ongedaan maken.
+  ar: تعذر التراجع عن هذا الإجراء.
+  hi: इस कार्रवाई को पूर्ववत नहीं किया जा सका।
+  th: ไม่สามารถย้อนกลับการดำเนินการนี้ได้
+  cs: Tuto akci se nepodařilo vrátit zpět.
+  sv: Det gick inte att ångra den här åtgärden.
+  he: לא ניתן היה לבטל פעולה זו.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.press_to_cancel:
   context: Button label that cancels an auto-approved connected-account action during its short cancel window.
   en: Press to cancel
-  verified_by_human: [en]
+  de: Zum Abbrechen drücken
+  zh: 按下以取消
+  es: Pulsa para cancelar
+  fr: Appuyez pour annuler
+  pt: Pressione para cancelar
+  ru: Нажмите для отмены
+  ja: 押してキャンセル
+  ko: 눌러서 취소
+  it: Premi per annullare
+  tr: İptal etmek için basın
+  vi: Nhấn để hủy
+  id: Tekan untuk membatalkan
+  pl: Naciśnij, aby anulować
+  nl: Druk om te annuleren
+  ar: اضغط للإلغاء
+  hi: रद्द करने के लिए दबाएँ
+  th: กดเพื่อยกเลิก
+  cs: Stisknutím zrušíte
+  sv: Tryck för att avbryta
+  he: לחץ כדי לבטל
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.cancelling:
   context: Button/status label while a connected-account cancel request is in progress.
   en: Cancelling...
-  verified_by_human: [en]
+  de: Wird abgebrochen...
+  zh: 正在取消...
+  es: Cancelando...
+  fr: Annulation...
+  pt: Cancelando...
+  ru: Отмена...
+  ja: キャンセル中...
+  ko: 취소 중...
+  it: Annullamento...
+  tr: İptal ediliyor...
+  vi: Đang hủy...
+  id: Membatalkan...
+  pl: Anulowanie...
+  nl: Annuleren...
+  ar: جارٍ الإلغاء...
+  hi: रद्द किया जा रहा है...
+  th: กำลังยกเลิก...
+  cs: Rušení...
+  sv: Avbryter...
+  he: מבטל...
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.cancel_started:
   context: Toast shown after a connected-account cancel request has been accepted.
   en: Action cancelled
-  verified_by_human: [en]
+  de: Aktion abgebrochen
+  zh: 操作已取消
+  es: Acción cancelada
+  fr: Action annulée
+  pt: Ação cancelada
+  ru: Действие отменено
+  ja: アクションをキャンセルしました
+  ko: 작업 취소됨
+  it: Azione annullata
+  tr: İşlem iptal edildi
+  vi: Đã hủy hành động
+  id: Tindakan dibatalkan
+  pl: Działanie anulowano
+  nl: Actie geannuleerd
+  ar: تم إلغاء الإجراء
+  hi: कार्रवाई रद्द की गई
+  th: ยกเลิกการดำเนินการแล้ว
+  cs: Akce zrušena
+  sv: Åtgärden avbruten
+  he: הפעולה בוטלה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.cancel_failed:
   context: Inline error shown when a connected-account cancel request fails.
   en: Could not cancel this action.
-  verified_by_human: [en]
+  de: Diese Aktion konnte nicht abgebrochen werden.
+  zh: 无法取消此操作。
+  es: No se pudo cancelar esta acción.
+  fr: Impossible d'annuler cette action.
+  pt: Não foi possível cancelar esta ação.
+  ru: Не удалось отменить это действие.
+  ja: このアクションをキャンセルできませんでした。
+  ko: 이 작업을 취소할 수 없습니다.
+  it: Impossibile annullare questa azione.
+  tr: Bu işlem iptal edilemedi.
+  vi: Không thể hủy hành động này.
+  id: Tidak dapat membatalkan tindakan ini.
+  pl: Nie udało się anulować tego działania.
+  nl: Kon deze actie niet annuleren.
+  ar: تعذر إلغاء هذا الإجراء.
+  hi: इस कार्रवाई को रद्द नहीं किया जा सका।
+  th: ไม่สามารถยกเลิกการดำเนินการนี้ได้
+  cs: Tuto akci se nepodařilo zrušit.
+  sv: Det gick inte att avbryta den här åtgärden.
+  he: לא ניתן היה לבטל פעולה זו.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.undo_available:
   context: Short sentence appended to a connected-account receipt when undo is available.
   en: Undo is available.
-  verified_by_human: [en]
+  de: Rückgängig machen ist verfügbar.
+  zh: 可以撤销。
+  es: Deshacer está disponible.
+  fr: L'annulation est disponible.
+  pt: Desfazer está disponível.
+  ru: Доступна отмена действия.
+  ja: 元に戻すことができます。
+  ko: 실행 취소를 사용할 수 있습니다.
+  it: È disponibile l'annullamento.
+  tr: Geri alma kullanılabilir.
+  vi: Có thể hoàn tác.
+  id: Urung tersedia.
+  pl: Cofnięcie jest dostępne.
+  nl: Ongedaan maken is beschikbaar.
+  ar: التراجع متاح.
+  hi: पूर्ववत करना उपलब्ध है।
+  th: สามารถย้อนกลับได้
+  cs: Vrácení zpět je k dispozici.
+  sv: Ångra är tillgängligt.
+  he: ניתן לבטל.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.action_read:
   context: Action label for a connected account Calendar read receipt.
   en: Calendar read
-  verified_by_human: [en]
+  de: Kalender lesen
+  zh: 日历读取
+  es: Lectura de calendario
+  fr: Lecture du calendrier
+  pt: Leitura do calendário
+  ru: Чтение календаря
+  ja: カレンダー読み取り
+  ko: 캘린더 읽기
+  it: Lettura calendario
+  tr: Takvim okuma
+  vi: Đọc lịch
+  id: Baca kalender
+  pl: Odczyt kalendarza
+  nl: Agenda lezen
+  ar: قراءة التقويم
+  hi: कैलेंडर पढ़ना
+  th: อ่านปฏิทิน
+  cs: Čtení kalendáře
+  sv: Kalenderläsning
+  he: קריאת לוח שנה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.action_write:
   context: Action label for a connected account Calendar create/write receipt.
   en: Calendar write
-  verified_by_human: [en]
+  de: Kalender schreiben
+  zh: 日历写入
+  es: Escritura de calendario
+  fr: Écriture dans le calendrier
+  pt: Escrita no calendário
+  ru: Запись в календарь
+  ja: カレンダー書き込み
+  ko: 캘린더 쓰기
+  it: Scrittura calendario
+  tr: Takvime yazma
+  vi: Ghi lịch
+  id: Tulis kalender
+  pl: Zapis w kalendarzu
+  nl: Agenda schrijven
+  ar: كتابة التقويم
+  hi: कैलेंडर लिखना
+  th: เขียนปฏิทิน
+  cs: Zápis do kalendáře
+  sv: Kalenderskrivning
+  he: כתיבה ללוח שנה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.action_update:
   context: Action label for a connected account Calendar update receipt.
   en: Calendar update
-  verified_by_human: [en]
+  de: Kalender aktualisieren
+  zh: 日历更新
+  es: Actualización de calendario
+  fr: Mise à jour du calendrier
+  pt: Atualização do calendário
+  ru: Обновление календаря
+  ja: カレンダー更新
+  ko: 캘린더 업데이트
+  it: Aggiornamento calendario
+  tr: Takvim güncelleme
+  vi: Cập nhật lịch
+  id: Perbarui kalender
+  pl: Aktualizacja kalendarza
+  nl: Agenda bijwerken
+  ar: تحديث التقويم
+  hi: कैलेंडर अपडेट
+  th: อัปเดตปฏิทิน
+  cs: Aktualizace kalendáře
+  sv: Kalenderuppdatering
+  he: עדכון לוח שנה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.action_delete:
   context: Action label for a connected account Calendar delete receipt.
   en: Calendar delete
-  verified_by_human: [en]
+  de: Kalendereintrag löschen
+  zh: 日历删除
+  es: Eliminación de calendario
+  fr: Suppression du calendrier
+  pt: Exclusão do calendário
+  ru: Удаление из календаря
+  ja: カレンダー削除
+  ko: 캘린더 삭제
+  it: Eliminazione calendario
+  tr: Takvim silme
+  vi: Xóa lịch
+  id: Hapus kalender
+  pl: Usuwanie z kalendarza
+  nl: Agenda verwijderen
+  ar: حذف التقويم
+  hi: कैलेंडर हटाना
+  th: ลบปฏิทิน
+  cs: Smazání kalendáře
+  sv: Kalenderradering
+  he: מחיקת לוח שנה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.action_undo:
   context: Action label for a connected account undo receipt.
   en: Calendar undo
-  verified_by_human: [en]
+  de: Kalender rückgängig machen
+  zh: 日历撤销
+  es: Deshacer calendario
+  fr: Annulation du calendrier
+  pt: Desfazer no calendário
+  ru: Отмена действия календаря
+  ja: カレンダー操作の取り消し
+  ko: 캘린더 실행 취소
+  it: Annullamento calendario
+  tr: Takvim geri alma
+  vi: Hoàn tác lịch
+  id: Urung kalender
+  pl: Cofnięcie w kalendarzu
+  nl: Agenda ongedaan maken
+  ar: تراجع في التقويم
+  hi: कैलेंडर पूर्ववत
+  th: ย้อนกลับปฏิทิน
+  cs: Vrácení kalendáře zpět
+  sv: Ångra kalender
+  he: ביטול בלוח השנה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_account_receipts.action_unknown:
   context: Fallback action label for an unknown connected account receipt action.
   en: Connected account action
-  verified_by_human: [en]
+  de: Aktion mit verbundenem Konto
+  zh: 关联账户操作
+  es: Acción de cuenta conectada
+  fr: Action de compte connecté
+  pt: Ação de conta conectada
+  ru: Действие подключённого аккаунта
+  ja: 接続済みアカウントのアクション
+  ko: 연결된 계정 작업
+  it: Azione account collegato
+  tr: Bağlı hesap işlemi
+  vi: Hành động tài khoản đã kết nối
+  id: Tindakan akun terhubung
+  pl: Działanie połączonego konta
+  nl: Actie met gekoppeld account
+  ar: إجراء الحساب المتصل
+  hi: कनेक्टेड खाते की कार्रवाई
+  th: การดำเนินการบัญชีที่เชื่อมต่อ
+  cs: Akce připojeného účtu
+  sv: Åtgärd för anslutet konto
+  he: פעולת חשבון מחובר
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 permissions.entry_singular:
   context: Singular form of entry count (e.g., "1 entry")
   en: entry
@@ -986,6 +1706,7 @@ pii_hide:
   cs: Skrýt citlivá data
   sv: Dölj känslig data
   he: הסתרת נתונים רגישים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 pii_show:
   context: Tooltip for the PII toggle button when sensitive data is currently hidden (clicking will reveal it)
   en: Show sensitive data
@@ -1009,6 +1730,7 @@ pii_show:
   cs: Zobrazit citlivá data
   sv: Visa känslig data
   he: הצגת נתונים רגישים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 minimize:
   context: Aria-label and tooltip for minimize button that hides chat panel in side-by-side layout
   en: Minimize chat

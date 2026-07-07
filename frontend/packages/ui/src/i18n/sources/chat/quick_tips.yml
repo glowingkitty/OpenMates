@@ -21,6 +21,7 @@ eyebrow:
   cs: Rychlý tip
   sv: Snabbtips
   he: טיפ מהיר
+  verified_by_human: []
 cta_learn_more:
   context: Generic CTA for quick tip cards that opens the related app or action
   en: "Learn more"
@@ -44,6 +45,7 @@ cta_learn_more:
   cs: Zjistit více
   sv: Läs mer
   he: מידע נוסף
+  verified_by_human: []
 shorter_chats_equal_better_responses.title:
   context: Quick tip title for shorter topic-specific chats
   en: "Shorter chats work better"
@@ -67,6 +69,7 @@ shorter_chats_equal_better_responses.title:
   cs: Kratší chaty fungují lépe
   sv: Kortare chattar fungerar bättre
   he: "צ'אטים קצרים עובדים טוב יותר"
+  verified_by_human: []
 shorter_chats_equal_better_responses.body:
   context: Quick tip body explaining that shorter separate chats improve results and reduce credits
   en: "You get better responses and save credits when you split topics into separate shorter chats."
@@ -90,6 +93,7 @@ shorter_chats_equal_better_responses.body:
   cs: Získáš lepší odpovědi a ušetříš kredity, když témata rozdělíš do samostatných kratších chatů.
   sv: Du får bättre svar och sparar krediter när du delar upp ämnen i separata, kortare chattar.
   he: "תקבל תשובות טובות יותר ותחסוך קרדיטים כשתפצל נושאים לצ'אטים קצרים ונפרדים."
+  verified_by_human: []
 search_current_info_next_time.title:
   context: Quick tip title for using web search when information needs to be fresh
   en: "Search when freshness matters"
@@ -113,6 +117,7 @@ search_current_info_next_time.title:
   cs: Hledej, když záleží na aktuálnosti
   sv: Sök när aktualitet är viktigt
   he: חפש כשהעדכניות חשובה
+  verified_by_human: []
 search_current_info_next_time.body:
   context: Quick tip body explaining that OpenMates can search for current information next time
   en: "Next time you need current prices, events, news, product details, or recent facts, OpenMates can search the web for you."
@@ -136,6 +141,7 @@ search_current_info_next_time.body:
   cs: Až budeš příště potřebovat aktuální ceny, události, zprávy, podrobnosti o produktech nebo nedávná fakta, OpenMates za tebe může prohledat web.
   sv: Nästa gång du behöver aktuella priser, evenemang, nyheter, produktinformation eller färska fakta kan OpenMates söka på webben åt dig.
   he: בפעם הבאה שתצטרך מחירים עדכניים, אירועים, חדשות, פרטי מוצרים או עובדות מהזמן האחרון, OpenMates יוכל לחפש באינטרנט עבורך.
+  verified_by_human: []
 travel_can_add_local_context.title:
   context: Quick tip title for adding travel context after planning travel
   en: "Add more travel context"
@@ -159,6 +165,7 @@ travel_can_add_local_context.title:
   cs: Přidej další cestovní kontext
   sv: Lägg till mer resekontext
   he: הוספת הקשר נוסף לנסיעה
+  verified_by_human: []
 travel_can_add_local_context.body:
   context: Quick tip body explaining that OpenMates can help with travel-related next steps
   en: "After planning travel, OpenMates can also help find local places, events, stays, routes, and practical details for the same trip."
@@ -182,6 +189,7 @@ travel_can_add_local_context.body:
   cs: Po naplánování cesty ti OpenMates může pomoci najít místní podniky, události, ubytování, trasy a praktické detaily pro stejný výlet.
   sv: Efter att du har planerat en resa kan OpenMates även hjälpa till att hitta lokala platser, evenemang, boenden, rutter och praktiska detaljer för samma resa.
   he: לאחר תכנון הנסיעה, OpenMates יכול לעזור גם במציאת מקומות מקומיים, אירועים, מקומות לינה, מסלולים ופרטים פרקטיים לאותה נסיעה.
+  verified_by_human: []
 use_apps_for_better_results.title:
   context: Quick tip title for trying a specialized app
   en: "Try an app for the next step"
@@ -205,6 +213,7 @@ use_apps_for_better_results.title:
   cs: Zkus aplikaci pro další krok
   sv: Prova en app för nästa steg
   he: נסה אפליקציה לשלב הבא
+  verified_by_human: []
 use_apps_for_better_results.body:
   context: Quick tip body explaining that OpenMates apps provide specialized tools
   en: "When you know what you want to do next, OpenMates apps can give the AI better tools for tasks like coding, research, events, shopping, writing, or planning."
@@ -228,3 +237,4 @@ use_apps_for_better_results.body:
   cs: Když víš, co chceš dělat dál, aplikace OpenMates mohou dát AI lepší nástroje pro úkoly, jako je kódování, výzkum, události, nakupování, psaní nebo plánování.
   sv: "När du vet vad du vill göra härnäst kan OpenMates-appar ge AI:n bättre verktyg för uppgifter som kodning, efterforskning, evenemang, shopping, skrivande eller planering."
   he: כשאתה יודע מה אתה רוצה לעשות הלאה, האפליקציות של OpenMates יכולות לתת ל-AI כלים טובים יותר למשימות כמו תכנות, מחקר, אירועים, קניות, כתיבה או תכנון.
+  verified_by_human: []

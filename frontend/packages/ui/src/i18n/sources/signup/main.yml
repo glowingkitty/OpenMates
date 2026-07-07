@@ -93,6 +93,7 @@ domain_not_allowed:
   cs: E-mailová doména není povolena.
   sv: E-postdomän är inte tillåten.
   he: דומיין האימייל אינו מורשה.
+  verified_by_human: []
 email_ignored:
   context: Error message shown when the email address is on the ignored list
   en: This email address cannot be used for signup. Please contact support if you believe this is an error.

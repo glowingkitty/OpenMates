@@ -335,6 +335,7 @@ all_apps.filter_skills:
   he: מיומנויות
   verified_by_human: []
 categories.top_picks:
+  context: Category name for personalized top app recommendations
   en: Top picks for you
   de: Top Empfehlungen für dich
   zh: 为你精选
@@ -600,111 +601,651 @@ skills.examples_prefix:
 content.title:
   context: Section title above durable content type cards in an app details page.
   en: Content
-  verified_by_human: [en]
+  de: Inhalte
+  zh: 内容
+  es: Contenido
+  fr: Contenu
+  pt: Conteúdo
+  ru: Контент
+  ja: コンテンツ
+  ko: 콘텐츠
+  it: Contenuti
+  tr: İçerik
+  vi: Nội dung
+  id: Konten
+  pl: Treść
+  nl: Content
+  ar: المحتوى
+  hi: सामग्री
+  th: เนื้อหา
+  cs: Obsah
+  sv: Innehåll
+  he: תוכן
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 content.section_description:
   context: Description text under the Content section heading in app details, explaining that these cards are durable content artifacts.
   en: "Content this app can create, attach, or show as reusable chat artifacts:"
-  verified_by_human: [en]
+  de: "Inhalte, die diese App als wiederverwendbare Chat-Artefakte erstellen, anhängen oder anzeigen kann:"
+  zh: "此应用可以创建、附加或显示为可复用聊天产物的内容："
+  es: "Contenido que esta app puede crear, adjuntar o mostrar como artefactos de chat reutilizables:"
+  fr: "Contenu que cette app peut créer, joindre ou afficher comme artefacts de chat réutilisables :"
+  pt: "Conteúdo que este app pode criar, anexar ou mostrar como artefatos de chat reutilizáveis:"
+  ru: "Контент, который это приложение может создавать, прикреплять или показывать как многоразовые артефакты чата:"
+  ja: "このアプリが再利用可能なチャット成果物として作成、添付、表示できるコンテンツ:"
+  ko: "이 앱이 재사용 가능한 채팅 아티팩트로 만들거나 첨부하거나 표시할 수 있는 콘텐츠:"
+  it: "Contenuti che questa app può creare, allegare o mostrare come artefatti di chat riutilizzabili:"
+  tr: "Bu uygulamanın yeniden kullanılabilir sohbet yapıtları olarak oluşturabileceği, ekleyebileceği veya gösterebileceği içerik:"
+  vi: "Nội dung mà ứng dụng này có thể tạo, đính kèm hoặc hiển thị dưới dạng hiện vật trò chuyện có thể tái sử dụng:"
+  id: "Konten yang dapat dibuat, dilampirkan, atau ditampilkan aplikasi ini sebagai artefak obrolan yang dapat digunakan kembali:"
+  pl: "Treści, które ta aplikacja może tworzyć, załączać lub wyświetlać jako wielokrotnego użytku artefakty czatu:"
+  nl: "Content die deze app kan maken, toevoegen of tonen als herbruikbare chatartefacten:"
+  ar: "المحتوى الذي يمكن لهذا التطبيق إنشاؤه أو إرفاقه أو عرضه كعناصر دردشة قابلة لإعادة الاستخدام:"
+  hi: "वह सामग्री जिसे यह ऐप पुन: उपयोग योग्य चैट आर्टिफैक्ट के रूप में बना, अटैच या दिखा सकता है:"
+  th: "เนื้อหาที่แอปนี้สามารถสร้าง แนบ หรือแสดงเป็นอาร์ติแฟกต์แชทที่ใช้ซ้ำได้:"
+  cs: "Obsah, který tato aplikace může vytvářet, připojovat nebo zobrazovat jako opakovaně použitelné artefakty chatu:"
+  sv: "Innehåll som den här appen kan skapa, bifoga eller visa som återanvändbara chattartefakter:"
+  he: "תוכן שהאפליקציה הזו יכולה ליצור, לצרף או להציג כפריטי צ'אט לשימוש חוזר:"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 content.examples:
   context: Section title above real example chats on a content type detail page.
   en: Examples
-  verified_by_human: [en]
+  de: Beispiele
+  zh: 示例
+  es: Ejemplos
+  fr: Exemples
+  pt: Exemplos
+  ru: Примеры
+  ja: 例
+  ko: 예시
+  it: Esempi
+  tr: Örnekler
+  vi: Ví dụ
+  id: Contoh
+  pl: Przykłady
+  nl: Voorbeelden
+  ar: أمثلة
+  hi: उदाहरण
+  th: ตัวอย่าง
+  cs: Příklady
+  sv: Exempel
+  he: דוגמאות
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 content.examples_prefix:
   context: Intro text above public example chats for a durable content type.
   en: "Explore how it’s used in real chats by clicking on the example chats:"
-  verified_by_human: [en]
+  de: "Entdecke, wie es in echten Chats verwendet wird, indem du auf die Beispielchats klickst:"
+  zh: "点击示例聊天，了解它在真实聊天中的使用方式："
+  es: "Explora cómo se usa en chats reales haciendo clic en los chats de ejemplo:"
+  fr: "Découvrez comment il est utilisé dans de vrais chats en cliquant sur les chats d'exemple :"
+  pt: "Explore como ele é usado em chats reais clicando nos chats de exemplo:"
+  ru: "Посмотрите, как это используется в реальных чатах, нажав на примеры чатов:"
+  ja: "サンプルチャットをクリックして、実際のチャットでの使われ方を確認してください:"
+  ko: "예시 채팅을 클릭하여 실제 채팅에서 어떻게 사용되는지 살펴보세요:"
+  it: "Scopri come viene usato nelle chat reali facendo clic sulle chat di esempio:"
+  tr: "Örnek sohbetlere tıklayarak gerçek sohbetlerde nasıl kullanıldığını keşfedin:"
+  vi: "Khám phá cách nội dung này được dùng trong các cuộc trò chuyện thực bằng cách nhấp vào trò chuyện ví dụ:"
+  id: "Jelajahi bagaimana ini digunakan dalam obrolan nyata dengan mengklik obrolan contoh:"
+  pl: "Zobacz, jak jest używane w prawdziwych czatach, klikając przykładowe czaty:"
+  nl: "Ontdek hoe het in echte chats wordt gebruikt door op de voorbeeldchats te klikken:"
+  ar: "استكشف كيفية استخدامه في محادثات حقيقية بالنقر على محادثات الأمثلة:"
+  hi: "उदाहरण चैट पर क्लिक करके देखें कि वास्तविक चैट में इसका उपयोग कैसे होता है:"
+  th: "สำรวจวิธีใช้งานในแชทจริงโดยคลิกที่แชทตัวอย่าง:"
+  cs: "Podívejte se, jak se používá ve skutečných chatech, kliknutím na ukázkové chaty:"
+  sv: "Utforska hur det används i riktiga chattar genom att klicka på exempelchattarna:"
+  he: "גלה איך משתמשים בו בצ'אטים אמיתיים על ידי לחיצה על צ'אטים לדוגמה:"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 content.not_found:
   context: Error shown when a content type route does not match the generated app-store content catalog.
   en: Content type not found.
-  verified_by_human: [en]
+  de: Inhaltstyp nicht gefunden.
+  zh: 未找到内容类型。
+  es: Tipo de contenido no encontrado.
+  fr: Type de contenu introuvable.
+  pt: Tipo de conteúdo não encontrado.
+  ru: Тип контента не найден.
+  ja: コンテンツタイプが見つかりません。
+  ko: 콘텐츠 유형을 찾을 수 없습니다.
+  it: Tipo di contenuto non trovato.
+  tr: İçerik türü bulunamadı.
+  vi: Không tìm thấy loại nội dung.
+  id: Jenis konten tidak ditemukan.
+  pl: Nie znaleziono typu treści.
+  nl: Contenttype niet gevonden.
+  ar: لم يتم العثور على نوع المحتوى.
+  hi: सामग्री प्रकार नहीं मिला।
+  th: ไม่พบประเภทเนื้อหา
+  cs: Typ obsahu nebyl nalezen.
+  sv: Innehållstyp hittades inte.
+  he: סוג התוכן לא נמצא.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.title:
   context: Section title for provider accounts connected to an app.
   en: Connected accounts
-  verified_by_human: [en]
+  de: Verbundene Konten
+  zh: 已连接的账号
+  es: Cuentas conectadas
+  fr: Comptes connectés
+  pt: Contas conectadas
+  ru: Подключенные аккаунты
+  ja: 連携済みアカウント
+  ko: 연결된 계정
+  it: Account collegati
+  tr: Bağlı hesaplar
+  vi: Tài khoản đã kết nối
+  id: Akun terhubung
+  pl: Połączone konta
+  nl: Verbonden accounts
+  ar: الحسابات المتصلة
+  hi: कनेक्ट किए गए खाते
+  th: บัญชีที่เชื่อมต่อ
+  cs: Připojené účty
+  sv: Anslutna konton
+  he: חשבונות מחוברים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.description:
   context: Description under the connected accounts section on an app detail page.
   en: Connect provider accounts so mates can ask for permission before using private app data.
-  verified_by_human: [en]
+  de: Verbinde Anbieter-Konten, damit Mates um Erlaubnis fragen können, bevor sie private App-Daten verwenden.
+  zh: 连接提供商账号，这样 mates 在使用私人应用数据前可以请求权限。
+  es: Conecta cuentas de proveedores para que tus mates puedan pedir permiso antes de usar datos privados de la app.
+  fr: Connectez des comptes fournisseurs afin que vos mates puissent demander l'autorisation avant d'utiliser des données privées de l'app.
+  pt: Conecte contas de provedores para que seus mates possam pedir permissão antes de usar dados privados do app.
+  ru: Подключите аккаунты провайдеров, чтобы mates могли запрашивать разрешение перед использованием приватных данных приложения.
+  ja: プロバイダーアカウントを連携すると、mates がプライベートなアプリデータを使用する前に許可を求められます。
+  ko: 제공업체 계정을 연결하면 mates가 비공개 앱 데이터를 사용하기 전에 권한을 요청할 수 있습니다.
+  it: Collega account provider così i tuoi mates possono chiedere il permesso prima di usare dati privati dell'app.
+  tr: Sağlayıcı hesaplarını bağlayın; böylece mates özel uygulama verilerini kullanmadan önce izin isteyebilir.
+  vi: Kết nối tài khoản nhà cung cấp để mates có thể xin quyền trước khi dùng dữ liệu ứng dụng riêng tư.
+  id: Hubungkan akun penyedia agar mates dapat meminta izin sebelum menggunakan data aplikasi pribadi.
+  pl: Połącz konta dostawców, aby mates mogli poprosić o zgodę przed użyciem prywatnych danych aplikacji.
+  nl: Verbind provideraccounts zodat mates toestemming kunnen vragen voordat ze privé-appgegevens gebruiken.
+  ar: اربط حسابات المزودين حتى يتمكن mates من طلب الإذن قبل استخدام بيانات التطبيق الخاصة.
+  hi: प्रदाता खातों को कनेक्ट करें ताकि mates निजी ऐप डेटा उपयोग करने से पहले अनुमति मांग सकें।
+  th: เชื่อมต่อบัญชีผู้ให้บริการเพื่อให้ mates ขออนุญาตก่อนใช้ข้อมูลแอปส่วนตัวได้
+  cs: Připojte účty poskytovatelů, aby si mates mohli před použitím soukromých dat aplikace vyžádat povolení.
+  sv: Anslut leverantörskonton så att mates kan be om tillstånd innan de använder privata appdata.
+  he: חבר חשבונות ספקים כדי ש-mates יוכלו לבקש הרשאה לפני שימוש בנתוני אפליקציה פרטיים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.google_calendar_title:
   context: Label for the Google Calendar connected account card.
   en: Google Calendar
-  verified_by_human: [en]
+  de: Google Calendar
+  zh: Google Calendar
+  es: Google Calendar
+  fr: Google Calendar
+  pt: Google Calendar
+  ru: Google Calendar
+  ja: Google Calendar
+  ko: Google Calendar
+  it: Google Calendar
+  tr: Google Calendar
+  vi: Google Calendar
+  id: Google Calendar
+  pl: Google Calendar
+  nl: Google Calendar
+  ar: Google Calendar
+  hi: Google Calendar
+  th: Google Calendar
+  cs: Google Calendar
+  sv: Google Calendar
+  he: Google Calendar
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.loading:
   context: Status while encrypted connected accounts are loading.
   en: Checking connected accounts...
-  verified_by_human: [en]
+  de: Verbundene Konten werden geprüft...
+  zh: 正在检查已连接的账号...
+  es: Comprobando cuentas conectadas...
+  fr: Vérification des comptes connectés...
+  pt: Verificando contas conectadas...
+  ru: Проверка подключенных аккаунтов...
+  ja: 連携済みアカウントを確認中...
+  ko: 연결된 계정 확인 중...
+  it: Controllo degli account collegati...
+  tr: Bağlı hesaplar kontrol ediliyor...
+  vi: Đang kiểm tra tài khoản đã kết nối...
+  id: Memeriksa akun terhubung...
+  pl: Sprawdzanie połączonych kont...
+  nl: Verbonden accounts controleren...
+  ar: جارٍ التحقق من الحسابات المتصلة...
+  hi: कनेक्ट किए गए खाते जांचे जा रहे हैं...
+  th: กำลังตรวจสอบบัญชีที่เชื่อมต่อ...
+  cs: Kontrola připojených účtů...
+  sv: Kontrollerar anslutna konton...
+  he: בודק חשבונות מחוברים...
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.connected_count:
   context: Status showing how many encrypted Google Calendar accounts are connected. The count replacement is numeric.
   en: "{count} connected"
-  verified_by_human: [en]
+  de: "{count} verbunden"
+  zh: "已连接 {count} 个"
+  es: "{count} conectadas"
+  fr: "{count} connecté(s)"
+  pt: "{count} conectada(s)"
+  ru: "Подключено: {count}"
+  ja: "{count} 件連携済み"
+  ko: "{count}개 연결됨"
+  it: "{count} collegati"
+  tr: "{count} bağlı"
+  vi: "Đã kết nối {count}"
+  id: "{count} terhubung"
+  pl: "Połączono: {count}"
+  nl: "{count} verbonden"
+  ar: "{count} متصل"
+  hi: "{count} कनेक्ट किए गए"
+  th: "เชื่อมต่อแล้ว {count} รายการ"
+  cs: "Připojeno: {count}"
+  sv: "{count} anslutna"
+  he: "{count} מחוברים"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.not_connected:
   context: Status shown when no account is connected yet.
   en: Not connected yet.
-  verified_by_human: [en]
+  de: Noch nicht verbunden.
+  zh: 尚未连接。
+  es: Aún no conectado.
+  fr: Pas encore connecté.
+  pt: Ainda não conectado.
+  ru: Еще не подключено.
+  ja: まだ連携されていません。
+  ko: 아직 연결되지 않았습니다.
+  it: Non ancora collegato.
+  tr: Henüz bağlı değil.
+  vi: Chưa kết nối.
+  id: Belum terhubung.
+  pl: Jeszcze nie połączono.
+  nl: Nog niet verbonden.
+  ar: غير متصل بعد.
+  hi: अभी कनेक्ट नहीं है।
+  th: ยังไม่ได้เชื่อมต่อ
+  cs: Zatím nepřipojeno.
+  sv: Inte anslutet ännu.
+  he: עדיין לא מחובר.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.connect_button:
   context: Button label for starting Google Calendar OAuth.
   en: Connect Google Calendar
-  verified_by_human: [en]
+  de: Google Calendar verbinden
+  zh: 连接 Google Calendar
+  es: Conectar Google Calendar
+  fr: Connecter Google Calendar
+  pt: Conectar Google Calendar
+  ru: Подключить Google Calendar
+  ja: Google Calendar を連携
+  ko: Google Calendar 연결
+  it: Collega Google Calendar
+  tr: Google Calendar'ı bağla
+  vi: Kết nối Google Calendar
+  id: Hubungkan Google Calendar
+  pl: Połącz Google Calendar
+  nl: Google Calendar verbinden
+  ar: ربط Google Calendar
+  hi: Google Calendar कनेक्ट करें
+  th: เชื่อมต่อ Google Calendar
+  cs: Připojit Google Calendar
+  sv: Anslut Google Calendar
+  he: חיבור Google Calendar
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.manage_account:
   context: Button label in Calendar app settings that opens the canonical connected-account details page. The label replacement is the encrypted account label.
   en: "Manage {label}"
-  verified_by_human: [en]
+  de: "{label} verwalten"
+  zh: "管理 {label}"
+  es: "Gestionar {label}"
+  fr: "Gérer {label}"
+  pt: "Gerenciar {label}"
+  ru: "Управлять {label}"
+  ja: "{label} を管理"
+  ko: "{label} 관리"
+  it: "Gestisci {label}"
+  tr: "{label} hesabını yönet"
+  vi: "Quản lý {label}"
+  id: "Kelola {label}"
+  pl: "Zarządzaj {label}"
+  nl: "{label} beheren"
+  ar: "إدارة {label}"
+  hi: "{label} प्रबंधित करें"
+  th: "จัดการ {label}"
+  cs: "Spravovat {label}"
+  sv: "Hantera {label}"
+  he: "ניהול {label}"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.capability_read:
   context: Label for the Google Calendar OAuth read capability checkbox.
   en: Read events
-  verified_by_human: [en]
+  de: Termine lesen
+  zh: 读取事件
+  es: Leer eventos
+  fr: Lire les événements
+  pt: Ler eventos
+  ru: Читать события
+  ja: 予定を読み取る
+  ko: 일정 읽기
+  it: Leggere eventi
+  tr: Etkinlikleri oku
+  vi: Đọc sự kiện
+  id: Baca acara
+  pl: Odczytuj wydarzenia
+  nl: Afspraken lezen
+  ar: قراءة الأحداث
+  hi: इवेंट पढ़ें
+  th: อ่านกิจกรรม
+  cs: Číst události
+  sv: Läs händelser
+  he: קריאת אירועים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.capability_read_description:
   context: Description for the Google Calendar OAuth read capability checkbox.
   en: Let OpenMates request permission before reading calendar events.
-  verified_by_human: [en]
+  de: Erlaube OpenMates, vor dem Lesen von Kalenderterminen um Erlaubnis zu fragen.
+  zh: 允许 OpenMates 在读取日历事件前请求权限。
+  es: Permite que OpenMates solicite permiso antes de leer eventos del calendario.
+  fr: Autorisez OpenMates à demander l'autorisation avant de lire les événements du calendrier.
+  pt: Permita que o OpenMates solicite permissão antes de ler eventos do calendário.
+  ru: Разрешить OpenMates запрашивать разрешение перед чтением событий календаря.
+  ja: OpenMates がカレンダーの予定を読み取る前に許可を求められるようにします。
+  ko: OpenMates가 캘린더 일정을 읽기 전에 권한을 요청하도록 허용합니다.
+  it: Consenti a OpenMates di chiedere l'autorizzazione prima di leggere gli eventi del calendario.
+  tr: OpenMates'in takvim etkinliklerini okumadan önce izin istemesine izin verin.
+  vi: Cho phép OpenMates xin quyền trước khi đọc sự kiện lịch.
+  id: Izinkan OpenMates meminta izin sebelum membaca acara kalender.
+  pl: Pozwól OpenMates poprosić o zgodę przed odczytaniem wydarzeń kalendarza.
+  nl: Laat OpenMates toestemming vragen voordat kalenderafspraken worden gelezen.
+  ar: اسمح لـ OpenMates بطلب الإذن قبل قراءة أحداث التقويم.
+  hi: कैलेंडर इवेंट पढ़ने से पहले OpenMates को अनुमति मांगने दें।
+  th: ให้ OpenMates ขออนุญาตก่อนอ่านกิจกรรมในปฏิทิน
+  cs: Umožněte OpenMates požádat o povolení před čtením událostí kalendáře.
+  sv: Låt OpenMates be om tillstånd innan kalenderhändelser läses.
+  he: אפשר ל-OpenMates לבקש הרשאה לפני קריאת אירועי לוח שנה.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.capability_write:
   context: Label for the Google Calendar OAuth write capability checkbox.
   en: Write events
-  verified_by_human: [en]
+  de: Termine schreiben
+  zh: 写入事件
+  es: Escribir eventos
+  fr: Écrire des événements
+  pt: Escrever eventos
+  ru: Записывать события
+  ja: 予定を書き込む
+  ko: 일정 쓰기
+  it: Scrivere eventi
+  tr: Etkinlik yaz
+  vi: Ghi sự kiện
+  id: Tulis acara
+  pl: Zapisuj wydarzenia
+  nl: Afspraken schrijven
+  ar: كتابة الأحداث
+  hi: इवेंट लिखें
+  th: เขียนกิจกรรม
+  cs: Zapisovat události
+  sv: Skriv händelser
+  he: כתיבת אירועים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.capability_write_description:
   context: Description for the Google Calendar OAuth write capability checkbox.
   en: Let OpenMates request permission before creating or updating events.
-  verified_by_human: [en]
+  de: Erlaube OpenMates, vor dem Erstellen oder Aktualisieren von Terminen um Erlaubnis zu fragen.
+  zh: 允许 OpenMates 在创建或更新事件前请求权限。
+  es: Permite que OpenMates solicite permiso antes de crear o actualizar eventos.
+  fr: Autorisez OpenMates à demander l'autorisation avant de créer ou de mettre à jour des événements.
+  pt: Permita que o OpenMates solicite permissão antes de criar ou atualizar eventos.
+  ru: Разрешить OpenMates запрашивать разрешение перед созданием или обновлением событий.
+  ja: OpenMates が予定を作成または更新する前に許可を求められるようにします。
+  ko: OpenMates가 일정을 만들거나 업데이트하기 전에 권한을 요청하도록 허용합니다.
+  it: Consenti a OpenMates di chiedere l'autorizzazione prima di creare o aggiornare eventi.
+  tr: OpenMates'in etkinlik oluşturmadan veya güncellemeden önce izin istemesine izin verin.
+  vi: Cho phép OpenMates xin quyền trước khi tạo hoặc cập nhật sự kiện.
+  id: Izinkan OpenMates meminta izin sebelum membuat atau memperbarui acara.
+  pl: Pozwól OpenMates poprosić o zgodę przed tworzeniem lub aktualizowaniem wydarzeń.
+  nl: Laat OpenMates toestemming vragen voordat afspraken worden gemaakt of bijgewerkt.
+  ar: اسمح لـ OpenMates بطلب الإذن قبل إنشاء الأحداث أو تحديثها.
+  hi: इवेंट बनाने या अपडेट करने से पहले OpenMates को अनुमति मांगने दें।
+  th: ให้ OpenMates ขออนุญาตก่อนสร้างหรืออัปเดตกิจกรรม
+  cs: Umožněte OpenMates požádat o povolení před vytvořením nebo aktualizací událostí.
+  sv: Låt OpenMates be om tillstånd innan händelser skapas eller uppdateras.
+  he: אפשר ל-OpenMates לבקש הרשאה לפני יצירה או עדכון של אירועים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.capability_delete:
   context: Label for the Google Calendar OAuth delete capability checkbox.
   en: Delete events
-  verified_by_human: [en]
+  de: Termine löschen
+  zh: 删除事件
+  es: Eliminar eventos
+  fr: Supprimer des événements
+  pt: Excluir eventos
+  ru: Удалять события
+  ja: 予定を削除
+  ko: 일정 삭제
+  it: Eliminare eventi
+  tr: Etkinlikleri sil
+  vi: Xóa sự kiện
+  id: Hapus acara
+  pl: Usuwaj wydarzenia
+  nl: Afspraken verwijderen
+  ar: حذف الأحداث
+  hi: इवेंट हटाएं
+  th: ลบกิจกรรม
+  cs: Mazat události
+  sv: Radera händelser
+  he: מחיקת אירועים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.capability_delete_description:
   context: Description for the Google Calendar OAuth delete capability checkbox.
   en: Let OpenMates request permission before deleting events.
-  verified_by_human: [en]
+  de: Erlaube OpenMates, vor dem Löschen von Terminen um Erlaubnis zu fragen.
+  zh: 允许 OpenMates 在删除事件前请求权限。
+  es: Permite que OpenMates solicite permiso antes de eliminar eventos.
+  fr: Autorisez OpenMates à demander l'autorisation avant de supprimer des événements.
+  pt: Permita que o OpenMates solicite permissão antes de excluir eventos.
+  ru: Разрешить OpenMates запрашивать разрешение перед удалением событий.
+  ja: OpenMates が予定を削除する前に許可を求められるようにします。
+  ko: OpenMates가 일정을 삭제하기 전에 권한을 요청하도록 허용합니다.
+  it: Consenti a OpenMates di chiedere l'autorizzazione prima di eliminare eventi.
+  tr: OpenMates'in etkinlikleri silmeden önce izin istemesine izin verin.
+  vi: Cho phép OpenMates xin quyền trước khi xóa sự kiện.
+  id: Izinkan OpenMates meminta izin sebelum menghapus acara.
+  pl: Pozwól OpenMates poprosić o zgodę przed usunięciem wydarzeń.
+  nl: Laat OpenMates toestemming vragen voordat afspraken worden verwijderd.
+  ar: اسمح لـ OpenMates بطلب الإذن قبل حذف الأحداث.
+  hi: इवेंट हटाने से पहले OpenMates को अनुमति मांगने दें।
+  th: ให้ OpenMates ขออนุญาตก่อนลบกิจกรรม
+  cs: Umožněte OpenMates požádat o povolení před odstraněním událostí.
+  sv: Låt OpenMates be om tillstånd innan händelser raderas.
+  he: אפשר ל-OpenMates לבקש הרשאה לפני מחיקת אירועים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.oauth_summary:
   context: Summary of Google Calendar capabilities that will be requested during OAuth. The capabilities replacement is a comma-separated list.
   en: "OAuth request: {capabilities}"
-  verified_by_human: [en]
+  de: "OAuth-Anfrage: {capabilities}"
+  zh: "OAuth 请求：{capabilities}"
+  es: "Solicitud OAuth: {capabilities}"
+  fr: "Demande OAuth : {capabilities}"
+  pt: "Solicitação OAuth: {capabilities}"
+  ru: "Запрос OAuth: {capabilities}"
+  ja: "OAuth リクエスト: {capabilities}"
+  ko: "OAuth 요청: {capabilities}"
+  it: "Richiesta OAuth: {capabilities}"
+  tr: "OAuth isteği: {capabilities}"
+  vi: "Yêu cầu OAuth: {capabilities}"
+  id: "Permintaan OAuth: {capabilities}"
+  pl: "Żądanie OAuth: {capabilities}"
+  nl: "OAuth-verzoek: {capabilities}"
+  ar: "طلب OAuth: {capabilities}"
+  hi: "OAuth अनुरोध: {capabilities}"
+  th: "คำขอ OAuth: {capabilities}"
+  cs: "Požadavek OAuth: {capabilities}"
+  sv: "OAuth-begäran: {capabilities}"
+  he: "בקשת OAuth: {capabilities}"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.no_capabilities_selected:
   context: OAuth summary value shown when no Google Calendar capabilities are selected.
   en: No access selected
-  verified_by_human: [en]
+  de: Kein Zugriff ausgewählt
+  zh: 未选择访问权限
+  es: No se seleccionó ningún acceso
+  fr: Aucun accès sélectionné
+  pt: Nenhum acesso selecionado
+  ru: Доступ не выбран
+  ja: アクセス権が選択されていません
+  ko: 선택된 액세스 없음
+  it: Nessun accesso selezionato
+  tr: Erişim seçilmedi
+  vi: Chưa chọn quyền truy cập
+  id: Tidak ada akses yang dipilih
+  pl: Nie wybrano dostępu
+  nl: Geen toegang geselecteerd
+  ar: لم يتم تحديد أي وصول
+  hi: कोई एक्सेस चयनित नहीं
+  th: ยังไม่ได้เลือกสิทธิ์เข้าถึง
+  cs: Není vybrán žádný přístup
+  sv: Ingen åtkomst vald
+  he: לא נבחרה גישה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.finalizing:
   context: Status while the browser is encrypting and saving a claimed OAuth handoff.
   en: Encrypting and saving your connected account...
-  verified_by_human: [en]
+  de: Dein verbundenes Konto wird verschlüsselt und gespeichert...
+  zh: 正在加密并保存你的已连接账号...
+  es: Cifrando y guardando tu cuenta conectada...
+  fr: Chiffrement et enregistrement de votre compte connecté...
+  pt: Criptografando e salvando sua conta conectada...
+  ru: Шифрование и сохранение вашего подключенного аккаунта...
+  ja: 連携済みアカウントを暗号化して保存中...
+  ko: 연결된 계정을 암호화하고 저장하는 중...
+  it: Cifratura e salvataggio del tuo account collegato...
+  tr: Bağlı hesabınız şifrelenip kaydediliyor...
+  vi: Đang mã hóa và lưu tài khoản đã kết nối của bạn...
+  id: Mengenkripsi dan menyimpan akun terhubung Anda...
+  pl: Szyfrowanie i zapisywanie połączonego konta...
+  nl: Uw verbonden account versleutelen en opslaan...
+  ar: جارٍ تشفير حسابك المتصل وحفظه...
+  hi: आपका कनेक्ट किया गया खाता एन्क्रिप्ट और सहेजा जा रहा है...
+  th: กำลังเข้ารหัสและบันทึกบัญชีที่เชื่อมต่อของคุณ...
+  cs: Šifrování a ukládání vašeho připojeného účtu...
+  sv: Krypterar och sparar ditt anslutna konto...
+  he: מצפין ושומר את החשבון המחובר שלך...
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.connected_success:
   context: Success message after a Google Calendar account is connected.
   en: Google Calendar connected. Your token was encrypted before saving.
-  verified_by_human: [en]
+  de: Google Calendar verbunden. Dein Token wurde vor dem Speichern verschlüsselt.
+  zh: Google Calendar 已连接。你的令牌已在保存前加密。
+  es: Google Calendar conectado. Tu token se cifró antes de guardarse.
+  fr: Google Calendar connecté. Votre jeton a été chiffré avant l'enregistrement.
+  pt: Google Calendar conectado. Seu token foi criptografado antes de salvar.
+  ru: Google Calendar подключен. Ваш токен был зашифрован перед сохранением.
+  ja: Google Calendar を連携しました。トークンは保存前に暗号化されました。
+  ko: Google Calendar가 연결되었습니다. 토큰은 저장 전에 암호화되었습니다.
+  it: Google Calendar collegato. Il tuo token è stato cifrato prima del salvataggio.
+  tr: Google Calendar bağlandı. Token'ınız kaydedilmeden önce şifrelendi.
+  vi: Đã kết nối Google Calendar. Token của bạn đã được mã hóa trước khi lưu.
+  id: Google Calendar terhubung. Token Anda dienkripsi sebelum disimpan.
+  pl: Google Calendar połączony. Twój token został zaszyfrowany przed zapisaniem.
+  nl: Google Calendar verbonden. Uw token is vóór het opslaan versleuteld.
+  ar: تم ربط Google Calendar. تم تشفير الرمز المميز الخاص بك قبل الحفظ.
+  hi: Google Calendar कनेक्ट हो गया। आपका टोकन सहेजने से पहले एन्क्रिप्ट किया गया था।
+  th: เชื่อมต่อ Google Calendar แล้ว โทเค็นของคุณถูกเข้ารหัสก่อนบันทึก
+  cs: Google Calendar připojen. Váš token byl před uložením zašifrován.
+  sv: Google Calendar ansluten. Din token krypterades före sparning.
+  he: Google Calendar חובר. האסימון שלך הוצפן לפני השמירה.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.sign_in_required:
   context: Error shown when OAuth returns without a local authenticated user id.
   en: Sign in again before connecting Google Calendar.
-  verified_by_human: [en]
+  de: Melde dich erneut an, bevor du Google Calendar verbindest.
+  zh: 连接 Google Calendar 前请重新登录。
+  es: Inicia sesión de nuevo antes de conectar Google Calendar.
+  fr: Reconnectez-vous avant de connecter Google Calendar.
+  pt: Entre novamente antes de conectar Google Calendar.
+  ru: Войдите снова перед подключением Google Calendar.
+  ja: Google Calendar を連携する前にもう一度サインインしてください。
+  ko: Google Calendar를 연결하기 전에 다시 로그인하세요.
+  it: Accedi di nuovo prima di collegare Google Calendar.
+  tr: Google Calendar'ı bağlamadan önce tekrar oturum açın.
+  vi: Đăng nhập lại trước khi kết nối Google Calendar.
+  id: Masuk lagi sebelum menghubungkan Google Calendar.
+  pl: Zaloguj się ponownie przed połączeniem Google Calendar.
+  nl: Meld u opnieuw aan voordat u Google Calendar verbindt.
+  ar: سجّل الدخول مرة أخرى قبل ربط Google Calendar.
+  hi: Google Calendar कनेक्ट करने से पहले फिर से साइन इन करें।
+  th: ลงชื่อเข้าใช้อีกครั้งก่อนเชื่อมต่อ Google Calendar
+  cs: Před připojením Google Calendar se znovu přihlaste.
+  sv: Logga in igen innan du ansluter Google Calendar.
+  he: התחבר שוב לפני חיבור Google Calendar.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.load_error:
   context: Generic error shown when encrypted connected accounts cannot be loaded.
   en: Could not load connected accounts.
-  verified_by_human: [en]
+  de: Verbundene Konten konnten nicht geladen werden.
+  zh: 无法加载已连接的账号。
+  es: No se pudieron cargar las cuentas conectadas.
+  fr: Impossible de charger les comptes connectés.
+  pt: Não foi possível carregar as contas conectadas.
+  ru: Не удалось загрузить подключенные аккаунты.
+  ja: 連携済みアカウントを読み込めませんでした。
+  ko: 연결된 계정을 불러올 수 없습니다.
+  it: Impossibile caricare gli account collegati.
+  tr: Bağlı hesaplar yüklenemedi.
+  vi: Không thể tải tài khoản đã kết nối.
+  id: Tidak dapat memuat akun terhubung.
+  pl: Nie udało się załadować połączonych kont.
+  nl: Kon verbonden accounts niet laden.
+  ar: تعذر تحميل الحسابات المتصلة.
+  hi: कनेक्ट किए गए खाते लोड नहीं किए जा सके।
+  th: ไม่สามารถโหลดบัญชีที่เชื่อมต่อได้
+  cs: Připojené účty se nepodařilo načíst.
+  sv: Det gick inte att läsa in anslutna konton.
+  he: לא ניתן היה לטעון חשבונות מחוברים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.start_error:
   context: Generic error shown when Google Calendar OAuth cannot be started.
   en: Could not start Google Calendar connection.
-  verified_by_human: [en]
+  de: Google Calendar-Verbindung konnte nicht gestartet werden.
+  zh: 无法启动 Google Calendar 连接。
+  es: No se pudo iniciar la conexión de Google Calendar.
+  fr: Impossible de lancer la connexion Google Calendar.
+  pt: Não foi possível iniciar a conexão com Google Calendar.
+  ru: Не удалось начать подключение Google Calendar.
+  ja: Google Calendar の連携を開始できませんでした。
+  ko: Google Calendar 연결을 시작할 수 없습니다.
+  it: Impossibile avviare la connessione a Google Calendar.
+  tr: Google Calendar bağlantısı başlatılamadı.
+  vi: Không thể bắt đầu kết nối Google Calendar.
+  id: Tidak dapat memulai koneksi Google Calendar.
+  pl: Nie udało się rozpocząć połączenia z Google Calendar.
+  nl: Kon Google Calendar-verbinding niet starten.
+  ar: تعذر بدء ربط Google Calendar.
+  hi: Google Calendar कनेक्शन शुरू नहीं किया जा सका।
+  th: ไม่สามารถเริ่มการเชื่อมต่อ Google Calendar ได้
+  cs: Připojení Google Calendar se nepodařilo spustit.
+  sv: Det gick inte att starta anslutningen till Google Calendar.
+  he: לא ניתן היה להתחיל חיבור ל-Google Calendar.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.finalize_error:
   context: Generic error shown when OAuth handoff finalization fails.
   en: Could not finish connecting Google Calendar.
-  verified_by_human: [en]
+  de: Verbindung mit Google Calendar konnte nicht abgeschlossen werden.
+  zh: 无法完成 Google Calendar 连接。
+  es: No se pudo terminar de conectar Google Calendar.
+  fr: Impossible de terminer la connexion à Google Calendar.
+  pt: Não foi possível concluir a conexão com Google Calendar.
+  ru: Не удалось завершить подключение Google Calendar.
+  ja: Google Calendar の連携を完了できませんでした。
+  ko: Google Calendar 연결을 완료할 수 없습니다.
+  it: Impossibile completare il collegamento a Google Calendar.
+  tr: Google Calendar bağlantısı tamamlanamadı.
+  vi: Không thể hoàn tất kết nối Google Calendar.
+  id: Tidak dapat menyelesaikan koneksi Google Calendar.
+  pl: Nie udało się dokończyć łączenia z Google Calendar.
+  nl: Kon het verbinden van Google Calendar niet voltooien.
+  ar: تعذر إنهاء ربط Google Calendar.
+  hi: Google Calendar कनेक्ट करना पूरा नहीं किया जा सका।
+  th: ไม่สามารถเชื่อมต่อ Google Calendar ให้เสร็จสิ้นได้
+  cs: Připojení Google Calendar se nepodařilo dokončit.
+  sv: Det gick inte att slutföra anslutningen till Google Calendar.
+  he: לא ניתן היה לסיים את חיבור Google Calendar.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 skills.open_example:
   context: Accessibility label announced when focusing an example card in the skill detail page, so screen readers explain the card is clickable.
   en: Open example

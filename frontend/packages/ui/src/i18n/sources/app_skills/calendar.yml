@@ -2,42 +2,194 @@ get_events:
   context: Skill name for searching connected calendar events
   en: Search
   de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: بحث
+  hi: खोजें
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  he: חיפוש
   verified_by_human: [en, de]
 get_events.description:
   context: Description for reading calendar events
   en: Read events, agendas, availability, and event details from a connected calendar.
   de: Lies Termine, Agenden, Verfügbarkeiten und Termindetails aus einem verbundenen Kalender.
+  zh: 从已连接的日历读取事件、议程、可用时间和事件详情。
+  es: Lee eventos, agendas, disponibilidad y detalles de eventos desde un calendario conectado.
+  fr: Lire les événements, agendas, disponibilités et détails depuis un calendrier connecté.
+  pt: Leia eventos, agendas, disponibilidade e detalhes de eventos de um calendário conectado.
+  ru: Читайте события, повестки, доступность и сведения о событиях из подключённого календаря.
+  ja: 接続されたカレンダーから予定、議題、空き時間、予定の詳細を読み取ります。
+  ko: 연결된 캘린더에서 일정, 안건, 가능 시간, 일정 세부 정보를 읽습니다.
+  it: Leggi eventi, agende, disponibilità e dettagli da un calendario collegato.
+  tr: Bağlı bir takvimden etkinlikleri, gündemleri, uygunluğu ve etkinlik ayrıntılarını okuyun.
+  vi: Đọc sự kiện, lịch trình, thời gian rảnh và chi tiết sự kiện từ lịch đã kết nối.
+  id: Baca acara, agenda, ketersediaan, dan detail acara dari kalender yang terhubung.
+  pl: Odczytuj wydarzenia, agendy, dostępność i szczegóły wydarzeń z połączonego kalendarza.
+  nl: Lees afspraken, agenda's, beschikbaarheid en afspraakdetails uit een gekoppelde agenda.
+  ar: اقرأ الأحداث والجداول والتوفر وتفاصيل الأحداث من تقويم متصل.
+  hi: कनेक्टेड कैलेंडर से इवेंट, एजेंडा, उपलब्धता और इवेंट विवरण पढ़ें।
+  th: อ่านกิจกรรม กำหนดการ เวลาว่าง และรายละเอียดกิจกรรมจากปฏิทินที่เชื่อมต่อ
+  cs: Čtěte události, agendy, dostupnost a podrobnosti událostí z připojeného kalendáře.
+  sv: Läs händelser, agendor, tillgänglighet och händelsedetaljer från en ansluten kalender.
+  he: קריאת אירועים, סדרי יום, זמינות ופרטי אירועים מלוח שנה מחובר.
   verified_by_human: [en, de]
 
 create_event:
   context: Skill name for creating calendar events
   en: Create Event
   de: Termin erstellen
+  zh: 创建事件
+  es: Crear evento
+  fr: Créer un événement
+  pt: Criar evento
+  ru: Создать событие
+  ja: 予定を作成
+  ko: 일정 만들기
+  it: Crea evento
+  tr: Etkinlik oluştur
+  vi: Tạo sự kiện
+  id: Buat acara
+  pl: Utwórz wydarzenie
+  nl: Afspraak maken
+  ar: إنشاء حدث
+  hi: इवेंट बनाएं
+  th: สร้างกิจกรรม
+  cs: Vytvořit událost
+  sv: Skapa händelse
+  he: יצירת אירוע
   verified_by_human: [en, de]
 create_event.description:
   context: Description for creating calendar events
   en: Create a calendar event after you approve the proposed details.
   de: Erstelle einen Kalendertermin, nachdem du die vorgeschlagenen Details genehmigt hast.
+  zh: 在你批准建议的详情后创建日历事件。
+  es: Crea un evento de calendario después de que apruebes los detalles propuestos.
+  fr: Créer un événement de calendrier après votre approbation des détails proposés.
+  pt: Crie um evento de calendário depois que você aprovar os detalhes propostos.
+  ru: Создайте событие календаря после вашего подтверждения предложенных деталей.
+  ja: 提案された詳細を承認した後、カレンダーの予定を作成します。
+  ko: 제안된 세부 정보를 승인한 후 캘린더 일정을 만듭니다.
+  it: Crea un evento del calendario dopo che hai approvato i dettagli proposti.
+  tr: Önerilen ayrıntıları onayladıktan sonra bir takvim etkinliği oluşturun.
+  vi: Tạo sự kiện lịch sau khi bạn phê duyệt các chi tiết được đề xuất.
+  id: Buat acara kalender setelah Anda menyetujui detail yang diusulkan.
+  pl: Utwórz wydarzenie w kalendarzu po zatwierdzeniu proponowanych szczegółów.
+  nl: Maak een agenda-afspraak nadat je de voorgestelde details hebt goedgekeurd.
+  ar: أنشئ حدثًا في التقويم بعد موافقتك على التفاصيل المقترحة.
+  hi: प्रस्तावित विवरणों को आपकी मंज़ूरी के बाद कैलेंडर इवेंट बनाएं।
+  th: สร้างกิจกรรมในปฏิทินหลังจากคุณอนุมัติรายละเอียดที่เสนอ
+  cs: Vytvořte událost v kalendáři poté, co schválíte navržené podrobnosti.
+  sv: Skapa en kalenderhändelse efter att du har godkänt de föreslagna detaljerna.
+  he: יצירת אירוע בלוח השנה לאחר שתאשר את הפרטים המוצעים.
   verified_by_human: [en, de]
 
 update_event:
   context: Skill name for updating calendar events
   en: Update Event
   de: Termin bearbeiten
+  zh: 更新事件
+  es: Actualizar evento
+  fr: Mettre à jour l'événement
+  pt: Atualizar evento
+  ru: Обновить событие
+  ja: 予定を更新
+  ko: 일정 업데이트
+  it: Aggiorna evento
+  tr: Etkinliği güncelle
+  vi: Cập nhật sự kiện
+  id: Perbarui acara
+  pl: Aktualizuj wydarzenie
+  nl: Afspraak bijwerken
+  ar: تحديث الحدث
+  hi: इवेंट अपडेट करें
+  th: อัปเดตกิจกรรม
+  cs: Aktualizovat událost
+  sv: Uppdatera händelse
+  he: עדכון אירוע
   verified_by_human: [en, de]
 update_event.description:
   context: Description for updating calendar events
   en: Update an existing calendar event after permission checks.
   de: Bearbeite einen bestehenden Kalendertermin nach den Berechtigungsprüfungen.
+  zh: 在权限检查后更新现有日历事件。
+  es: Actualiza un evento de calendario existente después de las comprobaciones de permisos.
+  fr: Mettre à jour un événement de calendrier existant après vérification des autorisations.
+  pt: Atualize um evento de calendário existente após verificações de permissão.
+  ru: Обновите существующее событие календаря после проверки разрешений.
+  ja: 権限チェック後に既存のカレンダー予定を更新します。
+  ko: 권한 확인 후 기존 캘린더 일정을 업데이트합니다.
+  it: Aggiorna un evento del calendario esistente dopo i controlli delle autorizzazioni.
+  tr: İzin kontrollerinden sonra mevcut bir takvim etkinliğini güncelleyin.
+  vi: Cập nhật sự kiện lịch hiện có sau khi kiểm tra quyền.
+  id: Perbarui acara kalender yang ada setelah pemeriksaan izin.
+  pl: Aktualizuj istniejące wydarzenie w kalendarzu po sprawdzeniu uprawnień.
+  nl: Werk een bestaande agenda-afspraak bij na toestemmingscontroles.
+  ar: حدّث حدثًا موجودًا في التقويم بعد فحص الأذونات.
+  hi: अनुमति जांच के बाद मौजूदा कैलेंडर इवेंट अपडेट करें।
+  th: อัปเดตกิจกรรมปฏิทินที่มีอยู่หลังจากตรวจสอบสิทธิ์
+  cs: Aktualizujte existující událost v kalendáři po kontrolách oprávnění.
+  sv: Uppdatera en befintlig kalenderhändelse efter behörighetskontroller.
+  he: עדכון אירוע קיים בלוח השנה לאחר בדיקות הרשאה.
   verified_by_human: [en, de]
 
 delete_event:
   context: Skill name for deleting calendar events
   en: Delete Event
   de: Termin löschen
+  zh: 删除事件
+  es: Eliminar evento
+  fr: Supprimer l'événement
+  pt: Excluir evento
+  ru: Удалить событие
+  ja: 予定を削除
+  ko: 일정 삭제
+  it: Elimina evento
+  tr: Etkinliği sil
+  vi: Xóa sự kiện
+  id: Hapus acara
+  pl: Usuń wydarzenie
+  nl: Afspraak verwijderen
+  ar: حذف الحدث
+  hi: इवेंट हटाएं
+  th: ลบกิจกรรม
+  cs: Smazat událost
+  sv: Ta bort händelse
+  he: מחיקת אירוע
   verified_by_human: [en, de]
 delete_event.description:
   context: Description for deleting calendar events
   en: Delete calendar events only after explicit permission or an allowed automation rule.
   de: Lösche Kalendertermine nur nach ausdrücklicher Erlaubnis oder einer erlaubten Automatisierungsregel.
+  zh: 仅在获得明确许可或符合允许的自动化规则后删除日历事件。
+  es: Elimina eventos de calendario solo tras permiso explícito o una regla de automatización permitida.
+  fr: Supprimer des événements de calendrier uniquement après autorisation explicite ou règle d'automatisation autorisée.
+  pt: Exclua eventos do calendário somente após permissão explícita ou uma regra de automação permitida.
+  ru: Удаляйте события календаря только после явного разрешения или разрешённого правила автоматизации.
+  ja: 明示的な許可または許可された自動化ルールがある場合にのみ、カレンダーの予定を削除します。
+  ko: 명시적 허가 또는 허용된 자동화 규칙이 있을 때만 캘린더 일정을 삭제합니다.
+  it: Elimina eventi del calendario solo dopo un permesso esplicito o una regola di automazione consentita.
+  tr: Takvim etkinliklerini yalnızca açık izin veya izin verilen bir otomasyon kuralından sonra silin.
+  vi: Chỉ xóa sự kiện lịch sau khi có quyền rõ ràng hoặc quy tắc tự động hóa được cho phép.
+  id: Hapus acara kalender hanya setelah izin eksplisit atau aturan otomatisasi yang diizinkan.
+  pl: Usuwaj wydarzenia z kalendarza tylko po wyraźnej zgodzie lub zgodnie z dozwoloną regułą automatyzacji.
+  nl: Verwijder agenda-afspraken alleen na expliciete toestemming of een toegestane automatiseringsregel.
+  ar: احذف أحداث التقويم فقط بعد إذن صريح أو قاعدة أتمتة مسموح بها.
+  hi: स्पष्ट अनुमति या अनुमत ऑटोमेशन नियम के बाद ही कैलेंडर इवेंट हटाएं।
+  th: ลบกิจกรรมในปฏิทินเฉพาะหลังจากได้รับอนุญาตอย่างชัดเจนหรือมีกฎอัตโนมัติที่อนุญาต
+  cs: Mažte události kalendáře pouze po výslovném svolení nebo povoleném automatizačním pravidle.
+  sv: Ta endast bort kalenderhändelser efter uttrycklig tillåtelse eller en tillåten automatiseringsregel.
+  he: מחיקת אירועי לוח שנה רק לאחר הרשאה מפורשת או כלל אוטומציה מורשה.
   verified_by_human: [en, de]

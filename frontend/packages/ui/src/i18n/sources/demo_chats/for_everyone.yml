@@ -2428,6 +2428,7 @@ teaser_line1:
   cs: AI kolegové.
   sv: AI-lagkamrater.
   he: חברי צוות בינה מלאכותית.
+  verified_by_human: []
 teaser_line2:
   context: Second teaser headline in the for-everyone chat header banner
   en: "For everyday tasks & learning."
@@ -2451,6 +2452,7 @@ teaser_line2:
   cs: Pro každodenní úkoly a učení.
   sv: "För vardagliga uppgifter & lärande."
   he: למשימות יומיומיות ולמידה.
+  verified_by_human: []
 teaser_line3:
   context: Third teaser headline in the for-everyone chat header banner
   en: "With privacy & safety by design."
@@ -2474,3 +2476,4 @@ teaser_line3:
   cs: "S ochranou soukromí a bezpečností by design."
   sv: "Med integritet & säkerhet by design."
   he: "עם פרטיות ואבטחה בתכנון."
+  verified_by_human: []

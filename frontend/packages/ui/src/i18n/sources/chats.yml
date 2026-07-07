@@ -376,13 +376,51 @@ chat.sub_chats.broadcast_to_siblings:
   context: Toggle label for sending a message to sibling sub-chats under the same parent.
   en: Send to sibling sub-chats
   de: An Geschwister-Sub-Chats senden
-  verified_by_human: []
+  zh: 发送到同级子聊天
+  es: Enviar a subchats hermanos
+  fr: Envoyer aux sous-discussions sœurs
+  pt: Enviar para subchats irmãos
+  ru: Отправить в соседние подчаты
+  ja: 兄弟サブチャットに送信
+  ko: 형제 하위 채팅에 보내기
+  it: Invia alle sotto-chat sorelle
+  tr: Kardeş alt sohbetlere gönder
+  vi: Gửi đến các cuộc trò chuyện con cùng cấp
+  id: Kirim ke sub-chat saudara
+  pl: Wyślij do równorzędnych podczatów
+  nl: Naar zuster-subchats sturen
+  ar: إرسال إلى المحادثات الفرعية الشقيقة
+  hi: समान स्तर की सब-चैट में भेजें
+  th: ส่งไปยังแชตย่อยระดับเดียวกัน
+  cs: Odeslat do sourozeneckých podchatů
+  sv: Skicka till syskon-underchattar
+  he: שלח לתת-צ'אטים מקבילים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 chat.sub_chats.return_to_parent:
   context: Button label for navigating from a sub-chat back to its parent chat.
   en: Return to parent chat
   de: Zurück zum übergeordneten Chat
-  verified_by_human: []
+  zh: 返回父聊天
+  es: Volver al chat principal
+  fr: Revenir à la discussion parente
+  pt: Voltar ao chat principal
+  ru: Вернуться к родительскому чату
+  ja: 親チャットに戻る
+  ko: 상위 채팅으로 돌아가기
+  it: Torna alla chat principale
+  tr: Üst sohbete dön
+  vi: Quay lại cuộc trò chuyện cha
+  id: Kembali ke chat induk
+  pl: Wróć do czatu nadrzędnego
+  nl: Terug naar bovenliggende chat
+  ar: العودة إلى المحادثة الأصلية
+  hi: पैरेंट चैट पर लौटें
+  th: กลับไปยังแชตหลัก
+  cs: Vrátit se do nadřazeného chatu
+  sv: Gå tillbaka till överordnad chatt
+  he: חזור לצ'אט האב
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 chat.sub_chats.start_first:
   context: Button to approve only the first few proposed sub-chats. {count} is the number to approve.
@@ -3281,6 +3319,7 @@ fork.messages_label:
   verified_by_human: []
 
 search_placeholder:
+  context: Placeholder text for filtering chats in the chat list
   en: Search
   de: Suchen
   zh: 搜索

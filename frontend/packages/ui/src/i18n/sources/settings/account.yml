@@ -405,6 +405,7 @@ email.loading:
   cs: Dešifrování e-mailové adresy...
   sv: Dekrypterar e-postadress...
   he: מפענח כתובת אימייל...
+  verified_by_human: []
 email.current_email:
   context: Header for current email address
   en: Current E-mail Address
@@ -428,6 +429,7 @@ email.current_email:
   cs: Aktuální e-mailová adresa
   sv: Nuvarande e-postadress
   he: כתובת אימייל נוכחית
+  verified_by_human: []
 email.privacy_info:
   context: Privacy information about email storage
   en: >-
@@ -457,6 +459,7 @@ email.privacy_info:
   cs: Vaše e-mailová adresa je uložena zašifrovaně na vašem zařízení a serveru. Pouze vy ji můžete dešifrovat pomocí svého hlavního klíče.
   sv: Din e-postadress lagras krypterad på din enhet och servern. Bara du kan dekryptera den med din huvudnyckel.
   he: כתובת האימייל שלך נשמרת מוצפנת במכשיר שלך ובשרת. רק לך יש אפשרות לפענח אותה באמצעות מפתח המאסטר שלך.
+  verified_by_human: []
 email.copied:
   context: Notification shown when email address is copied to clipboard
   en: E-mail address copied to clipboard
@@ -480,6 +483,7 @@ email.copied:
   cs: E-mailová adresa zkopírována do schránky
   sv: E-postadress kopierad till urklipp
   he: כתובת האימייל הועתקה ללוח
+  verified_by_human: []
 email.copy_button:
   context: Button label to copy the current email address
   en: Copy e-mail
@@ -503,6 +507,7 @@ email.copy_button:
   cs: Kopírovat e-mail
   sv: Kopiera e-post
   he: העתק אימייל
+  verified_by_human: []
 email.new_email_placeholder:
   context: Placeholder for the new account email input
   en: New e-mail address
@@ -526,6 +531,7 @@ email.new_email_placeholder:
   cs: Nová e-mailová adresa
   sv: Ny e-postadress
   he: כתובת אימייל חדשה
+  verified_by_human: []
 email.send_change_code:
   context: Button label to send an email-change verification code
   en: Send verification code
@@ -549,6 +555,7 @@ email.send_change_code:
   cs: Odeslat ověřovací kód
   sv: Skicka verifieringskod
   he: שלח קוד אימות
+  verified_by_human: []
 email.verify_change_code:
   context: Button label to verify the email-change code
   en: Verify code
@@ -572,6 +579,7 @@ email.verify_change_code:
   cs: Ověřit kód
   sv: Verifiera kod
   he: אמת קוד
+  verified_by_human: []
 email.confirm_change:
   context: Button label to confirm an account email change
   en: Change e-mail
@@ -595,6 +603,7 @@ email.confirm_change:
   cs: Změnit e-mail
   sv: Ändra e-post
   he: שנה אימייל
+  verified_by_human: []
 email.change_code_sent:
   context: Success message after sending an email-change verification code
   en: Verification code sent to your new e-mail address.
@@ -618,6 +627,7 @@ email.change_code_sent:
   cs: Ověřovací kód byl odeslán na vaši novou e-mailovou adresu.
   sv: Verifieringskod skickad till din nya e-postadress.
   he: קוד האימות נשלח לכתובת האימייל החדשה שלך.
+  verified_by_human: []
 email.change_code_verified:
   context: Success message after verifying an email-change code
   en: New e-mail verified. Confirm your identity to finish the change.
@@ -641,6 +651,7 @@ email.change_code_verified:
   cs: Nový e-mail ověřen. Potvrďte svou identitu pro dokončení změny.
   sv: Ny e-post verifierad. Bekräfta din identitet för att slutföra ändringen.
   he: האימייל החדש אומת. אשר את זהותך כדי לסיים את השינוי.
+  verified_by_human: []
 email.change_success:
   context: Success message after account email change completes
   en: E-mail address changed successfully.
@@ -664,6 +675,7 @@ email.change_success:
   cs: E-mailová adresa byla úspěšně změněna.
   sv: E-postadress ändrad.
   he: כתובת האימייל שונתה בהצלחה.
+  verified_by_human: []
 email.auth_title:
   context: Authentication modal title before changing account email
   en: Confirm e-mail change
@@ -687,6 +699,7 @@ email.auth_title:
   cs: Potvrdit změnu e-mailu
   sv: Bekräfta e-poständring
   he: אשר שינוי אימייל
+  verified_by_human: []
 email.auth_description:
   context: Authentication modal description before changing account email
   en: Confirm your identity before changing the e-mail address used to sign in.
@@ -710,6 +723,7 @@ email.auth_description:
   cs: Potvrďte svou identitu před změnou e-mailové adresy používané k přihlášení.
   sv: Bekräfta din identitet innan du ändrar e-postadressen som används för inloggning.
   he: אשר את זהותך לפני שינוי כתובת האימייל המשמשת להתחברות.
+  verified_by_human: []
 email.error_decrypting:
   context: Error message when email decryption fails
   en: Failed to decrypt e-mail address.
@@ -733,6 +747,7 @@ email.error_decrypting:
   cs: Dešifrování e-mailové adresy se nezdařilo.
   sv: Det gick inte att dekryptera e-postadressen.
   he: פענוח כתובת האימייל נכשל.
+  verified_by_human: []
 security:
   context: Security submenu under Account settings
   en: Security

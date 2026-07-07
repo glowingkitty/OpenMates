@@ -169,171 +169,1011 @@ hide_personal_data.description:
 enhanced_pii_model.title:
   context: Settings section title for optional on-device enhanced PII model.
   en: Enhanced personal data detection
-  verified_by_human: [en]
+  de: Erweiterte Erkennung personenbezogener Daten
+  zh: 增强型个人数据检测
+  es: Detección mejorada de datos personales
+  fr: Détection renforcée des données personnelles
+  pt: Detecção avançada de dados pessoais
+  ru: Улучшенное обнаружение персональных данных
+  ja: 個人データ検出の強化
+  ko: 향상된 개인 데이터 감지
+  it: Rilevamento avanzato dei dati personali
+  tr: Gelişmiş kişisel veri algılama
+  vi: Phát hiện dữ liệu cá nhân nâng cao
+  id: Deteksi data pribadi yang ditingkatkan
+  pl: Rozszerzone wykrywanie danych osobowych
+  nl: Verbeterde detectie van persoonsgegevens
+  ar: كشف محسّن للبيانات الشخصية
+  hi: बेहतर व्यक्तिगत डेटा पहचान
+  th: การตรวจจับข้อมูลส่วนบุคคลขั้นสูง
+  cs: Rozšířená detekce osobních údajů
+  sv: Förbättrad identifiering av personuppgifter
+  he: זיהוי משופר של נתונים אישיים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 enhanced_pii_model.description:
   context: Settings description for optional on-device enhanced PII model.
   en: Download an optional on-device model to detect contextual personal data like names, addresses, and dates. Detection runs locally; your text is not sent anywhere.
-  verified_by_human: [en]
+  de: Lade ein optionales On-Device-Modell herunter, um kontextbezogene personenbezogene Daten wie Namen, Adressen und Daten zu erkennen. Die Erkennung läuft lokal; dein Text wird nirgendwohin gesendet.
+  zh: 下载可选的设备端模型，用于检测姓名、地址和日期等上下文个人数据。检测在本地运行；你的文本不会发送到任何地方。
+  es: Descarga un modelo opcional en el dispositivo para detectar datos personales contextuales como nombres, direcciones y fechas. La detección se ejecuta localmente; tu texto no se envía a ningún sitio.
+  fr: Téléchargez un modèle optionnel sur l'appareil pour détecter les données personnelles contextuelles comme les noms, les adresses et les dates. La détection s'exécute localement ; votre texte n'est envoyé nulle part.
+  pt: Baixe um modelo opcional no dispositivo para detectar dados pessoais contextuais, como nomes, endereços e datas. A detecção é executada localmente; seu texto não é enviado a lugar nenhum.
+  ru: Скачайте дополнительную модель на устройстве, чтобы обнаруживать контекстные персональные данные, такие как имена, адреса и даты. Обнаружение выполняется локально; ваш текст никуда не отправляется.
+  ja: 名前、住所、日付などの文脈上の個人データを検出するための任意のオンデバイスモデルをダウンロードします。検出はローカルで実行され、テキストはどこにも送信されません。
+  ko: 이름, 주소, 날짜 같은 맥락상 개인 데이터를 감지하는 선택적 온디바이스 모델을 다운로드합니다. 감지는 로컬에서 실행되며 텍스트는 어디에도 전송되지 않습니다.
+  it: Scarica un modello opzionale sul dispositivo per rilevare dati personali contestuali come nomi, indirizzi e date. Il rilevamento avviene in locale; il tuo testo non viene inviato da nessuna parte.
+  tr: Adlar, adresler ve tarihler gibi bağlamsal kişisel verileri algılamak için isteğe bağlı bir cihaz içi model indirin. Algılama yerel olarak çalışır; metniniz hiçbir yere gönderilmez.
+  vi: Tải xuống mô hình tùy chọn trên thiết bị để phát hiện dữ liệu cá nhân theo ngữ cảnh như tên, địa chỉ và ngày tháng. Việc phát hiện chạy cục bộ; văn bản của bạn không được gửi đi đâu cả.
+  id: Unduh model opsional di perangkat untuk mendeteksi data pribadi kontekstual seperti nama, alamat, dan tanggal. Deteksi berjalan secara lokal; teks Anda tidak dikirim ke mana pun.
+  pl: Pobierz opcjonalny model działający na urządzeniu, aby wykrywać kontekstowe dane osobowe, takie jak imiona, adresy i daty. Wykrywanie działa lokalnie; Twój tekst nie jest nigdzie wysyłany.
+  nl: Download een optioneel model op het apparaat om contextuele persoonsgegevens zoals namen, adressen en datums te detecteren. Detectie draait lokaal; uw tekst wordt nergens naartoe verzonden.
+  ar: نزّل نموذجًا اختياريًا يعمل على الجهاز لاكتشاف البيانات الشخصية السياقية مثل الأسماء والعناوين والتواريخ. يتم الاكتشاف محليًا؛ ولا يتم إرسال نصك إلى أي مكان.
+  hi: नाम, पते और तारीखों जैसे संदर्भगत व्यक्तिगत डेटा का पता लगाने के लिए वैकल्पिक ऑन-डिवाइस मॉडल डाउनलोड करें। पहचान स्थानीय रूप से चलती है; आपका टेक्स्ट कहीं नहीं भेजा जाता।
+  th: ดาวน์โหลดโมเดลเสริมบนอุปกรณ์เพื่อตรวจจับข้อมูลส่วนบุคคลตามบริบท เช่น ชื่อ ที่อยู่ และวันที่ การตรวจจับทำงานในเครื่อง ข้อความของคุณจะไม่ถูกส่งไปที่ใด
+  cs: Stáhněte si volitelný model v zařízení, který rozpoznává kontextové osobní údaje, jako jsou jména, adresy a data. Detekce běží lokálně; váš text se nikam neodesílá.
+  sv: Ladda ner en valfri modell på enheten för att identifiera kontextuella personuppgifter som namn, adresser och datum. Identifieringen körs lokalt; din text skickas inte någonstans.
+  he: הורד מודל אופציונלי במכשיר לזיהוי נתונים אישיים לפי הקשר, כגון שמות, כתובות ותאריכים. הזיהוי פועל מקומית; הטקסט שלך לא נשלח לשום מקום.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 enhanced_pii_model.download:
   context: Button label to download optional on-device enhanced PII model.
   en: Download model
-  verified_by_human: [en]
+  de: Modell herunterladen
+  zh: 下载模型
+  es: Descargar modelo
+  fr: Télécharger le modèle
+  pt: Baixar modelo
+  ru: Скачать модель
+  ja: モデルをダウンロード
+  ko: 모델 다운로드
+  it: Scarica modello
+  tr: Modeli indir
+  vi: Tải mô hình xuống
+  id: Unduh model
+  pl: Pobierz model
+  nl: Model downloaden
+  ar: تنزيل النموذج
+  hi: मॉडल डाउनलोड करें
+  th: ดาวน์โหลดโมเดล
+  cs: Stáhnout model
+  sv: Ladda ner modell
+  he: הורדת מודל
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 enhanced_pii_model.downloading:
   context: Status label while optional enhanced PII model downloads.
   en: Downloading model
-  verified_by_human: [en]
+  de: Modell wird heruntergeladen
+  zh: 正在下载模型
+  es: Descargando modelo
+  fr: Téléchargement du modèle
+  pt: Baixando modelo
+  ru: Скачивание модели
+  ja: モデルをダウンロード中
+  ko: 모델 다운로드 중
+  it: Download del modello
+  tr: Model indiriliyor
+  vi: Đang tải mô hình xuống
+  id: Mengunduh model
+  pl: Pobieranie modelu
+  nl: Model downloaden
+  ar: جارٍ تنزيل النموذج
+  hi: मॉडल डाउनलोड हो रहा है
+  th: กำลังดาวน์โหลดโมเดล
+  cs: Stahování modelu
+  sv: Laddar ner modell
+  he: מוריד מודל
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 enhanced_pii_model.ready:
   context: Status label when optional enhanced PII model is ready.
   en: Enhanced detection ready
-  verified_by_human: [en]
+  de: Erweiterte Erkennung bereit
+  zh: 增强检测已就绪
+  es: Detección mejorada lista
+  fr: Détection renforcée prête
+  pt: Detecção avançada pronta
+  ru: Улучшенное обнаружение готово
+  ja: 強化された検出の準備ができました
+  ko: 향상된 감지가 준비됨
+  it: Rilevamento avanzato pronto
+  tr: Gelişmiş algılama hazır
+  vi: Phát hiện nâng cao đã sẵn sàng
+  id: Deteksi yang ditingkatkan siap
+  pl: Rozszerzone wykrywanie gotowe
+  nl: Verbeterde detectie gereed
+  ar: الكشف المحسّن جاهز
+  hi: बेहतर पहचान तैयार है
+  th: การตรวจจับขั้นสูงพร้อมแล้ว
+  cs: Rozšířená detekce je připravena
+  sv: Förbättrad identifiering klar
+  he: הזיהוי המשופר מוכן
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 enhanced_pii_model.update_available:
   context: Status label when optional enhanced PII model update is available.
   en: Model update available
-  verified_by_human: [en]
+  de: Modellupdate verfügbar
+  zh: 模型更新可用
+  es: Actualización del modelo disponible
+  fr: Mise à jour du modèle disponible
+  pt: Atualização do modelo disponível
+  ru: Доступно обновление модели
+  ja: モデルの更新があります
+  ko: 모델 업데이트 사용 가능
+  it: Aggiornamento del modello disponibile
+  tr: Model güncellemesi mevcut
+  vi: Có bản cập nhật mô hình
+  id: Pembaruan model tersedia
+  pl: Dostępna aktualizacja modelu
+  nl: Modelupdate beschikbaar
+  ar: تحديث النموذج متاح
+  hi: मॉडल अपडेट उपलब्ध है
+  th: มีอัปเดตโมเดล
+  cs: Aktualizace modelu je k dispozici
+  sv: Modelluppdatering tillgänglig
+  he: עדכון מודל זמין
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 enhanced_pii_model.failed:
   context: Status label when optional enhanced PII model download failed.
   en: Model download failed
-  verified_by_human: [en]
+  de: Modelldownload fehlgeschlagen
+  zh: 模型下载失败
+  es: Error al descargar el modelo
+  fr: Échec du téléchargement du modèle
+  pt: Falha ao baixar o modelo
+  ru: Не удалось скачать модель
+  ja: モデルのダウンロードに失敗しました
+  ko: 모델 다운로드 실패
+  it: Download del modello non riuscito
+  tr: Model indirilemedi
+  vi: Tải mô hình xuống không thành công
+  id: Gagal mengunduh model
+  pl: Nie udało się pobrać modelu
+  nl: Model downloaden mislukt
+  ar: فشل تنزيل النموذج
+  hi: मॉडल डाउनलोड विफल रहा
+  th: ดาวน์โหลดโมเดลไม่สำเร็จ
+  cs: Stažení modelu se nezdařilo
+  sv: Modellnedladdning misslyckades
+  he: הורדת המודל נכשלה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 enhanced_pii_model.remove:
   context: Button label to remove optional on-device enhanced PII model.
   en: Remove model
-  verified_by_human: [en]
+  de: Modell entfernen
+  zh: 移除模型
+  es: Quitar modelo
+  fr: Supprimer le modèle
+  pt: Remover modelo
+  ru: Удалить модель
+  ja: モデルを削除
+  ko: 모델 제거
+  it: Rimuovi modello
+  tr: Modeli kaldır
+  vi: Gỡ mô hình
+  id: Hapus model
+  pl: Usuń model
+  nl: Model verwijderen
+  ar: إزالة النموذج
+  hi: मॉडल हटाएं
+  th: ลบโมเดล
+  cs: Odebrat model
+  sv: Ta bort modell
+  he: הסרת מודל
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 enhanced_pii_model.status_not_downloaded:
   context: Status copy before downloading optional enhanced PII model.
   en: Download the local model for stronger personal data detection.
-  verified_by_human: [en]
+  de: Lade das lokale Modell für eine stärkere Erkennung personenbezogener Daten herunter.
+  zh: 下载本地模型以获得更强的个人数据检测能力。
+  es: Descarga el modelo local para una detección más sólida de datos personales.
+  fr: Téléchargez le modèle local pour une détection plus robuste des données personnelles.
+  pt: Baixe o modelo local para uma detecção mais forte de dados pessoais.
+  ru: Скачайте локальную модель для более надежного обнаружения персональных данных.
+  ja: より強力な個人データ検出のためにローカルモデルをダウンロードします。
+  ko: 더 강력한 개인 데이터 감지를 위해 로컬 모델을 다운로드하세요.
+  it: Scarica il modello locale per un rilevamento più efficace dei dati personali.
+  tr: Daha güçlü kişisel veri algılama için yerel modeli indirin.
+  vi: Tải mô hình cục bộ để phát hiện dữ liệu cá nhân mạnh hơn.
+  id: Unduh model lokal untuk deteksi data pribadi yang lebih kuat.
+  pl: Pobierz lokalny model, aby skuteczniej wykrywać dane osobowe.
+  nl: Download het lokale model voor sterkere detectie van persoonsgegevens.
+  ar: نزّل النموذج المحلي لاكتشاف البيانات الشخصية بشكل أقوى.
+  hi: व्यक्तिगत डेटा की अधिक मजबूत पहचान के लिए स्थानीय मॉडल डाउनलोड करें।
+  th: ดาวน์โหลดโมเดลในเครื่องเพื่อการตรวจจับข้อมูลส่วนบุคคลที่แข็งแกร่งขึ้น
+  cs: Stáhněte místní model pro silnější detekci osobních údajů.
+  sv: Ladda ner den lokala modellen för starkare identifiering av personuppgifter.
+  he: הורד את המודל המקומי לזיהוי חזק יותר של נתונים אישיים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 enhanced_pii_model.status_local_ready:
   context: Status copy when optional enhanced PII model is ready.
   en: The model is stored locally and ready to use.
-  verified_by_human: [en]
+  de: Das Modell ist lokal gespeichert und einsatzbereit.
+  zh: 模型已存储在本地并可使用。
+  es: El modelo está almacenado localmente y listo para usar.
+  fr: Le modèle est stocké localement et prêt à être utilisé.
+  pt: O modelo está armazenado localmente e pronto para uso.
+  ru: Модель хранится локально и готова к использованию.
+  ja: モデルはローカルに保存され、使用できます。
+  ko: 모델이 로컬에 저장되어 사용할 준비가 되었습니다.
+  it: Il modello è archiviato in locale ed è pronto all'uso.
+  tr: Model yerel olarak saklanıyor ve kullanıma hazır.
+  vi: Mô hình được lưu trữ cục bộ và sẵn sàng sử dụng.
+  id: Model disimpan secara lokal dan siap digunakan.
+  pl: Model jest zapisany lokalnie i gotowy do użycia.
+  nl: Het model is lokaal opgeslagen en klaar voor gebruik.
+  ar: النموذج مخزّن محليًا وجاهز للاستخدام.
+  hi: मॉडल स्थानीय रूप से संग्रहीत है और उपयोग के लिए तैयार है।
+  th: โมเดลถูกจัดเก็บไว้ในเครื่องและพร้อมใช้งาน
+  cs: Model je uložen lokálně a připraven k použití.
+  sv: Modellen lagras lokalt och är redo att användas.
+  he: המודל מאוחסן מקומית ומוכן לשימוש.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 enhanced_pii_model.composer_suggestion_title:
   context: Composer inline suggestion title for optional enhanced PII model.
   en: Improve personal data detection
-  verified_by_human: [en]
+  de: Erkennung personenbezogener Daten verbessern
+  zh: 改进个人数据检测
+  es: Mejorar la detección de datos personales
+  fr: Améliorer la détection des données personnelles
+  pt: Melhorar a detecção de dados pessoais
+  ru: Улучшить обнаружение персональных данных
+  ja: 個人データ検出を改善
+  ko: 개인 데이터 감지 개선
+  it: Migliora il rilevamento dei dati personali
+  tr: Kişisel veri algılamayı iyileştir
+  vi: Cải thiện phát hiện dữ liệu cá nhân
+  id: Tingkatkan deteksi data pribadi
+  pl: Ulepsz wykrywanie danych osobowych
+  nl: Detectie van persoonsgegevens verbeteren
+  ar: تحسين كشف البيانات الشخصية
+  hi: व्यक्तिगत डेटा पहचान बेहतर करें
+  th: ปรับปรุงการตรวจจับข้อมูลส่วนบุคคล
+  cs: Zlepšit detekci osobních údajů
+  sv: Förbättra identifiering av personuppgifter
+  he: שיפור זיהוי נתונים אישיים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 enhanced_pii_model.composer_suggestion_description:
   context: Composer inline suggestion body for optional enhanced PII model.
   en: Download the optional on-device model to catch more personal details before sending. Your text stays local.
-  verified_by_human: [en]
+  de: Lade das optionale On-Device-Modell herunter, um vor dem Senden mehr persönliche Details zu erkennen. Dein Text bleibt lokal.
+  zh: 下载可选的设备端模型，在发送前捕捉更多个人详细信息。你的文本会保留在本地。
+  es: Descarga el modelo opcional en el dispositivo para detectar más detalles personales antes de enviar. Tu texto permanece local.
+  fr: Téléchargez le modèle optionnel sur l'appareil pour repérer plus de détails personnels avant l'envoi. Votre texte reste local.
+  pt: Baixe o modelo opcional no dispositivo para detectar mais detalhes pessoais antes de enviar. Seu texto permanece local.
+  ru: Скачайте дополнительную модель на устройстве, чтобы находить больше личных сведений перед отправкой. Ваш текст остается локальным.
+  ja: 送信前により多くの個人情報を検出するため、任意のオンデバイスモデルをダウンロードします。テキストはローカルに残ります。
+  ko: 보내기 전에 더 많은 개인 정보를 잡아내도록 선택적 온디바이스 모델을 다운로드하세요. 텍스트는 로컬에 유지됩니다.
+  it: Scarica il modello opzionale sul dispositivo per individuare più dettagli personali prima dell'invio. Il tuo testo resta in locale.
+  tr: Göndermeden önce daha fazla kişisel ayrıntıyı yakalamak için isteğe bağlı cihaz içi modeli indirin. Metniniz yerel kalır.
+  vi: Tải xuống mô hình tùy chọn trên thiết bị để phát hiện thêm thông tin cá nhân trước khi gửi. Văn bản của bạn vẫn ở cục bộ.
+  id: Unduh model opsional di perangkat untuk menangkap lebih banyak detail pribadi sebelum mengirim. Teks Anda tetap lokal.
+  pl: Pobierz opcjonalny model działający na urządzeniu, aby wykryć więcej danych osobowych przed wysłaniem. Twój tekst pozostaje lokalnie.
+  nl: Download het optionele model op het apparaat om meer persoonlijke details te vinden vóór verzending. Uw tekst blijft lokaal.
+  ar: نزّل النموذج الاختياري الذي يعمل على الجهاز لاكتشاف المزيد من التفاصيل الشخصية قبل الإرسال. يبقى نصك محليًا.
+  hi: भेजने से पहले अधिक व्यक्तिगत विवरण पकड़ने के लिए वैकल्पिक ऑन-डिवाइस मॉडल डाउनलोड करें। आपका टेक्स्ट स्थानीय रहता है।
+  th: ดาวน์โหลดโมเดลเสริมบนอุปกรณ์เพื่อตรวจจับรายละเอียดส่วนบุคคลเพิ่มเติมก่อนส่ง ข้อความของคุณจะอยู่ในเครื่อง
+  cs: Stáhněte si volitelný model v zařízení, který před odesláním zachytí více osobních údajů. Váš text zůstane lokálně.
+  sv: Ladda ner den valfria modellen på enheten för att hitta fler personliga uppgifter före sändning. Din text stannar lokalt.
+  he: הורד את המודל האופציונלי במכשיר כדי לזהות יותר פרטים אישיים לפני השליחה. הטקסט שלך נשאר מקומי.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.title:
   context: Privacy settings sub-page title for encrypted third-party connected accounts.
   en: Connected accounts
-  verified_by_human: [en]
+  de: Verbundene Konten
+  zh: 已连接的账号
+  es: Cuentas conectadas
+  fr: Comptes connectés
+  pt: Contas conectadas
+  ru: Подключенные аккаунты
+  ja: 連携済みアカウント
+  ko: 연결된 계정
+  it: Account collegati
+  tr: Bağlı hesaplar
+  vi: Tài khoản đã kết nối
+  id: Akun terhubung
+  pl: Połączone konta
+  nl: Verbonden accounts
+  ar: الحسابات المتصلة
+  hi: कनेक्ट किए गए खाते
+  th: บัญชีที่เชื่อมต่อ
+  cs: Připojené účty
+  sv: Anslutna konton
+  he: חשבונות מחוברים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.subtitle:
   context: Subtitle for the Privacy settings connected accounts row.
   en: Apps | Providers
-  verified_by_human: [en]
+  de: Apps | Anbieter
+  zh: 应用 | 提供商
+  es: Apps | Proveedores
+  fr: Apps | Fournisseurs
+  pt: Apps | Provedores
+  ru: Приложения | Провайдеры
+  ja: アプリ | プロバイダー
+  ko: 앱 | 제공업체
+  it: App | Provider
+  tr: Uygulamalar | Sağlayıcılar
+  vi: Ứng dụng | Nhà cung cấp
+  id: Aplikasi | Penyedia
+  pl: Aplikacje | Dostawcy
+  nl: Apps | Providers
+  ar: التطبيقات | المزودون
+  hi: ऐप्स | प्रदाता
+  th: แอป | ผู้ให้บริการ
+  cs: Aplikace | Poskytovatelé
+  sv: Appar | Leverantörer
+  he: אפליקציות | ספקים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.description:
   context: Description for the Privacy connected accounts page.
   en: Connected accounts are stored as encrypted browser-managed records. OpenMates only receives encrypted account data and opaque hashes.
-  verified_by_human: [en]
+  de: Verbundene Konten werden als verschlüsselte, vom Browser verwaltete Datensätze gespeichert. OpenMates erhält nur verschlüsselte Kontodaten und undurchsichtige Hashes.
+  zh: 已连接的账号会作为由浏览器管理的加密记录存储。OpenMates 只接收加密的账号数据和不透明哈希。
+  es: Las cuentas conectadas se almacenan como registros cifrados gestionados por el navegador. OpenMates solo recibe datos de cuenta cifrados y hashes opacos.
+  fr: Les comptes connectés sont stockés sous forme d'enregistrements chiffrés gérés par le navigateur. OpenMates ne reçoit que des données de compte chiffrées et des hachages opaques.
+  pt: As contas conectadas são armazenadas como registros criptografados gerenciados pelo navegador. O OpenMates recebe apenas dados de conta criptografados e hashes opacos.
+  ru: Подключенные аккаунты хранятся как зашифрованные записи, управляемые браузером. OpenMates получает только зашифрованные данные аккаунта и непрозрачные хэши.
+  ja: 連携済みアカウントは、ブラウザが管理する暗号化レコードとして保存されます。OpenMates が受け取るのは、暗号化されたアカウントデータと不透明なハッシュのみです。
+  ko: 연결된 계정은 브라우저가 관리하는 암호화된 기록으로 저장됩니다. OpenMates는 암호화된 계정 데이터와 불투명 해시만 받습니다.
+  it: Gli account collegati vengono archiviati come record cifrati gestiti dal browser. OpenMates riceve solo dati account cifrati e hash opachi.
+  tr: Bağlı hesaplar, tarayıcı tarafından yönetilen şifreli kayıtlar olarak saklanır. OpenMates yalnızca şifreli hesap verileri ve opak hash'ler alır.
+  vi: Tài khoản đã kết nối được lưu dưới dạng bản ghi mã hóa do trình duyệt quản lý. OpenMates chỉ nhận dữ liệu tài khoản đã mã hóa và các hàm băm không thể đọc được.
+  id: Akun terhubung disimpan sebagai catatan terenkripsi yang dikelola browser. OpenMates hanya menerima data akun terenkripsi dan hash buram.
+  pl: Połączone konta są przechowywane jako zaszyfrowane rekordy zarządzane przez przeglądarkę. OpenMates otrzymuje tylko zaszyfrowane dane konta i nieprzezroczyste hashe.
+  nl: Verbonden accounts worden opgeslagen als versleutelde, door de browser beheerde records. OpenMates ontvangt alleen versleutelde accountgegevens en ondoorzichtige hashes.
+  ar: يتم تخزين الحسابات المتصلة كسجلات مشفرة يديرها المتصفح. لا يتلقى OpenMates إلا بيانات الحساب المشفرة وبصمات تجزئة مبهمة.
+  hi: कनेक्ट किए गए खाते ब्राउज़र-प्रबंधित एन्क्रिप्टेड रिकॉर्ड के रूप में संग्रहीत होते हैं। OpenMates केवल एन्क्रिप्टेड खाता डेटा और अपारदर्शी हैश प्राप्त करता है।
+  th: บัญชีที่เชื่อมต่อจะถูกจัดเก็บเป็นระเบียนเข้ารหัสที่เบราว์เซอร์จัดการ OpenMates จะได้รับเฉพาะข้อมูลบัญชีที่เข้ารหัสและแฮชแบบทึบเท่านั้น
+  cs: Připojené účty se ukládají jako šifrované záznamy spravované prohlížečem. OpenMates přijímá pouze šifrovaná data účtu a neprůhledné hashe.
+  sv: Anslutna konton lagras som krypterade poster som hanteras av webbläsaren. OpenMates tar bara emot krypterade kontodata och opaka hashar.
+  he: חשבונות מחוברים נשמרים כרשומות מוצפנות המנוהלות על ידי הדפדפן. OpenMates מקבל רק נתוני חשבון מוצפנים וגיבובים אטומים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.loading:
   context: Status while connected account summaries are loading.
   en: Loading connected accounts...
-  verified_by_human: [en]
+  de: Verbundene Konten werden geladen...
+  zh: 正在加载已连接的账号...
+  es: Cargando cuentas conectadas...
+  fr: Chargement des comptes connectés...
+  pt: Carregando contas conectadas...
+  ru: Загрузка подключенных аккаунтов...
+  ja: 連携済みアカウントを読み込み中...
+  ko: 연결된 계정 불러오는 중...
+  it: Caricamento degli account collegati...
+  tr: Bağlı hesaplar yükleniyor...
+  vi: Đang tải tài khoản đã kết nối...
+  id: Memuat akun terhubung...
+  pl: Ładowanie połączonych kont...
+  nl: Verbonden accounts laden...
+  ar: جارٍ تحميل الحسابات المتصلة...
+  hi: कनेक्ट किए गए खाते लोड हो रहे हैं...
+  th: กำลังโหลดบัญชีที่เชื่อมต่อ...
+  cs: Načítání připojených účtů...
+  sv: Läser in anslutna konton...
+  he: טוען חשבונות מחוברים...
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.empty:
   context: Empty state when the user has no connected accounts.
   en: No connected accounts yet.
-  verified_by_human: [en]
+  de: Noch keine verbundenen Konten.
+  zh: 还没有已连接的账号。
+  es: Aún no hay cuentas conectadas.
+  fr: Aucun compte connecté pour le moment.
+  pt: Ainda não há contas conectadas.
+  ru: Подключенных аккаунтов пока нет.
+  ja: 連携済みアカウントはまだありません。
+  ko: 아직 연결된 계정이 없습니다.
+  it: Nessun account collegato ancora.
+  tr: Henüz bağlı hesap yok.
+  vi: Chưa có tài khoản nào được kết nối.
+  id: Belum ada akun terhubung.
+  pl: Nie ma jeszcze połączonych kont.
+  nl: Nog geen verbonden accounts.
+  ar: لا توجد حسابات متصلة بعد.
+  hi: अभी तक कोई कनेक्ट किया गया खाता नहीं है।
+  th: ยังไม่มีบัญชีที่เชื่อมต่อ
+  cs: Zatím nejsou připojené žádné účty.
+  sv: Inga anslutna konton ännu.
+  he: עדיין אין חשבונות מחוברים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.accounts:
   context: Section heading for connected account rows.
   en: Accounts
-  verified_by_human: [en]
+  de: Konten
+  zh: 账号
+  es: Cuentas
+  fr: Comptes
+  pt: Contas
+  ru: Аккаунты
+  ja: アカウント
+  ko: 계정
+  it: Account
+  tr: Hesaplar
+  vi: Tài khoản
+  id: Akun
+  pl: Konta
+  nl: Accounts
+  ar: الحسابات
+  hi: खाते
+  th: บัญชี
+  cs: Účty
+  sv: Konton
+  he: חשבונות
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.details:
   context: Section heading for selected connected account details.
   en: Account details
-  verified_by_human: [en]
+  de: Kontodetails
+  zh: 账号详情
+  es: Detalles de la cuenta
+  fr: Détails du compte
+  pt: Detalhes da conta
+  ru: Сведения об аккаунте
+  ja: アカウントの詳細
+  ko: 계정 세부 정보
+  it: Dettagli account
+  tr: Hesap ayrıntıları
+  vi: Chi tiết tài khoản
+  id: Detail akun
+  pl: Szczegóły konta
+  nl: Accountdetails
+  ar: تفاصيل الحساب
+  hi: खाते का विवरण
+  th: รายละเอียดบัญชี
+  cs: Podrobnosti účtu
+  sv: Kontouppgifter
+  he: פרטי החשבון
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.account_label:
   context: Detail row label for an encrypted connected account label.
   en: Account label
-  verified_by_human: [en]
+  de: Kontobezeichnung
+  zh: 账号标签
+  es: Etiqueta de cuenta
+  fr: Libellé du compte
+  pt: Rótulo da conta
+  ru: Метка аккаунта
+  ja: アカウントラベル
+  ko: 계정 레이블
+  it: Etichetta account
+  tr: Hesap etiketi
+  vi: Nhãn tài khoản
+  id: Label akun
+  pl: Etykieta konta
+  nl: Accountlabel
+  ar: تسمية الحساب
+  hi: खाता लेबल
+  th: ป้ายกำกับบัญชี
+  cs: Štítek účtu
+  sv: Kontoetikett
+  he: תווית חשבון
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.provider:
   context: Detail row label for connected account provider.
   en: Provider
-  verified_by_human: [en]
+  de: Anbieter
+  zh: 提供商
+  es: Proveedor
+  fr: Fournisseur
+  pt: Provedor
+  ru: Провайдер
+  ja: プロバイダー
+  ko: 제공업체
+  it: Provider
+  tr: Sağlayıcı
+  vi: Nhà cung cấp
+  id: Penyedia
+  pl: Dostawca
+  nl: Provider
+  ar: المزود
+  hi: प्रदाता
+  th: ผู้ให้บริการ
+  cs: Poskytovatel
+  sv: Leverantör
+  he: ספק
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.provider_google_calendar:
   context: Provider display name for Google Calendar connected accounts.
   en: Google Calendar
-  verified_by_human: [en]
+  de: Google Calendar
+  zh: Google Calendar
+  es: Google Calendar
+  fr: Google Calendar
+  pt: Google Calendar
+  ru: Google Calendar
+  ja: Google Calendar
+  ko: Google Calendar
+  it: Google Calendar
+  tr: Google Calendar
+  vi: Google Calendar
+  id: Google Calendar
+  pl: Google Calendar
+  nl: Google Calendar
+  ar: Google Calendar
+  hi: Google Calendar
+  th: Google Calendar
+  cs: Google Calendar
+  sv: Google Calendar
+  he: Google Calendar
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.app:
   context: Detail row label for connected account app scope.
   en: App
-  verified_by_human: [en]
+  de: App
+  zh: 应用
+  es: App
+  fr: App
+  pt: App
+  ru: Приложение
+  ja: アプリ
+  ko: 앱
+  it: App
+  tr: Uygulama
+  vi: Ứng dụng
+  id: Aplikasi
+  pl: Aplikacja
+  nl: App
+  ar: التطبيق
+  hi: ऐप
+  th: แอป
+  cs: Aplikace
+  sv: App
+  he: אפליקציה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.capabilities:
   context: Detail row label for connected account capabilities.
   en: Capabilities
-  verified_by_human: [en]
+  de: Berechtigungen
+  zh: 功能权限
+  es: Capacidades
+  fr: Capacités
+  pt: Capacidades
+  ru: Возможности
+  ja: 機能
+  ko: 기능
+  it: Capacità
+  tr: Özellikler
+  vi: Khả năng
+  id: Kemampuan
+  pl: Możliwości
+  nl: Mogelijkheden
+  ar: الإمكانات
+  hi: क्षमताएं
+  th: ความสามารถ
+  cs: Oprávnění
+  sv: Funktioner
+  he: יכולות
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.runtime_modes:
   context: Detail row label for connected account runtime permission modes.
   en: Runtime modes
-  verified_by_human: [en]
+  de: Laufzeitmodi
+  zh: 运行时模式
+  es: Modos de ejecución
+  fr: Modes d'exécution
+  pt: Modos de execução
+  ru: Режимы выполнения
+  ja: ランタイムモード
+  ko: 런타임 모드
+  it: Modalità runtime
+  tr: Çalışma zamanı modları
+  vi: Chế độ chạy
+  id: Mode runtime
+  pl: Tryby środowiska uruchomieniowego
+  nl: Runtime-modi
+  ar: أوضاع التشغيل
+  hi: रनटाइम मोड
+  th: โหมดรันไทม์
+  cs: Režimy běhu
+  sv: Körningslägen
+  he: מצבי זמן ריצה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.none:
   context: Placeholder for an empty connected account detail value.
   en: None
-  verified_by_human: [en]
+  de: Keine
+  zh: 无
+  es: Ninguno
+  fr: Aucun
+  pt: Nenhum
+  ru: Нет
+  ja: なし
+  ko: 없음
+  it: Nessuno
+  tr: Yok
+  vi: Không có
+  id: Tidak ada
+  pl: Brak
+  nl: Geen
+  ar: لا شيء
+  hi: कोई नहीं
+  th: ไม่มี
+  cs: Žádné
+  sv: Inget
+  he: ללא
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.add_calendar_write:
   context: Button label to request incremental Google Calendar write capability for an existing connected account.
   en: Add Calendar write access
-  verified_by_human: [en]
+  de: Schreibzugriff für Calendar hinzufügen
+  zh: 添加 Calendar 写入访问权限
+  es: Añadir acceso de escritura a Calendar
+  fr: Ajouter l'accès en écriture à Calendar
+  pt: Adicionar acesso de escrita ao Calendar
+  ru: Добавить доступ на запись в Calendar
+  ja: Calendar の書き込みアクセスを追加
+  ko: Calendar 쓰기 액세스 추가
+  it: Aggiungi accesso in scrittura a Calendar
+  tr: Calendar yazma erişimi ekle
+  vi: Thêm quyền ghi Calendar
+  id: Tambahkan akses tulis Calendar
+  pl: Dodaj dostęp do zapisu w Calendar
+  nl: Schrijftoegang voor Calendar toevoegen
+  ar: إضافة صلاحية الكتابة إلى Calendar
+  hi: Calendar लिखने की पहुंच जोड़ें
+  th: เพิ่มสิทธิ์เขียน Calendar
+  cs: Přidat přístup k zápisu do Calendar
+  sv: Lägg till skrivåtkomst till Calendar
+  he: הוספת גישת כתיבה ל-Calendar
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.finalizing:
   context: Status while an OAuth handoff is being encrypted into an existing connected account.
   en: Encrypting and saving connected account update...
-  verified_by_human: [en]
+  de: Update des verbundenen Kontos wird verschlüsselt und gespeichert...
+  zh: 正在加密并保存已连接账号更新...
+  es: Cifrando y guardando la actualización de la cuenta conectada...
+  fr: Chiffrement et enregistrement de la mise à jour du compte connecté...
+  pt: Criptografando e salvando a atualização da conta conectada...
+  ru: Шифрование и сохранение обновления подключенного аккаунта...
+  ja: 連携済みアカウントの更新を暗号化して保存中...
+  ko: 연결된 계정 업데이트 암호화 및 저장 중...
+  it: Cifratura e salvataggio dell'aggiornamento dell'account collegato...
+  tr: Bağlı hesap güncellemesi şifrelenip kaydediliyor...
+  vi: Đang mã hóa và lưu bản cập nhật tài khoản đã kết nối...
+  id: Mengenkripsi dan menyimpan pembaruan akun terhubung...
+  pl: Szyfrowanie i zapisywanie aktualizacji połączonego konta...
+  nl: Update van verbonden account versleutelen en opslaan...
+  ar: جارٍ تشفير تحديث الحساب المتصل وحفظه...
+  hi: कनेक्ट किए गए खाते का अपडेट एन्क्रिप्ट और सहेजा जा रहा है...
+  th: กำลังเข้ารหัสและบันทึกการอัปเดตบัญชีที่เชื่อมต่อ...
+  cs: Šifrování a ukládání aktualizace připojeného účtu...
+  sv: Krypterar och sparar uppdatering av anslutet konto...
+  he: מצפין ושומר עדכון לחשבון המחובר...
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.updated_success:
   context: Success message after a connected account update is encrypted and stored.
   en: Connected account updated. New access was encrypted before saving.
-  verified_by_human: [en]
+  de: Verbundenes Konto aktualisiert. Der neue Zugriff wurde vor dem Speichern verschlüsselt.
+  zh: 已连接的账号已更新。新的访问权限已在保存前加密。
+  es: Cuenta conectada actualizada. El nuevo acceso se cifró antes de guardarse.
+  fr: Compte connecté mis à jour. Le nouvel accès a été chiffré avant l'enregistrement.
+  pt: Conta conectada atualizada. O novo acesso foi criptografado antes de salvar.
+  ru: Подключенный аккаунт обновлен. Новый доступ был зашифрован перед сохранением.
+  ja: 連携済みアカウントを更新しました。新しいアクセス権は保存前に暗号化されました。
+  ko: 연결된 계정이 업데이트되었습니다. 새 액세스 권한은 저장 전에 암호화되었습니다.
+  it: Account collegato aggiornato. Il nuovo accesso è stato cifrato prima del salvataggio.
+  tr: Bağlı hesap güncellendi. Yeni erişim kaydedilmeden önce şifrelendi.
+  vi: Tài khoản đã kết nối đã được cập nhật. Quyền truy cập mới đã được mã hóa trước khi lưu.
+  id: Akun terhubung diperbarui. Akses baru dienkripsi sebelum disimpan.
+  pl: Połączone konto zaktualizowane. Nowy dostęp został zaszyfrowany przed zapisaniem.
+  nl: Verbonden account bijgewerkt. Nieuwe toegang is vóór het opslaan versleuteld.
+  ar: تم تحديث الحساب المتصل. تم تشفير الوصول الجديد قبل الحفظ.
+  hi: कनेक्ट किया गया खाता अपडेट हो गया। नया एक्सेस सहेजने से पहले एन्क्रिप्ट किया गया था।
+  th: อัปเดตบัญชีที่เชื่อมต่อแล้ว สิทธิ์เข้าถึงใหม่ถูกเข้ารหัสก่อนบันทึก
+  cs: Připojený účet byl aktualizován. Nový přístup byl před uložením zašifrován.
+  sv: Anslutet konto uppdaterat. Ny åtkomst krypterades före sparning.
+  he: החשבון המחובר עודכן. הגישה החדשה הוצפנה לפני השמירה.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.sign_in_required:
   context: Message shown when an unauthenticated user opens connected-account settings.
   en: Sign in to manage connected accounts.
-  verified_by_human: [en]
+  de: Melde dich an, um verbundene Konten zu verwalten.
+  zh: 登录以管理已连接的账号。
+  es: Inicia sesión para gestionar cuentas conectadas.
+  fr: Connectez-vous pour gérer les comptes connectés.
+  pt: Entre para gerenciar contas conectadas.
+  ru: Войдите, чтобы управлять подключенными аккаунтами.
+  ja: 連携済みアカウントを管理するにはサインインしてください。
+  ko: 연결된 계정을 관리하려면 로그인하세요.
+  it: Accedi per gestire gli account collegati.
+  tr: Bağlı hesapları yönetmek için oturum açın.
+  vi: Đăng nhập để quản lý tài khoản đã kết nối.
+  id: Masuk untuk mengelola akun terhubung.
+  pl: Zaloguj się, aby zarządzać połączonymi kontami.
+  nl: Meld u aan om verbonden accounts te beheren.
+  ar: سجّل الدخول لإدارة الحسابات المتصلة.
+  hi: कनेक्ट किए गए खातों को प्रबंधित करने के लिए साइन इन करें।
+  th: ลงชื่อเข้าใช้เพื่อจัดการบัญชีที่เชื่อมต่อ
+  cs: Přihlaste se, abyste mohli spravovat připojené účty.
+  sv: Logga in för att hantera anslutna konton.
+  he: התחבר כדי לנהל חשבונות מחוברים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.load_error:
   context: Safe generic error when encrypted connected account summaries cannot load.
   en: Could not load connected accounts.
-  verified_by_human: [en]
+  de: Verbundene Konten konnten nicht geladen werden.
+  zh: 无法加载已连接的账号。
+  es: No se pudieron cargar las cuentas conectadas.
+  fr: Impossible de charger les comptes connectés.
+  pt: Não foi possível carregar as contas conectadas.
+  ru: Не удалось загрузить подключенные аккаунты.
+  ja: 連携済みアカウントを読み込めませんでした。
+  ko: 연결된 계정을 불러올 수 없습니다.
+  it: Impossibile caricare gli account collegati.
+  tr: Bağlı hesaplar yüklenemedi.
+  vi: Không thể tải tài khoản đã kết nối.
+  id: Tidak dapat memuat akun terhubung.
+  pl: Nie udało się załadować połączonych kont.
+  nl: Kon verbonden accounts niet laden.
+  ar: تعذر تحميل الحسابات المتصلة.
+  hi: कनेक्ट किए गए खाते लोड नहीं किए जा सके।
+  th: ไม่สามารถโหลดบัญชีที่เชื่อมต่อได้
+  cs: Připojené účty se nepodařilo načíst.
+  sv: Det gick inte att läsa in anslutna konton.
+  he: לא ניתן היה לטעון חשבונות מחוברים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.update_error:
   context: Safe generic error when an account update OAuth flow cannot start.
   en: Could not start connected account update.
-  verified_by_human: [en]
+  de: Update des verbundenen Kontos konnte nicht gestartet werden.
+  zh: 无法启动已连接账号更新。
+  es: No se pudo iniciar la actualización de la cuenta conectada.
+  fr: Impossible de lancer la mise à jour du compte connecté.
+  pt: Não foi possível iniciar a atualização da conta conectada.
+  ru: Не удалось запустить обновление подключенного аккаунта.
+  ja: 連携済みアカウントの更新を開始できませんでした。
+  ko: 연결된 계정 업데이트를 시작할 수 없습니다.
+  it: Impossibile avviare l'aggiornamento dell'account collegato.
+  tr: Bağlı hesap güncellemesi başlatılamadı.
+  vi: Không thể bắt đầu cập nhật tài khoản đã kết nối.
+  id: Tidak dapat memulai pembaruan akun terhubung.
+  pl: Nie udało się rozpocząć aktualizacji połączonego konta.
+  nl: Kon update van verbonden account niet starten.
+  ar: تعذر بدء تحديث الحساب المتصل.
+  hi: कनेक्ट किए गए खाते का अपडेट शुरू नहीं किया जा सका।
+  th: ไม่สามารถเริ่มอัปเดตบัญชีที่เชื่อมต่อได้
+  cs: Aktualizaci připojeného účtu se nepodařilo spustit.
+  sv: Det gick inte att starta uppdatering av anslutet konto.
+  he: לא ניתן היה להתחיל עדכון לחשבון המחובר.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.finalize_error:
   context: Safe generic error when an account update OAuth handoff cannot be saved.
   en: Could not finish updating connected account.
-  verified_by_human: [en]
+  de: Aktualisierung des verbundenen Kontos konnte nicht abgeschlossen werden.
+  zh: 无法完成已连接账号更新。
+  es: No se pudo terminar de actualizar la cuenta conectada.
+  fr: Impossible de terminer la mise à jour du compte connecté.
+  pt: Não foi possível concluir a atualização da conta conectada.
+  ru: Не удалось завершить обновление подключенного аккаунта.
+  ja: 連携済みアカウントの更新を完了できませんでした。
+  ko: 연결된 계정 업데이트를 완료할 수 없습니다.
+  it: Impossibile completare l'aggiornamento dell'account collegato.
+  tr: Bağlı hesap güncellemesi tamamlanamadı.
+  vi: Không thể hoàn tất cập nhật tài khoản đã kết nối.
+  id: Tidak dapat menyelesaikan pembaruan akun terhubung.
+  pl: Nie udało się dokończyć aktualizacji połączonego konta.
+  nl: Kon het bijwerken van het verbonden account niet voltooien.
+  ar: تعذر إنهاء تحديث الحساب المتصل.
+  hi: कनेक्ट किए गए खाते का अपडेट पूरा नहीं किया जा सका।
+  th: ไม่สามารถอัปเดตบัญชีที่เชื่อมต่อให้เสร็จสิ้นได้
+  cs: Aktualizaci připojeného účtu se nepodařilo dokončit.
+  sv: Det gick inte att slutföra uppdateringen av det anslutna kontot.
+  he: לא ניתן היה לסיים את עדכון החשבון המחובר.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.cli_export_title:
   context: Section heading for developer/test connected account CLI import command generation.
   en: CLI test-account import
-  verified_by_human: [en]
+  de: CLI-Testkonto-Import
+  zh: CLI 测试账号导入
+  es: Importación de cuenta de prueba por CLI
+  fr: Import de compte de test CLI
+  pt: Importação de conta de teste pela CLI
+  ru: Импорт тестового аккаунта CLI
+  ja: CLI テストアカウントのインポート
+  ko: CLI 테스트 계정 가져오기
+  it: Importazione account di test CLI
+  tr: CLI test hesabı içe aktarma
+  vi: Nhập tài khoản thử nghiệm bằng CLI
+  id: Impor akun uji CLI
+  pl: Import konta testowego CLI
+  nl: CLI-testaccount importeren
+  ar: استيراد حساب اختبار عبر CLI
+  hi: CLI टेस्ट-खाता आयात
+  th: นำเข้าบัญชีทดสอบ CLI
+  cs: Import testovacího účtu CLI
+  sv: CLI-import av testkonto
+  he: ייבוא חשבון בדיקה ב-CLI
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.cli_export_warning:
   context: Warning before exporting an encrypted connected account import command.
   en: This is for testing only. Anyone with the generated command and passcode can add this provider account to another OpenMates account.
-  verified_by_human: [en]
+  de: Dies ist nur für Tests gedacht. Jede Person mit dem generierten Befehl und dem Passcode kann dieses Anbieter-Konto zu einem anderen OpenMates-Konto hinzufügen.
+  zh: 这仅用于测试。任何拥有生成命令和密码的人都可以将此提供商账号添加到另一个 OpenMates 账号。
+  es: Esto es solo para pruebas. Cualquier persona con el comando generado y el código de acceso puede añadir esta cuenta de proveedor a otra cuenta de OpenMates.
+  fr: Ceci est réservé aux tests. Toute personne disposant de la commande générée et du code d'accès peut ajouter ce compte fournisseur à un autre compte OpenMates.
+  pt: Isto é apenas para testes. Qualquer pessoa com o comando gerado e o código de acesso pode adicionar esta conta de provedor a outra conta OpenMates.
+  ru: Это только для тестирования. Любой, у кого есть сгенерированная команда и код доступа, может добавить этот аккаунт провайдера в другой аккаунт OpenMates.
+  ja: これはテスト専用です。生成されたコマンドとパスコードを持っている人は誰でも、このプロバイダーアカウントを別の OpenMates アカウントに追加できます。
+  ko: 테스트 전용입니다. 생성된 명령과 패스코드가 있는 사람은 누구나 이 제공업체 계정을 다른 OpenMates 계정에 추가할 수 있습니다.
+  it: Questo è solo per i test. Chiunque abbia il comando generato e il passcode può aggiungere questo account provider a un altro account OpenMates.
+  tr: Bu yalnızca test içindir. Oluşturulan komuta ve geçiş koduna sahip herkes bu sağlayıcı hesabını başka bir OpenMates hesabına ekleyebilir.
+  vi: Nội dung này chỉ dùng để thử nghiệm. Bất kỳ ai có lệnh đã tạo và mật mã đều có thể thêm tài khoản nhà cung cấp này vào một tài khoản OpenMates khác.
+  id: Ini hanya untuk pengujian. Siapa pun yang memiliki perintah yang dibuat dan kode sandi dapat menambahkan akun penyedia ini ke akun OpenMates lain.
+  pl: To jest przeznaczone wyłącznie do testów. Każda osoba z wygenerowanym poleceniem i kodem dostępu może dodać to konto dostawcy do innego konta OpenMates.
+  nl: Dit is alleen voor tests. Iedereen met de gegenereerde opdracht en toegangscode kan dit provideraccount toevoegen aan een ander OpenMates-account.
+  ar: هذا مخصص للاختبار فقط. يمكن لأي شخص لديه الأمر المُنشأ ورمز المرور إضافة حساب المزود هذا إلى حساب OpenMates آخر.
+  hi: यह केवल परीक्षण के लिए है। जेनरेट किए गए कमांड और पासकोड वाला कोई भी व्यक्ति इस प्रदाता खाते को किसी दूसरे OpenMates खाते में जोड़ सकता है।
+  th: ใช้สำหรับการทดสอบเท่านั้น ทุกคนที่มีคำสั่งที่สร้างขึ้นและรหัสผ่านสามารถเพิ่มบัญชีผู้ให้บริการนี้ไปยังบัญชี OpenMates อื่นได้
+  cs: Toto je určeno pouze pro testování. Každý s vygenerovaným příkazem a přístupovým kódem může tento účet poskytovatele přidat k jinému účtu OpenMates.
+  sv: Detta är endast för testning. Vem som helst med det genererade kommandot och lösenkoden kan lägga till detta leverantörskonto till ett annat OpenMates-konto.
+  he: זה מיועד לבדיקה בלבד. כל מי שיש לו את הפקודה שנוצרה ואת קוד הגישה יכול להוסיף את חשבון הספק הזה לחשבון OpenMates אחר.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.cli_export_passcode_placeholder:
   context: Placeholder for the passcode used to encrypt a connected account CLI import payload.
   en: Passcode for the CLI import
-  verified_by_human: [en]
+  de: Passcode für den CLI-Import
+  zh: CLI 导入密码
+  es: Código de acceso para la importación por CLI
+  fr: Code d'accès pour l'import CLI
+  pt: Código de acesso para a importação pela CLI
+  ru: Код доступа для импорта CLI
+  ja: CLI インポート用パスコード
+  ko: CLI 가져오기용 패스코드
+  it: Passcode per l'importazione CLI
+  tr: CLI içe aktarma için geçiş kodu
+  vi: Mật mã cho thao tác nhập bằng CLI
+  id: Kode sandi untuk impor CLI
+  pl: Kod dostępu do importu CLI
+  nl: Toegangscode voor de CLI-import
+  ar: رمز المرور لاستيراد CLI
+  hi: CLI आयात के लिए पासकोड
+  th: รหัสผ่านสำหรับการนำเข้า CLI
+  cs: Přístupový kód pro import CLI
+  sv: Lösenkod för CLI-importen
+  he: קוד גישה לייבוא ב-CLI
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.cli_export_passcode_required:
   context: Error when generating a CLI import command without a passcode.
   en: Enter a passcode before generating the CLI import command.
-  verified_by_human: [en]
+  de: Gib einen Passcode ein, bevor du den CLI-Importbefehl generierst.
+  zh: 生成 CLI 导入命令前请输入密码。
+  es: Introduce un código de acceso antes de generar el comando de importación por CLI.
+  fr: Saisissez un code d'accès avant de générer la commande d'import CLI.
+  pt: Insira um código de acesso antes de gerar o comando de importação pela CLI.
+  ru: Введите код доступа перед созданием команды импорта CLI.
+  ja: CLI インポートコマンドを生成する前にパスコードを入力してください。
+  ko: CLI 가져오기 명령을 생성하기 전에 패스코드를 입력하세요.
+  it: Inserisci un passcode prima di generare il comando di importazione CLI.
+  tr: CLI içe aktarma komutunu oluşturmadan önce bir geçiş kodu girin.
+  vi: Nhập mật mã trước khi tạo lệnh nhập bằng CLI.
+  id: Masukkan kode sandi sebelum membuat perintah impor CLI.
+  pl: Wpisz kod dostępu przed wygenerowaniem polecenia importu CLI.
+  nl: Voer een toegangscode in voordat u de CLI-importopdracht genereert.
+  ar: أدخل رمز مرور قبل إنشاء أمر استيراد CLI.
+  hi: CLI आयात कमांड जेनरेट करने से पहले पासकोड दर्ज करें।
+  th: ป้อนรหัสผ่านก่อนสร้างคำสั่งนำเข้า CLI
+  cs: Před vygenerováním příkazu pro import CLI zadejte přístupový kód.
+  sv: Ange en lösenkod innan du genererar CLI-importkommandot.
+  he: הזן קוד גישה לפני יצירת פקודת הייבוא ב-CLI.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.cli_export_button:
   context: Button label to generate and copy an encrypted connected account CLI import command.
   en: Generate CLI import command
-  verified_by_human: [en]
+  de: CLI-Importbefehl generieren
+  zh: 生成 CLI 导入命令
+  es: Generar comando de importación por CLI
+  fr: Générer la commande d'import CLI
+  pt: Gerar comando de importação pela CLI
+  ru: Создать команду импорта CLI
+  ja: CLI インポートコマンドを生成
+  ko: CLI 가져오기 명령 생성
+  it: Genera comando di importazione CLI
+  tr: CLI içe aktarma komutu oluştur
+  vi: Tạo lệnh nhập bằng CLI
+  id: Buat perintah impor CLI
+  pl: Wygeneruj polecenie importu CLI
+  nl: CLI-importopdracht genereren
+  ar: إنشاء أمر استيراد CLI
+  hi: CLI आयात कमांड जेनरेट करें
+  th: สร้างคำสั่งนำเข้า CLI
+  cs: Vygenerovat příkaz importu CLI
+  sv: Generera CLI-importkommando
+  he: יצירת פקודת ייבוא ב-CLI
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.cli_export_command_label:
   context: Accessible label for the generated connected account CLI import command text area.
   en: Generated CLI import command
-  verified_by_human: [en]
+  de: Generierter CLI-Importbefehl
+  zh: 已生成的 CLI 导入命令
+  es: Comando de importación por CLI generado
+  fr: Commande d'import CLI générée
+  pt: Comando de importação pela CLI gerado
+  ru: Сгенерированная команда импорта CLI
+  ja: 生成された CLI インポートコマンド
+  ko: 생성된 CLI 가져오기 명령
+  it: Comando di importazione CLI generato
+  tr: Oluşturulan CLI içe aktarma komutu
+  vi: Lệnh nhập bằng CLI đã tạo
+  id: Perintah impor CLI yang dibuat
+  pl: Wygenerowane polecenie importu CLI
+  nl: Gegenereerde CLI-importopdracht
+  ar: أمر استيراد CLI المُنشأ
+  hi: जेनरेट किया गया CLI आयात कमांड
+  th: คำสั่งนำเข้า CLI ที่สร้างแล้ว
+  cs: Vygenerovaný příkaz importu CLI
+  sv: Genererat CLI-importkommando
+  he: פקודת ייבוא ב-CLI שנוצרה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.cli_export_copied:
   context: Success message when the connected account CLI import command is copied.
   en: CLI import command copied. Paste it while logged into the test account in OpenMates CLI.
-  verified_by_human: [en]
+  de: CLI-Importbefehl kopiert. Füge ihn ein, während du im OpenMates CLI beim Testkonto angemeldet bist.
+  zh: CLI 导入命令已复制。登录 OpenMates CLI 中的测试账号后粘贴它。
+  es: Comando de importación por CLI copiado. Pégalo mientras tienes la sesión iniciada en la cuenta de prueba en OpenMates CLI.
+  fr: Commande d'import CLI copiée. Collez-la lorsque vous êtes connecté au compte de test dans OpenMates CLI.
+  pt: Comando de importação pela CLI copiado. Cole-o enquanto estiver conectado à conta de teste no OpenMates CLI.
+  ru: Команда импорта CLI скопирована. Вставьте ее, войдя в тестовый аккаунт в OpenMates CLI.
+  ja: CLI インポートコマンドをコピーしました。OpenMates CLI でテストアカウントにログインした状態で貼り付けてください。
+  ko: CLI 가져오기 명령이 복사되었습니다. OpenMates CLI에서 테스트 계정으로 로그인한 상태에서 붙여넣으세요.
+  it: Comando di importazione CLI copiato. Incollalo dopo aver effettuato l'accesso all'account di test in OpenMates CLI.
+  tr: CLI içe aktarma komutu kopyalandı. OpenMates CLI'da test hesabına giriş yapmışken yapıştırın.
+  vi: Đã sao chép lệnh nhập bằng CLI. Dán lệnh đó khi đã đăng nhập vào tài khoản thử nghiệm trong OpenMates CLI.
+  id: Perintah impor CLI disalin. Tempelkan saat masuk ke akun uji di OpenMates CLI.
+  pl: Polecenie importu CLI skopiowane. Wklej je po zalogowaniu się na konto testowe w OpenMates CLI.
+  nl: CLI-importopdracht gekopieerd. Plak deze terwijl u bent aangemeld bij het testaccount in OpenMates CLI.
+  ar: تم نسخ أمر استيراد CLI. الصقه أثناء تسجيل الدخول إلى حساب الاختبار في OpenMates CLI.
+  hi: CLI आयात कमांड कॉपी हो गया। OpenMates CLI में टेस्ट खाते में लॉग इन रहते हुए इसे पेस्ट करें।
+  th: คัดลอกคำสั่งนำเข้า CLI แล้ว วางคำสั่งขณะเข้าสู่ระบบบัญชีทดสอบใน OpenMates CLI
+  cs: Příkaz importu CLI byl zkopírován. Vložte jej, když jste přihlášeni k testovacímu účtu v OpenMates CLI.
+  sv: CLI-importkommandot har kopierats. Klistra in det när du är inloggad på testkontot i OpenMates CLI.
+  he: פקודת הייבוא ב-CLI הועתקה. הדבק אותה כשאתה מחובר לחשבון הבדיקה ב-OpenMates CLI.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.cli_export_generated:
   context: Success message when the connected account CLI import command was generated but copy fallback did not succeed.
   en: CLI import command generated. Copy it and paste it while logged into the test account in OpenMates CLI.
-  verified_by_human: [en]
+  de: CLI-Importbefehl generiert. Kopiere ihn und füge ihn ein, während du im OpenMates CLI beim Testkonto angemeldet bist.
+  zh: CLI 导入命令已生成。复制它，并在登录 OpenMates CLI 中的测试账号后粘贴。
+  es: Comando de importación por CLI generado. Cópialo y pégalo mientras tienes la sesión iniciada en la cuenta de prueba en OpenMates CLI.
+  fr: Commande d'import CLI générée. Copiez-la et collez-la lorsque vous êtes connecté au compte de test dans OpenMates CLI.
+  pt: Comando de importação pela CLI gerado. Copie-o e cole-o enquanto estiver conectado à conta de teste no OpenMates CLI.
+  ru: Команда импорта CLI создана. Скопируйте ее и вставьте, войдя в тестовый аккаунт в OpenMates CLI.
+  ja: CLI インポートコマンドを生成しました。コピーして、OpenMates CLI でテストアカウントにログインした状態で貼り付けてください。
+  ko: CLI 가져오기 명령이 생성되었습니다. OpenMates CLI에서 테스트 계정으로 로그인한 상태에서 복사해 붙여넣으세요.
+  it: Comando di importazione CLI generato. Copialo e incollalo dopo aver effettuato l'accesso all'account di test in OpenMates CLI.
+  tr: CLI içe aktarma komutu oluşturuldu. Kopyalayın ve OpenMates CLI'da test hesabına giriş yapmışken yapıştırın.
+  vi: Đã tạo lệnh nhập bằng CLI. Sao chép và dán lệnh đó khi đã đăng nhập vào tài khoản thử nghiệm trong OpenMates CLI.
+  id: Perintah impor CLI dibuat. Salin dan tempelkan saat masuk ke akun uji di OpenMates CLI.
+  pl: Polecenie importu CLI wygenerowane. Skopiuj je i wklej po zalogowaniu się na konto testowe w OpenMates CLI.
+  nl: CLI-importopdracht gegenereerd. Kopieer deze en plak deze terwijl u bent aangemeld bij het testaccount in OpenMates CLI.
+  ar: تم إنشاء أمر استيراد CLI. انسخه والصقه أثناء تسجيل الدخول إلى حساب الاختبار في OpenMates CLI.
+  hi: CLI आयात कमांड जेनरेट हो गया। इसे कॉपी करें और OpenMates CLI में टेस्ट खाते में लॉग इन रहते हुए पेस्ट करें।
+  th: สร้างคำสั่งนำเข้า CLI แล้ว คัดลอกและวางขณะเข้าสู่ระบบบัญชีทดสอบใน OpenMates CLI
+  cs: Příkaz importu CLI byl vygenerován. Zkopírujte jej a vložte, když jste přihlášeni k testovacímu účtu v OpenMates CLI.
+  sv: CLI-importkommandot har genererats. Kopiera det och klistra in det när du är inloggad på testkontot i OpenMates CLI.
+  he: פקודת הייבוא ב-CLI נוצרה. העתק והדבק אותה כשאתה מחובר לחשבון הבדיקה ב-OpenMates CLI.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 connected_accounts.cli_export_error:
   context: Safe generic error when generating the connected account CLI import command fails.
   en: Could not generate the CLI import command.
-  verified_by_human: [en]
+  de: CLI-Importbefehl konnte nicht generiert werden.
+  zh: 无法生成 CLI 导入命令。
+  es: No se pudo generar el comando de importación por CLI.
+  fr: Impossible de générer la commande d'import CLI.
+  pt: Não foi possível gerar o comando de importação pela CLI.
+  ru: Не удалось создать команду импорта CLI.
+  ja: CLI インポートコマンドを生成できませんでした。
+  ko: CLI 가져오기 명령을 생성할 수 없습니다.
+  it: Impossibile generare il comando di importazione CLI.
+  tr: CLI içe aktarma komutu oluşturulamadı.
+  vi: Không thể tạo lệnh nhập bằng CLI.
+  id: Tidak dapat membuat perintah impor CLI.
+  pl: Nie udało się wygenerować polecenia importu CLI.
+  nl: Kon de CLI-importopdracht niet genereren.
+  ar: تعذر إنشاء أمر استيراد CLI.
+  hi: CLI आयात कमांड जेनरेट नहीं किया जा सका।
+  th: ไม่สามารถสร้างคำสั่งนำเข้า CLI ได้
+  cs: Příkaz importu CLI se nepodařilo vygenerovat.
+  sv: Det gick inte att generera CLI-importkommandot.
+  he: לא ניתן היה ליצור את פקודת הייבוא ב-CLI.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 nearby_by_default:
   context: Toggle label for nearby by default location setting
   en: Nearby by default
