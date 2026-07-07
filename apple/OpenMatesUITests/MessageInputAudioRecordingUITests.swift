@@ -32,6 +32,8 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertTrue(element(in: app, identifier: "release-text").waitForExistence(timeout: 2))
         XCTAssertTrue(element(in: app, identifier: "timer-pill").waitForExistence(timeout: 2))
         XCTAssertTrue(element(in: app, identifier: "cancel-hint").waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Slide left to cancel"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.staticTexts["Press ESC to cancel"].exists)
         XCTAssertTrue(element(in: app, identifier: "mic-button").waitForExistence(timeout: 2))
 
         let screenshot = XCUIScreen.main.screenshot()
@@ -39,6 +41,18 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         attachment.name = "Message input recording overlay contract state"
         attachment.lifetime = .keepAlways
         add(attachment)
+
+        app.terminate()
+
+        app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-force-keyboard-recording-overlay"]
+        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        app.launchEnvironment["UI_TEST_FORCE_KEYBOARD_RECORDING_OVERLAY"] = "1"
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+        XCTAssertTrue(element(in: app, identifier: "cancel-hint").waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Press ESC to cancel"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.staticTexts["Slide left to cancel"].exists)
     }
 
     private func element(in app: XCUIApplication, identifier: String) -> XCUIElement {

@@ -83,6 +83,7 @@ struct DevChatOpeningPreviewView: View {
                 ComposerRecordingOverlay(
                     recorder: uiTestRecorder,
                     dragOffsetX: 0,
+                    startedFromKeyboard: isUITestKeyboardRecordingOverlayForced,
                     onStop: { _ in },
                     onCancel: {}
                 )
@@ -166,7 +167,14 @@ struct DevChatOpeningPreviewView: View {
     private var isUITestRecordingOverlayForced: Bool {
         forceRecordingOverlay
             || ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay")
+            || ProcessInfo.processInfo.arguments.contains("--ui-test-force-keyboard-recording-overlay")
             || ProcessInfo.processInfo.environment["UI_TEST_FORCE_RECORDING_OVERLAY"] == "1"
+            || ProcessInfo.processInfo.environment["UI_TEST_FORCE_KEYBOARD_RECORDING_OVERLAY"] == "1"
+    }
+
+    private var isUITestKeyboardRecordingOverlayForced: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-force-keyboard-recording-overlay")
+            || ProcessInfo.processInfo.environment["UI_TEST_FORCE_KEYBOARD_RECORDING_OVERLAY"] == "1"
     }
 
     private var isUITestResponsiveMetricsEnabled: Bool {

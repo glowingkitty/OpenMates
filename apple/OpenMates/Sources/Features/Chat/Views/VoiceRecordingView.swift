@@ -4,7 +4,7 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
 // CSS:     RecordAudio.svelte <style>
-// i18n:    enter_message.record_audio.{slide_left_to_cancel,release_to_finish,
+// i18n:    enter_message.record_audio.{slide_left_to_cancel,press_esc_to_cancel,release_to_finish,
 //          press_and_hold_reminder,allow_microphone_access,microphone_blocked}
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -104,6 +104,7 @@ final class VoiceRecorder: ObservableObject {
 struct ComposerRecordingOverlay: View {
     @ObservedObject var recorder: VoiceRecorder
     let dragOffsetX: CGFloat
+    var startedFromKeyboard = false
     let onStop: (URL) -> Void
     let onCancel: () -> Void
 
@@ -131,13 +132,21 @@ struct ComposerRecordingOverlay: View {
                     .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     .accessibilityIdentifier("timer-pill")
 
-                HStack(spacing: .spacing2) {
-                    Text("‹")
-                        .font(.omH3)
-                        .foregroundStyle(Color.white.opacity(0.5))
-                    Text(AppStrings.slideLeftToCancelRecording)
-                        .font(.omXs)
-                        .foregroundStyle(Color.white.opacity(0.7))
+                Group {
+                    if startedFromKeyboard {
+                        Text(AppStrings.pressEscToCancelRecording)
+                            .font(.omXs)
+                            .foregroundStyle(Color.white.opacity(0.7))
+                    } else {
+                        HStack(spacing: .spacing2) {
+                            Text("‹")
+                                .font(.omH3)
+                                .foregroundStyle(Color.white.opacity(0.5))
+                            Text(AppStrings.slideLeftToCancelRecording)
+                                .font(.omXs)
+                                .foregroundStyle(Color.white.opacity(0.7))
+                        }
+                    }
                 }
                 .opacity(max(0.3, 1 + Double(dragOffsetX / 80)))
                 .frame(maxWidth: .infinity)

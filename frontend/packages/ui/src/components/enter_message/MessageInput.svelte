@@ -111,7 +111,7 @@
         handleRecordMouseLeave as handleRecordMouseLeaveLogic,
         handleRecordTouchStart as handleRecordTouchStartLogic,
         handleRecordTouchEnd as handleRecordTouchEndLogic,
-        handleStopRecordingCleanup
+        handleStopRecordingCleanup as cleanupRecordingState
     } from './handlers/recordingHandlers';
     
     // PII Detection
@@ -231,6 +231,7 @@
     let scrollableContent: HTMLElement;
     let messageInputWrapper: HTMLElement;
     let recordAudioComponent = $state<RecordAudio>();
+    let recordAudioStartedFromKeyboard = $state(false);
 
     // --- Local UI State ---
     let showCamera = $state(false);
@@ -4482,7 +4483,7 @@
         }
     }
 
-    type RecordingShortcutEvent = CustomEvent<{ action: 'start' | 'stop' | 'cancel' }>;
+    type RecordingShortcutEvent = CustomEvent<{ action: 'start' | 'stop' | 'cancel'; source?: 'keyboard' }>;
 
     function getKeyboardRecordStartPosition(): { x: number; y: number } {
         const recordButton = messageInputWrapper?.querySelector('[data-testid="record-audio-button"]') as HTMLElement | null;
@@ -4505,6 +4506,7 @@
         const action = event.detail.action;
         if (action === 'start') {
             if ($recordingState.isRecordButtonPressed || $recordingState.showRecordAudioUI) return;
+            recordAudioStartedFromKeyboard = event.detail.source === 'keyboard';
             const position = getKeyboardRecordStartPosition();
             const syntheticMouseDown = new MouseEvent('mousedown', {
                 button: 0,
@@ -4516,6 +4518,7 @@
         }
 
         await tick();
+        recordAudioStartedFromKeyboard = false;
         if (action === 'stop') {
             handleRecordMouseUpLogic(recordAudioComponent);
         } else {
@@ -4567,9 +4570,15 @@
         tick().then(updateHeight);
     }
 
+    function handleStopRecordingCleanup() {
+        recordAudioStartedFromKeyboard = false;
+        cleanupRecordingState();
+    }
+
     // --- Handlers to bridge ActionButtons events to recordingHandlers ---
     // These now extract the original event from the detail payload
     function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+        recordAudioStartedFromKeyboard = false;
         handleRecordMouseDownLogic(event.detail.originalEvent);
     }
     async function onRecordMouseUp(_event: CustomEvent<{ originalEvent: MouseEvent }>) {
@@ -4591,6 +4600,7 @@
         handleRecordMouseLeaveLogic(recordAudioComponent);
     }
     function onRecordTouchStart(event: CustomEvent<{ originalEvent: TouchEvent }>) {
+        recordAudioStartedFromKeyboard = false;
         handleRecordTouchStartLogic(event.detail.originalEvent);
     }
     async function onRecordTouchEnd(_event: CustomEvent<{ originalEvent: TouchEvent }>) {
@@ -5384,6 +5394,7 @@
             <RecordAudio
                 bind:this={recordAudioComponent}
                 initialPosition={$recordingState.recordStartPosition}
+                startedFromKeyboard={recordAudioStartedFromKeyboard}
                 on:audiorecorded={handleAudioRecorded}
                 on:close={handleStopRecordingCleanup}
                 on:cancel={handleStopRecordingCleanup}

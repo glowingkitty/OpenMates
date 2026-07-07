@@ -15,6 +15,7 @@
   let _isGlobalListenerRegistered = false;
 
   let spaceRecordingShortcutActive = false;
+  let suppressSpaceUntilKeyUp = false;
 
   onMount(() => {
     const _desktop = isDesktop();
@@ -36,6 +37,12 @@
 
       // Hold Space from the chat surface to record audio without first focusing
       // MessageInput. When the editor is focused, Space must remain normal text input.
+      if (_desktop && event.code === 'Space' && (spaceRecordingShortcutActive || suppressSpaceUntilKeyUp)) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
       if (
         _desktop &&
         event.code === 'Space' &&
@@ -49,7 +56,8 @@
         event.preventDefault();
         event.stopPropagation();
         spaceRecordingShortcutActive = true;
-        window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'start' } }));
+        suppressSpaceUntilKeyUp = true;
+        window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'start', source: 'keyboard' } }));
         return;
       }
 
@@ -57,6 +65,7 @@
         event.preventDefault();
         event.stopPropagation();
         spaceRecordingShortcutActive = false;
+        suppressSpaceUntilKeyUp = true;
         window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'cancel' } }));
         return;
       }
@@ -233,11 +242,15 @@
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
-      if (_desktop && event.code === 'Space' && spaceRecordingShortcutActive) {
+      if (_desktop && event.code === 'Space' && (spaceRecordingShortcutActive || suppressSpaceUntilKeyUp)) {
         event.preventDefault();
         event.stopPropagation();
+        const shouldStopRecording = spaceRecordingShortcutActive;
         spaceRecordingShortcutActive = false;
-        window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'stop' } }));
+        suppressSpaceUntilKeyUp = false;
+        if (shouldStopRecording) {
+          window.dispatchEvent(new CustomEvent('recordingShortcut', { detail: { action: 'stop' } }));
+        }
       }
     };
 

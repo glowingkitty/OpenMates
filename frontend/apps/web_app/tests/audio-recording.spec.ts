@@ -148,6 +148,12 @@ async function dispatchHoldAndReleaseMicButton(page: any, micButton: any, holdMs
 	await expect(overlay).not.toBeVisible({ timeout: 10000 });
 }
 
+async function getEditorPlainText(page: any): Promise<string> {
+	return page.getByTestId('message-editor').evaluate((element: HTMLElement) =>
+		(element.textContent ?? '').replace(/\u00a0/g, ' ')
+	);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 1: Single tap shows "Press & hold" hint (no recording overlay)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -180,7 +186,7 @@ test('single tap on mic button does not start recording', async ({ page }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 1b: Hold Space from chat surface starts recording without focusing input
 // ─────────────────────────────────────────────────────────────────────────────
-test('spacebar hold starts audio recording from chat surface', async ({ page }) => {
+test('spacebar hold shows ESC cancel hint and escape cancels without inserting spaces', async ({ page }) => {
 	test.setTimeout(60000);
 
 	await setupAndFocusMessageField(page);
@@ -191,16 +197,25 @@ test('spacebar hold starts audio recording from chat surface', async ({ page }) 
 		const activeElement = document.activeElement as HTMLElement | null;
 		activeElement?.blur();
 	});
+	expect(await getEditorPlainText(page)).toBe('');
+	const embedCountBefore = await page.getByTestId('recording-preview').count();
 
 	await page.keyboard.down('Space');
 
 	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 5000 });
+	await expect(overlay.getByTestId('cancel-hint')).toContainText('Press ESC to cancel');
+	await expect(overlay.getByTestId('cancel-hint')).not.toContainText('Slide left to cancel');
 
+	await page.waitForTimeout(500);
+	await page.keyboard.press('Escape');
+	await expect(overlay).not.toBeVisible({ timeout: 5000 });
 	await page.keyboard.up('Space');
-	await expect(overlay).not.toBeVisible({ timeout: 10000 });
 
-	console.log('[TEST] Spacebar hold: recording shortcut works from chat surface');
+	expect(await getEditorPlainText(page)).toBe('');
+	expect(await page.getByTestId('recording-preview').count()).toBe(embedCountBefore);
+
+	console.log('[TEST] Spacebar hold: ESC hint visible and cancel leaves editor empty');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

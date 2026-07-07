@@ -447,6 +447,7 @@ enum AppStrings {
     static var pressAndHoldToRecord: String { L("enter_message.record_audio.press_and_hold_reminder") }
     static var releaseToFinishRecording: String { L("enter_message.record_audio.release_to_finish") }
     static var slideLeftToCancelRecording: String { L("enter_message.record_audio.slide_left_to_cancel") }
+    static var pressEscToCancelRecording: String { L("enter_message.record_audio.press_esc_to_cancel") }
     static var microphoneBlocked: String { L("enter_message.record_audio.microphone_blocked") }
     static var allowMicrophoneAccess: String { L("enter_message.record_audio.allow_microphone_access") }
     static var getLocation: String { L("enter_message.location.get_location") }

@@ -143,6 +143,8 @@ struct ChatView: View {
     @State private var recordHintVisible = false
     @State private var recordDragOffsetX: CGFloat = 0
     @State private var recordAttemptActive = false
+    @State private var recordStartedFromKeyboard = false
+    @State private var suppressKeyboardRecordSpaceUntilKeyUp = false
     @State private var recordStartTask: Task<Void, Never>?
     @State private var recordHintTask: Task<Void, Never>?
     @State private var detectedPIIMatches: [PIIMatch] = []
@@ -282,6 +284,12 @@ struct ChatView: View {
                 NotificationCenter.default.post(name: .toggleIncognito, object: nil)
             }
         )
+        .onKeyPress(.space, phases: [.down, .repeat, .up]) { press in
+            handleKeyboardRecordSpace(press)
+        }
+        .onKeyPress(.escape, phases: .down) { _ in
+            handleKeyboardRecordEscape()
+        }
         #if os(iOS)
         .fullScreenCover(isPresented: $showCameraCapture) {
             CameraCaptureView(
@@ -1475,9 +1483,11 @@ struct ChatView: View {
             ComposerRecordingOverlay(
                 recorder: composerRecorder,
                 dragOffsetX: recordDragOffsetX,
+                startedFromKeyboard: recordStartedFromKeyboard,
                 onStop: { url in
                     self.composerOverlay = nil
                     self.recordAttemptActive = false
+                    self.recordStartedFromKeyboard = false
                     self.recordDragOffsetX = 0
                     Task {
                         if let transcript = await viewModel.uploadRecording(url: url, duration: composerRecorder.duration) {
@@ -1489,6 +1499,7 @@ struct ChatView: View {
                     composerRecorder.cancelRecording()
                     self.composerOverlay = nil
                     self.recordAttemptActive = false
+                    self.recordStartedFromKeyboard = false
                     self.recordDragOffsetX = 0
                 }
             )
@@ -1498,7 +1509,18 @@ struct ChatView: View {
     private var isUITestRecordingOverlayForced: Bool {
         #if DEBUG
         return ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay")
+            || ProcessInfo.processInfo.arguments.contains("--ui-test-force-keyboard-recording-overlay")
             || ProcessInfo.processInfo.environment["UI_TEST_FORCE_RECORDING_OVERLAY"] == "1"
+            || ProcessInfo.processInfo.environment["UI_TEST_FORCE_KEYBOARD_RECORDING_OVERLAY"] == "1"
+        #else
+        return false
+        #endif
+    }
+
+    private var isUITestKeyboardRecordingOverlayForced: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("--ui-test-force-keyboard-recording-overlay")
+            || ProcessInfo.processInfo.environment["UI_TEST_FORCE_KEYBOARD_RECORDING_OVERLAY"] == "1"
         #else
         return false
         #endif
@@ -1508,6 +1530,7 @@ struct ChatView: View {
         #if DEBUG
         guard isUITestRecordingOverlayForced else { return }
         micPermissionState = .granted
+        recordStartedFromKeyboard = isUITestKeyboardRecordingOverlayForced
         composerOverlay = .recording
         isInputFocused = true
         #endif
@@ -1650,6 +1673,7 @@ struct ChatView: View {
     }
 
     private func beginRecordAttempt(startLocation _: CGPoint) {
+        recordStartedFromKeyboard = false
         recordAttemptActive = true
         recordDragOffsetX = 0
         recordStartTask?.cancel()
@@ -1693,6 +1717,7 @@ struct ChatView: View {
         if composerOverlay == .recording, let url = composerRecorder.stopRecording() {
             composerOverlay = nil
             recordAttemptActive = false
+            recordStartedFromKeyboard = false
             recordDragOffsetX = 0
             Task {
                 if let transcript = await viewModel.uploadRecording(url: url, duration: composerRecorder.duration) {
@@ -1706,6 +1731,7 @@ struct ChatView: View {
             showRecordHint()
         }
         recordAttemptActive = false
+        recordStartedFromKeyboard = false
         recordDragOffsetX = 0
     }
 
@@ -1715,7 +1741,77 @@ struct ChatView: View {
         composerRecorder.cancelRecording()
         composerOverlay = nil
         recordAttemptActive = false
+        recordStartedFromKeyboard = false
         recordDragOffsetX = 0
+    }
+
+    private func beginKeyboardRecordAttempt() {
+        recordStartedFromKeyboard = true
+        recordAttemptActive = true
+        recordDragOffsetX = 0
+        recordStartTask?.cancel()
+
+        if micPermissionState == .denied {
+            showRecordHint()
+            return
+        }
+
+        if micPermissionState == .unknown {
+            Task { @MainActor in
+                let granted = await composerRecorder.requestPermission()
+                micPermissionState = granted ? .granted : .denied
+                recordAttemptActive = false
+                recordStartedFromKeyboard = false
+                showRecordHint(duration: granted ? 2500 : 0)
+            }
+            return
+        }
+
+        recordStartTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled, recordAttemptActive, recordStartedFromKeyboard, micPermissionState == .granted else { return }
+            composerRecorder.startRecording()
+            guard composerRecorder.error == nil else {
+                micPermissionState = .denied
+                recordAttemptActive = false
+                recordStartedFromKeyboard = false
+                showRecordHint(duration: 0)
+                return
+            }
+            withAnimation(.easeInOut(duration: 0.15)) {
+                composerOverlay = .recording
+                isInputFocused = true
+            }
+        }
+    }
+
+    private func handleKeyboardRecordSpace(_ press: KeyPress) -> KeyPress.Result {
+        guard press.modifiers.isEmpty else { return .ignored }
+
+        if press.phase == .up {
+            if suppressKeyboardRecordSpaceUntilKeyUp {
+                suppressKeyboardRecordSpaceUntilKeyUp = false
+                return .handled
+            }
+            guard recordStartedFromKeyboard else { return .ignored }
+            finishRecordAttempt()
+            return .handled
+        }
+
+        if suppressKeyboardRecordSpaceUntilKeyUp || recordStartedFromKeyboard {
+            return .handled
+        }
+
+        guard !isInputFocused else { return .ignored }
+        beginKeyboardRecordAttempt()
+        return .handled
+    }
+
+    private func handleKeyboardRecordEscape() -> KeyPress.Result {
+        guard recordStartedFromKeyboard else { return .ignored }
+        suppressKeyboardRecordSpaceUntilKeyUp = true
+        cancelRecordAttempt()
+        return .handled
     }
 
     private func showRecordHint(duration: Int = 2500) {

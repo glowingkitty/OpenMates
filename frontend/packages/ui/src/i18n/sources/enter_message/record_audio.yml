@@ -22,6 +22,30 @@ slide_left_to_cancel:
   sv: "Dra åt vänster för att avbryta"
   he: החלק שמאלה לביטול
   verified_by_human: []
+press_esc_to_cancel:
+  context: Text shown when a keyboard-started recording is in progress
+  en: Press ESC to cancel
+  de: ESC drücken zum Abbrechen
+  zh: 按 ESC 取消
+  es: Pulsa ESC para cancelar
+  fr: Appuyez sur ESC pour annuler
+  pt: Pressione ESC para cancelar
+  ru: Нажмите ESC для отмены
+  ja: ESC を押してキャンセル
+  ko: ESC를 눌러 취소
+  it: Premi ESC per annullare
+  tr: İptal etmek için ESC'ye basın
+  vi: Nhấn ESC để hủy
+  id: Tekan ESC untuk membatalkan
+  pl: Naciśnij ESC, aby anulować
+  nl: Druk op ESC om te annuleren
+  ar: اضغط ESC للإلغاء
+  hi: रद्द करने के लिए ESC दबाएं
+  th: กด ESC เพื่อยกเลิก
+  cs: Stiskněte ESC pro zrušení
+  sv: Tryck på ESC för att avbryta
+  he: לחץ על ESC לביטול
+  verified_by_human: []
 release_to_finish:
   context: Text shown when recording is in progress
   en: Release to finish
