@@ -145,7 +145,71 @@ targets:
 
   # Independent watchOS app — starts with standalone target plumbing; auth/chat UI lands in later spec tasks.
   OpenMatesWatch:
-    type: application
+    type: application.watchapp2
+    platform: watchOS
+    deploymentTarget: "10.0"
+    resources:
+      - path: OpenMatesWatch/Assets.xcassets
+      - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
+      - path: OpenMates/Resources/Fonts
+        buildPhase: resources
+        name: Fonts
+        type: folder
+      - path: ../frontend/packages/ui/src/i18n/locales
+        buildPhase: resources
+        name: i18n
+        type: folder
+    settings:
+      base:
+        ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: WatchAppIcon
+        CODE_SIGN_ENTITLEMENTS: OpenMatesWatch/OpenMatesWatch.entitlements
+        GENERATE_PKGINFO_FILE: YES
+        INFOPLIST_FILE: OpenMatesWatch/Info.plist
+        PRIVATE_HEADERS_FOLDER_PATH: $(CONTENTS_FOLDER_PATH)/PrivateHeaders
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.watch
+        PRODUCT_NAME: OpenMatesWatch
+        SDKROOT: watchos
+        SKIP_INSTALL: YES
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "4"
+        WRAPPER_EXTENSION: app
+      configs:
+        Debug:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+        Release:
+          SWIFT_OPTIMIZATION_LEVEL: -Owholemodule
+    entitlements:
+      path: OpenMatesWatch/OpenMatesWatch.entitlements
+    info:
+      path: OpenMatesWatch/Info.plist
+      properties:
+        CFBundleIconFiles:
+          - WatchAppIcon
+        CFBundleIconName: WatchAppIcon
+        CFBundleDisplayName: OpenMates
+        CFBundleName: OpenMates
+        CFBundlePackageType: APPL
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
+        WKCompanionAppBundleIdentifier: org.openmates.app
+        WKWatchKitApp: true
+        WKRunsIndependentlyOfCompanionApp: true
+        NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
+        UIAppFonts:
+          - LexendDeca-Light.ttf
+          - LexendDeca-Regular.ttf
+          - LexendDeca-Medium.ttf
+          - LexendDeca-SemiBold.ttf
+          - LexendDeca-Bold.ttf
+          - LexendDeca-ExtraBold.ttf
+    dependencies:
+      - target: OpenMatesWatchExtension
+        embed: true
+
+  OpenMatesWatchExtension:
+    type: watchkit2-extension
     platform: watchOS
     deploymentTarget: "10.0"
     sources:
@@ -172,7 +236,6 @@ targets:
       - path: ../frontend/packages/ui/src/tokens/generated/swift/TypographyTokens.generated.swift
         name: TypographyTokens.generated.swift
     resources:
-      - path: OpenMatesWatch/Assets.xcassets
       - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
       - path: OpenMates/Resources/Fonts
         buildPhase: resources
@@ -184,11 +247,12 @@ targets:
         type: folder
     settings:
       base:
-        ASSETCATALOG_COMPILER_APPICON_NAME: WatchAppIcon
-        CODE_SIGN_ENTITLEMENTS: OpenMatesWatch/OpenMatesWatch.entitlements
-        INFOPLIST_FILE: OpenMatesWatch/Info.plist
-        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.watch
-        PRODUCT_NAME: OpenMatesWatch
+        APPLICATION_EXTENSION_API_ONLY: YES
+        CODE_SIGN_ENTITLEMENTS: OpenMatesWatchExtension/OpenMatesWatchExtension.entitlements
+        INFOPLIST_FILE: OpenMatesWatchExtension/Info.plist
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.watch.watchkitextension
+        PRODUCT_NAME: OpenMatesWatchExtension
         SDKROOT: watchos
         SKIP_INSTALL: YES
         SWIFT_VERSION: "6.0"
@@ -199,22 +263,20 @@ targets:
         Release:
           SWIFT_OPTIMIZATION_LEVEL: -Owholemodule
     entitlements:
-      path: OpenMatesWatch/OpenMatesWatch.entitlements
+      path: OpenMatesWatchExtension/OpenMatesWatchExtension.entitlements
     info:
-      path: OpenMatesWatch/Info.plist
+      path: OpenMatesWatchExtension/Info.plist
       properties:
-        CFBundleIconFiles:
-          - WatchAppIcon
-        CFBundleIconName: WatchAppIcon
         CFBundleDisplayName: OpenMates
-        CFBundleName: OpenMates
-        CFBundlePackageType: APPL
+        CFBundleName: OpenMatesWatchExtension
+        CFBundlePackageType: XPC!
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
-        WKCompanionAppBundleIdentifier: org.openmates.app
-        WKApplication: true
-        WKRunsIndependentlyOfCompanionApp: true
+        NSExtension:
+          NSExtensionAttributes:
+            WKAppBundleIdentifier: org.openmates.app.watch
+          NSExtensionPointIdentifier: com.apple.watchkit
         NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
         UIAppFonts:
           - LexendDeca-Light.ttf

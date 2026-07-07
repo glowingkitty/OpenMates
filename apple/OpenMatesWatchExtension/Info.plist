@@ -4,22 +4,26 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>OpenMates</string>
-	<key>CFBundleIconFiles</key>
-	<array>
-		<string>WatchAppIcon</string>
-	</array>
-	<key>CFBundleIconName</key>
-	<string>WatchAppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleName</key>
-	<string>OpenMates</string>
+	<string>OpenMatesWatchExtension</string>
 	<key>CFBundlePackageType</key>
-	<string>APPL</string>
+	<string>XPC!</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSExtension</key>
+	<dict>
+		<key>NSExtensionAttributes</key>
+		<dict>
+			<key>WKAppBundleIdentifier</key>
+			<string>org.openmates.app.watch</string>
+		</dict>
+		<key>NSExtensionPointIdentifier</key>
+		<string>com.apple.watchkit</string>
+	</dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSMicrophoneUsageDescription</key>
@@ -33,11 +37,5 @@
 		<string>LexendDeca-Bold.ttf</string>
 		<string>LexendDeca-ExtraBold.ttf</string>
 	</array>
-	<key>WKWatchKitApp</key>
-	<true/>
-	<key>WKCompanionAppBundleIdentifier</key>
-	<string>org.openmates.app</string>
-	<key>WKRunsIndependentlyOfCompanionApp</key>
-	<true/>
 </dict>
 </plist>

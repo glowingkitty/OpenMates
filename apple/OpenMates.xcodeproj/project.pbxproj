@@ -55,6 +55,10 @@
 		C0FFEE000000000000049018 /* WatchEmbedPreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049019 /* WatchEmbedPreviewTests.swift */; };
 		C0FFEE000000000000049020 /* OpenMatesWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000047015 /* OpenMatesWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		C0FFEE000000000000049025 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049024 /* Assets.xcassets */; };
+		C0FFEE00000000000004A002 /* OpenMatesWatchExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = C0FFEE00000000000004A001 /* OpenMatesWatchExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C0FFEE00000000000004A003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3FF87BFEDD0901768A27407A /* Assets.xcassets */; };
+		C0FFEE00000000000004A004 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = 82F8B920FCEFE49C520D05ED /* Fonts */; };
+		C0FFEE00000000000004A005 /* i18n in Resources */ = {isa = PBXBuildFile; fileRef = 2B48B4BA9CC01C1F47E89D75 /* i18n */; };
 		FDD100000000000000000002 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDD100000000000000000001 /* BrandAssets.xcassets */; };
 		FDD100000000000000000003 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDD100000000000000000001 /* BrandAssets.xcassets */; };
 		04B767719514CAB080FEB1CB /* LucideIcons in Frameworks */ = {isa = PBXBuildFile; productRef = 8FC7D47DA7AECCBB2EBDABE9 /* LucideIcons */; };
@@ -599,6 +603,13 @@
 			remoteGlobalIDString = C0FFEE000000000000047018;
 			remoteInfo = OpenMatesWatch;
 		};
+		C0FFEE00000000000004A013 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FA6E6E20CD0A094A87EB04A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C0FFEE00000000000004A010;
+			remoteInfo = OpenMatesWatchExtension;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -637,6 +648,17 @@
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C0FFEE00000000000004A011 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				C0FFEE00000000000004A002 /* OpenMatesWatchExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -649,6 +671,9 @@
 		C0FFEE000000000000047013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C0FFEE000000000000047014 /* OpenMatesWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenMatesWatch.entitlements; sourceTree = "<group>"; };
 		C0FFEE000000000000047015 /* OpenMatesWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenMatesWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0FFEE00000000000004A001 /* OpenMatesWatchExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OpenMatesWatchExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0FFEE00000000000004A006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C0FFEE00000000000004A007 /* OpenMatesWatchExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenMatesWatchExtension.entitlements; sourceTree = "<group>"; };
 		C0FFEE000000000000049024 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C0FFEE000000000000048001 /* AuthError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthError.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000048005 /* PairLoginRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairLoginRuntime.swift; sourceTree = "<group>"; };
@@ -1342,6 +1367,7 @@
 			children = (
 				65C3B253848F893F8C17738F /* OpenMates */,
 				C0FFEE000000000000047016 /* OpenMatesWatch */,
+				C0FFEE00000000000004A008 /* OpenMatesWatchExtension */,
 				C0FFEE000000000000002012 /* OpenMatesTests */,
 				C0FFEE000000000000001012 /* OpenMatesUITests */,
 				5CADB8842432593D9E90CD62 /* OpenMates */,
@@ -1396,6 +1422,7 @@
 				BE1031D79B03616FF9E0E7F7 /* OpenMates.app */,
 				6B67074848688485A446BC5C /* OpenMates.app */,
 				C0FFEE000000000000047015 /* OpenMatesWatch.app */,
+				C0FFEE00000000000004A001 /* OpenMatesWatchExtension.appex */,
 				C0FFEE000000000000002003 /* OpenMatesTests.xctest */,
 				C0FFEE000000000000001003 /* OpenMatesUITests.xctest */,
 				C0FFEE000000000000043003 /* OpenMatesMacUITests.xctest */,
@@ -1487,6 +1514,15 @@
 				C0FFEE000000000000047017 /* Sources */,
 			);
 			path = OpenMatesWatch;
+			sourceTree = "<group>";
+		};
+		C0FFEE00000000000004A008 /* OpenMatesWatchExtension */ = {
+			isa = PBXGroup;
+			children = (
+				C0FFEE00000000000004A006 /* Info.plist */,
+				C0FFEE00000000000004A007 /* OpenMatesWatchExtension.entitlements */,
+			);
+			path = OpenMatesWatchExtension;
 			sourceTree = "<group>";
 		};
 		C0FFEE000000000000047017 /* Sources */ = {
@@ -1775,20 +1811,39 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = C0FFEE000000000000047040 /* Build configuration list for PBXNativeTarget "OpenMatesWatch" */;
 			buildPhases = (
-				C0FFEE000000000000047020 /* Sources */,
 				C0FFEE000000000000047021 /* Resources */,
-				C0FFEE000000000000047022 /* Frameworks */,
+				C0FFEE00000000000004A011 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				C0FFEE00000000000004A014 /* PBXTargetDependency */,
 			);
 			name = OpenMatesWatch;
 			packageProductDependencies = (
 			);
 			productName = OpenMates;
 			productReference = C0FFEE000000000000047015 /* OpenMatesWatch.app */;
-			productType = "com.apple.product-type.application";
+			productType = "com.apple.product-type.application.watchapp2";
+		};
+		C0FFEE00000000000004A010 /* OpenMatesWatchExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0FFEE00000000000004A040 /* Build configuration list for PBXNativeTarget "OpenMatesWatchExtension" */;
+			buildPhases = (
+				C0FFEE000000000000047020 /* Sources */,
+				C0FFEE00000000000004A012 /* Resources */,
+				C0FFEE000000000000047022 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OpenMatesWatchExtension;
+			packageProductDependencies = (
+			);
+			productName = OpenMatesWatchExtension;
+			productReference = C0FFEE00000000000004A001 /* OpenMatesWatchExtension.appex */;
+			productType = "com.apple.product-type.watchkit2-extension";
 		};
 		02E5AB06E9CF5357E7F6C413 /* OpenMates_iOS */ = {
 			isa = PBXNativeTarget;
@@ -1984,25 +2039,28 @@
 					C0FFEE000000000000047018 = {
 						DevelopmentTeam = Z9B2YFKN2X;
 					};
+					C0FFEE00000000000004A010 = {
+						DevelopmentTeam = Z9B2YFKN2X;
+					};
 					91BD50E63137BA05B4480A79 = {
 						DevelopmentTeam = Z9B2YFKN2X;
 					};
 					942E1AC90EAA3F64F4DA8AE1 = {
 						DevelopmentTeam = Z9B2YFKN2X;
 					};
-				B0B9102F4329EFF5F54A8395 = {
-					DevelopmentTeam = Z9B2YFKN2X;
+					B0B9102F4329EFF5F54A8395 = {
+						DevelopmentTeam = Z9B2YFKN2X;
+					};
+					C0FFEE000000000000001006 = {
+						DevelopmentTeam = Z9B2YFKN2X;
+					};
+					C0FFEE000000000000043006 = {
+						DevelopmentTeam = Z9B2YFKN2X;
+					};
+					C0FFEE000000000000002006 = {
+						DevelopmentTeam = Z9B2YFKN2X;
+					};
 				};
-				C0FFEE000000000000001006 = {
-					DevelopmentTeam = Z9B2YFKN2X;
-				};
-				C0FFEE000000000000043006 = {
-					DevelopmentTeam = Z9B2YFKN2X;
-				};
-				C0FFEE000000000000002006 = {
-					DevelopmentTeam = Z9B2YFKN2X;
-				};
-			};
 			};
 			buildConfigurationList = 3DABD0695D22918C3E58A140 /* Build configuration list for PBXProject "OpenMates" */;
 			developmentRegion = en;
@@ -2026,6 +2084,7 @@
 				A10000000000000000000010 /* OpenMatesNotificationService */,
 				1C80E5B4A2A0F23B0FA7B6F8 /* OpenMatesWidget */,
 				C0FFEE000000000000047018 /* OpenMatesWatch */,
+				C0FFEE00000000000004A010 /* OpenMatesWatchExtension */,
 				02E5AB06E9CF5357E7F6C413 /* OpenMates_iOS */,
 				C0FFEE000000000000002006 /* OpenMatesTests */,
 				C0FFEE000000000000001006 /* OpenMatesUITests */,
@@ -2044,6 +2103,16 @@
 				C0FFEE000000000000047012 /* Assets.xcassets in Resources */,
 				C0FFEE000000000000048025 /* Fonts in Resources */,
 				C0FFEE000000000000048022 /* i18n in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0FFEE00000000000004A012 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C0FFEE00000000000004A003 /* Assets.xcassets in Resources */,
+				C0FFEE00000000000004A004 /* Fonts in Resources */,
+				C0FFEE00000000000004A005 /* i18n in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2720,6 +2789,11 @@
 			target = C0FFEE000000000000047018 /* OpenMatesWatch */;
 			targetProxy = C0FFEE000000000000049022 /* PBXContainerItemProxy */;
 		};
+		C0FFEE00000000000004A014 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C0FFEE00000000000004A010 /* OpenMatesWatchExtension */;
+			targetProxy = C0FFEE00000000000004A013 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -3091,17 +3165,64 @@
 		C0FFEE000000000000047030 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = WatchAppIcon;
 				CODE_SIGN_ENTITLEMENTS = OpenMatesWatch/OpenMatesWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = Z9B2YFKN2X;
+				GENERATE_PKGINFO_FILE = YES;
 				INFOPLIST_FILE = OpenMatesWatch/Info.plist;
+				PRIVATE_HEADERS_FOLDER_PATH = "$(CONTENTS_FOLDER_PATH)/PrivateHeaders";
+				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.watch;
+				PRODUCT_NAME = OpenMatesWatch;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				WRAPPER_EXTENSION = app;
+			};
+			name = Debug;
+		};
+		C0FFEE000000000000047031 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ASSETCATALOG_COMPILER_APPICON_NAME = WatchAppIcon;
+				CODE_SIGN_ENTITLEMENTS = OpenMatesWatch/OpenMatesWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = Z9B2YFKN2X;
+				GENERATE_PKGINFO_FILE = YES;
+				INFOPLIST_FILE = OpenMatesWatch/Info.plist;
+				PRIVATE_HEADERS_FOLDER_PATH = "$(CONTENTS_FOLDER_PATH)/PrivateHeaders";
+				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.watch;
+				PRODUCT_NAME = OpenMatesWatch;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				WRAPPER_EXTENSION = app;
+			};
+			name = Release;
+		};
+		C0FFEE00000000000004A030 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = OpenMatesWatchExtension/OpenMatesWatchExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = Z9B2YFKN2X;
+				INFOPLIST_FILE = OpenMatesWatchExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.watch;
-				PRODUCT_NAME = OpenMatesWatch;
+				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.watch.watchkitextension;
+				PRODUCT_NAME = OpenMatesWatchExtension;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -3111,20 +3232,21 @@
 			};
 			name = Debug;
 		};
-		C0FFEE000000000000047031 /* Release */ = {
+		C0FFEE00000000000004A031 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = WatchAppIcon;
-				CODE_SIGN_ENTITLEMENTS = OpenMatesWatch/OpenMatesWatch.entitlements;
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = OpenMatesWatchExtension/OpenMatesWatchExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = Z9B2YFKN2X;
-				INFOPLIST_FILE = OpenMatesWatch/Info.plist;
+				INFOPLIST_FILE = OpenMatesWatchExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.watch;
-				PRODUCT_NAME = OpenMatesWatch;
+				PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.watch.watchkitextension;
+				PRODUCT_NAME = OpenMatesWatchExtension;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
@@ -3334,6 +3456,15 @@
 			buildConfigurations = (
 				C0FFEE000000000000047030 /* Debug */,
 				C0FFEE000000000000047031 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C0FFEE00000000000004A040 /* Build configuration list for PBXNativeTarget "OpenMatesWatchExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0FFEE00000000000004A030 /* Debug */,
+				C0FFEE00000000000004A031 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

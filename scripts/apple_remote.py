@@ -299,8 +299,12 @@ if target_platform == "ios":
         "org.openmates.app.notification-service",
         "org.openmates.app.widget",
         "org.openmates.app.watch",
+        "org.openmates.app.watch.watchkitextension",
     )
-    REQUIRED_APP_GROUP_BUNDLE_IDS = set(BUNDLE_IDS) - {"org.openmates.app.watch"}
+    REQUIRED_APP_GROUP_BUNDLE_IDS = set(BUNDLE_IDS) - {
+        "org.openmates.app.watch",
+        "org.openmates.app.watch.watchkitextension",
+    }
     REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set()
 elif target_platform == "macos":
     scheme_name = "OpenMates_macOS"
@@ -328,6 +332,7 @@ elif target_platform == "watchos":
     archive_without_signing = False
     BUNDLE_IDS = (
         "org.openmates.app.watch",
+        "org.openmates.app.watch.watchkitextension",
     )
     REQUIRED_APP_GROUP_BUNDLE_IDS = set()
     REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set()
@@ -1081,11 +1086,33 @@ def assert_ios_archive_embeds_watch_companion():
     bundle_id = info.get("CFBundleIdentifier")
     companion_id = info.get("WKCompanionAppBundleIdentifier")
     runs_independently = info.get("WKRunsIndependentlyOfCompanionApp")
+    executable = info.get("CFBundleExecutable")
     if bundle_id != "org.openmates.app.watch" or companion_id != "org.openmates.app" or runs_independently is not True:
         print("archive_watch_companion=invalid_metadata")
         print(f"watch_bundle_id={bundle_id or 'missing'}")
         print(f"watch_companion_bundle_id={companion_id or 'missing'}")
         print(f"watch_runs_independently={runs_independently!r}")
+        sys.exit(1)
+    if executable:
+        print("archive_watch_companion=invalid_direct_executable")
+        print("hint=Embedded iOS Watch companions must use a WatchKit wrapper with the executable inside PlugIns/*.appex.")
+        sys.exit(1)
+    extension_path = watch_apps[0] / "PlugIns" / "OpenMatesWatchExtension.appex" / "Info.plist"
+    if not extension_path.exists():
+        print("archive_watch_companion=missing_extension")
+        sys.exit(1)
+    try:
+        with extension_path.open("rb") as handle:
+            extension_info = plistlib.load(handle)
+    except Exception as exc:
+        print(f"archive_watch_companion=invalid_extension_info_plist:{type(exc).__name__}")
+        sys.exit(1)
+    extension_id = extension_info.get("CFBundleIdentifier")
+    extension_attributes = extension_info.get("NSExtension", {}).get("NSExtensionAttributes", {})
+    if extension_id != "org.openmates.app.watch.watchkitextension" or extension_attributes.get("WKAppBundleIdentifier") != "org.openmates.app.watch":
+        print("archive_watch_companion=invalid_extension_metadata")
+        print(f"watch_extension_bundle_id={extension_id or 'missing'}")
+        print(f"watch_extension_app_bundle_id={extension_attributes.get('WKAppBundleIdentifier') or 'missing'}")
         sys.exit(1)
     print("archive_watch_companion=passed")
 
