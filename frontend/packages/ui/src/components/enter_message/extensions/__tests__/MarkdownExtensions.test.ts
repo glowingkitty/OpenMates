@@ -18,14 +18,14 @@ afterEach(() => {
   editor?.destroy();
   editor = null;
   document.body.innerHTML = '';
-  history.replaceState(null, '', window.location.pathname);
+  history.replaceState(null, '', '/');
 });
 
 describe('MarkdownLink', () => {
   it('prefills the current composer for message fallback links without navigating', () => {
     const host = document.createElement('div');
     document.body.appendChild(host);
-    history.replaceState(null, '', `${window.location.pathname}#chat-id=current-chat`);
+    history.replaceState(null, '', '/#chat-id=current-chat');
 
     editor = new Editor({
       element: host,

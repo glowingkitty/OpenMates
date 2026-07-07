@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // __tests__/markdownParser.preprocess.test.ts
 //
 // Purpose: regression tests for OPE-380 — indented or blank-line-split JSON
