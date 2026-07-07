@@ -53,6 +53,7 @@
 		C0FFEE000000000000049016 /* EmbedModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC211406AADF88E0D1BF6F4D /* EmbedModels.swift */; };
 		C0FFEE000000000000049017 /* AnyCodable.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAF7ABCEA32F7C1A1EA73079 /* AnyCodable.swift */; };
 		C0FFEE000000000000049018 /* WatchEmbedPreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049019 /* WatchEmbedPreviewTests.swift */; };
+		C0FFEE000000000000049020 /* OpenMatesWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000047015 /* OpenMatesWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		FDD100000000000000000002 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDD100000000000000000001 /* BrandAssets.xcassets */; };
 		FDD100000000000000000003 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDD100000000000000000001 /* BrandAssets.xcassets */; };
 		04B767719514CAB080FEB1CB /* LucideIcons in Frameworks */ = {isa = PBXBuildFile; productRef = 8FC7D47DA7AECCBB2EBDABE9 /* LucideIcons */; };
@@ -590,6 +591,13 @@
 			remoteGlobalIDString = 02E5AB06E9CF5357E7F6C413;
 			remoteInfo = OpenMates_iOS;
 		};
+		C0FFEE000000000000049022 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FA6E6E20CD0A094A87EB04A8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C0FFEE000000000000047018;
+			remoteInfo = OpenMatesWatch;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -615,6 +623,17 @@
 				EBFBD6EB0E55C3922E7A97AB /* OpenMatesWidget.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0FFEE000000000000049021 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				C0FFEE000000000000049020 /* OpenMatesWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -1776,6 +1795,7 @@
 				B4B0CAA1635A0D7801CFC6A2 /* Resources */,
 				90DC7917B175D3B5F3EF4AFE /* Frameworks */,
 				953B1F3E0F10C6DD7636355F /* Embed Foundation Extensions */,
+				C0FFEE000000000000049021 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
@@ -1783,6 +1803,7 @@
 				684FD898FB3FD34DE8B10BEE /* PBXTargetDependency */,
 				A1000000000000000000000E /* PBXTargetDependency */,
 				EF95FD5109BFF966A4BF802C /* PBXTargetDependency */,
+				C0FFEE000000000000049023 /* PBXTargetDependency */,
 			);
 			name = OpenMates_iOS;
 			packageProductDependencies = (
@@ -2689,6 +2710,11 @@
 			isa = PBXTargetDependency;
 			target = 02E5AB06E9CF5357E7F6C413 /* OpenMates_iOS */;
 			targetProxy = C0FFEE000000000000002014 /* PBXContainerItemProxy */;
+		};
+		C0FFEE000000000000049023 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C0FFEE000000000000047018 /* OpenMatesWatch */;
+			targetProxy = C0FFEE000000000000049022 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 

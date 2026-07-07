@@ -139,6 +139,9 @@ targets:
         platforms: [macOS]
       - target: OpenMatesWidget
         platforms: [iOS]
+      - target: OpenMatesWatch
+        platforms: [iOS]
+        embed: true
 
   # Independent watchOS app — starts with standalone target plumbing; auth/chat UI lands in later spec tasks.
   OpenMatesWatch:

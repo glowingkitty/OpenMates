@@ -298,8 +298,9 @@ if target_platform == "ios":
         "org.openmates.app.share",
         "org.openmates.app.notification-service",
         "org.openmates.app.widget",
+        "org.openmates.app.watch",
     )
-    REQUIRED_APP_GROUP_BUNDLE_IDS = set(BUNDLE_IDS)
+    REQUIRED_APP_GROUP_BUNDLE_IDS = set(BUNDLE_IDS) - {"org.openmates.app.watch"}
     REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set()
 elif target_platform == "macos":
     scheme_name = "OpenMates_macOS"

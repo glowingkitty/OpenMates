@@ -118,6 +118,9 @@ def test_ios_testflight_archive_requires_embedded_watch_companion() -> None:
     apple_remote = load_apple_remote()
     script = apple_remote.TESTFLIGHT_IOS_SCRIPT
 
+    assert '"org.openmates.app.watch",' in script
+    assert 'REQUIRED_APP_GROUP_BUNDLE_IDS = set(BUNDLE_IDS) - {"org.openmates.app.watch"}' in script
+    assert '"provisioningProfiles": profile_names' in script
     assert "assert_ios_archive_embeds_watch_companion()" in script
     assert "archive_watch_companion=missing" in script
     assert "WKCompanionAppBundleIdentifier" in script
