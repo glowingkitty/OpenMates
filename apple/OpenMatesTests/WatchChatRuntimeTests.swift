@@ -292,10 +292,10 @@ private final class FakeWatchChatAPI: WatchChatAPI, @unchecked Sendable {
 @MainActor
 private final class FakeWatchChatSyncSocket: WatchChatSyncSocket {
     private(set) var connectedSession: WatchSyncSession?
-    private(set) var connectedSyncState: SyncClientState?
+    private(set) var connectedSyncState: WatchSyncClientState?
     private(set) var didDisconnect = false
 
-    func connect(session: WatchSyncSession, syncState: SyncClientState) {
+    func connect(session: WatchSyncSession, syncState: WatchSyncClientState) {
         connectedSession = session
         connectedSyncState = syncState
     }

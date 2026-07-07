@@ -84,6 +84,13 @@ struct WatchSyncSession: Equatable, Sendable {
     let token: String?
 }
 
+struct WatchSyncClientState: Equatable, Sendable {
+    let clientChatVersions: [String: [String: Int]]
+    let clientChatIds: [String]
+    let clientSuggestionsCount: Int
+    let clientEmbedIds: [String]
+}
+
 struct WatchRemoteChat: Equatable, Sendable {
     let id: String
     let title: String?
@@ -113,7 +120,7 @@ protocol WatchChatAPI: Sendable {
 
 @MainActor
 protocol WatchChatSyncSocket: AnyObject {
-    func connect(session: WatchSyncSession, syncState: SyncClientState)
+    func connect(session: WatchSyncSession, syncState: WatchSyncClientState)
     func disconnect()
 }
 
@@ -354,9 +361,9 @@ final class WatchChatRuntime: ObservableObject {
         try? await persistSnapshot()
     }
 
-    private func makeSyncClientState() -> SyncClientState {
+    private func makeSyncClientState() -> WatchSyncClientState {
         let syncableChats = chats.filter { !IncognitoChatSession.isIncognitoChatId($0.id) }
-        return SyncClientState(
+        return WatchSyncClientState(
             clientChatVersions: [:],
             clientChatIds: syncableChats.map(\.id),
             clientSuggestionsCount: 0,
@@ -410,8 +417,17 @@ extension APIClient: WatchChatAPI {
 
 #if !os(watchOS)
 extension WebSocketManager: WatchChatSyncSocket {
-    func connect(session: WatchSyncSession, syncState: SyncClientState) {
-        connect(sessionId: session.sessionId, token: session.token, syncState: syncState)
+    func connect(session: WatchSyncSession, syncState: WatchSyncClientState) {
+        connect(
+            sessionId: session.sessionId,
+            token: session.token,
+            syncState: SyncClientState(
+                clientChatVersions: syncState.clientChatVersions,
+                clientChatIds: syncState.clientChatIds,
+                clientSuggestionsCount: syncState.clientSuggestionsCount,
+                clientEmbedIds: syncState.clientEmbedIds
+            )
+        )
     }
 }
 #endif
@@ -427,7 +443,7 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
         return URLSession(configuration: config)
     }()
 
-    func connect(session syncSession: WatchSyncSession, syncState: SyncClientState) {
+    func connect(session syncSession: WatchSyncSession, syncState: WatchSyncClientState) {
         disconnect()
         Task { @MainActor in
             let baseURL = await APIClient.shared.baseURL
@@ -462,7 +478,7 @@ private final class WatchRealtimeSyncSocket: WatchChatSyncSocket {
         webSocketTask = nil
     }
 
-    private func sendPhasedSync(_ syncState: SyncClientState) async throws {
+    private func sendPhasedSync(_ syncState: WatchSyncClientState) async throws {
         guard let webSocketTask else { return }
         let message = WatchWSOutboundMessage(
             type: "phased_sync_request",
