@@ -212,7 +212,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
         let embed = ComposerPendingEmbed.from(
             upload: upload,
             localData: Data("Contact [EMAIL_1_com] about launch".utf8),
-            transcript: nil,
+            transcription: nil,
             duration: nil,
             piiMappings: mappings,
             textContent: "Contact [EMAIL_1_com] about launch"
@@ -256,7 +256,7 @@ final class ChatSendPipelineParityTests: XCTestCase {
                 deduplicated: true
             ),
             localData: Data("Email [EMAIL_1_com]".utf8),
-            transcript: nil,
+            transcription: nil,
             duration: nil,
             piiMappings: [attachmentMapping],
             textContent: "Email [EMAIL_1_com]"
