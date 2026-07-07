@@ -126,10 +126,11 @@ struct DevChatOpeningPreviewView: View {
                     .font(.omH4)
                     .fontWeight(.bold)
                     .foregroundStyle(Color.fontPrimary)
-                Text("initial-window-count=\(initialWindow.count); total-message-count=\(fixture.messages.count)")
+                Text(initialWindowMetricsLabel)
                     .font(.omSmall)
                     .foregroundStyle(Color.fontSecondary)
                     .accessibilityIdentifier("chat-opening-initial-window-count")
+                    .accessibilityLabel(initialWindowMetricsLabel)
             }
             Spacer(minLength: 0)
         }
@@ -203,6 +204,12 @@ struct DevChatOpeningPreviewView: View {
             "sync-slowest-ms=\(slowestSyncMS)",
             "sync-phase-count=\(phaseCount)"
         ].joined(separator: "; ")
+    }
+
+    private var initialWindowMetricsLabel: String {
+        let base = "initial-window-count=\(initialWindow.count); total-message-count=\(fixture.messages.count)"
+        guard isUITestPerformanceMetricsEnabled else { return base }
+        return "\(base); \(performanceMetricsLabel)"
     }
 
     @MainActor

@@ -58,7 +58,9 @@ final class ChatOpeningScalabilityUITests: XCTestCase {
         let latestVisibleSeconds = Date().timeIntervalSince(launchStart)
         XCTAssertLessThan(latestVisibleSeconds, boundedLaunchLimit)
 
-        let metrics = app.descendants(matching: .any)["chat-opening-performance-metrics"]
+        let metrics = app.staticTexts
+            .containing(NSPredicate(format: "label CONTAINS %@", "performance-metrics=chat-opening"))
+            .firstMatch
         XCTAssertTrue(metrics.waitForExistence(timeout: 5))
         let metricsBeforeInput = metrics.label
         XCTAssertTrue(metricsBeforeInput.contains("total-messages=1000"))
