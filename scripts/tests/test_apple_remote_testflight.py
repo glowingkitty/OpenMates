@@ -140,15 +140,21 @@ def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     assert "WKRunsIndependentlyOfCompanionApp" in project_yaml
     assert "PRODUCT_NAME: OpenMatesWatch" in project_yaml
     assert "SKIP_INSTALL: YES" in project_yaml
+    assert "CFBundlePackageType: APPL" in project_yaml
+    assert "CFBundleIconName: AppIcon" in project_yaml
+    assert "ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon" in project_yaml
     assert "type: application" in project_yaml
     assert "WKWatchOnly" not in watch_info
     assert "WKCompanionAppBundleIdentifier" in watch_info
     assert "WKRunsIndependentlyOfCompanionApp" in watch_info
+    assert "CFBundlePackageType" in watch_info
+    assert "CFBundleIconName" in watch_info
     assert "OpenMatesWatch.app in Embed Watch Content" in xcode_project
     assert 'dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";' in xcode_project
     assert "C0FFEE000000000000047018 /* OpenMatesWatch */" in xcode_project
     assert "PRODUCT_NAME = OpenMatesWatch;" in xcode_project
     assert "SKIP_INSTALL = YES;" in xcode_project
+    assert "ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;" in xcode_project
     assert "productType = \"com.apple.product-type.application\";" in xcode_project
 
 

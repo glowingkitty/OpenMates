@@ -183,6 +183,7 @@ targets:
         type: folder
     settings:
       base:
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_ENTITLEMENTS: OpenMatesWatch/OpenMatesWatch.entitlements
         INFOPLIST_FILE: OpenMatesWatch/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.watch
@@ -201,8 +202,12 @@ targets:
     info:
       path: OpenMatesWatch/Info.plist
       properties:
+        CFBundleIconFiles:
+          - AppIcon
+        CFBundleIconName: AppIcon
         CFBundleDisplayName: OpenMates
         CFBundleName: OpenMates
+        CFBundlePackageType: APPL
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
