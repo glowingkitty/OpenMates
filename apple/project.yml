@@ -195,7 +195,6 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         WKCompanionAppBundleIdentifier: org.openmates.app
         WKWatchKitApp: true
-        WKRunsIndependentlyOfCompanionApp: true
         NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
         UIAppFonts:
           - LexendDeca-Light.ttf
@@ -278,6 +277,7 @@ targets:
             WKAppBundleIdentifier: org.openmates.app.watch
           NSExtensionPointIdentifier: com.apple.watchkit
         NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
+        WKRunsIndependentlyOfCompanionApp: true
         UIAppFonts:
           - LexendDeca-Light.ttf
           - LexendDeca-Regular.ttf

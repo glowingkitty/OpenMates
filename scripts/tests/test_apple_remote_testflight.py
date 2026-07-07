@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = ROOT / "scripts" / "apple_remote.py"
 APPLE_PROJECT_YAML = ROOT / "apple" / "project.yml"
 WATCH_INFO_PLIST = ROOT / "apple" / "OpenMatesWatch" / "Info.plist"
+WATCH_EXTENSION_INFO_PLIST = ROOT / "apple" / "OpenMatesWatchExtension" / "Info.plist"
 XCODE_PROJECT_FILE = ROOT / "apple" / "OpenMates.xcodeproj" / "project.pbxproj"
 
 
@@ -136,6 +137,7 @@ def test_ios_testflight_archive_requires_embedded_watch_companion() -> None:
 def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     project_yaml = APPLE_PROJECT_YAML.read_text(encoding="utf-8")
     watch_info = WATCH_INFO_PLIST.read_text(encoding="utf-8")
+    watch_extension_info = WATCH_EXTENSION_INFO_PLIST.read_text(encoding="utf-8")
     xcode_project = XCODE_PROJECT_FILE.read_text(encoding="utf-8")
 
     assert "- target: OpenMatesWatch" in project_yaml
@@ -156,7 +158,9 @@ def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     assert "WKWatchKitApp" in watch_info
     assert "WKWatchOnly" not in watch_info
     assert "WKCompanionAppBundleIdentifier" in watch_info
-    assert "WKRunsIndependentlyOfCompanionApp" in watch_info
+    assert "WKRunsIndependentlyOfCompanionApp" not in watch_info
+    assert "WKRunsIndependentlyOfCompanionApp" in watch_extension_info
+    assert "WKAppBundleIdentifier" in watch_extension_info
     assert "CFBundlePackageType" in watch_info
     assert "CFBundleIconName" in watch_info
     assert "OpenMatesWatch.app in Embed Watch Content" in xcode_project

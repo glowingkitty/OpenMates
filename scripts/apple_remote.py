@@ -1085,13 +1085,11 @@ def assert_ios_archive_embeds_watch_companion():
         sys.exit(1)
     bundle_id = info.get("CFBundleIdentifier")
     companion_id = info.get("WKCompanionAppBundleIdentifier")
-    runs_independently = info.get("WKRunsIndependentlyOfCompanionApp")
     executable = info.get("CFBundleExecutable")
-    if bundle_id != "org.openmates.app.watch" or companion_id != "org.openmates.app" or runs_independently is not True:
+    if bundle_id != "org.openmates.app.watch" or companion_id != "org.openmates.app":
         print("archive_watch_companion=invalid_metadata")
         print(f"watch_bundle_id={bundle_id or 'missing'}")
         print(f"watch_companion_bundle_id={companion_id or 'missing'}")
-        print(f"watch_runs_independently={runs_independently!r}")
         sys.exit(1)
     if executable:
         print("archive_watch_companion=invalid_direct_executable")
@@ -1109,10 +1107,12 @@ def assert_ios_archive_embeds_watch_companion():
         sys.exit(1)
     extension_id = extension_info.get("CFBundleIdentifier")
     extension_attributes = extension_info.get("NSExtension", {}).get("NSExtensionAttributes", {})
-    if extension_id != "org.openmates.app.watch.watchkitextension" or extension_attributes.get("WKAppBundleIdentifier") != "org.openmates.app.watch":
+    runs_independently = extension_info.get("WKRunsIndependentlyOfCompanionApp")
+    if extension_id != "org.openmates.app.watch.watchkitextension" or extension_attributes.get("WKAppBundleIdentifier") != "org.openmates.app.watch" or runs_independently is not True:
         print("archive_watch_companion=invalid_extension_metadata")
         print(f"watch_extension_bundle_id={extension_id or 'missing'}")
         print(f"watch_extension_app_bundle_id={extension_attributes.get('WKAppBundleIdentifier') or 'missing'}")
+        print(f"watch_extension_runs_independently={runs_independently!r}")
         sys.exit(1)
     print("archive_watch_companion=passed")
 

@@ -37,7 +37,5 @@
 	<true/>
 	<key>WKCompanionAppBundleIdentifier</key>
 	<string>org.openmates.app</string>
-	<key>WKRunsIndependentlyOfCompanionApp</key>
-	<true/>
 </dict>
 </plist>
