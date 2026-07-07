@@ -22,6 +22,7 @@ struct DevChatOpeningPreviewView: View {
     @StateObject private var uiTestRecorder = VoiceRecorder()
     @State private var seeded = false
     @State private var reportIssuePrefill: ReportIssuePrefill?
+    @State private var performanceMetricsTick = 0
 
     init(forceRecordingOverlay: Bool = false) {
         self.forceRecordingOverlay = forceRecordingOverlay
@@ -44,6 +45,9 @@ struct DevChatOpeningPreviewView: View {
         .background(Color.grey0.ignoresSafeArea())
         .accessibilityIdentifier("dev-chat-opening-preview")
         .onAppear(perform: seedIfNeeded)
+        .task {
+            await updatePerformanceMetricsForUITest()
+        }
     }
 
     private var chatOpeningPreview: some View {
@@ -59,6 +63,10 @@ struct DevChatOpeningPreviewView: View {
 
                 if isUITestHeaderContractEnabled && !isUITestVisualSnapshotEnabled {
                     headerContractProbe
+                }
+
+                if isUITestPerformanceMetricsEnabled && !isUITestVisualSnapshotEnabled {
+                    performanceMetricsProbe
                 }
 
                 if seeded {
@@ -155,6 +163,64 @@ struct DevChatOpeningPreviewView: View {
             .accessibilityLabel(contract)
     }
 
+    private var performanceMetricsProbe: some View {
+        let metrics = performanceMetricsLabel
+        return Text(metrics)
+            .font(.omMicro)
+            .foregroundStyle(Color.fontTertiary)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing1)
+            .background(Color.grey0.opacity(0.86))
+            .accessibilityIdentifier("chat-opening-performance-metrics")
+            .accessibilityLabel(metrics)
+    }
+
+    private var performanceMetricsLabel: String {
+        _ = performanceMetricsTick
+        let frameSummary = NativePerformanceMonitor.shared.summary()
+        let syncSummary = NativeSyncDiagnosticsStore.shared.summary()
+        let sampleCount = intMetric("sample_count", in: frameSummary)
+        let averageFPS = doubleMetric("average_fps", in: frameSummary)
+        let worstFrameMS = intMetric("worst_frame_ms", in: frameSummary)
+        let jankCount = intMetric("jank_count", in: frameSummary)
+        let slowestSyncMS = intMetric("slowest_elapsed_ms", in: syncSummary)
+        let phaseCount = intMetric("phase_count", in: syncSummary)
+        return [
+            "performance-metrics=chat-opening",
+            "initial-window=\(initialWindow.count)",
+            "total-messages=\(fixture.messages.count)",
+            "frame-samples=\(sampleCount)",
+            String(format: "average-fps=%.1f", averageFPS),
+            "worst-frame-ms=\(worstFrameMS)",
+            "jank-count=\(jankCount)",
+            "sync-slowest-ms=\(slowestSyncMS)",
+            "sync-phase-count=\(phaseCount)"
+        ].joined(separator: "; ")
+    }
+
+    @MainActor
+    private func updatePerformanceMetricsForUITest() async {
+        guard isUITestPerformanceMetricsEnabled else { return }
+        while !Task.isCancelled {
+            performanceMetricsTick += 1
+            try? await Task.sleep(nanoseconds: 250_000_000)
+        }
+    }
+
+    private func intMetric(_ key: String, in summary: [String: Any]) -> Int {
+        if let value = summary[key] as? Int { return value }
+        if let value = summary[key] as? NSNumber { return value.intValue }
+        return 0
+    }
+
+    private func doubleMetric(_ key: String, in summary: [String: Any]) -> Double {
+        if let value = summary[key] as? Double { return value }
+        if let value = summary[key] as? NSNumber { return value.doubleValue }
+        return 0
+    }
+
     private func seedIfNeeded() {
         guard !seeded else { return }
         chatStore.performWithoutPersistence {
@@ -190,6 +256,11 @@ struct DevChatOpeningPreviewView: View {
     private var isUITestVisualSnapshotEnabled: Bool {
         ProcessInfo.processInfo.arguments.contains("--ui-test-visual-snapshot")
             || ProcessInfo.processInfo.environment["UI_TEST_VISUAL_SNAPSHOT"] == "1"
+    }
+
+    private var isUITestPerformanceMetricsEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-performance-metrics")
+            || ProcessInfo.processInfo.environment["UI_TEST_PERFORMANCE_METRICS"] == "1"
     }
 
     private var isUITestPIIComposerBannerFixtureEnabled: Bool {
@@ -336,7 +407,7 @@ private struct DevChatOpeningFixture {
     let chat: Chat
     let messages: [Message]
 
-    static func make(messageCount: Int = 250) -> DevChatOpeningFixture {
+    static func make(messageCount: Int = Self.messageCountForUITest()) -> DevChatOpeningFixture {
         if ProcessInfo.processInfo.arguments.contains("--ui-test-pii-visibility-fixture") {
             return piiVisibilityFixture()
         }
@@ -440,6 +511,13 @@ private struct DevChatOpeningFixture {
         let minute = index / 60
         let second = index % 60
         return String(format: "2026-01-01T00:%02d:%02dZ", minute, second)
+    }
+
+    private static func messageCountForUITest() -> Int {
+        let environment = ProcessInfo.processInfo.environment
+        let rawValue = environment["UI_TEST_CHAT_MESSAGE_COUNT"]
+        let parsed = rawValue.flatMap(Int.init) ?? 250
+        return min(max(parsed, 1), 2_000)
     }
 }
 #endif

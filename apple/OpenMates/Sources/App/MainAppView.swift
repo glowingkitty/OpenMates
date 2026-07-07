@@ -190,6 +190,15 @@ struct MainAppView: View {
         #endif
     }
 
+    private var isShellPerformanceUITestEnabled: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--ui-test-shell-performance-fixture")
+            || ProcessInfo.processInfo.environment["UI_TEST_SHELL_PERFORMANCE_FIXTURE"] == "1"
+        #else
+        false
+        #endif
+    }
+
     private func isSettingsSideBySide(width: CGFloat) -> Bool {
         width > 1100
     }
@@ -506,7 +515,7 @@ struct MainAppView: View {
         let shellMode = compactShell ? "compact" : "regular"
         let panelMode = compactShell ? "drawer" : "side-by-side"
         let activeMainWidth = compactShell ? viewportWidth : regularMainWidth(for: viewportWidth)
-        return [
+        var metrics = [
             "shell-width=\(Int(viewportWidth.rounded()))",
             "shell-mode=\(shellMode)",
             "panel-mode=\(panelMode)",
@@ -515,7 +524,25 @@ struct MainAppView: View {
             "active-chat-visible=true",
             "chat-panel-width=\(Int(compactPanelWidth.rounded()))",
             "active-main-width=\(Int(activeMainWidth.rounded()))"
-        ].joined(separator: "; ")
+        ]
+        if isShellPerformanceUITestEnabled {
+            let frameSummary = NativePerformanceMonitor.shared.summary()
+            metrics.append("shell-performance=true")
+            metrics.append("seeded-chat-count=\(shellPerformanceUITestSeedCount)")
+            metrics.append("stored-chat-count=\(chatStore.chats.count)")
+            metrics.append("filtered-unpinned-count=\(filteredUnpinnedChats.count)")
+            metrics.append("visible-unpinned-count=\(visibleFilteredUnpinnedChats.count)")
+            metrics.append("frame-samples=\(intMetric(\"sample_count\", in: frameSummary))")
+            metrics.append("worst-frame-ms=\(intMetric(\"worst_frame_ms\", in: frameSummary))")
+            metrics.append("jank-count=\(intMetric(\"jank_count\", in: frameSummary))")
+        }
+        return metrics.joined(separator: "; ")
+    }
+
+    private func intMetric(_ key: String, in summary: [String: Any]) -> Int {
+        if let value = summary[key] as? Int { return value }
+        if let value = summary[key] as? NSNumber { return value.intValue }
+        return 0
     }
 
     private func regularMainWidth(for viewportWidth: CGFloat) -> CGFloat {
@@ -832,6 +859,7 @@ struct MainAppView: View {
             // Unauthenticated: populate the sidebar, but keep the welcome/new-chat surface active.
             loadDemoChats(selectDefault: false)
             seedWelcomeRecentOverflowUITestStateIfNeeded()
+            seedShellPerformanceUITestStateIfNeeded()
             openNewChatScreen()
             await anonymousFreeUsage.refreshStatus()
             await anonymousFreeUsage.loadAnonymousChats(into: chatStore)
@@ -1847,6 +1875,47 @@ struct MainAppView: View {
         }
         chatStore.upsertChats(seededChats)
         totalChatCount = Self.welcomeRecentOverflowUITestSeedCount + 4
+        #endif
+    }
+
+    private func seedShellPerformanceUITestStateIfNeeded() {
+        #if DEBUG
+        guard isShellPerformanceUITestEnabled else { return }
+        let formatter = ISO8601DateFormatter()
+        let now = Date()
+        let seededChats = (0..<shellPerformanceUITestSeedCount).map { index in
+            let timestamp = formatter.string(from: now.addingTimeInterval(TimeInterval(-index * 60)))
+            return Chat(
+                id: "ui-test-shell-perf-chat-\(index)",
+                title: "Shell Perf Chat \(index + 1)",
+                lastMessageAt: timestamp,
+                createdAt: timestamp,
+                updatedAt: timestamp,
+                isArchived: false,
+                isPinned: index < 5,
+                appId: "openmates",
+                category: "productivity",
+                icon: "message-square",
+                chatSummary: "Seeded shell performance chat",
+                encryptedTitle: nil,
+                encryptedChatKey: nil,
+                messagesV: 0
+            )
+        }
+        chatStore.performWithoutPersistence {
+            chatStore.upsertChats(seededChats)
+        }
+        totalChatCount = seededChats.count
+        #endif
+    }
+
+    private var shellPerformanceUITestSeedCount: Int {
+        #if DEBUG
+        let rawValue = ProcessInfo.processInfo.environment["UI_TEST_SHELL_CHAT_COUNT"]
+        let parsed = rawValue.flatMap(Int.init) ?? 600
+        return min(max(parsed, 1), 2_000)
+        #else
+        0
         #endif
     }
 
