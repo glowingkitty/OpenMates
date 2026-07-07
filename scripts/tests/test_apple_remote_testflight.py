@@ -132,18 +132,19 @@ def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
 
     assert "- target: OpenMatesWatch" in project_yaml
     assert "platforms: [iOS]" in project_yaml
-    assert "embed: true" in project_yaml
+    assert "embed: false" in project_yaml
+    assert "Embed Watch Companion" in project_yaml
     assert "WKCompanionAppBundleIdentifier" in project_yaml
     assert "WKRunsIndependentlyOfCompanionApp" in project_yaml
     assert "PRODUCT_NAME: OpenMatesWatch" in project_yaml
-    assert "type: application.watchapp2" in project_yaml
+    assert "type: application" in project_yaml
     assert "WKWatchOnly" not in watch_info
     assert "WKCompanionAppBundleIdentifier" in watch_info
     assert "WKRunsIndependentlyOfCompanionApp" in watch_info
-    assert "OpenMatesWatch.app in Embed Watch Content" in xcode_project
+    assert "Embed Watch Companion" in xcode_project
     assert "C0FFEE000000000000047018 /* OpenMatesWatch */" in xcode_project
     assert "PRODUCT_NAME = OpenMatesWatch;" in xcode_project
-    assert "productType = \"com.apple.product-type.application.watchapp2\";" in xcode_project
+    assert "productType = \"com.apple.product-type.application\";" in xcode_project
 
 
 def test_testflight_notes_options_rejects_duplicate_sources() -> None:

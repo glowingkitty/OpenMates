@@ -141,12 +141,32 @@ targets:
         platforms: [iOS]
       - target: OpenMatesWatch
         platforms: [iOS]
-        embed: true
-        codeSign: true
+        embed: false
+    postBuildScripts:
+      - name: Embed Watch Companion
+        script: |
+          set -euo pipefail
+          if [ "${PLATFORM_NAME}" != "iphoneos" ] && [ "${PLATFORM_NAME}" != "iphonesimulator" ]; then
+            exit 0
+          fi
+          source_app="${BUILT_PRODUCTS_DIR}/OpenMatesWatch.app"
+          dest_dir="${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Watch"
+          dest_app="${dest_dir}/OpenMatesWatch.app"
+          if [ ! -d "${source_app}" ]; then
+            echo "error: Missing Watch companion at ${source_app}" >&2
+            exit 1
+          fi
+          mkdir -p "${dest_dir}"
+          rm -rf "${dest_app}"
+          ditto "${source_app}" "${dest_app}"
+        inputFiles:
+          - $(BUILT_PRODUCTS_DIR)/OpenMatesWatch.app
+        outputFiles:
+          - $(TARGET_BUILD_DIR)/$(WRAPPER_NAME)/Watch/OpenMatesWatch.app
 
   # Independent watchOS app — starts with standalone target plumbing; auth/chat UI lands in later spec tasks.
   OpenMatesWatch:
-    type: application.watchapp2
+    type: application
     platform: watchOS
     deploymentTarget: "10.0"
     sources:

@@ -53,7 +53,6 @@
 		C0FFEE000000000000049016 /* EmbedModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC211406AADF88E0D1BF6F4D /* EmbedModels.swift */; };
 		C0FFEE000000000000049017 /* AnyCodable.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAF7ABCEA32F7C1A1EA73079 /* AnyCodable.swift */; };
 		C0FFEE000000000000049018 /* WatchEmbedPreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049019 /* WatchEmbedPreviewTests.swift */; };
-		C0FFEE000000000000049020 /* OpenMatesWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000047015 /* OpenMatesWatch.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		FDD100000000000000000002 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDD100000000000000000001 /* BrandAssets.xcassets */; };
 		FDD100000000000000000003 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDD100000000000000000001 /* BrandAssets.xcassets */; };
 		04B767719514CAB080FEB1CB /* LucideIcons in Frameworks */ = {isa = PBXBuildFile; productRef = 8FC7D47DA7AECCBB2EBDABE9 /* LucideIcons */; };
@@ -623,17 +622,6 @@
 				EBFBD6EB0E55C3922E7A97AB /* OpenMatesWidget.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		C0FFEE000000000000049021 /* Embed Watch Content */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 16;
-			files = (
-				C0FFEE000000000000049020 /* OpenMatesWatch.app in Embed Watch Content */,
-			);
-			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -1785,7 +1773,7 @@
 			);
 			productName = OpenMates;
 			productReference = C0FFEE000000000000047015 /* OpenMatesWatch.app */;
-			productType = "com.apple.product-type.application.watchapp2";
+			productType = "com.apple.product-type.application";
 		};
 		02E5AB06E9CF5357E7F6C413 /* OpenMates_iOS */ = {
 			isa = PBXNativeTarget;
@@ -1795,7 +1783,7 @@
 				B4B0CAA1635A0D7801CFC6A2 /* Resources */,
 				90DC7917B175D3B5F3EF4AFE /* Frameworks */,
 				953B1F3E0F10C6DD7636355F /* Embed Foundation Extensions */,
-				C0FFEE000000000000049021 /* Embed Watch Content */,
+				C0FFEE000000000000049024 /* Embed Watch Companion */,
 			);
 			buildRules = (
 			);
@@ -2095,6 +2083,29 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		C0FFEE000000000000049024 /* Embed Watch Companion */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/OpenMatesWatch.app",
+			);
+			name = "Embed Watch Companion";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(WRAPPER_NAME)/Watch/OpenMatesWatch.app",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\nif [ \"${PLATFORM_NAME}\" != \"iphoneos\" ] && [ \"${PLATFORM_NAME}\" != \"iphonesimulator\" ]; then\n  exit 0\nfi\nsource_app=\"${BUILT_PRODUCTS_DIR}/OpenMatesWatch.app\"\ndest_dir=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Watch\"\ndest_app=\"${dest_dir}/OpenMatesWatch.app\"\nif [ ! -d \"${source_app}\" ]; then\n  echo \"error: Missing Watch companion at ${source_app}\" >&2\n  exit 1\nfi\nmkdir -p \"${dest_dir}\"\nrm -rf \"${dest_app}\"\nditto \"${source_app}\" \"${dest_app}\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		C0FFEE000000000000047020 /* Sources */ = {
