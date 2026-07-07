@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = ROOT / "scripts" / "apple_remote.py"
 APPLE_PROJECT_YAML = ROOT / "apple" / "project.yml"
 WATCH_INFO_PLIST = ROOT / "apple" / "OpenMatesWatch" / "Info.plist"
+XCODE_PROJECT_FILE = ROOT / "apple" / "OpenMates.xcodeproj" / "project.pbxproj"
 
 
 def load_apple_remote():
@@ -127,6 +128,7 @@ def test_ios_testflight_archive_requires_embedded_watch_companion() -> None:
 def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     project_yaml = APPLE_PROJECT_YAML.read_text(encoding="utf-8")
     watch_info = WATCH_INFO_PLIST.read_text(encoding="utf-8")
+    xcode_project = XCODE_PROJECT_FILE.read_text(encoding="utf-8")
 
     assert "- target: OpenMatesWatch" in project_yaml
     assert "platforms: [iOS]" in project_yaml
@@ -137,6 +139,9 @@ def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     assert "WKWatchOnly" not in watch_info
     assert "WKCompanionAppBundleIdentifier" in watch_info
     assert "WKRunsIndependentlyOfCompanionApp" in watch_info
+    assert "OpenMatesWatch.app in Embed Watch Content" in xcode_project
+    assert "C0FFEE000000000000047018 /* OpenMatesWatch */" in xcode_project
+    assert "PRODUCT_NAME = OpenMatesWatch;" in xcode_project
 
 
 def test_testflight_notes_options_rejects_duplicate_sources() -> None:
