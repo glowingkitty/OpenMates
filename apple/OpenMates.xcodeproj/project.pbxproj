@@ -157,8 +157,8 @@
 		C0FFEE000000000000008004 /* MessageInputAudioRecordingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000008001 /* MessageInputAudioRecordingUITests.swift */; };
 		C0FFEE000000000000041004 /* MacMenuBarQuickCaptureUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000041001 /* MacMenuBarQuickCaptureUITests.swift */; };
 		C0FFEE000000000000043004 /* MacMenuBarQuickCaptureUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000041001 /* MacMenuBarQuickCaptureUITests.swift */; };
-		C0FFEE000000000000045004 /* TooltipHelpParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000045001 /* TooltipHelpParityUITests.swift */; };
-		C0FFEE000000000000045005 /* TooltipHelpParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000045001 /* TooltipHelpParityUITests.swift */; };
+		C0FFEE000000000000090004 /* TooltipHelpParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000090001 /* TooltipHelpParityUITests.swift */; };
+		C0FFEE000000000000090005 /* TooltipHelpParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000090001 /* TooltipHelpParityUITests.swift */; };
 		C0FFEE000000000000042004 /* ShareExtensionAttachmentParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000042001 /* ShareExtensionAttachmentParityUITests.swift */; };
 		C0FFEE000000000000044004 /* ComposerVisualParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000044001 /* ComposerVisualParityUITests.swift */; };
 		C0FFEE000000000000009004 /* ChatResponsiveParityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */; };
@@ -818,7 +818,7 @@
 		C0FFEE000000000000007001 /* MessageInputAttachmentUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInputAttachmentUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000008001 /* MessageInputAudioRecordingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInputAudioRecordingUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000041001 /* MacMenuBarQuickCaptureUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacMenuBarQuickCaptureUITests.swift; sourceTree = "<group>"; };
-		C0FFEE000000000000045001 /* TooltipHelpParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TooltipHelpParityUITests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000090001 /* TooltipHelpParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TooltipHelpParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000042001 /* ShareExtensionAttachmentParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareExtensionAttachmentParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000044001 /* ComposerVisualParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerVisualParityUITests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatResponsiveParityUITests.swift; sourceTree = "<group>"; };
@@ -1432,7 +1432,7 @@
 				C0FFEE000000000000008001 /* MessageInputAudioRecordingUITests.swift */,
 				C0FFEE000000000000044001 /* ComposerVisualParityUITests.swift */,
 				C0FFEE000000000000041001 /* MacMenuBarQuickCaptureUITests.swift */,
-				C0FFEE000000000000045001 /* TooltipHelpParityUITests.swift */,
+				C0FFEE000000000000090001 /* TooltipHelpParityUITests.swift */,
 				C0FFEE000000000000042001 /* ShareExtensionAttachmentParityUITests.swift */,
 				C0FFEE000000000000009001 /* ChatResponsiveParityUITests.swift */,
 				C0FFEE000000000000010001 /* ChatShellResponsiveParityUITests.swift */,
@@ -2593,7 +2593,7 @@
 				C0FFEE000000000000008004 /* MessageInputAudioRecordingUITests.swift in Sources */,
 				C0FFEE000000000000044004 /* ComposerVisualParityUITests.swift in Sources */,
 				C0FFEE000000000000041004 /* MacMenuBarQuickCaptureUITests.swift in Sources */,
-				C0FFEE000000000000045004 /* TooltipHelpParityUITests.swift in Sources */,
+				C0FFEE000000000000090004 /* TooltipHelpParityUITests.swift in Sources */,
 				C0FFEE000000000000042004 /* ShareExtensionAttachmentParityUITests.swift in Sources */,
 				C0FFEE000000000000009004 /* ChatResponsiveParityUITests.swift in Sources */,
 				C0FFEE000000000000010004 /* ChatShellResponsiveParityUITests.swift in Sources */,
@@ -2621,7 +2621,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C0FFEE000000000000043004 /* MacMenuBarQuickCaptureUITests.swift in Sources */,
-				C0FFEE000000000000045005 /* TooltipHelpParityUITests.swift in Sources */,
+				C0FFEE000000000000090005 /* TooltipHelpParityUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
