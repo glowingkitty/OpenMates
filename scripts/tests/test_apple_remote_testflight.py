@@ -91,6 +91,8 @@ def test_upload_testflight_watch_uses_watch_scheme_and_profile_contract() -> Non
     assert '"org.openmates.app.watch"' in script
     assert 'enable_bundle_capability(bundle_id, "KEYCHAIN_SHARING")' not in script
     assert "not_app_store_connect_capability" in script
+    assert "def required_keychain_group(identifier, entitlements):" in script
+    assert "application-identifier" in script
     assert "profile_keychain_group=passed" in script
 
 

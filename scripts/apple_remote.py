@@ -272,7 +272,6 @@ distribution_identity_sha1 = ""
 installer_identity_sha1 = ""
 profile_names = {}
 APP_GROUP_IDENTIFIER = "group.org.openmates.app.shared"
-SHARED_KEYCHAIN_GROUP_IDENTIFIER = "Z9B2YFKN2X.org.openmates.app"
 if target_platform == "ios":
     scheme_name = "OpenMates_iOS"
     archive_filename = "OpenMates.xcarchive"
@@ -685,8 +684,9 @@ def assert_profile_supports_required_entitlements(identifier, profile_path):
         print(f"profile_app_group=passed:{identifier}")
     if identifier in REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS:
         keychain_groups = entitlements.get("keychain-access-groups", [])
-        if SHARED_KEYCHAIN_GROUP_IDENTIFIER not in keychain_groups:
-            print(f"profile_keychain_group=missing:{identifier}:{SHARED_KEYCHAIN_GROUP_IDENTIFIER}")
+        keychain_group = required_keychain_group(identifier, entitlements)
+        if keychain_group not in keychain_groups:
+            print(f"profile_keychain_group=missing:{identifier}:{keychain_group}")
             print("manual_action=assign_keychain_sharing_group_to_bundle_id_in_apple_developer_portal")
             print("manual_path=Certificates, Identifiers & Profiles > Identifiers > App IDs > bundle ID > Keychain Sharing")
             sys.exit(1)
@@ -813,10 +813,18 @@ def profile_has_required_entitlements(identifier, profile_data):
             return False
     if identifier in REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS:
         keychain_groups = entitlements.get("keychain-access-groups", [])
-        if SHARED_KEYCHAIN_GROUP_IDENTIFIER not in keychain_groups:
-            print(f"profile_keychain_group=missing:{identifier}:{SHARED_KEYCHAIN_GROUP_IDENTIFIER}")
+        keychain_group = required_keychain_group(identifier, entitlements)
+        if keychain_group not in keychain_groups:
+            print(f"profile_keychain_group=missing:{identifier}:{keychain_group}")
             return False
     return True
+
+
+def required_keychain_group(identifier, entitlements):
+    app_identifier = str(entitlements.get("application-identifier", ""))
+    if app_identifier.endswith(f".{identifier}"):
+        return app_identifier
+    return identifier
 
 
 def load_installed_app_store_profiles():
