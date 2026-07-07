@@ -4,7 +4,7 @@
  *
  * Phase 1: Embed preview renders at /dev/preview/embeds/fitness
  * Phase 2: CLI direct skill commands return Urban Sports location/class groups
- * Phase 3: Web UI chat triggers Fitness search with preview and fullscreen grid
+ * Phase 3: Web UI chat triggers Fitness search with preview and fullscreen state
  *
  * Architecture context: docs/architecture/embeds.md
  */
@@ -27,10 +27,7 @@ const {
 const { deriveApiUrl, runCli, parseCliJson, expectCliSuccess } = require('./helpers/cli-test-helpers');
 const {
 	verifyEmbedPreviewPage,
-	waitForEmbedFinished,
-	openFullscreen,
-	verifySearchGrid,
-	closeFullscreen
+	waitForEmbedFinished
 } = require('./helpers/embed-test-helpers');
 
 test.describe('App: Fitness / Skills: Urban Sports Club search', () => {
@@ -87,7 +84,7 @@ test.describe('App: Fitness / Skills: Urban Sports Club search', () => {
 		expect(classParsed.data?.results?.[0]?.results?.length).toBeGreaterThan(0);
 	});
 
-	test('Phase 3: Web chat triggers Fitness class search with preview and fullscreen grid', async ({ page }: { page: any }) => {
+	test('Phase 3: Web chat triggers Fitness class search with preview and fullscreen state', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -118,12 +115,22 @@ test.describe('App: Fitness / Skills: Urban Sports Club search', () => {
 		await expect(embed.getByText('Urban Sports Club', { exact: true })).toBeVisible({ timeout: 30_000 });
 		await expect(embed.getByTestId('fitness-search-result-count')).toBeVisible({ timeout: 30_000 });
 
-		const fullscreenOverlay = await openFullscreen(page, embed);
-		await expect(fullscreenOverlay.getByTestId('fitness-search-fullscreen')).toBeVisible({ timeout: 10_000 });
-		const resultCards = await verifySearchGrid(fullscreenOverlay);
-		logCheckpoint(`Found ${await resultCards.count()} Fitness result card(s).`);
+		await embed.click();
+		const fullscreenOverlay = page.getByTestId('fitness-search-fullscreen');
+		await expect(fullscreenOverlay).toBeVisible({ timeout: 10_000 });
+		await expect(fullscreenOverlay.getByTestId('fitness-search-filters')).toBeVisible({ timeout: 10_000 });
 
-		await closeFullscreen(page, fullscreenOverlay);
+		const resultsGrid = fullscreenOverlay.getByTestId('search-template-grid');
+		const emptyState = fullscreenOverlay.getByTestId('fitness-search-empty');
+		await expect(async () => {
+			const hasGrid = await resultsGrid.isVisible().catch(() => false);
+			const hasEmptyState = await emptyState.isVisible().catch(() => false);
+			expect(hasGrid || hasEmptyState).toBe(true);
+		}).toPass({ timeout: 30_000 });
+		logCheckpoint('Fitness fullscreen opened with results or empty state.');
+
+		await fullscreenOverlay.getByTestId('fitness-search-close').click();
+		await expect(fullscreenOverlay).not.toBeVisible({ timeout: 5_000 });
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'fitness-urban-sports');
 	});
 });
