@@ -80,8 +80,13 @@
 
     // Update results when query changes (no second arg = use search limit so settings/memories can appear)
     $effect(() => {
-        const currentQuery = query;
         const sequence = ++searchSequence;
+        if (!show) {
+            results = [];
+            return;
+        }
+
+        const currentQuery = query;
         const baseResults = searchMentions(currentQuery);
         results = baseResults;
         selectedIndex = 0; // Reset selection when results change
