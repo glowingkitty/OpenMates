@@ -115,7 +115,7 @@ test.describe('App: Fitness / Skills: Urban Sports Club search', () => {
 		await expect(page.getByTestId('fitness-search-preview').first()).toBeVisible({ timeout: 60_000 });
 
 		const embed = await waitForEmbedFinished(page, 'fitness', 'search_classes', 120_000);
-		await expect(embed.getByText('Urban Sports Club')).toBeVisible({ timeout: 30_000 });
+		await expect(embed.getByText('Urban Sports Club', { exact: true })).toBeVisible({ timeout: 30_000 });
 		await expect(embed.getByTestId('fitness-search-result-count')).toBeVisible({ timeout: 30_000 });
 
 		const fullscreenOverlay = await openFullscreen(page, embed);
