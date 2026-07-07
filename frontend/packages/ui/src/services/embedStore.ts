@@ -3295,6 +3295,37 @@ export class EmbedStore {
   }
 
   /**
+   * Register public static example-chat embed data in memory only.
+   * Example chats are checked-in cleartext content, not synced encrypted embeds,
+   * so this seeds the same cache paths used by regular fullscreen parent lookup.
+   */
+  registerStaticEmbed(entry: {
+    embedId: string;
+    type: string;
+    content: string;
+    parentEmbedId?: string | null;
+    embedIds?: string[] | null;
+    appId?: string | null;
+    skillId?: string | null;
+  }): void {
+    if (!entry.embedId) return;
+    const embedId = this.normalizeEmbedId(entry.embedId);
+    embedCache.set(`embed:${embedId}`, {
+      contentRef: `embed:${embedId}`,
+      data: entry.content,
+      type: this.normalizeEmbedType(entry.type),
+      status: "finished",
+      embed_id: embedId,
+      parent_embed_id: entry.parentEmbedId ? this.normalizeEmbedId(entry.parentEmbedId) : null,
+      embed_ids: entry.embedIds?.map((id) => this.normalizeEmbedId(id)) ?? null,
+      app_id: entry.appId ?? null,
+      skill_id: entry.skillId ?? null,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    } as EmbedStoreEntry);
+  }
+
+  /**
    * Resolve an embed_ref slug to its embed_id UUID.
    * Returns null if the ref is not yet indexed (e.g., embed not yet arrived).
    *

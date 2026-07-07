@@ -210,7 +210,6 @@ for (const example of LOOKUP_EXAMPLE_CHATS) {
 
 /** Regex to extract embed_ref from TOON content */
 const EMBED_REF_RE = /^embed_ref:\s*"?([^\n"]+)"?\s*$/m;
-const APP_ID_RE = /^app_id:\s*"?([^\n"]+)"?\s*$/m;
 const EMBED_IDS_RE = /^embed_ids:\s*"?([^\n"]+)"?\s*$/m;
 
 function normalizeEmbedId(embedId: string): string {
@@ -240,13 +239,24 @@ export function registerExampleChatEmbedRefs(): void {
     ];
     for (const embed of embeds) {
       if (!embed.content || !embed.embed_id) continue;
+      const appId = toonField(embed.content, "app_id");
+      const skillId = toonField(embed.content, "skill_id");
+      embedStore.registerStaticEmbed({
+        embedId: embed.embed_id,
+        type: embed.type,
+        content: embed.content,
+        parentEmbedId: embed.parent_embed_id,
+        embedIds: embed.embed_ids,
+        appId,
+        skillId,
+      });
+
       const refMatch = embed.content.match(EMBED_REF_RE);
       if (!refMatch) continue;
-      const appIdMatch = embed.content.match(APP_ID_RE);
       embedStore.registerEmbedRef(
         refMatch[1].trim(),
         embed.embed_id,
-        appIdMatch ? appIdMatch[1].trim() : null,
+        appId,
       );
       registered++;
     }
