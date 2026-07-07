@@ -156,6 +156,9 @@ def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     assert "PRODUCT_NAME = OpenMatesWatch;" in xcode_project
     assert "SKIP_INSTALL = YES;" in xcode_project
     assert "ASSETCATALOG_COMPILER_APPICON_NAME = WatchAppIcon;" in xcode_project
+    watch_bundle_index = xcode_project.index("PRODUCT_BUNDLE_IDENTIFIER = org.openmates.app.watch;")
+    watch_icon_index = xcode_project.rindex("ASSETCATALOG_COMPILER_APPICON_NAME = WatchAppIcon;", 0, watch_bundle_index)
+    assert watch_icon_index < watch_bundle_index
     assert "C0FFEE000000000000049025 /* Assets.xcassets in Resources */" in xcode_project
     assert "productType = \"com.apple.product-type.application\";" in xcode_project
 
