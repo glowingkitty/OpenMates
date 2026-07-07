@@ -9,6 +9,7 @@ import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesSto
 import { appSkillsStore } from "../../../stores/appSkillsStore";
 import { deriveEmbedDisplayTextFromRef } from "../../../utils/embedDisplayText";
 import {
+  getRenderableInternalHref,
   isInternalHashLink,
   isRenderableInternalHref,
 } from "../../../utils/internalLinkValidation";
@@ -54,6 +55,8 @@ md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
 // Map to store extracted LaTeX formulas for TipTap Mathematics nodes
 // Key: placeholder ID, Value: { tex: LaTeX formula, display: boolean }
 const mathFormulas = new Map<string, { tex: string; display: boolean }>();
+
+const SETTINGS_MARKDOWN_LINK_RE = /(?<!!)\[([^\]\n]+)\]\(((?:\/?#settings)[^\n]*?)\)/g;
 
 function isCurrencyLikeDollar(text: string, dollarIndex: number): boolean {
   if (text[dollarIndex] !== "$") return false;
@@ -182,10 +185,34 @@ function extractMathFormulas(markdownText: string): {
   return { processed, formulas };
 }
 
+function rewriteSettingsMarkdownLinks(markdownText: string): string {
+  return markdownText.replace(
+    SETTINGS_MARKDOWN_LINK_RE,
+    (fullMatch, label: string, href: string) => {
+      const renderableHref = getRenderableInternalHref(href.trim(), label);
+      if (!renderableHref) return label;
+      return `[${label}](${renderableHref})`;
+    },
+  );
+}
+
+function textFromNodes(nodes: any[]): string {
+  return nodes
+    .map((node) => {
+      if (typeof node?.text === "string") return node.text;
+      if (Array.isArray(node?.content)) return textFromNodes(node.content);
+      return "";
+    })
+    .join("")
+    .trim();
+}
+
 // Helper function to pre-process markdown to ensure double newlines create empty paragraphs
 // Exported for unit tests (see __tests__/markdownParser.preprocess.test.ts).
 // OPE-380 regression covers fence tracking with indented ```json blocks.
 export function preprocessMarkdown(markdownText: string): string {
+  markdownText = rewriteSettingsMarkdownLinks(markdownText);
+
   // Normalise embed ```json fences so markdown-it sees them at column 0.
   //
   // LLMs occasionally emit embed references in two broken forms:
@@ -865,13 +892,15 @@ function convertNodeToTiptap(node: Node): any {
       const target = element.getAttribute("target");
 
       if (href) {
-        if (!isRenderableInternalHref(href)) {
+        const linkLabel = textFromNodes(content);
+        const renderableHref = getRenderableInternalHref(href, linkLabel);
+        if (!renderableHref || !isRenderableInternalHref(renderableHref)) {
           return content;
         }
 
         // Check if this is an internal hash-based link (chat or settings deep links)
-        const normalizedHref = href.startsWith("/#") ? href.substring(1) : href;
-        const isInternal = isInternalHashLink(href);
+        const normalizedHref = renderableHref.startsWith("/#") ? renderableHref.substring(1) : renderableHref;
+        const isInternal = isInternalHashLink(renderableHref);
 
         // Build link attributes
         let finalHref: string;
@@ -882,7 +911,7 @@ function convertNodeToTiptap(node: Node): any {
             : "#" + normalizedHref.replace(/^\/+/, "");
         } else {
           // For external links, use the href as-is
-          finalHref = href;
+          finalHref = renderableHref;
         }
 
         const linkAttrs: Record<string, string> = { href: finalHref };

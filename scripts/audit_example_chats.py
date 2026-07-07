@@ -15,6 +15,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import quote, unquote
 
 import yaml
 
@@ -69,6 +70,12 @@ UNSAFE_ADVICE_PATTERNS = [
     ("git checkout -- .", "suggests a destructive git cleanup command"),
 ]
 FENCED_CODE_BLOCK_RE = re.compile(r"```[a-zA-Z0-9_-]*\n[\s\S]*?```", re.MULTILINE)
+SETTINGS_MARKDOWN_LINK_RE = re.compile(r"(?<!!)\[([^\]\n]+)\]\(((?:\/?#settings)[^\n]*?)\)")
+
+
+@dataclass(frozen=True)
+class MemoryCategoryContract:
+    fields: set[str]
 
 
 @dataclass(frozen=True)
@@ -125,6 +132,24 @@ def load_content_catalog() -> dict[str, dict[str, str]]:
                 "skillId": embed_type.get("skill_id") or "",
             }
     return catalog
+
+
+def load_memory_category_contracts() -> dict[str, dict[str, MemoryCategoryContract]]:
+    contracts: dict[str, dict[str, MemoryCategoryContract]] = {}
+    for path in sorted(APP_DIR.glob("*/app.yml")):
+        app_id = path.parent.name
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        categories: dict[str, MemoryCategoryContract] = {}
+        for category in data.get("settings_and_memories") or []:
+            category_id = category.get("id")
+            if not isinstance(category_id, str):
+                continue
+            schema = category.get("schema") or category.get("schema_definition") or {}
+            properties = schema.get("properties") if isinstance(schema, dict) else {}
+            fields = set(properties.keys()) if isinstance(properties, dict) else set()
+            categories[category_id] = MemoryCategoryContract(fields=fields)
+        contracts[app_id] = categories
+    return contracts
 
 
 def unescape_ts_string(value: str) -> str:
@@ -213,6 +238,121 @@ def audit_german_example_translations() -> list[str]:
                 continue
             if en.strip() and en.strip() == de.strip():
                 issues.append(f"{path.name}: {key} has German translation identical to English")
+    return issues
+
+
+def normalize_settings_path(href: str) -> str | None:
+    hash_index = href.find("#settings")
+    if hash_index < 0:
+        return None
+    settings_path = href[hash_index + len("#settings"):]
+    if settings_path == "":
+        return "main"
+    if not settings_path.startswith("/"):
+        return None
+
+    path_with_params = settings_path[1:]
+    path = path_with_params.split("?", 1)[0]
+    if path == "app_store" or path.startswith("app_store/"):
+        path = "apps" + path[len("app_store"):]
+    elif path == "appstore" or path.startswith("appstore/"):
+        path = "apps" + path[len("appstore"):]
+    if path == "memories" or path.startswith("memories/"):
+        path = "settings_memories" + path[len("memories"):]
+
+    ai_detail_match = re.match(r"^(ai/(?:model|provider))/(.*)$", path)
+    if ai_detail_match:
+        path = ai_detail_match.group(1).replace("-", "_") + "/" + ai_detail_match.group(2)
+    else:
+        path = path.replace("-", "_")
+
+    all_apps_filter_match = re.match(r"^apps/all/(.+)$", path)
+    if all_apps_filter_match:
+        filter_value = all_apps_filter_match.group(1)
+        if filter_value == "memories":
+            filter_value = "settings_memories"
+        if filter_value in {"all", "settings_memories", "focus_modes", "skills"}:
+            path = "apps/all"
+
+    if path.startswith("apps/"):
+        path = path.replace("/skills/", "/skill/")
+        path = path.replace("/focuses/", "/focus/")
+        path = path.replace("/memories/", "/settings_memories/")
+    if path == "billing/referral_code":
+        path = "billing/referral-code"
+    return path
+
+
+def extract_prefill(href: str) -> tuple[dict[str, object] | None, bool]:
+    hash_index = href.find("#settings")
+    if hash_index < 0:
+        return None, False
+    query_index = href.find("?", hash_index)
+    if query_index < 0:
+        return None, False
+    query = href[query_index + 1:]
+    prefix = "prefill="
+    prefill_index = query.find(prefix)
+    if prefill_index < 0:
+        return None, False
+    raw = query[prefill_index + len(prefix):].split("&", 1)[0]
+    if not raw:
+        return None, True
+    try:
+        decoded = unquote(raw).replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
+        parsed = json.loads(decoded)
+    except (json.JSONDecodeError, ValueError):
+        return None, True
+    if not isinstance(parsed, dict):
+        return None, True
+    return parsed, True
+
+
+def settings_link_is_valid(href: str, contracts: dict[str, dict[str, MemoryCategoryContract]]) -> bool:
+    path = normalize_settings_path(href)
+    if path is None:
+        return False
+    memory_match = re.match(
+        r"^apps/([^/]+)/settings_memories/([^/]+)/(?:create|entry/[^/]+/edit)$",
+        path,
+    )
+    if not memory_match:
+        return True
+    app_id, category_id = memory_match.groups()
+    category = contracts.get(app_id, {}).get(category_id)
+    if category is None:
+        return False
+    prefill, has_prefill = extract_prefill(href)
+    if not has_prefill:
+        return True
+    if prefill is None:
+        return False
+    if not category.fields:
+        return True
+    return all(key in category.fields for key in prefill)
+
+
+def audit_settings_deep_links(contracts: dict[str, dict[str, MemoryCategoryContract]]) -> list[str]:
+    issues: list[str] = []
+    for path in sorted(EXAMPLE_I18N_DIR.glob("*.yml")):
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        for key, entry in data.items():
+            if not isinstance(entry, dict):
+                continue
+            for locale, value in entry.items():
+                if locale in {"context", "verified_by_human"} or not isinstance(value, str):
+                    continue
+                for match in SETTINGS_MARKDOWN_LINK_RE.finditer(value):
+                    label = match.group(1).strip()
+                    href = match.group(2).strip()
+                    if not label:
+                        issues.append(f"{path.name}: {key}.{locale} has a #settings link with empty label")
+                        continue
+                    if settings_link_is_valid(href, contracts):
+                        continue
+                    fallback = f"#message={quote(label, safe='')}"
+                    if not fallback:
+                        issues.append(f"{path.name}: {key}.{locale} has an invalid #settings link with no safe fallback")
     return issues
 
 
@@ -494,6 +634,8 @@ def audit() -> list[str]:
     valid_categories = load_canonical_categories()
     registry_keys = load_registry_keys()
     content_catalog = load_content_catalog()
+    memory_contracts = load_memory_category_contracts()
+    issues.extend(audit_settings_deep_links(memory_contracts))
     content_example_counts = dict.fromkeys(content_catalog, 0)
 
     for path in sorted(EXAMPLE_DIR.glob("*.ts")):

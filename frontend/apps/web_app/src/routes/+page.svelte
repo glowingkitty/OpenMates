@@ -2978,8 +2978,11 @@
 				deepLinkProcessed = true;
 				console.debug('[+page.svelte] onMessage deep link:', { autoSend, length: messageText.length });
 				// Store message for MessageInput to pick up via custom event
-				// ActiveChat will be in new-chat mode (no hash = welcome screen)
-				activeChatStore.clearActiveChat();
+				// Docs links open a new-chat draft when no chat is active. In-chat
+				// fallback links keep the current chat and only prefill its composer.
+				if (!$activeChatStore) {
+					activeChatStore.clearActiveChat();
+				}
 				// Dispatch after a short delay to let ActiveChat mount and render MessageInput
 				setTimeout(() => {
 					window.dispatchEvent(new CustomEvent('docsMessagePrefill', {

@@ -544,10 +544,11 @@ export function processSettingsDeepLink(
     // e.g. #settings/apps/all/focus-modes -> apps/all with filter 'focus_modes'
     const allAppsFilterMatch = path.match(/^apps\/all\/(.+)$/);
     if (allAppsFilterMatch) {
-      const filterValue = allAppsFilterMatch[1] as AllAppsFilterType;
+      const filterValue = allAppsFilterMatch[1];
       const validFilters: AllAppsFilterType[] = ['all', 'settings_memories', 'focus_modes', 'skills'];
-      if (validFilters.includes(filterValue)) {
-        allAppsInitialFilter.set(filterValue);
+      const normalizedFilterValue = (filterValue === 'memories' ? 'settings_memories' : filterValue) as AllAppsFilterType;
+      if (validFilters.includes(normalizedFilterValue)) {
+        allAppsInitialFilter.set(normalizedFilterValue);
       }
       path = "apps/all";
     }
@@ -559,6 +560,7 @@ export function processSettingsDeepLink(
     if (path.startsWith("apps/")) {
       path = path.replace(/\/skills\//, "/skill/");
       path = path.replace(/\/focuses\//, "/focus/");
+      path = path.replace(/\/memories\//, "/settings_memories/");
     }
 
     if (path === "billing/referral_code") {

@@ -32,6 +32,21 @@ vi.mock("../../../../stores/appSkillsStore", () => ({
           focus_modes: [],
           settings_and_memories: [],
         },
+        maps: {
+          id: "maps",
+          skills: [],
+          focus_modes: [],
+          settings_and_memories: [
+            {
+              id: "favorite_places",
+              schema_definition: {
+                properties: {
+                  name: { type: "string" },
+                },
+              },
+            },
+          ],
+        },
       },
     }),
   },
@@ -94,7 +109,7 @@ describe("preprocessMarkdown — fence tracking (OPE-380)", () => {
     expect(out).toContain("EMPTY_PARAGRAPH");
   });
 
-  it("keeps hallucinated settings links as plain text", () => {
+  it("rewrites hallucinated settings links to message-prefill links", () => {
     const doc = parseMarkdownToTiptap(
       "Open [billing settings](/#settings/apps/openmates/settings_memories/billing).",
     );
@@ -104,6 +119,48 @@ describe("preprocessMarkdown — fence tracking (OPE-380)", () => {
       (node: { text?: string }) => node.text === "billing settings",
     );
 
-    expect(billingText?.marks).toBeUndefined();
+    expect(billingText?.marks?.[0]?.attrs?.href).toBe("#message=billing%20settings");
+  });
+
+  it("normalizes valid raw settings memory links before markdown parsing", () => {
+    const doc = parseMarkdownToTiptap(
+      '[Save Kottbusser Tor](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor"})',
+    );
+
+    const linkText = doc.content[0].content.find(
+      (node: { text?: string }) => node.text === "Save Kottbusser Tor",
+    );
+
+    expect(linkText?.marks?.[0]?.attrs?.href).toBe(
+      "#settings/apps/maps/memories/favorite_places/create?prefill=%7B%22name%22%3A%22Kottbusser%20Tor%22%7D",
+    );
+  });
+
+  it("falls back when raw settings memory links include unsupported prefill fields", () => {
+    const doc = parseMarkdownToTiptap(
+      '[Kottbusser Tor als Lieblingsort speichern](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={“name”:“Kottbusser Tor”,“city”:“Berlin”})',
+    );
+
+    const linkText = doc.content[0].content.find(
+      (node: { text?: string }) => node.text === "Kottbusser Tor als Lieblingsort speichern",
+    );
+
+    expect(linkText?.marks?.[0]?.attrs?.href).toBe(
+      "#message=Kottbusser%20Tor%20als%20Lieblingsort%20speichern",
+    );
+  });
+
+  it("turns invalid raw settings memory links into message-prefill links", () => {
+    const doc = parseMarkdownToTiptap(
+      '[Fitnessziel setzen](/#settings/apps/fitness/settings_memories/goals/create?prefill={“name”:“Neue USC-Standorte erkunden”})',
+    );
+
+    const linkText = doc.content[0].content.find(
+      (node: { text?: string }) => node.text === "Fitnessziel setzen",
+    );
+
+    expect(linkText?.marks?.[0]?.attrs?.href).toBe(
+      "#message=Fitnessziel%20setzen",
+    );
   });
 });
