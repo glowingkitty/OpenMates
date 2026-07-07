@@ -1140,6 +1140,9 @@
             display: none;
         }
 
+    }
+
+    @media (max-width: 730px) {
         .webapp-center-tabs {
             display: none;
         }
@@ -1159,6 +1162,11 @@
             position: absolute;
             transform: translateX(-50%);
             z-index: var(--z-index-raised);
+        }
+
+        .docs-tabs {
+            position: static;
+            transform: none;
         }
 
         .workspace-select-shell select {
@@ -1196,14 +1204,6 @@
         .workspace-select-shell:focus-within {
             outline: 0.125rem solid #fff;
             outline-offset: 0.125rem;
-        }
-
-    }
-
-    @media (max-width: 730px) {
-        .docs-tabs {
-            position: static;
-            transform: none;
         }
     }
 </style>

@@ -3546,10 +3546,15 @@ private struct OpenMatesWebHeader: View {
     let onOpenReferral: () -> Void
     let onOpenAuth: () -> Void
     private static let compactHeaderMaxWidth: CGFloat = 894
+    private static let compactWorkspaceMaxWidth: CGFloat = 730
     private static let githubURL = URL(string: "https://github.com/glowingkitty/OpenMates")!
 
     private var isCompact: Bool {
         horizontalSizeClass == .compact || viewportWidth <= Self.compactHeaderMaxWidth
+    }
+
+    private var isCompactWorkspace: Bool {
+        horizontalSizeClass == .compact || viewportWidth <= Self.compactWorkspaceMaxWidth
     }
 
     var body: some View {
@@ -3642,7 +3647,7 @@ private struct OpenMatesWebHeader: View {
 
             if showWorkspaceSwitcher {
                 WorkspaceSwitcherTabs(
-                    isCompact: isCompact,
+                    isCompact: isCompactWorkspace,
                     selectedWorkspace: selectedWorkspace,
                     onSelectWorkspace: onSelectWorkspace,
                     onNewChat: onNewChat
