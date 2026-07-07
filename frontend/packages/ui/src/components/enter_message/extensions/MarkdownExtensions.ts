@@ -59,7 +59,7 @@ export const MarkdownHighlight = Highlight.configure({
  * - #message= or /#message= - Message composer prefill links
  * - #settings/ or /#settings/ - Settings deep links (including Apps)
  */
-function isInternalHashLink(href: string): boolean {
+export function isMarkdownInternalHashLink(href: string): boolean {
   if (!href) return false;
   const normalizedHref = href.startsWith('/#') ? href.substring(1) : href;
   return (
@@ -72,7 +72,7 @@ function isInternalHashLink(href: string): boolean {
   );
 }
 
-function dispatchMessagePrefillFromHref(href: string): boolean {
+export function dispatchMessagePrefillFromHref(href: string): boolean {
   const normalizedHref = href.startsWith('/') ? href.substring(1) : href;
   if (!normalizedHref.startsWith('#message=')) return false;
 
@@ -127,7 +127,7 @@ export const MarkdownLink = Link.extend({
             normalizedHref = normalizedHref.substring(1); // Remove leading / from /#...
           }
           
-          const isInternal = isInternalHashLink(attributes.href);
+            const isInternal = isMarkdownInternalHashLink(attributes.href);
           
           if (isInternal) {
             // Internal link: same tab, no target="_blank"
@@ -158,14 +158,14 @@ export const MarkdownLink = Link.extend({
         parseHTML: element => {
           const href = element.getAttribute('href');
           // For internal links, always return null to prevent target attribute
-          if (href && isInternalHashLink(href)) {
+          if (href && isMarkdownInternalHashLink(href)) {
             return null; // No target for internal links
           }
           return element.getAttribute('target');
         },
         renderHTML: attributes => {
           // Check if this is an internal link
-          if (attributes.href && isInternalHashLink(attributes.href)) {
+          if (attributes.href && isMarkdownInternalHashLink(attributes.href)) {
             // Return empty object - this prevents target from being rendered
             return {};
           }
@@ -195,7 +195,7 @@ export const MarkdownLink = Link.extend({
                 const href = link.getAttribute('href');
                 const hasInternalAttr = link.hasAttribute('data-internal');
                 
-                if (hasInternalAttr && href && isInternalHashLink(href)) {
+                if (hasInternalAttr && href && isMarkdownInternalHashLink(href)) {
                   // Internal hash-based link: prevent default and navigate to hash
                   event.preventDefault();
                   event.stopPropagation();

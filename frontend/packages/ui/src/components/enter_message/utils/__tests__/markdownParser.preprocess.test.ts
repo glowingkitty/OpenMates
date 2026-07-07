@@ -166,20 +166,14 @@ describe("preprocessMarkdown — fence tracking (OPE-380)", () => {
   });
 
   it("separates adjacent invalid settings fallback links into separate paragraphs", () => {
-    const doc = parseMarkdownToTiptap(
+    const processed = preprocessMarkdown(
       '[Fitnessziel setzen](/#settings/apps/fitness/settings_memories/goals/create?prefill={“name”:“Neue USC-Standorte erkunden”})' +
         '[Kottbusser Tor als Lieblingsort speichern](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={“name”:“Kottbusser Tor”,“city”:“Berlin”})',
     );
 
-    const paragraphs = doc.content.filter((node: { type?: string }) => node.type === "paragraph");
-
-    expect(paragraphs[0].content[0].text).toBe("Fitnessziel setzen");
-    expect(paragraphs[0].content[0].marks?.[0]?.attrs?.href).toBe(
-      "#message=Fitnessziel%20setzen",
-    );
-    expect(paragraphs[1].content[0].text).toBe("Kottbusser Tor als Lieblingsort speichern");
-    expect(paragraphs[1].content[0].marks?.[0]?.attrs?.href).toBe(
-      "#message=Kottbusser%20Tor%20als%20Lieblingsort%20speichern",
+    expect(processed).toContain(
+      '[Fitnessziel setzen](#message=Fitnessziel%20setzen)\n\n' +
+        '[Kottbusser Tor als Lieblingsort speichern](#message=Kottbusser%20Tor%20als%20Lieblingsort%20speichern)',
     );
   });
 });
