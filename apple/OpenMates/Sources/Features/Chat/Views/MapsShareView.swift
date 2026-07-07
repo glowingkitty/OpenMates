@@ -88,6 +88,7 @@ struct ComposerLocationOverlay: View {
         .background(Color.grey100)
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .clipped()
+        .accessibilityIdentifier("location-overlay")
     }
 
     private func searchPlaces() {

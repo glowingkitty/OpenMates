@@ -42,17 +42,7 @@ final class ComposerVisualParityUITests: XCTestCase {
     }
 
     func testFocusedWelcomeComposerScreenshotShowsActionButtons() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
-        app.launch()
-
-        let skip = app.buttons["guest-interest-skip"]
-        if skip.waitForExistence(timeout: 12) {
-            skip.tap()
-        }
-
-        let editor = waitForMessageEditor(in: app)
-        editor.tap()
+        let app = launchFocusedWelcomeComposer()
 
         XCTAssertTrue(app.buttons["message-input-fullscreen-button"].waitForExistence(timeout: 5))
         let screenshot = XCUIScreen.main.screenshot()
@@ -60,6 +50,26 @@ final class ComposerVisualParityUITests: XCTestCase {
             assertButtonIsVisibleInScreenshot(app.buttons[identifier], identifier: identifier, in: app, screenshot: screenshot)
         }
         attachScreenshot(screenshot, name: "Focused welcome composer action buttons visible")
+    }
+
+    func testFocusedWelcomeComposerActionButtonsAreNotNoOpsWhenSignedOut() throws {
+        assertSignedOutWelcomeActionShowsSignupCTA("attach-files-button")
+        assertSignedOutWelcomeActionShowsSignupCTA("sketch-button")
+        assertSignedOutWelcomeActionShowsSignupCTA("take-photo-button")
+        assertSignedOutWelcomeActionShowsSignupCTA("record-audio-button")
+
+        let locationApp = launchFocusedWelcomeComposer()
+        let locationButton = locationApp.buttons["share-location-button"]
+        XCTAssertTrue(locationButton.waitForExistence(timeout: 5), "Expected share-location-button to exist")
+        XCTAssertTrue(locationButton.isHittable, "Expected share-location-button to be hittable")
+        locationButton.tap()
+        XCTAssertTrue(
+            locationApp.descendants(matching: .any)
+                .matching(NSPredicate(format: "identifier == %@", "location-overlay"))
+                .firstMatch
+                .waitForExistence(timeout: 5),
+            "Expected location action to open the location composer overlay"
+        )
     }
 
     func testQuickCaptureComposerUsesSameSharedIdentifierContract() throws {
@@ -104,6 +114,43 @@ final class ComposerVisualParityUITests: XCTestCase {
         }
         XCTFail("Expected message editor to exist. Visible UI: \(app.debugDescription)")
         return candidates[0]
+    }
+
+    private func launchFocusedWelcomeComposer() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
+        app.launch()
+
+        let skip = app.buttons["guest-interest-skip"]
+        if skip.waitForExistence(timeout: 12) {
+            skip.tap()
+        }
+
+        let editor = waitForMessageEditor(in: app)
+        editor.tap()
+        XCTAssertTrue(app.buttons["message-input-fullscreen-button"].waitForExistence(timeout: 5))
+        return app
+    }
+
+    private func assertSignedOutWelcomeActionShowsSignupCTA(
+        _ identifier: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let app = launchFocusedWelcomeComposer()
+        let button = app.buttons[identifier]
+        XCTAssertTrue(button.waitForExistence(timeout: 5), "Expected \(identifier) to exist", file: file, line: line)
+        XCTAssertTrue(button.isHittable, "Expected \(identifier) to be hittable", file: file, line: line)
+        XCTAssertFalse(app.buttons["send-button"].exists, "Signup CTA should not be visible before an action", file: file, line: line)
+
+        button.tap()
+
+        XCTAssertTrue(
+            app.buttons["send-button"].waitForExistence(timeout: 5),
+            "Expected \(identifier) to surface the signup CTA instead of no-oping",
+            file: file,
+            line: line
+        )
     }
 
     private func assertButtonIsVisibleInScreenshot(

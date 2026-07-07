@@ -4324,6 +4324,12 @@ enum WelcomeScreenState {
     }
 }
 
+private enum WelcomeComposerOverlay: Equatable {
+    case location
+    case sketch
+    case recording
+}
+
 struct NewChatWelcomeView: View {
     let inspirations: [DailyInspirationBanner.DailyInspiration]
     let isAuthenticated: Bool
@@ -4353,7 +4359,15 @@ struct NewChatWelcomeView: View {
     @State private var handledFocusRequest = 0
     @State private var detectedPIIMatches: [PIIMatch] = []
     @State private var piiExclusions = Set<String>()
+    @State private var anonymousAttachmentPending = false
+    @State private var showAttachmentMenu = false
+    @State private var showCameraCapture = false
+    @State private var composerOverlay: WelcomeComposerOverlay?
+    @State private var micPermissionState: MicPermissionState = .unknown
+    @State private var recordDragOffsetX: CGFloat = 0
+    @State private var recordAttemptActive = false
     @StateObject private var piiPrivacySettingsStore = PIIPrivacySettingsStore.shared
+    @StateObject private var composerRecorder = VoiceRecorder()
     @FocusState private var isFocused: Bool
 
     private static let inspirationAutoRotationInterval: TimeInterval = 20
@@ -4418,7 +4432,13 @@ struct NewChatWelcomeView: View {
     }
 
     private var isComposerActive: Bool {
-        isFocused || isComposerActivated || isComposerExpanded || WelcomeScreenState.shouldShowInFieldSendButton(inputText: messageText)
+        isFocused ||
+        isComposerActivated ||
+        isComposerExpanded ||
+        anonymousAttachmentPending ||
+        composerOverlay != nil ||
+        showAttachmentMenu ||
+        WelcomeScreenState.shouldShowInFieldSendButton(inputText: messageText)
     }
 
     private var activePIIMatches: [PIIMatch] {
@@ -4456,9 +4476,7 @@ struct NewChatWelcomeView: View {
                     .contentShape(Rectangle())
                     .onTapGesture {
                         guard isComposerActive else { return }
-                        isFocused = false
-                        isComposerActivated = false
-                        isComposerExpanded = false
+                        dismissWelcomeComposer()
                     }
 
                 VStack(spacing: 0) {
@@ -4510,15 +4528,38 @@ struct NewChatWelcomeView: View {
                     isAuthenticated: isAuthenticated,
                     canSendAnonymously: canSendAnonymously,
                     piiMatches: activePIIMatches,
+                    anonymousAttachmentPending: anonymousAttachmentPending,
+                    isOverlayActive: composerOverlay != nil,
+                    isAttachmentMenuPresented: $showAttachmentMenu,
                     onExcludePII: { match in piiExclusions.insert(match.id) },
                     onUndoAllPII: { piiExclusions.formUnion(detectedPIIMatches.map(\.id)) },
                     onSend: { createChatWith(message: messageText) },
-                    onOpenAuth: onOpenAuth
+                    onOpenAuth: onOpenAuth,
+                    onBlockedAttachment: blockAnonymousAttachment,
+                    onAttachmentSelected: handleAttachmentSelection,
+                    onLocation: openLocationOverlay,
+                    onSketch: openSketchOverlay,
+                    onCamera: openCameraCapture,
+                    onRecord: openRecordingOverlay,
+                    onDismiss: dismissWelcomeComposer,
+                    overlayContent: welcomeComposerOverlayView()
                 )
             }
             .animation(.easeInOut(duration: 0.2), value: isComposerActive)
         }
         .background(Color.clear)
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showCameraCapture) {
+            CameraCaptureView(
+                onCapture: { _, filename in
+                    showCameraCapture = false
+                    handleAttachmentSelection(filename: filename)
+                },
+                onCancel: { showCameraCapture = false }
+            )
+            .ignoresSafeArea()
+        }
+        #endif
         .task {
             await loadSuggestions()
             await ApplePrivacySettingsService.shared.load()
@@ -4548,6 +4589,168 @@ struct NewChatWelcomeView: View {
         }
         .onChange(of: piiPrivacySettingsStore.settings) { _, _ in
             updatePIIMatches(for: messageText)
+        }
+    }
+
+    private func blockAnonymousAttachment() {
+        anonymousAttachmentPending = true
+        isComposerActivated = true
+        isFocused = true
+    }
+
+    private func handleAttachmentSelection(filename: String) {
+        showAttachmentMenu = false
+        isComposerActivated = true
+        isFocused = true
+        ToastManager.shared.show(filename, type: .info)
+    }
+
+    private func openLocationOverlay() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            composerOverlay = .location
+            isComposerActivated = true
+            isFocused = true
+        }
+    }
+
+    private func openSketchOverlay() {
+        guard isAuthenticated else {
+            blockAnonymousAttachment()
+            return
+        }
+        #if os(iOS)
+        withAnimation(.easeInOut(duration: 0.2)) {
+            composerOverlay = .sketch
+            isComposerActivated = true
+            isFocused = true
+        }
+        #else
+        ToastManager.shared.show(AppStrings.sketchAction, type: .info)
+        #endif
+    }
+
+    private func openCameraCapture() {
+        guard isAuthenticated else {
+            blockAnonymousAttachment()
+            return
+        }
+        #if os(iOS)
+        showCameraCapture = true
+        #else
+        ToastManager.shared.show(AppStrings.takePhoto, type: .info)
+        #endif
+    }
+
+    private func openRecordingOverlay() {
+        guard isAuthenticated else {
+            blockAnonymousAttachment()
+            return
+        }
+        recordAttemptActive = true
+        recordDragOffsetX = 0
+
+        if micPermissionState == .denied {
+            ToastManager.shared.show(AppStrings.microphoneBlocked, type: .info)
+            recordAttemptActive = false
+            return
+        }
+
+        if micPermissionState == .unknown {
+            Task { @MainActor in
+                let granted = await composerRecorder.requestPermission()
+                micPermissionState = granted ? .granted : .denied
+                if granted {
+                    startWelcomeRecordingOverlay()
+                } else {
+                    recordAttemptActive = false
+                    ToastManager.shared.show(AppStrings.microphoneBlocked, type: .info)
+                }
+            }
+            return
+        }
+
+        startWelcomeRecordingOverlay()
+    }
+
+    private func startWelcomeRecordingOverlay() {
+        composerRecorder.startRecording()
+        guard composerRecorder.error == nil else {
+            micPermissionState = .denied
+            recordAttemptActive = false
+            ToastManager.shared.show(AppStrings.microphoneBlocked, type: .info)
+            return
+        }
+        withAnimation(.easeInOut(duration: 0.15)) {
+            composerOverlay = .recording
+            isComposerActivated = true
+            isFocused = true
+        }
+    }
+
+    private func cancelWelcomeRecording() {
+        composerRecorder.cancelRecording()
+        composerOverlay = nil
+        recordAttemptActive = false
+        recordDragOffsetX = 0
+    }
+
+    private func dismissWelcomeComposer() {
+        if composerOverlay == .recording {
+            composerRecorder.cancelRecording()
+            recordAttemptActive = false
+            recordDragOffsetX = 0
+        }
+        isComposerActivated = false
+        isFocused = false
+        isComposerExpanded = false
+        anonymousAttachmentPending = false
+        showAttachmentMenu = false
+        composerOverlay = nil
+    }
+
+    private func welcomeComposerOverlayView() -> AnyView? {
+        guard let composerOverlay else { return nil }
+        switch composerOverlay {
+        case .location:
+            return AnyView(
+                ComposerLocationOverlay(
+                    onShare: { latitude, longitude, name in
+                        let label = name.isEmpty ? AppStrings.selectedLocation : name
+                        let locationText = "📍 \(label) (\(latitude), \(longitude))"
+                        messageText += messageText.isEmpty ? locationText : "\n\(locationText)"
+                        self.composerOverlay = nil
+                    },
+                    onCancel: { self.composerOverlay = nil }
+                )
+            )
+        case .sketch:
+            #if os(iOS)
+            return AnyView(
+                SketchComposerOverlay(
+                    onSave: { _, filename in
+                        self.composerOverlay = nil
+                        handleAttachmentSelection(filename: filename)
+                    },
+                    onCancel: { self.composerOverlay = nil }
+                )
+            )
+            #else
+            return nil
+            #endif
+        case .recording:
+            return AnyView(
+                ComposerRecordingOverlay(
+                    recorder: composerRecorder,
+                    dragOffsetX: recordDragOffsetX,
+                    onStop: { url in
+                        self.composerOverlay = nil
+                        self.recordAttemptActive = false
+                        self.recordDragOffsetX = 0
+                        handleAttachmentSelection(filename: url.lastPathComponent)
+                    },
+                    onCancel: cancelWelcomeRecording
+                )
+            )
         }
     }
 
@@ -4879,6 +5082,9 @@ struct NewChatWelcomeView: View {
                 isComposerActivated = false
                 isComposerExpanded = false
                 isFocused = false
+                anonymousAttachmentPending = false
+                showAttachmentMenu = false
+                composerOverlay = nil
                 detectedPIIMatches = []
                 piiExclusions = []
                 onChatCreated(chatId)
@@ -5284,21 +5490,36 @@ private struct WelcomeComposer: View {
     let isAuthenticated: Bool
     let canSendAnonymously: Bool
     let piiMatches: [PIIMatch]
+    let anonymousAttachmentPending: Bool
+    let isOverlayActive: Bool
+    @Binding var isAttachmentMenuPresented: Bool
     let onExcludePII: (PIIMatch) -> Void
     let onUndoAllPII: () -> Void
     let onSend: () -> Void
     let onOpenAuth: () -> Void
+    let onBlockedAttachment: () -> Void
+    let onAttachmentSelected: (String) -> Void
+    let onLocation: () -> Void
+    let onSketch: () -> Void
+    let onCamera: () -> Void
+    let onRecord: () -> Void
+    let onDismiss: () -> Void
+    let overlayContent: AnyView?
 
     private var hasContent: Bool {
         WelcomeScreenState.shouldShowInFieldSendButton(inputText: text)
     }
 
     private var isOpen: Bool {
-        hasContent || isFocused || isActivated || isExpanded
+        hasContent || isFocused || isActivated || isExpanded || isOverlayActive || anonymousAttachmentPending
     }
 
     private var canSubmit: Bool {
-        isAuthenticated || canSendAnonymously
+        !anonymousAttachmentPending && (isAuthenticated || canSendAnonymously)
+    }
+
+    private var shouldShowSendOrAuthButton: Bool {
+        hasContent || anonymousAttachmentPending
     }
 
     var body: some View {
@@ -5315,12 +5536,14 @@ private struct WelcomeComposer: View {
                 compactHeight: 60,
                 compactCornerRadius: 24,
                 showActionButtonsWhenCompact: isOpen,
-                expandedMinHeight: isExpanded ? 360 : MessageComposerMetric.expandedMinHeight,
+                expandedMinHeight: isOverlayActive ? 400 : (isExpanded ? 360 : MessageComposerMetric.expandedMinHeight),
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 onSubmit: { canSubmit ? onSend() : onOpenAuth() },
                 overlayContent: {
-                    if isOpen {
+                    if let overlayContent {
+                        overlayContent
+                    } else if isOpen {
                         Button {
                             isExpanded.toggle()
                             isFocused = true
@@ -5340,28 +5563,34 @@ private struct WelcomeComposer: View {
                 },
                 actionButtons: {
                     HStack(spacing: .spacing5) {
-                        MessageComposerActionIcon(icon: "files", label: AppStrings.attachFiles, identifier: "attach-files-button") {
-                            isActivated = true
-                            isFocused = true
+                        if isAuthenticated {
+                            AttachmentPicker(
+                                isPresented: $isAttachmentMenuPresented,
+                                onImageSelected: { _, filename in onAttachmentSelected(filename) },
+                                onFileSelected: { _, filename in onAttachmentSelected(filename) }
+                            )
+                            .help(Text(AppStrings.attachFiles))
+                            .accessibilityLabel(AppStrings.attachFiles)
+                            .accessibilityIdentifier("attach-files-button")
+                        } else {
+                            MessageComposerActionIcon(icon: "files", label: AppStrings.attachFiles, identifier: "attach-files-button") {
+                                onBlockedAttachment()
+                            }
                         }
                         MessageComposerActionIcon(icon: "maps", label: AppStrings.shareLocation, identifier: "share-location-button") {
-                            isActivated = true
-                            isFocused = true
+                            onLocation()
                         }
                         MessageComposerActionIcon(icon: "whiteboard", label: AppStrings.sketchAction, identifier: "sketch-button") {
-                            isActivated = true
-                            isFocused = true
+                            onSketch()
                         }
                         Spacer()
                         MessageComposerActionIcon(icon: "camera", label: AppStrings.takePhoto, identifier: "take-photo-button") {
-                            isActivated = true
-                            isFocused = true
+                            onCamera()
                         }
                         MessageComposerActionIcon(icon: "recordaudio", label: AppStrings.recordAudio, identifier: "record-audio-button") {
-                            isActivated = true
-                            isFocused = true
+                            onRecord()
                         }
-                        if hasContent {
+                        if shouldShowSendOrAuthButton {
                             MessageComposerSendButton(title: canSubmit ? AppStrings.sendAction : AppStrings.signUp) {
                                 canSubmit ? onSend() : onOpenAuth()
                             }
@@ -5380,9 +5609,7 @@ private struct WelcomeComposer: View {
             )
             if isOpen && !isFocused {
                 Button {
-                    isActivated = false
-                    isFocused = false
-                    isExpanded = false
+                    onDismiss()
                 } label: {
                     Text(hasContent ? AppStrings.save : AppStrings.cancel)
                         .font(.omSmall)
