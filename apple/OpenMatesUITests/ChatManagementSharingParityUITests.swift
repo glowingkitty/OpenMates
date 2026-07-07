@@ -85,12 +85,7 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
         openSafariURL(fixtureSafariURL, in: safari)
 
-        let shareButton = safari.buttons["Share"]
-        XCTAssertTrue(
-            shareButton.waitForExistence(timeout: 15),
-            "Expected Safari Share button before opening OpenMates extension. Visible UI: \(visibleStateLabels(in: safari))"
-        )
-        shareButton.tap()
+        tapSafariShareButton(in: safari)
 
         XCTAssertTrue(
             tapOpenMatesShareTarget(timeout: 15),
@@ -135,12 +130,7 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
         openSafariURL(fixtureSafariURL, in: safari)
 
-        let shareButton = safari.buttons["Share"]
-        XCTAssertTrue(
-            shareButton.waitForExistence(timeout: 15),
-            "Expected Safari Share button before opening OpenMates extension. Visible UI: \(visibleStateLabels(in: safari))"
-        )
-        shareButton.tap()
+        tapSafariShareButton(in: safari)
 
         XCTAssertTrue(
             tapOpenMatesShareTarget(timeout: 15),
@@ -228,9 +218,41 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         addressField.typeText("\n")
 
         XCTAssertTrue(
-            safari.buttons["Share"].waitForExistence(timeout: 20),
-            "Expected Safari to load the fixture URL and expose Share. Visible UI: \(visibleStateLabels(in: safari))"
+            waitForSafariShareSurface(in: safari, timeout: 20),
+            "Expected Safari to load the fixture URL and expose a share surface. Visible UI: \(visibleStateLabels(in: safari))"
         )
+    }
+
+    private func tapSafariShareButton(in safari: XCUIApplication) {
+        let directShareButton = safari.buttons["Share"]
+        if directShareButton.waitForExistence(timeout: 3) {
+            directShareButton.tap()
+            return
+        }
+
+        let moreButton = safari.buttons["MoreMenuButton"]
+        XCTAssertTrue(
+            moreButton.waitForExistence(timeout: 10),
+            "Expected Safari Share or More button. Visible UI: \(visibleStateLabels(in: safari))"
+        )
+        moreButton.tap()
+
+        XCTAssertTrue(
+            directShareButton.waitForExistence(timeout: 5),
+            "Expected Share action inside Safari More menu. Visible UI: \(visibleStateLabels(in: safari))"
+        )
+        directShareButton.tap()
+    }
+
+    private func waitForSafariShareSurface(in safari: XCUIApplication, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if safari.buttons["Share"].exists || safari.buttons["MoreMenuButton"].exists {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        } while Date() < deadline
+        return false
     }
 
     private func tapOpenMatesShareTarget(timeout: TimeInterval) -> Bool {
