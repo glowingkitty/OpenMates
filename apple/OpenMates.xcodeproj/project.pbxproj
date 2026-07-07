@@ -46,6 +46,13 @@
 		C0FFEE000000000000049005 /* WatchChatRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049003 /* WatchChatRuntime.swift */; };
 		C0FFEE000000000000049006 /* WatchChatRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049003 /* WatchChatRuntime.swift */; };
 		C0FFEE000000000000049008 /* WatchChatRuntimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049007 /* WatchChatRuntimeTests.swift */; };
+		C0FFEE000000000000049010 /* WatchEmbedPreviewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049013 /* WatchEmbedPreviewModel.swift */; };
+		C0FFEE000000000000049011 /* WatchEmbedPreviewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049013 /* WatchEmbedPreviewModel.swift */; };
+		C0FFEE000000000000049012 /* WatchEmbedPreviewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049013 /* WatchEmbedPreviewModel.swift */; };
+		C0FFEE000000000000049014 /* WatchEmbedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049015 /* WatchEmbedViews.swift */; };
+		C0FFEE000000000000049016 /* EmbedModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC211406AADF88E0D1BF6F4D /* EmbedModels.swift */; };
+		C0FFEE000000000000049017 /* AnyCodable.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAF7ABCEA32F7C1A1EA73079 /* AnyCodable.swift */; };
+		C0FFEE000000000000049018 /* WatchEmbedPreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE000000000000049019 /* WatchEmbedPreviewTests.swift */; };
 		FDD100000000000000000002 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDD100000000000000000001 /* BrandAssets.xcassets */; };
 		FDD100000000000000000003 /* BrandAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FDD100000000000000000001 /* BrandAssets.xcassets */; };
 		04B767719514CAB080FEB1CB /* LucideIcons in Frameworks */ = {isa = PBXBuildFile; productRef = 8FC7D47DA7AECCBB2EBDABE9 /* LucideIcons */; };
@@ -625,6 +632,9 @@
 		C0FFEE000000000000048023 /* WatchPairLoginRuntimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPairLoginRuntimeTests.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000049003 /* WatchChatRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchChatRuntime.swift; sourceTree = "<group>"; };
 		C0FFEE000000000000049007 /* WatchChatRuntimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchChatRuntimeTests.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000049013 /* WatchEmbedPreviewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchEmbedPreviewModel.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000049015 /* WatchEmbedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchEmbedViews.swift; sourceTree = "<group>"; };
+		C0FFEE000000000000049019 /* WatchEmbedPreviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchEmbedPreviewTests.swift; sourceTree = "<group>"; };
 		0227C2E4CCA424320275BF24 /* EmbedContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedContentView.swift; sourceTree = "<group>"; };
 		03D3A7D2378D0282470FB1BD /* AccessibilityModifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityModifiers.swift; sourceTree = "<group>"; };
 		03F6A73487EB67E6734E689D /* EmbedGrouping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbedGrouping.swift; sourceTree = "<group>"; };
@@ -1341,6 +1351,7 @@
 			isa = PBXGroup;
 			children = (
 				C0FFEE000000000000049003 /* WatchChatRuntime.swift */,
+				C0FFEE000000000000049013 /* WatchEmbedPreviewModel.swift */,
 			);
 			path = Watch;
 			sourceTree = "<group>";
@@ -1458,6 +1469,7 @@
 				C0FFEE000000000000047001 /* OpenMatesWatchApp.swift */,
 				C0FFEE000000000000048011 /* WatchAuthStore.swift */,
 				C0FFEE000000000000049001 /* WatchChatViews.swift */,
+				C0FFEE000000000000049015 /* WatchEmbedViews.swift */,
 				C0FFEE000000000000048009 /* WatchLocalization.swift */,
 				C0FFEE000000000000048013 /* WatchPairLoginView.swift */,
 				C0FFEE000000000000047003 /* WatchRootView.swift */,
@@ -1471,6 +1483,7 @@
 				C0FFEE000000000000002001 /* ChatWindowLoadingTests.swift */,
 				C0FFEE000000000000048023 /* WatchPairLoginRuntimeTests.swift */,
 				C0FFEE000000000000049007 /* WatchChatRuntimeTests.swift */,
+				C0FFEE000000000000049019 /* WatchEmbedPreviewTests.swift */,
 				C0FFEE000000000000037004 /* ChatSendPipelineParityTests.swift */,
 				C0FFEE000000000000038001 /* ChatStreamingLifecycleParityTests.swift */,
 				C0FFEE000000000000039001 /* BackgroundChatSenderParityTests.swift */,
@@ -2064,17 +2077,21 @@
 			buildActionMask = 2147483647;
 			files = (
 				C0FFEE000000000000047002 /* OpenMatesWatchApp.swift in Sources */,
+				C0FFEE000000000000049017 /* AnyCodable.swift in Sources */,
 				C0FFEE000000000000048004 /* AuthError.swift in Sources */,
 				C0FFEE000000000000048018 /* AuthModels.swift in Sources */,
 				C0FFEE000000000000048019 /* CryptoManager.swift in Sources */,
+				C0FFEE000000000000049016 /* EmbedModels.swift in Sources */,
 				C0FFEE000000000000048020 /* KeychainHelper.swift in Sources */,
 				C0FFEE000000000000048016 /* APIClient.swift in Sources */,
 				C0FFEE000000000000048017 /* ServerConfiguration.swift in Sources */,
 				C0FFEE000000000000049004 /* WatchChatRuntime.swift in Sources */,
+				C0FFEE000000000000049010 /* WatchEmbedPreviewModel.swift in Sources */,
 				C0FFEE000000000000048008 /* PairLoginRuntime.swift in Sources */,
 				C0FFEE000000000000048010 /* WatchLocalization.swift in Sources */,
 				C0FFEE000000000000048012 /* WatchAuthStore.swift in Sources */,
 				C0FFEE000000000000049002 /* WatchChatViews.swift in Sources */,
+				C0FFEE000000000000049014 /* WatchEmbedViews.swift in Sources */,
 				C0FFEE000000000000048014 /* WatchPairLoginView.swift in Sources */,
 				C0FFEE000000000000047004 /* WatchRootView.swift in Sources */,
 				C0FFEE000000000000047006 /* DataExtensions.swift in Sources */,
@@ -2130,6 +2147,7 @@
 				D28496BC291A569EA6AD7667 /* AuthModels.swift in Sources */,
 				C0FFEE000000000000048006 /* PairLoginRuntime.swift in Sources */,
 				C0FFEE000000000000049005 /* WatchChatRuntime.swift in Sources */,
+				C0FFEE000000000000049011 /* WatchEmbedPreviewModel.swift in Sources */,
 				31751A097DDB781066268A99 /* BackgroundChatSender.swift in Sources */,
 				EE49D3D4C3BA1DAED058F015 /* BackupCodeView.swift in Sources */,
 				7D8915EDA73C2D4E982A02B6 /* CameraView.swift in Sources */,
@@ -2343,6 +2361,7 @@
 				F98B349F4D92BA38E6A386DE /* AuthModels.swift in Sources */,
 				C0FFEE000000000000048007 /* PairLoginRuntime.swift in Sources */,
 				C0FFEE000000000000049006 /* WatchChatRuntime.swift in Sources */,
+				C0FFEE000000000000049012 /* WatchEmbedPreviewModel.swift in Sources */,
 				88923DFE92A96AF8D50B9372 /* BackgroundChatSender.swift in Sources */,
 				E628B3A1F3BF0C7F6F112E67 /* BackupCodeView.swift in Sources */,
 				F60B0AD99AE29EEF5D439703 /* CameraView.swift in Sources */,
@@ -2607,6 +2626,7 @@
 				C0FFEE000000000000002004 /* ChatWindowLoadingTests.swift in Sources */,
 				C0FFEE000000000000048024 /* WatchPairLoginRuntimeTests.swift in Sources */,
 				C0FFEE000000000000049008 /* WatchChatRuntimeTests.swift in Sources */,
+				C0FFEE000000000000049018 /* WatchEmbedPreviewTests.swift in Sources */,
 				C0FFEE000000000000037005 /* ChatSendPipelineParityTests.swift in Sources */,
 				C0FFEE000000000000038002 /* ChatStreamingLifecycleParityTests.swift in Sources */,
 				C0FFEE000000000000039002 /* BackgroundChatSenderParityTests.swift in Sources */,

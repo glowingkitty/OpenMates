@@ -438,11 +438,15 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
 
     private static func logDuplicateIds(_ duplicateIds: [String: Int], context: String) {
         guard !duplicateIds.isEmpty else { return }
+        #if os(watchOS)
+        _ = context
+        #else
         let sample = duplicateIds.keys.sorted().prefix(6).joined(separator: ",")
         let duplicateEntries = duplicateIds.values.reduce(0) { $0 + $1 - 1 }
         NativeSyncPerfLog.warning(
             "phase=embedDedup context=\(context) duplicateIds=\(duplicateIds.count) duplicateEntries=\(duplicateEntries) sample=\(sample)"
         )
+        #endif
     }
 
     private static func parseNestedObject(
