@@ -8,6 +8,14 @@ import { OPENMATES_VIDEOS } from "./data/videos";
 import { parse } from "yaml";
 
 const INTRO_VIDEO = OPENMATES_VIDEOS["intro-en"];
+const PRODUCT_VIDEO_BASE_URL = "https://openmates-product-media.nbg1.your-objectstorage.com/daily-inspiration/product-videos/v1";
+const PRODUCT_VIDEO_TEASER_BASE_PATH = "/daily-inspiration-videos";
+const PRODUCT_VIDEO_BY_FEATURE_ID: Record<string, string> = {
+  "pii-detection": "custom-pii-detection",
+  "events-search": "events-search",
+  "trusted-quotes": "web-video-skills",
+  "image-upload": "image-detection",
+};
 const PRODUCT_FEATURE_MODULES = import.meta.glob("../data/product_features.yml", {
   query: "?raw",
   import: "default",
@@ -108,6 +116,21 @@ function localizedFeatureField(
   return translations[lang]?.[feature.id]?.[field] ?? feature[field];
 }
 
+function buildProductFeatureVideo(featureId: string, title: string): DailyInspiration["direct_video"] {
+  const videoSlug = PRODUCT_VIDEO_BY_FEATURE_ID[featureId];
+  if (!videoSlug) return null;
+
+  const teaserBase = `${PRODUCT_VIDEO_TEASER_BASE_PATH}/${videoSlug}-teaser`;
+  return {
+    title,
+    mp4_url: `${PRODUCT_VIDEO_BASE_URL}/${videoSlug}.mp4`,
+    thumbnail_url: `${teaserBase}.webp`,
+    teaser_url: `${teaserBase}.webm`,
+    teaser_mp4_url: `${teaserBase}.mp4`,
+    teaser_webp_url: `${teaserBase}.webp`,
+  };
+}
+
 function getProductExplainers(locale: string): Array<DailyInspiration & { tags: string[]; order: number }> {
   const intro = getProductIntroText(locale);
   const { features, translations } = parseProductFeatureData();
@@ -151,6 +174,7 @@ function getProductExplainers(locale: string): Array<DailyInspiration & { tags: 
     category: "openmates_official",
     content_type: "feature",
     video: null,
+    direct_video: buildProductFeatureVideo(feature.id, title),
     generated_at: 0,
     assistant_response: description,
     follow_up_suggestions: [],

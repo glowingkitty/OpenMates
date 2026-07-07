@@ -2,6 +2,10 @@
   /**
    * DailyInspirationBanner.svelte
    *
+   * Native Swift counterparts:
+   * - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+   * - apple/OpenMates/Sources/App/MainAppView.swift
+   *
    * Displays up to 3 daily inspiration banners in a carousel at the top of the
    * new chat screen (welcome screen). Each banner shows:
    *   - A gradient background (category colour from getCategoryGradientColors)
@@ -999,7 +1003,28 @@
                 data-direct-video="true"
                 onclick={handleDirectVideoClick}
               >
-                {#if infoCardImage}
+                {#if directVideoTeaserUrl || directVideoTeaserMp4Url}
+                  <span class="banner-info-video-shell">
+                    <video
+                      class="banner-info-video"
+                      data-testid="daily-inspiration-direct-video"
+                      poster={directVideoPosterUrl || undefined}
+                      autoplay
+                      muted
+                      loop
+                      playsinline
+                      preload="metadata"
+                    >
+                      {#if directVideoTeaserUrl}
+                        <source src={directVideoTeaserUrl} type="video/webm" />
+                      {/if}
+                      {#if directVideoTeaserMp4Url}
+                        <source src={directVideoTeaserMp4Url} type="video/mp4" />
+                      {/if}
+                    </video>
+                    <span class="banner-info-play" aria-hidden="true"><span></span></span>
+                  </span>
+                {:else if infoCardImage}
                   <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
                 {:else if InfoCardIconComponent}
                   <div class="banner-info-icon" aria-hidden="true">
@@ -1562,6 +1587,51 @@
     transition: transform var(--duration-fast) var(--easing-default);
   }
 
+  .banner-info-video-shell {
+    position: relative;
+    display: block;
+    width: 176px;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: var(--radius-4);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(18, 18, 18, 0.72);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.26);
+  }
+
+  .banner-info-video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .banner-info-play {
+    position: absolute;
+    inset: auto var(--spacing-3) var(--spacing-3) auto;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: rgba(245, 105, 86, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.52);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .banner-info-play span {
+    display: block;
+    width: 0;
+    height: 0;
+    margin-left: 3px;
+    border-top: 7px solid transparent;
+    border-bottom: 7px solid transparent;
+    border-left: 11px solid rgba(255, 255, 255, 0.96);
+  }
+
   .banner-info-icon {
     width: 64px;
     height: 64px;
@@ -1922,6 +1992,10 @@
     .banner-info-icon {
       width: 46px;
       height: 46px;
+    }
+
+    .banner-info-video-shell {
+      width: min(100%, 140px);
     }
 
     .banner-info-text p {
