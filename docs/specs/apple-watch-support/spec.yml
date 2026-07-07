@@ -421,7 +421,7 @@ tests:
       - Shared source used by Watch is free of unguarded UIKit/AppKit/PDFKit/QuickLook imports.
       - Watch target has independent-app configuration and required entitlements.
     red_phase: { required: true, expected: fail, evidence: { status: missing_test, run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-build-watch-cea3b8e", timestamp: "2026-07-07T00:01:00Z" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-build-watch-06fda11", timestamp: "2026-07-07T00:27:56Z" } }
   - id: T-WATCH-PAIR-LOGIN-UNIT
     type: unit
     file: apple/OpenMatesTests/WatchPairLoginRuntimeTests.swift
@@ -491,7 +491,7 @@ tests:
       - Malformed payloads render compact error cards and never leak raw JSON.
       - Embed detail shell exposes continuation metadata for iPhone/Mac.
     red_phase: { required: true, expected: fail, evidence: { status: missing_test, run_id: "", timestamp: "" } }
-    green_phase: { required: true, expected: pass, evidence: { status: "", run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: passed, run_id: "remote-ios-xctest-watch-embed-preview-3tests-06fda11", timestamp: "2026-07-07T00:27:56Z" } }
   - id: T-WATCH-CHAT-FLOW-UI
     type: unit
     file: apple/OpenMatesWatchUITests/WatchChatFlowUITests.swift
