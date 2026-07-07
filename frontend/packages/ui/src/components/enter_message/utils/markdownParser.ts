@@ -187,20 +187,12 @@ function extractMathFormulas(markdownText: string): {
 function rewriteSettingsMarkdownLinks(markdownText: string): string {
   return markdownText.replace(
     SETTINGS_MARKDOWN_LINK_RE,
-    (fullMatch, label: string, href: string, offset: number, source: string) => {
+    (_fullMatch, label: string, href: string) => {
       const renderableHref = getRenderableInternalHref(href.trim(), label);
       if (!renderableHref) return label;
-      const markdownLink = `[${label}](${renderableHref})`;
-      if (!renderableHref.startsWith("#message=")) return markdownLink;
-
-      const nextText = source.slice(offset + fullMatch.length);
-      const nextNonWhitespace = nextText.match(/\S/)?.[0] ?? "";
-      if (!nextNonWhitespace || [".", ",", ";", ":", "!", "?"].includes(nextNonWhitespace)) {
-        return markdownLink;
-      }
-      return `${markdownLink}\n\n`;
+      return `[${label}](${renderableHref})`;
     },
-  );
+  ).replace(/(\]\(#message=[^)]+\))\[/g, "$1\n\n[");
 }
 
 function textFromNodes(nodes: any[]): string {

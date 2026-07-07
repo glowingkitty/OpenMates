@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // frontend/packages/ui/src/components/enter_message/extensions/__tests__/MarkdownExtensions.test.ts
 //
 // Covers the chat markdown link extension behavior that is not visible from
