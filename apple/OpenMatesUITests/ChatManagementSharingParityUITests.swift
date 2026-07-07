@@ -136,6 +136,8 @@ final class ChatManagementSharingParityUITests: XCTestCase {
     }
 
     func testSafariShareSheetShowsUnifiedOpenMatesComposer() throws {
+        registerShareExtensionHostApp()
+
         let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
         openSafariURL(fixtureSafariURL, in: safari)
 
@@ -176,6 +178,18 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         XCTAssertNotNil(waitForShareExtensionElement(identifier: "share-extension-send", in: shareHosts, timeout: 5))
 
         attachScreenshot(name: "Safari share extension unified composer")
+    }
+
+    private func registerShareExtensionHostApp() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-shell-metrics"]
+        app.launchEnvironment["UI_TEST_SHELL_METRICS"] = "1"
+        app.launch()
+        XCTAssertTrue(
+            app.wait(for: .runningForeground, timeout: 10),
+            "Expected OpenMates host app to launch before using its share extension."
+        )
+        app.terminate()
     }
 
     private func attachScreenshot(name: String) {
