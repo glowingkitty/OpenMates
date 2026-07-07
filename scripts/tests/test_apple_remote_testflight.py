@@ -91,6 +91,9 @@ def test_upload_testflight_watch_uses_watch_scheme_and_profile_contract() -> Non
     assert '"org.openmates.app.watch"' in script
     assert "REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set(BUNDLE_IDS)" not in script
     assert 'enable_bundle_capability(bundle_id, "KEYCHAIN_SHARING")' not in script
+    assert 'if target_platform == "watchos":' in script
+    assert "PROVISIONING_PROFILE_SPECIFIER={watch_profile}" in script
+    assert "CODE_SIGN_STYLE=Manual" in script
 
 
 def test_deploy_latest_testflight_parser_has_no_platform_override() -> None:

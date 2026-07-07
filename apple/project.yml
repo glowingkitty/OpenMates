@@ -186,7 +186,6 @@ targets:
         SDKROOT: watchos
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "4"
-        OpenMatesKeychainAccessGroup: $(AppIdentifierPrefix)org.openmates.app
       configs:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
@@ -194,10 +193,6 @@ targets:
           SWIFT_OPTIMIZATION_LEVEL: -Owholemodule
     entitlements:
       path: OpenMatesWatch/OpenMatesWatch.entitlements
-      properties:
-        keychain-access-groups:
-          - $(AppIdentifierPrefix)$(CFBundleIdentifier)
-          - $(AppIdentifierPrefix)org.openmates.app
     info:
       path: OpenMatesWatch/Info.plist
       properties:
@@ -209,7 +204,6 @@ targets:
         WKApplication: true
         WKWatchOnly: true
         NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
-        OpenMatesKeychainAccessGroup: $(AppIdentifierPrefix)org.openmates.app
         UIAppFonts:
           - LexendDeca-Light.ttf
           - LexendDeca-Regular.ttf

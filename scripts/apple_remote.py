@@ -1012,6 +1012,16 @@ else:
     archive_cmd[-2:-2] = common_auth_args
 if build_keychain_path and not archive_without_signing:
     archive_cmd.insert(-1, f"OTHER_CODE_SIGN_FLAGS=--keychain {build_keychain_path}")
+if target_platform == "watchos":
+    watch_profile = profile_names.get("org.openmates.app.watch")
+    if not watch_profile:
+        print("archive_status=missing_watch_profile")
+        sys.exit(1)
+    archive_cmd[-1:-1] = [
+        "CODE_SIGN_STYLE=Manual",
+        f"CODE_SIGN_IDENTITY={distribution_identity_name}",
+        f"PROVISIONING_PROFILE_SPECIFIER={watch_profile}",
+    ]
 
 print("archive_status=started")
 archive = subprocess.run(archive_cmd, capture_output=True, text=True, timeout=1800)
