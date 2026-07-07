@@ -98,6 +98,19 @@ async def test_search_classes_defaults_to_all_plans_and_onsite_for_radius_search
 
 
 @pytest.mark.asyncio
+async def test_search_classes_accepts_flat_runtime_args() -> None:
+    skill = SearchClassesSkill(None, "fitness", "search_classes", "Search classes", "Search classes")
+    skill.client = FakeUrbanSportsClient()
+
+    response = await skill.execute(address="Sorauer Str. 12", city="Berlin", radius_km=1)
+
+    group = response["results"][0]
+    assert group["filters"]["plan"] == "all"
+    assert group["filters"]["attendance_mode"] == "onsite"
+    assert group["results"][0]["name"] == "HIIT Strength"
+
+
+@pytest.mark.asyncio
 async def test_search_classes_explicit_plan_filter_is_visible_in_summary() -> None:
     skill = SearchClassesSkill(None, "fitness", "search_classes", "Search classes", "Search classes")
     skill.client = FakeUrbanSportsClient()

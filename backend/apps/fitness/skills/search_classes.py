@@ -68,7 +68,8 @@ class SearchClassesSkill(BaseSkill):
 
     @classmethod
     def resolve_preview_metadata(cls, request: dict[str, Any]) -> dict[str, Any]:
-        first_request = (request.get("requests") or [{}])[0]
+        normalized_request = _normalize_request_payload(request)
+        first_request = (normalized_request.get("requests") or [{}])[0]
         attendance_mode = _default_attendance_mode(first_request)
         return {
             "provider": "Urban Sports Club",
@@ -80,8 +81,8 @@ class SearchClassesSkill(BaseSkill):
             "attendance_mode": attendance_mode,
         }
 
-    async def execute(self, input_data: dict[str, Any] | None = None, **_: Any) -> dict[str, Any]:
-        request = FitnessClassSearchRequest.model_validate(input_data or {})
+    async def execute(self, input_data: dict[str, Any] | None = None, **kwargs: Any) -> dict[str, Any]:
+        request = FitnessClassSearchRequest.model_validate(_normalize_request_payload(input_data or kwargs))
         groups = []
         for index, item in enumerate(request.requests):
             req = item.model_dump(exclude_none=True)
@@ -119,6 +120,12 @@ class SearchClassesSkill(BaseSkill):
             "results": groups,
             "ignore_fields_for_inference": ["image_url", "venue_lat", "venue_lon", "lat", "lon"],
         }
+
+
+def _normalize_request_payload(input_data: dict[str, Any]) -> dict[str, Any]:
+    if "requests" in input_data:
+        return input_data
+    return {"requests": [{key: value for key, value in input_data.items() if not key.startswith("_")}]}
 
 
 def _default_attendance_mode(req: dict[str, Any]) -> str:
