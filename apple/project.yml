@@ -145,7 +145,7 @@ targets:
 
   # Independent watchOS app — starts with standalone target plumbing; auth/chat UI lands in later spec tasks.
   OpenMatesWatch:
-    type: application.watchapp2
+    type: application
     platform: watchOS
     deploymentTarget: "10.0"
     sources:

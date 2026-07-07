@@ -629,8 +629,8 @@
 		C0FFEE000000000000049021 /* Embed Watch Content */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
-			dstSubfolderSpec = 16;
+			dstPath = "";
+			dstSubfolderSpec = 13;
 			files = (
 				C0FFEE000000000000049020 /* OpenMatesWatch.app in Embed Watch Content */,
 			);
@@ -1788,7 +1788,7 @@
 			);
 			productName = OpenMates;
 			productReference = C0FFEE000000000000047015 /* OpenMatesWatch.app */;
-			productType = "com.apple.product-type.application.watchapp2";
+			productType = "com.apple.product-type.application";
 		};
 		02E5AB06E9CF5357E7F6C413 /* OpenMates_iOS */ = {
 			isa = PBXNativeTarget;

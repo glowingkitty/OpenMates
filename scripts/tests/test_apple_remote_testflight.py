@@ -123,6 +123,8 @@ def test_ios_testflight_archive_requires_embedded_watch_companion() -> None:
     assert '"provisioningProfiles": profile_names' in script
     assert "assert_ios_archive_embeds_watch_companion()" in script
     assert "archive_watch_companion=missing" in script
+    assert 'app_path / "PlugIns"' in script
+    assert 'candidate.name == "OpenMatesWatch.app"' in script
     assert "WKCompanionAppBundleIdentifier" in script
     assert "WKRunsIndependentlyOfCompanionApp" in script
     assert script.index("assert_ios_archive_embeds_watch_companion()") < script.index('print("upload_status=started")')
@@ -144,14 +146,15 @@ def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     assert "CFBundleIconName: WatchAppIcon" in project_yaml
     assert "ASSETCATALOG_COMPILER_APPICON_NAME: WatchAppIcon" in project_yaml
     assert "OpenMatesWatch/Assets.xcassets" in project_yaml
-    assert "type: application.watchapp2" in project_yaml
+    assert "type: application" in project_yaml
     assert "WKWatchOnly" not in watch_info
     assert "WKCompanionAppBundleIdentifier" in watch_info
     assert "WKRunsIndependentlyOfCompanionApp" in watch_info
     assert "CFBundlePackageType" in watch_info
     assert "CFBundleIconName" in watch_info
     assert "OpenMatesWatch.app in Embed Watch Content" in xcode_project
-    assert 'dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";' in xcode_project
+    assert 'dstPath = "";' in xcode_project
+    assert "dstSubfolderSpec = 13;" in xcode_project
     assert "C0FFEE000000000000047018 /* OpenMatesWatch */" in xcode_project
     assert "PRODUCT_NAME = OpenMatesWatch;" in xcode_project
     assert "SKIP_INSTALL = YES;" in xcode_project
@@ -160,7 +163,7 @@ def test_watch_distribution_is_embedded_companion_not_separate_upload() -> None:
     watch_icon_index = xcode_project.rindex("ASSETCATALOG_COMPILER_APPICON_NAME = WatchAppIcon;", 0, watch_bundle_index)
     assert watch_icon_index < watch_bundle_index
     assert "C0FFEE000000000000049025 /* Assets.xcassets in Resources */" in xcode_project
-    assert "productType = \"com.apple.product-type.application.watchapp2\";" in xcode_project
+    assert "productType = \"com.apple.product-type.application\";" in xcode_project
 
 
 def test_testflight_notes_options_rejects_duplicate_sources() -> None:
