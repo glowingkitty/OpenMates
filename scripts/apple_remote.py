@@ -317,7 +317,7 @@ elif target_platform == "watchos":
         "org.openmates.app.watch",
     )
     REQUIRED_APP_GROUP_BUNDLE_IDS = set()
-    REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set(BUNDLE_IDS)
+    REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set()
 else:
     print(f"unsupported_target_platform={target_platform}")
     sys.exit(2)
