@@ -4619,7 +4619,7 @@ struct NewChatWelcomeView: View {
 
     private func inspirationCarousel(_ activeInspiration: DailyInspirationBanner.DailyInspiration, containerSize: CGSize) -> some View {
         let bannerHeight = Self.inspirationBannerHeight(for: containerSize)
-        ZStack(alignment: .bottom) {
+        return ZStack(alignment: .bottom) {
             InspirationCard(inspiration: activeInspiration, containerSize: containerSize) {
                 createChatWith(message: activeInspiration.text)
             }
