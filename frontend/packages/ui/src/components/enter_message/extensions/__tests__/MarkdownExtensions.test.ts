@@ -19,16 +19,16 @@ afterEach(() => {
 
 describe('MarkdownLink', () => {
   it('prefills the current composer for message fallback links without navigating', () => {
-    const dispatchEvent = vi.fn();
-    vi.stubGlobal('window', { dispatchEvent });
+    const dispatchEvent = vi.spyOn(window, 'dispatchEvent').mockReturnValue(true);
 
     expect(isMarkdownInternalHashLink('#message=Save%20place')).toBe(true);
     expect(dispatchMessagePrefillFromHref('#message=Save%20place')).toBe(true);
 
+    const event = dispatchEvent.mock.calls[0][0] as CustomEvent;
     expect(dispatchEvent).toHaveBeenCalledTimes(1);
-    expect(dispatchEvent.mock.calls[0][0]).toBeInstanceOf(CustomEvent);
-    expect(dispatchEvent.mock.calls[0][0].type).toBe('docsMessagePrefill');
-    expect(dispatchEvent.mock.calls[0][0].detail).toEqual({
+    expect(event).toBeInstanceOf(CustomEvent);
+    expect(event.type).toBe('docsMessagePrefill');
+    expect(event.detail).toEqual({
       text: 'Save place',
       autoSend: false,
     });
