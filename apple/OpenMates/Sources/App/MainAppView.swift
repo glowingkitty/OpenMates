@@ -3545,10 +3545,11 @@ private struct OpenMatesWebHeader: View {
     let onOpenSettings: () -> Void
     let onOpenReferral: () -> Void
     let onOpenAuth: () -> Void
+    private static let compactHeaderMaxWidth: CGFloat = 817
     private static let githubURL = URL(string: "https://github.com/glowingkitty/OpenMates")!
 
     private var isCompact: Bool {
-        horizontalSizeClass == .compact || viewportWidth <= 730
+        horizontalSizeClass == .compact || viewportWidth <= Self.compactHeaderMaxWidth
     }
 
     var body: some View {

@@ -240,7 +240,7 @@
         lastAuthMethod = getLastAuthMethod();
 
         const checkMobile = () => {
-            isMobile = window.innerWidth < 730;
+            isMobile = window.innerWidth <= 817;
         };
 
         checkMobile();
@@ -1123,20 +1123,20 @@
         display: none;
     }
 
-    @media (max-width: 730px) {
+    @media (max-width: 817px) {
         nav.webapp {
             min-height: 36px;
         }
 
-        .logo-link :global(strong) {
+        header.webapp .logo-link :global(strong) {
             display: none;
         }
 
-        .mobile-logo-icon {
+        header.webapp .mobile-logo-icon {
             display: block;
         }
 
-        .server-edition {
+        header.webapp .server-edition {
             display: none;
         }
 
@@ -1159,11 +1159,6 @@
             position: absolute;
             transform: translateX(-50%);
             z-index: var(--z-index-raised);
-        }
-
-        .docs-tabs {
-            position: static;
-            transform: none;
         }
 
         .workspace-select-shell select {
@@ -1203,5 +1198,12 @@
             outline-offset: 0.125rem;
         }
 
+    }
+
+    @media (max-width: 730px) {
+        .docs-tabs {
+            position: static;
+            transform: none;
+        }
     }
 </style>

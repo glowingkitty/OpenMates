@@ -3136,7 +3136,7 @@ changes to the documentation (to keep the documentation up to date).
         opacity: 0;
     }
 
-    @media (max-width: 730px) {
+    @media (max-width: 817px) {
         .referral-cta {
             max-width: 24px;
             justify-content: center;
