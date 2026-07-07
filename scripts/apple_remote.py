@@ -1065,10 +1065,6 @@ def assert_ios_archive_embeds_watch_companion():
     app_path = archive_path / "Products" / "Applications" / "OpenMates.app"
     watch_apps = sorted((app_path / "Watch").glob("*.app"))
     if not watch_apps:
-        watch_apps = sorted(
-            candidate for candidate in (app_path / "PlugIns").glob("*.app") if candidate.name == "OpenMatesWatch.app"
-        )
-    if not watch_apps:
         print("archive_watch_companion=missing")
         print("hint=iOS TestFlight uploads must carry the OpenMates Watch companion app; do not upload a watchOS-only archive separately.")
         sys.exit(1)
