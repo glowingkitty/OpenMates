@@ -679,6 +679,7 @@ private struct EmbedFullscreenTopBar: View {
                 .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
         }
         .buttonStyle(.plain)
+        .help(Text(label))
         .accessibilityLabel(label)
     }
 }
@@ -823,6 +824,7 @@ struct EmbedFullscreenHeader: View {
                 .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
         }
         .buttonStyle(.plain)
+        .help(Text(cta.title))
         .accessibilityLabel(cta.title)
         .accessibilityIdentifier(cta.accessibilityIdentifier ?? "embed-header-cta")
     }

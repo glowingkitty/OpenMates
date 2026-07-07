@@ -1063,6 +1063,7 @@ struct SettingsInterfaceSubPage: View {
                             .contentShape(RoundedRectangle(cornerRadius: .radius7))
                     }
                     .buttonStyle(.plain)
+                    .help(Text(AppStrings.back))
                     .accessibilityLabel(AppStrings.back)
                     .accessibilityIdentifier(dest.backAccessibilityIdentifier)
                     Text(dest.title)

@@ -20,6 +20,7 @@
     import { featureAvailabilityStore, initializeFeatureAvailability } from '../stores/appSkillsStore';
     import { prefetchWorkspaceForHref, scheduleIdleWorkspacePrefetch } from '../services/workspacePrefetchService';
     import { getLastAuthMethod, type LastAuthMethod } from '../utils/lastAuthMethod';
+    import { tooltip } from '../actions/tooltip';
 
     // Props using Svelte 5 runes
     let { 
@@ -481,6 +482,7 @@
                                     data-testid={item.testId}
                                     aria-label={item.label}
                                     aria-disabled="true"
+                                    use:tooltip
                                 >
                                     <span class={`workspace-icon ${item.iconClass}`} aria-hidden="true"></span>
                                 </button>
@@ -496,6 +498,7 @@
                                     onmouseleave={() => { hoveredWorkspaceIndex = null; }}
                                     onfocus={() => handleWorkspaceIntent(item, index)}
                                     onblur={() => { hoveredWorkspaceIndex = null; }}
+                                    use:tooltip
                                 >
                                     <span class={`workspace-icon ${item.iconClass}`} aria-hidden="true"></span>
                                 </a>

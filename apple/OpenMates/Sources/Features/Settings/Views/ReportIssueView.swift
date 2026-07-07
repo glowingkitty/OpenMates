@@ -158,6 +158,7 @@ struct ReportIssueView: View {
             } label: {
                 if isSubmitting {
                     ProgressView()
+                        .help(Text(AppStrings.reportIssueSubmitting))
                         .accessibilityLabel(AppStrings.reportIssueSubmitting)
                 } else {
                     Text(AppStrings.reportIssueSubmitButton)
@@ -165,6 +166,8 @@ struct ReportIssueView: View {
             }
             .buttonStyle(OMPrimaryButtonStyle())
             .disabled(!isValid || isSubmitting)
+            .help(Text(isSubmitting ? AppStrings.reportIssueSubmitting : AppStrings.reportIssueSubmitButton))
+            .accessibilityLabel(isSubmitting ? AppStrings.reportIssueSubmitting : AppStrings.reportIssueSubmitButton)
             .accessibilityIdentifier("report-issue-submit")
         }
     }

@@ -738,6 +738,7 @@ struct MacMenuBarQuickCaptureView: View {
                             .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
                     }
                     .buttonStyle(.plain)
+                    .help(Text(tab.title))
                     .accessibilityIdentifier("quick-capture-tab-\(tab.rawValue)")
                 }
             }
@@ -791,6 +792,7 @@ struct MacMenuBarQuickCaptureView: View {
         .buttonStyle(.plain)
         .disabled(viewModel.isDestinationLocked)
         .opacity(viewModel.isDestinationLocked ? 0.55 : 1)
+        .help(Text(title))
     }
 
     private var composer: some View {
@@ -858,6 +860,8 @@ struct MacMenuBarQuickCaptureView: View {
                     }
                 }
         )
+        .help(Text(AppStrings.recordAudio))
+        .accessibilityLabel(AppStrings.recordAudio)
         .accessibilityIdentifier("quick-capture-record-audio-button")
     }
 
@@ -895,6 +899,7 @@ struct MacMenuBarQuickCaptureView: View {
                             .foregroundStyle(Color.fontTertiary)
                     }
                     .buttonStyle(.plain)
+                    .help(Text(AppStrings.delete))
                     .accessibilityLabel(AppStrings.delete)
                 }
             }

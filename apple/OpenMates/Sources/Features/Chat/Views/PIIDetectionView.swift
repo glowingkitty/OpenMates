@@ -1253,6 +1253,7 @@ struct PIIWarningBanner: View {
                         )
                 }
                 .buttonStyle(.plain)
+                .help(Text(AppStrings.piiUndoAll))
                 .accessibilityLabel(AppStrings.piiUndoAll)
                 .accessibilityIdentifier("pii-undo-all")
             }
@@ -1345,6 +1346,7 @@ struct PIIHighlightStrip: View {
                                 )
                         }
                         .buttonStyle(.plain)
+                        .help(Text(match.value))
                         .accessibilityLabel(match.value)
                         .accessibilityValue(match.type.rawValue)
                         .accessibilityHint(AppStrings.piiUndoAllShort)

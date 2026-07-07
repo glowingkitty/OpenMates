@@ -347,6 +347,7 @@ private struct EmbedFullscreenMapView: View {
             .background(Color.white)
             .contentShape(Rectangle())
             .onTapGesture(perform: action)
+            .help(Text(accessibilityLabel))
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { action() }
         .accessibilityLabel(accessibilityLabel)

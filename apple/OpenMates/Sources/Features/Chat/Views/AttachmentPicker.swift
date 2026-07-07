@@ -36,6 +36,7 @@ struct AttachmentPicker: View {
                     .frame(width: 25, height: 25)
             }
             .buttonStyle(.plain)
+            .help(Text(AppStrings.attachFiles))
             .accessibilityLabel(AppStrings.attachFiles)
             .accessibilityIdentifier("attach-files-button")
 

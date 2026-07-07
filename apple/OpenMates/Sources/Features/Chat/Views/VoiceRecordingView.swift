@@ -158,6 +158,7 @@ struct ComposerRecordingOverlay: View {
                         .offset(x: max(-120, dragOffsetX))
                 }
                 .buttonStyle(.plain)
+                .help(Text(AppStrings.releaseToFinishRecording))
                 .accessibilityLabel(AppStrings.releaseToFinishRecording)
                 .accessibilityIdentifier("mic-button")
             }

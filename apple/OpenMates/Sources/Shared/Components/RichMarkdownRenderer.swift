@@ -1137,6 +1137,7 @@ private struct LargeEmbedPreviewCarousel: View {
                                 .frame(width: index == selectedIndex ? 18 : 7, height: 7)
                         }
                         .buttonStyle(.plain)
+                        .help(Text("Go to slide \(index + 1) of \(embeds.count)"))
                         .accessibilityLabel("Go to slide \(index + 1) of \(embeds.count)")
                     }
                 }
@@ -1174,6 +1175,7 @@ private struct LargeEmbedPreviewCarousel: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .help(Text(label))
         .accessibilityLabel(label)
     }
 }
@@ -1746,6 +1748,7 @@ private struct EmbedInlineChip: View {
                 updateHover(hovering, isClickable: true)
             }
             .accessibilityElement(children: .combine)
+            .help(Text(displayText))
             .accessibilityLabel(displayText)
         } else {
             chipContent
@@ -1810,6 +1813,7 @@ private struct MarkdownLinkChip: View {
             .contentShape(Rectangle())
             .onHover(perform: updateHover)
             .accessibilityElement(children: .combine)
+            .help(Text(displayText))
             .accessibilityLabel(displayText)
         } else {
             chipContent
@@ -2497,6 +2501,7 @@ private struct DemoRichCard: View {
             }
         }
         .accessibilityElement(children: .combine)
+        .help(Text(item.title))
         .accessibilityLabel(item.title)
     }
 

@@ -1508,6 +1508,7 @@ struct MainAppView: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("search-button")
+            .help(Text(AppStrings.search))
             .accessibilityLabel(AppStrings.search)
 
             Spacer()
@@ -1522,6 +1523,7 @@ struct MainAppView: View {
                     .frame(width: 25, height: 25)
             }
             .buttonStyle(.plain)
+            .help(Text(AppStrings.close))
             .accessibilityLabel(AppStrings.close)
         }
         .frame(height: 32)
@@ -3563,6 +3565,7 @@ private struct OpenMatesWebHeader: View {
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
                     .accessibilityIdentifier("sidebar-toggle")
+                    .help(Text(LocalizationManager.shared.text("header.toggle_menu")))
                     .accessibilityLabel(LocalizationManager.shared.text("header.toggle_menu"))
                 }
 
@@ -3581,6 +3584,7 @@ private struct OpenMatesWebHeader: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("github-repo-button")
+                        .help(Text(LocalizationManager.shared.text("signup.view_on_github")))
                         .accessibilityLabel(LocalizationManager.shared.text("signup.view_on_github"))
                     }
 
@@ -3597,6 +3601,7 @@ private struct OpenMatesWebHeader: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("header-login-signup-btn")
+                    .help(Text(isCompact ? AppStrings.login : AppStrings.loginSignup))
                     .accessibilityLabel(isCompact ? AppStrings.login : AppStrings.loginSignup)
                 }
 
@@ -3620,6 +3625,7 @@ private struct OpenMatesWebHeader: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("referral-cta")
+                    .help(Text(AppStrings.getFreeCredits))
                     .accessibilityLabel(AppStrings.getFreeCredits)
                 }
 
@@ -3629,6 +3635,7 @@ private struct OpenMatesWebHeader: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("settings-button")
+                .help(Text(isSettingsOpen ? AppStrings.close : AppStrings.settings))
                 .accessibilityLabel(isSettingsOpen ? AppStrings.close : AppStrings.settings)
             }
 
@@ -3663,6 +3670,7 @@ private struct OpenMatesWebHeader: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("compact-logo-button")
+            .help(Text(AppStrings.openMatesName))
             .accessibilityLabel(AppStrings.openMatesName)
         } else {
             VStack(alignment: .leading, spacing: 1) {
@@ -3679,6 +3687,7 @@ private struct OpenMatesWebHeader: View {
                         .foregroundStyle(Color.grey100)
                 }
                 .accessibilityElement(children: .ignore)
+                .help(Text(AppStrings.openMatesName))
                 .accessibilityLabel(AppStrings.openMatesName)
 
                 Text(AppStrings.signupVersionTitle)
@@ -3827,6 +3836,7 @@ private struct WorkspaceSwitcherTabs: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("workspace-switcher")
+        .help(Text(activeTab.label))
         .accessibilityLabel(activeTab.label)
     }
 
@@ -3851,6 +3861,7 @@ private struct WorkspaceSwitcherTabs: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier(item.testId)
+        .help(Text(item.label))
         .accessibilityLabel(item.label)
         .accessibilityAddTraits(.isButton)
 
@@ -4688,6 +4699,7 @@ struct NewChatWelcomeView: View {
                 .background(.white.opacity(0.001))
         }
         .buttonStyle(.plain)
+        .help(Text(label))
         .accessibilityLabel(label)
     }
 
@@ -4971,6 +4983,7 @@ private struct InterestTagChip: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("interest-tag-\(tag.rawValue)")
+        .help(Text(tag.label))
         .accessibilityLabel(tag.label)
     }
 }
@@ -5027,6 +5040,7 @@ private struct WelcomeResumeCard: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("welcome-chat-card-\(card.id)")
+            .help(Text(card.title))
             .accessibilityLabel(card.title)
         }
     }
@@ -5085,6 +5099,7 @@ private struct WelcomeResumeCompactCard: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("welcome-chat-compact-card-\(card.id)")
+        .help(Text(card.title))
         .accessibilityLabel(card.title)
     }
 }
@@ -5281,6 +5296,7 @@ private struct WelcomeComposer: View {
                         .padding(.top, 10)
                         .padding(.trailing, 15)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                        .help(Text(isExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen))
                         .accessibilityLabel(isExpanded ? AppStrings.exitFullscreen : AppStrings.enterFullscreen)
                         .accessibilityIdentifier("message-input-fullscreen-button")
                     }

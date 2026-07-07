@@ -64,6 +64,7 @@ struct CameraButton: View {
             Icon("camera", size: 20)
                 .foregroundStyle(Color.fontSecondary)
         }
+        .help(Text("Take photo"))
         .accessibilityLabel("Take photo")
         .accessibilityHint("Opens camera to capture a photo for this chat")
         #if os(iOS)

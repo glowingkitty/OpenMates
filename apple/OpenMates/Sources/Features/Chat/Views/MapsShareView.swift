@@ -51,6 +51,7 @@ struct ComposerLocationOverlay: View {
                             .foregroundStyle(Color.fontSecondary)
                     }
                     .buttonStyle(.plain)
+                    .help(Text(AppStrings.cancel))
                     .accessibilityLabel(AppStrings.cancel)
                 }
                 .padding(.horizontal, .spacing5)

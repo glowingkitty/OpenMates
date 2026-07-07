@@ -231,6 +231,7 @@ import SwiftUI
             }
         }
         .accessibilityElement(children: .combine)
+        .help(Text(node.label))
         .accessibilityLabel(node.label)
     }
 
@@ -251,6 +252,7 @@ import SwiftUI
                 .overlay(Circle().stroke(Color.grey20, lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .help(Text(collapsedNodeIds.contains(node.id) ? AppStrings.mindMapExpand(node.label) : AppStrings.mindMapCollapse(node.label)))
         .accessibilityLabel(collapsedNodeIds.contains(node.id) ? AppStrings.mindMapExpand(node.label) : AppStrings.mindMapCollapse(node.label))
     }
 

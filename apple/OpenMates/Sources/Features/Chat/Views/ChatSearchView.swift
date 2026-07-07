@@ -72,6 +72,7 @@ struct ChatSearchView: View {
                     .foregroundStyle(Color.fontTertiary)
             }
             .buttonStyle(.plain)
+            .help(Text(AppStrings.close))
             .accessibilityLabel(AppStrings.close)
             .accessibilityIdentifier("search-close-button")
         }
@@ -154,6 +155,7 @@ struct ChatSearchView: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("search-chat-item")
+            .help(Text(result.decryptedTitle ?? result.chat.displayTitle))
             .accessibilityLabel(result.decryptedTitle ?? result.chat.displayTitle)
 
             if !result.messageSnippets.isEmpty {
@@ -198,6 +200,7 @@ struct ChatSearchView: View {
             .clipShape(RoundedRectangle(cornerRadius: .radius1))
         }
         .buttonStyle(.plain)
+        .help(Text(snippet.text))
         .accessibilityLabel(snippet.text)
         .accessibilityHint(AppStrings.searchGoToMessage)
         .accessibilityIdentifier("search-message-snippet")
@@ -221,6 +224,7 @@ struct ChatSearchView: View {
             .padding(.vertical, .spacing2)
         }
         .buttonStyle(.plain)
+        .help(Text(snippet.text))
         .accessibilityLabel(snippet.text)
         .accessibilityIdentifier("search-metadata-snippet")
     }

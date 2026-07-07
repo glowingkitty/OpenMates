@@ -225,6 +225,7 @@ struct MessageComposerActionIcon: View {
                 .frame(width: 25, height: 25)
         }
         .buttonStyle(.plain)
+        .help(Text(label))
         .accessibilityLabel(label)
         .modifier(OptionalAccessibilityIdentifier(identifier: identifier))
     }
@@ -251,6 +252,7 @@ struct MessageComposerSendButton: View {
         .buttonStyle(.plain)
         .disabled(disabled)
         .opacity(disabled ? 0.6 : 1.0)
+        .help(Text(accessibilityLabel ?? title))
         .accessibilityLabel(accessibilityLabel ?? title)
         .accessibilityIdentifier("send-button")
     }

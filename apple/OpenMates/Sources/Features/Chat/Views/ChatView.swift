@@ -498,6 +498,7 @@ struct ChatView: View {
         .padding(.vertical, .spacing2)
         .background(Color.grey80)
         .accessibilityElement(children: .combine)
+        .help(Text(AppStrings.incognitoModeActive))
         .accessibilityLabel(AppStrings.incognitoModeActive)
         .accessibilityIdentifier("incognito-mode-banner")
     }
@@ -889,6 +890,7 @@ struct ChatView: View {
         }
         .buttonStyle(.plain)
         .opacity(0.7)
+        .help(Text(isTop ? AppStrings.scrollToTop : AppStrings.scrollToBottom))
         .accessibilityLabel(isTop ? AppStrings.scrollToTop : AppStrings.scrollToBottom)
         .accessibilityIdentifier(isTop ? "scroll-to-top-button" : "scroll-to-bottom-button")
     }
@@ -929,6 +931,7 @@ struct ChatView: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
+        .help(Text(label))
         .accessibilityLabel(label)
         .accessibilityIdentifier(accessibilityIdentifier ?? "chat-floating-action-\(icon)")
         .accessibilityAddTraits(.isButton)
@@ -1022,6 +1025,7 @@ struct ChatView: View {
             }
             .font(.omXs)
             .foregroundStyle(Color.error)
+            .help(Text(AppStrings.stopResponse))
             .accessibilityLabel(AppStrings.stopResponse)
         }
         .padding(.horizontal, .spacing4)
@@ -1353,6 +1357,7 @@ struct ChatView: View {
                         Task { await viewModel.uploadFile(url: url) }
                     }
                 )
+                .help(Text(AppStrings.attachFiles))
                 .accessibilityLabel(AppStrings.attachFiles)
                 .accessibilityIdentifier("attach-files-button")
 
@@ -1535,6 +1540,7 @@ struct ChatView: View {
             .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
         }
         .buttonStyle(.plain)
+        .help(Text(AppStrings.newChat))
         .accessibilityLabel(AppStrings.newChat)
         .accessibilityIdentifier("new-chat-button")
     }
@@ -1572,6 +1578,7 @@ struct ChatView: View {
                 )
         }
         .buttonStyle(.plain)
+        .help(Text(messageText.isEmpty ? AppStrings.cancel : AppStrings.saveDraft))
         .accessibilityLabel(messageText.isEmpty ? AppStrings.cancel : AppStrings.saveDraft)
     }
 
@@ -1608,6 +1615,7 @@ struct ChatView: View {
                         finishRecordAttempt()
                     }
             )
+            .help(Text(AppStrings.recordAudio))
             .accessibilityLabel(AppStrings.recordAudio)
             .accessibilityIdentifier("record-audio-button")
     }
@@ -1924,6 +1932,7 @@ private struct AssistantResponseFeedbackView: View {
                                     .foregroundStyle(starColor(for: rating))
                             }
                             .buttonStyle(.plain)
+                            .help(Text(AppStrings.assistantFeedbackStarLabel(count: rating)))
                             .accessibilityLabel(AppStrings.assistantFeedbackStarLabel(count: rating))
                             .accessibilityIdentifier("assistant-feedback-star-\(rating)")
                         }

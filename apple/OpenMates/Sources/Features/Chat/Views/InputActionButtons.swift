@@ -71,6 +71,7 @@ private struct ActionIcon: View {
                 .frame(width: 32, height: 32)
         }
         .buttonStyle(.plain)
+        .help(Text(label))
         .accessibilityLabel(label)
     }
 }

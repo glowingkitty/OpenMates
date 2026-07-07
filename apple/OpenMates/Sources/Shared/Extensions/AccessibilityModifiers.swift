@@ -12,6 +12,7 @@ struct AccessibleButton: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .help(Text(label))
             .accessibilityLabel(label)
             .accessibilityHint(hint ?? "")
             .accessibilityAddTraits(.isButton)
@@ -26,6 +27,7 @@ struct AccessibleToggle: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .help(Text(label))
             .accessibilityLabel(label)
             .accessibilityValue(isOn ? "On" : "Off")
             .accessibilityAddTraits(.isButton)
@@ -40,6 +42,7 @@ struct AccessibleInput: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .help(Text(label))
             .accessibilityLabel(label)
             .accessibilityHint(hint ?? "")
     }
@@ -93,6 +96,7 @@ struct AccessibleEmbed: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .help(Text(title ?? embedType))
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(embedType): \(title ?? "untitled")")
             .accessibilityHint("Double tap to open fullscreen")

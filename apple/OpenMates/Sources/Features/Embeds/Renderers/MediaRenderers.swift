@@ -251,6 +251,7 @@ struct TappableEncryptedImageView: View {
             }
         }
         .task { await loadImage() }
+        .help(Text(LocalizationManager.shared.text("embeds.image_search.open_image")))
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel(LocalizationManager.shared.text("embeds.image_search.open_image"))
     }

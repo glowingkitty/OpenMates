@@ -54,6 +54,7 @@ struct PendingComposerEmbedPreview: View {
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
+            .help(Text(AppStrings.delete))
             .accessibilityLabel(AppStrings.delete)
             .accessibilityIdentifier("pending-composer-embed-remove")
             .padding(.trailing, .spacing4)

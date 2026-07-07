@@ -370,6 +370,7 @@ struct OMDropdown: View {
             }
         }
         .accessibilityLabel(title)
+        .help(Text(title))
     }
 }
 
@@ -420,6 +421,7 @@ struct OMSettingsPickerRow: View {
         .padding(.horizontal, .spacing5)
         .padding(.vertical, .spacing2)
         .accessibilityLabel(title)
+        .help(Text(title))
     }
 }
 
@@ -608,6 +610,7 @@ struct OMIconButton: View {
                 .contentShape(RoundedRectangle(cornerRadius: .radius7))
         }
         .buttonStyle(.plain)
+        .help(Text(label))
         .accessibilityLabel(label)
     }
 }
@@ -856,6 +859,7 @@ struct OMSettingsRow: View {
         .buttonStyle(.plain)
         .clipShape(RoundedRectangle(cornerRadius: .radius3)) // border-radius: var(--radius-3)
         .accessibilityLabel(title)
+        .help(Text(title))
     }
 
     private var rowContent: some View {
