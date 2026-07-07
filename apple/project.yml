@@ -145,9 +145,9 @@ targets:
 
   # Independent watchOS app — starts with standalone target plumbing; auth/chat UI lands in later spec tasks.
   OpenMatesWatch:
-    type: application.watchapp2-container
-    platform: iOS
-    deploymentTarget: "17.0"
+    type: application
+    platform: watchOS
+    deploymentTarget: "10.0"
     sources:
       - path: OpenMatesWatch/Sources
       - path: OpenMates/Sources/Core/Models/AuthError.swift
@@ -192,7 +192,7 @@ targets:
         PRIVATE_HEADERS_FOLDER_PATH: $(CONTENTS_FOLDER_PATH)/PrivateHeaders
         PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.watch
         PRODUCT_NAME: OpenMatesWatch
-        SDKROOT: iphoneos
+        SDKROOT: watchos
         SKIP_INSTALL: YES
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "4"
