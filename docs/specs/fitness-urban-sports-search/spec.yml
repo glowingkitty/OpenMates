@@ -1,6 +1,6 @@
 id: fitness-urban-sports-search
 title: Fitness Urban Sports Search Skills
-status: implementing
+status: verified
 
 goal: >
   Let users search Urban Sports Club fitness locations and available classes from
@@ -334,8 +334,8 @@ tests:
       expected: pass
       evidence:
         status: passed
-        run_id: "python3 -m pytest backend/tests/test_fitness_urban_sports_skills.py (4 passed)"
-        timestamp: "2026-07-07T01:10:18Z"
+        run_id: "python3 -m pytest backend/tests/test_fitness_urban_sports_skills.py (5 passed)"
+        timestamp: "2026-07-07T03:49:00Z"
   - id: T-CLI-FITNESS
     type: unit
     file: frontend/packages/openmates-cli/tests/cli.test.ts
@@ -442,7 +442,7 @@ tests:
     assertions:
       - web chat triggers Fitness search classes and renders a processing preview
       - finished preview displays provider, date/radius/mode summary, and result count
-      - fullscreen opens an event-style search grid with class/location cards
+      - fullscreen opens the Fitness class result surface with either real results or an empty state
       - empty/error states do not leak raw app-skill JSON
     red_phase:
       required: true
@@ -456,9 +456,10 @@ tests:
       required: true
       expected: pass_after_deploy
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "2026-07-07T04:05:40Z / GitHub Actions 28840786030 / commit 8f1ff1e21"
+        timestamp: "2026-07-07T04:10:08Z"
+        summary: "OPENMATES_SKIP_VERCEL_WAIT=true python3 scripts/tests.py run -- --spec skill-fitness-urban-sports.spec.ts passed. Web app was the manually aliased Ready dev build; backend worker was restarted after commit aba6bab so Fitness skill classes loaded the flat-runtime-args fix."
   - id: T-APPLE-BUILD
     type: build
     file: apple/OpenMates.xcodeproj
@@ -492,8 +493,8 @@ verifications:
     status: passed
     evidence:
       status: passed
-      summary: "`python3 scripts/spec_validate.py docs/specs/fitness-urban-sports-search/spec.yml` passed. Full spec verification is still pending Playwright/CLI-direct evidence."
-      timestamp: "2026-07-07"
+      summary: "`python3 scripts/spec_validate.py docs/specs/fitness-urban-sports-search/spec.yml` and `python3 scripts/spec_verify.py docs/specs/fitness-urban-sports-search/spec.yml` passed after green Playwright evidence was recorded."
+      timestamp: "2026-07-07T04:11:00Z"
 
 implementation_plan:
   existing_patterns:
