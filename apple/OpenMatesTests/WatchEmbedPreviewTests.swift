@@ -68,11 +68,12 @@ final class WatchEmbedPreviewTests: XCTestCase {
             ]
         )
 
-        let model = WatchEmbedPreviewMapper.makeModel(for: embed, chatId: "chat-private")
+        let model = WatchEmbedPreviewMapper.makeModel(for: embed, chatId: "chat-secure")
 
         XCTAssertEqual(model.family, .audioRecording)
-        XCTAssertEqual(model.title, "private dictated text")
-        XCTAssertFalse(model.continuation.universalLink?.contains("private") == true)
+        XCTAssertEqual(model.title, "private title")
+        XCTAssertFalse(model.continuation.universalLink?.contains("private title") == true)
+        XCTAssertFalse(model.continuation.universalLink?.contains("private dictated text") == true)
         XCTAssertEqual(model.continuation.qrPayload, model.continuation.universalLink)
     }
 
