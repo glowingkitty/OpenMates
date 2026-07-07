@@ -188,6 +188,7 @@ final class WatchChatRuntime: ObservableObject {
     private let syncSocket: (any WatchChatSyncSocket)?
     private let syncSession: WatchSyncSession?
     private var pendingTextSends: [WatchPendingTextSend] = []
+    private static let incognitoChatIdPrefix = "incognito-"
 
     init(
         currentUserId: String? = nil,
@@ -362,7 +363,7 @@ final class WatchChatRuntime: ObservableObject {
     }
 
     private func makeSyncClientState() -> WatchSyncClientState {
-        let syncableChats = chats.filter { !IncognitoChatSession.isIncognitoChatId($0.id) }
+        let syncableChats = chats.filter { !$0.id.hasPrefix(Self.incognitoChatIdPrefix) }
         return WatchSyncClientState(
             clientChatVersions: [:],
             clientChatIds: syncableChats.map(\.id),
