@@ -72,7 +72,7 @@ final class ComposerVisualParityUITests: XCTestCase {
     }
 
     func testFocusedWelcomeLocationSelectionInsertsSendableContent() throws {
-        let app = launchFocusedWelcomeComposer()
+        let app = launchFocusedWelcomeComposer(extraArguments: ["--ui-test-location-preselected"])
         let locationButton = app.buttons["share-location-button"]
         XCTAssertTrue(locationButton.waitForExistence(timeout: 5))
         locationButton.tap()
@@ -86,9 +86,6 @@ final class ComposerVisualParityUITests: XCTestCase {
         )
 
         let selectButton = element(in: app, identifier: "location-select-button")
-        if !selectButton.waitForExistence(timeout: 2) {
-            overlay.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)).tap()
-        }
         XCTAssertTrue(selectButton.waitForExistence(timeout: 5))
         selectButton.tap()
 
@@ -153,9 +150,9 @@ final class ComposerVisualParityUITests: XCTestCase {
         return candidates[0]
     }
 
-    private func launchFocusedWelcomeComposer() -> XCUIApplication {
+    private func launchFocusedWelcomeComposer(extraArguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"] + extraArguments
         app.launch()
 
         let skip = app.buttons["guest-interest-skip"]
