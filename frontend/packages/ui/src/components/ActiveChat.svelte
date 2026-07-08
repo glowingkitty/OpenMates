@@ -9011,9 +9011,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     const ANONYMOUS_HASH_RESTORE_ATTEMPTS = 30;
     const ANONYMOUS_HASH_RESTORE_RETRY_MS = 100;
+    const ANONYMOUS_HASH_EMPTY_RESTORE_ATTEMPTS = 5;
 
     let restoringAnonymousHashChat = $state(false);
-    let anonymousHashEmptyRestoreAttemptedFor = $state<string | null>(null);
+    let anonymousHashEmptyRestoreAttempts = $state<Record<string, number>>({});
 
     async function getAnonymousHashChatWithRetry(chatId: string): Promise<Chat | null> {
         for (let attempt = 0; attempt < ANONYMOUS_HASH_RESTORE_ATTEMPTS; attempt += 1) {
@@ -9065,20 +9066,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     $effect(() => {
-        if (
-            anonymousHashEmptyRestoreAttemptedFor &&
-            (currentChat?.chat_id !== anonymousHashEmptyRestoreAttemptedFor || currentMessages.length > 0)
-        ) {
-            anonymousHashEmptyRestoreAttemptedFor = null;
+        if (currentMessages.length > 0 || (currentChat?.chat_id && !isAnonymousChatId(currentChat.chat_id))) {
+            anonymousHashEmptyRestoreAttempts = {};
         }
     });
 
     $effect(() => {
         const hashChatId = activeChatStore.getChatIdFromHash();
+        const emptyRestoreAttempts = hashChatId ? (anonymousHashEmptyRestoreAttempts[hashChatId] ?? 0) : 0;
         const sameHashChatMissingMessages =
             currentChat?.chat_id === hashChatId &&
             currentMessages.length === 0 &&
-            anonymousHashEmptyRestoreAttemptedFor !== hashChatId;
+            emptyRestoreAttempts < ANONYMOUS_HASH_EMPTY_RESTORE_ATTEMPTS;
         const shouldRestoreAnonymousHash =
             !$authStore.isAuthenticated &&
             ((showWelcome && !currentChat?.chat_id) || sameHashChatMissingMessages) &&
@@ -9089,7 +9088,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
         restoringAnonymousHashChat = true;
         if (sameHashChatMissingMessages) {
-            anonymousHashEmptyRestoreAttemptedFor = hashChatId;
+            anonymousHashEmptyRestoreAttempts = {
+                ...anonymousHashEmptyRestoreAttempts,
+                [hashChatId]: emptyRestoreAttempts + 1
+            };
         }
         restoreAnonymousHashChatOnMount()
             .catch((error) => {
