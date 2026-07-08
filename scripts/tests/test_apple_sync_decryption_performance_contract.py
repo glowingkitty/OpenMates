@@ -62,3 +62,10 @@ def test_only_phase1a_uses_all_metadata_decryption() -> None:
     assert "phase_1_last_chat_ready" in phase1_body
     assert "metadataDecryption: .all" in phase1_body
     assert "decrypt=deferred" in phase1_body
+
+
+def test_sidebar_sub_chat_ordering_avoids_quadratic_parent_lookup() -> None:
+    body = function_body(read_main_app_view(), "orderedWithSubChats")
+
+    assert "let chatIds = Set(chats.map(\\.id))" in body
+    assert "chats.contains(where:" not in body

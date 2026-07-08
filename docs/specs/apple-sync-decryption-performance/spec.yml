@@ -203,7 +203,7 @@ tests:
         status: passed
         run_id: "python3 -m pytest scripts/tests/test_apple_sync_decryption_performance_contract.py"
         timestamp: "2026-07-08"
-        summary: "3 passed; existing pytest cache permission warning did not affect test result."
+        summary: "4 passed; existing pytest cache permission warning did not affect test result. Includes guard against O(n^2) sidebar parent lookup."
 
   - id: T-APPLE-UI-001
     type: build
@@ -263,7 +263,7 @@ implementation_plan:
     - Chat opening decrypts the selected visible message window.
   affected_files:
     - path: apple/OpenMates/Sources/App/MainAppView.swift
-      reason: Startup ordering and metadata decryption scope.
+      reason: Startup ordering, metadata decryption scope, and large sidebar ordering performance.
     - path: apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
       reason: Performance regression evidence if thresholds or metrics need refinement.
     - path: apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift

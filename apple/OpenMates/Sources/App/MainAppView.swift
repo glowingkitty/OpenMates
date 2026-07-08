@@ -134,6 +134,7 @@ struct MainAppView: View {
 
     private func orderedWithSubChats(_ chats: [Chat]) -> [Chat] {
         let childrenByParent = Dictionary(grouping: chats.filter { $0.parentId != nil }) { $0.parentId ?? "" }
+        let chatIds = Set(chats.map(\.id))
         var emitted = Set<String>()
         var ordered: [Chat] = []
 
@@ -145,7 +146,7 @@ struct MainAppView: View {
             }
         }
 
-        for chat in chats where chat.parentId == nil || !chats.contains(where: { $0.id == chat.parentId }) {
+        for chat in chats where chat.parentId == nil || !chatIds.contains(chat.parentId ?? "") {
             appendChat(chat)
         }
         for chat in chats {
