@@ -527,7 +527,7 @@
                 {#if !docsMode}
                     <div
                         class="right-section"
-                        class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $demoMode || $loginInterfaceOpen || $introBannerVisible}
+                        class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen || $introBannerVisible}
                     >
                         {#if !isMobile}
                             <a

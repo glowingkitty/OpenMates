@@ -10,7 +10,7 @@
  */
 export {};
 
-const { test } = require('./helpers/cookie-audit');
+const { test, expect } = require('./helpers/cookie-audit');
 const { getTestAccount } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 
@@ -28,6 +28,12 @@ test('configured account can complete password and OTP login', async ({ page }: 
 	};
 
 	log('Starting account preflight.', { email });
+	await page.setViewportSize({ width: 1440, height: 900 });
 	await loginToTestAccount(page, log, async () => undefined, { waitForEditor: false });
 	log('Account preflight login succeeded.', { email });
+
+	await expect(page.getByTestId('header-github-link')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('referral-cta')).toBeVisible({ timeout: 15000 });
+	await expect(page.getByTestId('referral-cta')).toContainText(/Get free credits/i);
+	log('Authenticated wide header actions are visible.', { email });
 });

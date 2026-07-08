@@ -40,7 +40,7 @@ changes to the documentation (to keep the documentation up to date).
     import { cubicOut } from 'svelte/easing';
     import { authStore, isCheckingAuth, logout } from '../stores/authStore'; // Import logout action
     import { isMenuOpen } from '../stores/menuState';
-    // import { getWebsiteUrl, routes } from '../config/links'; // Unused - help button disabled
+    import { externalLinks } from '../config/links';
     import { tooltip } from '../actions/tooltip';
     import { isInSignupProcess, isLoggingOut, showSignupFooter } from '../stores/signupState';
     import { userProfile, updateProfile } from '../stores/userProfile';
@@ -2697,36 +2697,46 @@ changes to the documentation (to keep the documentation up to date).
     	out:fade
     >
     <div bind:this={profileContainerWrapper}> <!-- Bind the wrapper -->
-        {#if showLearningModeCta || showReferralCta}
-            {#key showLearningModeCta ? 'learning-mode' : 'referral'}
-                {#if showLearningModeCta}
-                    <button
-                        type="button"
-                        class="referral-cta learning-mode-cta compact"
-                        data-testid="learning-mode-header-cta"
-                        aria-label={$text('settings.learning_mode')}
-                        onclick={openLearningModeSettings}
-                        in:fade={{ duration: 180 }}
-                        out:fade={{ duration: 140 }}
-                    >
-                        <span class="learning-mode-cta-icon" aria-hidden="true"></span>
-                        <span class="referral-cta-text">{$text('settings.learning_mode')}</span>
-                    </button>
-                {:else}
-                    <button
-                        type="button"
-                        class="referral-cta"
-                        data-testid="referral-cta"
-                        aria-label={$text('settings.billing.get_free_credits')}
-                        onclick={openReferralSettings}
-                        in:fade={{ duration: 180 }}
-                        out:fade={{ duration: 140 }}
-                    >
-                        <span class="referral-cta-icon" aria-hidden="true"></span>
-                        <span class="referral-cta-text">{$text('settings.billing.get_free_credits')}</span>
-                    </button>
-                {/if}
-            {/key}
+        {#if visuallyAuthenticated}
+            <a
+                class="header-github-link"
+                data-testid="header-github-link"
+                href={externalLinks.github}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Open OpenMates GitHub repository"
+                in:fade={{ duration: 180 }}
+                out:fade={{ duration: 140 }}
+            >
+                <span class="header-github-icon" aria-hidden="true"></span>
+            </a>
+        {/if}
+        {#if showReferralCta}
+            <button
+                type="button"
+                class="referral-cta"
+                data-testid="referral-cta"
+                aria-label={$text('settings.billing.get_free_credits')}
+                onclick={openReferralSettings}
+                in:fade={{ duration: 180 }}
+                out:fade={{ duration: 140 }}
+            >
+                <span class="referral-cta-icon" aria-hidden="true"></span>
+                <span class="referral-cta-text">{$text('settings.billing.get_free_credits')}</span>
+            </button>
+        {:else if showLearningModeCta}
+            <button
+                type="button"
+                class="referral-cta learning-mode-cta compact"
+                data-testid="learning-mode-header-cta"
+                aria-label={$text('settings.learning_mode')}
+                onclick={openLearningModeSettings}
+                in:fade={{ duration: 180 }}
+                out:fade={{ duration: 140 }}
+            >
+                <span class="learning-mode-cta-icon" aria-hidden="true"></span>
+                <span class="referral-cta-text">{$text('settings.learning_mode')}</span>
+            </button>
         {/if}
      	<div
 			id="settings-menu-toggle"
@@ -3055,7 +3065,7 @@ changes to the documentation (to keep the documentation up to date).
     .referral-cta {
         position: absolute;
         top: 4px;
-        inset-inline-end: 58px;
+        inset-inline-end: 102px;
         height: 42px;
         max-width: 185px;
         min-width: 24px;
@@ -3078,6 +3088,41 @@ changes to the documentation (to keep the documentation up to date).
 
     .referral-cta:hover {
         transform: translateY(-1px);
+    }
+
+    .header-github-link {
+        position: absolute;
+        top: 4px;
+        inset-inline-end: 58px;
+        width: 42px;
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-full);
+        color: var(--color-primary-end);
+        text-decoration: none;
+        transition:
+            opacity var(--duration-normal) var(--easing-default),
+            transform var(--duration-normal) var(--easing-default);
+    }
+
+    .header-github-link:hover {
+        transform: translateY(-1px);
+    }
+
+    .header-github-icon {
+        width: 22px;
+        height: 22px;
+        background: var(--color-primary);
+        -webkit-mask-image: url('@openmates/ui/static/icons/github.svg');
+        mask-image: url('@openmates/ui/static/icons/github.svg');
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
     }
 
     .referral-cta.compact {
@@ -3148,7 +3193,8 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
-    .profile-container-wrapper:has(.profile-container.menu-open) .referral-cta {
+    .profile-container-wrapper:has(.profile-container.menu-open) .referral-cta,
+    .profile-container-wrapper:has(.profile-container.menu-open) .header-github-link {
         opacity: 0;
         pointer-events: none;
     }
