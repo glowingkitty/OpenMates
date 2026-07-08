@@ -25,8 +25,6 @@ PYPROJECT_PATH = ROOT / "packages" / "openmates-python" / "pyproject.toml"
 PYPI_JSON_URL = "https://pypi.org/pypi/openmates/json"
 VERSION_PATTERN = re.compile(r'^version = "([^"]+)"$', re.MULTILINE)
 SEMVER_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
-PRERELEASE_PATTERN = re.compile(r"^\d+\.\d+\.\d+a\d+$")
-
 
 def fail(message: str) -> None:
     print(message, file=sys.stderr)
@@ -68,12 +66,13 @@ def published_versions(args: argparse.Namespace) -> list[str]:
 
 
 def next_prerelease_version(config: dict, versions: list[str]) -> str:
-    base = config["prereleaseBase"]
-    seed = config["prereleaseSeed"]
+    stable = next_stable_version(config, versions)
+    label = config.get("prereleaseLabel", "a")
+    base = f"{stable}{label}"
     pattern = re.compile(rf"^{re.escape(base)}(\d+)$")
     indexes = [int(match.group(1)) for version in versions if (match := pattern.match(version))]
     if not indexes:
-        return seed
+        return f"{base}0"
     return f"{base}{max(indexes) + 1}"
 
 
@@ -94,16 +93,11 @@ def next_stable_version(config: dict, versions: list[str]) -> str:
 
 def validate_config(config: dict) -> None:
     stable_base = config.get("stableBase", "")
-    prerelease_base = config.get("prereleaseBase", "")
-    prerelease_seed = config.get("prereleaseSeed", "")
+    prerelease_label = config.get("prereleaseLabel", "a")
     if not SEMVER_PATTERN.match(stable_base):
         fail(f"python.stableBase must be a PEP 440 stable version, got {stable_base}")
-    if not re.match(r"^\d+\.\d+\.\d+a$", prerelease_base):
-        fail(f"python.prereleaseBase must end in 'a', got {prerelease_base}")
-    if not PRERELEASE_PATTERN.match(prerelease_seed):
-        fail(f"python.prereleaseSeed must be a PEP 440 alpha version, got {prerelease_seed}")
-    if not prerelease_seed.startswith(prerelease_base):
-        fail("python.prereleaseSeed must start with python.prereleaseBase")
+    if prerelease_label != "a":
+        fail(f"python.prereleaseLabel must be 'a' for alpha prereleases, got {prerelease_label}")
 
 
 def main() -> None:

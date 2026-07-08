@@ -1,6 +1,6 @@
 # Publish the OpenMates Python SDK to PyPI.
 # - main branch → next stable patch in the configured release line
-# - dev branch → PEP 440 alpha prerelease, e.g. 0.14.0a1
+# - dev branch → PEP 440 alpha prerelease for the next patch, e.g. 0.14.1a0
 #
 # Uses PyPI Trusted Publishing (OIDC) — no PYPI_API_TOKEN secret needed.
 # Configure at: PyPI → Account settings → Publishing → Add pending publisher.

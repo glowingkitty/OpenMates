@@ -33,8 +33,7 @@ key:
 {
   "python": {
     "stableBase": "0.14.0",
-    "prereleaseBase": "0.14.0a",
-    "prereleaseSeed": "0.14.0a0"
+    "prereleaseLabel": "a"
   }
 }
 ```
@@ -42,7 +41,7 @@ key:
 The checked-in `packages/openmates-python/pyproject.toml` version should match
 `python.stableBase`. The publish workflow rewrites that version in CI only:
 
-- `dev` publishes the next alpha prerelease, for example `0.14.0a0`, `0.14.0a1`, and so on.
+- `dev` publishes alpha prereleases for the next stable patch in the configured release line. For example, before `0.14.0` is stable it publishes `0.14.0a0`, `0.14.0a1`; after `0.14.0` is stable it publishes `0.14.1a0`, `0.14.1a1`.
 - `main` publishes the next stable patch in the configured release line: `0.14.0`, then `0.14.1`, `0.14.2`, and so on. It ignores unrelated future lines when choosing the next patch.
 
 Use alpha releases for dev testing:
