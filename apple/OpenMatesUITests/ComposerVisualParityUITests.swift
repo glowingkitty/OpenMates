@@ -72,7 +72,10 @@ final class ComposerVisualParityUITests: XCTestCase {
     }
 
     func testFocusedWelcomeLocationSelectionInsertsSendableContent() throws {
-        let app = launchFocusedWelcomeComposer(environment: ["UI_TEST_LOCATION_PRESELECTED": "1"])
+        let app = launchFocusedWelcomeComposer(
+            extraArguments: ["--ui-test-location-preselected"],
+            environment: ["UI_TEST_LOCATION_PRESELECTED": "1"]
+        )
         let locationButton = app.buttons["share-location-button"]
         XCTAssertTrue(locationButton.waitForExistence(timeout: 5))
         locationButton.tap()
