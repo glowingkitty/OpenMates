@@ -76,6 +76,7 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
     var maxWidth: CGFloat? = MessageComposerMetric.mainAppMaxWidth
     var accessibilityHint: String = AppStrings.typeMessage
     var onSubmit: () -> Void
+    var inlineFieldContent: AnyView? = nil
     @ViewBuilder var preFieldContent: () -> PreFieldContent
     @ViewBuilder var overlayContent: () -> OverlayContent
     @ViewBuilder var actionButtons: () -> ActionButtons
@@ -94,6 +95,7 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
                 showActionButtonsWhenCompact: showActionButtonsWhenCompact,
                 expandedMinHeight: expandedMinHeight,
                 accessibilityHint: accessibilityHint,
+                inlineFieldContent: inlineFieldContent,
                 overlayContent: AnyView(overlayContent()),
                 onSubmit: onSubmit
             ) {
@@ -135,6 +137,7 @@ extension MessageComposerView where PreFieldContent == EmptyView, OverlayContent
             maxWidth: maxWidth,
             accessibilityHint: accessibilityHint,
             onSubmit: onSubmit,
+            inlineFieldContent: nil,
             preFieldContent: { EmptyView() },
             overlayContent: { EmptyView() },
             actionButtons: actionButtons
@@ -170,6 +173,7 @@ extension MessageComposerView where PreFieldContent == EmptyView {
             maxWidth: maxWidth,
             accessibilityHint: accessibilityHint,
             onSubmit: onSubmit,
+            inlineFieldContent: nil,
             preFieldContent: { EmptyView() },
             overlayContent: overlayContent,
             actionButtons: actionButtons
@@ -205,6 +209,7 @@ extension MessageComposerView where OverlayContent == EmptyView {
             maxWidth: maxWidth,
             accessibilityHint: accessibilityHint,
             onSubmit: onSubmit,
+            inlineFieldContent: nil,
             preFieldContent: preFieldContent,
             overlayContent: { EmptyView() },
             actionButtons: actionButtons

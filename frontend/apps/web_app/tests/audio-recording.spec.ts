@@ -19,6 +19,7 @@ import { test, expect } from './helpers/cookie-audit';
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const { loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
+const { captureComposerEmbedContract } = require('./helpers/apple-ui-contract-helpers');
 
 // Configure the browser to use a fake audio device and grant mic permission
 test.use({
@@ -278,6 +279,11 @@ test('press hold and release creates audio embed', async ({ page }) => {
 
 	const embedCountAfter = await page.getByTestId('recording-preview').count();
 	expect(embedCountAfter).toBeGreaterThan(embedCountBefore);
+	await captureComposerEmbedContract(page, {
+		id: 'composer-pending-audio-recording',
+		embedType: 'audio-recording',
+		screenshot: true
+	});
 
 	console.log('[TEST] Press hold release: audio embed inserted');
 });

@@ -57,6 +57,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
     var showActionButtonsWhenCompact = false
     var expandedMinHeight: CGFloat = 100
     var accessibilityHint: String
+    var inlineFieldContent: AnyView? = nil
     var overlayContent: AnyView? = nil
     var onSubmit: () -> Void
     @ViewBuilder var actionButtons: () -> ActionButtons
@@ -71,6 +72,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
 
     private var resolvedFieldHeight: CGFloat? {
         if compact { return compactHeight }
+        if inlineFieldContent != nil { return nil }
         if text.isEmpty && expandedMinHeight <= MessageComposerMetric.focusedEmptyHeight {
             return MessageComposerMetric.focusedEmptyHeight
         }
@@ -85,6 +87,10 @@ struct OMMessageInputField<ActionButtons: View>: View {
         !compact || showActionButtonsWhenCompact
     }
 
+    private var textEditorMinHeight: CGFloat {
+        inlineFieldContent == nil ? fieldHeight : 40
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             RoundedRectangle(cornerRadius: cornerRadius)
@@ -95,25 +101,34 @@ struct OMMessageInputField<ActionButtons: View>: View {
                 .accessibilityHint(accessibilityHint)
                 .accessibilityIdentifier("message-field")
 
-            TextField("", text: $text, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(.omP)
-                .lineLimit(compact ? 1...1 : 1...6)
-                .tint(Color.buttonPrimary)
-                .focused(isFocused)
-                .onSubmit(onSubmit)
-                .accessibilityLabel(AppStrings.chatMessageInput)
-                .accessibilityHint(accessibilityHint)
-                .accessibilityIdentifier("message-editor")
-                .padding(.horizontal, compact ? .spacing6 : expandedHorizontalPadding)
-                .padding(.top, compact ? 0 : expandedTopPadding)
-                .padding(.bottom, compact ? 0 : expandedBottomPadding)
-                .fontWeight(compact ? .semibold : .regular)
-                .multilineTextAlignment(compact ? .center : .leading)
-                .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: compact ? .center : .topLeading)
-                .zIndex(1)
+            VStack(alignment: .leading, spacing: .spacing2) {
+                if let inlineFieldContent {
+                    inlineFieldContent
+                        .padding(.horizontal, compact ? .spacing4 : .spacing4)
+                        .padding(.top, compact ? .spacing2 : .spacing4)
+                }
 
-            if text.isEmpty && !isFocused.wrappedValue {
+                TextField("", text: $text, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(.omP)
+                    .lineLimit(compact ? 1...1 : 1...6)
+                    .tint(Color.buttonPrimary)
+                    .focused(isFocused)
+                    .onSubmit(onSubmit)
+                    .accessibilityLabel(AppStrings.chatMessageInput)
+                    .accessibilityHint(accessibilityHint)
+                    .accessibilityIdentifier("message-editor")
+                    .padding(.horizontal, compact ? .spacing6 : expandedHorizontalPadding)
+                    .padding(.top, compact ? 0 : (inlineFieldContent == nil ? expandedTopPadding : .spacing2))
+                    .padding(.bottom, compact ? 0 : expandedBottomPadding)
+                    .fontWeight(compact ? .semibold : .regular)
+                    .multilineTextAlignment(compact ? .center : .leading)
+                    .frame(maxWidth: .infinity, minHeight: textEditorMinHeight, alignment: compact ? .center : .topLeading)
+            }
+            .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: compact ? .center : .topLeading)
+            .zIndex(1)
+
+            if text.isEmpty && !isFocused.wrappedValue && inlineFieldContent == nil {
                 Text(placeholder)
                     .font(.omP)
                     .fontWeight(.medium)

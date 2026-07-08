@@ -17,6 +17,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
         let pendingEmbed = element(in: app, identifiers: ["pending-composer-embed", "embed-full-width-wrapper"])
         XCTAssertTrue(pendingEmbed.waitForExistence(timeout: 10))
+        assertElement(pendingEmbed, isVisuallyInside: element(in: app, identifier: "message-field"))
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
 
         focusComposerInput(in: app)
@@ -117,6 +118,7 @@ final class MessageInputAttachmentUITests: XCTestCase {
 
         let pendingEmbedStrip = element(in: app, identifier: "pending-composer-embed")
         XCTAssertTrue(pendingEmbedStrip.waitForExistence(timeout: 5))
+        assertElement(element(in: app, identifier: "embed-full-width-wrapper"), isVisuallyInside: element(in: app, identifier: "message-field"))
         assertPendingLabel("welcome-file.pdf", in: app, scrollContainer: pendingEmbedStrip)
         assertPendingLabel("welcome-sketch.png", in: app, scrollContainer: pendingEmbedStrip)
         assertPendingLabel("welcome-recording.m4a", in: app, scrollContainer: pendingEmbedStrip)
@@ -210,5 +212,24 @@ final class MessageInputAttachmentUITests: XCTestCase {
 
         XCTFail("Expected welcome message editor to exist. Visible UI: \(app.debugDescription)")
         return candidates[0]
+    }
+
+    private func assertElement(
+        _ child: XCUIElement,
+        isVisuallyInside parent: XCUIElement,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertTrue(parent.waitForExistence(timeout: 5), "Expected parent element to exist", file: file, line: line)
+        XCTAssertTrue(child.waitForExistence(timeout: 5), "Expected child element to exist", file: file, line: line)
+
+        let parentFrame = parent.frame.insetBy(dx: -1, dy: -1)
+        let childCenter = CGPoint(x: child.frame.midX, y: child.frame.midY)
+        XCTAssertTrue(
+            parentFrame.contains(childCenter),
+            "Expected \(child.identifier) to render inside \(parent.identifier); child=\(child.frame), parent=\(parent.frame)",
+            file: file,
+            line: line
+        )
     }
 }

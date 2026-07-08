@@ -1298,7 +1298,8 @@ struct ChatView: View {
                 expandedMinHeight: overlayActive ? 400 : expandedMinHeight,
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
-                onSubmit: sendMessage
+                onSubmit: sendMessage,
+                inlineFieldContent: pendingComposerInlineFieldContent
             ) {
                 PIIWarningBanner(matches: activePIIMatches) {
                     piiExclusions.formUnion(detectedPIIMatches.map(\.id))
@@ -1322,24 +1323,6 @@ struct ChatView: View {
                 if let chatId = viewModel.chat?.id {
                     UploadProgressBar(uploads: pendingUploads.uploadsForChat(chatId))
                 }
-
-                PendingComposerEmbedsList(embeds: viewModel.pendingComposerEmbeds) { embed in
-                    viewModel.removePendingComposerEmbed(id: embed.id)
-                }
-
-                #if DEBUG
-                if shouldShowUITestPendingComposerEmbedFallback {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: .spacing3) {
-                            PendingComposerEmbedPreview(embed: .uiTestFixture) {}
-                        }
-                        .padding(.horizontal, .spacing4)
-                    }
-                    .padding(.vertical, .spacing2)
-                    .accessibilityIdentifier("pending-composer-embed")
-                }
-                #endif
-
                 if let mentionQuery {
                     MentionDropdownView(
                         query: mentionQuery,
@@ -1438,6 +1421,22 @@ struct ChatView: View {
             }
         }
         .frame(maxWidth: MessageComposerMetric.mainAppMaxWidth)
+    }
+
+    private var pendingComposerInlineFieldContent: AnyView? {
+        if viewModel.hasPendingComposerEmbeds {
+            return AnyView(PendingComposerEmbedsList(embeds: viewModel.pendingComposerEmbeds) { embed in
+                viewModel.removePendingComposerEmbed(id: embed.id)
+            })
+        }
+
+        #if DEBUG
+        if shouldShowUITestPendingComposerEmbedFallback {
+            return AnyView(PendingComposerEmbedsList(embeds: [.uiTestFixture]) { _ in })
+        }
+        #endif
+
+        return nil
     }
 
     private func composerOverlayView() -> AnyView? {

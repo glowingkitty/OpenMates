@@ -5891,9 +5891,10 @@ private struct WelcomeComposer: View {
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 onSubmit: { canSubmit ? onSend() : onOpenAuth() },
-                preFieldContent: {
-                    PendingComposerEmbedsList(embeds: pendingComposerEmbeds, onRemove: onRemovePendingEmbed)
-                },
+                inlineFieldContent: hasPendingComposerEmbeds
+                    ? AnyView(PendingComposerEmbedsList(embeds: pendingComposerEmbeds, onRemove: onRemovePendingEmbed))
+                    : nil,
+                preFieldContent: { EmptyView() },
                 overlayContent: {
                     if let overlayContent {
                         overlayContent
