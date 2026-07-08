@@ -4414,7 +4414,6 @@ private enum WelcomeComposerPendingKind {
     case audio
 }
 
-#if DEBUG
 private struct WelcomeLocationUITestOverlay: View {
     let onShare: (Double, Double, String) -> Void
 
@@ -4447,7 +4446,6 @@ private struct WelcomeLocationUITestOverlay: View {
         .accessibilityIdentifier("location-overlay")
     }
 }
-#endif
 
 struct NewChatWelcomeView: View {
     let inspirations: [DailyInspirationBanner.DailyInspiration]
@@ -5008,12 +5006,8 @@ struct NewChatWelcomeView: View {
     }
 
     private var isUITestWelcomeLocationPreselected: Bool {
-        #if DEBUG
         ProcessInfo.processInfo.arguments.contains("--ui-test-location-preselected") ||
         ProcessInfo.processInfo.environment["UI_TEST_LOCATION_PRESELECTED"] == "1"
-        #else
-        false
-        #endif
     }
 
     private func applyWelcomeComposerUITestFlagsIfNeeded() {
@@ -5074,7 +5068,6 @@ struct NewChatWelcomeView: View {
         guard let composerOverlay else { return nil }
         switch composerOverlay {
         case .location:
-            #if DEBUG
             if isUITestWelcomeLocationPreselected {
                 return AnyView(
                     WelcomeLocationUITestOverlay { latitude, longitude, name in
@@ -5082,7 +5075,6 @@ struct NewChatWelcomeView: View {
                     }
                 )
             }
-            #endif
             return AnyView(
                 ComposerLocationOverlay(
                     onShare: { latitude, longitude, name in
