@@ -11,6 +11,12 @@ requires-python = ">=3.10"
 dependencies = ["requests>=2.31", "cryptography>=41"]
 license = "MIT"
 
+[project.urls]
+Homepage = "https://openmates.org"
+Documentation = "https://openmates.org/docs/user-guide/developers/sdk"
+Source = "https://github.com/glowingkitty/OpenMates/tree/dev/packages/openmates-python"
+Issues = "https://github.com/glowingkitty/OpenMates/issues"
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["openmates*"]

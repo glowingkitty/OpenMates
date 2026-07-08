@@ -1,5 +1,7 @@
 # openmates
 
+<img src="https://openmates.org/favicon.png" alt="OpenMates" width="72">
+
 Python SDK for OpenMates API-key access to app skills and encrypted chat workflows.
 
 ## Install
