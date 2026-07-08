@@ -1,6 +1,6 @@
 {
   "name": "@repo/ui",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "type": "module",
   "module": "index.ts",
   "main": "index.ts",

@@ -32,9 +32,9 @@ key:
 ```json
 {
   "python": {
-    "stableBase": "0.13.0",
-    "prereleaseBase": "0.13.0a",
-    "prereleaseSeed": "0.13.0a0"
+    "stableBase": "0.14.0",
+    "prereleaseBase": "0.14.0a",
+    "prereleaseSeed": "0.14.0a0"
   }
 }
 ```
@@ -42,7 +42,7 @@ key:
 The checked-in `packages/openmates-python/pyproject.toml` version should match
 `python.stableBase`. The publish workflow rewrites that version in CI only:
 
-- `dev` publishes the next alpha prerelease, for example `0.13.0a0`, `0.13.0a1`, and so on.
+- `dev` publishes the next alpha prerelease, for example `0.14.0a0`, `0.14.0a1`, and so on.
 - `main` publishes `python.stableBase` if it is not already on PyPI; otherwise it patch-bumps from the latest stable PyPI version.
 
 Use alpha releases for dev testing:
