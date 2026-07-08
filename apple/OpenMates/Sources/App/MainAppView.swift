@@ -1995,11 +1995,14 @@ struct MainAppView: View {
 
         let bridge = appSession.prepareAuthenticatedRuntime(lastOpenedChatId: authManager.currentUser?.lastOpened)
         syncBridge = bridge
-        await decryptVisibleChatMetadata(reason: "offlineColdLoad")
 
         Task { await authManager.validateSessionAfterOfflineBootstrap() }
         Task { await loadAccountTopicPreferences() }
         connectWebSocket()
+        Task { @MainActor in
+            await Task.yield()
+            await decryptVisibleChatMetadata(reason: "offlineColdLoad")
+        }
         Task { await promoteAnonymousChatsAfterAuthentication() }
         scheduleTokenBackedWebSocketReconnectIfNeeded()
         scheduleInitialDataFallback()
@@ -2038,7 +2041,7 @@ struct MainAppView: View {
             let path = limit.map { "/v1/chats?limit=\($0)" } ?? "/v1/chats"
             let response: ChatListResponse = try await APIClient.shared.request(.get, path: path)
 
-            await upsertSyncedChats(response.chats, metadataDecryption: .all)
+            await upsertSyncedChats(response.chats, metadataDecryption: .visibleOnly)
 
             NativeSyncPerfLog.info(
                 "phase=restInitialLoad chats=\(response.chats.count) limit=\(limit ?? 0) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
