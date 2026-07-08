@@ -685,9 +685,12 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         Task { @MainActor in self.syncServerProfileToWatch() }
         let errorLabel = error.map { " errorType=\(type(of: $0)) error=\($0.localizedDescription)" } ?? ""
+        let isReachable = session.isReachable
+        let isPaired = session.isPaired
+        let isWatchAppInstalled = session.isWatchAppInstalled
         Task { @MainActor in
             NativeDiagnostics.info(
-                "phase=phoneBridge.activationComplete state=\(activationState.rawValue) reachable=\(session.isReachable) paired=\(session.isPaired) watchAppInstalled=\(session.isWatchAppInstalled)\(errorLabel)",
+                "phase=phoneBridge.activationComplete state=\(activationState.rawValue) reachable=\(isReachable) paired=\(isPaired) watchAppInstalled=\(isWatchAppInstalled)\(errorLabel)",
                 category: self.diagnosticsCategory
             )
         }
