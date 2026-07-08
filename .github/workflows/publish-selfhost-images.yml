@@ -150,10 +150,10 @@ jobs:
       matrix:
         include:
           - image: openmates-cms-setup
-            file: Dockerfile.setup.selfhost
+            file: backend/core/directus/Dockerfile.setup.selfhost
             context: backend/core/directus
           - image: openmates-vault-setup
-            file: Dockerfile
+            file: backend/core/vault/setup/Dockerfile
             context: backend/core/vault/setup
           - image: openmates-admin-sidecar
             file: backend/admin_sidecar/Dockerfile
