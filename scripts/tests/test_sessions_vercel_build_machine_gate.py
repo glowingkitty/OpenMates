@@ -33,6 +33,7 @@ def test_vercel_build_machine_gate_allows_standard_fixed(monkeypatch):
         sessions,
         "_fetch_vercel_project_settings",
         lambda _token, _team, _project: {
+            "nodeVersion": "24.x",
             "resourceConfig": {
                 "buildMachineType": "standard",
                 "buildMachineSelection": "fixed",
@@ -52,6 +53,7 @@ def test_vercel_build_machine_gate_blocks_turbo_elastic(monkeypatch):
         sessions,
         "_fetch_vercel_project_settings",
         lambda _token, _team, _project: {
+            "nodeVersion": "24.x",
             "resourceConfig": {
                 "buildMachineType": "turbo",
                 "buildMachineSelection": "elastic",
@@ -69,4 +71,25 @@ def test_vercel_build_machine_gate_requires_token(monkeypatch):
     monkeypatch.setattr(sessions, "_get_vercel_token_for_deploy_gate", lambda: "")
 
     with pytest.raises(RuntimeError, match="VERCEL_TOKEN is required"):
+        sessions._enforce_vercel_standard_build_machine()
+
+
+def test_vercel_deploy_gate_blocks_node20_runtime(monkeypatch):
+    sessions = load_sessions_module()
+
+    monkeypatch.setattr(sessions, "_get_vercel_token_for_deploy_gate", lambda: "token")
+    monkeypatch.setattr(sessions, "_load_web_app_vercel_project_config", lambda: ("team", "project"))
+    monkeypatch.setattr(
+        sessions,
+        "_fetch_vercel_project_settings",
+        lambda _token, _team, _project: {
+            "nodeVersion": "20.x",
+            "resourceConfig": {
+                "buildMachineType": "standard",
+                "buildMachineSelection": "fixed",
+            },
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="Node.js version must be 24.x"):
         sessions._enforce_vercel_standard_build_machine()
