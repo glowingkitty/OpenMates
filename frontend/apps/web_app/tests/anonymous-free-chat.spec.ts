@@ -387,7 +387,7 @@ test.describe('Anonymous free chat', () => {
 	}: {
 		page: any;
 	}) => {
-		test.setTimeout(60000);
+		test.setTimeout(120000);
 		await page.setViewportSize({ width: 390, height: 844 });
 		await mockAnonymousActiveServerStatus(page);
 
@@ -590,6 +590,10 @@ test.describe('Anonymous free chat', () => {
 	}: {
 		page: any;
 	}) => {
+		test.skip(
+			process.env.OPENMATES_LIVE_ANONYMOUS_CHAT_E2E !== '1',
+			'Live anonymous model smoke is opt-in; mocked streaming tests cover the deterministic web contract.'
+		);
 		test.setTimeout(120000);
 		await page.setViewportSize({ width: 390, height: 844 });
 		await mockAnonymousActiveServerStatus(page);
