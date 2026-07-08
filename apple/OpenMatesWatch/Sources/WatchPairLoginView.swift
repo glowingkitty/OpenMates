@@ -372,8 +372,9 @@ struct WatchPairLoginView: View {
             pairState.activeTokenServerProfile = serverProfile
             pairState.pairURLString = initiation.pairURLString
             pairState.status = .waiting
+            let pairHost = serverProfile.webBaseURL.host() ?? "unknown"
             NativeDiagnostics.info(
-                "phase=view.initiate.success serverProfile=\(serverProfile.id) pairHost=\(serverProfile.webBaseURL.host() ?? \"unknown\")",
+                "phase=view.initiate.success serverProfile=\(serverProfile.id) pairHost=\(pairHost)",
                 category: watchPairLoginDiagnosticsCategory
             )
             startPolling(token: initiation.token, serverProfile: serverProfile)

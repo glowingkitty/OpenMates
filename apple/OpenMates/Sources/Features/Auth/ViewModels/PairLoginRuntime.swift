@@ -121,7 +121,8 @@ enum PairLoginRuntime {
             )
             let token = response.token.uppercased()
             let pairURLString = buildPairURL(webAppURL: serverProfile.webBaseURL, token: token)
-            logInfo("phase=initiate.success \(serverDiagnostics(serverProfile)) expiresIn=\(response.expiresIn) pairHost=\(serverProfile.webBaseURL.host() ?? \"unknown\")")
+            let pairHost = serverProfile.webBaseURL.host() ?? "unknown"
+            logInfo("phase=initiate.success \(serverDiagnostics(serverProfile)) expiresIn=\(response.expiresIn) pairHost=\(pairHost)")
             return PairLoginInitiation(
                 token: token,
                 pairURLString: pairURLString
@@ -275,7 +276,9 @@ enum PairLoginRuntime {
     }
 
     private static func serverDiagnostics(_ profile: ServerProfile) -> String {
-        "serverProfile=\(profile.id) displayDomain=\(profile.displayDomain) apiHost=\(profile.apiBaseURL.host() ?? \"unknown\") webHost=\(profile.webBaseURL.host() ?? \"unknown\")"
+        let apiHost = profile.apiBaseURL.host() ?? "unknown"
+        let webHost = profile.webBaseURL.host() ?? "unknown"
+        return "serverProfile=\(profile.id) displayDomain=\(profile.displayDomain) apiHost=\(apiHost) webHost=\(webHost)"
     }
 
     private static func logInfo(_ message: String) {
