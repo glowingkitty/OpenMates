@@ -162,16 +162,23 @@ runtime.
 ### Install a server
 
 ```bash
-openmates server install --path ~/openmates
-openmates server install --role core --profile production --path ~/openmates
-openmates server start --path ~/openmates
-openmates server status --path ~/openmates
+openmates server install
+openmates server start
+openmates server status
 ```
 
-Default installs use prebuilt GHCR images and do not require Git or a source
-checkout. The installer writes a runtime directory, creates `.env`, generates
-local secrets, saves the self-host API target in `~/.openmates/server.json`, and
-prints the first invite code.
+The default install path is `~/openmates`. Use `--path <folder>` only when you
+want to install somewhere else:
+
+```bash
+openmates server install --path /opt/openmates
+openmates server start --path /opt/openmates
+```
+
+Default installs use prebuilt GHCR images and do not require Git, a source
+checkout, or cloud-only deployment flags. The installer writes a runtime
+directory, creates `.env`, generates local secrets, saves the self-host API
+target in `~/.openmates/server.json`, and prints the first invite code.
 
 After startup, open:
 
@@ -183,7 +190,7 @@ After startup, open:
 The first invite creates a normal user. Promote your account separately:
 
 ```bash
-openmates server make-admin your@email.com --path ~/openmates
+openmates server make-admin your@email.com
 ```
 
 ### Add AI providers or local models
@@ -200,7 +207,7 @@ SECRET__GOOGLE_AI_STUDIO__API_KEY=...
 ```
 
 ```bash
-openmates server restart --path ~/openmates
+openmates server restart
 ```
 
 Or add a local OpenAI-compatible model served by Ollama, LM Studio, or another
@@ -215,33 +222,20 @@ openmates server ai models test alibaba/qwen3-8b-local
 ### Operate and update a server
 
 ```bash
-openmates server logs --path ~/openmates --tail 200
-openmates server logs --path ~/openmates --container api --follow
-openmates server preflight --path ~/openmates --role core
-openmates server backup --path ~/openmates --role core
-openmates server backup list --path ~/openmates --role core
-openmates server update --path ~/openmates --dry-run
-openmates server update --path ~/openmates
-openmates server update --path ~/openmates --image-tag v0.14.0
-openmates server update --path ~/openmates --channel dev
-openmates server stop --path ~/openmates
-openmates server uninstall --path ~/openmates --yes
+openmates server logs --tail 200
+openmates server logs --container api --follow
+openmates server update --dry-run
+openmates server update
+openmates server backup
+openmates server stop
 ```
 
-Image-mode updates refresh the packaged runtime template, update
-`OPENMATES_IMAGE_TAG`, pull prebuilt images, restart containers, and wait for
-health checks. Before replacing data-bearing roles, the CLI creates a rotating
-latest pre-update backup unless explicitly skipped by the update path.
+Updates pull the matching prebuilt images, restart containers, and wait for
+health checks. Before replacing data-bearing services, the CLI creates a
+rotating pre-update backup.
 
-For source-mode contributor installs:
-
-```bash
-openmates server install --from-source --path ~/openmates-source
-openmates server install --source-path /path/to/OpenMates --path /tmp/openmates-selfhost
-openmates server restart --path ~/openmates-source --rebuild
-```
-
-Source mode uses Git and rebuilds Docker images locally.
+Run `openmates server --help` or read the self-hosting docs for advanced server
+operations beyond the default install/start/update flow.
 
 ## Targets and Environment Variables
 
