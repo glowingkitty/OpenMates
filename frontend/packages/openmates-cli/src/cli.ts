@@ -86,6 +86,7 @@ import {
   startRemoteAccessSource,
   type RemoteAccessSourceRecord,
 } from "./remoteAccess.js";
+import { buildSelfUpdatePlan, runSelfUpdate } from "./selfUpdate.js";
 
 type SignupRequiredResult = {
   status: "signup_required";
@@ -197,6 +198,10 @@ async function main(): Promise<void> {
       printServerHelp();
       return;
     }
+    if (command === "update" || command === "upgrade") {
+      printSelfUpdateHelp();
+      return;
+    }
     if (command === "feedback") {
       printFeedbackHelp();
       return;
@@ -225,6 +230,11 @@ async function main(): Promise<void> {
 
   if (command === "docs") {
     await handleDocs(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "update" || command === "upgrade") {
+    handleSelfUpdate(command, parsed.flags);
     return;
   }
 
@@ -326,6 +336,31 @@ async function main(): Promise<void> {
   }
 
   throw new Error(`Unknown command '${command}'. Run 'openmates help'.`);
+}
+
+function handleSelfUpdate(command: string, flags: Record<string, string | boolean>): void {
+  const plan = buildSelfUpdatePlan(flags);
+  if (flags.json === true) {
+    if (!plan.dryRun) runSelfUpdate(plan);
+    printJson({
+      command,
+      status: plan.dryRun ? "planned" : "success",
+      current_version: plan.currentVersion,
+      package_manager: plan.packageManager,
+      package: plan.packageSpec,
+      run: [plan.command, ...plan.args],
+      dry_run: plan.dryRun,
+    });
+    return;
+  }
+  if (plan.dryRun) {
+    console.log(`Current OpenMates CLI version: ${plan.currentVersion}`);
+    console.log(`Would run: ${[plan.command, ...plan.args].join(" ")}`);
+    return;
+  }
+  console.log(`Updating OpenMates CLI from ${plan.currentVersion} with ${plan.packageManager}...`);
+  runSelfUpdate(plan);
+  console.log("OpenMates CLI update completed.");
 }
 
 async function handleRemoteAccess(
@@ -6446,6 +6481,8 @@ Commands:
   openmates feedback [--help]                Assistant response feedback helpers
   openmates benchmark [--help]               Run real model benchmarks with usage tagged as benchmark spend
   openmates remote-access [--help]           Attach and search local Project sources
+  openmates update                           Update the installed OpenMates CLI package
+  openmates upgrade                          Alias for openmates update
   openmates server [--help]                   Server management (install, start, stop, ...)
   openmates docs [--help]                     Browse, search, and download documentation
   openmates e2e provision-auth-accounts       Provision local E2E auth-account artifacts
@@ -6455,6 +6492,20 @@ Flags:
   --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
   --api-key <key> Optional API key override (or set OPENMATES_API_KEY)
   --help          Show contextual help for any command`);
+}
+
+function printSelfUpdateHelp(): void {
+  console.log(`OpenMates CLI update commands:
+  openmates update [--version <version|tag>] [--package-manager <name>] [--dry-run] [--json]
+  openmates upgrade [--version <version|tag>] [--package-manager <name>] [--dry-run] [--json]
+
+Updates the globally installed openmates package. The default target is latest.
+
+Options:
+  --version <version|tag>       Install a specific npm version or dist-tag (default: latest)
+  --package-manager <name>      npm, pnpm, yarn, or bun (default: detect, then npm)
+  --dry-run                     Print the package-manager command without running it
+  --json                        Output the update plan/result as JSON`);
 }
 
 function printRemoteAccessHelp(): void {

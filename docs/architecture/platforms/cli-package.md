@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-06-19
+last_verified: 2026-07-08
 key_files:
 - frontend/packages/openmates-cli/src/cli.ts
 - frontend/packages/openmates-cli/src/client.ts
@@ -81,7 +81,7 @@ CLI login derives and stores the email encryption key after pair-auth by decrypt
 
 **Test provisioning:** `e2e provision-auth-accounts` writes local ignored artifacts for reserved auth E2E accounts and refuses production API URLs.
 
-**Other:** `mentions list/search`, `embeds show/share`, `inspirations`, `newchatsuggestions`, `docs list/search/show/download`
+**Other:** `mentions list/search`, `embeds show/share`, `inspirations`, `newchatsuggestions`, `docs list/search/show/download`, `update`/`upgrade` for updating the globally installed CLI package
 
 **Server management:** `install`, `start`, `stop`, `restart`, `status`, `logs`, `update`, `reset`, `make-admin`, `uninstall` -- manages self-hosted instances via Docker Compose. No login required.
 

@@ -1352,6 +1352,30 @@ describe("defaultCloneBranchForVersion", () => {
   });
 });
 
+describe("CLI self-update commands", () => {
+  it("lists update and upgrade aliases in global help", () => {
+    const output = runCli(["help"]);
+    assert.match(output, /openmates update\s+Update the installed OpenMates CLI package/);
+    assert.match(output, /openmates upgrade\s+Alias for openmates update/);
+  });
+
+  it("prints the npm update command in dry-run mode", () => {
+    const output = runCli(["update", "--dry-run"], { npm_config_user_agent: "" });
+    assert.match(output, /Current OpenMates CLI version: \S+/);
+    assert.match(output, /Would run: npm install -g openmates@latest/);
+  });
+
+  it("supports upgrade as the same dry-run command with a selected package manager", () => {
+    const output = runCli(["upgrade", "--version", "0.14.0", "--package-manager", "pnpm", "--dry-run", "--json"]);
+    const parsed = JSON.parse(output) as { command: string; package_manager: string; package: string; run: string[]; dry_run: boolean };
+    assert.equal(parsed.command, "upgrade");
+    assert.equal(parsed.package_manager, "pnpm");
+    assert.equal(parsed.package, "openmates@0.14.0");
+    assert.deepEqual(parsed.run, ["pnpm", "add", "-g", "openmates@0.14.0"]);
+    assert.equal(parsed.dry_run, true);
+  });
+});
+
 describe("apps code run command variants", () => {
   it("runs inline code through the canonical app-skill endpoint", async () => {
     await withCodeRunMockApi(async ({ apiUrl, requests, getHeaders }) => {
