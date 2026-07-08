@@ -81,7 +81,11 @@ final class ComposerVisualParityUITests: XCTestCase {
         locationButton.tap()
 
         XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
-        XCTAssertTrue(textContaining("Selected", in: app).waitForExistence(timeout: 5))
+        let editor = waitForMessageEditor(in: app)
+        XCTAssertTrue(
+            (editor.value as? String)?.localizedCaseInsensitiveContains("Selected") == true,
+            "Expected selected location text in message editor; value=\(String(describing: editor.value))"
+        )
     }
 
     func testQuickCaptureComposerUsesSameSharedIdentifierContract() throws {
