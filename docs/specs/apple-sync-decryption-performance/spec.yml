@@ -232,7 +232,7 @@ tests:
         status: passed
         run_id: "python3 scripts/apple_remote.py test-ios --simulator iPhone 17 --only-testing OpenMatesUITests/ChatOpeningScalabilityUITests"
         timestamp: "2026-07-08"
-        summary: "Remote iOS simulator passed 3 tests, 0 failures, after syncing to commit 91f59a613."
+        summary: "Remote iOS simulator passed 3 tests, 0 failures, after syncing to commit 51f45e1."
 
 verifications:
   - id: V-APPLE-REMOTE-001
@@ -244,7 +244,7 @@ verifications:
     status: passed
     evidence:
       status: passed
-      summary: "Remote iOS simulator passed ChatOpeningScalabilityUITests: 3 tests, 0 failures, after sync to 91f59a613."
+      summary: "Remote iOS simulator passed ChatOpeningScalabilityUITests: 3 tests, 0 failures, after sync to 51f45e1."
       timestamp: "2026-07-08"
 
 implementation_plan:
