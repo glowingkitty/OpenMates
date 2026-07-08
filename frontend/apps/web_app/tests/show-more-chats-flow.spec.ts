@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -193,7 +192,9 @@ test('clicking an older chat loads its messages on demand', async ({
 	await expect(messageEditor).toBeVisible({ timeout: 15000 });
 
 	// Step 6: Wait for messages to load (on-demand from server if needed)
-	const messageContainer = page.locator('[data-testid="message-container"], [data-testid="chat-message"]');
+	const messageContainer = page.locator(
+		'[data-testid="message-user"], [data-testid="message-assistant"], [data-testid="message-system"]'
+	);
 	try {
 		await expect(messageContainer.first()).toBeVisible({ timeout: 20000 });
 		const messageCount = await messageContainer.count();
