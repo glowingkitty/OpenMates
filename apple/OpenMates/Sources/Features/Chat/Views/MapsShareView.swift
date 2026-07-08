@@ -80,6 +80,7 @@ struct ComposerLocationOverlay: View {
                         .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("location-select-button")
                     .padding(.bottom, .spacing5)
                 }
             }

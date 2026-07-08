@@ -4408,6 +4408,12 @@ private enum WelcomeComposerOverlay: Equatable {
     case recording
 }
 
+private enum WelcomeComposerPendingKind {
+    case file
+    case image
+    case audio
+}
+
 struct NewChatWelcomeView: View {
     let inspirations: [DailyInspirationBanner.DailyInspiration]
     let isAuthenticated: Bool
@@ -4438,12 +4444,18 @@ struct NewChatWelcomeView: View {
     @State private var detectedPIIMatches: [PIIMatch] = []
     @State private var piiExclusions = Set<String>()
     @State private var anonymousAttachmentPending = false
+    @State private var pendingComposerEmbeds: [ComposerPendingEmbed] = []
     @State private var showAttachmentMenu = false
     @State private var showCameraCapture = false
     @State private var composerOverlay: WelcomeComposerOverlay?
     @State private var micPermissionState: MicPermissionState = .unknown
+    @State private var recordHintVisible = false
     @State private var recordDragOffsetX: CGFloat = 0
     @State private var recordAttemptActive = false
+    @State private var recordGestureCancelled = false
+    @State private var recordStartedFromKeyboard = false
+    @State private var recordStartTask: Task<Void, Never>?
+    @State private var recordHintTask: Task<Void, Never>?
     @StateObject private var piiPrivacySettingsStore = PIIPrivacySettingsStore.shared
     @StateObject private var composerRecorder = VoiceRecorder()
     @FocusState private var isFocused: Bool
@@ -4514,6 +4526,7 @@ struct NewChatWelcomeView: View {
         isComposerActivated ||
         isComposerExpanded ||
         anonymousAttachmentPending ||
+        !pendingComposerEmbeds.isEmpty ||
         composerOverlay != nil ||
         showAttachmentMenu ||
         WelcomeScreenState.shouldShowInFieldSendButton(inputText: messageText)
@@ -4521,6 +4534,19 @@ struct NewChatWelcomeView: View {
 
     private var activePIIMatches: [PIIMatch] {
         detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
+    }
+
+    private var recordHintText: String? {
+        if micPermissionState == .denied {
+            return AppStrings.microphoneBlocked
+        }
+        if recordHintVisible && micPermissionState != .granted {
+            return AppStrings.allowMicrophoneAccess
+        }
+        if recordHintVisible {
+            return AppStrings.pressAndHoldToRecord
+        }
+        return nil
     }
 
     private var overflowCount: Int {
@@ -4607,18 +4633,23 @@ struct NewChatWelcomeView: View {
                     canSendAnonymously: canSendAnonymously,
                     piiMatches: activePIIMatches,
                     anonymousAttachmentPending: anonymousAttachmentPending,
+                    pendingComposerEmbeds: pendingComposerEmbeds,
+                    recordHintText: recordHintText,
+                    recordAttemptActive: recordAttemptActive,
                     isOverlayActive: composerOverlay != nil,
                     isAttachmentMenuPresented: $showAttachmentMenu,
+                    onRemovePendingEmbed: removePendingComposerEmbed,
                     onExcludePII: { match in piiExclusions.insert(match.id) },
                     onUndoAllPII: { piiExclusions.formUnion(detectedPIIMatches.map(\.id)) },
                     onSend: { createChatWith(message: messageText) },
                     onOpenAuth: onOpenAuth,
                     onBlockedAttachment: blockAnonymousAttachment,
-                    onAttachmentSelected: handleAttachmentSelection,
+                    onAttachmentDataSelected: handleAttachmentSelection,
                     onLocation: openLocationOverlay,
                     onSketch: openSketchOverlay,
                     onCamera: openCameraCapture,
-                    onRecord: openRecordingOverlay,
+                    onRecordChanged: handleRecordGestureChanged,
+                    onRecordEnded: finishRecordAttempt,
                     onDismiss: dismissWelcomeComposer,
                     overlayContent: welcomeComposerOverlayView()
                 )
@@ -4629,9 +4660,9 @@ struct NewChatWelcomeView: View {
         #if os(iOS)
         .fullScreenCover(isPresented: $showCameraCapture) {
             CameraCaptureView(
-                onCapture: { _, filename in
+                onCapture: { data, filename in
                     showCameraCapture = false
-                    handleAttachmentSelection(filename: filename)
+                    handleAttachmentSelection(data: data, filename: filename, kind: .image)
                 },
                 onCancel: { showCameraCapture = false }
             )
@@ -4645,6 +4676,7 @@ struct NewChatWelcomeView: View {
         }
         .onAppear {
             isGuestInterestSelectionActive = !isAuthenticated && appliedGuestInterestTagIds.isEmpty
+            applyWelcomeComposerUITestFlagsIfNeeded()
             applyFocusRequestIfNeeded()
         }
         .onChange(of: focusRequest) { _, _ in
@@ -4668,6 +4700,9 @@ struct NewChatWelcomeView: View {
         .onChange(of: piiPrivacySettingsStore.settings) { _, _ in
             updatePIIMatches(for: messageText)
         }
+        .onKeyPress(.escape, phases: .down) { _ in
+            handleKeyboardRecordEscape()
+        }
     }
 
     private func blockAnonymousAttachment() {
@@ -4676,11 +4711,83 @@ struct NewChatWelcomeView: View {
         isFocused = true
     }
 
-    private func handleAttachmentSelection(filename: String) {
+    private func handleAttachmentSelection(data: Data?, filename: String, kind: WelcomeComposerPendingKind) {
+        addPendingComposerEmbed(filename: filename, kind: kind, data: data)
         showAttachmentMenu = false
         isComposerActivated = true
         isFocused = true
         ToastManager.shared.show(filename, type: .info)
+    }
+
+    private func addPendingComposerEmbed(filename: String, kind: WelcomeComposerPendingKind, data: Data? = nil, duration: TimeInterval? = nil) {
+        pendingComposerEmbeds.append(makePendingComposerEmbed(filename: filename, kind: kind, data: data, duration: duration))
+        anonymousAttachmentPending = false
+    }
+
+    private func removePendingComposerEmbed(_ embed: ComposerPendingEmbed) {
+        pendingComposerEmbeds.removeAll { $0.id == embed.id }
+    }
+
+    private func makePendingComposerEmbed(
+        filename: String,
+        kind: WelcomeComposerPendingKind,
+        data: Data? = nil,
+        duration: TimeInterval? = nil
+    ) -> ComposerPendingEmbed {
+        let embedId = "welcome-\(UUID().uuidString.lowercased())"
+        let embedType: String
+        let referenceType: String
+        let appId: String
+        switch kind {
+        case .file:
+            embedType = "docs-doc"
+            referenceType = "file"
+            appId = "docs"
+        case .image:
+            embedType = "images-image"
+            referenceType = "image"
+            appId = "images"
+        case .audio:
+            embedType = "audio-recording"
+            referenceType = "audio-recording"
+            appId = "audio"
+        }
+
+        let size = max(data?.count ?? 0, 1)
+        var displayData: [String: AnyCodable] = [
+            "app_id": AnyCodable(appId),
+            "filename": AnyCodable(filename),
+            "title": AnyCodable(filename),
+            "type": AnyCodable(referenceType),
+            "status": AnyCodable("finished")
+        ]
+        if let duration {
+            displayData["duration"] = AnyCodable(duration)
+        }
+        let record = EmbedRecord(
+            id: embedId,
+            type: embedType,
+            status: .finished,
+            data: .raw(displayData),
+            parentEmbedId: nil,
+            appId: appId,
+            skillId: kind == .audio ? "transcribe" : nil,
+            embedIds: nil,
+            createdAt: String(Int(Date().timeIntervalSince1970))
+        )
+        return ComposerPendingEmbed(
+            id: embedId,
+            type: embedType,
+            referenceType: referenceType,
+            status: "finished",
+            content: nil,
+            textPreview: filename,
+            record: record,
+            localData: data,
+            filename: filename,
+            size: size,
+            piiMappings: []
+        )
     }
 
     private func openLocationOverlay() {
@@ -4719,17 +4826,29 @@ struct NewChatWelcomeView: View {
         #endif
     }
 
-    private func openRecordingOverlay() {
-        guard isAuthenticated else {
-            blockAnonymousAttachment()
-            return
+    private func handleRecordGestureChanged(_ value: DragGesture.Value) {
+        guard !recordGestureCancelled else { return }
+        if !recordAttemptActive {
+            beginRecordAttempt()
         }
+
+        guard composerOverlay == .recording else { return }
+        recordDragOffsetX = min(0, value.translation.width)
+        let distance = hypot(value.translation.width, value.translation.height)
+        if distance > 100 && value.translation.width < -60 {
+            cancelWelcomeRecording(markGestureCancelled: true)
+        }
+    }
+
+    private func beginRecordAttempt(startedFromKeyboard: Bool = false) {
+        recordGestureCancelled = false
+        recordStartedFromKeyboard = startedFromKeyboard
         recordAttemptActive = true
         recordDragOffsetX = 0
+        recordStartTask?.cancel()
 
         if micPermissionState == .denied {
-            ToastManager.shared.show(AppStrings.microphoneBlocked, type: .info)
-            recordAttemptActive = false
+            showRecordHint(duration: 0)
             return
         }
 
@@ -4737,51 +4856,165 @@ struct NewChatWelcomeView: View {
             Task { @MainActor in
                 let granted = await composerRecorder.requestPermission()
                 micPermissionState = granted ? .granted : .denied
-                if granted {
-                    startWelcomeRecordingOverlay()
-                } else {
-                    recordAttemptActive = false
-                    ToastManager.shared.show(AppStrings.microphoneBlocked, type: .info)
-                }
+                recordAttemptActive = false
+                recordStartedFromKeyboard = false
+                showRecordHint(duration: granted ? 2500 : 0)
             }
             return
         }
 
-        startWelcomeRecordingOverlay()
+        recordStartTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled, recordAttemptActive, micPermissionState == .granted else { return }
+            if isUITestWelcomeSimulatedRecording {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    composerOverlay = .recording
+                    isComposerActivated = true
+                    isFocused = true
+                }
+                return
+            }
+            composerRecorder.startRecording()
+            guard composerRecorder.error == nil else {
+                micPermissionState = .denied
+                recordAttemptActive = false
+                recordStartedFromKeyboard = false
+                showRecordHint(duration: 0)
+                return
+            }
+            withAnimation(.easeInOut(duration: 0.15)) {
+                composerOverlay = .recording
+                isComposerActivated = true
+                isFocused = true
+            }
+        }
     }
 
-    private func startWelcomeRecordingOverlay() {
-        composerRecorder.startRecording()
-        guard composerRecorder.error == nil else {
-            micPermissionState = .denied
-            recordAttemptActive = false
-            ToastManager.shared.show(AppStrings.microphoneBlocked, type: .info)
+    private func finishRecordAttempt() {
+        recordStartTask?.cancel()
+        recordStartTask = nil
+
+        if recordGestureCancelled {
+            recordGestureCancelled = false
             return
         }
-        withAnimation(.easeInOut(duration: 0.15)) {
+
+        if composerOverlay == .recording {
+            let duration = max(composerRecorder.duration, 1)
+            let filename: String
+            if isUITestWelcomeSimulatedRecording {
+                filename = "recording-ui-test.m4a"
+            } else if let url = composerRecorder.stopRecording() {
+                filename = url.lastPathComponent
+            } else {
+                filename = "recording.m4a"
+            }
+            composerOverlay = nil
+            recordAttemptActive = false
+            recordGestureCancelled = false
+            recordStartedFromKeyboard = false
+            recordDragOffsetX = 0
+            addPendingComposerEmbed(filename: filename, kind: .audio, duration: duration)
+            return
+        }
+
+        if recordAttemptActive && micPermissionState == .granted {
+            showRecordHint()
+        }
+        recordAttemptActive = false
+        recordGestureCancelled = false
+        recordStartedFromKeyboard = false
+        recordDragOffsetX = 0
+    }
+
+    private func cancelWelcomeRecording(markGestureCancelled: Bool = false) {
+        recordStartTask?.cancel()
+        recordStartTask = nil
+        composerRecorder.cancelRecording()
+        composerOverlay = nil
+        recordAttemptActive = false
+        recordGestureCancelled = markGestureCancelled
+        recordStartedFromKeyboard = false
+        recordDragOffsetX = 0
+    }
+
+    private func showRecordHint(duration: Int = 2500) {
+        recordHintVisible = true
+        recordHintTask?.cancel()
+        guard duration > 0 else { return }
+        recordHintTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(duration))
+            guard !Task.isCancelled else { return }
+            recordHintVisible = false
+        }
+    }
+
+    private var isUITestWelcomeSimulatedRecording: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--ui-test-welcome-simulated-recording")
+        #else
+        false
+        #endif
+    }
+
+    private var isUITestWelcomeKeyboardRecordingOverlayForced: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--ui-test-welcome-force-keyboard-recording-overlay")
+        #else
+        false
+        #endif
+    }
+
+    private func applyWelcomeComposerUITestFlagsIfNeeded() {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("--ui-test-welcome-mic-granted") {
+            micPermissionState = .granted
+        }
+        if arguments.contains("--ui-test-welcome-seed-pending-content"), pendingComposerEmbeds.isEmpty {
+            pendingComposerEmbeds = [
+                makePendingComposerEmbed(filename: "welcome-file.pdf", kind: .file),
+                makePendingComposerEmbed(filename: "welcome-sketch.png", kind: .image, data: Data(repeating: 0, count: 128)),
+                makePendingComposerEmbed(filename: "welcome-recording.m4a", kind: .audio, duration: 1)
+            ]
+            isComposerActivated = true
+            isFocused = true
+        }
+        if isUITestWelcomeKeyboardRecordingOverlayForced {
+            micPermissionState = .granted
+            recordAttemptActive = true
+            recordStartedFromKeyboard = true
             composerOverlay = .recording
             isComposerActivated = true
             isFocused = true
         }
+        #endif
     }
 
-    private func cancelWelcomeRecording() {
-        composerRecorder.cancelRecording()
-        composerOverlay = nil
-        recordAttemptActive = false
-        recordDragOffsetX = 0
+    private func handleKeyboardRecordEscape() -> KeyPress.Result {
+        guard recordStartedFromKeyboard else { return .ignored }
+        cancelWelcomeRecording()
+        return .handled
     }
 
     private func dismissWelcomeComposer() {
+        recordStartTask?.cancel()
+        recordStartTask = nil
+        recordHintTask?.cancel()
+        recordHintTask = nil
         if composerOverlay == .recording {
             composerRecorder.cancelRecording()
             recordAttemptActive = false
+            recordGestureCancelled = false
             recordDragOffsetX = 0
         }
+        recordHintVisible = false
+        recordStartedFromKeyboard = false
         isComposerActivated = false
         isFocused = false
         isComposerExpanded = false
         anonymousAttachmentPending = false
+        pendingComposerEmbeds = []
         showAttachmentMenu = false
         composerOverlay = nil
     }
@@ -4805,9 +5038,9 @@ struct NewChatWelcomeView: View {
             #if os(iOS)
             return AnyView(
                 SketchComposerOverlay(
-                    onSave: { _, filename in
+                    onSave: { data, filename in
                         self.composerOverlay = nil
-                        handleAttachmentSelection(filename: filename)
+                        handleAttachmentSelection(data: data, filename: filename, kind: .image)
                     },
                     onCancel: { self.composerOverlay = nil }
                 )
@@ -4820,11 +5053,13 @@ struct NewChatWelcomeView: View {
                 ComposerRecordingOverlay(
                     recorder: composerRecorder,
                     dragOffsetX: recordDragOffsetX,
+                    startedFromKeyboard: recordStartedFromKeyboard,
                     onStop: { url in
                         self.composerOverlay = nil
                         self.recordAttemptActive = false
+                        self.recordStartedFromKeyboard = false
                         self.recordDragOffsetX = 0
-                        handleAttachmentSelection(filename: url.lastPathComponent)
+                        handleAttachmentSelection(data: nil, filename: url.lastPathComponent, kind: .audio)
                     },
                     onCancel: cancelWelcomeRecording
                 )
@@ -5139,7 +5374,7 @@ struct NewChatWelcomeView: View {
 
     private func createChatWith(message: String) {
         let text = message.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
+        guard !text.isEmpty || !pendingComposerEmbeds.isEmpty else { return }
 
         // Self-hosted or exhausted anonymous usage still goes through signup.
         guard isAuthenticated || canSendAnonymously else {
@@ -5147,8 +5382,20 @@ struct NewChatWelcomeView: View {
             return
         }
 
+        let pendingSummaries = pendingComposerEmbeds
+            .map { $0.textPreview ?? $0.filename }
+            .joined(separator: "\n")
+        let outboundText: String
+        if text.isEmpty {
+            outboundText = pendingSummaries
+        } else if pendingSummaries.isEmpty {
+            outboundText = text
+        } else {
+            outboundText = "\(text)\n\(pendingSummaries)"
+        }
+
         let redaction = PIIDetector.redactionResult(
-            in: text,
+            in: outboundText,
             excludedIds: piiExclusions,
             options: piiPrivacySettingsStore.detectionOptions()
         )
@@ -5161,6 +5408,7 @@ struct NewChatWelcomeView: View {
                 isComposerExpanded = false
                 isFocused = false
                 anonymousAttachmentPending = false
+                pendingComposerEmbeds = []
                 showAttachmentMenu = false
                 composerOverlay = nil
                 detectedPIIMatches = []
@@ -5569,18 +5817,23 @@ private struct WelcomeComposer: View {
     let canSendAnonymously: Bool
     let piiMatches: [PIIMatch]
     let anonymousAttachmentPending: Bool
+    let pendingComposerEmbeds: [ComposerPendingEmbed]
+    let recordHintText: String?
+    let recordAttemptActive: Bool
     let isOverlayActive: Bool
     @Binding var isAttachmentMenuPresented: Bool
+    let onRemovePendingEmbed: (ComposerPendingEmbed) -> Void
     let onExcludePII: (PIIMatch) -> Void
     let onUndoAllPII: () -> Void
     let onSend: () -> Void
     let onOpenAuth: () -> Void
     let onBlockedAttachment: () -> Void
-    let onAttachmentSelected: (String) -> Void
+    let onAttachmentDataSelected: (Data?, String, WelcomeComposerPendingKind) -> Void
     let onLocation: () -> Void
     let onSketch: () -> Void
     let onCamera: () -> Void
-    let onRecord: () -> Void
+    let onRecordChanged: (DragGesture.Value) -> Void
+    let onRecordEnded: () -> Void
     let onDismiss: () -> Void
     let overlayContent: AnyView?
 
@@ -5588,8 +5841,12 @@ private struct WelcomeComposer: View {
         WelcomeScreenState.shouldShowInFieldSendButton(inputText: text)
     }
 
+    private var hasPendingComposerEmbeds: Bool {
+        !pendingComposerEmbeds.isEmpty
+    }
+
     private var isOpen: Bool {
-        hasContent || isFocused || isActivated || isExpanded || isOverlayActive || anonymousAttachmentPending
+        hasContent || isFocused || isActivated || isExpanded || isOverlayActive || anonymousAttachmentPending || hasPendingComposerEmbeds
     }
 
     private var canSubmit: Bool {
@@ -5597,7 +5854,7 @@ private struct WelcomeComposer: View {
     }
 
     private var shouldShowSendOrAuthButton: Bool {
-        hasContent || anonymousAttachmentPending
+        hasContent || anonymousAttachmentPending || hasPendingComposerEmbeds
     }
 
     var body: some View {
@@ -5618,6 +5875,9 @@ private struct WelcomeComposer: View {
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 onSubmit: { canSubmit ? onSend() : onOpenAuth() },
+                preFieldContent: {
+                    PendingComposerEmbedsList(embeds: pendingComposerEmbeds, onRemove: onRemovePendingEmbed)
+                },
                 overlayContent: {
                     if let overlayContent {
                         overlayContent
@@ -5644,8 +5904,8 @@ private struct WelcomeComposer: View {
                         if isAuthenticated {
                             AttachmentPicker(
                                 isPresented: $isAttachmentMenuPresented,
-                                onImageSelected: { _, filename in onAttachmentSelected(filename) },
-                                onFileSelected: { _, filename in onAttachmentSelected(filename) }
+                                onImageSelected: { data, filename in onAttachmentDataSelected(data, filename, .image) },
+                                onFileSelected: { data, filename in onAttachmentDataSelected(data, filename, .file) }
                             )
                             .help(Text(AppStrings.attachFiles))
                             .accessibilityLabel(AppStrings.attachFiles)
@@ -5665,9 +5925,7 @@ private struct WelcomeComposer: View {
                         MessageComposerActionIcon(icon: "camera", label: AppStrings.takePhoto, identifier: "take-photo-button") {
                             onCamera()
                         }
-                        MessageComposerActionIcon(icon: "recordaudio", label: AppStrings.recordAudio, identifier: "record-audio-button") {
-                            onRecord()
-                        }
+                        recordActionControls
                         if shouldShowSendOrAuthButton {
                             MessageComposerSendButton(title: canSubmit ? AppStrings.sendAction : AppStrings.signUp) {
                                 canSubmit ? onSend() : onOpenAuth()
@@ -5711,6 +5969,36 @@ private struct WelcomeComposer: View {
         .padding(.bottom, .spacing10)
         .animation(.easeInOut(duration: 0.2), value: isOpen)
         .animation(.easeInOut(duration: 0.2), value: hasContent)
+    }
+
+    private var recordActionControls: some View {
+        HStack(spacing: .spacing4) {
+            if let recordHintText {
+                Text(recordHintText)
+                    .font(.omXs)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.fontTertiary)
+                    .lineLimit(1)
+                    .transition(.opacity)
+                    .accessibilityIdentifier("press-hold-label")
+            }
+
+            Button(action: {}) {
+                Icon("recordaudio", size: 25)
+                    .foregroundStyle(recordAttemptActive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
+                    .frame(width: 25, height: 25)
+            }
+            .buttonStyle(.plain)
+            .contentShape(Circle())
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged(onRecordChanged)
+                    .onEnded { _ in onRecordEnded() }
+            )
+            .help(Text(AppStrings.recordAudio))
+            .accessibilityLabel(AppStrings.recordAudio)
+            .accessibilityIdentifier("record-audio-button")
+        }
     }
 }
 

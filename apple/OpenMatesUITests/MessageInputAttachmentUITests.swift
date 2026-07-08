@@ -98,6 +98,32 @@ final class MessageInputAttachmentUITests: XCTestCase {
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
     }
 
+    func testWelcomeComposerSeededPendingAttachmentsEnableSendWithoutRawJson() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat",
+            "--ui-test-welcome-seed-pending-content"
+        ]
+        app.launch()
+
+        let skipInterests = app.buttons["guest-interest-skip"]
+        if skipInterests.waitForExistence(timeout: 8) {
+            skipInterests.tap()
+        }
+
+        let messageEditor = waitForMessageEditor(in: app)
+        messageEditor.tap()
+
+        let pendingEmbeds = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@", "pending-composer-embed"))
+        XCTAssertGreaterThanOrEqual(pendingEmbeds.count, 3)
+        XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "embed_id")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "/private/")).firstMatch.exists)
+    }
+
     private func launchChatOpeningPreview(arguments: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "chat-opening"] + arguments
@@ -148,5 +174,21 @@ final class MessageInputAttachmentUITests: XCTestCase {
             textField.tap()
             return textField
         }
+    }
+
+    private func waitForMessageEditor(in app: XCUIApplication) -> XCUIElement {
+        let candidates = [
+            app.textFields.matching(identifier: "message-editor").firstMatch,
+            app.textViews.matching(identifier: "message-editor").firstMatch,
+            element(in: app, identifier: "message-editor"),
+            element(in: app, identifier: "message-field"),
+        ]
+
+        for candidate in candidates where candidate.waitForExistence(timeout: 5) {
+            return candidate
+        }
+
+        XCTFail("Expected welcome message editor to exist. Visible UI: \(app.debugDescription)")
+        return candidates[0]
     }
 }

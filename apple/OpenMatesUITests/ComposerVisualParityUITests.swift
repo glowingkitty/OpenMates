@@ -56,7 +56,6 @@ final class ComposerVisualParityUITests: XCTestCase {
         assertSignedOutWelcomeActionShowsSignupCTA("attach-files-button")
         assertSignedOutWelcomeActionShowsSignupCTA("sketch-button")
         assertSignedOutWelcomeActionShowsSignupCTA("take-photo-button")
-        assertSignedOutWelcomeActionShowsSignupCTA("record-audio-button")
 
         let locationApp = launchFocusedWelcomeComposer()
         let locationButton = locationApp.buttons["share-location-button"]
@@ -70,6 +69,32 @@ final class ComposerVisualParityUITests: XCTestCase {
                 .waitForExistence(timeout: 5),
             "Expected location action to open the location composer overlay"
         )
+    }
+
+    func testFocusedWelcomeLocationSelectionInsertsSendableContent() throws {
+        let app = launchFocusedWelcomeComposer()
+        let locationButton = app.buttons["share-location-button"]
+        XCTAssertTrue(locationButton.waitForExistence(timeout: 5))
+        locationButton.tap()
+
+        let overlay = element(in: app, identifier: "location-overlay")
+        XCTAssertTrue(overlay.waitForExistence(timeout: 5))
+        XCTAssertGreaterThanOrEqual(
+            element(in: app, identifier: "message-field").frame.height,
+            360,
+            "Location overlay should expand the composer toward the web 400px overlay height"
+        )
+
+        let selectButton = element(in: app, identifier: "location-select-button")
+        if !selectButton.waitForExistence(timeout: 2) {
+            overlay.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45)).tap()
+        }
+        XCTAssertTrue(selectButton.waitForExistence(timeout: 5))
+        selectButton.tap()
+
+        XCTAssertTrue(waitForAbsence(overlay))
+        XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
+        XCTAssertTrue(textContaining("Selected", in: app).waitForExistence(timeout: 5))
     }
 
     func testQuickCaptureComposerUsesSameSharedIdentifierContract() throws {
@@ -97,6 +122,18 @@ final class ComposerVisualParityUITests: XCTestCase {
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier == %@", identifier))
             .firstMatch
+    }
+
+    private func textContaining(_ text: String, in app: XCUIApplication) -> XCUIElement {
+        app.staticTexts
+            .matching(NSPredicate(format: "label CONTAINS[c] %@", text))
+            .firstMatch
+    }
+
+    private func waitForAbsence(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let predicate = NSPredicate(format: "exists == false")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 
     private func waitForMessageEditor(in app: XCUIApplication) -> XCUIElement {

@@ -1,0 +1,706 @@
+id: apple-welcome-composer-action-parity
+title: Apple Welcome Composer Action Parity
+status: implementing
+
+goal: >
+  Make the Apple welcome/new-chat composer action buttons behave like the web
+  MessageInput.svelte composer, not merely appear visually similar. The web app
+  is the source of truth for each button's signed-in, signed-out, overlay,
+  recording, cancellation, and pending-embed outcomes.
+
+scope:
+  in:
+    - The Apple welcome/new-chat composer in NewChatWelcomeView and WelcomeComposer.
+    - Web-parity behavior for files, location, sketch, camera, record audio, and send/auth actions.
+    - Web-equivalent Apple E2E tests for audio recording and file/pending-embed flows.
+    - Apple UI tests for source-defined location, sketch, camera, composer height, focus, and overlay behavior.
+    - Remote Mac build and targeted XCUITest verification before the work is marked done.
+  out:
+    - Redesigning the web composer.
+    - Replacing OS-owned Apple file, photo, camera, microphone permission, or map controllers with custom clones.
+    - Changing backend send, encryption, upload, transcription, or sync APIs except where existing Apple adapters need to call them correctly.
+    - Completing full authenticated message send parity for every attachment type if the web source only requires in-composer insertion for this slice.
+    - TestFlight deployment as completion evidence.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me returned 401 Bad credentials."
+    - "gh issue list --repo glowingkitty/OpenMates --state all --search 'Apple composer audio recording web parity' returned no matching issues."
+    - "gh issue list --repo glowingkitty/OpenMates --state all --search 'welcome composer action buttons Apple' returned no matching issues."
+    - "gh issue list --repo glowingkitty/OpenMates --state all --search 'message input Apple parity' returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - .claude/rules/apple-ui.md
+    - apple/AGENTS.md
+    - docs/specs/apple-unified-message-composer/spec.yml
+  code_patterns:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte owns composer focus, overlay height, pending embeds, auth gates, and action event wiring.
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte defines the web action order and mic short-tap hint.
+    - frontend/packages/ui/src/components/enter_message/handlers/recordingHandlers.ts defines mic permission and 200 ms hold threshold behavior.
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte defines release-to-finish, Escape cancel, document release, drag-left cancel, and recording preview insertion events.
+    - frontend/packages/ui/src/components/enter_message/MapsView.svelte defines the 400 px map overlay, close/search/current-location/select actions, precise toggle, and map embed insertion contract.
+    - frontend/packages/ui/src/components/enter_message/SketchView.svelte defines the 400 px sketch overlay, close, disabled Done when empty, export-to-image, and insertImage pipeline.
+    - frontend/packages/ui/src/components/enter_message/CameraView.svelte defines camera overlay or native camera fallback and photo-to-image-embed pipeline.
+    - apple/OpenMates/Sources/App/MainAppView.swift currently hosts NewChatWelcomeView and WelcomeComposer action callbacks.
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift supplies the shared visual composer shell but leaves action semantics to host callbacks.
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift provides native recording overlay identifiers matching RecordAudio.svelte.
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift provides the current native location overlay.
+    - apple/OpenMates/Sources/Features/Chat/Views/SketchView.swift provides the current native sketch overlay.
+  tests:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/SketchView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/AttachmentPicker.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+  parity_expectations:
+    - The welcome composer uses the same action identifiers and visual shell as the web composer: attach-files-button, share-location-button, sketch-button, take-photo-button, record-audio-button, action-buttons, message-field, message-editor, and send-button.
+    - Signed-out audio recording follows the web audio-recording.spec.ts behavior and is not blocked behind signup merely because the user is unauthenticated.
+    - Signed-out file, sketch, and camera actions follow the web attachment gates: they cannot insert binary/file embeds without auth and must surface the signup CTA instead of no-oping.
+    - Location remains available from the signed-out welcome composer, opens an in-field location overlay, and inserts location context into the composer rather than no-oping.
+    - Authenticated file, sketch, camera, location, and audio outcomes produce visible pending content in the composer, enabling send just like web in-editor embeds do.
+    - Overlay heights and focused welcome composer size follow the web MessageInput contract: focused empty composer stays near the web expanded height, overlays grow the field to 400 px, fullscreen expansion stays a deliberate composer state.
+  verification:
+    - python3 scripts/spec_validate.py docs/specs/apple-welcome-composer-action-parity/spec.yml
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ComposerVisualParityUITests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatFlowParityUITests
+  intentional_native_differences:
+    - Apple may use OS-owned file/photo/camera/microphone permission UI and native MapKit/PencilKit internals, but the composer-visible states, identifiers, and outcomes must match the web contract.
+    - Native XCUITest may use seeded fixtures or debug preview hooks for permission-sensitive actions, but the fixtures must prove the same user-visible state transitions as web Playwright.
+
+clarification:
+  rounds:
+    - question: Should signed-out Apple welcome composer audio be blocked behind signup or match the web unauthenticated recording flow?
+      answer: >
+        Full parity with the web app is required. Do not ask product questions that
+        the web app code already answers.
+  vision_summary: >
+    The web composer implementation is the product contract. Apple welcome/new-chat
+    action buttons must match the web action semantics end-to-end, with tests that
+    prove equivalent states and outcomes rather than only proving the buttons are
+    visible.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Signed-out short tap on mic shows the web hold hint without recording
+    given:
+      - The user is signed out on the Apple welcome/new-chat composer.
+      - Microphone permission is available or seeded as granted for the test.
+    when:
+      - The user taps record-audio-button without holding past the web threshold.
+    then:
+      - The recording overlay does not appear.
+      - A press-and-hold hint equivalent to web press-hold-label appears briefly.
+      - The focused composer remains expanded and does not collapse or blur.
+      - No signup CTA appears solely because the mic was tapped.
+
+  - id: S-2
+    title: Signed-out press-and-hold audio creates an in-composer recording preview
+    given:
+      - The user is signed out on the Apple welcome/new-chat composer.
+      - Microphone permission is available or seeded as granted for the test.
+    when:
+      - The user presses and holds record-audio-button past the 200 ms web threshold.
+      - The user releases without cancelling.
+    then:
+      - record-overlay appears with release-text, timer-pill, cancel-hint, and mic-button.
+      - Releasing completes recording and hides the overlay.
+      - A recording preview or pending recording attachment appears in the composer.
+      - The send/auth state follows the resulting composer content instead of treating the mic as a no-op.
+
+  - id: S-3
+    title: Recording cancellation matches Escape and drag-left web behavior
+    given:
+      - The Apple welcome/new-chat composer is showing record-overlay.
+    when:
+      - The user cancels by Escape or by a leftward drag beyond the web cancellation threshold.
+    then:
+      - The overlay disappears.
+      - No recording preview or pending recording attachment is inserted.
+      - The composer remains focused and usable.
+      - Keyboard-started recording shows Press ESC to cancel; pointer-started recording shows Slide left to cancel.
+
+  - id: S-4
+    title: Location opens an in-field overlay and inserts location context
+    given:
+      - The user is on the Apple welcome/new-chat composer, signed in or signed out.
+    when:
+      - The user taps share-location-button.
+    then:
+      - The composer field expands to the web overlay height and shows location-overlay.
+      - The overlay exposes close, search, current-location or map selection, and select/share controls.
+      - Selecting a location closes the overlay and inserts location context into the composer as sendable content.
+      - Cancelling closes the overlay without inserting content.
+
+  - id: S-5
+    title: File, sketch, and camera actions follow web auth and embed insertion gates
+    given:
+      - The user is on the Apple welcome/new-chat composer.
+    when:
+      - The user is signed out and taps attach-files-button, sketch-button, or take-photo-button.
+    then:
+      - The action surfaces the signup CTA and does not silently no-op.
+      - No binary/file/sketch/camera embed is inserted while signed out.
+    when:
+      - The user is authenticated or the test uses an authenticated/seeded fixture and completes the same actions.
+    then:
+      - The selected file, captured sketch, or captured photo appears as visible pending composer content.
+      - The send button becomes available because the pending embed is sendable.
+      - Raw JSON embed references are never shown to the user.
+
+  - id: S-6
+    title: Focus, height, and action row stay stable across action interactions
+    given:
+      - The Apple welcome/new-chat composer is focused on a phone-sized viewport.
+    when:
+      - The user taps or holds each action button.
+    then:
+      - The action row remains visible while needed for release/cancel gestures.
+      - The focused empty field remains near the web expanded height, not full-screen and not collapsed.
+      - Map, sketch, and camera overlays use the web 400 px overlay field height unless fullscreen is explicitly toggled.
+      - Suggestions and welcome cards remain outside the composer host.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Signed-out short-tap audio on Apple welcome composer matches web audio-recording.spec.ts by showing the hold hint, not starting recording, not collapsing the composer, and not requiring signup.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-AUDIO-WELCOME
+      - V-WEB-AUDIO-CONTRACT
+  - id: AC-2
+    scenario: S-2
+    text: Signed-out press-and-hold audio on Apple welcome composer shows the recording overlay and inserts a recording preview or pending recording attachment on release.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-AUDIO-WELCOME
+      - V-WEB-AUDIO-CONTRACT
+  - id: AC-3
+    scenario: S-3
+    text: Apple welcome composer recording cancellation via Escape and drag-left closes the overlay without inserting any recording content.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-AUDIO-WELCOME
+      - T-APPLE-AUDIO-CANCEL
+  - id: AC-4
+    scenario: S-4
+    text: Location action opens an in-field overlay from signed-in or signed-out welcome composer and selection inserts sendable location content while cancel inserts nothing.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-WELCOME-ACTIONS
+  - id: AC-5
+    scenario: S-5
+    text: Signed-out file, sketch, and camera actions surface signup CTA without inserting embeds; authenticated or seeded versions insert visible pending content and enable send.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-WELCOME-ACTIONS
+      - T-APPLE-ATTACHMENTS-WELCOME
+      - V-WEB-FILE-CONTRACT
+  - id: AC-6
+    scenario: S-6
+    text: Action interactions preserve web-like composer focus, action-row visibility, focused height, overlay height, and separation between composer and welcome suggestions/cards.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-COMPOSER-VISUAL
+      - T-APPLE-WELCOME-ACTIONS
+  - id: AC-7
+    scenario: S-5
+    text: Pending file, sketch, camera, location, and recording content never displays raw JSON embed references or private local file paths in the composer.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-ATTACHMENTS-WELCOME
+
+assumptions:
+  - id: A-1
+    text: Web source behavior is authoritative for this parity slice, including unauthenticated audio recording behavior.
+    category: product
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/apps/web_app/tests/audio-recording.spec.ts
+        summary: Web tests run audio recording as an unauthenticated user and assert short tap, hold, release, and cancel behavior.
+      - source: user confirmation 2026-07-08
+        summary: User explicitly requested full parity with the web app and no questions already answered by web code.
+  - id: A-2
+    text: OS-owned Apple pickers can be represented in XCUITest with seeded fixtures when direct automation is not reliable.
+    category: testing
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+        summary: Existing tests already use debug-only seeded composer embeds to verify pending-attachment hierarchy without private credentials or OS picker automation.
+  - id: A-3
+    text: Apple welcome composer can host action overlays and pending content through existing MessageComposerView overlayContent/preFieldContent/action callback seams.
+    category: architecture
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+        summary: Shared composer accepts overlayContent and actionButtons builders and host-provided callbacks.
+      - source: apple/OpenMates/Sources/App/MainAppView.swift
+        summary: WelcomeComposer already passes overlayContent and callbacks for location, sketch, camera, and recording.
+
+contracts:
+  api:
+    - No new backend API routes are required.
+    - Existing Apple upload/transcription/send adapters may be reused or connected when authenticated actions insert pending content.
+  data:
+    - Welcome composer pending content must have typed display state for file, sketch, camera photo, location, and recording items.
+    - Pending display state must not include raw private paths, raw JSON embed references, auth tokens, encryption keys, or unredacted diagnostics.
+    - Recording preview state must track completed vs cancelled recording so cancellation cannot leave stale pending content.
+  ui_states:
+    - Signed-out focused empty composer.
+    - Signed-out audio short-tap hint.
+    - Signed-out audio recording overlay.
+    - Audio recording completed preview.
+    - Audio recording cancelled state.
+    - Signed-out blocked file/sketch/camera CTA.
+    - Authenticated or seeded pending file, sketch, camera, location, and recording content.
+    - Location overlay open, selected, and cancelled.
+    - Focused composer with suggestions outside the composer host.
+  privacy_security:
+    - Tests must use synthetic prompts and seeded fixtures only.
+    - Specs, tests, and diagnostics must not commit private user data, private file paths, raw audio contents, location coordinates from a real user, credentials, or simulator host details.
+    - Location tests should use deterministic placeholder coordinates or seeded MapKit/search fixtures where possible.
+  accessibility:
+    - Keep web-mapped identifiers stable: message-composer, message-field, message-editor, action-buttons, attach-files-button, share-location-button, sketch-button, take-photo-button, record-audio-button, send-button, record-overlay, release-text, timer-pill, cancel-hint, mic-button, press-hold-label, location-overlay.
+    - Hidden unavailable actions must not leave dead focusable controls.
+    - Native labels remain localized through AppStrings.
+
+tests:
+  - id: T-APPLE-AUDIO-WELCOME
+    type: manual
+    file: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - signed-out welcome composer short tap on record-audio-button shows press-hold-label and no record-overlay
+      - signed-out welcome composer short tap does not show signup CTA solely from audio interaction
+      - signed-out welcome composer press-and-hold shows record-overlay with release-text, timer-pill, cancel-hint, and mic-button
+      - release inserts a recording preview or pending recording attachment in the composer
+      - focused composer remains expanded through tap, hold, and release
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-AUDIO-CANCEL
+    type: manual
+    file: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+    covers:
+      - AC-3
+    assertions:
+      - pointer-started recording shows Slide left to cancel
+      - keyboard-started recording shows Press ESC to cancel
+      - Escape cancellation removes record-overlay and inserts no recording preview
+      - drag-left cancellation removes record-overlay and inserts no recording preview
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-WELCOME-ACTIONS
+    type: manual
+    file: apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ComposerVisualParityUITests
+    covers:
+      - AC-4
+      - AC-5
+      - AC-6
+    assertions:
+      - focused welcome composer exposes all web action identifiers and visible icon pixels
+      - share-location-button opens location-overlay when signed out or signed in
+      - location cancel closes without content and location selection inserts sendable composer content
+      - signed-out attach-files-button, sketch-button, and take-photo-button show signup CTA and insert no pending embed
+      - map/sketch/camera overlays expand the field to the web 400 px overlay height when shown
+      - suggestions and welcome cards stay outside message-composer
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-ATTACHMENTS-WELCOME
+    type: manual
+    file: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
+    covers:
+      - AC-5
+      - AC-7
+    assertions:
+      - seeded authenticated welcome file attachment appears as pending composer content and enables send
+      - seeded sketch capture appears as pending image/sketch content and enables send
+      - seeded camera photo appears as pending image content and enables send
+      - location pending content is visible after selection
+      - pending composer content never contains raw json_embed text, embed_id JSON, or private file paths
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-COMPOSER-VISUAL
+    type: manual
+    file: apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatFlowParityUITests
+    covers:
+      - AC-6
+    assertions:
+      - focused welcome composer stays within the web focused expanded height band
+      - composer remains visible and hittable above keyboard on phone viewport
+      - action row stays visible during action interactions that require release/cancel
+      - product UI does not use default List/table chrome
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+  - id: T-APPLE-BUILD
+    type: build
+    file: apple/OpenMates.xcodeproj
+    command: python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+    assertions:
+      - OpenMates_iOS builds after the welcome composer action parity changes
+    red_phase:
+      required: false
+      expected: fail
+      evidence:
+        status: not_applicable
+        run_id: "not-required:build-only-check"
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+verifications:
+  - id: V-WEB-AUDIO-CONTRACT
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+    status: passed
+    evidence:
+      status: passed
+      summary: "frontend/apps/web_app/tests/audio-recording.spec.ts defines unauthenticated short tap, hold overlay, release inserts audio embed, and Escape cancel behavior; RecordAudio.svelte defines release, Escape, and drag-left cancellation."
+      timestamp: "2026-07-08T00:00:00Z"
+  - id: V-WEB-FILE-CONTRACT
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-5
+    status: passed
+    evidence:
+      status: passed
+      summary: "frontend/apps/web_app/tests/file-attachment-flow.spec.ts defines image/code/multiple file pending embed and raw JSON leakage protections; MessageInput.svelte blocks anonymous file/sketch/camera binary insertion while allowing location and audio semantics separately."
+      timestamp: "2026-07-08T00:00:00Z"
+  - id: V-LOCAL-STATIC-CHECKS
+    kind: deterministic_check
+    phase: green
+    required_for_done: false
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-7
+    status: passed
+    evidence:
+      status: passed
+      summary: "Linux-safe checks passed after implementation: git diff --check, python3 scripts/spec_validate.py docs/specs/apple-welcome-composer-action-parity/spec.yml, python3 scripts/apple_parity_audit.py, and python3 scripts/apple_chat_parity_audit.py. Remote Mac build/XCUITest evidence remains pending until changes are committed and available to the Mac checkout."
+      timestamp: "2026-07-08T00:00:00Z"
+
+implementation_plan:
+  existing_patterns:
+    - docs/specs/apple-unified-message-composer/spec.yml
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/file-attachment-flow.spec.ts
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+  architecture: >
+    Preserve the shared MessageComposerView visual shell and move missing welcome
+    action semantics into NewChatWelcomeView/WelcomeComposer host state. Add typed
+    pending composer content for welcome actions, make audio follow web signed-out
+    behavior, keep file/sketch/camera auth gates aligned with web, and extend
+    XCUITests to prove action outcomes rather than only button visibility.
+  data_flow:
+    - User focuses welcome composer; MessageComposerView shows web action row.
+    - Audio short tap updates a hold hint state only; audio hold starts the recording overlay after the web threshold.
+    - Audio release converts the native recording into pending recording display state; cancel clears it.
+    - Location selection converts the chosen location into visible sendable composer content.
+    - Signed-out file/sketch/camera actions set anonymousAttachmentPending and show signup CTA without inserting embeds.
+    - Authenticated or seeded file/sketch/camera actions convert selected/captured content into pending display state and enable send.
+  affected_files:
+    - path: apple/OpenMates/Sources/App/MainAppView.swift
+      reason: Welcome composer action state and callbacks.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+      reason: Audio overlay identifiers, hint/cancel/release semantics, and possible welcome preview integration.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+      reason: Location overlay identifiers and selection/cancel testability.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/SketchView.swift
+      reason: Sketch overlay identifiers and pending-content testability.
+    - path: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+      reason: Add welcome-specific audio action parity tests.
+    - path: apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+      reason: Add welcome action overlay/focus/height checks.
+    - path: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+      reason: Add welcome pending-content and raw JSON leakage checks.
+  verification_strategy:
+    - Validate this spec.
+    - Write/extend Apple tests first and run targeted red phase on the current dev build.
+    - Implement smallest welcome composer action state changes.
+    - Deploy/commit through sessions.py deploy before remote green verification when required by workflow.
+    - Run remote Mac build and targeted XCUITests, recording sanitized evidence in this spec before marking complete.
+  verification_order:
+    - python3 scripts/spec_validate.py docs/specs/apple-welcome-composer-action-parity/spec.yml
+    - python3 scripts/apple_remote.py status
+    - Red phase targeted Apple tests.
+    - Implement welcome composer action parity.
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - Green phase targeted Apple tests.
+
+tasks:
+  - id: TASK-1
+    title: Add failing Apple welcome composer action tests
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+    expected_files:
+      - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+      - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+      - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    verification:
+      - T-APPLE-AUDIO-WELCOME
+      - T-APPLE-AUDIO-CANCEL
+      - T-APPLE-WELCOME-ACTIONS
+      - T-APPLE-ATTACHMENTS-WELCOME
+    verification_ids:
+      - T-APPLE-AUDIO-WELCOME
+      - T-APPLE-AUDIO-CANCEL
+      - T-APPLE-WELCOME-ACTIONS
+      - T-APPLE-ATTACHMENTS-WELCOME
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Implement welcome audio parity
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+    expected_files:
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    verification:
+      - T-APPLE-AUDIO-WELCOME
+      - T-APPLE-AUDIO-CANCEL
+    verification_ids:
+      - T-APPLE-AUDIO-WELCOME
+      - T-APPLE-AUDIO-CANCEL
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Implement welcome location and pending attachment parity
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+    expected_files:
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/MapsShareView.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/SketchView.swift
+    verification:
+      - T-APPLE-WELCOME-ACTIONS
+      - T-APPLE-ATTACHMENTS-WELCOME
+      - T-APPLE-COMPOSER-VISUAL
+    verification_ids:
+      - T-APPLE-WELCOME-ACTIONS
+      - T-APPLE-ATTACHMENTS-WELCOME
+      - T-APPLE-COMPOSER-VISUAL
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Run remote Apple build and green parity tests
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+    expected_files:
+      - docs/specs/apple-welcome-composer-action-parity/spec.yml
+    verification:
+      - T-APPLE-BUILD
+      - T-APPLE-AUDIO-WELCOME
+      - T-APPLE-AUDIO-CANCEL
+      - T-APPLE-WELCOME-ACTIONS
+      - T-APPLE-ATTACHMENTS-WELCOME
+      - T-APPLE-COMPOSER-VISUAL
+    verification_ids:
+      - T-APPLE-BUILD
+      - T-APPLE-AUDIO-WELCOME
+      - T-APPLE-AUDIO-CANCEL
+      - T-APPLE-WELCOME-ACTIONS
+      - T-APPLE-ATTACHMENTS-WELCOME
+      - T-APPLE-COMPOSER-VISUAL
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
