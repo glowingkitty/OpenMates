@@ -64,12 +64,19 @@ test.describe('App: Fitness / Skills: Urban Sports Club search', () => {
 		await expect(urbanSportsIcon).toBeVisible({ timeout: 10_000 });
 
 		const dimensions = await urbanSportsIcon.evaluate((img: HTMLImageElement) => ({
+			alt: img.alt,
+			providerName: img.getAttribute('data-provider-name'),
 			naturalWidth: img.naturalWidth,
 			naturalHeight: img.naturalHeight,
 			src: img.currentSrc || img.src
 		}));
 
-		expect(dimensions.src).toContain('urban_sports_club');
+		expect(dimensions.alt).toBe('Urban Sports Club');
+		expect(dimensions.providerName).toBe('Urban Sports Club');
+		expect(
+			dimensions.src.includes('urban_sports_club') || dimensions.src.startsWith('data:image/'),
+			`Urban Sports icon should use the canonical asset or an inlined image data URL, got: ${dimensions.src.slice(0, 80)}`
+		).toBe(true);
 		expect(dimensions.naturalWidth).toBeGreaterThanOrEqual(100);
 		expect(dimensions.naturalHeight).toBeGreaterThanOrEqual(100);
 		expect(dimensions.naturalWidth).toBe(dimensions.naturalHeight);

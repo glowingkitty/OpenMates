@@ -9,12 +9,14 @@
 
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
 test.describe('Project-linked Plans V1 flow', () => {
 	test('creates a project-linked plan card', async ({ page }) => {
 		test.setTimeout(120000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:projects', 'platform:tasks', 'platform:plans']);
 
 		const projectName = `E2E Plan Project ${Date.now()}`;
 		const planTitle = `E2E project plan ${Date.now()}`;

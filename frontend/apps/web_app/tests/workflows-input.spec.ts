@@ -11,6 +11,7 @@
 
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
 function deriveApiUrl(baseUrl: string): string {
@@ -46,6 +47,7 @@ test.describe('Workflows input home', () => {
 	test('shows workflow input states and can undo a text-created workflow', async ({ page }) => {
 		test.setTimeout(180000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:workflows']);
 
 		const apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 		const createdWorkflowIds = new Set<string>();

@@ -9,12 +9,14 @@
 
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
 test.describe('Tasks V1 flow', () => {
 	test('creates a manual task and persists a Kanban status move', async ({ page }) => {
 		test.setTimeout(120000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:tasks']);
 
 		const log = (message: string, metadata: Record<string, unknown> = {}) => {
 			console.log(`[TASKS_E2E] ${message} ${JSON.stringify(metadata)}`);

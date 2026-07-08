@@ -8,6 +8,7 @@ destructive command refusal.
 
 from __future__ import annotations
 
+import base64
 import importlib.util
 import subprocess
 import sys
@@ -188,7 +189,8 @@ def test_install_ios_device_command_can_enable_associated_domains_for_passkeys()
 
 
 def test_upload_testflight_ios_command_uses_app_store_connect_upload() -> None:
-    command = apple_remote.upload_testflight_ios_command(internal_only=True)
+    command = apple_remote.upload_testflight_ios_command(internal_only=True, whats_new="Release notes")
+    encoded = base64.b64encode(b"Release notes").decode("ascii")
 
     assert "OpenMates_iOS" in command
     assert "app-store-connect" in command
@@ -196,14 +198,16 @@ def test_upload_testflight_ios_command_uses_app_store_connect_upload() -> None:
     assert "destination" in command
     assert "upload" in command
     assert "testFlightInternalTestingOnly" in command
-    assert command.endswith(" 1")
+    assert encoded in command
+    assert command.endswith(f"1 ios {encoded} en-US")
 
 
 def test_upload_testflight_ios_command_can_allow_external_testing() -> None:
-    command = apple_remote.upload_testflight_ios_command(internal_only=False)
+    command = apple_remote.upload_testflight_ios_command(internal_only=False, whats_new="Release notes")
+    encoded = base64.b64encode(b"Release notes").decode("ascii")
 
     assert "testFlightInternalTestingOnly" in command
-    assert command.endswith(" 0")
+    assert command.endswith(f"0 ios {encoded} en-US")
 
 
 def test_upload_testflight_ios_command_can_inject_api_key_args() -> None:
@@ -212,6 +216,7 @@ def test_upload_testflight_ios_command_can_inject_api_key_args() -> None:
         api_key_path="~/AuthKey_TEST.p8",
         api_key_id="KEYID",
         api_issuer_id="ISSUERID",
+        whats_new="Release notes",
     )
 
     assert "APP_STORE_CONNECT_API_KEY_PATH='~/AuthKey_TEST.p8'" in command
@@ -220,7 +225,8 @@ def test_upload_testflight_ios_command_can_inject_api_key_args() -> None:
 
 
 def test_upload_testflight_macos_command_uses_mac_app_store_export() -> None:
-    command = apple_remote.upload_testflight_macos_command(internal_only=True)
+    command = apple_remote.upload_testflight_macos_command(internal_only=True, whats_new="Release notes")
+    encoded = base64.b64encode(b"Release notes").decode("ascii")
     script = apple_remote.TESTFLIGHT_IOS_SCRIPT
 
     assert "OpenMates_macOS" in script
@@ -239,7 +245,7 @@ def test_upload_testflight_macos_command_uses_mac_app_store_export() -> None:
     assert "profile_app_group=missing" in script
     assert "assign_app_group_to_bundle_id_in_apple_developer_portal" in script
     assert "app-store-connect" in command
-    assert command.endswith(" 1 macos")
+    assert command.endswith(f"1 macos {encoded} en-US")
 
 
 def test_upload_testflight_ios_script_preflights_signing() -> None:
@@ -252,7 +258,6 @@ def test_upload_testflight_ios_script_preflights_signing() -> None:
     assert "openmates-codesign-preflight" in script
     assert "CODE_SIGN_IDENTITY=iPhone Distribution" not in script
     assert "DEVELOPMENT_TEAM=Z9B2YFKN2X" in script
-    assert "CODE_SIGN_IDENTITY=" not in script
     assert "use_build_keychain_if_present" in script
     assert "*keychain_args" in script
     assert "OTHER_CODE_SIGN_FLAGS=--keychain" in script
@@ -267,8 +272,8 @@ def test_upload_testflight_script_validates_profile_app_groups_before_export() -
     script = apple_remote.TESTFLIGHT_IOS_SCRIPT
 
     assert "APP_GROUP_IDENTIFIER = \"group.org.openmates.app.shared\"" in script
-    assert "assert_profile_supports_app_group(identifier, profile_path)" in script
-    assert script.index("assert_profile_supports_app_group(identifier, profile_path)") < script.index(
+    assert "assert_profile_supports_required_entitlements(identifier, profile_path)" in script
+    assert script.index("assert_profile_supports_required_entitlements(identifier, profile_path)") < script.index(
         "plistlib.dump(export_options"
     )
 

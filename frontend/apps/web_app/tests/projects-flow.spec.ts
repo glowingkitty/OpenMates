@@ -3,7 +3,7 @@ export {};
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
-const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { skipIfFeaturesDisabled, skipWithoutCredentials } = require('./helpers/env-guard');
 const { getTestAccount } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
@@ -11,6 +11,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 test.describe('Projects v1 flow', () => {
   test.beforeEach(async ({ page }) => {
     skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+    await skipIfFeaturesDisabled(test, page, ['platform:projects']);
     await loginToTestAccount(page);
   });
 

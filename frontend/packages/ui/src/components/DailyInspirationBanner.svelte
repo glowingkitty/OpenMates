@@ -890,7 +890,7 @@
                 {:else}
                   <span class="clickable-icon icon_create banner-cta-icon"></span>
                 {/if}
-                <span class="banner-cta-text">
+                <span class="banner-cta-text" data-testid="daily-inspiration-cta-text">
                   {isFeatureInspiration
                     ? (prefersTouchCta
                       ? $text('daily_inspiration.tap_to_open_settings')

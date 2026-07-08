@@ -9,12 +9,14 @@
 
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 
 test.describe('Plans V1 flow', () => {
 	test('creates and activates an encrypted plan from the Tasks surface', async ({ page }) => {
 		test.setTimeout(120000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
+		await skipIfFeaturesDisabled(test, page, ['platform:tasks', 'platform:plans']);
 
 		const planTitle = `E2E plan ${Date.now()}`;
 		const planSummary = 'Created by the Plans V1 Playwright flow';
