@@ -57,33 +57,56 @@ function parseStableVersion(version) {
   return { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) };
 }
 
-function nextStableVersion(publishedVersions) {
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function releaseLineEntries(publishedVersions) {
   const base = parseStableVersion(config.cli.stableBase);
   if (!base) {
     fail(`cli.stableBase must be a stable npm semver string, got ${config.cli.stableBase}`);
   }
 
-  const patches = publishedVersions
-    .map(parseStableVersion)
-    .filter((version) => version && version.major === base.major && version.minor === base.minor && version.patch >= base.patch)
-    .map((version) => version.patch);
+  const label = config.cli.prereleaseLabel || "alpha";
+  const prereleasePattern = new RegExp(`^(\\d+)\\.(\\d+)\\.(\\d+)-${escapeRegExp(label)}\\.(\\d+)$`);
+  const entries = [];
 
-  if (!patches.length) return config.cli.stableBase;
-  return `${base.major}.${base.minor}.${Math.max(...patches) + 1}`;
+  for (const publishedVersion of publishedVersions) {
+    const stable = parseStableVersion(publishedVersion);
+    if (stable && stable.major === base.major && stable.minor === base.minor && stable.patch >= base.patch) {
+      entries.push({ patch: stable.patch, stable: true });
+      continue;
+    }
+
+    const prerelease = publishedVersion.match(prereleasePattern);
+    if (!prerelease) continue;
+    const major = Number(prerelease[1]);
+    const minor = Number(prerelease[2]);
+    const patch = Number(prerelease[3]);
+    if (major === base.major && minor === base.minor && patch >= base.patch) {
+      entries.push({ patch, stable: false });
+    }
+  }
+
+  return { base, entries };
+}
+
+function nextStableVersion(publishedVersions) {
+  const { base, entries } = releaseLineEntries(publishedVersions);
+  if (!entries.length) return config.cli.stableBase;
+
+  const latestPatch = Math.max(...entries.map((entry) => entry.patch));
+  const latestPatchIsStable = entries.some((entry) => entry.patch === latestPatch && entry.stable);
+  const patch = latestPatchIsStable ? latestPatch + 1 : latestPatch;
+  return `${base.major}.${base.minor}.${patch}`;
 }
 
 function nextPrereleaseVersion(publishedVersions) {
-  const targetStable = nextStableVersion(publishedVersions);
+  const { base, entries } = releaseLineEntries(publishedVersions);
+  const latestPatch = entries.length ? Math.max(...entries.map((entry) => entry.patch)) : base.patch - 1;
+  const targetStable = `${base.major}.${base.minor}.${latestPatch + 1}`;
   const label = config.cli.prereleaseLabel || "alpha";
-  const prefix = `${targetStable}-${label}.`;
-  const pattern = new RegExp(`^${prefix.replaceAll(".", "\\.")}(\\d+)$`);
-  const indexes = publishedVersions
-    .map((version) => version.match(pattern))
-    .filter(Boolean)
-    .map((match) => Number(match[1]));
-
-  if (!indexes.length) return `${prefix}0`;
-  return `${prefix}${Math.max(...indexes) + 1}`;
+  return `${targetStable}-${label}.0`;
 }
 
 function setPackageVersion(version) {

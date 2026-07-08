@@ -54,6 +54,31 @@ def parse_version_tuple(version: str) -> tuple[int, int, int]:
     return int(parts[0]), int(parts[1]), int(parts[2])
 
 
+def release_line_entries(config: dict, versions: list[str]) -> tuple[tuple[int, int, int], list[tuple[int, bool]]]:
+    major, minor, base_patch = parse_version_tuple(config["stableBase"])
+    label = config.get("prereleaseLabel", "a")
+    prerelease_pattern = re.compile(rf"^(\d+)\.(\d+)\.(\d+){re.escape(label)}\d+$")
+    entries: list[tuple[int, bool]] = []
+
+    for version in versions:
+        if SEMVER_PATTERN.match(version):
+            parsed_major, parsed_minor, patch = parse_version_tuple(version)
+            if parsed_major == major and parsed_minor == minor and patch >= base_patch:
+                entries.append((patch, True))
+            continue
+
+        match = prerelease_pattern.match(version)
+        if not match:
+            continue
+        parsed_major = int(match.group(1))
+        parsed_minor = int(match.group(2))
+        patch = int(match.group(3))
+        if parsed_major == major and parsed_minor == minor and patch >= base_patch:
+            entries.append((patch, False))
+
+    return (major, minor, base_patch), entries
+
+
 def published_versions(args: argparse.Namespace) -> list[str]:
     if args.published_versions is not None:
         return [version.strip() for version in args.published_versions.split(",") if version.strip()]
@@ -66,29 +91,22 @@ def published_versions(args: argparse.Namespace) -> list[str]:
 
 
 def next_prerelease_version(config: dict, versions: list[str]) -> str:
-    stable = next_stable_version(config, versions)
+    (major, minor, base_patch), entries = release_line_entries(config, versions)
+    latest_patch = max((patch for patch, _stable in entries), default=base_patch - 1)
+    stable = f"{major}.{minor}.{latest_patch + 1}"
     label = config.get("prereleaseLabel", "a")
-    base = f"{stable}{label}"
-    pattern = re.compile(rf"^{re.escape(base)}(\d+)$")
-    indexes = [int(match.group(1)) for version in versions if (match := pattern.match(version))]
-    if not indexes:
-        return f"{base}0"
-    return f"{base}{max(indexes) + 1}"
+    return f"{stable}{label}0"
 
 
 def next_stable_version(config: dict, versions: list[str]) -> str:
-    stable_base = config["stableBase"]
-    major, minor, base_patch = parse_version_tuple(stable_base)
-    patches = [
-        patch
-        for version in versions
-        if SEMVER_PATTERN.match(version)
-        for parsed_major, parsed_minor, patch in [parse_version_tuple(version)]
-        if parsed_major == major and parsed_minor == minor and patch >= base_patch
-    ]
-    if not patches:
-        return stable_base
-    return f"{major}.{minor}.{max(patches) + 1}"
+    (major, minor, _base_patch), entries = release_line_entries(config, versions)
+    if not entries:
+        return config["stableBase"]
+
+    latest_patch = max(patch for patch, _stable in entries)
+    latest_patch_is_stable = any(patch == latest_patch and stable for patch, stable in entries)
+    patch = latest_patch + 1 if latest_patch_is_stable else latest_patch
+    return f"{major}.{minor}.{patch}"
 
 
 def validate_config(config: dict) -> None:
