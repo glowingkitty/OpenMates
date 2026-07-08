@@ -150,6 +150,8 @@ struct ComposerRecordingOverlay: View {
                 }
                 .opacity(max(0.3, 1 + Double(dragOffsetX / 80)))
                 .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onCancel)
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("cancel-hint")
 

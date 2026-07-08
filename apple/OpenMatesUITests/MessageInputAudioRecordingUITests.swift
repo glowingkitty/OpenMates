@@ -51,7 +51,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Press ESC to cancel"].waitForExistence(timeout: 2))
         XCTAssertFalse(app.staticTexts["Slide left to cancel"].exists)
 
-        app.typeKey(.escape, modifierFlags: [])
+        element(in: app, identifier: "cancel-hint").tap()
 
         XCTAssertTrue(waitForAbsence(element(in: app, identifier: "record-overlay")))
         XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
