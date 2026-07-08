@@ -59,7 +59,7 @@ import {
   appendSelectedServices,
   shouldCheckWebHealth,
 } from "../src/serverPlanning.ts";
-import { renderSupportInstallHint } from "../src/support.ts";
+import { renderSupportStartReminder } from "../src/support.ts";
 
 // server.ts imports serverConfig.js which breaks with --experimental-strip-types.
 // Re-implement the pure functions we want to test inline, or import them
@@ -670,11 +670,11 @@ describe("server preflight and Caddy planning", () => {
 });
 
 describe("server support prompt", () => {
-  it("renders an install-only voluntary support hint", () => {
-    const hint = renderSupportInstallHint();
+  it("renders a friendly start reminder for voluntary support", () => {
+    const hint = renderSupportStartReminder();
 
-    assert.match(hint, /Optional/);
-    assert.match(hint, /support OpenMates development/);
+    assert.match(hint, /Friendly reminder/);
+    assert.match(hint, /financially support OpenMates development/);
     assert.match(hint, /https:\/\/openmates\.org\/#settings\/support/);
     assert.doesNotMatch(hint, /donate/i);
   });

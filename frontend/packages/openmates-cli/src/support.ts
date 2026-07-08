@@ -16,6 +16,6 @@ export function renderSupportInfo(): string {
   return `${SUPPORT_TITLE}:\n  ${SUPPORT_URL}\n\n${SUPPORT_MESSAGE}`;
 }
 
-export function renderSupportInstallHint(): string {
-  return `Optional: financially support OpenMates development at ${SUPPORT_URL}`;
+export function renderSupportStartReminder(): string {
+  return `Friendly reminder: you can financially support OpenMates development at ${SUPPORT_URL}`;
 }
