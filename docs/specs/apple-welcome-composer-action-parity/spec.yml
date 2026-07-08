@@ -1,6 +1,6 @@
 id: apple-welcome-composer-action-parity
 title: Apple Welcome Composer Action Parity
-status: implementing
+status: verified
 
 goal: >
   Make the Apple welcome/new-chat composer action buttons behave like the web
@@ -81,7 +81,7 @@ apple_impact:
     - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ComposerVisualParityUITests
     - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
     - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
-    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatFlowParityUITests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatFlowParityUITests/testGuestDefaultSuggestionsShowWhenComposerFocusedBeforeInterestSelection
   intentional_native_differences:
     - Apple may use OS-owned file/photo/camera/microphone permission UI and native MapKit/PencilKit internals, but the composer-visible states, identifiers, and outcomes must match the web contract.
     - Native XCUITest may use seeded fixtures or debug preview hooks for permission-sensitive actions, but the fixtures must prove the same user-visible state transitions as web Playwright.
@@ -184,7 +184,7 @@ acceptance_criteria:
     scenario: S-1
     text: Signed-out short-tap audio on Apple welcome composer matches web audio-recording.spec.ts by showing the hold hint, not starting recording, not collapsing the composer, and not requiring signup.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -194,7 +194,7 @@ acceptance_criteria:
     scenario: S-2
     text: Signed-out press-and-hold audio on Apple welcome composer shows the recording overlay and inserts a recording preview or pending recording attachment on release.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -204,7 +204,7 @@ acceptance_criteria:
     scenario: S-3
     text: Apple welcome composer recording cancellation via Escape and drag-left closes the overlay without inserting any recording content.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -214,7 +214,7 @@ acceptance_criteria:
     scenario: S-4
     text: Location action opens an in-field overlay from signed-in or signed-out welcome composer and selection inserts sendable location content while cancel inserts nothing.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -223,7 +223,7 @@ acceptance_criteria:
     scenario: S-5
     text: Signed-out file, sketch, and camera actions surface signup CTA without inserting embeds; authenticated or seeded versions insert visible pending content and enable send.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -234,7 +234,7 @@ acceptance_criteria:
     scenario: S-6
     text: Action interactions preserve web-like composer focus, action-row visibility, focused height, overlay height, and separation between composer and welcome suggestions/cards.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -244,7 +244,7 @@ acceptance_criteria:
     scenario: S-5
     text: Pending file, sketch, camera, location, and recording content never displays raw JSON embed references or private local file paths in the composer.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -326,16 +326,16 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "remote-mac:tool_f40f6433b0014jyy27imIauLTw"
+        timestamp: "2026-07-08T09:01:30Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "remote-mac:tool_f40fe3ff1001DzzZH9llJm0Tyc"
+        timestamp: "2026-07-08T09:10:30Z"
 
   - id: T-APPLE-AUDIO-CANCEL
     type: manual
@@ -352,16 +352,16 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "remote-mac:tool_f40f6433b0014jyy27imIauLTw"
+        timestamp: "2026-07-08T09:01:30Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "remote-mac:tool_f40fe3ff1001DzzZH9llJm0Tyc"
+        timestamp: "2026-07-08T09:10:30Z"
 
   - id: T-APPLE-WELCOME-ACTIONS
     type: manual
@@ -382,16 +382,16 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "remote-mac:tool_f411e2430001c0IhrQ9JjOvzEH"
+        timestamp: "2026-07-08T09:45:04Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "remote-mac:tool_f415cd9f300138wFsYusKS8GGy"
+        timestamp: "2026-07-08T10:53:50Z"
 
   - id: T-APPLE-ATTACHMENTS-WELCOME
     type: manual
@@ -410,21 +410,21 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "remote-mac:tool_f40fe3ff1001DzzZH9llJm0Tyc"
+        timestamp: "2026-07-08T09:12:23Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "remote-mac:tool_f41046c11001cVpqP5AeNqga9d"
+        timestamp: "2026-07-08T09:17:12Z"
 
   - id: T-APPLE-COMPOSER-VISUAL
     type: manual
     file: apple/OpenMatesUITests/ChatFlowParityUITests.swift
-    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatFlowParityUITests
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/ChatFlowParityUITests/testGuestDefaultSuggestionsShowWhenComposerFocusedBeforeInterestSelection
     covers:
       - AC-6
     assertions:
@@ -436,16 +436,16 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: pending
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "remote-mac:tool_f38a2ae2f001Z3ZynMqkFTiggQ"
+        timestamp: "2026-07-08T00:00:00Z"
     green_phase:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "remote-mac:tool_f41620e39001AJQNPJ91C29E7y"
+        timestamp: "2026-07-08T11:01:08Z"
 
   - id: T-APPLE-BUILD
     type: build
@@ -472,9 +472,9 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "remote-mac:tool_f415ec990001cjPPqROjgeKh7m"
+        timestamp: "2026-07-08T10:55:57Z"
 
 verifications:
   - id: V-WEB-AUDIO-CONTRACT
@@ -515,7 +515,7 @@ verifications:
     status: passed
     evidence:
       status: passed
-      summary: "Linux-safe checks passed after implementation: git diff --check, python3 scripts/spec_validate.py docs/specs/apple-welcome-composer-action-parity/spec.yml, python3 scripts/apple_parity_audit.py, and python3 scripts/apple_chat_parity_audit.py. Remote Mac build/XCUITest evidence remains pending until changes are committed and available to the Mac checkout."
+      summary: "Linux-safe checks passed after implementation: git diff --check, python3 scripts/spec_validate.py docs/specs/apple-welcome-composer-action-parity/spec.yml, python3 scripts/apple_parity_audit.py, and python3 scripts/apple_chat_parity_audit.py. Remote Mac build/XCUITest evidence is recorded in the test entries above."
       timestamp: "2026-07-08T00:00:00Z"
 
 implementation_plan:
@@ -667,7 +667,7 @@ tasks:
 
   - id: TASK-4
     title: Run remote Apple build and green parity tests
-    status: pending
+    status: done
     phase: running_checks
     covers:
       scenarios:
