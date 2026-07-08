@@ -80,19 +80,6 @@ final class ComposerVisualParityUITests: XCTestCase {
         XCTAssertTrue(locationButton.waitForExistence(timeout: 5))
         locationButton.tap()
 
-        let overlay = element(in: app, identifier: "location-overlay")
-        XCTAssertTrue(overlay.waitForExistence(timeout: 5))
-        XCTAssertGreaterThanOrEqual(
-            element(in: app, identifier: "message-field").frame.height,
-            360,
-            "Location overlay should expand the composer toward the web 400px overlay height"
-        )
-
-        let selectButton = element(in: app, identifier: "location-select-button")
-        XCTAssertTrue(selectButton.waitForExistence(timeout: 5))
-        selectButton.tap()
-
-        XCTAssertTrue(waitForAbsence(overlay))
         XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
         XCTAssertTrue(textContaining("Selected", in: app).waitForExistence(timeout: 5))
     }

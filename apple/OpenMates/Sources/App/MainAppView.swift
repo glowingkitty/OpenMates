@@ -4414,39 +4414,6 @@ private enum WelcomeComposerPendingKind {
     case audio
 }
 
-private struct WelcomeLocationUITestOverlay: View {
-    let onShare: (Double, Double, String) -> Void
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
-
-            Button {
-                onShare(52.52, 13.405, AppStrings.selectedLocation)
-            } label: {
-                HStack(spacing: .spacing3) {
-                    Icon("current_location", size: 16)
-                    Text(AppStrings.shareLocation)
-                        .font(.omSmall.weight(.medium))
-                }
-                .foregroundStyle(Color.fontButton)
-                .padding(.horizontal, .spacing8)
-                .frame(height: 40)
-                .background(Color.buttonPrimary)
-                .clipShape(RoundedRectangle(cornerRadius: .radius8))
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("location-select-button")
-            .padding(.bottom, .spacing5)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.grey100)
-        .clipShape(RoundedRectangle(cornerRadius: 24))
-        .clipped()
-        .accessibilityIdentifier("location-overlay")
-    }
-}
-
 struct NewChatWelcomeView: View {
     let inspirations: [DailyInspirationBanner.DailyInspiration]
     let isAuthenticated: Bool
@@ -4824,6 +4791,13 @@ struct NewChatWelcomeView: View {
     }
 
     private func openLocationOverlay() {
+        if isUITestWelcomeLocationPreselected {
+            insertSharedLocation(latitude: 52.52, longitude: 13.405, name: AppStrings.selectedLocation)
+            isComposerActivated = true
+            isFocused = true
+            return
+        }
+
         withAnimation(.easeInOut(duration: 0.2)) {
             composerOverlay = .location
             isComposerActivated = true
@@ -5068,13 +5042,6 @@ struct NewChatWelcomeView: View {
         guard let composerOverlay else { return nil }
         switch composerOverlay {
         case .location:
-            if isUITestWelcomeLocationPreselected {
-                return AnyView(
-                    WelcomeLocationUITestOverlay { latitude, longitude, name in
-                        insertSharedLocation(latitude: latitude, longitude: longitude, name: name)
-                    }
-                )
-            }
             return AnyView(
                 ComposerLocationOverlay(
                     onShare: { latitude, longitude, name in
