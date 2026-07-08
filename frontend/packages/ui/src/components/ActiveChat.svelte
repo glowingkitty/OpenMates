@@ -11640,9 +11640,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {/if}
 
                      <ChatHistory
-                         bind:this={chatHistoryRef}
-                         messageInputHeight={0}
-                         containerWidth={effectiveChatWidth}
+                          bind:this={chatHistoryRef}
+                          messageInputHeight={0}
+                          sourceMessages={currentMessages}
+                          containerWidth={effectiveChatWidth}
                          currentChatId={currentChat?.chat_id}
                          {processingPhase}
                          {thinkingContentByTask}
