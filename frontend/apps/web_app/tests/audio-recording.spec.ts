@@ -282,6 +282,7 @@ test('press hold and release creates audio embed', async ({ page }) => {
 	await captureComposerEmbedContract(page, {
 		id: 'composer-pending-audio-recording',
 		embedType: 'audio-recording',
+		targetTestId: 'recording-preview',
 		screenshot: true
 	});
 
