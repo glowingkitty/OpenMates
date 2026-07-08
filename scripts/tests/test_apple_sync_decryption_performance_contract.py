@@ -44,6 +44,7 @@ def test_authenticated_bootstrap_connects_before_offline_metadata_decrypt() -> N
 
     assert connect_index < decrypt_index
     assert 'await decryptVisibleChatMetadata(reason: "offlineColdLoad")\n\n        Task' not in body
+    assert "guard isAuthenticated, didBootstrapAuthenticatedSession else { return }" in body
 
 
 def test_rest_initial_load_uses_visible_only_metadata_decryption() -> None:

@@ -2002,6 +2002,7 @@ struct MainAppView: View {
         connectWebSocket()
         Task { @MainActor in
             await Task.yield()
+            guard isAuthenticated, didBootstrapAuthenticatedSession else { return }
             await decryptVisibleChatMetadata(reason: "offlineColdLoad")
         }
         Task { await promoteAnonymousChatsAfterAuthentication() }

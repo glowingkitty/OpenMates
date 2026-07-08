@@ -103,7 +103,7 @@ acceptance_criteria:
     scenario: S-1
     text: Authenticated bootstrap no longer awaits visible metadata decrypt before calling WebSocket connect.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -114,7 +114,7 @@ acceptance_criteria:
     scenario: S-2
     text: Default REST fallback/recovery chat loads use bounded or visible-only metadata decryption, not all-chat metadata decryption.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -125,7 +125,7 @@ acceptance_criteria:
     scenario: S-3
     text: Sync content handling continues to log and behave as decrypt=deferred for messages/embeds during Phase 1b/background sync.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -135,7 +135,7 @@ acceptance_criteria:
     scenario: S-1
     text: The large shell/sidebar and seeded chat-opening Apple UI tests pass after the fix on the remote iOS simulator.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -229,9 +229,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/apple_remote.py test-ios --simulator iPhone 17 --only-testing OpenMatesUITests/ChatOpeningScalabilityUITests"
+        timestamp: "2026-07-08"
+        summary: "Remote iOS simulator passed 3 tests, 0 failures, after syncing to commit 91f59a613."
 
 verifications:
   - id: V-APPLE-REMOTE-001
@@ -240,11 +241,11 @@ verifications:
     required_for_done: true
     covers:
       - AC-4
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
+      status: passed
+      summary: "Remote iOS simulator passed ChatOpeningScalabilityUITests: 3 tests, 0 failures, after sync to 91f59a613."
+      timestamp: "2026-07-08"
 
 implementation_plan:
   existing_patterns:
@@ -281,7 +282,7 @@ implementation_plan:
 tasks:
   - id: TASK-1
     title: Align Apple startup metadata decrypt scheduling with web
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
@@ -305,7 +306,7 @@ tasks:
 
   - id: TASK-2
     title: Verify Apple sync content decrypt remains deferred
-    status: pending
+    status: done
     phase: working_tasks
     covers:
       scenarios:
