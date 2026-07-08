@@ -24,6 +24,29 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
         )
     }
 
+    func testServerProfileDerivesProductionDevelopmentAndCustomEndpoints() {
+        let production = ServerProfile.production
+        XCTAssertEqual(production.id, "production")
+        XCTAssertEqual(production.displayDomain, "openmates.org")
+        XCTAssertEqual(production.webBaseURL.absoluteString, "https://openmates.org")
+        XCTAssertEqual(production.apiBaseURL.absoluteString, "https://api.openmates.org")
+        XCTAssertEqual(production.webSocketBaseURL.absoluteString, "wss://api.openmates.org/v1/ws")
+
+        let development = ServerProfile.development
+        XCTAssertEqual(development.id, "development")
+        XCTAssertEqual(development.displayDomain, "app.dev.openmates.org")
+        XCTAssertEqual(development.webBaseURL.absoluteString, "https://app.dev.openmates.org")
+        XCTAssertEqual(development.apiBaseURL.absoluteString, "https://api.dev.openmates.org")
+        XCTAssertEqual(development.webSocketBaseURL.absoluteString, "wss://api.dev.openmates.org/v1/ws")
+
+        let custom = ServerProfile.custom(domain: "https://app.selfhosted.example/path")
+        XCTAssertEqual(custom.id, "custom:app.selfhosted.example")
+        XCTAssertEqual(custom.displayDomain, "app.selfhosted.example")
+        XCTAssertEqual(custom.webBaseURL.absoluteString, "https://app.selfhosted.example")
+        XCTAssertEqual(custom.apiBaseURL.absoluteString, "https://api.selfhosted.example")
+        XCTAssertEqual(custom.webSocketBaseURL.absoluteString, "wss://api.selfhosted.example/v1/ws")
+    }
+
     func testPairCompleteFailureNormalizesBackendMessages() {
         XCTAssertEqual(PairLoginRuntime.failureKind(for: "too_many_attempts"), .tooManyAttempts)
         XCTAssertEqual(PairLoginRuntime.failureKind(for: "invalid_pin:2"), .invalidPIN(attemptsRemaining: "2"))
@@ -36,6 +59,7 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
             token: "abc123",
             pairURLString: "https://app.dev.openmates.org/#pair=ABC123",
             deviceName: "OpenMates Apple Watch app",
+            serverProfile: .development,
             createdAt: 1_777_777_777
         )
 
@@ -46,12 +70,49 @@ final class WatchPairLoginRuntimeTests: XCTestCase {
             token: "ABC123",
             pairURLString: "https://app.dev.openmates.org/#pair=ABC123",
             deviceName: "OpenMates Apple Watch app",
+            serverProfile: .development,
             createdAt: 1_777_777_777
         ))
+        XCTAssertEqual(message["server_profile_id"] as? String, "development")
+        XCTAssertEqual(message["server_web_base_url"] as? String, "https://app.dev.openmates.org")
+        XCTAssertEqual(message["server_api_base_url"] as? String, "https://api.dev.openmates.org")
         XCTAssertFalse(WatchPairLoginConnectivityPayload.containsForbiddenSecretKeys(message))
         XCTAssertNil(message["master_key_exported"])
         XCTAssertNil(message["ws_token"])
         XCTAssertNil(message["cookie"])
+    }
+
+    func testWatchConnectivityLoginRequestSupportsCustomServerProfile() {
+        let customProfile = ServerProfile.custom(domain: "https://app.selfhosted.example")
+        let request = WatchPairLoginRequest(
+            token: "xyz789",
+            pairURLString: "https://app.selfhosted.example/#pair=XYZ789",
+            deviceName: "OpenMates Apple Watch app",
+            serverProfile: customProfile,
+            createdAt: 1_777_777_778
+        )
+
+        let message = WatchPairLoginConnectivityPayload.requestMessage(request)
+        let parsed = WatchPairLoginConnectivityPayload.parseRequest(message)
+
+        XCTAssertEqual(parsed?.serverProfile, customProfile)
+        XCTAssertEqual(message["server_profile_id"] as? String, "custom:app.selfhosted.example")
+        XCTAssertEqual(message["server_web_base_url"] as? String, "https://app.selfhosted.example")
+        XCTAssertEqual(message["server_api_base_url"] as? String, "https://api.selfhosted.example")
+        XCTAssertFalse(WatchPairLoginConnectivityPayload.containsForbiddenSecretKeys(message))
+    }
+
+    func testWatchConnectivityLoginRequestDetectsServerMismatchBeforeAuthorization() {
+        let request = WatchPairLoginRequest(
+            token: "abc123",
+            pairURLString: "https://openmates.org/#pair=ABC123",
+            deviceName: "OpenMates Apple Watch app",
+            serverProfile: .production,
+            createdAt: 1_777_777_779
+        )
+
+        XCTAssertTrue(WatchPairLoginConnectivityPayload.requestMatchesCurrentServer(request, currentProfile: .production))
+        XCTAssertFalse(WatchPairLoginConnectivityPayload.requestMatchesCurrentServer(request, currentProfile: .development))
     }
 
     func testWatchConnectivityApprovalPayloadContainsOnlyPinAndToken() {

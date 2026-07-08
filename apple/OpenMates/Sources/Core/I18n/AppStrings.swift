@@ -426,6 +426,12 @@ enum AppStrings {
     static var pairUrlLabel: String { L("settings.sessions.pair_url_label") }
     static var pairConnectAppleWatchTitle: String { L("settings.sessions.pair_connect_apple_watch_title") }
     static var pairConnectAppleWatchDescription: String { L("settings.sessions.pair_connect_apple_watch_description") }
+    static func pairWatchLoginServerMismatch(watchServer: String, phoneServer: String) -> String {
+        LocalizationManager.shared.text(
+            "settings.sessions.pair_watch_login_server_mismatch",
+            replacements: ["watch_server": watchServer, "phone_server": phoneServer]
+        )
+    }
     static var pairApproveWatchLogin: String { L("settings.sessions.pair_approve_watch_login") }
     static var pairWatchLoginApproved: String { L("settings.sessions.pair_watch_login_approved") }
     // Web currently renders this label as literal copy in SettingsSessionsPairInitiate.svelte.

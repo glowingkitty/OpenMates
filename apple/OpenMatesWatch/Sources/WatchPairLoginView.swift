@@ -17,11 +17,14 @@ import SwiftUI
 @MainActor
 final class WatchPairLoginState: ObservableObject {
     @Published var token: String?
+    @Published var activeTokenServerProfile: ServerProfile?
     @Published var pairURLString: String?
     @Published var status: PairLoginStatus = .generating
     @Published var pin = ""
     @Published var errorMessage: String?
     @Published var isSubmitting = false
+    @Published var serverProfile = ServerProfile.current()
+    @Published var customDomain = ""
 
     var pollTask: Task<Void, Never>?
 
@@ -33,6 +36,7 @@ final class WatchPairLoginState: ObservableObject {
         pollTask?.cancel()
         pollTask = nil
         token = nil
+        activeTokenServerProfile = nil
         pairURLString = nil
         status = .generating
         pin = ""
@@ -54,6 +58,7 @@ struct WatchPairLoginView: View {
 
             ScrollView {
                 VStack(spacing: .spacing4) {
+                    serverSelectionView
                     statusView
 
                     if pairState.status == .waiting,
@@ -98,9 +103,10 @@ struct WatchPairLoginView: View {
             }
         }
         .task {
-            phoneBridge.start { approval in
-                handlePhoneApproval(approval)
-            }
+            phoneBridge.start(
+                onServerProfile: { profile in handleServerProfile(profile) },
+                onApproval: { approval in handlePhoneApproval(approval) }
+            )
             await initiatePairingIfNeeded()
         }
         .onChange(of: phoneBridge.isPhoneReachable) { _, isReachable in
@@ -209,6 +215,68 @@ struct WatchPairLoginView: View {
         .clipShape(RoundedRectangle(cornerRadius: .radius4))
     }
 
+    private var serverSelectionView: some View {
+        VStack(spacing: .spacing2) {
+            Text("\(WatchStrings.pairServerLabel): \(pairState.serverProfile.displayDomain)")
+                .font(.omTiny)
+                .foregroundStyle(Color.grey0.opacity(0.72))
+                .multilineTextAlignment(.center)
+                .accessibilityIdentifier("watch-pair-server-label")
+
+            HStack(spacing: .spacing2) {
+                serverButton(WatchStrings.pairServerProduction, profile: .production)
+                serverButton(WatchStrings.pairServerDevelopment, profile: .development)
+            }
+
+            TextField(WatchStrings.pairServerCustomPlaceholder, text: $pairState.customDomain)
+                .font(.omTiny)
+                .foregroundStyle(Color.fontPrimary)
+                .multilineTextAlignment(.center)
+                .padding(.vertical, .spacing1)
+                .padding(.horizontal, .spacing2)
+                .background(Color.grey0)
+                .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                .accessibilityIdentifier("watch-pair-custom-server-input")
+
+            Button {
+                applyServerProfile(.custom(domain: pairState.customDomain))
+            } label: {
+                Text(WatchStrings.pairServerUseCustom)
+                    .font(.omTiny)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontButton)
+                    .padding(.horizontal, .spacing3)
+                    .padding(.vertical, .spacing1)
+                    .background(LinearGradient.primary)
+                    .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+            }
+            .buttonStyle(.plain)
+            .disabled(pairState.customDomain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .accessibilityIdentifier("watch-pair-use-custom-server-button")
+        }
+        .padding(.spacing2)
+        .background(Color.grey80.opacity(0.35))
+        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+        .accessibilityIdentifier("watch-pair-server-selector")
+    }
+
+    private func serverButton(_ title: String, profile: ServerProfile) -> some View {
+        Button {
+            applyServerProfile(profile)
+        } label: {
+            Text(title)
+                .font(.omTiny)
+                .fontWeight(.semibold)
+                .foregroundStyle(pairState.serverProfile == profile ? Color.fontButton : Color.grey0)
+                .padding(.horizontal, .spacing2)
+                .padding(.vertical, .spacing1)
+                .background(pairState.serverProfile == profile ? AnyShapeStyle(LinearGradient.primary) : AnyShapeStyle(Color.grey70))
+                .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("watch-pair-server-\(profile.id)-button")
+    }
+
     private var manualFallbackView: some View {
         VStack(spacing: .spacing3) {
             if let token = pairState.token {
@@ -269,7 +337,7 @@ struct WatchPairLoginView: View {
     private func initiatePairingIfNeeded() async {
         if let token = pairState.token {
             if pairState.status == .waiting, pairState.pollTask == nil {
-                startPolling(token: token)
+                startPolling(token: token, serverProfile: pairState.serverProfile)
             }
             return
         }
@@ -279,21 +347,25 @@ struct WatchPairLoginView: View {
     private func initiatePairing(force: Bool) async {
         if !force, pairState.token != nil { return }
         pairState.reset()
+        let serverProfile = pairState.serverProfile
 
         do {
-            let initiation = try await PairLoginRuntime.initiate()
+            let initiation = try await PairLoginRuntime.initiate(serverProfile: serverProfile)
+            guard pairState.serverProfile == serverProfile else { return }
             pairState.token = initiation.token
+            pairState.activeTokenServerProfile = serverProfile
             pairState.pairURLString = initiation.pairURLString
             pairState.status = .waiting
-            startPolling(token: initiation.token)
+            startPolling(token: initiation.token, serverProfile: serverProfile)
             sendPhoneLoginRequestIfPossible()
         } catch {
+            guard pairState.serverProfile == serverProfile else { return }
             pairState.errorMessage = error.localizedDescription
             pairState.status = .failed
         }
     }
 
-    private func startPolling(token: String) {
+    private func startPolling(token: String, serverProfile: ServerProfile) {
         pairState.pollTask?.cancel()
         pairState.pollTask = Task {
             while !Task.isCancelled {
@@ -301,8 +373,11 @@ struct WatchPairLoginView: View {
                 if Task.isCancelled { return }
 
                 do {
-                    let response = try await PairLoginRuntime.poll(token: token)
+                    let response = try await PairLoginRuntime.poll(token: token, serverProfile: serverProfile)
                     await MainActor.run {
+                        guard !Task.isCancelled,
+                              pairState.token == token,
+                              pairState.activeTokenServerProfile == serverProfile else { return }
                         if response.status == "ready" {
                             pairState.status = .ready
                             if pairState.pin.count == 6 { submitPinIfReady() }
@@ -313,6 +388,9 @@ struct WatchPairLoginView: View {
                     if response.status == "ready" || response.status == "expired" { return }
                 } catch {
                     await MainActor.run {
+                        guard !Task.isCancelled,
+                              pairState.token == token,
+                              pairState.activeTokenServerProfile == serverProfile else { return }
                         pairState.errorMessage = error.localizedDescription
                         pairState.status = .failed
                     }
@@ -334,11 +412,14 @@ struct WatchPairLoginView: View {
 
     private func sendPhoneLoginRequestIfPossible() {
         guard let token = pairState.token,
+              let serverProfile = pairState.activeTokenServerProfile,
+              serverProfile == pairState.serverProfile,
               let pairURLString = pairState.pairURLString else { return }
         let request = WatchPairLoginRequest(
             token: token,
             pairURLString: pairURLString,
             deviceName: PairLoginRuntime.officialAppDeviceHint,
+            serverProfile: serverProfile,
             createdAt: Int(Date().timeIntervalSince1970)
         )
         _ = phoneBridge.sendLoginRequest(request)
@@ -350,21 +431,52 @@ struct WatchPairLoginView: View {
         if pairState.status == .ready { submitPinIfReady() }
     }
 
+    private func handleServerProfile(_ profile: ServerProfile) {
+        guard pairState.serverProfile != profile else { return }
+        let shouldRestart = pairState.token != nil || pairState.status != .generating
+        pairState.serverProfile = profile
+        if shouldRestart {
+            Task { await initiatePairing(force: true) }
+        }
+    }
+
+    private func applyServerProfile(_ profile: ServerProfile) {
+        guard pairState.serverProfile != profile else { return }
+        pairState.serverProfile = profile
+        Task { await initiatePairing(force: true) }
+    }
+
     private func submitPinIfReady() {
         guard pairState.status == .ready,
               !pairState.isSubmitting,
               pairState.pin.count == 6,
-              let token = pairState.token else { return }
+              let token = pairState.token,
+              let serverProfile = pairState.activeTokenServerProfile,
+              serverProfile == pairState.serverProfile else { return }
         pairState.isSubmitting = true
         pairState.errorMessage = nil
 
         Task {
             do {
-                let result = try await PairLoginRuntime.complete(token: token, pin: pairState.pin, stayLoggedIn: true)
+                let result = try await PairLoginRuntime.complete(
+                    token: token,
+                    pin: pairState.pin,
+                    stayLoggedIn: true,
+                    serverProfile: serverProfile
+                )
+                guard pairState.token == token,
+                      pairState.activeTokenServerProfile == serverProfile,
+                      pairState.serverProfile == serverProfile else { return }
                 try await authStore.completePairLogin(result)
             } catch PairLoginRuntimeError.completeFailed(let kind) {
+                guard pairState.token == token,
+                      pairState.activeTokenServerProfile == serverProfile,
+                      pairState.serverProfile == serverProfile else { return }
                 handlePairCompleteFailure(kind)
             } catch {
+                guard pairState.token == token,
+                      pairState.activeTokenServerProfile == serverProfile,
+                      pairState.serverProfile == serverProfile else { return }
                 pairState.errorMessage = error.localizedDescription
                 pairState.isSubmitting = false
             }

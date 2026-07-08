@@ -18,6 +18,18 @@ struct NotificationReplyRequest: Identifiable, Equatable {
     }
 }
 
+private final class NotificationCompletionBox: @unchecked Sendable {
+    private let completionHandler: () -> Void
+
+    init(_ completionHandler: @escaping () -> Void) {
+        self.completionHandler = completionHandler
+    }
+
+    func complete() {
+        completionHandler()
+    }
+}
+
 @MainActor
 final class PushNotificationManager: NSObject, ObservableObject {
     static let shared = PushNotificationManager()
@@ -163,31 +175,70 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
 
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
         let userInfo = response.notification.request.content.userInfo
         guard let chatId = (userInfo["chat_id"] as? String) ?? (userInfo["chatId"] as? String) else {
+            completionHandler()
             return
         }
 
-        if response.actionIdentifier == PushNotificationManager.NotificationAction.reply,
-           let textResponse = response as? UNTextInputNotificationResponse {
-            let reply = textResponse.userText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let actionIdentifier = response.actionIdentifier
+        let replyText = (response as? UNTextInputNotificationResponse)?.userText
+        completeNotificationResponseOnMain(
+            actionIdentifier: actionIdentifier,
+            chatId: chatId,
+            replyText: replyText,
+            completion: NotificationCompletionBox(completionHandler)
+        )
+    }
+
+    private nonisolated func completeNotificationResponseOnMain(
+        actionIdentifier: String,
+        chatId: String,
+        replyText: String?,
+        completion: NotificationCompletionBox
+    ) {
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                self.handleNotificationResponse(
+                    actionIdentifier: actionIdentifier,
+                    chatId: chatId,
+                    replyText: replyText
+                )
+                completion.complete()
+            }
+        } else {
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    self.handleNotificationResponse(
+                        actionIdentifier: actionIdentifier,
+                        chatId: chatId,
+                        replyText: replyText
+                    )
+                    completion.complete()
+                }
+            }
+        }
+    }
+
+    private func handleNotificationResponse(actionIdentifier: String, chatId: String, replyText: String?) {
+        if actionIdentifier == Self.NotificationAction.reply {
+            let reply = replyText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !reply.isEmpty else { return }
-            await MainActor.run {
-                pendingReplyRequest = NotificationReplyRequest(chatId: chatId, content: reply)
-                setBadgeCount(0)
-            }
+            NativeDiagnostics.info("Notification reply action received", category: "push_notifications")
+            pendingReplyRequest = NotificationReplyRequest(chatId: chatId, content: reply)
+            setBadgeCount(0)
             return
         }
 
-        if response.actionIdentifier == PushNotificationManager.NotificationAction.openChat ||
-            response.actionIdentifier == UNNotificationDefaultActionIdentifier {
-            await MainActor.run {
-                pendingChatId = chatId
-                // Clear badge when user taps a notification
-                setBadgeCount(0)
-            }
+        if actionIdentifier == Self.NotificationAction.openChat ||
+            actionIdentifier == UNNotificationDefaultActionIdentifier {
+            NativeDiagnostics.info("Notification open action received", category: "push_notifications")
+            pendingChatId = chatId
+            // Clear badge when user taps a notification.
+            setBadgeCount(0)
         }
     }
 

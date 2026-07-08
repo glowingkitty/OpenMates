@@ -831,6 +831,31 @@ pair_full_url_label:
   en: Full login URL
 
   verified_by_human: []
+pair_server_label:
+  context: Compact label on Apple Watch showing which OpenMates server/domain the login will use
+  en: Server
+
+  verified_by_human: []
+pair_server_production:
+  context: Apple Watch button label for using the production OpenMates server during login
+  en: Production
+
+  verified_by_human: []
+pair_server_development:
+  context: Apple Watch button label for using the development OpenMates server during login
+  en: Dev
+
+  verified_by_human: []
+pair_server_custom_placeholder:
+  context: Apple Watch text field placeholder for a custom or self-hosted OpenMates domain
+  en: custom domain
+
+  verified_by_human: []
+pair_server_use_custom:
+  context: Apple Watch button label that applies the typed custom/self-hosted OpenMates domain
+  en: Use custom
+
+  verified_by_human: []
 pair_connect_apple_watch_title:
   context: iPhone approval screen title for logging in a paired Apple Watch
   en: Connect Apple Watch
@@ -839,6 +864,11 @@ pair_connect_apple_watch_title:
 pair_connect_apple_watch_description:
   context: iPhone approval screen description for an Apple Watch login request
   en: Your Apple Watch is asking to log in to OpenMates. Only approve this if you started the request.
+
+  verified_by_human: []
+pair_watch_login_server_mismatch:
+  context: Error shown on iPhone when Apple Watch login was created for a different OpenMates server/domain than the iPhone is currently using
+  en: This Apple Watch login was created for {watch_server}, but this iPhone is using {phone_server}. Switch both devices to the same OpenMates server and restart Watch login.
 
   verified_by_human: []
 pair_approve_watch_login:

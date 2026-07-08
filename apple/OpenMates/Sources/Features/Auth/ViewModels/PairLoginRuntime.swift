@@ -43,12 +43,14 @@ struct PairLoginInitiation: Equatable {
 struct PairLoginResult {
     let loginResponse: LoginResponse
     let masterKey: SymmetricKey
+    let serverProfile: ServerProfile
 }
 
 struct WatchPairLoginRequest: Equatable {
     let token: String
     let pairURLString: String
     let deviceName: String
+    let serverProfile: ServerProfile
     let createdAt: Int
 }
 
@@ -103,28 +105,37 @@ enum PairLoginRuntime {
         #endif
     }
 
-    static func initiate(deviceHint: String = officialAppDeviceHint) async throws -> PairLoginInitiation {
+    static func initiate(
+        deviceHint: String = officialAppDeviceHint,
+        serverProfile: ServerProfile = ServerProfile.current()
+    ) async throws -> PairLoginInitiation {
         let response: PairInitiateResponse = try await APIClient.shared.request(
             .post,
             path: "/v1/auth/pair/initiate",
+            serverProfile: serverProfile,
             body: PairInitiateRequest(deviceHint: deviceHint)
         )
         let token = response.token.uppercased()
-        let webURL = await APIClient.shared.webAppURL
         return PairLoginInitiation(
             token: token,
-            pairURLString: buildPairURL(webAppURL: webURL, token: token)
+            pairURLString: buildPairURL(webAppURL: serverProfile.webBaseURL, token: token)
         )
     }
 
-    static func poll(token: String) async throws -> PairPollResponse {
-        try await APIClient.shared.request(.get, path: "/v1/auth/pair/poll/\(token)")
+    static func poll(token: String, serverProfile: ServerProfile = ServerProfile.current()) async throws -> PairPollResponse {
+        try await APIClient.shared.request(.get, path: "/v1/auth/pair/poll/\(token)", serverProfile: serverProfile)
     }
 
-    static func complete(token: String, pin: String, stayLoggedIn: Bool) async throws -> PairLoginResult {
+    static func complete(
+        token: String,
+        pin: String,
+        stayLoggedIn: Bool,
+        serverProfile: ServerProfile = ServerProfile.current()
+    ) async throws -> PairLoginResult {
         let completeResponse: PairCompleteResponse = try await APIClient.shared.request(
             .post,
             path: "/v1/auth/pair/complete/\(token)",
+            serverProfile: serverProfile,
             body: PairCompleteRequest(pin: pin)
         )
 
@@ -136,6 +147,7 @@ enum PairLoginRuntime {
         let loginResponse: LoginResponse = try await APIClient.shared.request(
             .post,
             path: "/v1/auth/login",
+            serverProfile: serverProfile,
             body: LoginRequest(
                 hashedEmail: bundle.hashedEmail,
                 lookupHash: bundle.lookupHash,
@@ -148,18 +160,20 @@ enum PairLoginRuntime {
                 deviceInfo: WatchCompatibleSession.makeNativeDeviceInfo()
             )
         )
-        return PairLoginResult(loginResponse: loginResponse, masterKey: masterKey)
+        return PairLoginResult(loginResponse: loginResponse, masterKey: masterKey, serverProfile: serverProfile)
     }
 
     static func authorize(
         token: String,
         currentUser: UserProfile,
-        authorizerDeviceName: String
+        authorizerDeviceName: String,
+        serverProfile: ServerProfile = ServerProfile.current()
     ) async throws -> String {
         let pin = generatePairPIN()
         let credentials: PairCredentialsResponse = try await APIClient.shared.request(
             .get,
-            path: "/v1/auth/pair/credentials"
+            path: "/v1/auth/pair/credentials",
+            serverProfile: serverProfile
         )
         guard let masterKey = try await CryptoManager.shared.loadMasterKey(for: currentUser.id) else {
             throw AuthError.missingAuthData
@@ -176,6 +190,7 @@ enum PairLoginRuntime {
         let response: PairAuthorizeResponse = try await APIClient.shared.request(
             .post,
             path: "/v1/auth/pair/authorize/\(token.uppercased())",
+            serverProfile: serverProfile,
             body: PairAuthorizeRequest(
                 encryptedBundle: encrypted.ciphertext.base64EncodedString(),
                 iv: encrypted.nonce.base64EncodedString(),
@@ -227,10 +242,15 @@ enum WatchPairLoginConnectivityPayload {
     static let tokenKey = "token"
     static let pairURLKey = "pair_url"
     static let deviceNameKey = "device_name"
+    static let serverProfileIdKey = "server_profile_id"
+    static let serverWebBaseURLKey = "server_web_base_url"
+    static let serverAPIBaseURLKey = "server_api_base_url"
+    static let serverUploadBaseURLKey = "server_upload_base_url"
     static let createdAtKey = "created_at"
     static let pinKey = "pin"
     static let watchLoginRequestKind = "openmates.watch.pair_login.request"
     static let watchLoginApprovalKind = "openmates.watch.pair_login.approval"
+    static let watchServerProfileKind = "openmates.watch.server_profile"
     static let forbiddenSecretKeys = [
         "master_key",
         "master_key_exported",
@@ -242,24 +262,66 @@ enum WatchPairLoginConnectivityPayload {
     ]
 
     static func requestMessage(_ request: WatchPairLoginRequest) -> [String: Any] {
-        [
+        var message = serverProfileFields(request.serverProfile)
+        message.merge([
             kindKey: watchLoginRequestKind,
             tokenKey: request.token.uppercased(),
             pairURLKey: request.pairURLString,
             deviceNameKey: request.deviceName,
             createdAtKey: request.createdAt,
-        ]
+        ]) { _, new in new }
+        return message
     }
 
     static func parseRequest(_ message: [String: Any]) -> WatchPairLoginRequest? {
         guard message[kindKey] as? String == watchLoginRequestKind,
               let token = message[tokenKey] as? String,
-              let pairURLString = message[pairURLKey] as? String else { return nil }
+              let pairURLString = message[pairURLKey] as? String,
+              let serverProfile = serverProfile(from: message) else { return nil }
         return WatchPairLoginRequest(
             token: token.uppercased(),
             pairURLString: pairURLString,
             deviceName: message[deviceNameKey] as? String ?? "Apple Watch",
+            serverProfile: serverProfile,
             createdAt: message[createdAtKey] as? Int ?? Int(Date().timeIntervalSince1970)
+        )
+    }
+
+    static func requestMatchesCurrentServer(_ request: WatchPairLoginRequest, currentProfile: ServerProfile) -> Bool {
+        request.serverProfile.id == currentProfile.id
+            && request.serverProfile.webBaseURL == currentProfile.webBaseURL
+            && request.serverProfile.apiBaseURL == currentProfile.apiBaseURL
+    }
+
+    static func serverProfileMessage(_ profile: ServerProfile) -> [String: Any] {
+        var message = serverProfileFields(profile)
+        message[kindKey] = watchServerProfileKind
+        return message
+    }
+
+    static func parseServerProfile(_ message: [String: Any]) -> ServerProfile? {
+        guard message[kindKey] as? String == watchServerProfileKind else { return nil }
+        return serverProfile(from: message)
+    }
+
+    private static func serverProfileFields(_ profile: ServerProfile) -> [String: Any] {
+        [
+            serverProfileIdKey: profile.id,
+            serverWebBaseURLKey: profile.webBaseURL.absoluteString,
+            serverAPIBaseURLKey: profile.apiBaseURL.absoluteString,
+            serverUploadBaseURLKey: profile.uploadBaseURL.absoluteString,
+        ]
+    }
+
+    private static func serverProfile(from message: [String: Any]) -> ServerProfile? {
+        guard let serverProfileId = message[serverProfileIdKey] as? String,
+              let serverWebBaseURL = message[serverWebBaseURLKey] as? String,
+              let serverAPIBaseURL = message[serverAPIBaseURLKey] as? String else { return nil }
+        return ServerProfile.fromPayload(
+            id: serverProfileId,
+            webBaseURLString: serverWebBaseURL,
+            apiBaseURLString: serverAPIBaseURL,
+            uploadBaseURLString: message[serverUploadBaseURLKey] as? String
         )
     }
 
@@ -291,14 +353,22 @@ final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate
     @Published private(set) var didSendRequest = false
 
     private var approvalHandler: ((WatchPairLoginApproval) -> Void)?
+    private var serverProfileHandler: ((ServerProfile) -> Void)?
 
-    func start(onApproval: @escaping (WatchPairLoginApproval) -> Void) {
+    func start(
+        onServerProfile: @escaping (ServerProfile) -> Void,
+        onApproval: @escaping (WatchPairLoginApproval) -> Void
+    ) {
+        serverProfileHandler = onServerProfile
         approvalHandler = onApproval
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
         session.delegate = self
         session.activate()
         isPhoneReachable = session.isReachable
+        if let profile = WatchPairLoginConnectivityPayload.parseServerProfile(session.receivedApplicationContext) {
+            serverProfileHandler?(profile)
+        }
     }
 
     @discardableResult
@@ -314,28 +384,56 @@ final class WatchPhoneLoginBridge: NSObject, ObservableObject, WCSessionDelegate
             WatchPairLoginConnectivityPayload.requestMessage(request),
             replyHandler: { message in
                 guard let approval = WatchPairLoginConnectivityPayload.parseApproval(message) else { return }
-                Task { @MainActor in self.approvalHandler?(approval) }
+                self.dispatchToMain { bridge in
+                    bridge.approvalHandler?(approval)
+                }
             },
             errorHandler: { _ in
-                Task { @MainActor in self.didSendRequest = false }
+                self.dispatchToMain { bridge in
+                    bridge.didSendRequest = false
+                }
             }
         )
         return true
     }
 
+    private nonisolated func dispatchToMain(_ work: @MainActor @escaping (WatchPhoneLoginBridge) -> Void) {
+        DispatchQueue.main.async { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                work(self)
+            }
+        }
+    }
+
     nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
         let isReachable = session.isReachable
-        Task { @MainActor in self.isPhoneReachable = isReachable }
+        let profile = WatchPairLoginConnectivityPayload.parseServerProfile(session.receivedApplicationContext)
+        dispatchToMain { bridge in
+            bridge.isPhoneReachable = isReachable
+            if let profile { bridge.serverProfileHandler?(profile) }
+        }
     }
 
     nonisolated func sessionReachabilityDidChange(_ session: WCSession) {
         let isReachable = session.isReachable
-        Task { @MainActor in self.isPhoneReachable = isReachable }
+        dispatchToMain { bridge in
+            bridge.isPhoneReachable = isReachable
+        }
     }
 
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         guard let approval = WatchPairLoginConnectivityPayload.parseApproval(message) else { return }
-        Task { @MainActor in self.approvalHandler?(approval) }
+        dispatchToMain { bridge in
+            bridge.approvalHandler?(approval)
+        }
+    }
+
+    nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+        guard let profile = WatchPairLoginConnectivityPayload.parseServerProfile(applicationContext) else { return }
+        dispatchToMain { bridge in
+            bridge.serverProfileHandler?(profile)
+        }
     }
 }
 #endif
@@ -348,8 +446,17 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
     @Published private(set) var pendingRequest: WatchPairLoginRequest?
     @Published private(set) var lastError: String?
 
+    private var serverConfigurationObserver: NSObjectProtocol?
+
     private override init() {
         super.init()
+        serverConfigurationObserver = NotificationCenter.default.addObserver(
+            forName: ServerConfiguration.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.syncServerProfileToWatch() }
+        }
     }
 
     func start() {
@@ -357,6 +464,20 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
         let session = WCSession.default
         session.delegate = self
         session.activate()
+        syncServerProfileToWatch()
+    }
+
+    func syncServerProfileToWatch() {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        guard session.activationState == .activated else { return }
+        do {
+            try session.updateApplicationContext(
+                WatchPairLoginConnectivityPayload.serverProfileMessage(ServerProfile.current())
+            )
+        } catch {
+            lastError = error.localizedDescription
+        }
     }
 
     func denyPendingRequest() {
@@ -366,6 +487,17 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
 
     func approvePendingRequest(authManager: AuthManager) async throws {
         guard let request = pendingRequest else { return }
+        let currentProfile = ServerProfile.current()
+        guard WatchPairLoginConnectivityPayload.requestMatchesCurrentServer(request, currentProfile: currentProfile) else {
+            let mismatch = PairLoginRuntimeError.serverMismatch(
+                message: AppStrings.pairWatchLoginServerMismatch(
+                    watchServer: request.serverProfile.displayDomain,
+                    phoneServer: currentProfile.displayDomain
+                )
+            )
+            lastError = mismatch.localizedDescription
+            throw mismatch
+        }
         guard let currentUser = authManager.currentUser else {
             lastError = AppStrings.loginFailed
             throw AuthError.invalidCredentials
@@ -373,7 +505,8 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
         let pin = try await PairLoginRuntime.authorize(
             token: request.token,
             currentUser: currentUser,
-            authorizerDeviceName: UIDevice.current.name
+            authorizerDeviceName: UIDevice.current.name,
+            serverProfile: request.serverProfile
         )
         let approval = WatchPairLoginApproval(token: request.token, pin: pin)
         if WCSession.isSupported(), WCSession.default.isReachable {
@@ -412,7 +545,9 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
         }
     }
 
-    nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {}
+    nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        Task { @MainActor in self.syncServerProfileToWatch() }
+    }
 
     nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
 
@@ -438,11 +573,14 @@ final class PhoneWatchLoginBridge: NSObject, ObservableObject, WCSessionDelegate
 
 enum PairLoginRuntimeError: LocalizedError, Equatable {
     case completeFailed(PairLoginCompleteFailureKind)
+    case serverMismatch(message: String)
 
     var errorDescription: String? {
         switch self {
         case .completeFailed:
             return "Pair login failed"
+        case .serverMismatch(let message):
+            return message
         }
     }
 }

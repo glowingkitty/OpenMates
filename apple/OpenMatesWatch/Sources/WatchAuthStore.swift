@@ -43,6 +43,7 @@ final class WatchAuthStore: ObservableObject {
         guard result.loginResponse.success, let user = result.loginResponse.user else {
             throw AuthError.invalidCredentials
         }
+        ServerConfiguration.current = result.serverProfile.endpointConfiguration
         try await CryptoManager.shared.saveMasterKey(result.masterKey, for: user.id)
         currentUser = user
         webSocketToken = result.loginResponse.wsToken

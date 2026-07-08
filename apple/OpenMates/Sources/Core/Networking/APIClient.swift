@@ -108,6 +108,32 @@ actor APIClient {
         return try await execute(urlRequest)
     }
 
+    func request(
+        _ method: HTTPMethod,
+        path: String,
+        serverProfile: ServerProfile,
+        body: (any Encodable)? = nil,
+        headers: [String: String]? = nil
+    ) async throws -> Data {
+        var urlRequest = buildRequest(
+            method,
+            path: path,
+            headers: headers,
+            baseURL: serverProfile.apiBaseURL,
+            webAppURL: serverProfile.webBaseURL
+        )
+
+        if let body {
+            if let rawBody = body as? JSONRawBody {
+                urlRequest.httpBody = rawBody.data
+            } else {
+                urlRequest.httpBody = try encoder.encode(body)
+            }
+        }
+
+        return try await execute(urlRequest)
+    }
+
     func request<T: Decodable>(
         _ method: HTTPMethod,
         path: String,
@@ -115,6 +141,17 @@ actor APIClient {
         headers: [String: String]? = nil
     ) async throws -> T {
         let data = try await request(method, path: path, body: body, headers: headers)
+        return try decoder.decode(T.self, from: data)
+    }
+
+    func request<T: Decodable>(
+        _ method: HTTPMethod,
+        path: String,
+        serverProfile: ServerProfile,
+        body: (any Encodable)? = nil,
+        headers: [String: String]? = nil
+    ) async throws -> T {
+        let data = try await request(method, path: path, serverProfile: serverProfile, body: body, headers: headers)
         return try decoder.decode(T.self, from: data)
     }
 
@@ -147,6 +184,16 @@ actor APIClient {
         _ method: HTTPMethod,
         path: String,
         headers: [String: String]?
+    ) -> URLRequest {
+        buildRequest(method, path: path, headers: headers, baseURL: baseURL, webAppURL: webAppURL)
+    }
+
+    private func buildRequest(
+        _ method: HTTPMethod,
+        path: String,
+        headers: [String: String]?,
+        baseURL: URL,
+        webAppURL: URL
     ) -> URLRequest {
         let normalizedPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
         let pathAndQuery = normalizedPath.split(separator: "?", maxSplits: 1).map(String.init)

@@ -63,6 +63,11 @@ enum WatchStrings {
     static var pairLoginWithoutIphone: String { WatchLocalization.text("settings.sessions.pair_login_without_iphone") }
     static var pairShowQRCode: String { WatchLocalization.text("settings.sessions.pair_show_qr_code") }
     static var pairFullURLLabel: String { WatchLocalization.text("settings.sessions.pair_full_url_label") }
+    static var pairServerLabel: String { WatchLocalization.text("settings.sessions.pair_server_label") }
+    static var pairServerProduction: String { WatchLocalization.text("settings.sessions.pair_server_production") }
+    static var pairServerDevelopment: String { WatchLocalization.text("settings.sessions.pair_server_development") }
+    static var pairServerCustomPlaceholder: String { WatchLocalization.text("settings.sessions.pair_server_custom_placeholder") }
+    static var pairServerUseCustom: String { WatchLocalization.text("settings.sessions.pair_server_use_custom") }
     static var pairGenerating: String { WatchLocalization.text("settings.sessions.pair_generating") }
     static var pairExpired: String { WatchLocalization.text("settings.sessions.pair_expired") }
     static var pairRefresh: String { WatchLocalization.text("settings.sessions.pair_refresh") }

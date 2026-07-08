@@ -7,6 +7,105 @@
 
 import Foundation
 
+struct ServerProfile: Equatable, Codable {
+    let id: String
+    let displayDomain: String
+    let webBaseURL: URL
+    let apiBaseURL: URL
+    let webSocketBaseURL: URL
+    let uploadBaseURL: URL
+
+    var endpointConfiguration: ServerEndpointConfiguration {
+        ServerEndpointConfiguration(
+            selectedDomain: displayDomain,
+            customDomains: id == "production" ? [] : [displayDomain]
+        )
+    }
+
+    static let production = ServerProfile(domain: ServerEndpointConfiguration.productionDomain, id: "production")
+    static let development = ServerProfile(domain: ServerEndpointConfiguration.developmentDomain, id: "development")
+
+    static func custom(domain: String) -> ServerProfile {
+        let normalized = ServerEndpointConfiguration.normalizedDomain(domain)
+        return ServerProfile(domain: normalized, id: "custom:\(normalized)")
+    }
+
+    static func current() -> ServerProfile {
+        from(configuration: ServerConfiguration.current)
+    }
+
+    static func from(configuration: ServerEndpointConfiguration) -> ServerProfile {
+        switch configuration.selectedDomain {
+        case ServerEndpointConfiguration.productionDomain:
+            return .production
+        case ServerEndpointConfiguration.developmentDomain:
+            return .development
+        default:
+            return .custom(domain: configuration.selectedDomain)
+        }
+    }
+
+    static func fromPayload(
+        id: String,
+        webBaseURLString: String,
+        apiBaseURLString: String,
+        uploadBaseURLString: String?
+    ) -> ServerProfile? {
+        guard let webBaseURL = URL(string: webBaseURLString),
+              let apiBaseURL = URL(string: apiBaseURLString) else { return nil }
+        let uploadBaseURL = uploadBaseURLString.flatMap { URL(string: $0) } ?? uploadBaseURL(for: id, apiBaseURL: apiBaseURL)
+        return ServerProfile(
+            id: id,
+            displayDomain: webBaseURL.host() ?? webBaseURLString,
+            webBaseURL: webBaseURL,
+            apiBaseURL: apiBaseURL,
+            webSocketBaseURL: webSocketURL(for: apiBaseURL),
+            uploadBaseURL: uploadBaseURL
+        )
+    }
+
+    private init(domain: String, id: String) {
+        let normalized = ServerEndpointConfiguration.normalizedDomain(domain)
+        let webBaseURL = ServerEndpointConfiguration.httpsURL(for: normalized)
+        let apiBaseURL = ServerEndpointConfiguration.apiURL(forWebDomain: normalized)
+        self.init(
+            id: id,
+            displayDomain: webBaseURL.host() ?? normalized,
+            webBaseURL: webBaseURL,
+            apiBaseURL: apiBaseURL,
+            webSocketBaseURL: Self.webSocketURL(for: apiBaseURL),
+            uploadBaseURL: Self.uploadBaseURL(for: id, apiBaseURL: apiBaseURL)
+        )
+    }
+
+    private init(
+        id: String,
+        displayDomain: String,
+        webBaseURL: URL,
+        apiBaseURL: URL,
+        webSocketBaseURL: URL,
+        uploadBaseURL: URL
+    ) {
+        self.id = id
+        self.displayDomain = displayDomain
+        self.webBaseURL = webBaseURL
+        self.apiBaseURL = apiBaseURL
+        self.webSocketBaseURL = webSocketBaseURL
+        self.uploadBaseURL = uploadBaseURL
+    }
+
+    private static func webSocketURL(for apiBaseURL: URL) -> URL {
+        var components = URLComponents(url: apiBaseURL, resolvingAgainstBaseURL: false)
+        components?.scheme = apiBaseURL.scheme == "http" ? "ws" : "wss"
+        components?.path = "/v1/ws"
+        return components?.url ?? URL(string: "wss://api.openmates.org/v1/ws")!
+    }
+
+    private static func uploadBaseURL(for id: String, apiBaseURL: URL) -> URL {
+        id == "production" ? ServerEndpointConfiguration.uploadBaseURL : apiBaseURL
+    }
+}
+
 struct ServerEndpointConfiguration: Equatable {
     let selectedDomain: String
     let customDomains: [String]
@@ -85,7 +184,7 @@ struct ServerEndpointConfiguration: Equatable {
         }
     }
 
-    private static func apiURL(forWebDomain domain: String) -> URL {
+    static func apiURL(forWebDomain domain: String) -> URL {
         let host = httpsURL(for: domain).host() ?? domain
         let apiHost: String
         if host == "openmates.org" || host == "app.openmates.org" {
