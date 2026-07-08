@@ -15,17 +15,6 @@ struct ComposerLocationOverlay: View {
     @State private var searchText = ""
     @State private var searchResults: [MKMapItem] = []
 
-    init(onShare: @escaping (Double, Double, String) -> Void, onCancel: @escaping () -> Void) {
-        self.onShare = onShare
-        self.onCancel = onCancel
-        #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--ui-test-location-preselected") {
-            _selectedLocation = State(initialValue: CLLocationCoordinate2D(latitude: 52.52, longitude: 13.405))
-            _selectedName = State(initialValue: AppStrings.selectedLocation)
-        }
-        #endif
-    }
-
     var body: some View {
         ZStack(alignment: .top) {
             MapReader { proxy in
@@ -100,7 +89,18 @@ struct ComposerLocationOverlay: View {
         .background(Color.grey100)
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .clipped()
+        .onAppear {
+            applyLocationUITestFlagsIfNeeded()
+        }
         .accessibilityIdentifier("location-overlay")
+    }
+
+    private func applyLocationUITestFlagsIfNeeded() {
+        #if DEBUG
+        guard ProcessInfo.processInfo.arguments.contains("--ui-test-location-preselected"), selectedLocation == nil else { return }
+        selectedLocation = CLLocationCoordinate2D(latitude: 52.52, longitude: 13.405)
+        selectedName = AppStrings.selectedLocation
+        #endif
     }
 
     private func searchPlaces() {
