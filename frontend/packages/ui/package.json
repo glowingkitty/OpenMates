@@ -130,7 +130,7 @@
     "svelte-i18n": "^4.0.1",
     "tweetnacl": "^1.0.3",
     "uuid": "^13.0.1",
-    "vite": "^7.3.2",
+    "vite": "^7.3.6",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
