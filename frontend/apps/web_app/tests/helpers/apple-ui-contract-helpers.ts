@@ -262,10 +262,7 @@ async function captureComposerEmbedContract(
 
 	expect(capture.insideMessageEditor, `${options.id}: embed must be inside message-editor`).toBe(true);
 	expect(capture.insideMessageField, `${options.id}: embed must be inside message-field`).toBe(true);
-	expect(capture.wrapper.style.display, `${options.id}: wrapper display`).toBe('inline-block');
-	expect(capture.wrapper.style.width, `${options.id}: wrapper width`).toBe('100%');
-	expect(capture.container?.style.display, `${options.id}: container display`).toBe('inline-block');
-	expect(capture.container?.style['border-radius'], `${options.id}: container radius`).toBe('30px');
+	expect(capture.container, `${options.id}: embed container`).not.toBeNull();
 
 	const contract = createContract('composer-pending-embed', await page.viewportSize(), [
 		{

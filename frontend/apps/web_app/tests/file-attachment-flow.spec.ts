@@ -267,7 +267,7 @@ test('attaches a PNG image, shows embed preview in editor, and appears in chat a
 	log('Image embed (embed-full-width-wrapper) appeared in editor.');
 	await captureComposerEmbedContract(page, {
 		id: 'composer-pending-image-upload',
-		embedType: 'images-image',
+		embedType: 'image',
 		screenshot: true
 	});
 	await screenshot(page, 'embed-in-editor');
