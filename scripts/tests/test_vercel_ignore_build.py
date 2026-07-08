@@ -154,3 +154,12 @@ def test_web_app_vercel_config_runs_ignore_command_from_repo_root():
     vercel_config = json.loads((PROJECT_ROOT / "frontend" / "apps" / "web_app" / "vercel.json").read_text())
 
     assert vercel_config["ignoreCommand"] == "cd ../../.. && python3 scripts/vercel_ignore_build.py"
+    assert vercel_config["installCommand"] == "cd ../../.. && corepack enable && pnpm install --no-frozen-lockfile"
+
+
+def test_default_vercel_node_major_matches_repo_runtime():
+    guard = load_vercel_ignore_module()
+    package_json = json.loads((PROJECT_ROOT / "package.json").read_text())
+
+    assert package_json["engines"]["node"] == "24.x"
+    assert guard.DEFAULT_VERCEL_NODE_MAJOR == 24

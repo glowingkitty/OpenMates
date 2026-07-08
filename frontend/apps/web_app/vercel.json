@@ -1,7 +1,7 @@
 {
 	"$schema": "https://openapi.vercel.sh/vercel.json",
 	"ignoreCommand": "cd ../../.. && python3 scripts/vercel_ignore_build.py",
-	"installCommand": "cd ../.. && pnpm install --no-frozen-lockfile",
+	"installCommand": "cd ../../.. && corepack enable && pnpm install --no-frozen-lockfile",
 	"rewrites": [
 		{
 			"source": "/dev/:path*",

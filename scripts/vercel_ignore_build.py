@@ -22,7 +22,7 @@ from pathlib import Path
 
 BUILD_CONTINUE = 1
 BUILD_IGNORE = 0
-DEFAULT_VERCEL_NODE_MAJOR = 20
+DEFAULT_VERCEL_NODE_MAJOR = 24
 DEPENDABOT_NPM_BRANCH_PREFIX = "dependabot/npm_and_yarn/"
 INLINE_ENGINE_PATTERN = re.compile(
     r"engines:\s*\{\s*node:\s*(?:['\"](?P<quoted>[^'\"]+)['\"]|(?P<bare>[^}\n]+))\s*\}"
