@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Keeps npm CLI package versions aligned with the user-facing product version.
 // Dev publishes use the configured prerelease base, e.g. 0.12.0-alpha.N.
-// Stable publishes use the configured stable base, then patch-bump only if
-// that exact stable version is already published. This prevents the CLI from
-// continuing an old alpha line after the app version moves forward.
+// Stable publishes use the configured stable base exactly. npm versions are
+// immutable, so CI skips publish when that version already exists instead of
+// inventing patch releases for unrelated main-branch updates.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, appendFileSync } from "node:fs";
@@ -51,19 +51,6 @@ function npmView(spec, fallback) {
   }
 }
 
-function compareSemver(a, b) {
-  const [aCore] = a.split("-", 1);
-  const [bCore] = b.split("-", 1);
-  const aParts = aCore.split(".").map(Number);
-  const bParts = bCore.split(".").map(Number);
-  for (let index = 0; index < 3; index += 1) {
-    if (aParts[index] !== bParts[index]) {
-      return aParts[index] - bParts[index];
-    }
-  }
-  return 0;
-}
-
 function nextPrereleaseVersion(publishedAlpha) {
   const base = config.cli.prereleaseBase;
   const match = publishedAlpha.match(new RegExp(`^${base.replaceAll(".", "\\.")}\\.(\\d+)$`));
@@ -71,16 +58,6 @@ function nextPrereleaseVersion(publishedAlpha) {
     return config.cli.prereleaseSeed;
   }
   return `${base}.${Number(match[1]) + 1}`;
-}
-
-function nextStableVersion(latestStable) {
-  const stableBase = config.cli.stableBase;
-  if (compareSemver(stableBase, latestStable) > 0) {
-    return stableBase;
-  }
-
-  const [major, minor, patch] = latestStable.split(".").map(Number);
-  return `${major}.${minor}.${patch + 1}`;
 }
 
 function setPackageVersion(version) {
@@ -112,16 +89,16 @@ if (channel === "check") {
   if (!signupSource.includes(config.userFacing)) {
     fail(`signup version_title must include ${config.userFacing}`);
   }
-  if (cliPackage.version !== config.cli.prereleaseSeed) {
-    fail(`CLI package.json version must be ${config.cli.prereleaseSeed}, got ${cliPackage.version}`);
+  if (cliPackage.version !== config.cli.stableBase) {
+    fail(`CLI package.json version must be ${config.cli.stableBase}, got ${cliPackage.version}`);
   }
-  writeOutput(config.cli.prereleaseSeed);
+  writeOutput(config.cli.stableBase);
 } else if (channel === "dev") {
   const version = nextPrereleaseVersion(npmView("openmates@alpha", ""));
   setPackageVersion(version);
   writeOutput(version);
 } else if (channel === "main") {
-  const version = nextStableVersion(npmView("openmates", "0.0.0"));
+  const version = config.cli.stableBase;
   setPackageVersion(version);
   writeOutput(version);
 } else {
