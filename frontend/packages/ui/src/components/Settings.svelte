@@ -3193,12 +3193,6 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
-    .profile-container-wrapper:has(.profile-container.menu-open) .referral-cta,
-    .profile-container-wrapper:has(.profile-container.menu-open) .header-github-link {
-        opacity: 0;
-        pointer-events: none;
-    }
-
     .profile-container.menu-open {
         opacity: 0;
         pointer-events: none;
