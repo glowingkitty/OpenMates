@@ -287,7 +287,13 @@ Releases are always created as **drafts** targeting `main` and marked as **pre-r
 
 ### Versioning Guidelines
 
-OpenMates uses **semantic versioning** in the format `vMAJOR.MINOR.PATCH-phase`:
+OpenMates separates the **user-facing product line** from exact artifact versions:
+
+- Product UI and marketing copy show `vMAJOR.MINOR`, for example `v0.14`.
+- npm, PyPI, GHCR images, and GitHub release tags use exact SemVer/PEP 440 patch versions, for example `0.14.0`, `0.14.1`, or `v0.14.1`.
+- `shared/config/product_version.json` is the source of truth: `userFacing` stores the product line, while `cli.stableBase` and `python.stableBase` store the first patch in the artifact release line.
+
+Artifact releases use semantic versioning in the format `vMAJOR.MINOR.PATCH-phase`:
 
 | Phase  | Example        | When to use                                                                             |
 | ------ | -------------- | --------------------------------------------------------------------------------------- |
@@ -295,12 +301,12 @@ OpenMates uses **semantic versioning** in the format `vMAJOR.MINOR.PATCH-phase`:
 | Beta   | `v1.0.0-beta`  | Core features complete; usable for a wider audience; known bugs being fixed             |
 | Stable | `v1.0.0`       | Production-ready; all major user flows work reliably                                    |
 
-**Current phase:** Alpha — the app is currently at **v0.14.0** (user-facing version string). The next release tag should be `v0.15.0` (or a patch like `v0.14.1` for fix-only releases).
+**Current phase:** Alpha — the app currently shows **v0.14** as the user-facing product line. Stable artifacts in this line publish as `0.14.0`, then `0.14.1`, `0.14.2`, and so on. The next minor product line is `v0.15`.
 
 **How to bump the version:**
 
-- **Patch** (`v0.5.0-alpha` → `v0.5.1-alpha`): bug fixes only, no new features
-- **Minor** (`v0.5.x-alpha` → `v0.6.0-alpha`): new features added or significant changes
+- **Patch artifact** (`v0.14.0` → `v0.14.1`): additional stable publishes inside the same product line
+- **Minor product line** (`v0.14` → `v0.15`): new features added or significant changes
 - **Major / phase change** (`v0.x-alpha` → `v1.0.0-beta`): when core user flows are stable and the app is ready for a broader audience — **always confirm with the user before doing this**
 
 **How to determine the next version:**
@@ -315,11 +321,11 @@ git tag --sort=-v:refname | head -5
 
 Inspect the commits going into the PR and decide:
 
-- Mostly `fix:` commits → patch bump (e.g. `v0.4.0-alpha` → `v0.4.1-alpha`)
-- Any `feat:` commits → minor bump (e.g. `v0.4.1-alpha` → `v0.5.0-alpha`)
+- Mostly `fix:` commits → stay in the current product line; stable package/image workflows publish the next patch artifact automatically
+- Any `feat:` commits → consider a new minor product line (e.g. `v0.14` → `v0.15`)
 - Major milestone reached → consult the user before bumping major or changing phase
 
-**Note:** Also update `shared/config/product_version.json` when bumping the minor version. Keep the user-facing `userFacing` value aligned with the release tag, e.g. `v0.14.0`, while the CLI `prereleaseBase` controls npm prerelease versions like `0.14.0-alpha.N`. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
+**Note:** Also update `shared/config/product_version.json` when bumping the minor product line. Keep `userFacing` aligned with the short product line, e.g. `v0.14`, while `cli.stableBase` / `python.stableBase` define the artifact line start, e.g. `0.14.0`. `cli.prereleaseBase` controls npm prerelease versions like `0.14.0-alpha.N`, and `python.prereleaseBase` controls PyPI prereleases like `0.14.0aN`. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
 
 ### Release Workflow
 

@@ -56,17 +56,6 @@ def parse_version_tuple(version: str) -> tuple[int, int, int]:
     return int(parts[0]), int(parts[1]), int(parts[2])
 
 
-def next_patch(version: str) -> str:
-    major, minor, patch = parse_version_tuple(version)
-    return f"{major}.{minor}.{patch + 1}"
-
-
-def compare_stable(left: str, right: str) -> int:
-    left_tuple = parse_version_tuple(left)
-    right_tuple = parse_version_tuple(right)
-    return (left_tuple > right_tuple) - (left_tuple < right_tuple)
-
-
 def published_versions(args: argparse.Namespace) -> list[str]:
     if args.published_versions is not None:
         return [version.strip() for version in args.published_versions.split(",") if version.strip()]
@@ -90,13 +79,17 @@ def next_prerelease_version(config: dict, versions: list[str]) -> str:
 
 def next_stable_version(config: dict, versions: list[str]) -> str:
     stable_base = config["stableBase"]
-    stable_versions = [version for version in versions if SEMVER_PATTERN.match(version)]
-    if stable_base not in stable_versions:
+    major, minor, base_patch = parse_version_tuple(stable_base)
+    patches = [
+        patch
+        for version in versions
+        if SEMVER_PATTERN.match(version)
+        for parsed_major, parsed_minor, patch in [parse_version_tuple(version)]
+        if parsed_major == major and parsed_minor == minor and patch >= base_patch
+    ]
+    if not patches:
         return stable_base
-    latest = max(stable_versions, key=parse_version_tuple) if stable_versions else "0.0.0"
-    if compare_stable(stable_base, latest) > 0:
-        return stable_base
-    return next_patch(latest)
+    return f"{major}.{minor}.{max(patches) + 1}"
 
 
 def validate_config(config: dict) -> None:

@@ -1,6 +1,6 @@
 ---
 status: active
-last_verified: 2026-06-22
+last_verified: 2026-07-08
 ---
 
 # Publish the Python SDK
@@ -43,7 +43,7 @@ The checked-in `packages/openmates-python/pyproject.toml` version should match
 `python.stableBase`. The publish workflow rewrites that version in CI only:
 
 - `dev` publishes the next alpha prerelease, for example `0.14.0a0`, `0.14.0a1`, and so on.
-- `main` publishes `python.stableBase` if it is not already on PyPI; otherwise it patch-bumps from the latest stable PyPI version.
+- `main` publishes the next stable patch in the configured release line: `0.14.0`, then `0.14.1`, `0.14.2`, and so on. It ignores unrelated future lines when choosing the next patch.
 
 Use alpha releases for dev testing:
 
@@ -76,9 +76,9 @@ python3 scripts/prepare_python_publish_version.py --channel=main --dry-run
 
 ## Automated Publish Flow
 
-The `.github/workflows/publish-python-sdk.yml` workflow runs on pushes to `dev`
-or `main` when Python SDK package files, version config, or the publish workflow
-change. It also supports manual `workflow_dispatch` runs.
+The `.github/workflows/publish-python-sdk.yml` workflow runs on every `main`
+push so stable artifacts stay aligned with main, and on `dev` only when Python
+SDK package files, version config, tests, or the publish workflow change. It also supports manual `workflow_dispatch` runs.
 
 1. Merge SDK changes into `dev`.
 2. Wait for `Publish Python SDK` to pass and publish the alpha prerelease.

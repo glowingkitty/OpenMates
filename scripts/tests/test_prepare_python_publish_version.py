@@ -50,3 +50,10 @@ def test_next_stable_version_patch_bumps_when_base_exists():
     config = {"stableBase": "0.13.0"}
 
     assert module.next_stable_version(config, ["0.13.0", "0.13.1"]) == "0.13.2"
+
+
+def test_next_stable_version_stays_within_configured_release_line():
+    module = load_module()
+    config = {"stableBase": "0.13.0"}
+
+    assert module.next_stable_version(config, ["0.13.0", "0.13.1", "0.14.0"]) == "0.13.2"

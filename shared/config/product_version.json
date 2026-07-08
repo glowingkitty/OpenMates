@@ -1,5 +1,5 @@
 {
-  "userFacing": "v0.14.0",
+  "userFacing": "v0.14",
   "cli": {
     "stableBase": "0.14.0",
     "prereleaseBase": "0.14.0-alpha",
