@@ -327,4 +327,6 @@ jobs:
             echo
             echo "Results: API=${API_RESULT}, docs-worker=${DOCS_RESULT}, other-images=${IMAGE_RESULT}."
           } > "$body_file"
-          gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$body_file"
+          if ! gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$body_file"; then
+            echo "::warning::Failed to comment on PR #${pr_number}; image publish result is unchanged."
+          fi
