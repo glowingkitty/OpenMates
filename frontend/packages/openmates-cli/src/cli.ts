@@ -79,6 +79,7 @@ import {
 import { buildAssistantFeedbackDecision } from "./feedback.js";
 import { handleBenchmark, printBenchmarkHelp } from "./benchmark.js";
 import { defaultModeForStreams, printProgrammaticQuickstart, runTui } from "./tui.js";
+import { SUPPORT_MESSAGE, SUPPORT_URL, renderSupportInfo } from "./support.js";
 import {
   listRemoteAccessSources,
   runRgCommand,
@@ -233,6 +234,11 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "support") {
+    handleSupport(parsed.flags);
+    return;
+  }
+
   if (command === "update" || command === "upgrade") {
     handleSelfUpdate(command, parsed.flags);
     return;
@@ -336,6 +342,19 @@ async function main(): Promise<void> {
   }
 
   throw new Error(`Unknown command '${command}'. Run 'openmates help'.`);
+}
+
+function handleSupport(flags: Record<string, string | boolean>): void {
+  if (flags.json === true) {
+    printJson({
+      url: SUPPORT_URL,
+      voluntary: true,
+      message: SUPPORT_MESSAGE,
+    });
+    return;
+  }
+
+  console.log(renderSupportInfo());
 }
 
 function handleSelfUpdate(command: string, flags: Record<string, string | boolean>): void {
@@ -6481,6 +6500,7 @@ Commands:
   openmates feedback [--help]                Assistant response feedback helpers
   openmates benchmark [--help]               Run real model benchmarks with usage tagged as benchmark spend
   openmates remote-access [--help]           Attach and search local Project sources
+  openmates support                          Show voluntary financial support options
   openmates update                           Update the installed OpenMates CLI package
   openmates upgrade                          Alias for openmates update
   openmates server [--help]                   Server management (install, start, stop, ...)

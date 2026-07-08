@@ -59,6 +59,7 @@ import {
   appendSelectedServices,
   shouldCheckWebHealth,
 } from "../src/serverPlanning.ts";
+import { renderSupportInstallHint } from "../src/support.ts";
 
 // server.ts imports serverConfig.js which breaks with --experimental-strip-types.
 // Re-implement the pure functions we want to test inline, or import them
@@ -665,6 +666,17 @@ describe("server preflight and Caddy planning", () => {
     assert.match(plan.unit, /openmates server update --role core --channel main --continuous/);
     assert.match(plan.unit, /OPENMATES_UPDATE_WINDOW=02:00-04:00 Europe\/Berlin/);
     assert.doesNotMatch(plan.unit + plan.timer, /SECRET__|API_KEY|TOKEN=/);
+  });
+});
+
+describe("server support prompt", () => {
+  it("renders an install-only voluntary support hint", () => {
+    const hint = renderSupportInstallHint();
+
+    assert.match(hint, /Optional/);
+    assert.match(hint, /support OpenMates development/);
+    assert.match(hint, /https:\/\/openmates\.org\/#settings\/support/);
+    assert.doesNotMatch(hint, /donate/i);
   });
 });
 

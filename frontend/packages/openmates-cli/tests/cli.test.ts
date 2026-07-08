@@ -1376,6 +1376,30 @@ describe("CLI self-update commands", () => {
   });
 });
 
+describe("CLI support command", () => {
+  it("lists the top-level support command in global help", () => {
+    const output = runCli(["help"]);
+    assert.match(output, /openmates support\s+Show voluntary financial support options/);
+  });
+
+  it("prints voluntary financial support details without requiring login", () => {
+    const output = runCliWithoutSession(["support"]);
+    assert.match(output, /Support OpenMates development/);
+    assert.match(output, /Financial support is voluntary/);
+    assert.match(output, /https:\/\/openmates\.org\/#settings\/support/);
+    assert.doesNotMatch(output, /donate/i);
+  });
+
+  it("prints support details as JSON", () => {
+    const output = runCliWithoutSession(["support", "--json"]);
+    const parsed = JSON.parse(output) as { url: string; voluntary: boolean; message: string };
+
+    assert.equal(parsed.url, "https://openmates.org/#settings/support");
+    assert.equal(parsed.voluntary, true);
+    assert.match(parsed.message, /Financial support is voluntary/);
+  });
+});
+
 describe("apps code run command variants", () => {
   it("runs inline code through the canonical app-skill endpoint", async () => {
     await withCodeRunMockApi(async ({ apiUrl, requests, getHeaders }) => {

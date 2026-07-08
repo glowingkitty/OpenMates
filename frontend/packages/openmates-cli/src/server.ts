@@ -23,6 +23,7 @@ import {
   resolveServerPath,
   saveServerConfig,
 } from "./serverConfig.js";
+import { renderSupportInstallHint } from "./support.js";
 import {
   type CaddyAction,
   type CoreProfile,
@@ -1426,6 +1427,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
       console.log("  4. After signup, make yourself admin: openmates server make-admin your@email.com");
       console.log(`\nCLI default API: ${cliUrls.apiUrl}`);
       console.log("\nOptional: edit .env first to add LLM provider API keys. Source builds are available with --from-source.");
+      console.log(renderSupportInstallHint());
     }
     return;
   }
@@ -1501,6 +1503,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     console.log("  3. After signup, make yourself admin: openmates server make-admin your@email.com");
     console.log(`\nCLI default API: ${cliUrls.apiUrl}`);
     console.log("\nOptional: edit .env first to add LLM provider API keys. Without keys, the web app and backend still start, but AI model processing is unavailable.");
+    console.log(renderSupportInstallHint());
   }
 }
 
