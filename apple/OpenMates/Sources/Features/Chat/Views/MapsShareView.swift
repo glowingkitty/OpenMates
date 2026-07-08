@@ -62,28 +62,8 @@ struct ComposerLocationOverlay: View {
                 .padding(.horizontal, .spacing5)
                 .padding(.top, .spacing5)
 
-                #if DEBUG
-                if isUITestLocationPreselected {
-                    locationSelectButton(
-                        latitude: 52.52,
-                        longitude: 13.405,
-                        name: AppStrings.selectedLocation
-                    )
-                }
-                #endif
-
                 Spacer()
 
-                #if DEBUG
-                if !isUITestLocationPreselected, let selectedLocation {
-                    locationSelectButton(
-                        latitude: selectedLocation.latitude,
-                        longitude: selectedLocation.longitude,
-                        name: selectedName
-                    )
-                    .padding(.bottom, .spacing5)
-                }
-                #else
                 if let selectedLocation {
                     locationSelectButton(
                         latitude: selectedLocation.latitude,
@@ -92,7 +72,6 @@ struct ComposerLocationOverlay: View {
                     )
                     .padding(.bottom, .spacing5)
                 }
-                #endif
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -100,15 +79,6 @@ struct ComposerLocationOverlay: View {
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .clipped()
         .accessibilityIdentifier("location-overlay")
-    }
-
-    private var isUITestLocationPreselected: Bool {
-        #if DEBUG
-        ProcessInfo.processInfo.arguments.contains("--ui-test-location-preselected") ||
-        ProcessInfo.processInfo.environment["UI_TEST_LOCATION_PRESELECTED"] == "1"
-        #else
-        false
-        #endif
     }
 
     private func locationSelectButton(latitude: Double, longitude: Double, name: String) -> some View {

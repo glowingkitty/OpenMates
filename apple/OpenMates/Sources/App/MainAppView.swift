@@ -4414,6 +4414,41 @@ private enum WelcomeComposerPendingKind {
     case audio
 }
 
+#if DEBUG
+private struct WelcomeLocationUITestOverlay: View {
+    let onShare: (Double, Double, String) -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            Button {
+                onShare(52.52, 13.405, AppStrings.selectedLocation)
+            } label: {
+                HStack(spacing: .spacing3) {
+                    Icon("current_location", size: 16)
+                    Text(AppStrings.shareLocation)
+                        .font(.omSmall.weight(.medium))
+                }
+                .foregroundStyle(Color.fontButton)
+                .padding(.horizontal, .spacing8)
+                .frame(height: 40)
+                .background(Color.buttonPrimary)
+                .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("location-select-button")
+            .padding(.bottom, .spacing5)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.grey100)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .clipped()
+        .accessibilityIdentifier("location-overlay")
+    }
+}
+#endif
+
 struct NewChatWelcomeView: View {
     let inspirations: [DailyInspirationBanner.DailyInspiration]
     let isAuthenticated: Bool
@@ -4798,6 +4833,13 @@ struct NewChatWelcomeView: View {
         }
     }
 
+    private func insertSharedLocation(latitude: Double, longitude: Double, name: String) {
+        let label = name.isEmpty ? AppStrings.selectedLocation : name
+        let locationText = "📍 \(label) (\(latitude), \(longitude))"
+        messageText += messageText.isEmpty ? locationText : "\n\(locationText)"
+        composerOverlay = nil
+    }
+
     private func openSketchOverlay() {
         guard isAuthenticated else {
             blockAnonymousAttachment()
@@ -4965,6 +5007,15 @@ struct NewChatWelcomeView: View {
         #endif
     }
 
+    private var isUITestWelcomeLocationPreselected: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--ui-test-location-preselected") ||
+        ProcessInfo.processInfo.environment["UI_TEST_LOCATION_PRESELECTED"] == "1"
+        #else
+        false
+        #endif
+    }
+
     private func applyWelcomeComposerUITestFlagsIfNeeded() {
         #if DEBUG
         let arguments = ProcessInfo.processInfo.arguments
@@ -5023,13 +5074,19 @@ struct NewChatWelcomeView: View {
         guard let composerOverlay else { return nil }
         switch composerOverlay {
         case .location:
+            #if DEBUG
+            if isUITestWelcomeLocationPreselected {
+                return AnyView(
+                    WelcomeLocationUITestOverlay { latitude, longitude, name in
+                        insertSharedLocation(latitude: latitude, longitude: longitude, name: name)
+                    }
+                )
+            }
+            #endif
             return AnyView(
                 ComposerLocationOverlay(
                     onShare: { latitude, longitude, name in
-                        let label = name.isEmpty ? AppStrings.selectedLocation : name
-                        let locationText = "📍 \(label) (\(latitude), \(longitude))"
-                        messageText += messageText.isEmpty ? locationText : "\n\(locationText)"
-                        self.composerOverlay = nil
+                        insertSharedLocation(latitude: latitude, longitude: longitude, name: name)
                     },
                     onCancel: { self.composerOverlay = nil }
                 )
