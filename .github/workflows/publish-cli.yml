@@ -1,6 +1,7 @@
-# Publish openmates CLI to npm when CLI code changes.
-# - main branch → npm `latest` tag (stable release)
-# - dev branch → npm `alpha` tag (prerelease)
+# Publish openmates CLI to npm.
+# - main branch → publishes the next stable patch in the configured release line
+#   to npm `latest`
+# - dev branch → npm `alpha` tag when CLI/versioning files change
 #
 # Uses npm Trusted Publishing (OIDC) — no NPM_TOKEN secret needed.
 # Configure at: npmjs.com → openmates → Settings → Trusted Publishing → Link GitHub repo.
@@ -9,15 +10,50 @@ name: Publish CLI
 on:
   push:
     branches: [main, dev]
-    paths:
-      - 'frontend/packages/openmates-cli/**'
-      - 'scripts/prepare_cli_publish_version.mjs'
-      - 'shared/config/product_version.json'
-      - '.github/workflows/publish-cli.yml'
   workflow_dispatch: {}
 
+concurrency:
+  group: publish-cli-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      should_publish: ${{ steps.filter.outputs.should_publish }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether to publish
+        id: filter
+        shell: bash
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          before="${{ github.event.before }}"
+          after="${{ github.sha }}"
+          if [ -z "$before" ] || [[ "$before" =~ ^0+$ ]]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed_files="$(git diff --name-only "$before" "$after")"
+          if printf '%s\n' "$changed_files" | grep -E '^(frontend/packages/openmates-cli/|scripts/prepare_cli_publish_version\.mjs$|shared/config/product_version\.json$|\.github/workflows/publish-cli\.yml$)' >/dev/null; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build-test:
+    needs: changes
+    if: needs.changes.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -50,8 +86,8 @@ jobs:
           retention-days: 1
 
   publish:
-    needs: build-test
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    needs: [changes, build-test]
+    if: needs.changes.outputs.should_publish == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -70,15 +106,30 @@ jobs:
           path: frontend/packages/openmates-cli/dist
 
       - name: Bump prerelease version (dev only)
+        id: dev-version
         if: github.ref == 'refs/heads/dev'
         run: node scripts/prepare_cli_publish_version.mjs --channel=dev
 
       - name: Bump to stable version (main only)
+        id: stable-version
         if: github.ref == 'refs/heads/main'
         run: node scripts/prepare_cli_publish_version.mjs --channel=main
 
-      - name: Publish to npm (stable)
+      - name: Check whether stable version is already published
+        id: stable-published
         if: github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          version="${{ steps.stable-version.outputs.version }}"
+          if npm view "openmates@$version" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "openmates@$version is already published; skipping npm publish."
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm (stable)
+        if: github.ref == 'refs/heads/main' && steps.stable-published.outputs.published != 'true'
         working-directory: frontend/packages/openmates-cli
         run: npm publish --provenance --access public
 

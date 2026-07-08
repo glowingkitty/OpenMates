@@ -60,6 +60,8 @@ export const externalLinks = {
   signal:
     sharedUrls?.urls?.contact?.signal ||
     "https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq",
+  npmPackage: "https://www.npmjs.com/package/openmates",
+  pypiPackage: "https://pypi.org/project/openmates/",
   // element: sharedUrls?.urls?.contact?.element || "????",
 
   // Contact

@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 // Keeps npm CLI package versions aligned with the user-facing product version.
-// Dev publishes use the configured prerelease base, e.g. 0.12.0-alpha.N.
-// Stable publishes use the configured stable base, then patch-bump only if
-// that exact stable version is already published. This prevents the CLI from
-// continuing an old alpha line after the app version moves forward.
+// Stable publishes use the configured stable base as a release line. Dev
+// publishes use prereleases for the next stable patch in that same line.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, appendFileSync } from "node:fs";
@@ -38,49 +36,77 @@ function assertSemver(value, label) {
   }
 }
 
-function npmView(spec, fallback) {
-  const override = args.get(spec === "openmates@alpha" ? "published-alpha" : "latest-stable");
+function npmVersions(fallback) {
+  const override = args.get("published-versions");
   if (override !== undefined) {
-    return override;
+    return override.split(",").map((version) => version.trim()).filter(Boolean);
   }
 
   try {
-    return execFileSync("npm", ["view", spec, "version"], { encoding: "utf8" }).trim();
+    const output = execFileSync("npm", ["view", "openmates", "versions", "--json"], { encoding: "utf8" }).trim();
+    const parsed = JSON.parse(output || "[]");
+    return Array.isArray(parsed) ? parsed.filter((version) => typeof version === "string") : fallback;
   } catch {
     return fallback;
   }
 }
 
-function compareSemver(a, b) {
-  const [aCore] = a.split("-", 1);
-  const [bCore] = b.split("-", 1);
-  const aParts = aCore.split(".").map(Number);
-  const bParts = bCore.split(".").map(Number);
-  for (let index = 0; index < 3; index += 1) {
-    if (aParts[index] !== bParts[index]) {
-      return aParts[index] - bParts[index];
+function parseStableVersion(version) {
+  const match = version.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (!match) return null;
+  return { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) };
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function releaseLineEntries(publishedVersions) {
+  const base = parseStableVersion(config.cli.stableBase);
+  if (!base) {
+    fail(`cli.stableBase must be a stable npm semver string, got ${config.cli.stableBase}`);
+  }
+
+  const label = config.cli.prereleaseLabel || "alpha";
+  const prereleasePattern = new RegExp(`^(\\d+)\\.(\\d+)\\.(\\d+)-${escapeRegExp(label)}\\.(\\d+)$`);
+  const entries = [];
+
+  for (const publishedVersion of publishedVersions) {
+    const stable = parseStableVersion(publishedVersion);
+    if (stable && stable.major === base.major && stable.minor === base.minor && stable.patch >= base.patch) {
+      entries.push({ patch: stable.patch, stable: true });
+      continue;
+    }
+
+    const prerelease = publishedVersion.match(prereleasePattern);
+    if (!prerelease) continue;
+    const major = Number(prerelease[1]);
+    const minor = Number(prerelease[2]);
+    const patch = Number(prerelease[3]);
+    if (major === base.major && minor === base.minor && patch >= base.patch) {
+      entries.push({ patch, stable: false });
     }
   }
-  return 0;
+
+  return { base, entries };
 }
 
-function nextPrereleaseVersion(publishedAlpha) {
-  const base = config.cli.prereleaseBase;
-  const match = publishedAlpha.match(new RegExp(`^${base.replaceAll(".", "\\.")}\\.(\\d+)$`));
-  if (!match) {
-    return config.cli.prereleaseSeed;
-  }
-  return `${base}.${Number(match[1]) + 1}`;
+function nextStableVersion(publishedVersions) {
+  const { base, entries } = releaseLineEntries(publishedVersions);
+  if (!entries.length) return config.cli.stableBase;
+
+  const latestPatch = Math.max(...entries.map((entry) => entry.patch));
+  const latestPatchIsStable = entries.some((entry) => entry.patch === latestPatch && entry.stable);
+  const patch = latestPatchIsStable ? latestPatch + 1 : latestPatch;
+  return `${base.major}.${base.minor}.${patch}`;
 }
 
-function nextStableVersion(latestStable) {
-  const stableBase = config.cli.stableBase;
-  if (compareSemver(stableBase, latestStable) > 0) {
-    return stableBase;
-  }
-
-  const [major, minor, patch] = latestStable.split(".").map(Number);
-  return `${major}.${minor}.${patch + 1}`;
+function nextPrereleaseVersion(publishedVersions) {
+  const { base, entries } = releaseLineEntries(publishedVersions);
+  const latestPatch = entries.length ? Math.max(...entries.map((entry) => entry.patch)) : base.patch - 1;
+  const targetStable = `${base.major}.${base.minor}.${latestPatch + 1}`;
+  const label = config.cli.prereleaseLabel || "alpha";
+  return `${targetStable}-${label}.0`;
 }
 
 function setPackageVersion(version) {
@@ -102,9 +128,8 @@ function writeOutput(version) {
 }
 
 assertSemver(config.cli.stableBase, "cli.stableBase");
-assertSemver(config.cli.prereleaseSeed, "cli.prereleaseSeed");
-if (!config.cli.prereleaseSeed.startsWith(`${config.cli.prereleaseBase}.`)) {
-  fail("cli.prereleaseSeed must start with cli.prereleaseBase plus a numeric suffix");
+if (!/^[0-9A-Za-z-]+$/.test(config.cli.prereleaseLabel || "alpha")) {
+  fail(`cli.prereleaseLabel must be a valid semver prerelease identifier, got ${config.cli.prereleaseLabel}`);
 }
 
 if (channel === "check") {
@@ -112,16 +137,16 @@ if (channel === "check") {
   if (!signupSource.includes(config.userFacing)) {
     fail(`signup version_title must include ${config.userFacing}`);
   }
-  if (cliPackage.version !== config.cli.prereleaseSeed) {
-    fail(`CLI package.json version must be ${config.cli.prereleaseSeed}, got ${cliPackage.version}`);
+  if (cliPackage.version !== config.cli.stableBase) {
+    fail(`CLI package.json version must be ${config.cli.stableBase}, got ${cliPackage.version}`);
   }
-  writeOutput(config.cli.prereleaseSeed);
+  writeOutput(config.cli.stableBase);
 } else if (channel === "dev") {
-  const version = nextPrereleaseVersion(npmView("openmates@alpha", ""));
+  const version = nextPrereleaseVersion(npmVersions([]));
   setPackageVersion(version);
   writeOutput(version);
 } else if (channel === "main") {
-  const version = nextStableVersion(npmView("openmates", "0.0.0"));
+  const version = nextStableVersion(npmVersions([]));
   setPackageVersion(version);
   writeOutput(version);
 } else {

@@ -1,6 +1,6 @@
-# Publish the OpenMates Python SDK to PyPI when package code changes.
-# - main branch → stable PyPI release
-# - dev branch → PEP 440 alpha prerelease, e.g. 0.14.0a1
+# Publish the OpenMates Python SDK to PyPI.
+# - main branch → next stable patch in the configured release line
+# - dev branch → PEP 440 alpha prerelease for the next patch, e.g. 0.14.1a0
 #
 # Uses PyPI Trusted Publishing (OIDC) — no PYPI_API_TOKEN secret needed.
 # Configure at: PyPI → Account settings → Publishing → Add pending publisher.
@@ -9,16 +9,50 @@ name: Publish Python SDK
 on:
   push:
     branches: [main, dev]
-    paths:
-      - 'packages/openmates-python/**'
-      - 'scripts/prepare_python_publish_version.py'
-      - 'scripts/tests/test_prepare_python_publish_version.py'
-      - 'shared/config/product_version.json'
-      - '.github/workflows/publish-python-sdk.yml'
   workflow_dispatch: {}
 
+concurrency:
+  group: publish-python-sdk-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      should_publish: ${{ steps.filter.outputs.should_publish }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether to publish
+        id: filter
+        shell: bash
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          before="${{ github.event.before }}"
+          after="${{ github.sha }}"
+          if [ -z "$before" ] || [[ "$before" =~ ^0+$ ]]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed_files="$(git diff --name-only "$before" "$after")"
+          if printf '%s\n' "$changed_files" | grep -E '^(packages/openmates-python/|scripts/prepare_python_publish_version\.py$|scripts/tests/test_prepare_python_publish_version\.py$|shared/config/product_version\.json$|\.github/workflows/publish-python-sdk\.yml$)' >/dev/null; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build-test:
+    needs: changes
+    if: needs.changes.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -43,8 +77,8 @@ jobs:
         run: python -m build
 
   publish:
-    needs: build-test
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    needs: [changes, build-test]
+    if: needs.changes.outputs.should_publish == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
     permissions:
       contents: read

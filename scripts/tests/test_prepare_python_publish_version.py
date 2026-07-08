@@ -26,16 +26,23 @@ def load_module():
 
 def test_next_prerelease_version_uses_seed_when_no_matching_release_exists():
     module = load_module()
-    config = {"prereleaseBase": "0.13.0a", "prereleaseSeed": "0.13.0a0"}
+    config = {"stableBase": "0.13.0", "prereleaseLabel": "a"}
 
     assert module.next_prerelease_version(config, ["0.12.0a9", "0.12.0"]) == "0.13.0a0"
 
 
-def test_next_prerelease_version_increments_latest_matching_alpha():
+def test_next_prerelease_version_uses_next_patch_slot_after_alpha():
     module = load_module()
-    config = {"prereleaseBase": "0.13.0a", "prereleaseSeed": "0.13.0a0"}
+    config = {"stableBase": "0.13.0", "prereleaseLabel": "a"}
 
-    assert module.next_prerelease_version(config, ["0.13.0a0", "0.13.0a3"]) == "0.13.0a4"
+    assert module.next_prerelease_version(config, ["0.13.0a0", "0.13.0a3"]) == "0.13.1a0"
+
+
+def test_next_prerelease_version_targets_next_stable_patch_after_release():
+    module = load_module()
+    config = {"stableBase": "0.13.0", "prereleaseLabel": "a"}
+
+    assert module.next_prerelease_version(config, ["0.13.0", "0.13.1a0"]) == "0.13.2a0"
 
 
 def test_next_stable_version_uses_base_until_it_has_been_published():
@@ -50,3 +57,17 @@ def test_next_stable_version_patch_bumps_when_base_exists():
     config = {"stableBase": "0.13.0"}
 
     assert module.next_stable_version(config, ["0.13.0", "0.13.1"]) == "0.13.2"
+
+
+def test_next_stable_version_promotes_latest_prerelease_patch():
+    module = load_module()
+    config = {"stableBase": "0.13.0", "prereleaseLabel": "a"}
+
+    assert module.next_stable_version(config, ["0.13.0", "0.13.1a0"]) == "0.13.1"
+
+
+def test_next_stable_version_stays_within_configured_release_line():
+    module = load_module()
+    config = {"stableBase": "0.13.0"}
+
+    assert module.next_stable_version(config, ["0.13.0", "0.13.1", "0.14.0"]) == "0.13.2"

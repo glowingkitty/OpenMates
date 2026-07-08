@@ -25,8 +25,6 @@ PYPROJECT_PATH = ROOT / "packages" / "openmates-python" / "pyproject.toml"
 PYPI_JSON_URL = "https://pypi.org/pypi/openmates/json"
 VERSION_PATTERN = re.compile(r'^version = "([^"]+)"$', re.MULTILINE)
 SEMVER_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
-PRERELEASE_PATTERN = re.compile(r"^\d+\.\d+\.\d+a\d+$")
-
 
 def fail(message: str) -> None:
     print(message, file=sys.stderr)
@@ -56,15 +54,29 @@ def parse_version_tuple(version: str) -> tuple[int, int, int]:
     return int(parts[0]), int(parts[1]), int(parts[2])
 
 
-def next_patch(version: str) -> str:
-    major, minor, patch = parse_version_tuple(version)
-    return f"{major}.{minor}.{patch + 1}"
+def release_line_entries(config: dict, versions: list[str]) -> tuple[tuple[int, int, int], list[tuple[int, bool]]]:
+    major, minor, base_patch = parse_version_tuple(config["stableBase"])
+    label = config.get("prereleaseLabel", "a")
+    prerelease_pattern = re.compile(rf"^(\d+)\.(\d+)\.(\d+){re.escape(label)}\d+$")
+    entries: list[tuple[int, bool]] = []
 
+    for version in versions:
+        if SEMVER_PATTERN.match(version):
+            parsed_major, parsed_minor, patch = parse_version_tuple(version)
+            if parsed_major == major and parsed_minor == minor and patch >= base_patch:
+                entries.append((patch, True))
+            continue
 
-def compare_stable(left: str, right: str) -> int:
-    left_tuple = parse_version_tuple(left)
-    right_tuple = parse_version_tuple(right)
-    return (left_tuple > right_tuple) - (left_tuple < right_tuple)
+        match = prerelease_pattern.match(version)
+        if not match:
+            continue
+        parsed_major = int(match.group(1))
+        parsed_minor = int(match.group(2))
+        patch = int(match.group(3))
+        if parsed_major == major and parsed_minor == minor and patch >= base_patch:
+            entries.append((patch, False))
+
+    return (major, minor, base_patch), entries
 
 
 def published_versions(args: argparse.Namespace) -> list[str]:
@@ -79,38 +91,31 @@ def published_versions(args: argparse.Namespace) -> list[str]:
 
 
 def next_prerelease_version(config: dict, versions: list[str]) -> str:
-    base = config["prereleaseBase"]
-    seed = config["prereleaseSeed"]
-    pattern = re.compile(rf"^{re.escape(base)}(\d+)$")
-    indexes = [int(match.group(1)) for version in versions if (match := pattern.match(version))]
-    if not indexes:
-        return seed
-    return f"{base}{max(indexes) + 1}"
+    (major, minor, base_patch), entries = release_line_entries(config, versions)
+    latest_patch = max((patch for patch, _stable in entries), default=base_patch - 1)
+    stable = f"{major}.{minor}.{latest_patch + 1}"
+    label = config.get("prereleaseLabel", "a")
+    return f"{stable}{label}0"
 
 
 def next_stable_version(config: dict, versions: list[str]) -> str:
-    stable_base = config["stableBase"]
-    stable_versions = [version for version in versions if SEMVER_PATTERN.match(version)]
-    if stable_base not in stable_versions:
-        return stable_base
-    latest = max(stable_versions, key=parse_version_tuple) if stable_versions else "0.0.0"
-    if compare_stable(stable_base, latest) > 0:
-        return stable_base
-    return next_patch(latest)
+    (major, minor, _base_patch), entries = release_line_entries(config, versions)
+    if not entries:
+        return config["stableBase"]
+
+    latest_patch = max(patch for patch, _stable in entries)
+    latest_patch_is_stable = any(patch == latest_patch and stable for patch, stable in entries)
+    patch = latest_patch + 1 if latest_patch_is_stable else latest_patch
+    return f"{major}.{minor}.{patch}"
 
 
 def validate_config(config: dict) -> None:
     stable_base = config.get("stableBase", "")
-    prerelease_base = config.get("prereleaseBase", "")
-    prerelease_seed = config.get("prereleaseSeed", "")
+    prerelease_label = config.get("prereleaseLabel", "a")
     if not SEMVER_PATTERN.match(stable_base):
         fail(f"python.stableBase must be a PEP 440 stable version, got {stable_base}")
-    if not re.match(r"^\d+\.\d+\.\d+a$", prerelease_base):
-        fail(f"python.prereleaseBase must end in 'a', got {prerelease_base}")
-    if not PRERELEASE_PATTERN.match(prerelease_seed):
-        fail(f"python.prereleaseSeed must be a PEP 440 alpha version, got {prerelease_seed}")
-    if not prerelease_seed.startswith(prerelease_base):
-        fail("python.prereleaseSeed must start with python.prereleaseBase")
+    if prerelease_label != "a":
+        fail(f"python.prereleaseLabel must be 'a' for alpha prereleases, got {prerelease_label}")
 
 
 def main() -> None:

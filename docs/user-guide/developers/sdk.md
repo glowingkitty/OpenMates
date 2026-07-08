@@ -27,6 +27,8 @@ Install the npm package:
 npm install openmates
 ```
 
+Package page: [openmates on npm](https://www.npmjs.com/package/openmates)
+
 ```ts
 import { OpenMates } from "openmates";
 
@@ -76,6 +78,8 @@ Install the Python package:
 ```bash
 pip install openmates
 ```
+
+Package page: [openmates on PyPI](https://pypi.org/project/openmates/)
 
 ```python
 from openmates import OpenMates

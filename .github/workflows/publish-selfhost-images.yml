@@ -11,6 +11,11 @@ on:
         description: Optional pull request number to comment when publishing completes
         required: false
         type: string
+      notification_test:
+        description: Send notifications without building images
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [main]
     paths:
@@ -68,6 +73,7 @@ jobs:
           echo "build_timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
   build-api:
+    if: ${{ inputs.notification_test != true }}
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -109,6 +115,7 @@ jobs:
             org.opencontainers.image.version=${{ needs.prepare.outputs.image_tag }}
 
   build-docs-worker:
+    if: ${{ inputs.notification_test != true }}
     needs: [prepare, build-api]
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -142,6 +149,7 @@ jobs:
             OPENMATES_IMAGE_TAG=${{ needs.prepare.outputs.image_tag }}
 
   build-image:
+    if: ${{ inputs.notification_test != true }}
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -215,21 +223,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Summarize and notify merged PR
+      - name: Summarize and notify
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           API_RESULT: ${{ needs.build-api.result }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           DOCS_RESULT: ${{ needs.build-docs-worker.result }}
           IMAGE_RESULT: ${{ needs.build-image.result }}
           HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message || '' }}
           IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
+          NOTIFICATION_TEST: ${{ inputs.notification_test }}
           NOTIFY_PR: ${{ inputs.notify_pr }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           status="success"
-          if [ "$API_RESULT" != "success" ] || [ "$DOCS_RESULT" != "success" ] || [ "$IMAGE_RESULT" != "success" ]; then
+          if [ "$NOTIFICATION_TEST" = "true" ]; then
+            status="test"
+          elif [ "$API_RESULT" != "success" ] || [ "$DOCS_RESULT" != "success" ] || [ "$IMAGE_RESULT" != "success" ]; then
             status="failure"
           fi
+          export PUBLISH_STATUS="$status"
 
           {
             echo "### Self-host image publish ${status}"
@@ -243,6 +256,56 @@ jobs:
             echo "| Docs worker | ${DOCS_RESULT} |"
             echo "| Other images | ${IMAGE_RESULT} |"
           } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+            python3 - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          status = os.environ["PUBLISH_STATUS"]
+          color = {"success": 0x2ecc71, "failure": 0xe74c3c, "test": 0xf1c40f}.get(status, 0x95a5a6)
+          title = f"Self-host Docker image publish {status}"
+          if status == "test":
+              title = "Self-host Docker image publish notification test"
+
+          payload = {
+              "username": "OpenMates CI",
+              "embeds": [
+                  {
+                      "title": title,
+                      "url": os.environ["RUN_URL"],
+                      "color": color,
+                      "fields": [
+                          {"name": "Image tag", "value": f"`{os.environ['IMAGE_TAG']}`", "inline": True},
+                          {"name": "Ref", "value": f"`{os.environ['GITHUB_REF_NAME']}`", "inline": True},
+                          {"name": "Commit", "value": f"`{os.environ['GITHUB_SHA'][:7]}`", "inline": True},
+                          {"name": "API", "value": os.environ.get("API_RESULT") or "n/a", "inline": True},
+                          {"name": "Docs worker", "value": os.environ.get("DOCS_RESULT") or "n/a", "inline": True},
+                          {"name": "Other images", "value": os.environ.get("IMAGE_RESULT") or "n/a", "inline": True},
+                      ],
+                      "footer": {"text": "OpenMates GitHub Actions"},
+                  }
+              ],
+          }
+          data = json.dumps(payload).encode("utf-8")
+          request = urllib.request.Request(
+              os.environ["DISCORD_WEBHOOK_URL"],
+              data=data,
+              headers={"Content-Type": "application/json", "User-Agent": "OpenMates-GitHub-Actions"},
+              method="POST",
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=10) as response:
+                  if response.status >= 300:
+                      print(f"::warning::Discord notification returned HTTP {response.status}")
+          except (urllib.error.URLError, TimeoutError) as exc:
+              print(f"::warning::Discord notification failed: {exc}")
+          PY
+          else
+            echo "Discord webhook secret DISCORD_WEBHOOK_URL is not configured; skipping Discord notification."
+          fi
 
           pr_number="$NOTIFY_PR"
           if [ -z "$pr_number" ] && [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF}" = "refs/heads/main" ]; then
@@ -264,4 +327,6 @@ jobs:
             echo
             echo "Results: API=${API_RESULT}, docs-worker=${DOCS_RESULT}, other-images=${IMAGE_RESULT}."
           } > "$body_file"
-          gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$body_file"
+          if ! gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$body_file"; then
+            echo "::warning::Failed to comment on PR #${pr_number}; image publish result is unchanged."
+          fi
