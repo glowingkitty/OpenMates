@@ -262,6 +262,45 @@ def test_app_store_connect_options_resolve_from_config() -> None:
     }
 
 
+def test_testflight_crashes_command_uses_beta_feedback_api() -> None:
+    apple_remote = load_apple_remote()
+
+    command = apple_remote.testflight_crashes_command(
+        "org.openmates.app",
+        3,
+        "IOS",
+        api_key_path="/private/key.p8",
+        api_key_id="KEY123",
+        api_issuer_id="ISSUER123",
+    )
+    script = apple_remote.TESTFLIGHT_CRASHES_SCRIPT
+
+    assert "APP_STORE_CONNECT_API_KEY_PATH=/private/key.p8" in command
+    assert "org.openmates.app" in command
+    assert "IOS" in command
+    assert "betaFeedbackCrashSubmissions" in script
+    assert "crashLog?fields[betaCrashLogs]=logText" in script
+    assert "<tester-email>" in script
+
+
+def test_testflight_crashes_command_limits_output() -> None:
+    apple_remote = load_apple_remote()
+
+    with pytest.raises(apple_remote.AppleRemoteError, match="between 1 and 10"):
+        apple_remote.testflight_crashes_command("org.openmates.app", 20, None)
+
+
+def test_testflight_crashes_parser_exists() -> None:
+    apple_remote = load_apple_remote()
+
+    parser = apple_remote.build_parser()
+    args = parser.parse_args(["testflight-crashes", "--limit", "2", "--platform", "IOS"])
+
+    assert args.command == "testflight-crashes"
+    assert args.limit == 2
+    assert args.platform == "IOS"
+
+
 def test_deploy_latest_requires_complete_app_store_connect_options() -> None:
     apple_remote = load_apple_remote()
 

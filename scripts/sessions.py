@@ -76,6 +76,20 @@ CONTRIBUTING_STANDARDS_DIR = PROJECT_ROOT / "docs" / "contributing" / "standards
 DESIGN_GUIDE_DIR = PROJECT_ROOT / "docs" / "design-guide"
 ARCH_DOCS_DIR = PROJECT_ROOT / "docs" / "architecture"
 ENV_FILE = PROJECT_ROOT / ".env"
+APPLE_CONTEXT_KEYWORDS = (
+    "apple",
+    "ios",
+    "iphone",
+    "ipad",
+    "macos",
+    "watchos",
+    "watch",
+    "swift",
+    "swiftui",
+    "xcode",
+    "testflight",
+    "native",
+)
 
 # ---------------------------------------------------------------------------
 # Tag system — maps task tags to relevant instruction docs
@@ -1216,6 +1230,30 @@ def _prefetch_recent_issues(limit: int = 2) -> str:
     return stdout.strip()
 
 
+def _is_apple_session_context(mode: str, tags: list[str], task: str | None) -> bool:
+    """Return whether session startup should include Apple crash context."""
+    if mode not in ("feature", "bug", "testing"):
+        return False
+    haystack = " ".join([task or "", *tags]).lower()
+    return any(keyword in haystack for keyword in APPLE_CONTEXT_KEYWORDS)
+
+
+def _prefetch_testflight_crashes(limit: int = 3) -> str:
+    """Fetch a sanitized recent TestFlight crash summary via the Apple remote wrapper."""
+    cmd = [
+        "python3",
+        str(PROJECT_ROOT / "scripts" / "apple_remote.py"),
+        "testflight-crashes",
+        "--limit",
+        str(limit),
+    ]
+    rc, stdout, stderr = _run_cmd(cmd, timeout=20)
+    if rc != 0 or not stdout.strip():
+        detail = (stderr or stdout or "not configured or unreachable").strip().splitlines()[0]
+        return f"  (could not fetch TestFlight crashes: {detail[:160]})"
+    return stdout.strip()
+
+
 def _prefetch_error_overview(since_minutes: int = 30) -> str:
     """Fetch a compact error/warning overview for both dev and production servers.
 
@@ -2295,6 +2333,11 @@ def cmd_start(args: argparse.Namespace) -> None:
             issue_lines.append("")
             issue_lines.append("Hint: debug.py issue --recent 5  |  debug.py issue <ID> --timeline")
         sections.append(_box_section("ISSUES (last 24h)", issue_lines))
+
+    # ── TESTFLIGHT CRASHES (Apple feature/debug/testing sessions) ──────────
+    if _is_apple_session_context(mode, tags, args.task):
+        crashes_content = _prefetch_testflight_crashes(limit=3)
+        sections.append(_box_section("TESTFLIGHT CRASHES", crashes_content.split("\n")))
 
     # ── ERROR TRENDS (bug mode) ───────────────────────────────────────────
     if mode == "bug":

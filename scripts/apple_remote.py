@@ -1900,6 +1900,172 @@ for build in builds:
 '''
 
 
+TESTFLIGHT_CRASHES_SCRIPT = r'''
+import base64
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+bundle_id = sys.argv[1]
+limit = sys.argv[2]
+platform = sys.argv[3]
+
+key_path = os.environ.get("APP_STORE_CONNECT_API_KEY_PATH")
+key_id = os.environ.get("APP_STORE_CONNECT_API_KEY_ID")
+issuer_id = os.environ.get("APP_STORE_CONNECT_API_ISSUER_ID")
+if not key_path or not key_id or not issuer_id:
+    print("testflight_crashes_status=missing_app_store_connect_api_credentials")
+    sys.exit(2)
+
+
+def b64url(data):
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def der_ecdsa_to_raw_jws_signature(der):
+    if len(der) < 8 or der[0] != 0x30:
+        raise ValueError("Unexpected DER signature")
+    index = 2
+    if der[index] != 0x02:
+        raise ValueError("Missing r integer")
+    r_len = der[index + 1]
+    r = der[index + 2:index + 2 + r_len]
+    index += 2 + r_len
+    if der[index] != 0x02:
+        raise ValueError("Missing s integer")
+    s_len = der[index + 1]
+    s = der[index + 2:index + 2 + s_len]
+    return r.lstrip(b"\x00").rjust(32, b"\x00")[-32:] + s.lstrip(b"\x00").rjust(32, b"\x00")[-32:]
+
+
+def app_store_connect_jwt():
+    header = {"alg": "ES256", "kid": key_id, "typ": "JWT"}
+    now = int(time.time())
+    payload = {"iss": issuer_id, "iat": now, "exp": now + 600, "aud": "appstoreconnect-v1"}
+    signing_input = f"{b64url(json.dumps(header, separators=(',', ':')).encode('utf-8'))}.{b64url(json.dumps(payload, separators=(',', ':')).encode('utf-8'))}"
+    signer = subprocess.run(
+        ["openssl", "dgst", "-sha256", "-sign", key_path, "-binary"],
+        input=signing_input.encode("ascii"),
+        capture_output=True,
+        timeout=30,
+        check=True,
+    )
+    return f"{signing_input}.{b64url(der_ecdsa_to_raw_jws_signature(signer.stdout))}"
+
+
+def asc_get(path):
+    request = urllib.request.Request(
+        f"https://api.appstoreconnect.apple.com/v1/{path}",
+        headers={"Authorization": f"Bearer {app_store_connect_jwt()}"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=60) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        print(f"asc_http_status={exc.code}")
+        body = exc.read().decode("utf-8", errors="replace")[:400]
+        if body:
+            print("asc_error=" + re.sub(r"\s+", " ", body))
+        raise
+
+
+def safe(value):
+    text = str(value or "unknown")
+    text = re.sub(r"[\w.+-]+@[\w.-]+", "<tester-email>", text)
+    return re.sub(r"\s+", " ", text).strip()[:120]
+
+
+def crash_summary(log_text):
+    if not log_text:
+        return "crash_log=unavailable"
+    interesting_prefixes = (
+        "Exception Type:",
+        "Exception Subtype:",
+        "Exception Codes:",
+        "Termination Reason:",
+        "Triggered by Thread:",
+    )
+    summaries = []
+    lines = log_text.splitlines()
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith(interesting_prefixes):
+            summaries.append(safe(stripped))
+        if len(summaries) >= 3:
+            break
+    for index, line in enumerate(lines):
+        if " Crashed:" in line or line.strip().endswith(" Crashed"):
+            summaries.append(safe(line.strip()))
+            for frame in lines[index + 1:index + 7]:
+                if "OpenMates" in frame or "org.openmates" in frame:
+                    summaries.append("top_openmates_frame=" + safe(frame.strip()))
+                    break
+            break
+    if not summaries:
+        return "crash_log=present"
+    return " | ".join(summaries[:5])
+
+
+try:
+    apps_query = urllib.parse.urlencode({"filter[bundleId]": bundle_id, "limit": "1"})
+    apps = asc_get(f"apps?{apps_query}").get("data", [])
+    if not apps:
+        print("testflight_crashes_status=no_app_for_bundle")
+        print(f"bundle_id={bundle_id}")
+        sys.exit(0)
+
+    app_id = apps[0].get("id")
+    query = {
+        "limit": limit,
+        "sort": "-createdDate",
+        "include": "build",
+        "fields[betaFeedbackCrashSubmissions]": "createdDate,deviceModel,osVersion,appPlatform,devicePlatform,deviceFamily,buildBundleId,build,crashLog",
+        "fields[builds]": "version,uploadedDate,processingState,preReleaseVersion",
+    }
+    if platform:
+        query["filter[appPlatform]"] = platform
+    response = asc_get(f"apps/{app_id}/betaFeedbackCrashSubmissions?{urllib.parse.urlencode(query)}")
+    submissions = response.get("data", [])
+    builds = {
+        item.get("id"): item.get("attributes", {})
+        for item in response.get("included", [])
+        if item.get("type") == "builds"
+    }
+    print("testflight_crashes_status=ok")
+    print(f"crash_submission_count={len(submissions)}")
+    for index, submission in enumerate(submissions, 1):
+        attrs = submission.get("attributes", {})
+        build_id = submission.get("relationships", {}).get("build", {}).get("data", {}).get("id")
+        build = builds.get(build_id, {})
+        print(
+            f"crash_{index}=id={safe(submission.get('id'))} "
+            f"created={safe(attrs.get('createdDate'))} "
+            f"platform={safe(attrs.get('appPlatform'))} "
+            f"device={safe(attrs.get('deviceModel') or attrs.get('deviceFamily'))} "
+            f"os={safe(attrs.get('osVersion'))} "
+            f"build={safe(build.get('version') or build_id)} "
+            f"bundle={safe(attrs.get('buildBundleId'))}"
+        )
+        crash_log = asc_get(
+            "betaFeedbackCrashSubmissions/"
+            f"{urllib.parse.quote(str(submission.get('id')))}"
+            "/crashLog?fields[betaCrashLogs]=logText"
+        )
+        log_text = crash_log.get("data", {}).get("attributes", {}).get("logText", "")
+        print(f"crash_{index}_summary={crash_summary(log_text)}")
+except Exception as exc:
+    print("testflight_crashes_status=failed")
+    print("error=" + safe(type(exc).__name__))
+    sys.exit(1)
+'''
+
+
 class AppleRemoteError(RuntimeError):
     """Raised for expected operator/configuration errors."""
 
@@ -2441,6 +2607,34 @@ def app_store_builds_command(
     )
 
 
+def testflight_crashes_command(
+    bundle_id: str,
+    limit: int,
+    platform: str | None,
+    *,
+    api_key_path: str | None = None,
+    api_key_id: str | None = None,
+    api_issuer_id: str | None = None,
+) -> str:
+    if limit < 1 or limit > 10:
+        raise AppleRemoteError("testflight-crashes limit must be between 1 and 10")
+    platform_value = platform or ""
+    command = shell_join([
+        "python3",
+        "-c",
+        TESTFLIGHT_CRASHES_SCRIPT,
+        bundle_id,
+        str(limit),
+        platform_value,
+    ])
+    return app_store_connect_env_prefix(
+        command,
+        api_key_path=api_key_path,
+        api_key_id=api_key_id,
+        api_issuer_id=api_issuer_id,
+    )
+
+
 def xcode_cache_report_command() -> str:
     return shell_join(["python3", "-c", XCODE_CACHE_REPORT_SCRIPT])
 
@@ -2601,6 +2795,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     app_store_builds_parser.add_argument("--bundle-id", default="org.openmates.app")
     add_app_store_connect_api_args(app_store_builds_parser)
+
+    testflight_crashes_parser = subparsers.add_parser(
+        "testflight-crashes",
+        help="List recent sanitized TestFlight beta crash submissions for a bundle ID",
+    )
+    testflight_crashes_parser.add_argument("--bundle-id", default="org.openmates.app")
+    testflight_crashes_parser.add_argument("--limit", type=int, default=3, help="Number of recent crash submissions to show, 1-10")
+    testflight_crashes_parser.add_argument(
+        "--platform",
+        choices=["IOS", "MAC_OS", "TV_OS", "VISION_OS"],
+        help="Optional App Store Connect app platform filter",
+    )
+    add_app_store_connect_api_args(testflight_crashes_parser)
 
     simctl_parser = subparsers.add_parser("simctl", help="Run xcrun simctl remotely")
     simctl_parser.add_argument("simctl_args", nargs=argparse.REMAINDER)
@@ -2798,6 +3005,21 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "-lc",
                     app_store_builds_command(
                         args.bundle_id,
+                        **api_options,
+                    ),
+                ]),
+            )
+        if args.command == "testflight-crashes":
+            require_app_store_connect_api_options(api_options, "testflight-crashes")
+            return run_remote(
+                config,
+                repo_command(config, [
+                    "bash",
+                    "-lc",
+                    testflight_crashes_command(
+                        args.bundle_id,
+                        args.limit,
+                        args.platform,
                         **api_options,
                     ),
                 ]),
