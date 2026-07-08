@@ -4986,7 +4986,7 @@ struct NewChatWelcomeView: View {
             recordStartedFromKeyboard = true
             composerOverlay = .recording
             isComposerActivated = true
-            isFocused = true
+            isFocused = false
         }
         #endif
     }

@@ -145,8 +145,10 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
             skipInterests.tap()
         }
 
-        let editor = waitForMessageEditor(in: app)
-        editor.tap()
+        if !extraArguments.contains("--ui-test-welcome-force-keyboard-recording-overlay") {
+            let editor = waitForMessageEditor(in: app)
+            editor.tap()
+        }
         XCTAssertTrue(element(in: app, identifier: "record-audio-button").waitForExistence(timeout: 5))
         return app
     }
