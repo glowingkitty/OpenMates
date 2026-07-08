@@ -9009,7 +9009,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
-    const ANONYMOUS_HASH_RESTORE_ATTEMPTS = 5;
+    const ANONYMOUS_HASH_RESTORE_ATTEMPTS = 30;
     const ANONYMOUS_HASH_RESTORE_RETRY_MS = 100;
 
     let restoringAnonymousHashChat = $state(false);
