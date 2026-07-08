@@ -37,10 +37,12 @@ test.describe('Feature availability', () => {
 		await loginToTestAccount(page, () => {}, async () => {});
 
 		await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
+		await expect(page.getByTestId('chats-nav-link')).toHaveCount(0);
 		await expect(page.getByTestId('projects-nav-link')).toHaveCount(0);
 		await expect(page.getByTestId('plans-nav-link')).toHaveCount(0);
 		await expect(page.getByTestId('workflows-nav-link')).toHaveCount(0);
 		await expect(page.getByTestId('tasks-nav-link')).toHaveCount(0);
+		await expect(page.getByTestId('workspace-mobile-select')).toHaveCount(0);
 
 		await page.goto('/projects', { waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('projects-feature-disabled')).toBeVisible({ timeout: 30000 });

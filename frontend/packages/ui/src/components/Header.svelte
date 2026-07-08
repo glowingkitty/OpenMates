@@ -18,6 +18,7 @@
     import { demoMode } from '../stores/demoModeStore';
     import { signupFreeTestingCreditsPromotion } from '../stores/serverStatusStore';
     import { featureAvailabilityStore, initializeFeatureAvailability } from '../stores/appSkillsStore';
+    import { isWorkspaceFeatureAvailable } from '../config/workspaceFeatureGates';
     import { prefetchWorkspaceForHref, scheduleIdleWorkspacePrefetch } from '../services/workspacePrefetchService';
     import { getLastAuthMethod, type LastAuthMethod } from '../utils/lastAuthMethod';
     import { tooltip } from '../actions/tooltip';
@@ -55,6 +56,10 @@
 
     let headerDiv: HTMLElement;
 
+    // Temporary rollout gate: workspace tabs do not match the current product
+    // requirements. Flip this when the redesigned switcher is ready to ship.
+    const WORKSPACE_SWITCHER_ENABLED = false;
+
     // Simplify the websiteNavItems - remove isTranslationsReady check using Svelte 5 runes
     let websiteNavItems = $derived([
         { href: routes.home, text: $text('navigation.for_all') },
@@ -82,14 +87,11 @@
     let isWorkflowsRoute = $derived($page.url.pathname.startsWith('/workflows'));
     let isTasksRoute = $derived($page.url.pathname.startsWith('/tasks'));
     let disabledFeatures = $derived($featureAvailabilityStore.disabledById);
-    const isWorkspaceFeatureEnabled = (featureId: string, defaultEnabled: boolean = true): boolean => {
-        return disabledFeatures ? disabledFeatures[featureId] !== true : defaultEnabled;
-    };
-    let chatsEnabled = $derived(isWorkspaceFeatureEnabled('platform:chats'));
-    let projectsEnabled = $derived(isWorkspaceFeatureEnabled('platform:projects', false));
-    let plansEnabled = $derived(isWorkspaceFeatureEnabled('platform:plans', false));
-    let workflowsEnabled = $derived(isWorkspaceFeatureEnabled('platform:workflows', false));
-    let tasksEnabled = $derived(isWorkspaceFeatureEnabled('platform:tasks', false));
+    let chatsEnabled = $derived(isWorkspaceFeatureAvailable('platform:chats', disabledFeatures, true));
+    let projectsEnabled = $derived(isWorkspaceFeatureAvailable('platform:projects', disabledFeatures));
+    let plansEnabled = $derived(isWorkspaceFeatureAvailable('platform:plans', disabledFeatures));
+    let workflowsEnabled = $derived(isWorkspaceFeatureAvailable('platform:workflows', disabledFeatures));
+    let tasksEnabled = $derived(isWorkspaceFeatureAvailable('platform:tasks', disabledFeatures));
     let webappWorkspaceTabs: WorkspaceTab[] = $derived([
         ...(chatsEnabled
             ? [{ href: '/', testId: 'chats-nav-link', label: $text('common.chat'), iconClass: 'chat-icon', active: isChatsRoute, disabled: false }]
@@ -461,7 +463,7 @@
                         <a href="/docs" class="docs-tab active">{$text('common.docs')}</a>
                         <a href="/" class="docs-tab">{$text('common.chat')}</a>
                     </div>
-                {:else if context === 'webapp' && isLoggedIn && webappWorkspaceTabs.length >= 2}
+                {:else if WORKSPACE_SWITCHER_ENABLED && context === 'webapp' && isLoggedIn && webappWorkspaceTabs.length >= 2}
                     <div
                         class="webapp-center-tabs"
                         aria-label="Workspace switcher"
