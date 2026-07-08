@@ -14,6 +14,8 @@
 
 import SwiftUI
 
+private let watchPairLoginDiagnosticsCategory = "watch_pair_login"
+
 @MainActor
 final class WatchPairLoginState: ObservableObject {
     @Published var token: String?
@@ -335,6 +337,10 @@ struct WatchPairLoginView: View {
     }
 
     private func initiatePairingIfNeeded() async {
+        NativeDiagnostics.info(
+            "phase=view.initiateIfNeeded hasToken=\(pairState.token != nil) status=\(pairState.status)",
+            category: watchPairLoginDiagnosticsCategory
+        )
         if let token = pairState.token {
             if pairState.status == .waiting, pairState.pollTask == nil {
                 startPolling(token: token, serverProfile: pairState.serverProfile)
@@ -348,18 +354,42 @@ struct WatchPairLoginView: View {
         if !force, pairState.token != nil { return }
         pairState.reset()
         let serverProfile = pairState.serverProfile
+        NativeDiagnostics.info(
+            "phase=view.initiate.start force=\(force) serverProfile=\(serverProfile.id) displayDomain=\(serverProfile.displayDomain)",
+            category: watchPairLoginDiagnosticsCategory
+        )
 
         do {
             let initiation = try await PairLoginRuntime.initiate(serverProfile: serverProfile)
-            guard pairState.serverProfile == serverProfile else { return }
+            guard pairState.serverProfile == serverProfile else {
+                NativeDiagnostics.warning(
+                    "phase=view.initiate.ignored reason=serverProfileChanged requested=\(serverProfile.id) current=\(pairState.serverProfile.id)",
+                    category: watchPairLoginDiagnosticsCategory
+                )
+                return
+            }
             pairState.token = initiation.token
             pairState.activeTokenServerProfile = serverProfile
             pairState.pairURLString = initiation.pairURLString
             pairState.status = .waiting
+            NativeDiagnostics.info(
+                "phase=view.initiate.success serverProfile=\(serverProfile.id) pairHost=\(serverProfile.webBaseURL.host() ?? \"unknown\")",
+                category: watchPairLoginDiagnosticsCategory
+            )
             startPolling(token: initiation.token, serverProfile: serverProfile)
             sendPhoneLoginRequestIfPossible()
         } catch {
-            guard pairState.serverProfile == serverProfile else { return }
+            guard pairState.serverProfile == serverProfile else {
+                NativeDiagnostics.warning(
+                    "phase=view.initiate.failureIgnored reason=serverProfileChanged requested=\(serverProfile.id) current=\(pairState.serverProfile.id)",
+                    category: watchPairLoginDiagnosticsCategory
+                )
+                return
+            }
+            NativeDiagnostics.error(
+                "phase=view.initiate.failed serverProfile=\(serverProfile.id) errorType=\(type(of: error)) error=\(error.localizedDescription)",
+                category: watchPairLoginDiagnosticsCategory
+            )
             pairState.errorMessage = error.localizedDescription
             pairState.status = .failed
         }
@@ -367,6 +397,10 @@ struct WatchPairLoginView: View {
 
     private func startPolling(token: String, serverProfile: ServerProfile) {
         pairState.pollTask?.cancel()
+        NativeDiagnostics.info(
+            "phase=view.poll.start serverProfile=\(serverProfile.id)",
+            category: watchPairLoginDiagnosticsCategory
+        )
         pairState.pollTask = Task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(3))
@@ -380,9 +414,17 @@ struct WatchPairLoginView: View {
                               pairState.activeTokenServerProfile == serverProfile else { return }
                         if response.status == "ready" {
                             pairState.status = .ready
+                            NativeDiagnostics.info(
+                                "phase=view.poll.ready serverProfile=\(serverProfile.id)",
+                                category: watchPairLoginDiagnosticsCategory
+                            )
                             if pairState.pin.count == 6 { submitPinIfReady() }
                         } else if response.status == "expired" {
                             pairState.status = .expired
+                            NativeDiagnostics.warning(
+                                "phase=view.poll.expired serverProfile=\(serverProfile.id)",
+                                category: watchPairLoginDiagnosticsCategory
+                            )
                         }
                     }
                     if response.status == "ready" || response.status == "expired" { return }
@@ -391,6 +433,10 @@ struct WatchPairLoginView: View {
                         guard !Task.isCancelled,
                               pairState.token == token,
                               pairState.activeTokenServerProfile == serverProfile else { return }
+                        NativeDiagnostics.error(
+                            "phase=view.poll.failed serverProfile=\(serverProfile.id) errorType=\(type(of: error)) error=\(error.localizedDescription)",
+                            category: watchPairLoginDiagnosticsCategory
+                        )
                         pairState.errorMessage = error.localizedDescription
                         pairState.status = .failed
                     }
@@ -414,7 +460,13 @@ struct WatchPairLoginView: View {
         guard let token = pairState.token,
               let serverProfile = pairState.activeTokenServerProfile,
               serverProfile == pairState.serverProfile,
-              let pairURLString = pairState.pairURLString else { return }
+              let pairURLString = pairState.pairURLString else {
+            NativeDiagnostics.debug(
+                "phase=view.phoneRequest.skipped hasToken=\(pairState.token != nil) hasActiveProfile=\(pairState.activeTokenServerProfile != nil) hasPairURL=\(pairState.pairURLString != nil)",
+                category: watchPairLoginDiagnosticsCategory
+            )
+            return
+        }
         let request = WatchPairLoginRequest(
             token: token,
             pairURLString: pairURLString,
@@ -422,11 +474,25 @@ struct WatchPairLoginView: View {
             serverProfile: serverProfile,
             createdAt: Int(Date().timeIntervalSince1970)
         )
-        _ = phoneBridge.sendLoginRequest(request)
+        let sent = phoneBridge.sendLoginRequest(request)
+        NativeDiagnostics.info(
+            "phase=view.phoneRequest.sent sent=\(sent) serverProfile=\(serverProfile.id) reachable=\(phoneBridge.isPhoneReachable)",
+            category: watchPairLoginDiagnosticsCategory
+        )
     }
 
     private func handlePhoneApproval(_ approval: WatchPairLoginApproval) {
-        guard approval.token == pairState.token else { return }
+        guard approval.token == pairState.token else {
+            NativeDiagnostics.warning(
+                "phase=view.phoneApproval.ignored reason=tokenMismatch",
+                category: watchPairLoginDiagnosticsCategory
+            )
+            return
+        }
+        NativeDiagnostics.info(
+            "phase=view.phoneApproval.received status=\(pairState.status)",
+            category: watchPairLoginDiagnosticsCategory
+        )
         pairState.pin = approval.pin
         if pairState.status == .ready { submitPinIfReady() }
     }
@@ -434,6 +500,10 @@ struct WatchPairLoginView: View {
     private func handleServerProfile(_ profile: ServerProfile) {
         guard pairState.serverProfile != profile else { return }
         let shouldRestart = pairState.token != nil || pairState.status != .generating
+        NativeDiagnostics.info(
+            "phase=view.serverProfile.received incoming=\(profile.id) current=\(pairState.serverProfile.id) shouldRestart=\(shouldRestart)",
+            category: watchPairLoginDiagnosticsCategory
+        )
         pairState.serverProfile = profile
         if shouldRestart {
             Task { await initiatePairing(force: true) }
@@ -442,6 +512,10 @@ struct WatchPairLoginView: View {
 
     private func applyServerProfile(_ profile: ServerProfile) {
         guard pairState.serverProfile != profile else { return }
+        NativeDiagnostics.info(
+            "phase=view.serverProfile.applied incoming=\(profile.id) current=\(pairState.serverProfile.id)",
+            category: watchPairLoginDiagnosticsCategory
+        )
         pairState.serverProfile = profile
         Task { await initiatePairing(force: true) }
     }
