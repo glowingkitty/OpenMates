@@ -575,6 +575,10 @@ def _extract_vercel_build_machine(project: dict) -> tuple[str, str]:
     return build_machine_type, build_machine_selection
 
 
+def _extract_vercel_node_version(project: dict) -> str:
+    return str(project.get("nodeVersion") or "")
+
+
 def _fetch_vercel_project_settings(token: str, team_id: str, project_id: str) -> dict:
     url = f"https://api.vercel.com/v9/projects/{project_id}?teamId={team_id}"
     request = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
@@ -597,6 +601,7 @@ def _enforce_vercel_standard_build_machine() -> None:
     team_id, project_id = _load_web_app_vercel_project_config()
     project = _fetch_vercel_project_settings(token, team_id, project_id)
     build_machine_type, build_machine_selection = _extract_vercel_build_machine(project)
+    node_version = _extract_vercel_node_version(project)
 
     if build_machine_type != "standard" or build_machine_selection != "fixed":
         raise RuntimeError(
@@ -604,6 +609,13 @@ def _enforce_vercel_standard_build_machine() -> None:
             f"current buildMachineType={build_machine_type or '<missing>'}, "
             f"buildMachineSelection={build_machine_selection or '<missing>'}. "
             "Fix Vercel Project Settings > Build Machine before pushing."
+        )
+
+    if node_version != "24.x":
+        raise RuntimeError(
+            "Vercel web app Node.js version must be 24.x before deploy; "
+            f"current nodeVersion={node_version or '<missing>'}. "
+            "Fix Vercel Project Settings > General > Node.js Version before pushing."
         )
 
 
