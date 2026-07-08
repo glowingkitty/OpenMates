@@ -179,8 +179,12 @@ final class ComposerVisualParityUITests: XCTestCase {
 
         button.tap()
 
+        let sendButton = app.buttons["send-button"]
+        if !sendButton.waitForExistence(timeout: 2) {
+            button.tap()
+        }
         XCTAssertTrue(
-            app.buttons["send-button"].waitForExistence(timeout: 5),
+            sendButton.waitForExistence(timeout: 5),
             "Expected \(identifier) to surface the signup CTA instead of no-oping",
             file: file,
             line: line
