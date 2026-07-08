@@ -4561,6 +4561,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
      let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>([]);
      let currentMessageWindowHasMoreBefore = $state(false);
      let olderMessageWindowLoading = $state(false);
+     let lastBoundChatHistoryRef = $state<ChatHistoryRef | null>(null);
+
+     $effect(() => {
+        const ref = chatHistoryRef;
+        if (!ref || ref === lastBoundChatHistoryRef) return;
+        lastBoundChatHistoryRef = ref;
+        if (currentMessages.length === 0) return;
+        void tick().then(() => {
+            if (chatHistoryRef === ref) {
+                ref.updateMessages(currentMessages);
+            }
+        });
+     });
 
     async function loadCompressionCheckpointsForChat(chatId: string): Promise<ChatCompressionCheckpoint[]> {
         const checkpoints = await chatDB.getChatCompressionCheckpoints(chatId);
