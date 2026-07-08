@@ -8996,8 +8996,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     }
 
+    const ANONYMOUS_HASH_RESTORE_ATTEMPTS = 5;
+    const ANONYMOUS_HASH_RESTORE_RETRY_MS = 100;
+
     let restoringAnonymousHashChat = $state(false);
     let anonymousHashEmptyRestoreAttemptedFor = $state<string | null>(null);
+
+    async function getAnonymousHashChatWithRetry(chatId: string): Promise<Chat | null> {
+        for (let attempt = 0; attempt < ANONYMOUS_HASH_RESTORE_ATTEMPTS; attempt += 1) {
+            const anonymousChat = await anonymousChatStorage.getChat(chatId);
+            if (anonymousChat) return anonymousChat;
+            if (attempt < ANONYMOUS_HASH_RESTORE_ATTEMPTS - 1) {
+                await new Promise((resolve) => setTimeout(resolve, ANONYMOUS_HASH_RESTORE_RETRY_MS));
+            }
+        }
+        return null;
+    }
 
     async function restoreAnonymousHashChatOnMount(): Promise<void> {
         const hashChatId = activeChatStore.getChatIdFromHash();
@@ -9028,7 +9042,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         };
 
         try {
-            const anonymousChat = await anonymousChatStorage.getChat(hashChatId);
+            const anonymousChat = await getAnonymousHashChatWithRetry(hashChatId);
             await loadChat(anonymousChat ?? fallbackChat);
             console.debug('[ActiveChat] Restored anonymous hash chat during mount:', hashChatId);
         } catch (error) {

@@ -481,10 +481,15 @@ test.describe('Anonymous free chat', () => {
 		expect(rawAnonymousJson).not.toContain('You are using free anonymous credits.');
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect.poll(async () => {
+			const reloadedState = await getAnonymousIndexedDbState(page);
+			return reloadedState.anonymousMessages.filter(
+				(message) => message.chat_id === anonymousRequests[0].client_chat_id
+			).length;
+		}, { timeout: 15000 }).toBe(5);
 		const reloadedSecondAnswer = page.getByTestId('message-assistant').filter({ hasText: 'Anonymous answer 2' });
-		await reloadedSecondAnswer.scrollIntoViewIfNeeded();
 		await expect(reloadedSecondAnswer).toBeVisible({
-			timeout: 10000
+			timeout: 15000
 		});
 
 		await page.evaluate(() => sessionStorage.removeItem('openmates_anonymous_chat_key'));
