@@ -62,45 +62,71 @@ struct ComposerLocationOverlay: View {
                 .padding(.horizontal, .spacing5)
                 .padding(.top, .spacing5)
 
+                #if DEBUG
+                if isUITestLocationPreselected {
+                    locationSelectButton(
+                        latitude: 52.52,
+                        longitude: 13.405,
+                        name: AppStrings.selectedLocation
+                    )
+                }
+                #endif
+
                 Spacer()
 
-                if let selectedLocation {
-                    Button {
-                        onShare(selectedLocation.latitude, selectedLocation.longitude, selectedName)
-                    } label: {
-                        HStack(spacing: .spacing3) {
-                            Icon("current_location", size: 16)
-                            Text(AppStrings.shareLocation)
-                                .font(.omSmall.weight(.medium))
-                        }
-                        .foregroundStyle(Color.fontButton)
-                        .padding(.horizontal, .spacing8)
-                        .frame(height: 40)
-                        .background(Color.buttonPrimary)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius8))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("location-select-button")
+                #if DEBUG
+                if !isUITestLocationPreselected, let selectedLocation {
+                    locationSelectButton(
+                        latitude: selectedLocation.latitude,
+                        longitude: selectedLocation.longitude,
+                        name: selectedName
+                    )
                     .padding(.bottom, .spacing5)
                 }
+                #else
+                if let selectedLocation {
+                    locationSelectButton(
+                        latitude: selectedLocation.latitude,
+                        longitude: selectedLocation.longitude,
+                        name: selectedName
+                    )
+                    .padding(.bottom, .spacing5)
+                }
+                #endif
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.grey100)
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .clipped()
-        .onAppear {
-            applyLocationUITestFlagsIfNeeded()
-        }
         .accessibilityIdentifier("location-overlay")
     }
 
-    private func applyLocationUITestFlagsIfNeeded() {
+    private var isUITestLocationPreselected: Bool {
         #if DEBUG
-        guard ProcessInfo.processInfo.arguments.contains("--ui-test-location-preselected"), selectedLocation == nil else { return }
-        selectedLocation = CLLocationCoordinate2D(latitude: 52.52, longitude: 13.405)
-        selectedName = AppStrings.selectedLocation
+        ProcessInfo.processInfo.arguments.contains("--ui-test-location-preselected")
+        #else
+        false
         #endif
+    }
+
+    private func locationSelectButton(latitude: Double, longitude: Double, name: String) -> some View {
+        Button {
+            onShare(latitude, longitude, name)
+        } label: {
+            HStack(spacing: .spacing3) {
+                Icon("current_location", size: 16)
+                Text(AppStrings.shareLocation)
+                    .font(.omSmall.weight(.medium))
+            }
+            .foregroundStyle(Color.fontButton)
+            .padding(.horizontal, .spacing8)
+            .frame(height: 40)
+            .background(Color.buttonPrimary)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("location-select-button")
     }
 
     private func searchPlaces() {
