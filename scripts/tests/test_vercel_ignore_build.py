@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -147,3 +148,9 @@ def test_cli_returns_continue_exit_code_for_dev_build(tmp_path, monkeypatch):
     )
 
     assert guard.main() == guard.BUILD_CONTINUE
+
+
+def test_web_app_vercel_config_runs_ignore_command_from_repo_root():
+    vercel_config = json.loads((PROJECT_ROOT / "frontend" / "apps" / "web_app" / "vercel.json").read_text())
+
+    assert vercel_config["ignoreCommand"] == "cd ../../.. && python3 scripts/vercel_ignore_build.py"
