@@ -178,6 +178,14 @@ struct ComposerRecordingOverlay: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(LinearGradient.primary)
         .clipShape(RoundedRectangle(cornerRadius: 24))
+        .overlay(alignment: .topLeading) {
+            Button(action: onCancel) {
+                Color.clear.frame(width: 1, height: 1)
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.cancelAction)
+            .accessibilityHidden(true)
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("record-overlay")
     }
