@@ -17,9 +17,11 @@ from pathlib import Path
 
 import audit_embed_structure
 import audit_app_provider_contracts
+import audit_apple_release_preflight
 import audit_opencode_automation_budget
 import audit_playwright_determinism
 import audit_sensitive_logging
+import audit_ui_control_visibility
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -294,6 +296,20 @@ def main() -> int:
 
     for issue in audit_playwright_determinism.audit_reserved_account_specs(_paths_matching(staged_files, PLAYWRIGHT_SPEC_PATH_RE)):
         blocks.append(f"playwright determinism: {issue.path}:{issue.line}: {issue.message}")
+
+    for issue in audit_apple_release_preflight.audit_paths([REPO_ROOT / path for path in staged_files]):
+        blocks.append(f"apple release preflight: {issue}")
+
+    ui_control_issues = [
+        *audit_ui_control_visibility.audit_paths([REPO_ROOT / path for path in staged_files]),
+        *audit_ui_control_visibility.audit_added_lines(added_lines_with_numbers),
+    ]
+    for issue in ui_control_issues:
+        label = f"ui control visibility: {issue.path}:{issue.line}: {issue.message}"
+        if issue.blocking:
+            blocks.append(label)
+        else:
+            warnings.append(label)
 
     for issue in audit_app_provider_contracts.audit_paths(_paths_matching(staged_files, APP_PROVIDER_PATH_RE)):
         blocks.append(f"app/provider contract: {issue.path}: {issue.message}")

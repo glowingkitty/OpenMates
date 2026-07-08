@@ -176,6 +176,11 @@ Multiple Svelte files or CSS files are fine — list all that apply.
 - Use generated Swift tokens wherever they map to the computed value. If a computed web value has no generated token and is part of the product contract, document the web class/property that justifies the literal.
 - If browser inspection is not possible, state that limitation before editing and treat source-file analysis as a fallback, not an equivalent replacement.
 
+### Visual Proof Requirement
+- Apple UI parity is not complete without simulator screenshot evidence, a UI test artifact, or an explicit sanitized blocker/skip reason.
+- For composer, header, settings, auth, upload, audio, and navigation controls, verification must prove rendered visibility and clickability. Accessibility existence alone is not sufficient because controls can exist while hidden, covered, or visually misplaced.
+- Store durable evidence in the related spec or final summary using generic artifact paths and sanitized failure classes. Do not commit private simulator paths or device details.
+
 ### SwiftUI / UIKit performance strategy
 - Keep app chrome, screen composition, settings, static product UI, and Svelte-to-native component parity in SwiftUI by default.
 - Do not rewrite an entire screen or the app shell to UIKit without a concrete bottleneck.

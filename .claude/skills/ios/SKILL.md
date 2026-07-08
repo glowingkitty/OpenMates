@@ -90,6 +90,12 @@ After each code change:
 4. If mismatch: re-read the CSS, fix the Swift code, repeat
 5. When verification is complete, shut down any simulator booted by this session unless the operator asks to keep it running
 
+For Apple UI parity work, success requires visual proof. Include either a
+simulator screenshot artifact, a UI test artifact, or an explicit blocker/skip
+reason. For composer, header, settings, auth, upload, audio, and navigation
+controls, tests must prove rendered visibility and clickability, not only that
+an accessibility element exists.
+
 ### Step 8: Remote Mac CLI verification loop
 
 When XcodeBuildMCP is unavailable but SSH to a trusted Mac is available:
@@ -101,6 +107,11 @@ When XcodeBuildMCP is unavailable but SSH to a trusted Mac is available:
 5. After verification, run `xcrun simctl shutdown <simulator>` for any simulator booted by this session unless the operator asks to keep it running.
 6. Clean up only temporary artifacts created by the current session, such as copied screenshots or throwaway build logs. Do not delete unrelated DerivedData, caches, or local checkout changes.
 7. Keep private connection details out of repo files and final summaries; refer to the remote host only generically.
+
+8. For visual or interaction parity, capture a simulator screenshot after the
+   app reaches the changed state and record where the artifact lives. If the
+   screenshot cannot be captured, report the sanitized blocker and do not claim
+   visual parity complete.
 
 ### Reminders
 

@@ -136,6 +136,21 @@ Synthesize all evidence into a root cause. Common E2E failure patterns:
 | Consent overlay blocking clicks | Element visible but not clickable | Pointer-events overlay, z-index issue |
 | Test passes alone, fails in batch | Intermittent failure | Shared state (email collision, DB conflict) |
 
+### Step 8: Prefer Shared Readiness Helpers Over One-Off Spec Fixes
+
+Before proposing or applying a spec-local wait, selector workaround, or retry,
+classify whether the failure belongs to an existing shared readiness category:
+auth settled, chat hydrated, assistant idle, embed payload persisted, settings
+loaded, mobile header stable, IndexedDB/localStorage cold boot complete, or
+provider/app skill result rendered.
+
+- If it matches one of those categories, use the `stabilize-e2e-pattern` workflow
+  and update or create a shared helper under `frontend/apps/web_app/tests/helpers/`.
+- If no helper exists and the fix is truly one-off, explain why it cannot be
+  generalized.
+- If the same readiness pattern appears in three or more specs, recommend a
+  deterministic audit update instead of another spec patch.
+
 ## Rules
 
 - **Screenshots are truth.** Error messages in the test report often describe a downstream symptom, not the root cause. Always check what the screenshot actually shows.
@@ -145,6 +160,7 @@ Synthesize all evidence into a root cause. Common E2E failure patterns:
 - **Never run vitest or Playwright directly.** Always dispatch via `scripts/tests.py run`.
 - **Query OpenObserve systematically.** Don't guess — check the logs. The E2E debug log pipeline tags client console logs with the test run ID.
 - **Check for batch interactions.** If the spec passes when run alone but fails in daily runs, the issue is likely shared state (email addresses, test accounts, DB records).
+- **Shared helper before one-off wait.** Repeated readiness problems should be fixed in helpers, not by adding spec-local waits or broad retries.
 - **2 tries max per investigation angle.** If you can't find the cause after two attempts with the same approach, try a different angle.
 - **Keep report under 500 words.** If also applying a fix, explain the fix concisely.
 

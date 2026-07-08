@@ -15,6 +15,7 @@ import json
 import os
 import subprocess
 import sys
+from datetime import date
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -150,6 +151,8 @@ def print_issue(issue: dict[str, Any], include_description: bool = True) -> None
     print(f"{issue['identifier']} - {issue['title']}")
     print(f"State: {issue.get('state', {}).get('name', 'Unknown')}")
     print(f"Priority: {PRIORITY_NAMES.get(issue.get('priority') or 0, issue.get('priority'))}")
+    if issue.get("dueDate"):
+        print(f"Due Date: {issue['dueDate']}")
     assignee = issue.get("assignee")
     print(f"Assignee: {assignee.get('displayName') if assignee else 'Unassigned'}")
     labels = [label["name"] for label in issue.get("labels", {}).get("nodes", [])]
@@ -188,6 +191,7 @@ def issue_fields(with_comments: bool = False) -> str:
         description
         url
         priority
+        dueDate
         createdAt
         updatedAt
         state {{ id name type }}
@@ -296,6 +300,26 @@ def get_issue(identifier: str, with_comments: bool = False) -> dict[str, Any]:
     return issue
 
 
+def apply_due_date_input(input_data: dict[str, Any], due_date_arg: str | None) -> None:
+    """Apply a Linear dueDate field from CLI input, validating YYYY-MM-DD dates."""
+    if due_date_arg is None:
+        return
+
+    value = due_date_arg.strip()
+    if value.lower() in {"", "clear", "none", "null"}:
+        input_data["dueDate"] = None
+        return
+
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError as exc:
+        raise LinearError("--due-date must be YYYY-MM-DD, or 'clear' to remove it.") from exc
+
+    if value != parsed.isoformat():
+        raise LinearError("--due-date must be YYYY-MM-DD, or 'clear' to remove it.")
+    input_data["dueDate"] = value
+
+
 def list_issues(args: argparse.Namespace) -> list[dict[str, Any]]:
     team = find_team(args.team)
     filters: dict[str, Any] = {"team": {"id": {"eq": team["id"]}}}
@@ -333,6 +357,7 @@ def create_issue(args: argparse.Namespace) -> dict[str, Any]:
         "description": description,
         "priority": args.priority,
     }
+    apply_due_date_input(input_data, args.due_date)
     state_id = find_state(team["id"], args.state)
     if state_id:
         input_data["stateId"] = state_id
@@ -364,6 +389,7 @@ def update_issue(args: argparse.Namespace) -> dict[str, Any]:
         input_data["stateId"] = find_state(team_id, args.state)
     if args.priority is not None:
         input_data["priority"] = args.priority
+    apply_due_date_input(input_data, args.due_date)
     if args.project_id is not None:
         input_data["projectId"] = args.project_id or None
 
@@ -474,6 +500,7 @@ def build_parser() -> argparse.ArgumentParser:
     create.add_argument("--description-file")
     create.add_argument("--state")
     create.add_argument("--priority", type=int, choices=range(0, 5), default=0)
+    create.add_argument("--due-date", help="Issue due date as YYYY-MM-DD. Use 'clear' to omit/remove.")
     create.add_argument("--label", action="append")
 
     update = subparsers.add_parser("update", help="Update an issue.")
@@ -484,6 +511,7 @@ def build_parser() -> argparse.ArgumentParser:
     update.add_argument("--description-file")
     update.add_argument("--state")
     update.add_argument("--priority", type=int, choices=range(0, 5))
+    update.add_argument("--due-date", help="Issue due date as YYYY-MM-DD, or 'clear' to remove it.")
     update.add_argument("--label", action="append", help="Replace all labels with these label names.")
     update.add_argument("--add-label", action="append", help="Add a label by name.")
     update.add_argument("--remove-label", action="append", help="Remove a label by name.")

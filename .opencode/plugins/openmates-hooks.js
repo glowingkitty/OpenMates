@@ -15,6 +15,10 @@ const POST_EDIT_LINTS = [
   `${PROJECT_ROOT}/scripts/lint-design-tokens.sh`,
   `${PROJECT_ROOT}/scripts/lint-swift-design-tokens.sh`,
 ];
+const POST_EDIT_AUDITS = [
+  ["python3", `${PROJECT_ROOT}/scripts/audit_apple_release_preflight.py`, "--hook"],
+  ["python3", `${PROJECT_ROOT}/scripts/audit_ui_control_visibility.py`, "--hook"],
+];
 const CLI_LOGIN_HINT_MARKER = "[OpenMates CLI login hint]";
 const CLI_AUTH_ERROR_PATTERNS = [
   /Authentication failed\. Run [`']openmates login[`'] to re-authenticate\./i,
@@ -98,7 +102,25 @@ function runBridge(event, payload) {
 }
 
 function runCommand(command, payload) {
-  const result = spawnSync("bash", [command], {
+  const result = spawnSync("bash", ["-lc", command], {
+    cwd: PROJECT_ROOT,
+    input: JSON.stringify(payload),
+    encoding: "utf8",
+  });
+
+  const stdout = (result.stdout || "").trim();
+  const stderr = (result.stderr || "").trim();
+
+  if (stdout) console.log(stdout);
+  if (stderr) console.error(stderr);
+
+  if (result.status !== 0 && result.status !== 2) {
+    throw new Error(stderr || stdout || `OpenMates command hook failed with exit ${result.status}`);
+  }
+}
+
+function runCommandArgs(command, args, payload) {
+  const result = spawnSync(command, args, {
     cwd: PROJECT_ROOT,
     input: JSON.stringify(payload),
     encoding: "utf8",
@@ -181,6 +203,9 @@ export const OpenMatesHooks = async () => {
         const payload = filePayload("PostToolUse", file);
         for (const command of POST_EDIT_LINTS) {
           runCommand(command, payload);
+        }
+        for (const [command, ...commandArgs] of POST_EDIT_AUDITS) {
+          runCommandArgs(command, [...commandArgs, file], payload);
         }
       }
     },
