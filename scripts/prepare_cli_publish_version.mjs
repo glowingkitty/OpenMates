@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 // Keeps npm CLI package versions aligned with the user-facing product version.
 // Dev publishes use the configured prerelease base, e.g. 0.12.0-alpha.N.
-// Stable publishes use the configured stable base exactly. npm versions are
-// immutable, so CI skips publish when that version already exists instead of
-// inventing patch releases for unrelated main-branch updates.
+// Stable publishes use the configured stable base as a release line. If the
+// base already exists on npm, CI publishes the next patch in that line.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, appendFileSync } from "node:fs";
@@ -51,6 +50,27 @@ function npmView(spec, fallback) {
   }
 }
 
+function npmVersions(fallback) {
+  const override = args.get("published-versions");
+  if (override !== undefined) {
+    return override.split(",").map((version) => version.trim()).filter(Boolean);
+  }
+
+  try {
+    const output = execFileSync("npm", ["view", "openmates", "versions", "--json"], { encoding: "utf8" }).trim();
+    const parsed = JSON.parse(output || "[]");
+    return Array.isArray(parsed) ? parsed.filter((version) => typeof version === "string") : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function parseStableVersion(version) {
+  const match = version.match(/^(\d+)\.(\d+)\.(\d+)$/);
+  if (!match) return null;
+  return { major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]) };
+}
+
 function nextPrereleaseVersion(publishedAlpha) {
   const base = config.cli.prereleaseBase;
   const match = publishedAlpha.match(new RegExp(`^${base.replaceAll(".", "\\.")}\\.(\\d+)$`));
@@ -58,6 +78,21 @@ function nextPrereleaseVersion(publishedAlpha) {
     return config.cli.prereleaseSeed;
   }
   return `${base}.${Number(match[1]) + 1}`;
+}
+
+function nextStableVersion(publishedVersions) {
+  const base = parseStableVersion(config.cli.stableBase);
+  if (!base) {
+    fail(`cli.stableBase must be a stable npm semver string, got ${config.cli.stableBase}`);
+  }
+
+  const patches = publishedVersions
+    .map(parseStableVersion)
+    .filter((version) => version && version.major === base.major && version.minor === base.minor && version.patch >= base.patch)
+    .map((version) => version.patch);
+
+  if (!patches.length) return config.cli.stableBase;
+  return `${base.major}.${base.minor}.${Math.max(...patches) + 1}`;
 }
 
 function setPackageVersion(version) {
@@ -98,7 +133,7 @@ if (channel === "check") {
   setPackageVersion(version);
   writeOutput(version);
 } else if (channel === "main") {
-  const version = config.cli.stableBase;
+  const version = nextStableVersion(npmVersions([]));
   setPackageVersion(version);
   writeOutput(version);
 } else {

@@ -1,6 +1,6 @@
 # Publish openmates CLI to npm.
-# - main branch → always checks the configured stable release and publishes it
-#   to npm `latest` if the exact version is not already published
+# - main branch → publishes the next stable patch in the configured release line
+#   to npm `latest`
 # - dev branch → npm `alpha` tag when CLI/versioning files change
 #
 # Uses npm Trusted Publishing (OIDC) — no NPM_TOKEN secret needed.
