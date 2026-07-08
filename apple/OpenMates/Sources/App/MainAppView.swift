@@ -5061,7 +5061,7 @@ struct NewChatWelcomeView: View {
                         self.recordDragOffsetX = 0
                         handleAttachmentSelection(data: nil, filename: url.lastPathComponent, kind: .audio)
                     },
-                    onCancel: cancelWelcomeRecording
+                    onCancel: { cancelWelcomeRecording() }
                 )
             )
         }
