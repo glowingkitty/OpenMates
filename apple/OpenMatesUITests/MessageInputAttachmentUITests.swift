@@ -115,9 +115,11 @@ final class MessageInputAttachmentUITests: XCTestCase {
         let messageEditor = waitForMessageEditor(in: app)
         messageEditor.tap()
 
-        let pendingEmbeds = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier == %@", "pending-composer-embed"))
-        XCTAssertGreaterThanOrEqual(pendingEmbeds.count, 3)
+        let pendingEmbedStrip = element(in: app, identifier: "pending-composer-embed")
+        XCTAssertTrue(pendingEmbedStrip.waitForExistence(timeout: 5))
+        assertPendingLabel("welcome-file.pdf", in: app, scrollContainer: pendingEmbedStrip)
+        assertPendingLabel("welcome-sketch.png", in: app, scrollContainer: pendingEmbedStrip)
+        assertPendingLabel("welcome-recording.m4a", in: app, scrollContainer: pendingEmbedStrip)
         XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "embed_id")).firstMatch.exists)
@@ -160,6 +162,24 @@ final class MessageInputAttachmentUITests: XCTestCase {
         let predicate = NSPredicate(format: "exists == false")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    private func assertPendingLabel(
+        _ label: String,
+        in app: XCUIApplication,
+        scrollContainer: XCUIElement,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let element = app.staticTexts[label]
+        if element.waitForExistence(timeout: 2) { return }
+
+        for _ in 0..<4 {
+            scrollContainer.swipeLeft()
+            if element.waitForExistence(timeout: 2) { return }
+        }
+
+        XCTFail("Expected pending composer embed named \(label)", file: file, line: line)
     }
 
     @discardableResult
