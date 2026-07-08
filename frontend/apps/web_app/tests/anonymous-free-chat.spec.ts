@@ -487,6 +487,9 @@ test.describe('Anonymous free chat', () => {
 				(message) => message.chat_id === anonymousRequests[0].client_chat_id
 			).length;
 		}, { timeout: 15000 }).toBe(5);
+		await expect(page.getByTestId('chat-history-content')).toHaveAttribute('data-rendered-message-count', '5', {
+			timeout: 15000
+		});
 		const reloadedSecondAnswer = page.getByTestId('message-assistant').filter({ hasText: 'Anonymous answer 2' });
 		await expect(reloadedSecondAnswer).toBeVisible({
 			timeout: 15000

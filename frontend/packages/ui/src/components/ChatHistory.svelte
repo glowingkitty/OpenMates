@@ -2286,6 +2286,7 @@
 
     {#if showMessages}
         <div class="chat-history-content" 
+             data-testid="chat-history-content"
              class:has-messages={displayMessages.length > 0}
              class:has-header={showChatHeader}
              data-virtualized={shouldVirtualizeMessages ? 'true' : 'false'}
