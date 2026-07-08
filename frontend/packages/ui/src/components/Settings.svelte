@@ -8,6 +8,10 @@ changes to the documentation (to keep the documentation up to date).
 <!-- yaml
 
 -->
+<!--
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/App/MainAppView.swift
+-->
 <script lang="ts" module>
     import { writable, type Writable } from 'svelte/store';
     import { text } from '@repo/ui';
@@ -65,7 +69,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsMainHeader from './settings/SettingsMainHeader.svelte';
     
     // Import all settings route definitions and the dynamic wrapper components
-    import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper, EditPersonalDataEntryWrapper } from './settings/settingsRoutes';
+    import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper, EditPersonalDataEntryWrapper, SettingsProjects } from './settings/settingsRoutes';
     import AiModelDetailsWrapper from './settings/AiModelDetailsWrapper.svelte';
     import AiProviderDetailsWrapper from './settings/AiProviderDetailsWrapper.svelte';
     import { matesMetadata } from '../data/matesMetadata';
@@ -104,6 +108,7 @@ changes to the documentation (to keep the documentation up to date).
         'learning-mode/setup': 'study',
         'privacy/hide-personal-data': 'anonym',
         'privacy/share-debug-logs': 'privacy',
+        'projects': 'project',
     };
 
     const SETTINGS_ROUTE_TITLE_KEY_OVERRIDES: Record<string, string> = {
@@ -119,6 +124,8 @@ changes to the documentation (to keep the documentation up to date).
         const cleanPath = settingsPath.split('&')[0];
         const exactOverride = SETTINGS_ROUTE_ICON_OVERRIDES[cleanPath];
         if (exactOverride) return exactOverride;
+
+        if (cleanPath.startsWith('projects/')) return 'project';
 
         if (cleanPath.startsWith('privacy/auto-deletion/')) return 'delete';
 
@@ -281,6 +288,10 @@ changes to the documentation (to keep the documentation up to date).
                 views[route] = AiModelDetailsWrapper;
             } else if (/^ai\/provider\//.test(route)) {
                 views[route] = AiProviderDetailsWrapper;
+            } else if (/^projects\/[^/]+$/.test(route)) {
+                views[route] = SettingsProjects;
+            } else if (/^developers\/api-keys\/[^/]+$/.test(route)) {
+                views[route] = views['developers/api-keys'];
             } else {
                 views[route] = AppDetailsWrapper;
             }
@@ -782,7 +793,6 @@ changes to the documentation (to keep the documentation up to date).
      */
     let resolvedProfileImageBlobUrl = $state<string | null>(null);
     let displayProfileImageUrl = $derived(resolvedProfileImageBlobUrl);
-    let referralCtaCompact = $state(false);
     let showReferralCta = $derived(
         $authStore.isAuthenticated && !$isRestrictedSession && !isSelfHosted && !!$referralStatus?.available
     );
@@ -805,12 +815,6 @@ changes to the documentation (to keep the documentation up to date).
             }
         });
         return () => { cancelled = true; };
-    });
-
-    onMount(() => {
-        setTimeout(() => {
-            referralCtaCompact = true;
-        }, 3000);
     });
 
     // State to track active submenu view
@@ -1375,6 +1379,18 @@ changes to the documentation (to keep the documentation up to date).
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
         }
 
+        const projectSettingsPattern = /^projects\/[^/]+$/;
+        if (projectSettingsPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
+            dynamicEntryRoutes.add(settingsPath);
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
+        }
+
+        const apiKeyDetailPattern = /^developers\/api-keys\/[^/]+$/;
+        if (apiKeyDetailPattern.test(settingsPath) && settingsPath !== 'developers/api-keys/create' && !dynamicEntryRoutes.has(settingsPath)) {
+            dynamicEntryRoutes.add(settingsPath);
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
+        }
+
         // Check if this is a dynamic reminder entry route that needs to be registered
         // Pattern: apps/reminder/entry/{reminder_id}[/edit]
         const reminderEntryPattern = /^apps\/reminder\/entry\/[^/]+(\/edit)?$/;
@@ -1511,6 +1527,21 @@ changes to the documentation (to keep the documentation up to date).
             // Prefer the title passed in from SettingsAI (already simplified) over
             // raw providersMetadata which has a different name for some ids.
             activeSubMenuTitleRaw = detail.title ?? (providerMeta?.name ?? aiProviderId);
+        } else if (/^projects\/[^/]+$/.test(settingsPath)) {
+            activeSubMenuIcon = 'project';
+            activeSubMenuProviderIconSvg = '';
+            activeSubMenuTitleKey = '';
+            activeSubMenuTitleRaw = detail.title ?? $text('settings.projects.project_settings');
+        } else if (settingsPath === 'developers/api-keys/create') {
+            activeSubMenuIcon = 'key';
+            activeSubMenuProviderIconSvg = '';
+            activeSubMenuTitleKey = '';
+            activeSubMenuTitleRaw = detail.title ?? $text('settings.api_keys.create_title');
+        } else if (/^developers\/api-keys\/[^/]+$/.test(settingsPath)) {
+            activeSubMenuIcon = 'key';
+            activeSubMenuProviderIconSvg = '';
+            activeSubMenuTitleKey = '';
+            activeSubMenuTitleRaw = detail.title ?? $text('settings.api_keys.detail_title');
         } else if (settingsPath.startsWith('mates/') && settingsPath !== 'mates') {
             // Mate detail route: mates/{mateId}
             // Show the mate's profile image (via mate-profile CSS class) and the mate's name.
@@ -1556,6 +1587,8 @@ changes to the documentation (to keep the documentation up to date).
                 activeSubMenuTitleKey = 'settings.server.anonymous_free_usage_budget.title';
             } else if (settingsPath === 'privacy/connected-accounts') {
                 activeSubMenuTitleKey = 'settings.privacy.connected_accounts.title';
+            } else if (settingsPath === 'projects') {
+                activeSubMenuTitleKey = 'settings.projects';
             } else if (settingsPath.startsWith('account/storage/')) {
                 // Storage category sub-pages: account/storage/<category>
                 // Use the storage category label keys (e.g. storage_category_images)
@@ -1826,6 +1859,9 @@ changes to the documentation (to keep the documentation up to date).
                     // "All Apps" view — use the app icon and the "Show all apps" translation
                     icon = 'app';
                     title = $text('settings.app_store.show_all_apps');
+                } else if (previousPath === 'projects') {
+                    icon = 'project';
+                    title = $text('settings.projects');
                 }
                 // For other nested paths (like account/security), icon is already set to last segment above
                 
@@ -2484,6 +2520,8 @@ changes to the documentation (to keep the documentation up to date).
                     activeSubMenuTitleKey = 'settings.incognito';
                 } else if (cleanPath === 'learning-mode/setup') {
                     translationKey = 'settings.learning_mode';
+                } else if (cleanPath.startsWith('projects/')) {
+                    translationKey = 'settings.projects.project_settings';
                 } else if (cleanPath.startsWith('account/storage/')) {
                     // Storage category pages use the storage_category_* keys in storage.yml
                     const deepLinkStorageCategoryKeyMap: Record<string, string> = {
@@ -2678,7 +2716,6 @@ changes to the documentation (to keep the documentation up to date).
                     <button
                         type="button"
                         class="referral-cta"
-                        class:compact={referralCtaCompact}
                         data-testid="referral-cta"
                         aria-label={$text('settings.billing.get_free_credits')}
                         onclick={openReferralSettings}
@@ -3097,6 +3134,18 @@ changes to the documentation (to keep the documentation up to date).
     .referral-cta.compact .referral-cta-text {
         display: none;
         opacity: 0;
+    }
+
+    @media (max-width: 894px) {
+        .referral-cta {
+            max-width: 24px;
+            justify-content: center;
+        }
+
+        .referral-cta .referral-cta-text {
+            display: none;
+            opacity: 0;
+        }
     }
 
     .profile-container-wrapper:has(.profile-container.menu-open) .referral-cta {

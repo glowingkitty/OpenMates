@@ -5,9 +5,11 @@
 // Architecture: docs/specs/scalable-chat-embed-loading/spec.yml
 
 import { describe, expect, it } from 'vitest';
+import { encode as toonEncode } from '@toon-format/toon';
 import {
   buildImageSearchPreviewMetadata,
   buildWebSearchPreviewMetadata,
+  extractSearchResultsFromContent,
   getParentPreviewResultState,
   shouldHydrateCarouselSlide,
 } from '../embedPreviewHydration';
@@ -98,5 +100,20 @@ describe('embed preview hydration bounds', () => {
     expect(metadata.preview_results).toHaveLength(6);
     expect(metadata.preview_results_json).toBe(JSON.stringify(metadata.preview_results));
     expect(JSON.stringify(metadata)).not.toContain('raw_provider_payload');
+  });
+
+  it('extracts legacy result arrays from results_toon parent content', () => {
+    const results = [
+      { title: 'Result A', url: 'https://example.com/a' },
+      { title: 'Result B', url: 'https://example.com/b' },
+    ];
+
+    expect(extractSearchResultsFromContent({ results_toon: toonEncode({ results, count: 2 }) })).toEqual(results);
+  });
+
+  it('falls back to JSON results_toon when TOON decoding is unavailable for a payload', () => {
+    const results = [{ title: 'Image result', image_url: 'https://cdn.example.com/1.jpg' }];
+
+    expect(extractSearchResultsFromContent({ results_toon: JSON.stringify({ results, count: 1 }) })).toEqual(results);
   });
 });

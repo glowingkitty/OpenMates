@@ -50,6 +50,8 @@ import secrets
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
@@ -74,6 +76,20 @@ CONTRIBUTING_STANDARDS_DIR = PROJECT_ROOT / "docs" / "contributing" / "standards
 DESIGN_GUIDE_DIR = PROJECT_ROOT / "docs" / "design-guide"
 ARCH_DOCS_DIR = PROJECT_ROOT / "docs" / "architecture"
 ENV_FILE = PROJECT_ROOT / ".env"
+APPLE_CONTEXT_KEYWORDS = (
+    "apple",
+    "ios",
+    "iphone",
+    "ipad",
+    "macos",
+    "watchos",
+    "watch",
+    "swift",
+    "swiftui",
+    "xcode",
+    "testflight",
+    "native",
+)
 
 # ---------------------------------------------------------------------------
 # Tag system — maps task tags to relevant instruction docs
@@ -523,6 +539,98 @@ def _run_cmd(cmd: list[str], cwd: str | None = None, timeout: int = 120) -> tupl
         timeout=timeout,
     )
     return result.returncode, result.stdout.strip(), result.stderr.strip()
+
+
+def _load_env_pairs(path: Path) -> dict[str, str]:
+    """Parse simple KEY=VALUE pairs from an env file without printing secrets."""
+    result: dict[str, str] = {}
+    if not path.exists():
+        return result
+    try:
+        lines = path.read_text().splitlines()
+    except OSError:
+        return result
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        result[key.strip()] = value.strip().strip('"').strip("'")
+    return result
+
+
+def _get_vercel_token_for_deploy_gate() -> str:
+    token = os.environ.get("VERCEL_TOKEN", "")
+    if token:
+        return token
+    return _load_env_pairs(ENV_FILE).get("VERCEL_TOKEN", "")
+
+
+def _load_web_app_vercel_project_config() -> tuple[str, str]:
+    project_json = PROJECT_ROOT / "frontend" / "apps" / "web_app" / ".vercel" / "project.json"
+    try:
+        data = json.loads(project_json.read_text())
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"Vercel project config missing: {project_json}") from exc
+    except (json.JSONDecodeError, OSError) as exc:
+        raise RuntimeError(f"Could not read Vercel project config: {exc}") from exc
+
+    team_id = str(data.get("orgId") or "")
+    project_id = str(data.get("projectId") or "")
+    if not team_id or not project_id:
+        raise RuntimeError("Vercel project config must include orgId and projectId")
+    return team_id, project_id
+
+
+def _extract_vercel_build_machine(project: dict) -> tuple[str, str]:
+    resource_config = project.get("resourceConfig") or {}
+    build_machine_type = str(resource_config.get("buildMachineType") or "").lower()
+    build_machine_selection = str(resource_config.get("buildMachineSelection") or "").lower()
+    return build_machine_type, build_machine_selection
+
+
+def _extract_vercel_node_version(project: dict) -> str:
+    return str(project.get("nodeVersion") or "")
+
+
+def _fetch_vercel_project_settings(token: str, team_id: str, project_id: str) -> dict:
+    url = f"https://api.vercel.com/v9/projects/{project_id}?teamId={team_id}"
+    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")[:300]
+        raise RuntimeError(f"Vercel project API returned HTTP {exc.code}: {body}") from exc
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Could not query Vercel project settings: {exc}") from exc
+
+
+def _enforce_vercel_standard_build_machine() -> None:
+    """Hard gate deploys so a push cannot trigger paid Turbo/Elastic builds."""
+    token = _get_vercel_token_for_deploy_gate()
+    if not token:
+        raise RuntimeError("VERCEL_TOKEN is required to verify the web app build machine before deploy")
+
+    team_id, project_id = _load_web_app_vercel_project_config()
+    project = _fetch_vercel_project_settings(token, team_id, project_id)
+    build_machine_type, build_machine_selection = _extract_vercel_build_machine(project)
+    node_version = _extract_vercel_node_version(project)
+
+    if build_machine_type != "standard" or build_machine_selection != "fixed":
+        raise RuntimeError(
+            "Vercel web app build machine must be standard/fixed before deploy; "
+            f"current buildMachineType={build_machine_type or '<missing>'}, "
+            f"buildMachineSelection={build_machine_selection or '<missing>'}. "
+            "Fix Vercel Project Settings > Build Machine before pushing."
+        )
+
+    if node_version != "24.x":
+        raise RuntimeError(
+            "Vercel web app Node.js version must be 24.x before deploy; "
+            f"current nodeVersion={node_version or '<missing>'}. "
+            "Fix Vercel Project Settings > General > Node.js Version before pushing."
+        )
 
 
 def _get_commit_url(commit_hash: str) -> str | None:
@@ -1119,6 +1227,30 @@ def _prefetch_recent_issues(limit: int = 2) -> str:
     rc, stdout, stderr = _run_cmd(cmd, timeout=30)
     if rc != 0 or not stdout.strip():
         return "  (could not fetch recent issues)"
+    return stdout.strip()
+
+
+def _is_apple_session_context(mode: str, tags: list[str], task: str | None) -> bool:
+    """Return whether session startup should include Apple crash context."""
+    if mode not in ("feature", "bug", "testing"):
+        return False
+    haystack = " ".join([task or "", *tags]).lower()
+    return any(keyword in haystack for keyword in APPLE_CONTEXT_KEYWORDS)
+
+
+def _prefetch_testflight_crashes(limit: int = 3) -> str:
+    """Fetch a sanitized recent TestFlight crash summary via the Apple remote wrapper."""
+    cmd = [
+        "python3",
+        str(PROJECT_ROOT / "scripts" / "apple_remote.py"),
+        "testflight-crashes",
+        "--limit",
+        str(limit),
+    ]
+    rc, stdout, stderr = _run_cmd(cmd, timeout=20)
+    if rc != 0 or not stdout.strip():
+        detail = (stderr or stdout or "not configured or unreachable").strip().splitlines()[0]
+        return f"  (could not fetch TestFlight crashes: {detail[:160]})"
     return stdout.strip()
 
 
@@ -2201,6 +2333,11 @@ def cmd_start(args: argparse.Namespace) -> None:
             issue_lines.append("")
             issue_lines.append("Hint: debug.py issue --recent 5  |  debug.py issue <ID> --timeline")
         sections.append(_box_section("ISSUES (last 24h)", issue_lines))
+
+    # ── TESTFLIGHT CRASHES (Apple feature/debug/testing sessions) ──────────
+    if _is_apple_session_context(mode, tags, args.task):
+        crashes_content = _prefetch_testflight_crashes(limit=3)
+        sections.append(_box_section("TESTFLIGHT CRASHES", crashes_content.split("\n")))
 
     # ── ERROR TRENDS (bug mode) ───────────────────────────────────────────
     if mode == "bug":
@@ -3286,9 +3423,12 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     if to_commit:
         files_arg = " ".join(f'"{f}"' for f in sorted(to_commit))
         print("== COMMANDS ==")
+        print("python3 scripts/verify_parity.py --run --web-spec <spec>.spec.ts --apple build")
         print(f"git add {files_arg}")
         print('git commit -m "<type>: <description>"')
         print("git push origin dev")
+        print("# To hard-gate deploy on the latest parity evidence:")
+        print('python3 scripts/sessions.py deploy --session <id> --title "..." --require-parity')
 
     print()
     print("== END DEPLOYMENT PLAN ==")
@@ -3324,6 +3464,43 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             file_owners[of] = other_sid
 
     if not to_commit:
+        git_summary = _get_git_status_summary()
+        if git_summary.get("unpushed", 0) > 0:
+            rc, commit_hash_full, _ = _run_cmd(["git", "rev-parse", "HEAD"])
+            commit_hash_full = (commit_hash_full or "").strip() if rc == 0 else ""
+            commit_hash = commit_hash_full[:7] if commit_hash_full else "unknown"
+
+            print("Checking Vercel web app build machine...")
+            try:
+                _enforce_vercel_standard_build_machine()
+            except RuntimeError as exc:
+                print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
+                sys.exit(1)
+            print("Vercel build machine: standard/fixed")
+
+            print(f"No files to commit; pushing {git_summary['unpushed']} existing commit(s) to origin dev...")
+            rc, stdout, stderr = _run_cmd(["git", "push", "origin", "dev"])
+            if rc != 0:
+                print(f"git push failed: {stderr}", file=sys.stderr)
+                print("Existing local commit(s) were not pushed.")
+                sys.exit(1)
+
+            if commit_hash_full:
+                _save_last_deploy_sha(commit_hash_full)
+
+            print()
+            print("== DEPLOYED ==")
+            print(f"Commit: {commit_hash}")
+            print("Files: 0 (resumed previous deploy push)")
+            print("Branch: dev")
+
+            if getattr(args, "end_session", False):
+                _linear_complete_session(sid, session, commit_sha=commit_hash)
+                del data["sessions"][sid]
+                _save_sessions(data)
+                print(f"Session {sid} ended.")
+            sys.exit(0)
+
         # Surface untracked dirty files so the caller knows why nothing was committed
         if dirty_but_untracked:
             print("No tracked files to commit, but these dirty files are NOT tracked by this session:", file=sys.stderr)
@@ -3396,8 +3573,28 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     skip_tests_reason = getattr(args, "skip_tests_reason", None)
     _run_test_enforcement_gate(to_commit, skip_tests_reason)
 
+    if getattr(args, "require_parity", False):
+        print("Checking latest parity evidence...")
+        rc, stdout, stderr = _run_cmd([sys.executable, "scripts/verify_parity.py", "--check", "--no-skips"])
+        if rc != 0:
+            print("PARITY GATE FAILED — run python3 scripts/verify_parity.py --run before deploying.", file=sys.stderr)
+            if stdout:
+                print(stdout, file=sys.stderr)
+            if stderr:
+                print(stderr, file=sys.stderr)
+            sys.exit(1)
+        print("Parity evidence: PASSED")
+
     # 1d. Pytest gate — hard-block on failing related pytest unit tests
     _run_pytest_gate(to_commit, skip_reason=skip_tests_reason, no_verify=no_verify)
+
+    print("Checking Vercel web app build machine...")
+    try:
+        _enforce_vercel_standard_build_machine()
+    except RuntimeError as exc:
+        print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
+        sys.exit(1)
+    print("Vercel build machine: standard/fixed")
 
     # 2. Git add — reset any staged files not belonging to this session first,
     # to prevent index bleed from concurrent sessions that already ran git add.
@@ -3486,6 +3683,15 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     commit_hash = commit_hash_full[:7] if commit_hash_full else "unknown"
 
     # 4. Git push
+    print("Rechecking Vercel web app build machine before push...")
+    try:
+        _enforce_vercel_standard_build_machine()
+    except RuntimeError as exc:
+        print(f"VERCEL BUILD MACHINE GATE FAILED — {exc}", file=sys.stderr)
+        print("Commit was created locally but not pushed.", file=sys.stderr)
+        sys.exit(1)
+    print("Vercel build machine: standard/fixed")
+
     print("Pushing to origin dev...")
     rc, stdout, stderr = _run_cmd(["git", "push", "origin", "dev"])
     if rc != 0:
@@ -5793,6 +5999,12 @@ def main() -> None:
         metavar="REASON",
         help="Skip test enforcement gate with an explicit reason "
         "(e.g., 'hotfix, will add test in follow-up'). Reason is logged.",
+    )
+    p_deploy.add_argument(
+        "--require-parity",
+        action="store_true",
+        dest="require_parity",
+        help="Require a fresh no-skip scripts/verify_parity.py summary before deploy.",
     )
 
     # lint (run linter on tracked files without deploying)

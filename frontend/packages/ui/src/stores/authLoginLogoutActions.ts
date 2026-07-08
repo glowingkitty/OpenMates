@@ -30,8 +30,10 @@ import { chatMetadataCache } from "../services/chatMetadataCache";
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage";
 import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService";
 import { resetChatNavigationList } from "./chatNavigationStore";
+import { activeChatStore } from "./activeChatStore";
 import { clientLogForwarder } from "../services/clientLogForwarder";
 import { resetUserAvailableSkills } from "./appSkillsStore";
+import { workflowWorkspaceStore } from "./workflowWorkspaceStore";
 import { applyServerDarkMode } from "./theme";
 import { applyServerUiFont } from "./uiFont";
 import { promoteGuestTopicPreferencesIfNeeded } from "../services/topicPreferencesSync";
@@ -76,6 +78,61 @@ export function bumpLoginSessionGeneration(): void {
   console.debug(
     `[AuthStore] Bumped loginSessionGeneration to ${loginSessionGeneration} (external login path)`,
   );
+}
+
+export function resetLocalLogoutState(): void {
+  const currentLang = get(userProfile).language;
+  const currentMode = get(userProfile).darkmode;
+  userProfile.set({
+    ...defaultProfile,
+    language: currentLang,
+    darkmode: currentMode,
+  });
+
+  processedImageUrl.set(null);
+  resetTwoFAData();
+  currentSignupStep.set("basics");
+  isResettingTFA.set(false);
+  needsDeviceVerification.set(false);
+  deviceVerificationType.set(null);
+  deviceVerificationReason.set(null);
+  phasedSyncState.reset();
+  aiTypingStore.reset();
+  resetUserAvailableSkills();
+  workflowWorkspaceStore.reset();
+  dailyInspirationStore.reset();
+  // Immediately repopulate public default inspirations in the same tab session.
+  // We intentionally skip IndexedDB on logout because the master key was just
+  // cleared and any personalized encrypted records are not usable anymore.
+  void import("../demo_chats/loadDefaultInspirations")
+    .then(({ loadDefaultInspirations }) =>
+      loadDefaultInspirations({ allowIndexedDB: false }),
+    )
+    .catch((error) => {
+      console.error(
+        "[AuthStore] Failed to reload public default inspirations after logout:",
+        error,
+      );
+    });
+
+  // Clear process-wide caches before authStore flips so unmounted UI surfaces
+  // cannot reuse stale user chat metadata after auto or manual logout.
+  chatListCache.clear();
+  chatMetadataCache.clearAll();
+  clearAllSessionStorageDrafts();
+  chatDB.clearAllChatKeys();
+  resetChatNavigationList();
+  const isOgImageModeLogout =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("og") === "1";
+  if (!isOgImageModeLogout) {
+    activeChatStore.clearActiveChat();
+  }
+
+  authStore.set({
+    ...authInitialState,
+    isInitialized: true,
+  });
 }
 
 /**
@@ -500,60 +557,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     // --- Reset Local UI State IMMEDIATELY ---
     // This must happen synchronously and early to ensure the UI updates right away,
     // regardless of what happens next. The menu button needs this immediate feedback.
-    const currentLang = get(userProfile).language;
-    const currentMode = get(userProfile).darkmode;
-    userProfile.set({
-      ...defaultProfile,
-      language: currentLang,
-      darkmode: currentMode,
-    });
-
-    processedImageUrl.set(null);
-    resetTwoFAData();
-    currentSignupStep.set("basics");
-    isResettingTFA.set(false);
-    needsDeviceVerification.set(false);
-    deviceVerificationType.set(null);
-    deviceVerificationReason.set(null);
-    phasedSyncState.reset(); // Reset phased sync state on logout
-    aiTypingStore.reset(); // Reset typing indicator state on logout to prevent stale "{mate} is typing" indicators
-    resetUserAvailableSkills(); // Reset user-specific skill availability so next user gets fresh data
-    dailyInspirationStore.reset(); // Clear user-specific inspirations on logout so defaults are shown to logged-out users
-    // Immediately repopulate public default inspirations in the same tab session.
-    // We intentionally skip IndexedDB on logout because the master key was just
-    // cleared and any personalized encrypted records are not usable anymore.
-    void import("../demo_chats/loadDefaultInspirations")
-      .then(({ loadDefaultInspirations }) =>
-        loadDefaultInspirations({ allowIndexedDB: false }),
-      )
-      .catch((error) => {
-        console.error(
-          "[AuthStore] Failed to reload public default inspirations after logout:",
-          error,
-        );
-      });
-
-    // CRITICAL: Clear in-memory chat caches IMMEDIATELY during synchronous logout
-    // The chatListCache singleton persists across component mounts/unmounts, so if Chats.svelte
-    // is destroyed (e.g., sidebar closed on mobile) when logout happens, its authStore subscriber
-    // won't fire to clear the cache. Clearing here ensures stale chats never appear after logout.
-    chatListCache.clear();
-    // CRITICAL: Clear the decrypted metadata cache (title, category, icon, etc.) to prevent
-    // stale entries with title: null from being served after re-login, causing "Untitled chat".
-    chatMetadataCache.clearAll();
-    // CRITICAL: Clear sessionStorage drafts so that the unauthenticated allChats
-    // derived in Chats.svelte does NOT build virtual "Untitled chat" ghost entries
-    // from stale draft IDs left over from the previous session. This runs BEFORE
-    // authStore.set() flips isAuthenticated to false, so the derived never sees
-    // the stale data. (Confirmed root cause: ghost chats survive until tab reload
-    // because sessionStorage is tab-scoped and isn't cleared by any other logout path.)
-    clearAllSessionStorageDrafts();
-    chatDB.clearAllChatKeys();
-    // Reset the module-level chat list in chatNavigationStore so that stale
-    // user chats do not remain in memory when Chats.svelte is unmounted (sidebar
-    // closed on mobile). Without this, updateNavFromCache() would use the old list
-    // and show hasPrev=true on the intro chat immediately after logout.
-    resetChatNavigationList();
+    resetLocalLogoutState();
 
     // Clear shared chat keys in the background (async, non-blocking)
     clearAllSharedChatKeys().catch((e) =>
@@ -562,11 +566,6 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         e,
       ),
     );
-
-    authStore.set({
-      ...authInitialState,
-      isInitialized: true,
-    });
 
     if (callbacks?.afterLocalLogout) {
       await callbacks.afterLocalLogout();

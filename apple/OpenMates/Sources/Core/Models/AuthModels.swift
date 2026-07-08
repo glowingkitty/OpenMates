@@ -74,6 +74,33 @@ struct PairPollResponse: Decodable {
     let authorizerDeviceName: String?
 }
 
+struct PairInfoResponse: Decodable {
+    let valid: Bool
+    let reason: String?
+    let deviceName: String?
+    let ipTruncated: String?
+    let countryCode: String?
+    let city: String?
+    let createdAt: Int?
+}
+
+struct PairCredentialsResponse: Decodable {
+    let lookupHash: String
+    let userEmailSalt: String
+    let hashedEmail: String
+}
+
+struct PairAuthorizeRequest: Encodable {
+    let encryptedBundle: String
+    let iv: String
+    let pin: String
+    let authorizerDeviceName: String
+}
+
+struct PairAuthorizeResponse: Decodable {
+    let success: Bool
+}
+
 struct PairCompleteRequest: Encodable {
     let pin: String
 }

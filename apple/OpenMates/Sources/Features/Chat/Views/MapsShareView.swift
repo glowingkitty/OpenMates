@@ -51,6 +51,7 @@ struct ComposerLocationOverlay: View {
                             .foregroundStyle(Color.fontSecondary)
                     }
                     .buttonStyle(.plain)
+                    .help(Text(AppStrings.cancel))
                     .accessibilityLabel(AppStrings.cancel)
                 }
                 .padding(.horizontal, .spacing5)
@@ -64,21 +65,11 @@ struct ComposerLocationOverlay: View {
                 Spacer()
 
                 if let selectedLocation {
-                    Button {
-                        onShare(selectedLocation.latitude, selectedLocation.longitude, selectedName)
-                    } label: {
-                        HStack(spacing: .spacing3) {
-                            Icon("current_location", size: 16)
-                            Text(AppStrings.shareLocation)
-                                .font(.omSmall.weight(.medium))
-                        }
-                        .foregroundStyle(Color.fontButton)
-                        .padding(.horizontal, .spacing8)
-                        .frame(height: 40)
-                        .background(Color.buttonPrimary)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius8))
-                    }
-                    .buttonStyle(.plain)
+                    locationSelectButton(
+                        latitude: selectedLocation.latitude,
+                        longitude: selectedLocation.longitude,
+                        name: selectedName
+                    )
                     .padding(.bottom, .spacing5)
                 }
             }
@@ -87,6 +78,26 @@ struct ComposerLocationOverlay: View {
         .background(Color.grey100)
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .clipped()
+        .accessibilityIdentifier("location-overlay")
+    }
+
+    private func locationSelectButton(latitude: Double, longitude: Double, name: String) -> some View {
+        Button {
+            onShare(latitude, longitude, name)
+        } label: {
+            HStack(spacing: .spacing3) {
+                Icon("current_location", size: 16)
+                Text(AppStrings.shareLocation)
+                    .font(.omSmall.weight(.medium))
+            }
+            .foregroundStyle(Color.fontButton)
+            .padding(.horizontal, .spacing8)
+            .frame(height: 40)
+            .background(Color.buttonPrimary)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("location-select-button")
     }
 
     private func searchPlaces() {

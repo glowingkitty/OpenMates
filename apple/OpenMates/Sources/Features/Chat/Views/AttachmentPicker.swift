@@ -18,7 +18,7 @@ import UniformTypeIdentifiers
 struct AttachmentPicker: View {
     @Binding var isPresented: Bool
     let onImageSelected: (Data, String) -> Void
-    let onFileSelected: (URL) -> Void
+    let onFileSelected: (Data, String) -> Void
 
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var showDocumentPicker = false
@@ -36,6 +36,7 @@ struct AttachmentPicker: View {
                     .frame(width: 25, height: 25)
             }
             .buttonStyle(.plain)
+            .help(Text(AppStrings.attachFiles))
             .accessibilityLabel(AppStrings.attachFiles)
             .accessibilityIdentifier("attach-files-button")
 
@@ -72,7 +73,7 @@ struct AttachmentPicker: View {
             }
         }
         .sheet(isPresented: $showDocumentPicker) {
-            DocumentPickerView(onFileSelected: onFileSelected)
+            AttachmentDocumentPickerView(onFileSelected: onFileSelected)
         }
         #else
         Button {
@@ -99,8 +100,8 @@ struct AttachmentPicker: View {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        if panel.runModal() == .OK, let url = panel.url {
-            onFileSelected(url)
+        if panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) {
+            onFileSelected(data, url.lastPathComponent)
         }
     }
     #endif
@@ -126,12 +127,12 @@ private struct AttachmentMenuRow: View {
 }
 
 #if os(iOS)
-struct DocumentPickerView: UIViewControllerRepresentable {
-    let onFileSelected: (URL) -> Void
+struct AttachmentDocumentPickerView: UIViewControllerRepresentable {
+    let onFileSelected: (Data, String) -> Void
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: [
-            .pdf, .plainText, .image, .audio, .spreadsheet, .presentation
+            .pdf, .plainText, .image, .audio
         ])
         picker.allowsMultipleSelection = false
         picker.delegate = context.coordinator
@@ -145,17 +146,18 @@ struct DocumentPickerView: UIViewControllerRepresentable {
     }
 
     class Coordinator: NSObject, UIDocumentPickerDelegate {
-        let onFileSelected: (URL) -> Void
+        let onFileSelected: (Data, String) -> Void
 
-        init(onFileSelected: @escaping (URL) -> Void) {
+        init(onFileSelected: @escaping (Data, String) -> Void) {
             self.onFileSelected = onFileSelected
         }
 
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
             guard let url = urls.first else { return }
             if url.startAccessingSecurityScopedResource() {
-                onFileSelected(url)
-                url.stopAccessingSecurityScopedResource()
+                defer { url.stopAccessingSecurityScopedResource() }
+                guard let data = try? Data(contentsOf: url) else { return }
+                onFileSelected(data, url.lastPathComponent)
             }
         }
     }

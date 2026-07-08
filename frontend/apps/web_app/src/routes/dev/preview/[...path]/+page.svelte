@@ -371,9 +371,14 @@
 		// Catch async render errors via window error handler
 		let errorCaught = false;
 		function handleError(event: ErrorEvent) {
+			const message = event.error?.message || event.message || 'Unknown render error';
+			if (/ResizeObserver loop/i.test(message)) {
+				event.preventDefault();
+				return;
+			}
 			if (!errorCaught) {
 				errorCaught = true;
-				renderError = event.error?.message || event.message || 'Unknown render error';
+				renderError = message;
 				cleanupMount(target);
 			}
 			event.preventDefault();

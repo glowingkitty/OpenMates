@@ -82,13 +82,29 @@ Every full spec must include:
 - Context discovery and clarification summary
 - Numbered scenarios (`S-1`, `S-2`, ...)
 - Numbered acceptance criteria (`AC-1`, `AC-2`, ...)
+- Acceptance criteria coverage metadata when the work is implementation-bound:
+  `required`, `status`, `coverage_status`, `verification_scope`, and
+  `verification_ids`
+- Required assumptions when implementation depends on facts that still need to be
+  confirmed; each assumption needs `status`, `required_before`, and evidence or a
+  blocker/waiver path
 - API/data/UI/privacy contracts as applicable
 - Tests with assertions, red phase, and green phase metadata
+- Optional top-level `verifications` records for checks that need Plan-like
+  status, evidence, blockers, waivers, or user-confirmation tracking beyond a
+  simple test entry
 - Implementation plan and tasks placeholders or initial entries
 - Risks, open questions, and privacy/security requirements
 
 Scenarios must use concrete examples. Avoid abstract placeholders except for
 private values such as `<USER_EMAIL>` or `<CHAT_ID>`.
+
+Treat vague criteria as incomplete plan records. If an acceptance criterion says
+"all tests pass", "no regressions", "everything works", or "fully verified",
+set `coverage_status: ambiguous` and ask the user or infer concrete scoped
+checks before implementation. Do not mark required criteria satisfied until they
+are covered by verification_ids, user confirmation, a waiver, or an accepted
+blocker.
 
 Run validation before presenting the spec:
 

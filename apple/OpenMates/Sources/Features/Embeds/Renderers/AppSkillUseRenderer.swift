@@ -66,6 +66,10 @@ struct AppSkillUseRenderer: View {
         }
     }
 
+    private var isFitnessSearchSkill: Bool {
+        appId == "fitness" && (skillId == "search_locations" || skillId == "search_classes")
+    }
+
     private var childEmbeds: [EmbedRecord] {
         let explicit = embed.childEmbedIds.compactMap { allEmbedRecords[$0] }
         if !explicit.isEmpty { return uniqueEmbeds(explicit) }
@@ -157,6 +161,8 @@ struct AppSkillUseRenderer: View {
             return AnyView(CodeGetDocsEmbedRenderer(data: data, mode: .preview))
         } else if appId == "events", skillId == "search" {
             return AnyView(EventsSearchEmbedRenderer(embed: embed, data: data, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
+        } else if isFitnessSearchSkill {
+            return AnyView(FitnessSearchEmbedRenderer(embed: embed, data: data, mode: .preview))
         } else if appId == "travel", skillId == "search_connections" {
             return AnyView(TravelSearchEmbedRenderer(embed: embed, data: data, mode: .preview, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed))
         } else if appId == "travel", skillId == "search_stays" {
@@ -250,6 +256,8 @@ struct AppSkillUseRenderer: View {
             CodeGetDocsEmbedRenderer(data: data, mode: .fullscreen)
         } else if appId == "events", skillId == "search" {
             EventsSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+        } else if isFitnessSearchSkill {
+            FitnessSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen)
         } else if appId == "travel", skillId == "search_connections" {
             TravelSearchEmbedRenderer(embed: embed, data: data, mode: .fullscreen, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
         } else if appId == "travel", skillId == "search_stays" {
@@ -621,4 +629,368 @@ private struct ImageResultFullscreenCard: View {
         guard let value, let url = URL(string: value), let host = url.host else { return nil }
         return host.replacingOccurrences(of: "www.", with: "")
     }
+}
+
+private struct FitnessSearchEmbedRenderer: View {
+    let embed: EmbedRecord
+    let data: [String: AnyCodable]?
+    let mode: EmbedDisplayMode
+
+    private var raw: [String: AnyCodable] { data ?? [:] }
+    private var group: FitnessSearchGroup { FitnessSearchGroup(data: raw) }
+    private var skillId: String {
+        embed.skillId ?? EmbedFieldReader.string(raw, keys: ["skill_id"]) ?? skillIdFromType ?? "search_classes"
+    }
+
+    private var skillIdFromType: String? {
+        let parts = embed.type.split(separator: ":")
+        guard parts.count >= 3, parts[0] == "app" else { return nil }
+        return String(parts[2])
+    }
+
+    var body: some View {
+        switch mode {
+        case .preview:
+            FitnessSearchPreview(skillId: skillId, group: group)
+        case .fullscreen:
+            FitnessSearchFullscreen(skillId: skillId, group: group)
+        }
+    }
+}
+
+private struct FitnessSearchPreview: View {
+    let skillId: String
+    let group: FitnessSearchGroup
+
+    private var title: String {
+        skillId == "search_locations" ? AppStrings.fitnessSearchLocations : AppStrings.fitnessSearchClasses
+    }
+
+    private var locationLabel: String {
+        group.filters.string("address") ?? group.filters.string("city") ?? group.query ?? group.provider
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(group.provider)
+                .font(.omXs)
+                .fontWeight(.medium)
+                .foregroundStyle(Color.grey70)
+                .lineLimit(1)
+
+            Text(title)
+                .font(.omP)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontPrimary)
+                .lineLimit(2)
+
+            Text(locationLabel)
+                .font(.omXs)
+                .foregroundStyle(Color.fontSecondary)
+                .lineLimit(1)
+
+            if let summary = group.summary {
+                Text(summary)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                    .lineLimit(1)
+            } else if group.resultCount > 0 {
+                Text(AppStrings.moreResults(group.resultCount))
+                    .font(.omXs)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.grey70)
+                    .lineLimit(1)
+            }
+
+            ForEach(group.results.prefix(2)) { result in
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(result.name)
+                        .font(.omXs)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(1)
+                    if let subtitle = result.previewSubtitle {
+                        Text(subtitle)
+                            .font(.omTiny)
+                            .foregroundStyle(Color.fontSecondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+
+            if !group.chips.isEmpty {
+                FitnessChipRow(chips: group.chips)
+                    .padding(.top, .spacing1)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+private struct FitnessSearchFullscreen: View {
+    let skillId: String
+    let group: FitnessSearchGroup
+
+    private let columns = [GridItem(.adaptive(minimum: 240, maximum: 320), spacing: .spacing5)]
+
+    private var title: String {
+        skillId == "search_locations" ? AppStrings.fitnessSearchLocations : AppStrings.fitnessSearchClasses
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing6) {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                Text(group.provider)
+                    .font(.omSmall)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.fontSecondary)
+
+                Text(title)
+                    .font(.omH2)
+                    .fontWeight(.bold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(2)
+
+                if let summary = group.summary {
+                    Text(summary)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
+                        .lineLimit(3)
+                }
+            }
+
+            if !group.chips.isEmpty {
+                FitnessChipRow(chips: group.chips)
+            }
+
+            if group.results.isEmpty {
+                Text(group.error ?? AppStrings.searchNoResults)
+                    .font(.omP)
+                    .fontWeight(.medium)
+                    .foregroundStyle(group.error == nil ? Color.fontSecondary : Color.error)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, minHeight: 200)
+            } else {
+                LazyVGrid(columns: columns, alignment: .leading, spacing: .spacing5) {
+                    ForEach(group.results) { result in
+                        FitnessResultCard(result: result, provider: group.provider)
+                    }
+                }
+                .frame(maxWidth: 1000, alignment: .leading)
+            }
+        }
+        .padding(.horizontal, .spacing5)
+        .padding(.vertical, .spacing8)
+        .padding(.bottom, 120)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+}
+
+private struct FitnessResultCard: View {
+    let result: FitnessResultSummary
+    let provider: String
+
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            Text(result.name)
+                .font(.omP)
+                .fontWeight(.semibold)
+                .foregroundStyle(Color.fontPrimary)
+                .lineLimit(3)
+
+            if let subtitle = result.fullSubtitle {
+                Text(subtitle)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .lineLimit(3)
+            }
+
+            if !result.meta.isEmpty {
+                VStack(alignment: .leading, spacing: .spacing1) {
+                    ForEach(result.meta, id: \.self) { item in
+                        Text(item)
+                            .font(.omXs)
+                            .foregroundStyle(Color.fontSecondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+
+            if let plans = result.plansRequired, !plans.isEmpty {
+                FitnessChipRow(chips: [plans.joined(separator: ", ")])
+            }
+
+            if let url = result.url.flatMap(URL.init(string:)) {
+                Button {
+                    openURL(url)
+                } label: {
+                    Text(AppStrings.openOnProvider(provider))
+                        .font(.omSmall)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(Color.buttonPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, .spacing2)
+            }
+        }
+        .padding(.spacing5)
+        .frame(maxWidth: .infinity, minHeight: 160, alignment: .topLeading)
+        .background(Color.grey0)
+        .overlay(
+            RoundedRectangle(cornerRadius: .radius5)
+                .stroke(Color.grey20, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+        .shadow(color: .black.opacity(0.08), radius: 16, x: 0, y: 4)
+    }
+}
+
+private struct FitnessChipRow: View {
+    let chips: [String]
+
+    var body: some View {
+        HStack(spacing: .spacing2) {
+            ForEach(chips, id: \.self) { chip in
+                Text(chip)
+                    .font(.omTiny)
+                    .foregroundStyle(Color.fontSecondary)
+                    .lineLimit(1)
+                    .padding(.horizontal, .spacing3)
+                    .padding(.vertical, .spacing1)
+                    .overlay(Capsule().stroke(Color.grey30, lineWidth: 1))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct FitnessSearchGroup {
+    let provider: String
+    let query: String?
+    let summary: String?
+    let error: String?
+    let resultCount: Int
+    let filters: [String: Any]
+    let results: [FitnessResultSummary]
+
+    init(data: [String: AnyCodable]) {
+        let firstGroup = EmbedFieldReader.dictionaryArray(data, key: "results").first ?? [:]
+        provider = firstGroup.string("provider") ?? EmbedFieldReader.string(data, keys: ["provider"]) ?? "Urban Sports Club"
+        query = EmbedFieldReader.string(data, keys: ["query", "title"])
+        summary = firstGroup.string("summary")
+        error = firstGroup.string("error")
+        resultCount = firstGroup.int("result_count") ?? firstGroup.dictionaryArray("results").count
+        filters = firstGroup.dictionary("filters")
+        results = firstGroup.dictionaryArray("results").enumerated().map { index, item in
+            FitnessResultSummary(index: index, data: item)
+        }
+    }
+
+    var chips: [String] {
+        [
+            filters.chip("radius_km", suffix: " km"),
+            filters.chip("plan"),
+            filters.chip("attendance_mode")
+        ].compactMap { $0 }
+    }
+}
+
+private struct FitnessResultSummary: Identifiable {
+    let id: String
+    let name: String
+    let venueName: String?
+    let address: String?
+    let date: String?
+    let timeRange: String?
+    let distanceKm: String?
+    let spotsDisplay: String?
+    let plansRequired: [String]?
+    let url: String?
+
+    init(index: Int, data: [String: Any]) {
+        id = data.string("id") ?? "fitness-result-\(index)"
+        name = data.string("name") ?? data.string("venue_name") ?? id
+        venueName = data.string("venue_name")
+        address = data.string("address") ?? data.string("venue_address")
+        date = data.string("date")
+        timeRange = data.string("time_range")
+        distanceKm = data.distance("distance_km")
+        spotsDisplay = data.string("spots_display")
+        plansRequired = data.stringArray("plans_required")
+        url = data.string("url") ?? data.string("detail_url")
+    }
+
+    var previewSubtitle: String? {
+        venueName ?? dateTimeText ?? distanceKm.map { "\($0) km" }
+    }
+
+    var fullSubtitle: String? {
+        [venueName, address].compactMap { $0 }.joined(separator: "\n").nilIfEmpty
+    }
+
+    var meta: [String] {
+        [
+            dateTimeText,
+            distanceKm.map { "\($0) km" },
+            spotsDisplay
+        ].compactMap { $0 }
+    }
+
+    private var dateTimeText: String? {
+        [date, timeRange].compactMap { $0 }.joined(separator: " ").nilIfEmpty
+    }
+}
+
+private extension Dictionary where Key == String, Value == Any {
+    func string(_ key: String) -> String? {
+        if let value = self[key] as? String, !value.isEmpty { return value }
+        if let value = self[key] as? Int { return String(value) }
+        if let value = self[key] as? Double { return String(value) }
+        return nil
+    }
+
+    func int(_ key: String) -> Int? {
+        if let value = self[key] as? Int { return value }
+        if let value = self[key] as? String { return Int(value) }
+        return nil
+    }
+
+    func dictionary(_ key: String) -> [String: Any] {
+        if let value = self[key] as? [String: Any] { return value }
+        if let value = self[key] as? [String: AnyCodable] { return value.mapValues(\.value) }
+        return [:]
+    }
+
+    func dictionaryArray(_ key: String) -> [[String: Any]] {
+        if let value = self[key] as? [[String: Any]] { return value }
+        if let value = self[key] as? [Any] { return value.compactMap { $0 as? [String: Any] } }
+        return []
+    }
+
+    func stringArray(_ key: String) -> [String]? {
+        if let value = self[key] as? [String] { return value }
+        if let value = self[key] as? [Any] {
+            let strings = value.compactMap { $0 as? String }
+            return strings.isEmpty ? nil : strings
+        }
+        return nil
+    }
+
+    func distance(_ key: String) -> String? {
+        if let value = self[key] as? Double { return String(format: "%.1f", value) }
+        if let value = self[key] as? Int { return String(value) }
+        return string(key)
+    }
+
+    func chip(_ key: String, prefix: String = "", suffix: String = "") -> String? {
+        guard let value = string(key), !value.isEmpty else { return nil }
+        return "\(prefix)\(value)\(suffix)"
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

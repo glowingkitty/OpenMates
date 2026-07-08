@@ -57,6 +57,17 @@ class DailyInspirationFeature(BaseModel):
     )
 
 
+class DailyInspirationDirectVideo(BaseModel):
+    """Direct MP4 product demo metadata shown in a Daily Inspiration banner."""
+
+    title: str = Field(..., description="Display title for the direct video")
+    mp4_url: str = Field(..., description="Direct MP4 URL for fullscreen playback")
+    thumbnail_url: str = Field(..., description="Poster image URL for the video preview")
+    teaser_url: Optional[str] = Field(None, description="Silent WebM teaser URL for autoplay preview")
+    teaser_mp4_url: Optional[str] = Field(None, description="Silent MP4 teaser fallback URL")
+    teaser_webp_url: Optional[str] = Field(None, description="Static WebP poster/fallback URL")
+
+
 class DailyInspiration(BaseModel):
     """
     A single Daily Inspiration item.
@@ -116,6 +127,10 @@ class DailyInspiration(BaseModel):
     feature: Optional[DailyInspirationFeature] = Field(
         None,
         description="Static feature metadata. Required when content_type='feature'.",
+    )
+    direct_video: Optional[DailyInspirationDirectVideo] = Field(
+        None,
+        description="Direct product demo video metadata. Optional companion for feature inspirations.",
     )
     generated_at: int = Field(..., description="Unix timestamp when this inspiration was generated")
     follow_up_suggestions: List[str] = Field(

@@ -415,7 +415,7 @@ async def _audit_pool_async(task: BaseServiceTask) -> Dict[str, Any]:
             policy_bucket_for_category,
             video_age_years,
         )
-        from backend.apps.ai.daily_inspiration.content_filter import check_entry
+        from backend.apps.ai.daily_inspiration.content_filter import check_daily_inspiration_entry
 
         def _age_violation_reason(entry: Dict[str, Any]) -> Optional[str]:
             """Return a human-readable reason if the entry violates age policy, else None."""
@@ -444,7 +444,7 @@ async def _audit_pool_async(task: BaseServiceTask) -> Dict[str, Any]:
                     continue
                 reasons: List[str] = []
 
-                keyword_result = check_entry(item)
+                keyword_result = check_daily_inspiration_entry(item)
                 if keyword_result["verdict"] == "REJECT":
                     matched_cats = list(keyword_result.get("violations", {}).keys())
                     reasons.append(f"keyword({','.join(matched_cats)})")

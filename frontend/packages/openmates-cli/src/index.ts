@@ -19,6 +19,7 @@ export {
 export { serializeToYaml, getExtForLang } from "./cli.js";
 export { defaultCloneBranchForVersion } from "./server.js";
 export { OpenMates, OpenMatesApiError, OpenMatesConfigError } from "./sdk.js";
+export { APP_SKILL_METADATA } from "./generated/appSkills.js";
 export {
   ASSISTANT_FEEDBACK_REPORT_TITLE,
   ASSISTANT_FEEDBACK_THANKS,
@@ -39,6 +40,22 @@ export type {
   GiftCardBankTransferStatus,
   InterestTagId,
   TopicPreferencesPayload,
+  WorkflowCapability,
+  WorkflowDetail,
+  WorkflowEdge,
+  WorkflowGraph,
+  WorkflowNode,
+  WorkflowNodeRun,
+  WorkflowNodeType,
+  WorkflowRunContentRetention,
+  WorkflowRunContentStorage,
+  WorkflowRunDetail,
+  WorkflowSummary,
+  ProjectSourceCapability,
+  ProjectSourceCreateInput,
+  ProjectSourceRecord,
+  ProjectSourceStatus,
+  ProjectSourceType,
   AuthMethodsStatus,
   CliSignupResult,
   TotpSetupStartResult,
@@ -53,6 +70,7 @@ export type {
   ChatListOptions,
   ChatResponse,
   EncryptedChatMetadata,
+  FocusModeSelection,
   OpenMatesOptions,
 } from "./sdk.js";
 export type {

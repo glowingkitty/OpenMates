@@ -37,6 +37,8 @@ Each task must include:
 - Acceptance criteria covered (`AC-*`)
 - Expected files or areas touched
 - Verification command or planned test file
+- `verification_ids` or test IDs that gate the task
+- Initial `status`, blockers, dependencies, and follow-up task links when known
 - Whether it is independently deployable
 
 Run validation after editing:
@@ -52,6 +54,12 @@ requires reviewing an unbounded diff.
 
 For example, teams functionality should start with "create team model/API and
 owner creation test", not "build teams".
+
+Plan-like task loop rule: failed required checks must keep the task active,
+blocked, or `needs_fix`; they must create or suggest follow-up tasks linked to
+the failed `verification_ids` and affected acceptance criteria. Do not create a
+task that has no verification path unless it is explicitly a user-confirmed or
+manual task.
 
 ### Step 4: Output Summary
 
@@ -71,3 +79,4 @@ Next: write tests for T-1, record red evidence, implement T-1, then run `verify-
 - Do not create tasks that lack verification.
 - Do not include unrelated cleanup unless it is required by a scenario.
 - Mark dependencies between tasks explicitly.
+- Keep follow-up tasks traceable to the failed required checks that created them.

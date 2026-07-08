@@ -1,3 +1,103 @@
+providers.fitness.heading:
+  context: Subheading for Fitness providers
+  en: Fitness search (only when you use the fitness skill)
+  de: Fitness-Suche (nur wenn du die Fitness-Funktion nutzt)
+  zh: 健身搜索（仅在你使用健身技能时）
+  es: Búsqueda de fitness (solo cuando usas la habilidad de fitness)
+  fr: Recherche de fitness (uniquement lorsque vous utilisez la compétence fitness)
+  pt: Pesquisa de fitness (somente quando você usa a habilidade de fitness)
+  ru: Поиск фитнеса (только когда вы используете фитнес-навык)
+  ja: フィットネス検索（フィットネススキルを使用する場合のみ）
+  ko: 피트니스 검색(피트니스 스킬을 사용할 때만)
+  it: Ricerca fitness (solo quando usi la skill fitness)
+  tr: Fitness araması (yalnızca fitness becerisini kullandığınızda)
+  vi: Tìm kiếm thể dục (chỉ khi bạn dùng kỹ năng thể dục)
+  id: Pencarian fitness (hanya saat Anda menggunakan skill fitness)
+  pl: Wyszukiwanie fitnessu (tylko gdy używasz umiejętności fitness)
+  nl: Fitness zoeken (alleen wanneer je de fitnessvaardigheid gebruikt)
+  ar: بحث اللياقة البدنية (فقط عند استخدام مهارة اللياقة)
+  hi: फिटनेस खोज (केवल जब आप फिटनेस स्किल का उपयोग करते हैं)
+  th: การค้นหาฟิตเนส (เฉพาะเมื่อคุณใช้สกิลฟิตเนส)
+  cs: Vyhledávání fitness (pouze když používáte fitness dovednost)
+  sv: Fitnessökning (endast när du använder fitnessfärdigheten)
+  he: חיפוש כושר (רק כשמשתמשים ביכולת הכושר)
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+providers.fitness.description:
+  context: Description for Fitness provider group in privacy policy
+  en: These providers are only used when you invoke the fitness app's Urban Sports location or class search skills. We query public logged-out discovery pages and do not send OpenMates user identifiers or Urban Sports credentials.
+  de: Diese Anbieter werden nur genutzt, wenn du die Urban Sports Standort- oder Kurssuche der Fitness-App verwendest. Wir fragen öffentliche, ausgeloggte Suchseiten ab und senden keine OpenMates-Nutzerkennungen oder Urban-Sports-Zugangsdaten.
+  zh: 只有在你调用健身应用的 Urban Sports 地点或课程搜索技能时，才会使用这些提供商。我们查询公开的未登录发现页面，不会发送 OpenMates 用户标识符或 Urban Sports 凭据。
+  es: Estos proveedores solo se usan cuando invocas las habilidades de búsqueda de ubicaciones o clases de Urban Sports en la app de fitness. Consultamos páginas públicas de descubrimiento sin sesión iniciada y no enviamos identificadores de usuario de OpenMates ni credenciales de Urban Sports.
+  fr: Ces fournisseurs ne sont utilisés que lorsque vous lancez les compétences de recherche de lieux ou de cours Urban Sports dans l'app de fitness. Nous interrogeons des pages publiques de découverte sans connexion et n'envoyons aucun identifiant utilisateur OpenMates ni identifiant Urban Sports.
+  pt: Esses provedores só são usados quando você aciona as habilidades de busca de locais ou aulas Urban Sports no app de fitness. Consultamos páginas públicas de descoberta sem login e não enviamos identificadores de usuário da OpenMates nem credenciais da Urban Sports.
+  ru: Эти провайдеры используются только тогда, когда вы вызываете навыки поиска локаций или занятий Urban Sports в фитнес-приложении. Мы запрашиваем публичные страницы поиска без входа в аккаунт и не отправляем идентификаторы пользователей OpenMates или учетные данные Urban Sports.
+  ja: これらのプロバイダーは、フィットネスアプリの Urban Sports 施設検索またはクラス検索スキルを使用した場合にのみ使われます。公開されているログアウト状態の検索ページを照会し、OpenMates のユーザー識別子や Urban Sports の認証情報は送信しません。
+  ko: 이 제공업체들은 피트니스 앱의 Urban Sports 장소 또는 수업 검색 스킬을 실행할 때만 사용됩니다. 공개된 로그아웃 상태의 탐색 페이지를 조회하며 OpenMates 사용자 식별자나 Urban Sports 자격 증명은 보내지 않습니다.
+  it: Questi provider vengono usati solo quando richiami le skill di ricerca di luoghi o corsi Urban Sports dell'app fitness. Consultiamo pagine pubbliche di scoperta senza login e non inviamo identificativi utente OpenMates né credenziali Urban Sports.
+  tr: Bu sağlayıcılar yalnızca fitness uygulamasının Urban Sports konum veya ders arama becerilerini çağırdığınızda kullanılır. Herkese açık, oturum açılmamış keşif sayfularını sorgularız ve OpenMates kullanıcı tanımlayıcıları ya da Urban Sports kimlik bilgileri göndermeyiz.
+  vi: Các nhà cung cấp này chỉ được dùng khi bạn gọi các kỹ năng tìm địa điểm hoặc lớp Urban Sports của ứng dụng thể dục. Chúng tôi truy vấn các trang khám phá công khai khi chưa đăng nhập và không gửi mã định danh người dùng OpenMates hay thông tin đăng nhập Urban Sports.
+  id: Penyedia ini hanya digunakan saat Anda menjalankan skill pencarian lokasi atau kelas Urban Sports di app fitness. Kami menanyakan halaman penemuan publik tanpa login dan tidak mengirim pengenal pengguna OpenMates atau kredensial Urban Sports.
+  pl: Ci dostawcy są używani tylko wtedy, gdy uruchamiasz w aplikacji fitness umiejętności wyszukiwania lokalizacji lub zajęć Urban Sports. Odpytujemy publiczne strony wyszukiwania bez logowania i nie wysyłamy identyfikatorów użytkownika OpenMates ani danych logowania Urban Sports.
+  nl: Deze providers worden alleen gebruikt wanneer je in de fitness-app de zoekvaardigheden voor Urban Sports-locaties of -lessen gebruikt. We raadplegen openbare ontdekpagina's zonder ingelogde sessie en sturen geen OpenMates-gebruikers-ID's of Urban Sports-inloggegevens mee.
+  ar: لا تُستخدم هذه المزوّدات إلا عند تشغيل مهارات البحث عن مواقع أو حصص Urban Sports في تطبيق اللياقة. نستعلم صفحات اكتشاف عامة من دون تسجيل دخول ولا نرسل معرّفات مستخدمي OpenMates أو بيانات اعتماد Urban Sports.
+  hi: ये प्रदाता केवल तब उपयोग किए जाते हैं जब आप फिटनेस ऐप की Urban Sports स्थान या क्लास खोज स्किल चलाते हैं। हम सार्वजनिक, लॉग-आउट डिस्कवरी पेज क्वेरी करते हैं और OpenMates उपयोगकर्ता पहचानकर्ता या Urban Sports क्रेडेंशियल नहीं भेजते।
+  th: ผู้ให้บริการเหล่านี้จะถูกใช้เฉพาะเมื่อคุณเรียกใช้สกิลค้นหาสถานที่หรือคลาส Urban Sports ของแอปฟิตเนส เราค้นหาจากหน้าสาธารณะที่ไม่ได้เข้าสู่ระบบ และไม่ส่งตัวระบุผู้ใช้ OpenMates หรือข้อมูลเข้าสู่ระบบ Urban Sports
+  cs: Tito poskytovatelé se používají pouze tehdy, když spustíte dovednosti fitness aplikace pro vyhledávání míst nebo lekcí Urban Sports. Dotazujeme veřejné vyhledávací stránky bez přihlášení a neposíláme identifikátory uživatelů OpenMates ani přihlašovací údaje Urban Sports.
+  sv: Dessa leverantörer används bara när du anropar fitnessappens sökfunktioner för Urban Sports-platser eller pass. Vi frågar offentliga upptäcktssidor utan inloggning och skickar inte OpenMates-användaridentifierare eller Urban Sports-inloggningsuppgifter.
+  he: ספקים אלה משמשים רק כשמפעילים את יכולות החיפוש של אפליקציית הכושר עבור מיקומים או שיעורים של Urban Sports. אנחנו שולחים שאילתות לדפי גילוי ציבוריים ללא התחברות ולא שולחים מזהי משתמש של OpenMates או פרטי התחברות של Urban Sports.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+providers.fitness.urban_sports_club.heading:
+  context: Provider heading for Urban Sports Club in privacy policy
+  en: Urban Sports Club
+  de: Urban Sports Club
+  zh: Urban Sports Club
+  es: Urban Sports Club
+  fr: Urban Sports Club
+  pt: Urban Sports Club
+  ru: Urban Sports Club
+  ja: Urban Sports Club
+  ko: Urban Sports Club
+  it: Urban Sports Club
+  tr: Urban Sports Club
+  vi: Urban Sports Club
+  id: Urban Sports Club
+  pl: Urban Sports Club
+  nl: Urban Sports Club
+  ar: Urban Sports Club
+  hi: Urban Sports Club
+  th: Urban Sports Club
+  cs: Urban Sports Club
+  sv: Urban Sports Club
+  he: Urban Sports Club
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+providers.fitness.urban_sports_club.description:
+  context: Provider description for Urban Sports Club in privacy policy
+  en: Urban Sports Club powers fitness location and class availability search. Urban Sports Club receives your search query details such as city, address or coordinates, radius, dates, attendance mode, and plan filter, without OpenMates user identifiers.
+  de: Urban Sports Club ermöglicht die Suche nach Fitness-Standorten und verfügbaren Kursen. Urban Sports Club erhält Suchdetails wie Stadt, Adresse oder Koordinaten, Umkreis, Datum, Teilnahmeart und Tarif-Filter, jedoch keine OpenMates-Nutzerkennungen.
+  zh: Urban Sports Club 支持健身地点和课程可用性搜索。Urban Sports Club 会收到你的搜索查询详情，例如城市、地址或坐标、半径、日期、参加方式和会员方案筛选条件，但不会收到 OpenMates 用户标识符。
+  es: Urban Sports Club permite buscar ubicaciones de fitness y disponibilidad de clases. Urban Sports Club recibe los detalles de tu búsqueda, como ciudad, dirección o coordenadas, radio, fechas, modalidad de asistencia y filtro de plan, sin identificadores de usuario de OpenMates.
+  fr: Urban Sports Club permet la recherche de lieux de fitness et de disponibilités de cours. Urban Sports Club reçoit les détails de votre recherche, comme la ville, l'adresse ou les coordonnées, le rayon, les dates, le mode de participation et le filtre d'abonnement, sans identifiants utilisateur OpenMates.
+  pt: A Urban Sports Club possibilita a busca por locais de fitness e disponibilidade de aulas. A Urban Sports Club recebe os detalhes da sua consulta, como cidade, endereço ou coordenadas, raio, datas, modo de participação e filtro de plano, sem identificadores de usuário da OpenMates.
+  ru: Urban Sports Club обеспечивает поиск фитнес-локаций и доступных занятий. Urban Sports Club получает данные вашего поискового запроса, такие как город, адрес или координаты, радиус, даты, формат участия и фильтр тарифа, без идентификаторов пользователей OpenMates.
+  ja: Urban Sports Club はフィットネス施設とクラス空き状況の検索を提供します。Urban Sports Club は都市、住所または座標、半径、日付、参加形式、プランフィルターなどの検索詳細を受け取りますが、OpenMates のユーザー識別子は受け取りません。
+  ko: Urban Sports Club은 피트니스 장소와 수업 이용 가능 여부 검색을 제공합니다. Urban Sports Club은 도시, 주소 또는 좌표, 반경, 날짜, 참석 방식, 플랜 필터 같은 검색 세부 정보를 받지만 OpenMates 사용자 식별자는 받지 않습니다.
+  it: Urban Sports Club alimenta la ricerca di luoghi fitness e disponibilità dei corsi. Urban Sports Club riceve i dettagli della tua ricerca, come città, indirizzo o coordinate, raggio, date, modalità di partecipazione e filtro del piano, senza identificativi utente OpenMates.
+  tr: Urban Sports Club, fitness konumu ve ders uygunluğu aramasını sağlar. Urban Sports Club şehir, adres veya koordinatlar, yarıçap, tarihler, katılım modu ve plan filtresi gibi arama sorgusu ayrıntılarınızı alır; OpenMates kullanıcı tanımlayıcıları gönderilmez.
+  vi: Urban Sports Club hỗ trợ tìm kiếm địa điểm thể dục và tình trạng còn chỗ của lớp học. Urban Sports Club nhận chi tiết truy vấn tìm kiếm của bạn như thành phố, địa chỉ hoặc tọa độ, bán kính, ngày, hình thức tham gia và bộ lọc gói, nhưng không nhận mã định danh người dùng OpenMates.
+  id: Urban Sports Club mendukung pencarian lokasi fitness dan ketersediaan kelas. Urban Sports Club menerima detail kueri pencarian Anda seperti kota, alamat atau koordinat, radius, tanggal, mode kehadiran, dan filter paket, tanpa pengenal pengguna OpenMates.
+  pl: Urban Sports Club obsługuje wyszukiwanie lokalizacji fitness i dostępności zajęć. Urban Sports Club otrzymuje szczegóły zapytania, takie jak miasto, adres lub współrzędne, promień, daty, tryb uczestnictwa i filtr planu, bez identyfikatorów użytkownika OpenMates.
+  nl: Urban Sports Club maakt zoeken naar fitnesslocaties en lesbeschikbaarheid mogelijk. Urban Sports Club ontvangt je zoekgegevens, zoals stad, adres of coördinaten, straal, datums, deelnamevorm en abonnementsfilter, zonder OpenMates-gebruikers-ID's.
+  ar: يوفّر Urban Sports Club البحث عن مواقع اللياقة ومدى توفر الحصص. يتلقى Urban Sports Club تفاصيل استعلام البحث مثل المدينة أو العنوان أو الإحداثيات أو نصف القطر أو التواريخ أو طريقة الحضور أو مرشح الخطة، من دون معرّفات مستخدمي OpenMates.
+  hi: Urban Sports Club फिटनेस स्थान और क्लास उपलब्धता खोज प्रदान करता है। Urban Sports Club को आपकी खोज क्वेरी का विवरण मिलता है, जैसे शहर, पता या निर्देशांक, दायरा, तारीखें, उपस्थिति मोड और प्लान फ़िल्टर, लेकिन OpenMates उपयोगकर्ता पहचानकर्ता नहीं।
+  th: Urban Sports Club รองรับการค้นหาสถานที่ฟิตเนสและความพร้อมของคลาส Urban Sports Club จะได้รับรายละเอียดคำค้น เช่น เมือง ที่อยู่หรือพิกัด รัศมี วันที่ รูปแบบการเข้าร่วม และตัวกรองแพ็กเกจ โดยไม่มีตัวระบุผู้ใช้ OpenMates
+  cs: Urban Sports Club zajišťuje vyhledávání fitness míst a dostupnosti lekcí. Urban Sports Club obdrží podrobnosti vašeho vyhledávacího dotazu, jako je město, adresa nebo souřadnice, okruh, data, způsob účasti a filtr plánu, bez identifikátorů uživatelů OpenMates.
+  sv: Urban Sports Club driver sökning efter fitnessplatser och tillgängliga pass. Urban Sports Club får dina sökuppgifter, till exempel stad, adress eller koordinater, radie, datum, deltagandeform och planfilter, utan OpenMates-användaridentifierare.
+  he: Urban Sports Club מספק את חיפוש מיקומי הכושר וזמינות השיעורים. Urban Sports Club מקבל את פרטי שאילתת החיפוש, כגון עיר, כתובת או קואורדינטות, רדיוס, תאריכים, אופן השתתפות וסינון תוכנית, ללא מזהי משתמש של OpenMates.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
 title:
   context: Title of privacy policy page
   en: Privacy Policy
@@ -1677,6 +1777,7 @@ data_categories.payments:
   cs: "Platby: Tokeny platebních metod, identifikátory transakcí, fakturační adresa a informace o DPH podle potřeby pro fakturaci (zpracovávány převážně přes Stripe). Neukládáme úplná čísla karet."
   sv: "Betalningar: Betalningstokens, transaktions-ID, faktureringsadress och momsinformation som krävs för fakturering (behandlas huvudsakligen av Stripe). Vi lagrar inte fullständiga kortnummer."
   he: 'תשלומים: טוקנים של אמצעי תשלום, מזהי עסקאות, כתובת חיוב ומידע מע"מ כנדרש לחיוב (מעובד בעיקר על ידי Stripe). איננו מאחסנים מספרי כרטיס מלאים.'
+  verified_by_human: []
 data_categories.newsletter:
   context: Newsletter subscription data category
   en: "Newsletter: If you choose to subscribe to our newsletter, we store your email address in encrypted form. Newsletter subscription is optional and separate from account creation — creating an account does not automatically subscribe you to the newsletter. If you are an OpenMates customer (i.e. you have completed a purchase), we may additionally send you occasional product announcements and service updates about OpenMates' own similar services under the existing-customer exception (§7 Abs. 3 UWG / ePrivacy Directive Art. 13(2)). You can object to this at any time in Settings → Newsletter or via the one-click unsubscribe link in any such email, without affecting your account."

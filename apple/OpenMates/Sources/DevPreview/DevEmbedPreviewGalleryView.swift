@@ -18,6 +18,7 @@ import SwiftUI
 
 struct DevPreviewRootView: View {
     let configuration: DevPreviewLaunchConfiguration
+    @StateObject private var previewAuthManager = AuthManager()
 
     var body: some View {
         switch configuration.surface {
@@ -27,11 +28,108 @@ struct DevPreviewRootView: View {
             DevChatOpeningPreviewView(forceRecordingOverlay: true)
         case .chatShare:
             DevChatSharePreviewView()
+        case .quickCapture:
+            #if os(macOS)
+            MacMenuBarQuickCaptureView()
+                .environmentObject(previewAuthManager)
+                .frame(width: 430)
+            #else
+            DevQuickCaptureAttachmentPreviewView()
+            #endif
         case .embeds:
             DevEmbedPreviewGalleryView(initialApp: configuration.appSlug)
         }
     }
 }
+
+#if !os(macOS)
+struct DevQuickCaptureAttachmentPreviewView: View {
+    @State private var selectedTab = "chats"
+    @State private var messageText = ""
+    @FocusState private var inputFocused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing6) {
+            HStack(spacing: .spacing4) {
+                tabButton("chats")
+                tabButton("projects")
+                tabButton("plans")
+                tabButton("tasks")
+                tabButton("workflows")
+            }
+            if selectedTab == "chats" {
+                chatsPreview
+            } else {
+                Text("Quick capture for \(selectedTab) is coming later.")
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .padding(.spacing8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.grey10)
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                    .accessibilityIdentifier("quick-capture-placeholder-\(selectedTab)")
+            }
+        }
+        .padding(.spacing8)
+        .background(Color.grey0)
+    }
+
+    private var chatsPreview: some View {
+        VStack(alignment: .leading, spacing: .spacing6) {
+            HStack(spacing: .spacing4) {
+                Text("New Chat")
+                Text("UI Test Chat")
+            }
+            .font(.omXs.weight(.semibold))
+            .foregroundStyle(Color.fontPrimary)
+            .accessibilityIdentifier("quick-capture-recent-chats")
+
+            VStack(spacing: 0) {
+                MessageComposerView(
+                    text: $messageText,
+                    isFocused: $inputFocused,
+                    compact: false,
+                    placeholder: AppStrings.whatDoYouNeedHelpWith,
+                    maxWidth: nil,
+                    onSubmit: {}
+                ) {
+                    HStack(spacing: .spacing6) {
+                        MessageComposerActionIcon(
+                            icon: "recordaudio",
+                            label: AppStrings.recordAudio,
+                            identifier: "quick-capture-record-audio-button"
+                        ) {}
+                        Spacer()
+                        MessageComposerSendButton(title: AppStrings.sendAction) {}
+                            .accessibilityIdentifier("quick-capture-send-button")
+                    }
+                    .padding(.horizontal, .spacing5)
+                    .padding(.bottom, .spacing6)
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("quick-capture-composer")
+
+            Text("Shared fixture.pdf")
+                .font(.omXs)
+                .foregroundStyle(Color.fontSecondary)
+                .accessibilityIdentifier("quick-capture-pending-attachments")
+            Text("Success")
+                .font(.omMicro.weight(.semibold))
+                .foregroundStyle(Color.buttonPrimary)
+                .accessibilityIdentifier("quick-capture-status-list")
+        }
+    }
+
+    private func tabButton(_ id: String) -> some View {
+        Button(id.capitalized) {
+            selectedTab = id
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("quick-capture-tab-\(id)")
+    }
+}
+#endif
 
 struct DevChatSharePreviewView: View {
     var body: some View {

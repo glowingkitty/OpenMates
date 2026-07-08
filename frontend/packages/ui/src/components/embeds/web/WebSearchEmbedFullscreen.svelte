@@ -25,7 +25,7 @@
   import { text } from "@repo/ui";
   import { embedStore } from '../../../services/embedStore';
   import { chatSyncService } from '../../../services/chatSyncService';
-  import { buildWebSearchPreviewMetadata } from '../embedPreviewHydration';
+  import { buildWebSearchPreviewMetadata, extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   // YouTube URL detection pattern — matches youtube.com and youtu.be variants
   const YOUTUBE_URL_RE =
@@ -141,11 +141,7 @@
       : normalizeEmbedIds(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids)
   );
   let resultsProp = $derived(
-    Array.isArray(data.decodedContent?.results)
-      ? data.decodedContent.results as unknown[]
-      : Array.isArray(data.decodedContent?.preview_results)
-        ? data.decodedContent.preview_results as unknown[]
-        : []
+    extractSearchResultsFromContent(data.decodedContent)
   );
 
   // Local reactive state for streaming updates

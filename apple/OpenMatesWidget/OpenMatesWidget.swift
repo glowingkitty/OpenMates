@@ -35,7 +35,7 @@ struct WidgetInspiration: Codable {
 // MARK: - Shared storage (App Group)
 
 enum WidgetStorage {
-    static let suiteName = "group.org.openmates.app"
+    static let suiteName = "group.org.openmates.app.shared"
     static let inspirationKey = "widget_daily_inspiration"
 
     static func save(_ inspiration: WidgetInspiration) {

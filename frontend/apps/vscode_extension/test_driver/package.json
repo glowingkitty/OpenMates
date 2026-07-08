@@ -1,0 +1,13 @@
+{
+  "name": "openmates-vscode-installed-test-driver",
+  "displayName": "OpenMates VS Code Installed Test Driver",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "openmates",
+  "type": "commonjs",
+  "main": "./extension.js",
+  "engines": {
+    "vscode": "^1.106.0"
+  },
+  "activationEvents": []
+}

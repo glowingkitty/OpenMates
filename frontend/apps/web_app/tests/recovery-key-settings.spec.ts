@@ -294,11 +294,10 @@ test('regenerates recovery key via Settings > Security > Recovery Key', async ({
 	await takeStepScreenshot(page, 'logged-out');
 	logCheckpoint('Logged out.');
 
-	// Wait for redirect to demo chat (logged out state)
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 30000
-	});
-	logCheckpoint('Redirected to demo chat after logout.');
+	// Logout now returns to the logged-out welcome shell without forcing a demo-chat hash.
+	await expect(page.getByRole('button', { name: /login/i })).toBeVisible({ timeout: 30000 });
+	await expect(page.locator('[data-authenticated="true"]')).toHaveCount(0);
+	logCheckpoint('Logged-out welcome shell visible after logout.');
 
 	// ========================================================================
 	// PHASE 8: Login with the new recovery key

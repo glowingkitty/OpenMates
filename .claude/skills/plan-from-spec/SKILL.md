@@ -30,6 +30,10 @@ Before writing the plan, confirm the spec has:
 - At least one acceptance criterion ID (`AC-*`)
 - Scope and non-goals
 - Tests with assertions and red/green phase metadata
+- Required assumptions are confirmed, corrected, waived, blocked with a user or
+  external dependency, or explicitly scheduled for pre-implementation checking
+- Required acceptance criteria have `coverage_status`, `verification_scope`, and
+  `verification_ids` when the spec is ready for implementation
 
 Run:
 
@@ -58,6 +62,11 @@ The plan must include:
 - Migration/backfill/rollout needs if any
 - Observability/logging needs if any
 - Verification strategy with exact test commands where known
+- Required assumptions that must be checked before implementation and which
+  source areas or subagents should verify them
+- required assumptions must not be left unchecked when they block implementation
+- Acceptance-criteria coverage mapping: each required AC must map to concrete
+  `verification_ids`, a user-confirmed/manual check, a waiver path, or a blocker
 - Open questions and risks
 
 ### Step 4: Keep The Plan Minimal
@@ -65,6 +74,11 @@ The plan must include:
 Avoid speculative architecture. Prefer the smallest vertical slice that can
 prove the first scenario. For large features, explicitly identify the first
 slice.
+
+If a plan has vague criteria such as "all tests pass" or "no regressions", do
+not leave them as final checks. Normalize them into concrete scoped checks such
+as backend pytest, CLI, npm SDK, pip SDK, Playwright, Apple build/test, full CI,
+manual review, or user confirmation.
 
 ### Step 5: Output Summary
 

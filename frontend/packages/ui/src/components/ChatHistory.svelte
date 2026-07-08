@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, tick, onMount, onDestroy } from "svelte"; // Removed afterUpdate for runes mode compatibility
+  import { createEventDispatcher, tick, onMount, onDestroy, untrack } from "svelte"; // Removed afterUpdate for runes mode compatibility
   import type { SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
   import ChatMessage from "./ChatMessage.svelte";
@@ -820,6 +820,7 @@
   // Props using Svelte 5 runes mode
   let {
     messageInputHeight = 0,
+    sourceMessages = [],
     containerWidth = 0,
     currentChatId = undefined,
     processingPhase = null,
@@ -854,6 +855,7 @@
     canAnnotate = true,
   }: {
     messageInputHeight?: number;
+    sourceMessages?: GlobalMessage[];
     containerWidth?: number;
     currentChatId?: string; // Current active chat ID - used to ensure permission dialog only shows in the originating chat
     processingPhase?: ProcessingPhase; // Current phase of the AI processing pipeline (sending → processing → typing → null)
@@ -921,6 +923,14 @@
     onSuggestionClick?: (suggestion: string) => void;
     compressionCheckpoints?: ChatCompressionCheckpoint[];
   } = $props();
+
+  $effect(() => {
+    const incomingMessages = sourceMessages;
+    if (incomingMessages.length === 0) return;
+    const internalMessagesEmpty = untrack(() => messages.length === 0);
+    if (!internalMessagesEmpty) return;
+    untrack(() => updateMessages(incomingMessages));
+  });
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
   let containerStyle = $derived(`bottom: ${Math.max(0, messageInputHeight - 30)}px`);
@@ -1226,10 +1236,10 @@
   // Only shown for new chats — existing chats opened from the sidebar never show this.
   // The header is visible as long as any of these are true:
   //   a) isNewChatGeneratingTitle is true (shimmer placeholder state), or
-  //   b) we have both a title and a category (loaded state), or
+  //   b) we have a title (loaded state; category may be missing on older partial metadata), or
   //   c) isNewChatCreditsError is true (credits error state), or
   //   d) isIncognito is true (always show the incognito header immediately)
-  let showChatHeader = $derived(isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!(chatTitle && chatCategory));
+  let showChatHeader = $derived(isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle);
 
   $effect(() => {
     const requestId = ++headerImageBubbleRequestId;
@@ -2286,6 +2296,7 @@
 
     {#if showMessages}
         <div class="chat-history-content" 
+             data-testid="chat-history-content"
              class:has-messages={displayMessages.length > 0}
              class:has-header={showChatHeader}
              data-virtualized={shouldVirtualizeMessages ? 'true' : 'false'}

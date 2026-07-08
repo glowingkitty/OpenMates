@@ -17,7 +17,11 @@ from .auth_ws import get_current_user_ws
 from .handlers.websocket_handlers.title_update_handler import handle_update_title
 from .handlers.websocket_handlers.draft_update_handler import handle_update_draft
 from .handlers.websocket_handlers.message_received_handler import handle_message_received
-from .handlers.websocket_handlers.active_chat_handler import handle_set_active_chat
+from .handlers.websocket_handlers.active_chat_handler import (
+    AI_STREAM_SNAPSHOT_TTL_SECONDS,
+    ai_stream_snapshot_cache_key,
+    handle_set_active_chat,
+)
 from .handlers.websocket_handlers.delete_chat_handler import handle_delete_chat
 from .handlers.websocket_handlers.delete_message_handler import handle_delete_message
 from .handlers.websocket_handlers.message_highlight_handlers import (
@@ -132,10 +136,10 @@ async def _check_user_offline_and_send_email(
             logger.debug(f"{log_prefix} Skipping notification - response contains error")
             return
 
-    # Retry loop: check if user reconnects within ~15 s
+    # Retry loop: suppress only when a foreground client is visibly viewing this chat.
     for attempt in range(1, max_attempts + 1):
-        if manager.is_user_active(user_id):
-            logger.debug(f"{log_prefix} User came online (attempt {attempt}/{max_attempts}), skipping notification")
+        if manager.has_foreground_connection_for_chat(user_id, chat_id):
+            logger.debug(f"{log_prefix} Chat became foreground-visible (attempt {attempt}/{max_attempts}), skipping notification")
             return
 
         if attempt < max_attempts:
@@ -145,9 +149,9 @@ async def _check_user_offline_and_send_email(
     # User is still offline after all attempts.
     logger.info(f"{log_prefix} User offline after {max_attempts} attempts — queuing pending delivery + notifications")
 
-    # 1. Queue the AI response for delivery when the user reconnects (up to 60 days)
+    # 1. Queue the AI response for delivery when no foreground client can persist it.
     try:
-        if hasattr(app.state, 'cache_service'):
+        if hasattr(app.state, 'cache_service') and not manager.is_user_completion_capable_active(user_id):
             cache_service: CacheService = app.state.cache_service
             delivery_payload = {
                 "type": "ai_response",  # Distinguishes from "reminder" system messages
@@ -198,8 +202,8 @@ async def _check_user_offline_and_send_email(
         logger.info(f"{log_prefix} Push sent — waiting 60 s before email fallback")
         await asyncio.sleep(60)
 
-        if manager.is_user_active(user_id):
-            logger.info(f"{log_prefix} User came online after push — skipping email")
+        if manager.has_foreground_connection_for_chat(user_id, chat_id) or manager.is_user_active(user_id):
+            logger.info(f"{log_prefix} User active after push — skipping email")
             return
         logger.info(f"{log_prefix} User still offline 60 s after push — sending email fallback")
 
@@ -676,6 +680,11 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                         continue
 
                     for device_hash, websocket_conn in user_connections.items():
+                        if not manager.is_connection_completion_capable(user_id_uuid, device_hash):
+                            logger.debug(
+                                f"AI Stream Listener: Skipping backgrounded/non-completion-capable device {user_id_uuid}/{device_hash}."
+                            )
+                            continue
                         active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
                         if chat_id_from_payload == active_chat_on_device:
                             await manager.send_personal_message(
@@ -704,7 +713,28 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     if redis_payload.get("external_request"):
                         logger.debug(f"AI Stream Listener: External request detected for chat {chat_id_from_payload}. Skipping WebSocket broadcast.")
                         continue
-                    
+
+                    snapshot_key = ai_stream_snapshot_cache_key(chat_id_from_payload)
+                    if redis_payload.get("is_final_chunk", False):
+                        try:
+                            if hasattr(cache_service, "delete"):
+                                await cache_service.delete(snapshot_key)
+                        except Exception as snapshot_error:
+                            logger.debug(
+                                f"AI Stream Listener: Failed to delete stream snapshot for chat {chat_id_from_payload}: {snapshot_error}"
+                            )
+                    else:
+                        try:
+                            await cache_service.set(
+                                snapshot_key,
+                                redis_payload,
+                                ttl=AI_STREAM_SNAPSHOT_TTL_SECONDS,
+                            )
+                        except Exception as snapshot_error:
+                            logger.debug(
+                                f"AI Stream Listener: Failed to cache stream snapshot for chat {chat_id_from_payload}: {snapshot_error}"
+                            )
+
                     logger.debug(f"AI Stream Listener: Received '{event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}), chat_id {chat_id_from_payload} from Redis channel '{redis_channel_name}'. Processing for selective forwarding.")
                     logger.debug(
                         "AI Stream Listener: Redis payload summary: "
@@ -717,6 +747,11 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     # WebSocket.send_json() is fast (just queues in buffer), so we can await it
                     # but we process all devices in parallel to avoid sequential delays
                     for device_hash, websocket_conn in user_connections.items():
+                        if not manager.is_connection_completion_capable(user_id_uuid, device_hash):
+                            logger.debug(
+                                f"AI Stream Listener: Skipping backgrounded/non-completion-capable device {user_id_uuid}/{device_hash}."
+                            )
+                            continue
                         active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
                         
                         if chat_id_from_payload == active_chat_on_device:
@@ -811,10 +846,10 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     was_interrupted = redis_payload.get("interrupted_by_revocation", False)
                     
                     if is_final_marker and not redis_payload.get("external_request") and not was_interrupted:
-                        # Check if user has ANY active connections
-                        if not manager.is_user_active(user_id_uuid):
-                            # User appears offline - spawn background task to retry and send email
-                            # Also queues the AI response for pending delivery on reconnect (60-day TTL)
+                        # Notify unless a foreground client is visibly viewing this chat.
+                        # A hidden/background tab may keep its WebSocket open, but it
+                        # should not suppress iOS/browser push for completed work.
+                        if not manager.has_foreground_connection_for_chat(user_id_uuid, chat_id_from_payload):
                             asyncio.create_task(
                                 _check_user_offline_and_send_email(
                                     app=app,
@@ -2320,6 +2355,17 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     active_chat_id=active_chat_id,
                     user_otel_attrs=user_otel_attrs,
+                )
+            elif message_type == "native_client_lifecycle":
+                is_foreground = bool(payload.get("is_foreground", True))
+                manager.set_connection_foreground(user_id, device_fingerprint_hash, is_foreground)
+                await manager.send_personal_message(
+                    {
+                        "type": "native_client_lifecycle_ack",
+                        "payload": {"is_foreground": is_foreground},
+                    },
+                    user_id,
+                    device_fingerprint_hash,
                 )
             elif message_type == "cancel_ai_task":
                 await handle_cancel_ai_task(

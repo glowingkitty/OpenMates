@@ -215,6 +215,44 @@ async function waitForPdfUploadEmbedFinished(
 	logCheckpoint('PDF upload embed reached status=finished.');
 }
 
+async function waitForLocalEmbedStoreEntry(
+	page: any,
+	embedId: string,
+	logCheckpoint: (msg: string) => void
+): Promise<void> {
+	await expect
+		.poll(
+			async () =>
+				page.evaluate(async (id: string) => {
+					return new Promise<boolean>((resolve) => {
+						const request = indexedDB.open('chats_db');
+						request.onerror = () => resolve(false);
+						request.onsuccess = () => {
+							const db = request.result;
+							if (!db.objectStoreNames.contains('embeds')) {
+								db.close();
+								resolve(false);
+								return;
+							}
+							const transaction = db.transaction('embeds', 'readonly');
+							const getRequest = transaction.objectStore('embeds').get(`embed:${id}`);
+							getRequest.onerror = () => {
+								db.close();
+								resolve(false);
+							};
+							getRequest.onsuccess = () => {
+								db.close();
+								resolve(Boolean(getRequest.result));
+							};
+						};
+					});
+				}, embedId),
+			{ timeout: 60000, intervals: [1000] }
+		)
+		.toBe(true);
+	logCheckpoint(`Local EmbedStore row ready for PDF embed ${embedId}.`);
+}
+
 /**
  * Assert PDF embed structure in a sent message (user-side, read mode).
  * The embed renders as:
@@ -412,6 +450,17 @@ test('pdf: upload, AI reads and answers, embeds persist through reload and relog
 		.isVisible({ timeout: 5000 })
 		.catch(() => false);
 	log(`Editor preview image visible: ${editorPreviewVisible} (TOON may still be in transit)`);
+
+	// The send path requires the embed payload to be resolvable from the local
+	// EmbedStore. The UI status/title can flip to finished before that IDB row is
+	// available, so wait for the exact key sendersChatMessages resolves.
+	const uploadedEmbedId = await editorEmbedWrapper
+		.first()
+		.locator('[data-embed-id]')
+		.first()
+		.getAttribute('data-embed-id');
+	expect(uploadedEmbedId, 'PDF upload embed id should be present before send').toBeTruthy();
+	await waitForLocalEmbedStoreEntry(page, uploadedEmbedId!, log);
 
 	log('PDF upload embed verified in editor: filename and page count present.');
 	await screenshot(page, '03-pdf-embed-verified');

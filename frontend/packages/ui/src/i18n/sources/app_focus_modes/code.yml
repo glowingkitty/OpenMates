@@ -365,11 +365,51 @@ explain_project.description:
 project_planner:
   context: Focus mode name for project planner
   en: Project planner
+  de: Projektplaner
+  zh: 项目规划器
+  es: Planificador de proyectos
+  fr: Planificateur de projet
+  pt: Planejador de projetos
+  ru: Планировщик проекта
+  ja: プロジェクトプランナー
+  ko: 프로젝트 플래너
+  it: Pianificatore di progetto
+  tr: Proje planlayıcı
+  vi: Trình lập kế hoạch dự án
+  id: Perencana proyek
+  pl: Planer projektu
+  nl: Projectplanner
+  ar: مخطط المشاريع
+  hi: प्रोजेक्ट प्लानर
+  th: นักวางแผนโปรเจกต์
+  cs: Plánovač projektu
+  sv: Projektplanerare
+  he: מתכנן פרויקטים
   verified_by_human:
     - en
 project_planner.description:
   context: Description for project planner focus mode
   en: Turn coding ideas into scoped plans, tasks, acceptance criteria, and verification steps.
+  de: Verwandle Coding-Ideen in abgegrenzte Pläne, Aufgaben, Akzeptanzkriterien und Verifizierungsschritte.
+  zh: 将编码想法转化为有范围的计划、任务、验收标准和验证步骤。
+  es: Convierte ideas de programación en planes acotados, tareas, criterios de aceptación y pasos de verificación.
+  fr: Transformez des idées de code en plans cadrés, tâches, critères d'acceptation et étapes de vérification.
+  pt: Transforme ideias de programação em planos delimitados, tarefas, critérios de aceitação e etapas de verificação.
+  ru: Превращайте идеи для кода в ограниченные по объёму планы, задачи, критерии приёмки и шаги проверки.
+  ja: コーディングのアイデアを、範囲を定めた計画、タスク、受け入れ基準、検証手順に変換します。
+  ko: 코딩 아이디어를 범위가 정해진 계획, 작업, 승인 기준, 검증 단계로 바꾸세요.
+  it: Trasforma idee di programmazione in piani con ambito definito, attività, criteri di accettazione e passaggi di verifica.
+  tr: Kodlama fikirlerini kapsamı belirlenmiş planlara, görevlere, kabul kriterlerine ve doğrulama adımlarına dönüştürün.
+  vi: Biến ý tưởng lập trình thành kế hoạch có phạm vi, nhiệm vụ, tiêu chí chấp nhận và các bước xác minh.
+  id: Ubah ide coding menjadi rencana terarah, tugas, kriteria penerimaan, dan langkah verifikasi.
+  pl: Zamieniaj pomysły programistyczne w określone zakresowo plany, zadania, kryteria akceptacji i kroki weryfikacji.
+  nl: Zet code-ideeën om in afgebakende plannen, taken, acceptatiecriteria en verificatiestappen.
+  ar: حوّل أفكار البرمجة إلى خطط محددة النطاق ومهام ومعايير قبول وخطوات تحقق.
+  hi: कोडिंग विचारों को स्पष्ट दायरे वाली योजनाओं, कार्यों, स्वीकृति मानदंडों और सत्यापन चरणों में बदलें।
+  th: เปลี่ยนไอเดียการเขียนโค้ดให้เป็นแผนที่มีขอบเขต งาน เกณฑ์การยอมรับ และขั้นตอนการตรวจสอบ
+  cs: Převádějte nápady na kód do ohraničených plánů, úkolů, akceptačních kritérií a ověřovacích kroků.
+  sv: Gör om kodidéer till avgränsade planer, uppgifter, acceptanskriterier och verifieringssteg.
+  he: הפיכת רעיונות קוד לתוכניות מוגדרות, משימות, קריטריוני קבלה ושלבי אימות.
   verified_by_human:
     - en
 research_solutions:
@@ -531,11 +571,51 @@ setup_infrastructure.description:
 learn_by_building:
   context: Focus mode name for learn by building
   en: Learn by building
+  de: Durch Bauen lernen
+  zh: 边做边学
+  es: Aprender construyendo
+  fr: Apprendre en construisant
+  pt: Aprender construindo
+  ru: Учиться через создание
+  ja: 作りながら学ぶ
+  ko: 만들며 배우기
+  it: Impara costruendo
+  tr: Yaparak öğren
+  vi: Học bằng cách xây dựng
+  id: Belajar dengan membangun
+  pl: Ucz się przez budowanie
+  nl: Leren door te bouwen
+  ar: تعلم بالبناء
+  hi: बनाकर सीखें
+  th: เรียนรู้ด้วยการสร้าง
+  cs: Učit se tvorbou
+  sv: Lär genom att bygga
+  he: למידה דרך בנייה
   verified_by_human:
     - en
 learn_by_building.description:
   context: Description for learn by building focus mode
   en: Learn a programming topic through a small real project with guided checkpoints.
+  de: Lerne ein Programmierthema mit einem kleinen echten Projekt und angeleiteten Checkpoints.
+  zh: 通过一个带引导检查点的小型真实项目学习编程主题。
+  es: Aprende un tema de programación mediante un pequeño proyecto real con puntos de control guiados.
+  fr: Apprenez un sujet de programmation avec un petit projet réel et des points de contrôle guidés.
+  pt: Aprenda um tema de programação por meio de um pequeno projeto real com checkpoints guiados.
+  ru: Изучайте тему программирования через небольшой реальный проект с направляющими контрольными точками.
+  ja: ガイド付きチェックポイントのある小さな実プロジェクトを通じて、プログラミングのトピックを学びます。
+  ko: 안내 체크포인트가 있는 작은 실제 프로젝트를 통해 프로그래밍 주제를 배우세요.
+  it: Impara un argomento di programmazione con un piccolo progetto reale e checkpoint guidati.
+  tr: Rehberli kontrol noktaları olan küçük, gerçek bir projeyle bir programlama konusunu öğrenin.
+  vi: Học một chủ đề lập trình thông qua một dự án thực tế nhỏ với các điểm kiểm tra được hướng dẫn.
+  id: Pelajari topik pemrograman melalui proyek nyata kecil dengan checkpoint terpandu.
+  pl: Ucz się tematu programistycznego przez mały realny projekt z prowadzonymi punktami kontrolnymi.
+  nl: Leer een programmeeronderwerp via een klein echt project met begeleide checkpoints.
+  ar: تعلّم موضوعًا برمجيًا من خلال مشروع حقيقي صغير مع نقاط تحقق موجهة.
+  hi: निर्देशित चेकपॉइंट्स वाले छोटे वास्तविक प्रोजेक्ट के माध्यम से प्रोग्रामिंग विषय सीखें।
+  th: เรียนรู้หัวข้อการเขียนโปรแกรมผ่านโปรเจกต์จริงขนาดเล็กพร้อมจุดตรวจแบบมีคำแนะนำ
+  cs: Naučte se programovací téma prostřednictvím malého reálného projektu s vedenými kontrolními body.
+  sv: Lär dig ett programmeringsämne genom ett litet verkligt projekt med guidade kontrollpunkter.
+  he: לימוד נושא בתכנות דרך פרויקט אמיתי קטן עם נקודות בדיקה מודרכות.
   verified_by_human:
     - en
 refactor_code:

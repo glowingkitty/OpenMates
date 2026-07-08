@@ -1,0 +1,325 @@
+id: apple-sync-decryption-performance
+title: Apple Sync Decryption Performance Parity
+status: approved
+
+goal: >
+  Make Apple logged-in startup and chat-list sync match the web app's bounded
+  decryption model so encrypted sync does not block first useful shell render or
+  WebSocket startup. Apple should decrypt only the startup-critical metadata set
+  eagerly, store encrypted sync content without message decryption, and defer or
+  cache broader metadata decryption just like the web app.
+
+scope:
+  in:
+    - Apple authenticated startup ordering for offline cache load, metadata decrypt, and WebSocket connect.
+    - Apple REST fallback/recovery metadata decryption scope.
+    - Apple deterministic performance tests for large logged-in-like chat lists and chat opening.
+    - Parity with web Phase 1a bounded metadata decrypt and Phase 1b encrypted-content storage.
+  out:
+    - Changing encryption algorithms, key formats, server payloads, or Directus schema.
+    - Changing web sync behavior.
+    - Real-account credential setup on the remote Mac.
+
+context_discovery:
+  github_issues:
+    - "none: gh issue list --repo glowingkitty/OpenMates --search 'ios sync decryption performance' returned no matches"
+  docs:
+    - docs/architecture/apple/sync-parity.md
+    - docs/architecture/data/sync.md
+    - docs/architecture/phased_sync_handler.md
+    - docs/specs/apple-chat-opening-parity/spec.yml
+  code_patterns:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatMetadataCache.ts
+    - frontend/packages/ui/src/stores/phasedSyncStateStore.ts
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+  tests:
+    - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+    - apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+  parity_expectations:
+    - Apple startup must connect WebSocket before broad offline metadata decryption work.
+    - Apple must eagerly decrypt only the selected, last-opened, pinned, and initially visible chat metadata set, not every synced/restored chat.
+    - Apple Phase 1b/content sync must continue to store encrypted messages/embeds without message decryption during sync.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py sync-repo --branch dev
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatOpeningScalabilityUITests"
+  intentional_native_differences:
+    - Apple may persist native offline cache content, but startup-visible decryption must remain bounded and user-scoped.
+
+clarification:
+  rounds:
+    - question: Should Apple allow visible sidebar metadata to decrypt shortly after initial shell/WebSocket startup if fallback labels are briefly visible?
+      answer: The user asked how web handles this; web bounds Phase 1a metadata decrypt, stores encrypted content without message decrypt during sync, and lazily caches broader metadata.
+  vision_summary: >
+    The fix should mirror web rather than invent Apple-specific behavior: keep first useful startup bounded, connect sync promptly, decrypt only startup-critical metadata eagerly, and avoid broad REST fallback decryption. Encrypted content remains encrypted at rest and in sync; message/content decrypt stays on chat open or explicit need.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Authenticated Apple startup connects before broad metadata decrypt
+    given:
+      - A user has an offline cache with many encrypted chats.
+      - The app is launching into an authenticated session.
+    when:
+      - Apple bootstraps the authenticated runtime.
+    then:
+      - The WebSocket connect path is started before deferred sidebar metadata decrypt work.
+      - Only startup-visible metadata is decrypted eagerly.
+      - The shell can render while non-visible metadata remains encrypted.
+
+  - id: S-2
+    title: REST fallback does not decrypt all chats eagerly
+    given:
+      - WebSocket startup is delayed or missing local user chats.
+    when:
+      - Apple runs REST fallback or recovery loading.
+    then:
+      - Loaded chats are upserted without forcing all metadata to decrypt.
+      - Visible/initial chats may decrypt for display.
+      - Non-visible chats remain encrypted until displayed, searched, or explicitly indexed.
+
+  - id: S-3
+    title: Phase content sync remains encrypted during sync
+    given:
+      - Apple receives Phase 1b or background message sync payloads.
+    when:
+      - The payload includes encrypted messages, embeds, and embed keys.
+    then:
+      - Apple persists/applies encrypted content without message body decryption during sync.
+      - Message decryption happens when opening/rendering the chat window.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Authenticated bootstrap no longer awaits visible metadata decrypt before calling WebSocket connect.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UI-001
+      - T-STATIC-001
+
+  - id: AC-2
+    scenario: S-2
+    text: Default REST fallback/recovery chat loads use bounded or visible-only metadata decryption, not all-chat metadata decryption.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UI-001
+      - T-STATIC-001
+
+  - id: AC-3
+    scenario: S-3
+    text: Sync content handling continues to log and behave as decrypt=deferred for messages/embeds during Phase 1b/background sync.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-STATIC-001
+
+  - id: AC-4
+    scenario: S-1
+    text: The large shell/sidebar and seeded chat-opening Apple UI tests pass after the fix on the remote iOS simulator.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UI-001
+
+assumptions:
+  - id: A-1
+    text: Existing Apple metadata decrypt failures are safe to retry later when keys become available, matching web chatMetadataCache behavior that does not cache failed decrypts.
+    category: sync
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/services/chatMetadataCache.ts
+        summary: Web skips caching all-null decrypt results and retries later.
+  - id: A-2
+    text: Phase 1b message and embed sync already defers message decryption on Apple.
+    category: sync
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: apple/OpenMates/Sources/App/MainAppView.swift
+        summary: Existing phase1bContent log includes decrypt=deferred and ChatViewModel decrypts visible messages on chat open.
+
+contracts:
+  api:
+    - route: GET /v1/chats
+      request: "existing optional limit/offset query params"
+      response: "encrypted chat metadata records"
+      errors:
+        - Existing API errors remain logged and visible.
+  data:
+    - Chat encrypted fields remain persisted encrypted unless decrypted for in-memory display.
+    - Deferred decrypt must not remove encrypted fields or overwrite local decrypted fields with nil.
+  ui_states:
+    - Shell renders with available demo/public chats and any locally available decrypted metadata.
+    - User-visible encrypted metadata may briefly use existing fallback labels until bounded decrypt completes.
+  privacy_security:
+    - No plaintext message content, encryption keys, auth tokens, cookies, or private identifiers are logged.
+    - Performance diagnostics may include counts, phases, elapsed milliseconds, and redacted chat ID prefixes only.
+
+tests:
+  - id: T-STATIC-001
+    type: manual
+    file: apple/OpenMates/Sources/App/MainAppView.swift
+    command: manual static review of startup/loadInitialData/upsertSyncedChats sync paths
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - bootstrapAuthenticatedSession calls connectWebSocket before deferred metadata decrypt work.
+      - loadInitialData default path does not force metadataDecryption all.
+      - Phase 1b/background content sync keeps decrypt deferred.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "pre-fix static review"
+        timestamp: "2026-07-08"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 -m pytest scripts/tests/test_apple_sync_decryption_performance_contract.py"
+        timestamp: "2026-07-08"
+        summary: "4 passed; existing pytest cache permission warning did not affect test result. Includes guard against O(n^2) sidebar parent lookup."
+
+  - id: T-APPLE-UI-001
+    type: build
+    file: apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatOpeningScalabilityUITests"
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+    assertions:
+      - seeded large chat opens within bounded work.
+      - 1000-message chat captures metrics and input reaction within threshold.
+      - 600-chat shell fixture captures sidebar reaction within threshold.
+    red_phase:
+      required: true
+      expected: pass_uninstrumented_baseline
+      evidence:
+        status: passed_unexpectedly
+        run_id: "remote simulator baseline before product fix"
+        timestamp: "2026-07-07"
+        summary: "Suite passed but shell metrics showed slow startup to metrics around 17s and sidebar reaction around 3s. This baseline motivates the parity fix rather than serving as a failing regression test."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/apple_remote.py test-ios --simulator iPhone 17 --only-testing OpenMatesUITests/ChatOpeningScalabilityUITests"
+        timestamp: "2026-07-08"
+        summary: "Remote iOS simulator passed 3 tests, 0 failures, after syncing to commit 51f45e1."
+
+verifications:
+  - id: V-APPLE-REMOTE-001
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers:
+      - AC-4
+    status: passed
+    evidence:
+      status: passed
+      summary: "Remote iOS simulator passed ChatOpeningScalabilityUITests: 3 tests, 0 failures, after sync to 51f45e1."
+      timestamp: "2026-07-08"
+
+implementation_plan:
+  existing_patterns:
+    - Web Phase 1a bounded metadata decrypt in chatSyncServiceHandlersCoreSync.ts.
+    - Web lazy metadata decrypt/cache in chatMetadataCache.ts.
+    - Apple visible-only metadata decrypt scope in MainAppView.upsertSyncedChats.
+  architecture: >
+    Preserve Apple encryption/key semantics while changing scheduling and breadth.
+    Start WebSocket sync before sidebar metadata decrypt, default REST fallback to
+    visible-only metadata decrypt, and keep sync content decryption deferred.
+  data_flow:
+    - Authenticated runtime loads encrypted offline cache.
+    - WebSocket connect starts promptly with current client sync state.
+    - Visible metadata decrypt runs asynchronously and upserts decrypted display fields.
+    - REST fallback/recovery upserts encrypted metadata, then decrypts only visible chat metadata.
+    - Chat opening decrypts the selected visible message window.
+  affected_files:
+    - path: apple/OpenMates/Sources/App/MainAppView.swift
+      reason: Startup ordering, metadata decryption scope, and large sidebar ordering performance.
+    - path: apple/OpenMatesUITests/ChatOpeningScalabilityUITests.swift
+      reason: Performance regression evidence if thresholds or metrics need refinement.
+    - path: apple/OpenMates/Sources/DevPreview/DevChatOpeningPreviewView.swift
+      reason: Debug-only metrics fixture if more encrypted metadata simulation is needed.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/apple-sync-decryption-performance/spec.yml
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py sync-repo --branch dev
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatOpeningScalabilityUITests"
+  verification_order:
+    - Static source review first for sync/decryption ordering.
+    - Remote Apple UI suite second.
+    - Remote simulator cleanup last.
+
+tasks:
+  - id: TASK-1
+    title: Align Apple startup metadata decrypt scheduling with web
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+    expected_files:
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - scripts/tests/test_apple_sync_decryption_performance_contract.py
+    verification:
+      - T-STATIC-001
+      - T-APPLE-UI-001
+    verification_ids:
+      - T-STATIC-001
+      - T-APPLE-UI-001
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Verify Apple sync content decrypt remains deferred
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-3
+      acceptance_criteria:
+        - AC-3
+    expected_files:
+      - apple/OpenMates/Sources/App/MainAppView.swift
+      - scripts/tests/test_apple_sync_decryption_performance_contract.py
+    verification:
+      - T-STATIC-001
+    verification_ids:
+      - T-STATIC-001
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true

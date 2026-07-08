@@ -205,6 +205,9 @@ export const privacyPolicyLinks = {
   doctolib: "https://www.doctolib.de/terms/privacy",
   jameda: "https://www.jameda.de/datenschutz/",
 
+  // Group I2 — Fitness
+  urbanSportsClub: "https://urbansportsclub.com/en/privacy-policy",
+
   // Group J — Shopping
   rewe: "https://www.rewe.de/service/datenschutz/",
   amazon:

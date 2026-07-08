@@ -12,7 +12,7 @@ Tests the acquire/release lifecycle, verifying that:
 """
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -176,19 +176,43 @@ class TestDedupedTaskOnRetry:
         task = DedupedTask()
         task.name = "test.task"
 
-        with patch(
-            "backend.core.api.app.tasks.base_task.release_celery_task_dedup_lock"
-        ) as mock_release:
-            task.on_retry(
-                exc=RuntimeError("test"),
-                task_id="retry-test-id-005",
-                args=[],
-                kwargs={},
-                einfo=None,
-            )
-            mock_release.assert_called_once_with(
-                "retry-test-id-005", broker_url=None
-            )
+        broker_url = "redis://test-broker:6379/0"
+        with patch("backend.core.api.app.tasks.celery_config.broker_url", broker_url):
+            with patch(
+                "backend.core.api.app.tasks.base_task.release_celery_task_dedup_lock"
+            ) as mock_release:
+                task.on_retry(
+                    exc=RuntimeError("test"),
+                    task_id="retry-test-id-005",
+                    args=[],
+                    kwargs={},
+                    einfo=None,
+                )
+                mock_release.assert_called_once_with(
+                    "retry-test-id-005", broker_url=broker_url
+                )
+
+    def test_on_retry_calls_release_without_configured_broker(self):
+        """on_retry should still release via env fallback when config broker is absent."""
+        from backend.core.api.app.tasks.base_task import DedupedTask
+
+        task = DedupedTask()
+        task.name = "test.task"
+
+        with patch("backend.core.api.app.tasks.celery_config.broker_url", None):
+            with patch(
+                "backend.core.api.app.tasks.base_task.release_celery_task_dedup_lock"
+            ) as mock_release:
+                task.on_retry(
+                    exc=RuntimeError("test"),
+                    task_id="retry-test-id-005",
+                    args=[],
+                    kwargs={},
+                    einfo=None,
+                )
+                mock_release.assert_called_once_with(
+                    "retry-test-id-005", broker_url=None
+                )
 
     def test_on_retry_skipped_when_dedup_disabled(self):
         """on_retry should NOT release lock when dedup_enabled=False."""

@@ -53,6 +53,7 @@ chat:
   sv: Chatt
   # Notifications submenu (becomes settings.chat.notifications.text)
   he: "צ'אט"
+  verified_by_human: []
 notifications:
   context: Notifications submenu title
   en: Notifications
@@ -76,6 +77,7 @@ notifications:
   cs: Oznámení
   sv: Aviseringar
   he: התראות
+  verified_by_human: []
 ai_app_settings:
   context: Link title in chat settings that opens the AI app settings page
   en: AI App Settings
@@ -99,6 +101,7 @@ ai_app_settings:
   cs: Nastavení AI aplikace
   sv: AI-appinställningar
   he: הגדרות אפליקציית AI
+  verified_by_human: []
 ai_app_settings_info:
   context: Helper text for AI app settings link explaining where to find more chat preferences
   en: Find more chat preferences in AI app settings
@@ -122,6 +125,7 @@ ai_app_settings_info:
   cs: Najděte další předvolby chatu v nastavení aplikace AI
   sv: Hitta fler chattinställningar i AI-appinställningar
   he: אפשר למצוא העדפות צ'אט נוספות בהגדרות אפליקציית ה-AI
+  verified_by_human: []
 notifications.enabled:
   context: Status text when notifications are enabled
   en: Enabled
@@ -145,6 +149,7 @@ notifications.enabled:
   cs: Povoleno
   sv: Aktiverat
   he: פעיל
+  verified_by_human: []
 notifications.disabled:
   context: Status text when notifications are disabled
   en: Disabled
@@ -168,6 +173,7 @@ notifications.disabled:
   cs: Zakázáno
   sv: Inaktiverat
   he: מושבת
+  verified_by_human: []
 notifications.blocked:
   context: Status text when notifications are blocked by browser
   en: Blocked by browser
@@ -191,6 +197,7 @@ notifications.blocked:
   cs: Blokováno prohlížečem
   sv: Blockerat av webbläsaren
   he: חסום על ידי הדפדפן
+  verified_by_human: []
 notifications.enable:
   context: Push notifications toggle title
   en: Push Notifications
@@ -214,6 +221,7 @@ notifications.enable:
   cs: Push oznámení
   sv: Push-aviseringar
   he: התראות Push
+  verified_by_human: []
 notifications.permission_granted:
   context: Permission status when granted
   en: Permission granted
@@ -237,6 +245,7 @@ notifications.permission_granted:
   cs: Oprávnění uděleno
   sv: Behörighet beviljad
   he: ניתנה הרשאה
+  verified_by_human: []
 notifications.permission_denied:
   context: Permission status when denied
   en: Permission denied in browser settings
@@ -260,6 +269,7 @@ notifications.permission_denied:
   cs: Oprávnění zamítnuto v nastavení prohlížeče
   sv: Behörighet nekad i webbläsarinställningar
   he: ההרשאה נדחתה בהגדרות הדפדפן
+  verified_by_human: []
 notifications.permission_default:
   context: Permission status when not yet requested
   en: Permission not yet requested
@@ -283,6 +293,7 @@ notifications.permission_default:
   cs: Oprávnění dosud nepožádáno
   sv: Behörighet ännu inte begärd
   he: טרם התבקשה הרשאה
+  verified_by_human: []
 notifications.not_supported:
   context: Warning when push notifications are not supported
   en: Push notifications are not supported on this browser or device.
@@ -306,6 +317,7 @@ notifications.not_supported:
   cs: Push oznámení nejsou v tomto prohlížeči nebo zařízení podporována.
   sv: Push-aviseringar stöds inte på den här webbläsaren eller enheten.
   he: התראות Push אינן נתמכות בדפדפן או במכשיר זה.
+  verified_by_human: []
 notifications.pwa_install_title:
   context: Title shown on iOS Safari when push requires PWA installation
   en: Add to Home Screen to Enable Notifications
@@ -329,6 +341,7 @@ notifications.pwa_install_title:
   cs: Přidejte na domovskou obrazovku pro povolení oznámení
   sv: Lägg till på startskärmen för att aktivera aviseringar
   he: הוספה למסך הבית כדי להפעיל התראות
+  verified_by_human: []
 notifications.pwa_install_desc:
   context: Description explaining why PWA installation is needed for push notifications
   en: "Push notifications require the app to be installed on your device. Follow these steps:"
@@ -352,6 +365,7 @@ notifications.pwa_install_desc:
   cs: "Push oznámení vyžadují instalaci aplikace na vašem zařízení. Postupujte podle těchto kroků:"
   sv: "Push-aviseringar kräver att appen är installerad på din enhet. Följ dessa steg:"
   he: "התראות Push דורשות שהאפליקציה תהיה מותקנת במכשיר שלך. בצע את השלבים הבאים:"
+  verified_by_human: []
 notifications.denied_info:
   context: Info text when permission is denied
   en: To enable notifications, please allow them in your browser settings and refresh the page.
@@ -375,6 +389,7 @@ notifications.denied_info:
   cs: Chcete-li povolit oznámení, povolte je v nastavení prohlížeče a obnovte stránku.
   sv: För att aktivera aviseringar, tillåt dem i webbläsarinställningarna och uppdatera sidan.
   he: כדי להפעיל התראות, יש לאשר אותן בהגדרות הדפדפן ולרענן את הדף.
+  verified_by_human: []
 notifications.categories:
   context: Section title for notification categories
   en: Notification Types
@@ -398,6 +413,7 @@ notifications.categories:
   cs: Typy oznámení
   sv: Aviseringstyper
   he: סוגי התראות
+  verified_by_human: []
 notifications.new_messages:
   context: New messages notification toggle
   en: New Messages
@@ -421,6 +437,7 @@ notifications.new_messages:
   cs: Nové zprávy
   sv: Nya meddelanden
   he: הודעות חדשות
+  verified_by_human: []
 notifications.new_messages_desc:
   context: Description for new messages notifications
   en: When an assistant completes a response
@@ -444,6 +461,7 @@ notifications.new_messages_desc:
   cs: Když asistent dokončí odpověď
   sv: När en assistent slutför ett svar
   he: כאשר עוזר משלים תגובה
+  verified_by_human: []
 notifications.server_events:
   context: Server events notification toggle
   en: Server Events
@@ -467,6 +485,7 @@ notifications.server_events:
   cs: Události serveru
   sv: Serverhändelser
   he: אירועי שרת
+  verified_by_human: []
 notifications.server_events_desc:
   context: Description for server event notifications
   en: Connection issues and maintenance alerts
@@ -490,6 +509,7 @@ notifications.server_events_desc:
   cs: Problémy s připojením a upozornění na údržbu
   sv: Anslutningsproblem och underhållsaviseringar
   he: בעיות חיבור והתראות תחזוקה
+  verified_by_human: []
 notifications.software_updates:
   context: Software updates notification toggle
   en: Software Updates
@@ -513,6 +533,7 @@ notifications.software_updates:
   cs: Aktualizace softwaru
   sv: Programuppdateringar
   he: עדכוני תוכנה
+  verified_by_human: []
 notifications.software_updates_desc:
   context: Description for software update notifications
   en: When new versions are available
@@ -537,6 +558,7 @@ notifications.software_updates_desc:
   sv: När nya versioner finns tillgängliga
   # Email notifications section
   he: כאשר גרסאות חדשות זמינות
+  verified_by_human: []
 notifications.email_section:
   context: Section title for email notifications
   en: Email Notifications
@@ -560,6 +582,7 @@ notifications.email_section:
   cs: E-mailová oznámení
   sv: E-postaviseringar
   he: התראות באימייל
+  verified_by_human: []
 notifications.email_enable:
   context: Email notifications toggle title
   en: Email Notifications
@@ -583,6 +606,7 @@ notifications.email_enable:
   cs: E-mailová oznámení
   sv: E-postaviseringar
   he: התראות באימייל
+  verified_by_human: []
 notifications.email_enable_desc:
   context: Description for email notifications toggle
   en: Receive emails when you're offline
@@ -606,6 +630,7 @@ notifications.email_enable_desc:
   cs: Dostávejte e-maily, když jste offline
   sv: Ta emot e-post när du är offline
   he: קבלת אימיילים כשאינך מחובר
+  verified_by_human: []
 notifications.email_address:
   context: Email address input label
   en: Notification Email
@@ -629,6 +654,7 @@ notifications.email_address:
   cs: Notifikační e-mail
   sv: Aviserings-e-post
   he: אימייל להתראות
+  verified_by_human: []
 notifications.email_address_placeholder:
   context: Email address input placeholder
   en: Enter email address
@@ -652,6 +678,7 @@ notifications.email_address_placeholder:
   cs: Zadejte e-mailovou adresu
   sv: Ange e-postadress
   he: הזנת כתובת אימייל
+  verified_by_human: []
 notifications.email_address_desc:
   context: Description for notification email field
   en: Where to send notifications (can differ from login email)
@@ -675,6 +702,7 @@ notifications.email_address_desc:
   cs: Kam posílat oznámení (může se lišit od přihlašovacího e-mailu)
   sv: Vart skicka aviseringar (kan skilja sig från inloggnings-e-post)
   he: לאן לשלוח התראות (יכול להיות שונה מאימייל ההתחברות)
+  verified_by_human: []
 notifications.email_ai_responses:
   context: AI responses notification toggle
   en: AI Responses
@@ -698,6 +726,7 @@ notifications.email_ai_responses:
   cs: Odpovědi AI
   sv: AI-svar
   he: תגובות בינה מלאכותית
+  verified_by_human: []
 notifications.email_ai_responses_desc:
   context: Description for AI responses email notifications
   en: When an assistant completes a response while you're away
@@ -721,6 +750,7 @@ notifications.email_ai_responses_desc:
   cs: Když asistent dokončí odpověď během vaší nepřítomnosti
   sv: När en assistent slutför ett svar medan du är borta
   he: כאשר עוזר משלים תגובה בזמן שאינך נמצא
+  verified_by_human: []
 notifications.email_how_it_works:
   context: Info banner explaining how email notifications work
   en: Email notifications are only sent when you're not actively using OpenMates on any device.
@@ -744,6 +774,7 @@ notifications.email_how_it_works:
   cs: E-mailová oznámení se odesílají pouze tehdy, když aktivně nepoužíváte OpenMates na žádném zařízení.
   sv: E-postaviseringar skickas bara när du inte aktivt använder OpenMates på någon enhet.
   he: התראות באימייל נשלחות רק כשאינך משתמש באופן פעיל ב-OpenMates באף מכשיר.
+  verified_by_human: []
 notifications.email_invalid:
   context: Error message for invalid email
   en: Please enter a valid email address
@@ -767,6 +798,7 @@ notifications.email_invalid:
   cs: Zadejte prosím platnou e-mailovou adresu
   sv: Ange en giltig e-postadress
   he: נא להזין כתובת אימייל תקינה
+  verified_by_human: []
 notifications.email_saving:
   context: Status text while saving email settings
   en: Saving...
@@ -791,6 +823,7 @@ notifications.email_saving:
   sv: Sparar...
   he: שומר...
 
+  verified_by_human: []
 notifications.email_webhooks:
   context: Toggle label for webhook chat email notifications
   en: Webhook Chats
@@ -815,6 +848,7 @@ notifications.email_webhooks:
   sv: Webhook-chattar
   he: שיחות Webhook
 
+  verified_by_human: []
 notifications.email_webhooks_desc:
   context: Description for webhook chat email notifications
   en: When an incoming webhook creates a new chat while you're away
@@ -838,3 +872,4 @@ notifications.email_webhooks_desc:
   cs: Když příchozí webhook vytvoří nový chat během vaší nepřítomnosti
   sv: När ett inkommande webhook skapar en ny chatt medan du är borta
   he: כאשר webhook נכנס יוצר שיחה חדשה בזמן שאינך נמצא
+  verified_by_human: []

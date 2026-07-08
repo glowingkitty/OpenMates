@@ -31,6 +31,7 @@ describe("resolveIconName", () => {
     ["code", "coding"],
     ["books", "book"],
     ["events", "event"],
+    ["images", "image"],
   ])(
     "resolves app ID '%s' to SVG filename '%s'",
     (appId, expectedSvg) => {

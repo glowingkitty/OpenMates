@@ -34,6 +34,10 @@ from backend.core.api.app.services.api_key_authorization import (
     ApiKeyBudgetError,
     ApiKeyScopeError,
 )
+from backend.core.api.app.utils.api_key_auth import (
+    ApiKeyNotFoundError,
+    DeviceNotApprovedError,
+)
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 
 # Import comprehensive ASCII smuggling sanitization
@@ -62,6 +66,18 @@ DEFAULT_APP_INTERNAL_PORT = 8000
 # Internal API base URL for billing
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
+APPLE_DEVICE_CLIENTS = {"ios", "macos", "apple"}
+
+
+def _apple_session_device_hash(request: Request, user_id: str) -> Optional[str]:
+    user_agent = request.headers.get("User-Agent", "")
+    client = request.headers.get("X-OpenMates-Client", "").lower().strip()
+    bundle_id = request.headers.get("X-OpenMates-Bundle-ID", "").strip()
+    if not user_agent.startswith("OpenMates-Apple/") or client not in APPLE_DEVICE_CLIENTS or not bundle_id:
+        return None
+
+    fingerprint = hashlib.sha256(f"{user_id}:{client}:{bundle_id}".encode()).hexdigest()
+    return f"apple-{client}:{fingerprint}"
 
 
 # Request/Response models
@@ -185,16 +201,19 @@ async def get_session_or_api_key_info(
                 response=response,
                 request=request,
             )
-            # Detect CLI callers by User-Agent and generate a device_hash so
-            # usage entries are trackable in the API/device usage tab.
-            # CLI sends: "OpenMates CLI/0.1 (linux ...)"
+            # Detect CLI/Apple callers and generate a device_hash so session-auth
+            # app-skill usage is trackable in the API/device usage tab.
+            # CLI sends: "OpenMates CLI/0.1 (linux ...)".
             user_agent = request.headers.get("User-Agent", "")
             device_hash = None
             is_cli = user_agent.lower().startswith("openmates cli") or user_agent.lower().startswith("openmates-cli")
             if is_cli:
-                import hashlib
                 device_hash = hashlib.sha256(user_agent.encode()).hexdigest()
                 logger.debug(f"CLI request detected, device_hash: {device_hash[:8]}...")
+            else:
+                device_hash = _apple_session_device_hash(request, user.id)
+                if device_hash:
+                    logger.debug("Apple session request detected for app-skill usage attribution")
             return {
                 "user_id": user.id,
                 "api_key_encrypted_name": "",
@@ -215,8 +234,10 @@ async def get_session_or_api_key_info(
             api_key = auth_header[7:]
             user_info = await api_key_auth_service.authenticate_api_key(api_key, request=request)
             return user_info  # already the correct Dict shape
-        except Exception:
-            pass  # API key invalid — fall through to 401
+        except DeviceNotApprovedError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except ApiKeyNotFoundError as exc:
+            raise HTTPException(status_code=401, detail=str(exc)) from exc
 
     raise HTTPException(status_code=401, detail="Not authenticated: provide a session cookie or API key")
 
@@ -736,7 +757,8 @@ async def call_app_skill(
     skill_id: str,
     input_data: Dict[str, Any],
     parameters: Dict[str, Any],
-    user_info: Dict[str, Any]
+    user_info: Dict[str, Any],
+    enforce_rest_exposure_policy: bool = True,
 ) -> Dict[str, Any]:
     """
     Dispatch a REST-API skill call via the in-process SkillRegistry.
@@ -749,11 +771,16 @@ async def call_app_skill(
     processing. ASCII smuggling uses invisible Unicode characters to embed
     hidden instructions that bypass prompt injection detection but are
     processed by LLMs. See: docs/architecture/prompt_injection_protection.md
+
+    ``enforce_rest_exposure_policy`` must stay enabled for generic REST/API-key
+    handlers. Custom session-mediated routes may disable it when app.yml already
+    hides the generic POST endpoint and the route performs its own auth checks.
     """
     from backend.core.api.app.services.skill_registry import get_global_registry
 
     registry = get_global_registry()
-    assert_rest_skill_execution_allowed(registry, app_id, skill_id)
+    if enforce_rest_exposure_policy:
+        assert_rest_skill_execution_allowed(registry, app_id, skill_id)
     api_key_hash = user_info.get("api_key_hash")
     if api_key_hash:
         try:
@@ -1906,6 +1933,9 @@ def _register_audio_custom_routes(app: FastAPI, app_name: str) -> None:
                 input_data=request_body,
                 parameters={},
                 user_info=user_info,
+                # Keep generic REST POST hidden while allowing this authenticated
+                # custom route to reach the transcription skill.
+                enforce_rest_exposure_policy=False,
             )
 
             return SkillResponse(

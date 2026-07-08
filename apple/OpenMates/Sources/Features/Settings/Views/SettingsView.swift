@@ -213,23 +213,28 @@ struct SettingsView: View {
     var onClose: (() -> Void)?
     var onOpenExampleChat: ((String) -> Void)?
     var reportIssuePrefill: ReportIssuePrefill?
+    var referralCodeRequest: Int
     @State private var showIncognitoInfo = false
     @State private var destination: SettingsDestination?
     @State private var activeReportIssuePrefill: ReportIssuePrefill?
+    @State private var activeReferralCodeRequest: Int
     @State private var navigationDirection: SettingsNavigationDirection = .forward
     @State private var homeScrollTop: CGFloat = 0
     @State private var destinationScrollTop: CGFloat = 0
 
     init(
         reportIssuePrefill: ReportIssuePrefill? = nil,
+        referralCodeRequest: Int = 0,
         onClose: (() -> Void)? = nil,
         onOpenExampleChat: ((String) -> Void)? = nil
     ) {
         self.reportIssuePrefill = reportIssuePrefill
+        self.referralCodeRequest = referralCodeRequest
         self.onClose = onClose
         self.onOpenExampleChat = onOpenExampleChat
-        _destination = State(initialValue: reportIssuePrefill == nil ? nil : .reportIssue)
+        _destination = State(initialValue: reportIssuePrefill == nil ? (referralCodeRequest > 0 ? .billing : nil) : .reportIssue)
         _activeReportIssuePrefill = State(initialValue: reportIssuePrefill)
+        _activeReferralCodeRequest = State(initialValue: referralCodeRequest)
     }
 
     private var isAuthenticated: Bool { authManager.currentUser != nil || AccountSettingsUITestFixture.enabled }
@@ -263,6 +268,11 @@ struct SettingsView: View {
             guard let newPrefill else { return }
             activeReportIssuePrefill = newPrefill
             navigateTo(.reportIssue)
+        }
+        .onChange(of: referralCodeRequest) { _, newValue in
+            guard newValue != activeReferralCodeRequest else { return }
+            activeReferralCodeRequest = newValue
+            navigateTo(.billing)
         }
     }
 
@@ -536,7 +546,10 @@ struct SettingsView: View {
         case .apps:
             SettingsAppsFullView(onOpenExampleChat: onOpenExampleChat ?? { _ in })
         default:
-            destination.view(reportIssuePrefill: activeReportIssuePrefill)
+            destination.view(
+                reportIssuePrefill: activeReportIssuePrefill,
+                referralCodeRequest: activeReferralCodeRequest
+            )
         }
     }
 
@@ -758,7 +771,10 @@ struct SettingsView: View {
         }
 
         @ViewBuilder
-        func view(reportIssuePrefill: ReportIssuePrefill? = nil) -> some View {
+        func view(
+            reportIssuePrefill: ReportIssuePrefill? = nil,
+            referralCodeRequest: Int = 0
+        ) -> some View {
             switch self {
             case .pricing: SettingsPricingView()
             case .ai: SettingsAIFullView()
@@ -766,7 +782,7 @@ struct SettingsView: View {
             case .apps: SettingsAppsFullView()
             case .privacy: SettingsPrivacySubPage()
             case .mates: SettingsMatesView()
-            case .billing: SettingsBillingView()
+            case .billing: SettingsBillingView(referralCodeRequest: referralCodeRequest)
             case .notifications: SettingsNotificationsView()
             case .shared: SettingsSharedView()
             case .interface: SettingsInterfaceSubPage()
@@ -1047,6 +1063,7 @@ struct SettingsInterfaceSubPage: View {
                             .contentShape(RoundedRectangle(cornerRadius: .radius7))
                     }
                     .buttonStyle(.plain)
+                    .help(Text(AppStrings.back))
                     .accessibilityLabel(AppStrings.back)
                     .accessibilityIdentifier(dest.backAccessibilityIdentifier)
                     Text(dest.title)
@@ -1420,28 +1437,7 @@ enum InterestTagId: String, CaseIterable, Codable, Hashable {
     }
 
     var labelKey: String {
-        switch self {
-        case .privacy, .learning, .writing, .findEvents, .findRestaurant, .findDoctorAppointments,
-             .plotCharts, .videoTutorials, .findApartments, .buildElectronics, .diyProjects,
-             .createVideos, .findTravelConnections, .planTrips, .discussNews, .discussVideos, .runCode:
-            return "chat.interests.\(rawValue)"
-        case .softwareDevelopment: return "mates.software_development"
-        case .businessDevelopment: return "mates.business_development"
-        case .lifeCoachPsychology: return "mates.life_coach_psychology"
-        case .medicalHealth: return "mates.medical_health"
-        case .legalLaw: return "mates.legal_law"
-        case .finance: return "mates.finance"
-        case .design: return "mates.design"
-        case .marketingSales: return "mates.marketing_sales"
-        case .science: return "mates.science"
-        case .history: return "mates.history"
-        case .cookingFood: return "mates.cooking_food"
-        case .electricalEngineering: return "mates.electrical_engineering"
-        case .makerPrototyping: return "mates.maker_prototyping"
-        case .moviesTv: return "mates.movies_tv"
-        case .activism: return "mates.activism"
-        case .generalKnowledge: return "mates.general_knowledge"
-        }
+        "chat.interests.\(rawValue)"
     }
 
     var icon: String {

@@ -63,6 +63,7 @@ struct HiddenChatsListView: View {
                                         .clipShape(RoundedRectangle(cornerRadius: .radius5))
                                 }
                                 .buttonStyle(.plain)
+                                .help(Text("Unhide \(chat.displayTitle)"))
                                 .accessibilityLabel("Unhide \(chat.displayTitle)")
                             }
                             .padding(.horizontal, .spacing4)

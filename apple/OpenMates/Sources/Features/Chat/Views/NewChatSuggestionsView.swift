@@ -79,6 +79,7 @@ struct NewChatSuggestionsView: View {
                         .padding(.bottom, proxy.size.width <= 730 ? 8 : 14)
                     }
                 }
+                .frame(maxHeight: .infinity, alignment: .bottom)
                 .mask(
                     LinearGradient(
                         stops: [
@@ -115,7 +116,7 @@ struct SuggestionChip: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: .spacing2) {
+            HStack(spacing: width <= 210 ? .spacing4 : .spacing5) {
                 Icon(suggestion.resolvedIconName, size: 27)
                     .foregroundStyle(Color.fontButton)
                     .frame(width: 27, height: 27)
@@ -127,10 +128,10 @@ struct SuggestionChip: View {
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(width: width)
-            .frame(minHeight: 56)
             .padding(.horizontal, width <= 210 ? .spacing6 : .spacing8)
             .padding(.vertical, width <= 210 ? .spacing5 : .spacing6)
+            .frame(width: width)
+            .frame(minHeight: 56)
             .background(AppIconView.gradient(forAppId: suggestion.resolvedAppId))
             .clipShape(RoundedRectangle(cornerRadius: 15))
             .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 4)

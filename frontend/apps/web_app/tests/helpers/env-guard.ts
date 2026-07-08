@@ -10,7 +10,34 @@
 
 export {};
 
-import type { TestType } from '@playwright/test';
+type SkipCapableTest = {
+	skip(condition: boolean, description: string): void;
+};
+
+type FeatureAvailabilityResponse = {
+	disabled?: string[];
+};
+
+type PageWithRequest = {
+	request: {
+		get(url: string): Promise<{
+			ok(): boolean;
+			json(): Promise<FeatureAvailabilityResponse>;
+		}>;
+	};
+};
+
+function deriveApiUrl(baseUrl: string): string {
+	try {
+		const url = new URL(baseUrl);
+		if (url.hostname === 'openmates.org' || url.hostname === 'www.openmates.org') return 'https://api.openmates.org';
+		if (url.hostname.startsWith('app.')) return `${url.protocol}//api.${url.hostname.slice(4)}`;
+		if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return 'http://localhost:8000';
+	} catch (error) {
+		throw new Error(`PLAYWRIGHT_TEST_BASE_URL must be a valid URL when PLAYWRIGHT_TEST_API_URL is unset: ${String(error)}`);
+	}
+	throw new Error(`Cannot derive API URL from PLAYWRIGHT_TEST_BASE_URL=${baseUrl}. Set PLAYWRIGHT_TEST_API_URL explicitly.`);
+}
 
 /**
  * Skip all tests in the current suite if test account credentials are missing.
@@ -23,7 +50,7 @@ import type { TestType } from '@playwright/test';
  *   skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
  */
 function skipWithoutCredentials(
-	t: TestType<any, any>,
+	t: SkipCapableTest,
 	email: string | undefined,
 	password: string | undefined,
 	otpKey: string | undefined
@@ -36,7 +63,7 @@ function skipWithoutCredentials(
  * For signup/email-verification specs that need the Mailosaur service.
  */
 function skipWithoutMailosaur(
-	t: TestType<any, any>,
+	t: SkipCapableTest,
 	mailosaurApiKey: string | undefined,
 	signupDomain?: string | undefined
 ): void {
@@ -46,4 +73,18 @@ function skipWithoutMailosaur(
 	}
 }
 
-module.exports = { skipWithoutCredentials, skipWithoutMailosaur };
+async function skipIfFeaturesDisabled(
+	t: SkipCapableTest,
+	page: PageWithRequest,
+	featureIds: string[]
+): Promise<void> {
+	const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL || deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
+	const response = await page.request.get(`${apiUrl}/v1/features/availability`);
+	if (!response.ok()) return;
+	const availability = await response.json();
+	const disabled = new Set<string>(availability.disabled ?? []);
+	const blocked = featureIds.filter((featureId) => disabled.has(featureId));
+	t.skip(blocked.length > 0, `Feature disabled on this server: ${blocked.join(', ')}`);
+}
+
+module.exports = { skipWithoutCredentials, skipWithoutMailosaur, skipIfFeaturesDisabled };

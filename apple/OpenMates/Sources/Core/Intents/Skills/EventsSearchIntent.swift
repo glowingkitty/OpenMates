@@ -5,7 +5,7 @@ import AppIntents
 import Foundation
 
 struct EventsSearchIntent: AppIntent {
-    static let title: LocalizedStringResource = "Search Events"
+    static let title: LocalizedStringResource = "Events | Search"
     static let description: IntentDescription = "Find events near a location."
     static let openAppWhenRun = false
 

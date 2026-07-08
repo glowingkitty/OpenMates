@@ -1126,6 +1126,7 @@ data_from:
   cs: "Data z {date}"
   sv: "Data från {date}"
   he: "נתונים מ-{date}"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 snippets:
   context: Heading for website/search result snippets in embed fullscreen
   en: Snippets
@@ -1149,6 +1150,7 @@ snippets:
   cs: Úryvky
   sv: Snippets
   he: קטעי מידע
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 via_brave_search:
   context: Source label under snippets in website fullscreen
   en: via Brave Search
@@ -1172,6 +1174,7 @@ via_brave_search:
   cs: přes Brave Search
   sv: via Brave Search
   he: באמצעות Brave Search
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 open_on_youtube:
   context: Button label to open video on YouTube
   en: Open on YouTube
@@ -3607,6 +3610,7 @@ booking_link_example_only:
   cs: Odkazy na rezervaci jsou k dispozici pouze pro skutečné vyhledávání letů. Zaregistruj se a začni nové vyhledávání, abys získal aktuální odkazy na rezervaci.
   sv: Bokningslänkar är endast tillgängliga för riktiga flygsökningar. Registrera dig och starta en ny sökning för att få live-bokningslänkar.
   he: קישורי הזמנה זמינים רק עבור חיפושי טיסות אמיתיים. הירשם והתחל חיפוש חדש כדי לקבל קישורי הזמנה חיים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 stay:
   context: Singular label for a travel stay/accommodation result
   en: stay
@@ -4135,6 +4139,7 @@ pii_hide:
   cs: Skrýt citlivá data
   sv: Dölj känsliga uppgifter
   he: הסתרת נתונים רגישים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 pii_show:
   context: Tooltip/aria-label for the PII toggle button inside a fullscreen embed (code, doc, sheet) when sensitive data is currently hidden — clicking will reveal it
   en: Show sensitive data
@@ -4158,75 +4163,79 @@ pii_show:
   cs: Zobrazit citlivá data
   sv: Visa känsliga uppgifter
   he: הצגת נתונים רגישים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 pii_include_original:
   context: Tooltip/aria-label for the fullscreen embed button that restores original sensitive data into an unsent draft embed so it will be sent without placeholders
   en: Include original sensitive data in this draft embed
-  de: Include original sensitive data in this draft embed
-  zh: Include original sensitive data in this draft embed
-  es: Include original sensitive data in this draft embed
-  fr: Include original sensitive data in this draft embed
-  pt: Include original sensitive data in this draft embed
-  ru: Include original sensitive data in this draft embed
-  ja: Include original sensitive data in this draft embed
-  ko: Include original sensitive data in this draft embed
-  it: Include original sensitive data in this draft embed
-  tr: Include original sensitive data in this draft embed
-  vi: Include original sensitive data in this draft embed
-  id: Include original sensitive data in this draft embed
-  pl: Include original sensitive data in this draft embed
-  nl: Include original sensitive data in this draft embed
-  ar: Include original sensitive data in this draft embed
-  hi: Include original sensitive data in this draft embed
-  th: Include original sensitive data in this draft embed
-  cs: Include original sensitive data in this draft embed
-  sv: Include original sensitive data in this draft embed
-  he: Include original sensitive data in this draft embed
+  de: Ursprüngliche sensible Daten in diesen Entwurfs-Embed einbeziehen
+  zh: 在此草稿 embed 中包含原始敏感数据
+  es: Incluir los datos sensibles originales en este embed de borrador
+  fr: Inclure les données sensibles d'origine dans cet embed brouillon
+  pt: Incluir os dados sensíveis originais neste embed de rascunho
+  ru: Включить исходные конфиденциальные данные в этот черновик embed
+  ja: この下書き embed に元の機密データを含める
+  ko: 이 초안 embed에 원본 민감 데이터를 포함
+  it: Includi i dati sensibili originali in questo embed bozza
+  tr: Bu taslak embed'e özgün hassas verileri dahil et
+  vi: Bao gồm dữ liệu nhạy cảm gốc trong embed nháp này
+  id: Sertakan data sensitif asli dalam embed draf ini
+  pl: Uwzględnij oryginalne dane wrażliwe w tym szkicu embedu
+  nl: Originele gevoelige gegevens opnemen in deze concept-embed
+  ar: تضمين البيانات الحساسة الأصلية في مسودة الـ embed هذه
+  hi: इस ड्राफ्ट embed में मूल संवेदनशील डेटा शामिल करें
+  th: รวมข้อมูลที่ละเอียดอ่อนต้นฉบับใน embed ฉบับร่างนี้
+  cs: Zahrnout původní citlivá data do tohoto konceptu embedu
+  sv: Inkludera ursprungliga känsliga uppgifter i detta utkast-embed
+  he: כלול את הנתונים הרגישים המקוריים ב-embed הטיוטה הזה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 pii_include_original_success:
   context: Toast shown after original sensitive data has been restored into an unsent draft embed; {count} is the number of restored items
   en: Original sensitive data will be included for this draft embed ({count} item(s)).
-  de: Original sensitive data will be included for this draft embed ({count} item(s)).
-  zh: Original sensitive data will be included for this draft embed ({count} item(s)).
-  es: Original sensitive data will be included for this draft embed ({count} item(s)).
-  fr: Original sensitive data will be included for this draft embed ({count} item(s)).
-  pt: Original sensitive data will be included for this draft embed ({count} item(s)).
-  ru: Original sensitive data will be included for this draft embed ({count} item(s)).
-  ja: Original sensitive data will be included for this draft embed ({count} item(s)).
-  ko: Original sensitive data will be included for this draft embed ({count} item(s)).
-  it: Original sensitive data will be included for this draft embed ({count} item(s)).
-  tr: Original sensitive data will be included for this draft embed ({count} item(s)).
-  vi: Original sensitive data will be included for this draft embed ({count} item(s)).
-  id: Original sensitive data will be included for this draft embed ({count} item(s)).
-  pl: Original sensitive data will be included for this draft embed ({count} item(s)).
-  nl: Original sensitive data will be included for this draft embed ({count} item(s)).
-  ar: Original sensitive data will be included for this draft embed ({count} item(s)).
-  hi: Original sensitive data will be included for this draft embed ({count} item(s)).
-  th: Original sensitive data will be included for this draft embed ({count} item(s)).
-  cs: Original sensitive data will be included for this draft embed ({count} item(s)).
-  sv: Original sensitive data will be included for this draft embed ({count} item(s)).
-  he: Original sensitive data will be included for this draft embed ({count} item(s)).
+  de: Die ursprünglichen sensiblen Daten werden für diesen Entwurfs-Embed einbezogen ({count} Element(e)).
+  zh: 此草稿 embed 将包含原始敏感数据（{count} 项）。
+  es: Los datos sensibles originales se incluirán en este embed de borrador ({count} elemento(s)).
+  fr: Les données sensibles d'origine seront incluses dans cet embed brouillon ({count} élément(s)).
+  pt: Os dados sensíveis originais serão incluídos neste embed de rascunho ({count} item(ns)).
+  ru: Исходные конфиденциальные данные будут включены в этот черновик embed ({count} элемент(ов)).
+  ja: この下書き embed には元の機密データが含まれます（{count} 件）。
+  ko: 이 초안 embed에 원본 민감 데이터가 포함됩니다({count}개 항목).
+  it: I dati sensibili originali saranno inclusi in questo embed bozza ({count} elemento/i).
+  tr: Özgün hassas veriler bu taslak embed'e dahil edilecek ({count} öğe).
+  vi: Dữ liệu nhạy cảm gốc sẽ được bao gồm trong embed nháp này ({count} mục).
+  id: Data sensitif asli akan disertakan untuk embed draf ini ({count} item).
+  pl: Oryginalne dane wrażliwe zostaną uwzględnione w tym szkicu embedu ({count} element(y)).
+  nl: Originele gevoelige gegevens worden opgenomen in deze concept-embed ({count} item(s)).
+  ar: سيتم تضمين البيانات الحساسة الأصلية في مسودة الـ embed هذه ({count} عنصرًا).
+  hi: इस ड्राफ्ट embed में मूल संवेदनशील डेटा शामिल किया जाएगा ({count} आइटम)।
+  th: ข้อมูลที่ละเอียดอ่อนต้นฉบับจะถูกรวมใน embed ฉบับร่างนี้ ({count} รายการ)
+  cs: Původní citlivá data budou zahrnuta do tohoto konceptu embedu ({count} položek).
+  sv: Ursprungliga känsliga uppgifter kommer att inkluderas i detta utkast-embed ({count} objekt).
+  he: הנתונים הרגישים המקוריים ייכללו ב-embed הטיוטה הזה ({count} פריטים).
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 pii_include_original_failed:
   context: Toast shown when restoring original sensitive data into an unsent draft embed fails
   en: Could not include original sensitive data for this embed.
-  de: Could not include original sensitive data for this embed.
-  zh: Could not include original sensitive data for this embed.
-  es: Could not include original sensitive data for this embed.
-  fr: Could not include original sensitive data for this embed.
-  pt: Could not include original sensitive data for this embed.
-  ru: Could not include original sensitive data for this embed.
-  ja: Could not include original sensitive data for this embed.
-  ko: Could not include original sensitive data for this embed.
-  it: Could not include original sensitive data for this embed.
-  tr: Could not include original sensitive data for this embed.
-  vi: Could not include original sensitive data for this embed.
-  id: Could not include original sensitive data for this embed.
-  pl: Could not include original sensitive data for this embed.
-  nl: Could not include original sensitive data for this embed.
-  ar: Could not include original sensitive data for this embed.
-  hi: Could not include original sensitive data for this embed.
-  th: Could not include original sensitive data for this embed.
-  cs: Could not include original sensitive data for this embed.
-  sv: Could not include original sensitive data for this embed.
-  he: Could not include original sensitive data for this embed.
+  de: Die ursprünglichen sensiblen Daten konnten für diesen Embed nicht einbezogen werden.
+  zh: 无法为此 embed 包含原始敏感数据。
+  es: No se pudieron incluir los datos sensibles originales en este embed.
+  fr: Impossible d'inclure les données sensibles d'origine dans cet embed.
+  pt: Não foi possível incluir os dados sensíveis originais neste embed.
+  ru: Не удалось включить исходные конфиденциальные данные для этого embed.
+  ja: この embed に元の機密データを含められませんでした。
+  ko: 이 embed에 원본 민감 데이터를 포함할 수 없습니다.
+  it: Impossibile includere i dati sensibili originali per questo embed.
+  tr: Bu embed için özgün hassas veriler dahil edilemedi.
+  vi: Không thể bao gồm dữ liệu nhạy cảm gốc cho embed này.
+  id: Tidak dapat menyertakan data sensitif asli untuk embed ini.
+  pl: Nie udało się uwzględnić oryginalnych danych wrażliwych w tym embedzie.
+  nl: Kon de originele gevoelige gegevens niet opnemen voor deze embed.
+  ar: تعذر تضمين البيانات الحساسة الأصلية في هذا الـ embed.
+  hi: इस embed के लिए मूल संवेदनशील डेटा शामिल नहीं किया जा सका।
+  th: ไม่สามารถรวมข้อมูลที่ละเอียดอ่อนต้นฉบับสำหรับ embed นี้ได้
+  cs: Nepodařilo se zahrnout původní citlivá data pro tento embed.
+  sv: Det gick inte att inkludera ursprungliga känsliga uppgifter för detta embed.
+  he: לא ניתן היה לכלול את הנתונים הרגישים המקוריים עבור ה-embed הזה.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 maps_location:
   context: Maps Location skill label shown in BasicInfosBar
   en: Location
@@ -6499,49 +6508,201 @@ mindmaps.mindmap:
   context: Mind Maps embed label shown in BasicInfosBar
   en: Mind Map
   de: Mindmap
-  verified_by_human: [en, de]
+  zh: 思维导图
+  es: Mapa mental
+  fr: Carte mentale
+  pt: Mapa mental
+  ru: Интеллект-карта
+  ja: マインドマップ
+  ko: 마인드맵
+  it: Mappa mentale
+  tr: Zihin Haritası
+  vi: Sơ đồ tư duy
+  id: Peta Pikiran
+  pl: Mapa myśli
+  nl: Mindmap
+  ar: خريطة ذهنية
+  hi: माइंड मैप
+  th: แผนผังความคิด
+  cs: Myšlenková mapa
+  sv: Tankekarta
+  he: מפת חשיבה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 mindmaps.counts:
   context: "Compact count label for Mind Maps embeds. Replacements: {nodes}, {edges}"
   en: "{nodes} nodes · {edges} edges"
   de: "{nodes} Knoten · {edges} Kanten"
-  verified_by_human: [en, de]
+  zh: "{nodes} 个节点 · {edges} 条边"
+  es: "{nodes} nodos · {edges} conexiones"
+  fr: "{nodes} nœuds · {edges} liens"
+  pt: "{nodes} nós · {edges} arestas"
+  ru: "{nodes} узлов · {edges} связей"
+  ja: "{nodes} ノード · {edges} エッジ"
+  ko: "노드 {nodes}개 · 연결 {edges}개"
+  it: "{nodes} nodi · {edges} collegamenti"
+  tr: "{nodes} düğüm · {edges} bağlantı"
+  vi: "{nodes} nút · {edges} cạnh"
+  id: "{nodes} node · {edges} edge"
+  pl: "{nodes} węzłów · {edges} krawędzi"
+  nl: "{nodes} knooppunten · {edges} verbindingen"
+  ar: "{nodes} عُقد · {edges} روابط"
+  hi: "{nodes} नोड · {edges} किनारे"
+  th: "{nodes} โหนด · {edges} เส้นเชื่อม"
+  cs: "{nodes} uzlů · {edges} hran"
+  sv: "{nodes} noder · {edges} kanter"
+  he: "{nodes} צמתים · {edges} קישורים"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 mindmaps.invalid_json:
   context: Error heading for invalid Mind Maps JSON content
   en: Invalid mind map JSON
   de: Ungueltiges Mindmap-JSON
-  verified_by_human: [en]
+  zh: 无效的思维导图 JSON
+  es: JSON de mapa mental no válido
+  fr: JSON de carte mentale invalide
+  pt: JSON de mapa mental inválido
+  ru: Недопустимый JSON интеллект-карты
+  ja: マインドマップ JSON が無効です
+  ko: 잘못된 마인드맵 JSON
+  it: JSON della mappa mentale non valido
+  tr: Geçersiz zihin haritası JSON'u
+  vi: JSON sơ đồ tư duy không hợp lệ
+  id: JSON peta pikiran tidak valid
+  pl: Nieprawidłowy JSON mapy myśli
+  nl: Ongeldige mindmap-JSON
+  ar: JSON الخريطة الذهنية غير صالح
+  hi: अमान्य माइंड मैप JSON
+  th: JSON ของแผนผังความคิดไม่ถูกต้อง
+  cs: Neplatný JSON myšlenkové mapy
+  sv: Ogiltig JSON för tankekarta
+  he: JSON של מפת החשיבה אינו תקין
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 mindmaps.invalid_content:
   context: Placeholder label shown for a recoverable invalid Mind Maps node
   en: Invalid content
   de: Ungueltiger Inhalt
-  verified_by_human: [en]
+  zh: 无效内容
+  es: Contenido no válido
+  fr: Contenu invalide
+  pt: Conteúdo inválido
+  ru: Недопустимое содержимое
+  ja: 無効なコンテンツ
+  ko: 잘못된 콘텐츠
+  it: Contenuto non valido
+  tr: Geçersiz içerik
+  vi: Nội dung không hợp lệ
+  id: Konten tidak valid
+  pl: Nieprawidłowa treść
+  nl: Ongeldige inhoud
+  ar: محتوى غير صالح
+  hi: अमान्य सामग्री
+  th: เนื้อหาไม่ถูกต้อง
+  cs: Neplatný obsah
+  sv: Ogiltigt innehåll
+  he: תוכן לא תקין
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 mindmaps.validation_warnings:
   context: Heading for recoverable Mind Maps validation warnings
   en: Validation warnings
   de: Validierungswarnungen
-  verified_by_human: [en, de]
+  zh: 验证警告
+  es: Advertencias de validación
+  fr: Avertissements de validation
+  pt: Avisos de validação
+  ru: Предупреждения проверки
+  ja: 検証の警告
+  ko: 유효성 검사 경고
+  it: Avvisi di validazione
+  tr: Doğrulama uyarıları
+  vi: Cảnh báo xác thực
+  id: Peringatan validasi
+  pl: Ostrzeżenia walidacji
+  nl: Validatiewaarschuwingen
+  ar: تحذيرات التحقق
+  hi: सत्यापन चेतावनियाँ
+  th: คำเตือนการตรวจสอบความถูกต้อง
+  cs: Upozornění validace
+  sv: Valideringsvarningar
+  he: אזהרות אימות
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 mindmaps.source:
   context: Heading for the canonical JSON source shown in Mind Maps fullscreen
   en: Source
   de: Quelle
-  verified_by_human: [en, de]
+  zh: 源内容
+  es: Fuente
+  fr: Source
+  pt: Fonte
+  ru: Источник
+  ja: ソース
+  ko: 소스
+  it: Origine
+  tr: Kaynak
+  vi: Nguồn
+  id: Sumber
+  pl: Źródło
+  nl: Bron
+  ar: المصدر
+  hi: स्रोत
+  th: แหล่งที่มา
+  cs: Zdroj
+  sv: Källa
+  he: מקור
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 mindmaps.expand:
   context: "Accessibility label for expanding a collapsed Mind Maps node. Replacement: {label}"
   en: "Expand {label}"
   de: "{label} erweitern"
-  verified_by_human: [en, de]
+  zh: "展开 {label}"
+  es: "Expandir {label}"
+  fr: "Développer {label}"
+  pt: "Expandir {label}"
+  ru: "Развернуть {label}"
+  ja: "{label} を展開"
+  ko: "{label} 펼치기"
+  it: "Espandi {label}"
+  tr: "{label} öğesini genişlet"
+  vi: "Mở rộng {label}"
+  id: "Luaskan {label}"
+  pl: "Rozwiń {label}"
+  nl: "{label} uitvouwen"
+  ar: "توسيع {label}"
+  hi: "{label} फैलाएँ"
+  th: "ขยาย {label}"
+  cs: "Rozbalit {label}"
+  sv: "Expandera {label}"
+  he: "הרחב את {label}"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 mindmaps.collapse:
   context: "Accessibility label for collapsing a Mind Maps node. Replacement: {label}"
   en: "Collapse {label}"
   de: "{label} einklappen"
-  verified_by_human: [en, de]
+  zh: "折叠 {label}"
+  es: "Contraer {label}"
+  fr: "Réduire {label}"
+  pt: "Recolher {label}"
+  ru: "Свернуть {label}"
+  ja: "{label} を折りたたむ"
+  ko: "{label} 접기"
+  it: "Comprimi {label}"
+  tr: "{label} öğesini daralt"
+  vi: "Thu gọn {label}"
+  id: "Ciutkan {label}"
+  pl: "Zwiń {label}"
+  nl: "{label} samenvouwen"
+  ar: "طي {label}"
+  hi: "{label} समेटें"
+  th: "ยุบ {label}"
+  cs: "Sbalit {label}"
+  sv: "Fäll ihop {label}"
+  he: "כווץ את {label}"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 diagrams.mermaid:
   context: Mermaid diagram embed label shown in BasicInfosBar

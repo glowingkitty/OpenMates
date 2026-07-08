@@ -2,8 +2,22 @@
 // Universal app targeting iOS, iPadOS, and macOS via SwiftUI multiplatform.
 // Wires up auth, push notifications, font registration, and WebSocket lifecycle.
 
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+//          frontend/packages/ui/src/components/chats/Chat.svelte
+// CSS:     frontend/packages/ui/src/styles/fields.css
+//          frontend/packages/ui/src/styles/chat.css
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift, GradientTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
 import SwiftUI
 import SwiftData
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import UniformTypeIdentifiers
+#endif
 
 struct AppWindowLaunchCommand: Codable, Hashable {
     enum Action: String, Codable, Hashable {
@@ -29,9 +43,68 @@ struct AppWindowLaunchCommand: Codable, Hashable {
 }
 
 enum AppQuickAction: String {
-    case newChat
+    case ask
+    case askAboutPhoto
     case search
+    case incognitoAsk
 }
+
+#if os(iOS)
+extension AppQuickAction {
+    static let askType = "org.openmates.ask"
+    static let legacyNewChatType = "org.openmates.newchat"
+    static let askAboutPhotoType = "org.openmates.ask-about-photo"
+    static let searchType = "org.openmates.search"
+    static let incognitoAskType = "org.openmates.incognito-ask"
+
+    var shortcutType: String {
+        switch self {
+        case .ask:
+            return Self.askType
+        case .askAboutPhoto:
+            return Self.askAboutPhotoType
+        case .search:
+            return Self.searchType
+        case .incognitoAsk:
+            return Self.incognitoAskType
+        }
+    }
+
+    @MainActor
+    static var shortcutItems: [UIApplicationShortcutItem] {
+        [
+            UIApplicationShortcutItem(
+                type: AppQuickAction.ask.shortcutType,
+                localizedTitle: AppStrings.quickActionAsk,
+                localizedSubtitle: nil,
+                icon: UIApplicationShortcutIcon(systemImageName: "square.and.pencil"),
+                userInfo: nil
+            ),
+            UIApplicationShortcutItem(
+                type: AppQuickAction.askAboutPhoto.shortcutType,
+                localizedTitle: AppStrings.quickActionAskAboutPhoto,
+                localizedSubtitle: nil,
+                icon: UIApplicationShortcutIcon(systemImageName: "camera"),
+                userInfo: nil
+            ),
+            UIApplicationShortcutItem(
+                type: AppQuickAction.search.shortcutType,
+                localizedTitle: AppStrings.search,
+                localizedSubtitle: nil,
+                icon: UIApplicationShortcutIcon(systemImageName: "magnifyingglass"),
+                userInfo: nil
+            ),
+            UIApplicationShortcutItem(
+                type: AppQuickAction.incognitoAsk.shortcutType,
+                localizedTitle: AppStrings.quickActionIncognitoAsk,
+                localizedSubtitle: nil,
+                icon: UIApplicationShortcutIcon(systemImageName: "eye.slash"),
+                userInfo: nil
+            )
+        ]
+    }
+}
+#endif
 
 @MainActor
 final class AppQuickActionCenter {
@@ -76,12 +149,12 @@ final class AppSessionCoordinator: ObservableObject {
 
     private init() {}
 
-    func prepareAuthenticatedRuntime() -> OfflineSyncBridge {
+    func prepareAuthenticatedRuntime(lastOpenedChatId: String?) -> OfflineSyncBridge {
         let bridge = offlineBridge()
         chatStore.setBridge(bridge)
 
         if !didLoadFromDisk {
-            bridge.loadFromDisk()
+            bridge.loadFromDisk(lastOpenedChatId: lastOpenedChatId)
             didLoadFromDisk = true
         }
 
@@ -129,9 +202,20 @@ struct OpenMatesApp: App {
 
     init() {
         FontRegistration.registerFonts()
+        NativeMetricKitReporter.shared.start()
     }
 
+    @SceneBuilder
     var body: some Scene {
+        mainWindowScene
+
+        #if os(macOS)
+        quickCaptureMenuBarScene
+        #endif
+    }
+
+    @SceneBuilder
+    private var mainWindowScene: some Scene {
         WindowGroup(id: Self.mainWindowID, for: AppWindowLaunchCommand.self) { launchCommand in
             RootView(launchCommand: launchCommand.wrappedValue)
                 .environmentObject(authManager)
@@ -142,6 +226,8 @@ struct OpenMatesApp: App {
                 .preferredColorScheme(themeManager.resolvedScheme)
                 .environment(\.layoutDirection, locManager.currentLanguage.layoutDirection)
                 .task {
+                    NativeDiagnostics.info("Apple app runtime starting", category: "app_lifecycle")
+                    NativePerformanceMonitor.shared.startSampling()
                     #if DEBUG
                     if ProcessInfo.processInfo.arguments.contains("--openmates-keychain-self-test") {
                         KeychainHelper.debugSelfTest()
@@ -152,6 +238,10 @@ struct OpenMatesApp: App {
                 }
                 .onChange(of: authManager.state) { _, newState in
                     if case .authenticated = newState {
+                        NativeLogForwarder.shared.startDefaultTelemetry()
+                        Task {
+                            await NativeLogForwarder.shared.syncActiveDebugSession()
+                        }
                         Task {
                             let _ = await pushManager.requestPermission()
                         }
@@ -161,6 +251,9 @@ struct OpenMatesApp: App {
                            supported != locManager.currentLanguage {
                             Task { await locManager.setLanguage(supported) }
                         }
+                    } else {
+                        NativeLogForwarder.shared.stopDefaultTelemetry()
+                        NativeLogForwarder.shared.stopDebugSession()
                     }
                 }
                 #if os(macOS)
@@ -197,6 +290,21 @@ struct OpenMatesApp: App {
         }
         #endif
     }
+
+    #if os(macOS)
+    private var quickCaptureMenuBarScene: some Scene {
+        MenuBarExtra {
+            MacMenuBarQuickCaptureView()
+                .environmentObject(authManager)
+                .environmentObject(locManager)
+                .frame(width: 430)
+        } label: {
+            OpenMatesMenuBarGlyph()
+                .frame(width: 18, height: 18)
+        }
+        .menuBarExtraStyle(.window)
+    }
+    #endif
 }
 
 #if os(macOS)
@@ -245,12 +353,769 @@ extension FocusedValues {
         set { self[NewChatCommandKey.self] = newValue }
     }
 }
+
+@MainActor
+private final class MacMenuBarQuickCaptureViewModel: ObservableObject {
+    enum Tab: String, CaseIterable, Identifiable {
+        case chats
+        case projects
+        case plans
+        case tasks
+        case workflows
+
+        var id: String { rawValue }
+
+        @MainActor var title: String {
+            switch self {
+            case .chats: return AppStrings.chats
+            case .projects: return AppStrings.projects
+            case .plans: return AppStrings.plans
+            case .tasks: return AppStrings.tasks
+            case .workflows: return AppStrings.workflows
+            }
+        }
+    }
+
+    struct CaptureJob: Identifiable, Equatable {
+        enum Status: Equatable {
+            case uploading
+            case transcribing
+            case sending
+            case sent
+            case failed(String)
+
+            var blocksSend: Bool {
+                switch self {
+                case .uploading, .transcribing:
+                    return true
+                case .sending, .sent, .failed:
+                    return false
+                }
+            }
+
+            @MainActor var label: String {
+                switch self {
+                case .uploading:
+                    return AppStrings.uploadProgressUploading(percent: "")
+                case .transcribing:
+                    return AppStrings.uploadProgressTranscribing
+                case .sending:
+                    return AppStrings.loading
+                case .sent:
+                    return AppStrings.success
+                case .failed:
+                    return AppStrings.error
+                }
+            }
+        }
+
+        let id: UUID
+        let title: String
+        var status: Status
+    }
+
+    @Published var selectedTab: Tab = .chats
+    @Published var message = ""
+    @Published var recentChats: [BackgroundChatSender.DestinationChat] = []
+    @Published var selectedChat: BackgroundChatSender.DestinationChat?
+    @Published var draftDestination: BackgroundChatSender.DestinationChat?
+    @Published var pendingEmbeds: [BackgroundPreparedEmbed] = []
+    @Published var jobs: [CaptureJob] = []
+    @Published var isLoadingRecentChats = false
+    @Published var isSending = false
+    @Published var error: String?
+
+    private let sender = BackgroundChatSender()
+
+    var hasActiveAttachmentWork: Bool {
+        jobs.contains { $0.status.blocksSend }
+    }
+
+    var isDestinationLocked: Bool {
+        hasActiveAttachmentWork || !pendingEmbeds.isEmpty
+    }
+
+    var canSend: Bool {
+        !isSending && !hasActiveAttachmentWork
+    }
+
+    func loadRecentChats() {
+        guard !isLoadingRecentChats else { return }
+        isLoadingRecentChats = true
+        Task {
+            do {
+                recentChats = try await sender.loadRecentChats(limit: 10)
+            } catch {
+                NativeDiagnostics.warning("Quick capture recent chat load failed: \(type(of: error))", category: "quick_capture")
+            }
+            isLoadingRecentChats = false
+        }
+    }
+
+    func selectNewChat() {
+        guard !isDestinationLocked else { return }
+        selectedChat = nil
+        draftDestination = nil
+    }
+
+    func selectChat(_ chat: BackgroundChatSender.DestinationChat) {
+        guard !isDestinationLocked else { return }
+        selectedChat = chat
+        draftDestination = nil
+    }
+
+    func sendCurrentMessage(closePopover: Bool = false) {
+        guard canSend else { return }
+        let text = message
+        let embeds = pendingEmbeds
+        do {
+            _ = try BackgroundChatSendContract.contentForSend(text: text, embeds: embeds)
+        } catch {
+            self.error = error.localizedDescription
+            return
+        }
+        isSending = true
+        let jobId = UUID()
+        jobs.insert(CaptureJob(id: jobId, title: text.isEmpty ? AppStrings.attachFiles : text, status: .sending), at: 0)
+        message = ""
+        pendingEmbeds = []
+        let destination = selectedChat ?? draftDestination
+        draftDestination = nil
+        if closePopover {
+            NSApp.keyWindow?.orderOut(nil)
+        }
+
+        Task {
+            do {
+                _ = try await sender.send(.init(content: text, destination: destination, embeds: embeds))
+                updateJob(jobId, status: .sent)
+            } catch {
+                message = text
+                pendingEmbeds = embeds
+                if selectedChat == nil {
+                    draftDestination = destination
+                }
+                updateJob(jobId, status: .failed(error.localizedDescription))
+                self.error = error.localizedDescription
+            }
+            isSending = false
+        }
+    }
+
+    func handleDroppedURLs(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        let destination = ensureAttachmentDestination()
+        for url in urls {
+            let jobId = UUID()
+            jobs.insert(CaptureJob(id: jobId, title: url.lastPathComponent, status: .uploading), at: 0)
+            Task {
+                do {
+                    try validateAttachmentSize(url)
+                    let data = try Data(contentsOf: url)
+                    let type = contentType(for: url)
+                    if BackgroundAttachmentClassifier.classification(filename: url.lastPathComponent, contentType: type) == nil {
+                        throw BackgroundChatSendError.unsupportedAttachment
+                    }
+                    updateJob(jobId, status: type.hasPrefix("audio/") ? .transcribing : .uploading)
+                    let embed = try await sender.prepareAttachment(
+                        data: data,
+                        filename: url.lastPathComponent,
+                        contentType: type,
+                        chatId: destination.id
+                    )
+                    pendingEmbeds.append(embed)
+                    updateJob(jobId, status: .sent)
+                } catch {
+                    updateJob(jobId, status: .failed(error.localizedDescription))
+                    self.error = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    func handleAttachmentData(data: Data, filename: String, contentType: String) {
+        let destination = ensureAttachmentDestination()
+        let jobId = UUID()
+        jobs.insert(CaptureJob(id: jobId, title: filename, status: .uploading), at: 0)
+        Task {
+            do {
+                guard data.count <= BackgroundAttachmentClassifier.maxFileSizeBytes else {
+                    throw BackgroundChatSendError.unsupportedAttachment
+                }
+                if BackgroundAttachmentClassifier.classification(filename: filename, contentType: contentType) == nil {
+                    throw BackgroundChatSendError.unsupportedAttachment
+                }
+                updateJob(jobId, status: contentType.hasPrefix("audio/") ? .transcribing : .uploading)
+                let embed = try await sender.prepareAttachment(
+                    data: data,
+                    filename: filename,
+                    contentType: contentType,
+                    chatId: destination.id
+                )
+                pendingEmbeds.append(embed)
+                updateJob(jobId, status: .sent)
+            } catch {
+                updateJob(jobId, status: .failed(error.localizedDescription))
+                self.error = error.localizedDescription
+            }
+        }
+    }
+
+    func handleRecording(url: URL, duration: TimeInterval, closePopover: Bool) {
+        let destination = ensureAttachmentDestination()
+        let text = message
+        message = ""
+        let jobId = UUID()
+        jobs.insert(CaptureJob(id: jobId, title: AppStrings.recordAudio, status: .uploading), at: 0)
+        if closePopover {
+            NSApp.keyWindow?.orderOut(nil)
+        }
+        Task {
+            do {
+                let data = try Data(contentsOf: url)
+                guard data.count <= BackgroundAttachmentClassifier.maxFileSizeBytes else {
+                    throw BackgroundChatSendError.unsupportedAttachment
+                }
+                updateJob(jobId, status: .transcribing)
+                let embed = try await sender.prepareAttachment(
+                    data: data,
+                    filename: url.lastPathComponent,
+                    contentType: "audio/mp4",
+                    chatId: destination.id,
+                    durationSeconds: duration
+                )
+                updateJob(jobId, status: .sending)
+                _ = try await sender.send(.init(content: text, destination: destination, embeds: [embed]))
+                updateJob(jobId, status: .sent)
+            } catch {
+                message = text
+                updateJob(jobId, status: .failed(error.localizedDescription))
+                self.error = error.localizedDescription
+            }
+        }
+    }
+
+    func deleteJob(_ id: UUID) {
+        jobs.removeAll { $0.id == id }
+    }
+
+    private func ensureAttachmentDestination() -> BackgroundChatSender.DestinationChat {
+        if let selectedChat { return selectedChat }
+        if let draftDestination { return draftDestination }
+        let destination = BackgroundChatSender.DestinationChat(
+            id: UUID().uuidString.lowercased(),
+            title: AppStrings.newChat,
+            lastMessageAt: nil,
+            createdAt: ISO8601DateFormatter().string(from: Date()),
+            updatedAt: nil,
+            appId: nil,
+            encryptedTitle: nil,
+            encryptedCategory: nil,
+            encryptedIcon: nil,
+            encryptedChatKey: nil,
+            messagesV: 0,
+            titleV: 0
+        )
+        draftDestination = destination
+        return destination
+    }
+
+    private func updateJob(_ id: UUID, status: CaptureJob.Status) {
+        if let index = jobs.firstIndex(where: { $0.id == id }) {
+            jobs[index].status = status
+        }
+    }
+
+    private func contentType(for url: URL) -> String {
+        if let type = UTType(filenameExtension: url.pathExtension), let mime = type.preferredMIMEType {
+            return mime
+        }
+        let ext = url.pathExtension.lowercased()
+        switch ext {
+        case "m4a", "mp4": return "audio/mp4"
+        case "mp3": return "audio/mpeg"
+        case "wav": return "audio/wav"
+        case "webm": return "audio/webm"
+        case "png": return "image/png"
+        case "jpg", "jpeg": return "image/jpeg"
+        case "pdf": return "application/pdf"
+        default: return "application/octet-stream"
+        }
+    }
+
+    private func validateAttachmentSize(_ url: URL) throws {
+        let values = try url.resourceValues(forKeys: [.fileSizeKey])
+        if let size = values.fileSize, size > BackgroundAttachmentClassifier.maxFileSizeBytes {
+            throw BackgroundChatSendError.unsupportedAttachment
+        }
+    }
+
+    #if DEBUG
+    func seedUITestStateIfRequested() {
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("--ui-test-seed-quick-capture-recent-chat"), recentChats.isEmpty {
+            recentChats = [
+                BackgroundChatSender.DestinationChat(
+                    id: "quick-capture-ui-test-chat",
+                    title: "UI Test Chat",
+                    lastMessageAt: nil,
+                    createdAt: ISO8601DateFormatter().string(from: Date()),
+                    updatedAt: nil,
+                    appId: nil,
+                    encryptedTitle: nil,
+                    encryptedCategory: nil,
+                    encryptedIcon: nil,
+                    encryptedChatKey: nil,
+                    messagesV: 1,
+                    titleV: 0
+                )
+            ]
+        }
+
+        if arguments.contains("--ui-test-seed-quick-capture-attachment"), pendingEmbeds.isEmpty {
+            pendingEmbeds = [
+                BackgroundPreparedEmbed(
+                    id: "quick-capture-ui-test-embed",
+                    type: "application/pdf",
+                    referenceType: "application",
+                    status: "processing",
+                    content: [
+                        "app_id": "pdf",
+                        "type": "application",
+                        "status": "processing",
+                        "filename": "Shared fixture.pdf"
+                    ],
+                    textPreview: "Shared fixture.pdf"
+                )
+            ]
+            jobs.insert(CaptureJob(id: UUID(), title: "Shared fixture.pdf", status: .sent), at: 0)
+        }
+    }
+    #endif
+}
+
+struct MacMenuBarQuickCaptureView: View {
+    @EnvironmentObject private var authManager: AuthManager
+    @StateObject private var viewModel = MacMenuBarQuickCaptureViewModel()
+    @StateObject private var recorder = VoiceRecorder()
+    @FocusState private var inputFocused: Bool
+    @State private var isRecordingGestureActive = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing6) {
+            headerTabs
+            Divider().opacity(0.35)
+            if viewModel.selectedTab == .chats {
+                chatsContent
+            } else {
+                placeholderContent(for: viewModel.selectedTab)
+            }
+        }
+        .padding(.spacing8)
+        .background(Color.grey0)
+        .onAppear {
+            inputFocused = true
+            #if DEBUG
+            viewModel.seedUITestStateIfRequested()
+            #endif
+            loadRecentChatsAfterAuthRefresh()
+        }
+    }
+
+    private var headerTabs: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: .spacing4) {
+                ForEach(MacMenuBarQuickCaptureViewModel.Tab.allCases) { tab in
+                    Button {
+                        viewModel.selectedTab = tab
+                    } label: {
+                        Text(tab.title)
+                            .font(.omSmall.weight(.semibold))
+                            .foregroundStyle(viewModel.selectedTab == tab ? Color.fontButton : Color.fontPrimary)
+                            .padding(.horizontal, .spacing6)
+                            .padding(.vertical, .spacing3)
+                            .background(viewModel.selectedTab == tab ? AnyShapeStyle(LinearGradient.primary) : AnyShapeStyle(Color.grey10))
+                            .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                    }
+                    .buttonStyle(.plain)
+                    .help(Text(tab.title))
+                    .accessibilityIdentifier("quick-capture-tab-\(tab.rawValue)")
+                }
+            }
+        }
+    }
+
+    private var chatsContent: some View {
+        VStack(alignment: .leading, spacing: .spacing6) {
+            destinationStrip
+            composer
+            if !viewModel.pendingEmbeds.isEmpty {
+                pendingAttachments
+            }
+            statusList
+            if let error = viewModel.error {
+                Text(error)
+                    .font(.omXs)
+                    .foregroundStyle(Color.error)
+                    .accessibilityIdentifier("quick-capture-error")
+            }
+        }
+    }
+
+    private var destinationStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: .spacing4) {
+                destinationButton(title: AppStrings.newChat, selected: viewModel.selectedChat == nil) {
+                    viewModel.selectNewChat()
+                }
+                ForEach(viewModel.recentChats) { chat in
+                    destinationButton(title: chat.displayTitle, selected: viewModel.selectedChat?.id == chat.id) {
+                        viewModel.selectChat(chat)
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("quick-capture-recent-chats")
+    }
+
+    private func destinationButton(title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.omXs.weight(.semibold))
+                .foregroundStyle(selected ? Color.fontButton : Color.fontPrimary)
+                .lineLimit(1)
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing3)
+                .background(selected ? AnyShapeStyle(LinearGradient.primary) : AnyShapeStyle(Color.grey10))
+                .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+        }
+        .buttonStyle(.plain)
+        .disabled(viewModel.isDestinationLocked)
+        .opacity(viewModel.isDestinationLocked ? 0.55 : 1)
+        .help(Text(title))
+    }
+
+    private var composer: some View {
+        VStack(spacing: 0) {
+            MessageComposerView(
+                text: $viewModel.message,
+                isFocused: $inputFocused,
+                compact: false,
+                placeholder: AppStrings.whatDoYouNeedHelpWith,
+                expandedMinHeight: MessageComposerMetric.expandedMinHeight,
+                maxWidth: nil,
+                accessibilityHint: AppStrings.whatDoYouNeedHelpWith,
+                onSubmit: sendQuickCaptureMessage
+            ) {
+                HStack(spacing: .spacing6) {
+                    recordButton
+                    Spacer()
+                    MessageComposerSendButton(title: AppStrings.sendAction, disabled: !viewModel.canSend) {
+                        sendQuickCaptureMessage()
+                    }
+                    .accessibilityIdentifier("quick-capture-send-button")
+                }
+                .padding(.horizontal, .spacing5)
+                .padding(.bottom, .spacing6)
+            }
+        }
+        .onDrop(of: [UTType.fileURL.identifier], isTargeted: nil) { providers in
+            loadDroppedURLs(from: providers)
+        }
+        .onPasteCommand(of: [UTType.fileURL, UTType.image, UTType.png, UTType.jpeg]) { providers in
+            loadPastedItems(from: providers)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("quick-capture-composer")
+    }
+
+    private func sendQuickCaptureMessage() {
+        Task {
+            guard await refreshAuthenticatedSessionForQuickCapture() else { return }
+            viewModel.sendCurrentMessage()
+        }
+    }
+
+    private var recordButton: some View {
+        Button {} label: {
+            Icon("recordaudio", size: 22)
+                .foregroundStyle(recorder.isRecording ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
+                .frame(width: 25, height: 25)
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    guard !isRecordingGestureActive else { return }
+                    isRecordingGestureActive = true
+                    recorder.startRecording()
+                }
+                .onEnded { _ in
+                    isRecordingGestureActive = false
+                    if let url = recorder.stopRecording() {
+                        Task {
+                            guard await refreshAuthenticatedSessionForQuickCapture() else { return }
+                            viewModel.handleRecording(url: url, duration: recorder.duration, closePopover: true)
+                        }
+                    }
+                }
+        )
+        .help(Text(AppStrings.recordAudio))
+        .accessibilityLabel(AppStrings.recordAudio)
+        .accessibilityIdentifier("quick-capture-record-audio-button")
+    }
+
+    private var pendingAttachments: some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            ForEach(viewModel.pendingEmbeds) { embed in
+                HStack(spacing: .spacing3) {
+                    Icon("files", size: 14)
+                    Text(embed.textPreview ?? embed.id)
+                        .font(.omXs)
+                        .lineLimit(1)
+                }
+                .foregroundStyle(Color.fontSecondary)
+            }
+        }
+        .accessibilityIdentifier("quick-capture-pending-attachments")
+    }
+
+    private var statusList: some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            ForEach(viewModel.jobs.prefix(5)) { job in
+                HStack(spacing: .spacing3) {
+                    Text(job.title)
+                        .font(.omXs)
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(1)
+                    Spacer()
+                    Text(job.status.label)
+                        .font(.omMicro.weight(.semibold))
+                        .foregroundStyle(statusColor(job.status))
+                    Button {
+                        viewModel.deleteJob(job.id)
+                    } label: {
+                        Icon("close", size: 12)
+                            .foregroundStyle(Color.fontTertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(Text(AppStrings.delete))
+                    .accessibilityLabel(AppStrings.delete)
+                }
+            }
+        }
+        .accessibilityIdentifier("quick-capture-status-list")
+    }
+
+    private func placeholderContent(for tab: MacMenuBarQuickCaptureViewModel.Tab) -> some View {
+        VStack(alignment: .leading, spacing: .spacing5) {
+            Text(AppStrings.workspacePreviewTitle(tab.title))
+                .font(.omH3)
+                .foregroundStyle(Color.fontPrimary)
+            Text(AppStrings.workspacePreviewBody(tab.title))
+                .font(.omSmall)
+                .foregroundStyle(Color.fontSecondary)
+        }
+        .padding(.spacing8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .accessibilityIdentifier("quick-capture-placeholder-\(tab.rawValue)")
+    }
+
+    private func statusColor(_ status: MacMenuBarQuickCaptureViewModel.CaptureJob.Status) -> Color {
+        switch status {
+        case .sent:
+            return Color.buttonPrimary
+        case .failed:
+            return Color.error
+        default:
+            return Color.fontSecondary
+        }
+    }
+
+    private func loadDroppedURLs(from providers: [NSItemProvider]) -> Bool {
+        var handled = false
+        for provider in providers where provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            handled = true
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                let url: URL?
+                if let data = item as? Data {
+                    url = URL(dataRepresentation: data, relativeTo: nil)
+                } else {
+                    url = item as? URL
+                }
+                guard let url else { return }
+                Task { @MainActor in
+                    guard await refreshAuthenticatedSessionForQuickCapture() else { return }
+                    viewModel.handleDroppedURLs([url])
+                }
+            }
+        }
+        return handled
+    }
+
+    private func loadPastedItems(from providers: [NSItemProvider]) {
+        if loadDroppedURLs(from: providers) { return }
+        for provider in providers {
+            let typeIdentifier = provider.registeredTypeIdentifiers.first { identifier in
+                UTType(identifier)?.conforms(to: .image) == true
+            }
+            guard let typeIdentifier else { continue }
+            let filename = pastedFilename(from: provider, typeIdentifier: typeIdentifier)
+            let contentType = UTType(typeIdentifier)?.preferredMIMEType ?? "image/png"
+            provider.loadDataRepresentation(forTypeIdentifier: typeIdentifier) { data, _ in
+                guard let data else { return }
+                Task { @MainActor in
+                    guard await refreshAuthenticatedSessionForQuickCapture() else { return }
+                    viewModel.handleAttachmentData(data: data, filename: filename, contentType: contentType)
+                }
+            }
+        }
+    }
+
+    private func pastedFilename(from provider: NSItemProvider, typeIdentifier: String) -> String {
+        if let suggestedName = provider.suggestedName, !suggestedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            if URL(fileURLWithPath: suggestedName).pathExtension.isEmpty,
+               let ext = UTType(typeIdentifier)?.preferredFilenameExtension {
+                return "\(suggestedName).\(ext)"
+            }
+            return suggestedName
+        }
+        return "Pasted Image.\(UTType(typeIdentifier)?.preferredFilenameExtension ?? "png")"
+    }
+
+    private func loadRecentChatsAfterAuthRefresh() {
+        Task {
+            guard await refreshAuthenticatedSessionForQuickCapture() else { return }
+            viewModel.loadRecentChats()
+        }
+    }
+
+    private func refreshAuthenticatedSessionForQuickCapture() async -> Bool {
+        if authManager.state == .initializing || authManager.currentUser == nil {
+            await authManager.checkSession()
+        }
+        if MacMenuBarQuickCaptureAuthPolicy.shouldRefreshSession(
+            state: authManager.state,
+            hasCurrentUser: authManager.currentUser != nil,
+            hasWebSocketToken: authManager.webSocketToken?.isEmpty == false
+        ) {
+            await authManager.validateSessionAfterOfflineBootstrap()
+        }
+        guard MacMenuBarQuickCaptureAuthPolicy.canUseQuickCapture(state: authManager.state) else {
+            viewModel.error = BackgroundChatSendError.notAuthenticated.localizedDescription
+            return false
+        }
+        return true
+    }
+}
+
+enum MacMenuBarQuickCaptureAuthPolicy {
+    static func shouldRefreshSession(
+        state: AuthManager.AuthState,
+        hasCurrentUser: Bool,
+        hasWebSocketToken: Bool
+    ) -> Bool {
+        state == .authenticated && hasCurrentUser && !hasWebSocketToken
+    }
+
+    static func canUseQuickCapture(state: AuthManager.AuthState) -> Bool {
+        state == .authenticated
+    }
+}
+
+struct OpenMatesMenuBarGlyph: View {
+    static let includesAppIconContainerForTests = false
+
+    var body: some View {
+        Canvas { context, size in
+            let scale = min(size.width, size.height) / 29
+            context.scaleBy(x: scale, y: scale)
+            context.fill(Self.personPath, with: .color(.primary))
+            context.fill(Self.largeSparklePath, with: .color(.primary))
+            context.fill(Self.smallSparklePath, with: .color(.primary))
+        }
+        .accessibilityHidden(true)
+    }
+
+    private static var personPath: Path {
+        var path = Path()
+        path.addEllipse(in: CGRect(x: 10.12, y: 5, width: 9.41, height: 9.63))
+        path.move(to: CGPoint(x: 8.34, y: 24.25))
+        path.addCurve(to: CGPoint(x: 5.97, y: 23.38), control1: CGPoint(x: 7.35, y: 24.25), control2: CGPoint(x: 6.56, y: 23.96))
+        path.addCurve(to: CGPoint(x: 5.07, y: 21.00), control1: CGPoint(x: 5.37, y: 22.80), control2: CGPoint(x: 5.07, y: 22.01))
+        path.addCurve(to: CGPoint(x: 5.11, y: 19.71), control1: CGPoint(x: 5.07, y: 20.56), control2: CGPoint(x: 5.08, y: 20.13))
+        path.addCurve(to: CGPoint(x: 5.28, y: 18.34), control1: CGPoint(x: 5.14, y: 19.29), control2: CGPoint(x: 5.20, y: 18.83))
+        path.addCurve(to: CGPoint(x: 5.61, y: 16.98), control1: CGPoint(x: 5.37, y: 17.85), control2: CGPoint(x: 5.48, y: 17.40))
+        path.addCurve(to: CGPoint(x: 6.14, y: 15.76), control1: CGPoint(x: 5.74, y: 16.56), control2: CGPoint(x: 5.92, y: 16.16))
+        path.addCurve(to: CGPoint(x: 6.90, y: 14.74), control1: CGPoint(x: 6.36, y: 15.36), control2: CGPoint(x: 6.61, y: 15.02))
+        path.addCurve(to: CGPoint(x: 7.94, y: 14.07), control1: CGPoint(x: 7.19, y: 14.46), control2: CGPoint(x: 7.53, y: 14.23))
+        path.addCurve(to: CGPoint(x: 9.31, y: 13.82), control1: CGPoint(x: 8.35, y: 13.90), control2: CGPoint(x: 8.81, y: 13.82))
+        path.addCurve(to: CGPoint(x: 9.84, y: 14.09), control1: CGPoint(x: 9.39, y: 13.82), control2: CGPoint(x: 9.57, y: 13.91))
+        path.addCurve(to: CGPoint(x: 10.73, y: 14.69), control1: CGPoint(x: 10.11, y: 14.27), control2: CGPoint(x: 10.41, y: 14.47))
+        path.addCurve(to: CGPoint(x: 12.04, y: 15.29), control1: CGPoint(x: 11.06, y: 14.91), control2: CGPoint(x: 11.49, y: 15.11))
+        path.addCurve(to: CGPoint(x: 13.70, y: 15.56), control1: CGPoint(x: 12.58, y: 15.47), control2: CGPoint(x: 13.13, y: 15.56))
+        path.addCurve(to: CGPoint(x: 15.35, y: 15.29), control1: CGPoint(x: 14.25, y: 15.56), control2: CGPoint(x: 14.80, y: 15.47))
+        path.addCurve(to: CGPoint(x: 16.66, y: 14.69), control1: CGPoint(x: 15.90, y: 15.11), control2: CGPoint(x: 16.34, y: 14.91))
+        path.addCurve(to: CGPoint(x: 17.55, y: 14.09), control1: CGPoint(x: 16.99, y: 14.47), control2: CGPoint(x: 17.28, y: 14.27))
+        path.addCurve(to: CGPoint(x: 18.08, y: 13.82), control1: CGPoint(x: 17.82, y: 13.91), control2: CGPoint(x: 18.00, y: 13.82))
+        path.addCurve(to: CGPoint(x: 19.45, y: 14.07), control1: CGPoint(x: 18.58, y: 13.82), control2: CGPoint(x: 19.03, y: 13.90))
+        path.addCurve(to: CGPoint(x: 20.49, y: 14.74), control1: CGPoint(x: 19.86, y: 14.23), control2: CGPoint(x: 20.21, y: 14.46))
+        path.addCurve(to: CGPoint(x: 21.25, y: 15.76), control1: CGPoint(x: 20.78, y: 15.02), control2: CGPoint(x: 21.03, y: 15.36))
+        path.addCurve(to: CGPoint(x: 21.78, y: 16.98), control1: CGPoint(x: 21.47, y: 16.16), control2: CGPoint(x: 21.65, y: 16.56))
+        path.addCurve(to: CGPoint(x: 22.10, y: 18.34), control1: CGPoint(x: 21.91, y: 17.40), control2: CGPoint(x: 22.02, y: 17.85))
+        path.addCurve(to: CGPoint(x: 22.27, y: 19.71), control1: CGPoint(x: 22.19, y: 18.83), control2: CGPoint(x: 22.24, y: 19.29))
+        path.addCurve(to: CGPoint(x: 22.32, y: 21.00), control1: CGPoint(x: 22.30, y: 20.13), control2: CGPoint(x: 22.32, y: 20.56))
+        path.addCurve(to: CGPoint(x: 21.42, y: 23.38), control1: CGPoint(x: 22.32, y: 22.01), control2: CGPoint(x: 22.02, y: 22.80))
+        path.addCurve(to: CGPoint(x: 19.04, y: 24.25), control1: CGPoint(x: 20.82, y: 23.96), control2: CGPoint(x: 20.03, y: 24.25))
+        path.closeSubpath()
+        return path
+    }
+
+    private static var largeSparklePath: Path {
+        sparklePath(center: CGPoint(x: 14.85, y: 20.04), horizontal: 2.30, vertical: 3.20)
+    }
+
+    private static var smallSparklePath: Path {
+        var path = sparklePath(center: CGPoint(x: 12.25, y: 18.25), horizontal: 1.15, vertical: 1.45)
+        path.addPath(sparklePath(center: CGPoint(x: 11.85, y: 21.30), horizontal: 1.05, vertical: 1.25))
+        return path
+    }
+
+    private static func sparklePath(center: CGPoint, horizontal: CGFloat, vertical: CGFloat) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: center.x, y: center.y - vertical))
+        path.addLine(to: CGPoint(x: center.x + horizontal * 0.36, y: center.y - vertical * 0.36))
+        path.addLine(to: CGPoint(x: center.x + horizontal, y: center.y))
+        path.addLine(to: CGPoint(x: center.x + horizontal * 0.36, y: center.y + vertical * 0.36))
+        path.addLine(to: CGPoint(x: center.x, y: center.y + vertical))
+        path.addLine(to: CGPoint(x: center.x - horizontal * 0.36, y: center.y + vertical * 0.36))
+        path.addLine(to: CGPoint(x: center.x - horizontal, y: center.y))
+        path.addLine(to: CGPoint(x: center.x - horizontal * 0.36, y: center.y - vertical * 0.36))
+        path.closeSubpath()
+        return path
+    }
+}
 #endif
 
 // MARK: - App delegate for push notification token delivery
 
 #if os(iOS)
+@MainActor
 class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        application.shortcutItems = AppQuickAction.shortcutItems
+        return true
+    }
+
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        application.shortcutItems = AppQuickAction.shortcutItems
+    }
+
     func application(
         _ application: UIApplication,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data

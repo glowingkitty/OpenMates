@@ -56,6 +56,25 @@ create:
   context: Skill name for Remotion video creation
   en: Create Video
   de: Video erstellen
+  zh: 创建视频
+  es: Crear video
+  fr: Créer une vidéo
+  pt: Criar vídeo
+  ru: Создать видео
+  ja: 動画を作成
+  ko: 비디오 만들기
+  it: Crea video
+  tr: Video oluştur
+  vi: Tạo video
+  id: Buat video
+  pl: Utwórz wideo
+  nl: Video maken
+  ar: إنشاء فيديو
+  hi: वीडियो बनाएं
+  th: สร้างวิดีโอ
+  cs: Vytvořit video
+  sv: Skapa video
+  he: יצירת סרטון
   verified_by_human:
     - en
     - de
@@ -64,6 +83,25 @@ create.description:
   context: Description for Remotion video creation skill
   en: Create deterministic videos with editable Remotion code.
   de: Erstelle deterministische Videos mit bearbeitbarem Remotion-Code.
+  zh: 使用可编辑的 Remotion 代码创建确定性视频。
+  es: Crea videos deterministas con código Remotion editable.
+  fr: Créez des vidéos déterministes avec du code Remotion modifiable.
+  pt: Crie vídeos determinísticos com código Remotion editável.
+  ru: Создавайте детерминированные видео с редактируемым кодом Remotion.
+  ja: 編集可能な Remotion コードで決定論的な動画を作成します。
+  ko: 편집 가능한 Remotion 코드로 결정적 비디오를 만듭니다.
+  it: Crea video deterministici con codice Remotion modificabile.
+  tr: Düzenlenebilir Remotion koduyla deterministik videolar oluşturun.
+  vi: Tạo video xác định bằng mã Remotion có thể chỉnh sửa.
+  id: Buat video deterministik dengan kode Remotion yang dapat diedit.
+  pl: Twórz deterministyczne wideo z edytowalnym kodem Remotion.
+  nl: Maak deterministische video's met bewerkbare Remotion-code.
+  ar: أنشئ مقاطع فيديو حتمية باستخدام كود Remotion قابل للتحرير.
+  hi: संपादन योग्य Remotion कोड से निर्धारक वीडियो बनाएं।
+  th: สร้างวิดีโอแบบกำหนดผลได้ด้วยโค้ด Remotion ที่แก้ไขได้
+  cs: Vytvářejte deterministická videa s upravitelným kódem Remotion.
+  sv: Skapa deterministiska videor med redigerbar Remotion-kod.
+  he: יצירת סרטונים דטרמיניסטיים עם קוד Remotion שניתן לעריכה.
   verified_by_human:
     - en
     - de
@@ -72,6 +110,25 @@ create.view.video:
   context: Tab label for Remotion video playback view
   en: Video
   de: Video
+  zh: 视频
+  es: Video
+  fr: Vidéo
+  pt: Vídeo
+  ru: Видео
+  ja: 動画
+  ko: 비디오
+  it: Video
+  tr: Video
+  vi: Video
+  id: Video
+  pl: Wideo
+  nl: Video
+  ar: فيديو
+  hi: वीडियो
+  th: วิดีโอ
+  cs: Video
+  sv: Video
+  he: סרטון
   verified_by_human:
     - en
     - de
@@ -80,6 +137,25 @@ create.view.timeline:
   context: Tab label for Remotion video timeline view
   en: Timeline
   de: Timeline
+  zh: 时间线
+  es: Línea de tiempo
+  fr: Chronologie
+  pt: Linha do tempo
+  ru: Таймлайн
+  ja: タイムライン
+  ko: 타임라인
+  it: Timeline
+  tr: Zaman çizelgesi
+  vi: Dòng thời gian
+  id: Linimasa
+  pl: Oś czasu
+  nl: Tijdlijn
+  ar: الخط الزمني
+  hi: टाइमलाइन
+  th: ไทม์ไลน์
+  cs: Časová osa
+  sv: Tidslinje
+  he: ציר זמן
   verified_by_human:
     - en
     - de
@@ -88,6 +164,25 @@ create.view.code:
   context: Tab label for Remotion video source code view
   en: Code
   de: Code
+  zh: 代码
+  es: Código
+  fr: Code
+  pt: Código
+  ru: Код
+  ja: コード
+  ko: 코드
+  it: Codice
+  tr: Kod
+  vi: Mã
+  id: Kode
+  pl: Kod
+  nl: Code
+  ar: الكود
+  hi: कोड
+  th: โค้ด
+  cs: Kód
+  sv: Kod
+  he: קוד
   verified_by_human:
     - en
     - de
@@ -96,6 +191,25 @@ create.status.rendering:
   context: Status text while a Remotion video is rendering
   en: Rendering video...
   de: Video wird gerendert...
+  zh: 正在渲染视频...
+  es: Renderizando video...
+  fr: Rendu de la vidéo...
+  pt: Renderizando vídeo...
+  ru: Рендеринг видео...
+  ja: 動画をレンダリング中...
+  ko: 비디오 렌더링 중...
+  it: Rendering del video...
+  tr: Video render ediliyor...
+  vi: Đang render video...
+  id: Merender video...
+  pl: Renderowanie wideo...
+  nl: Video renderen...
+  ar: جارٍ رندر الفيديو...
+  hi: वीडियो रेंडर हो रहा है...
+  th: กำลังเรนเดอร์วิดีโอ...
+  cs: Renderování videa...
+  sv: Renderar video...
+  he: מרנדר סרטון...
   verified_by_human:
     - en
     - de
@@ -104,6 +218,25 @@ create.status.processing:
   context: Status text while Remotion source is being prepared
   en: Preparing Remotion source...
   de: Remotion-Quelle wird vorbereitet...
+  zh: 正在准备 Remotion 源代码...
+  es: Preparando fuente de Remotion...
+  fr: Préparation de la source Remotion...
+  pt: Preparando fonte Remotion...
+  ru: Подготовка исходника Remotion...
+  ja: Remotion ソースを準備中...
+  ko: Remotion 소스 준비 중...
+  it: Preparazione sorgente Remotion...
+  tr: Remotion kaynağı hazırlanıyor...
+  vi: Đang chuẩn bị nguồn Remotion...
+  id: Menyiapkan sumber Remotion...
+  pl: Przygotowywanie źródła Remotion...
+  nl: Remotion-bron voorbereiden...
+  ar: جارٍ تحضير مصدر Remotion...
+  hi: Remotion स्रोत तैयार हो रहा है...
+  th: กำลังเตรียมซอร์ส Remotion...
+  cs: Příprava zdroje Remotion...
+  sv: Förbereder Remotion-källa...
+  he: מכין מקור Remotion...
   verified_by_human:
     - en
     - de
@@ -112,6 +245,25 @@ create.status.cancelled:
   context: Status text after a Remotion render was cancelled
   en: Render stopped
   de: Rendern gestoppt
+  zh: 渲染已停止
+  es: Render detenido
+  fr: Rendu arrêté
+  pt: Renderização interrompida
+  ru: Рендеринг остановлен
+  ja: レンダリングを停止しました
+  ko: 렌더링 중지됨
+  it: Rendering interrotto
+  tr: Render durduruldu
+  vi: Đã dừng render
+  id: Render dihentikan
+  pl: Renderowanie zatrzymane
+  nl: Render gestopt
+  ar: تم إيقاف الرندر
+  hi: रेंडर बंद किया गया
+  th: หยุดเรนเดอร์แล้ว
+  cs: Renderování zastaveno
+  sv: Rendering stoppad
+  he: הרינדור הופסק
   verified_by_human:
     - en
     - de
@@ -120,6 +272,25 @@ create.status.needs_rerender:
   context: Status text when Remotion source changed and needs a new render
   en: Needs rerender
   de: Muss neu gerendert werden
+  zh: 需要重新渲染
+  es: Necesita renderizar de nuevo
+  fr: Nouveau rendu requis
+  pt: Precisa renderizar novamente
+  ru: Нужно перерендерить
+  ja: 再レンダリングが必要
+  ko: 다시 렌더링 필요
+  it: Richiede nuovo rendering
+  tr: Yeniden render gerekiyor
+  vi: Cần render lại
+  id: Perlu render ulang
+  pl: Wymaga ponownego renderowania
+  nl: Moet opnieuw renderen
+  ar: يحتاج إلى إعادة الرندر
+  hi: फिर से रेंडर करना होगा
+  th: ต้องเรนเดอร์ใหม่
+  cs: Vyžaduje nové renderování
+  sv: Behöver renderas om
+  he: נדרש רינדור מחדש
   verified_by_human:
     - en
     - de
@@ -128,6 +299,25 @@ create.status.error:
   context: Status text when a Remotion render failed
   en: Render failed
   de: Rendern fehlgeschlagen
+  zh: 渲染失败
+  es: Error de render
+  fr: Échec du rendu
+  pt: Falha na renderização
+  ru: Рендеринг не удался
+  ja: レンダリングに失敗しました
+  ko: 렌더링 실패
+  it: Rendering non riuscito
+  tr: Render başarısız
+  vi: Render thất bại
+  id: Render gagal
+  pl: Renderowanie nie powiodło się
+  nl: Renderen mislukt
+  ar: فشل الرندر
+  hi: रेंडर विफल
+  th: เรนเดอร์ล้มเหลว
+  cs: Renderování selhalo
+  sv: Rendering misslyckades
+  he: הרינדור נכשל
   verified_by_human:
     - en
     - de
@@ -136,6 +326,25 @@ create.status.unavailable:
   context: Placeholder when a Remotion video file is not yet available
   en: Video is not available yet.
   de: Das Video ist noch nicht verfügbar.
+  zh: 视频尚不可用。
+  es: El video aún no está disponible.
+  fr: La vidéo n'est pas encore disponible.
+  pt: O vídeo ainda não está disponível.
+  ru: Видео пока недоступно.
+  ja: 動画はまだ利用できません。
+  ko: 아직 비디오를 사용할 수 없습니다.
+  it: Il video non è ancora disponibile.
+  tr: Video henüz mevcut değil.
+  vi: Video chưa khả dụng.
+  id: Video belum tersedia.
+  pl: Wideo nie jest jeszcze dostępne.
+  nl: Video is nog niet beschikbaar.
+  ar: الفيديو غير متاح بعد.
+  hi: वीडियो अभी उपलब्ध नहीं है।
+  th: วิดีโอยังไม่พร้อมใช้งาน
+  cs: Video zatím není dostupné.
+  sv: Videon är inte tillgänglig än.
+  he: הסרטון עדיין לא זמין.
   verified_by_human:
     - en
     - de
@@ -144,6 +353,25 @@ create.action.rerender:
   context: Button label to rerender the current Remotion video source
   en: Rerender
   de: Neu rendern
+  zh: 重新渲染
+  es: Renderizar de nuevo
+  fr: Relancer le rendu
+  pt: Renderizar novamente
+  ru: Перерендерить
+  ja: 再レンダリング
+  ko: 다시 렌더링
+  it: Renderizza di nuovo
+  tr: Yeniden render et
+  vi: Render lại
+  id: Render ulang
+  pl: Renderuj ponownie
+  nl: Opnieuw renderen
+  ar: إعادة الرندر
+  hi: फिर से रेंडर करें
+  th: เรนเดอร์ใหม่
+  cs: Renderovat znovu
+  sv: Rendera om
+  he: רינדור מחדש
   verified_by_human:
     - en
     - de
@@ -152,6 +380,25 @@ create.action.render_this_version:
   context: Button label to render a selected Remotion source version
   en: Render this version
   de: Diese Version rendern
+  zh: 渲染此版本
+  es: Renderizar esta versión
+  fr: Rendre cette version
+  pt: Renderizar esta versão
+  ru: Рендерить эту версию
+  ja: このバージョンをレンダリング
+  ko: 이 버전 렌더링
+  it: Renderizza questa versione
+  tr: Bu sürümü render et
+  vi: Render phiên bản này
+  id: Render versi ini
+  pl: Renderuj tę wersję
+  nl: Deze versie renderen
+  ar: رندر هذا الإصدار
+  hi: इस संस्करण को रेंडर करें
+  th: เรนเดอร์เวอร์ชันนี้
+  cs: Renderovat tuto verzi
+  sv: Rendera den här versionen
+  he: רינדור גרסה זו
   verified_by_human:
     - en
     - de
@@ -160,6 +407,25 @@ create.action.stop_render:
   context: Button label to stop an active Remotion render
   en: Stop render
   de: Rendern stoppen
+  zh: 停止渲染
+  es: Detener render
+  fr: Arrêter le rendu
+  pt: Parar renderização
+  ru: Остановить рендеринг
+  ja: レンダリングを停止
+  ko: 렌더링 중지
+  it: Ferma rendering
+  tr: Renderi durdur
+  vi: Dừng render
+  id: Hentikan render
+  pl: Zatrzymaj renderowanie
+  nl: Render stoppen
+  ar: إيقاف الرندر
+  hi: रेंडर रोकें
+  th: หยุดเรนเดอร์
+  cs: Zastavit renderování
+  sv: Stoppa rendering
+  he: עצירת רינדור
   verified_by_human:
     - en
     - de
@@ -168,6 +434,25 @@ create.header.subtitle:
   context: Header subtitle for Remotion video create embeds, with version and status
   en: Remotion · v{version} · {status}
   de: Remotion · v{version} · {status}
+  zh: Remotion · v{version} · {status}
+  es: Remotion · v{version} · {status}
+  fr: Remotion · v{version} · {status}
+  pt: Remotion · v{version} · {status}
+  ru: Remotion · v{version} · {status}
+  ja: Remotion · v{version} · {status}
+  ko: Remotion · v{version} · {status}
+  it: Remotion · v{version} · {status}
+  tr: Remotion · v{version} · {status}
+  vi: Remotion · v{version} · {status}
+  id: Remotion · v{version} · {status}
+  pl: Remotion · v{version} · {status}
+  nl: Remotion · v{version} · {status}
+  ar: Remotion · v{version} · {status}
+  hi: Remotion · v{version} · {status}
+  th: Remotion · v{version} · {status}
+  cs: Remotion · v{version} · {status}
+  sv: Remotion · v{version} · {status}
+  he: Remotion · v{version} · {status}
   verified_by_human:
     - en
     - de

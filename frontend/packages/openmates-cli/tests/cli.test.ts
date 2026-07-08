@@ -11,7 +11,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -111,6 +111,98 @@ async function runCliWithEmptyCacheSession(
       stdout: (error as { stdout?: string }).stdout ?? "",
     };
   } finally {
+    rmSync(tempHome, { recursive: true, force: true });
+  }
+}
+
+async function withBillingInvoicesMockApi<T>(
+  run: (params: {
+    apiUrl: string;
+    requests: Array<{ method: string; url: string }>;
+    tempHome: string;
+  }) => T | Promise<T>,
+): Promise<T> {
+  const requests: Array<{ method: string; url: string }> = [];
+  const tempHome = join(
+    tmpdir(),
+    `openmates-cli-billing-invoices-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  );
+  const stateDir = join(tempHome, ".openmates");
+  mkdirSync(stateDir, { recursive: true });
+
+  const server = createServer(async (request, response) => {
+    try {
+      if (request.method === "GET" && request.url === "/v1/payments/invoices") {
+        assert.match(String(request.headers.cookie ?? ""), /auth_refresh_token=refresh-token/);
+        requests.push({ method: request.method, url: request.url });
+        writeJson(response, {
+          invoices: [
+            {
+              id: "bt_pending_invoice_test",
+              order_id: "bt_pending_invoice_test",
+              date: "2026-07-03",
+              amount: "10000",
+              credits_purchased: 110000,
+              filename: "",
+              is_gift_card: false,
+              refunded_at: null,
+              refund_status: null,
+              currency: "eur",
+              provider: "bank_transfer",
+              bank_transfer_reference: "OM-CLI-PENDING",
+              transaction_status: "pending",
+              document_status: "pending_bank_transfer",
+            },
+            {
+              id: "invoice_completed_bank_transfer_test",
+              order_id: "bt_completed_invoice_test",
+              date: "2026-07-02",
+              amount: "2000",
+              credits_purchased: 21000,
+              filename: "Invoice_2026_07_02.pdf",
+              is_gift_card: false,
+              refunded_at: null,
+              refund_status: "none",
+              currency: "eur",
+              provider: "bank_transfer",
+              bank_transfer_reference: "OM-CLI-COMPLETED",
+              transaction_status: "completed",
+              document_status: "ready",
+            },
+          ],
+        });
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain" });
+      response.end(String(error));
+    }
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const apiUrl = `http://127.0.0.1:${address.port}`;
+  writeFileSync(join(stateDir, "session.json"), `${JSON.stringify({
+    apiUrl,
+    sessionId: "session-1",
+    wsToken: "ws-token",
+    cookies: { auth_refresh_token: "refresh-token" },
+    masterKeyExportedB64: Buffer.alloc(32).toString("base64"),
+    hashedEmail: "hashed-email",
+    userEmailSalt: "salt",
+    createdAt: Date.now(),
+    authorizerDeviceName: "test-device",
+    autoLogoutMinutes: null,
+  })}\n`);
+
+  try {
+    return await run({ apiUrl, requests, tempHome });
+  } finally {
+    server.closeAllConnections();
+    server.close();
     rmSync(tempHome, { recursive: true, force: true });
   }
 }
@@ -279,6 +371,79 @@ describe("benchmark command", () => {
     ]);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /--confirm-spend-credits/);
+  });
+});
+
+describe("remote-access command", () => {
+  it("is listed in global help and prints contextual help", () => {
+    assert.match(runCli(["help"]), /openmates remote-access \[--help\]/);
+    const output = runCli(["remote-access", "--help"]);
+    assert.match(output, /remote-access start --path <folder>/);
+    assert.match(output, /remote-access search --source <id> <query>/);
+  });
+
+  it("starts, lists, and searches a local source without network access", () => {
+    const tempHome = join(tmpdir(), `openmates-cli-remote-access-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    const repo = join(tempHome, "repo");
+    const bin = join(tempHome, "bin");
+    mkdirSync(repo, { recursive: true });
+    mkdirSync(bin, { recursive: true });
+    const fakeRg = join(bin, "rg");
+    writeFileSync(
+      fakeRg,
+      `#!/usr/bin/env node\nconsole.log(${JSON.stringify(JSON.stringify({ type: "match", data: { path: { text: "src/App.ts" }, line_number: 7, lines: { text: "Project source" } } }))});\n`,
+    );
+    chmodSync(fakeRg, 0o755);
+    const env = { HOME: tempHome, USERPROFILE: tempHome, PATH: `${bin}:${process.env.PATH ?? ""}` };
+
+    try {
+      const missingEncryptedMetadata = spawnSync(
+        "node",
+        ["dist/cli.js", "remote-access", "start", "--path", repo, "--source-id", "source-missing", "--project", "project-1"],
+        { cwd: PACKAGE_ROOT, encoding: "utf-8", env: { ...process.env, TERM: "dumb", ...env }, timeout: 15_000 },
+      );
+      assert.notEqual(missingEncryptedMetadata.status, 0);
+      assert.match(missingEncryptedMetadata.stderr, /requires --local-only or both --encrypted-display-name and --encrypted-metadata/);
+
+      const startOutput = runCli(
+        ["remote-access", "start", "--path", repo, "--source-id", "source-1", "--project", "project-1", "--local-only", "--json"],
+        env,
+      );
+      const started = JSON.parse(startOutput) as { source: { sourceId: string; rootPath: string; cachePath: string } };
+      assert.equal(started.source.sourceId, "source-1");
+      assert.equal(started.source.rootPath, repo);
+      assert.equal(started.source.cachePath, join(tempHome, ".openmates", "remote-cache", "source-1"));
+
+      const statusOutput = runCli(["remote-access", "status", "--json"], env);
+      const status = JSON.parse(statusOutput) as { sources: Array<{ sourceId: string; status: string }> };
+      assert.deepEqual(status.sources.map((source) => source.sourceId), ["source-1"]);
+      assert.equal(status.sources[0]?.status, "connected");
+
+      const searchOutput = runCli(["remote-access", "search", "--source", "source-1", "Project", "--json"], env);
+      const search = JSON.parse(searchOutput) as { matches: Array<{ path: string; line: number; snippet: string }> };
+      assert.deepEqual(search.matches, [{ path: "src/App.ts", line: 7, snippet: "Project source" }]);
+
+      const invalidLimit = spawnSync(
+        "node",
+        ["dist/cli.js", "remote-access", "search", "--source", "source-1", "Project", "--limit", "NaN"],
+        { cwd: PACKAGE_ROOT, encoding: "utf-8", env: { ...process.env, TERM: "dumb", ...env }, timeout: 15_000 },
+      );
+      assert.notEqual(invalidLimit.status, 0);
+      assert.match(invalidLimit.stderr, /--limit must be a positive integer/);
+    } finally {
+      rmSync(tempHome, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("workflows command", () => {
+  it("is listed in global help and prints contextual help", () => {
+    assert.match(runCli(["help"]), /openmates workflows \[--help\]/);
+    const output = runCli(["workflows", "--help"]);
+    assert.match(output, /openmates workflows list \[--json\]/);
+    assert.match(output, /openmates workflows input <text>/);
+    assert.match(output, /openmates workflows input-follow-up <session-id> <text>/);
+    assert.match(output, /openmates workflows run <workflow-id>/);
   });
 });
 
@@ -758,8 +923,9 @@ async function withCodeRunStreamingMockApi<T>(
 }
 
 async function withSkillFormattingMockApi<T>(
-  run: (params: { apiUrl: string }) => T | Promise<T>,
+  run: (params: { apiUrl: string; requests: Array<{ url: string; body: Record<string, unknown> }> }) => T | Promise<T>,
 ): Promise<T> {
+  const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
   const server = createServer(async (request, response) => {
     try {
       if (request.method === "POST" && request.url === "/v1/apps/events/skills/search") {
@@ -865,6 +1031,79 @@ async function withSkillFormattingMockApi<T>(
         });
         return;
       }
+      if (request.method === "POST" && request.url === "/v1/apps/fitness/skills/search_locations") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            provider: "Urban Sports Club",
+            results: [{
+              id: "nearby",
+              provider: "Urban Sports Club",
+              result_count: 1,
+              filters: { query: "hiit", address: "Sorauer Str. 12", radius_km: 1, plan: "all" },
+              summary: "Found 1 Urban Sports locations. Searched all Urban Sports plans.",
+              results: [{
+                id: "beat81-paul-lincke-ufer",
+                provider: "Urban Sports Club",
+                venue_id: "beat81-paul-lincke-ufer",
+                name: "BEAT81 - Paul-Lincke-Ufer",
+                address: "Paul-Lincke-Ufer 19, 10999 Berlin",
+                distance_km: 0.714,
+                disciplines: ["HIIT", "Strength"],
+                plans_required: ["Premium", "Max"],
+                image_url: "https://example.test/fitness.jpg",
+                lat: 52.493788701,
+                lon: 13.430159621,
+                url: "https://urbansportsclub.com/en/venues/beat81-paul-lincke-ufer",
+              }],
+            }],
+            ignore_fields_for_inference: ["image_url", "lat", "lon"],
+          },
+          credits_charged: 5,
+        });
+        return;
+      }
+      if (request.method === "POST" && request.url === "/v1/apps/fitness/skills/search_classes") {
+        const body = await readJsonBody(request);
+        requests.push({ url: request.url, body });
+        writeJson(response, {
+          success: true,
+          data: {
+            provider: "Urban Sports Club",
+            results: [{
+              id: "classes",
+              provider: "Urban Sports Club",
+              result_count: 1,
+              filters: { query: "yoga", address: "Sorauer Str. 12", radius_km: 1, plan: "all", attendance_mode: "onsite" },
+              summary: "Found 1 Urban Sports classes in onsite mode. Searched all Urban Sports plans.",
+              results: [{
+                id: "appointment-1",
+                provider: "Urban Sports Club",
+                appointment_id: "appointment-1",
+                name: "Morning Yoga Flow",
+                category: "Yoga",
+                attendance_mode: "onsite",
+                date: "2026-07-10",
+                time_range: "07:30 - 08:30",
+                venue_name: "Yoga Studio Kreuzberg",
+                venue_address: "Oranienstr. 1, 10997 Berlin",
+                distance_km: 0.9,
+                spots_display: "5 spots left",
+                plans_required: ["Classic", "Premium", "Max"],
+                detail_url: "https://urbansportsclub.com/en/class-details/appointment-1",
+                image_url: "https://example.test/class.jpg",
+                venue_lat: 52.5,
+                venue_lon: 13.4,
+              }],
+            }],
+            ignore_fields_for_inference: ["image_url", "venue_lat", "venue_lon"],
+          },
+          credits_charged: 5,
+        });
+        return;
+      }
       response.writeHead(404);
       response.end();
     } catch (error) {
@@ -876,7 +1115,7 @@ async function withSkillFormattingMockApi<T>(
   const address = server.address();
   assert.ok(address && typeof address === "object");
   try {
-    return await run({ apiUrl: `http://127.0.0.1:${address.port}` });
+    return await run({ apiUrl: `http://127.0.0.1:${address.port}`, requests });
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -1110,6 +1349,30 @@ describe("defaultCloneBranchForVersion", () => {
   it("uses the repository default branch for stable CLI versions", () => {
     assert.strictEqual(defaultCloneBranchForVersion("0.11.1"), null);
     assert.strictEqual(defaultCloneBranchForVersion("1.0.0"), null);
+  });
+});
+
+describe("CLI self-update commands", () => {
+  it("lists update and upgrade aliases in global help", () => {
+    const output = runCli(["help"]);
+    assert.match(output, /openmates update\s+Update the installed OpenMates CLI package/);
+    assert.match(output, /openmates upgrade\s+Alias for openmates update/);
+  });
+
+  it("prints the npm update command in dry-run mode", () => {
+    const output = runCli(["update", "--dry-run"], { npm_config_user_agent: "" });
+    assert.match(output, /Current OpenMates CLI version: \S+/);
+    assert.match(output, /Would run: npm install -g openmates@latest/);
+  });
+
+  it("supports upgrade as the same dry-run command with a selected package manager", () => {
+    const output = runCli(["upgrade", "--version", "0.14.0", "--package-manager", "pnpm", "--dry-run", "--json"]);
+    const parsed = JSON.parse(output) as { command: string; package_manager: string; package: string; run: string[]; dry_run: boolean };
+    assert.equal(parsed.command, "upgrade");
+    assert.equal(parsed.package_manager, "pnpm");
+    assert.equal(parsed.package, "openmates@0.14.0");
+    assert.deepEqual(parsed.run, ["pnpm", "add", "-g", "openmates@0.14.0"]);
+    assert.equal(parsed.dry_run, true);
   });
 });
 
@@ -1393,6 +1656,40 @@ describe("apps skill formatted output", () => {
       assert.match(output, /Relax the date window/);
       assert.match(output, /Try a nearby city/);
       assert.doesNotMatch(output, /\{\s*"results"/);
+    });
+  });
+
+  it("prints concise Fitness cards and sends canonical Urban Sports requests", async () => {
+    await withSkillFormattingMockApi(async ({ apiUrl, requests }) => {
+      const locationsOutput = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "fitness", "search_locations",
+        "--input", JSON.stringify({ requests: [{ query: "hiit", address: "Sorauer Str. 12", radius_km: 1, limit: 2 }] }),
+      ]);
+      const classesOutput = await runCliAsync([
+        "--api-url", apiUrl,
+        "apps", "fitness", "search_classes",
+        "--input", JSON.stringify({ requests: [{ query: "yoga", address: "Sorauer Str. 12", radius_km: 1, start_date: "2026-07-10", attendance_mode: "onsite", limit: 2 }] }),
+      ]);
+
+      assert.match(locationsOutput, /BEAT81 - Paul-Lincke-Ufer/);
+      assert.match(locationsOutput, /0\.714 km/);
+      assert.match(locationsOutput, /plans: Premium, Max/);
+      assert.match(classesOutput, /Morning Yoga Flow/);
+      assert.match(classesOutput, /2026-07-10/);
+      assert.match(classesOutput, /Yoga Studio Kreuzberg/);
+      assert.doesNotMatch(`${locationsOutput}\n${classesOutput}`, /image_url|venue_lat|venue_lon|lat:|lon:/);
+
+      assert.deepEqual(requests.map((entry) => entry.url), [
+        "/v1/apps/fitness/skills/search_locations",
+        "/v1/apps/fitness/skills/search_classes",
+      ]);
+      assert.deepEqual(requests[0].body, {
+        requests: [{ query: "hiit", address: "Sorauer Str. 12", radius_km: 1, limit: 2 }],
+      });
+      assert.deepEqual(requests[1].body, {
+        requests: [{ query: "yoga", address: "Sorauer Str. 12", radius_km: 1, start_date: "2026-07-10", attendance_mode: "onsite", limit: 2 }],
+      });
     });
   });
 });
@@ -1993,6 +2290,8 @@ describe("settings command surface", () => {
     assert.ok(runCli(["settings", "notifications", "--help"]).includes("notifications email set"));
     assert.ok(runCli(["settings", "--help"]).includes("notifications list"));
     assert.ok(runCli(["settings", "--help"]).includes("notifications stream"));
+    assert.ok(runCli(["settings", "developers", "api-keys", "--help"]).includes("api-keys create"));
+    assert.ok(!runCli(["settings", "developers", "api-keys", "create", "--help"]).includes("web-only"));
     assert.ok(runCli(["settings", "mates", "--help"]).includes("mates list"));
     assert.ok(runCli(["settings", "newsletter", "--help"]).includes("newsletter subscribe"));
   });
@@ -2061,6 +2360,23 @@ describe("settings command surface", () => {
       assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
         "POST /v1/settings/issues",
         "GET /v1/settings/issues/K7M2Q/status",
+      ]);
+    });
+  });
+
+  it("prints bank-transfer references in invoice list output", async () => {
+    await withBillingInvoicesMockApi(async ({ apiUrl, tempHome, requests }) => {
+      const output = await runCliAsync(
+        ["settings", "billing", "invoices", "list", "--api-url", apiUrl],
+        { HOME: tempHome, USERPROFILE: tempHome },
+      );
+      assert.match(output, /Bank transfer reference/);
+      assert.match(output, /OM-CLI-PENDING/);
+      assert.match(output, /OM-CLI-COMPLETED/);
+      assert.match(output, /\[pending\]/);
+      assert.match(output, /\[completed\]/);
+      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+        "GET /v1/payments/invoices",
       ]);
     });
   });
@@ -2244,6 +2560,7 @@ describe("documented CLI command reference", () => {
         "benchmark",
         "embeds",
         "mentions",
+        "remote-access",
         "inspirations",
         "newchatsuggestions",
         "server",
@@ -2264,7 +2581,7 @@ describe("documented CLI command reference", () => {
     const readme = readRepoText("frontend/packages/openmates-cli/README.md");
     const help = runCli(["--help"]);
     docAssert("cli-npm-readme-onboarding-matches-command-surface", () => {
-      for (const command of ["login", "signup", "chats", "apps", "settings", "benchmark", "server", "docs"]) {
+      for (const command of ["login", "signup", "chats", "apps", "settings", "benchmark", "server", "docs", "remote-access"]) {
         assert.ok(help.includes(command), `expected help to mention ${command}`);
         assert.ok(readme.includes(`openmates ${command}`), `expected README to include openmates ${command}`);
       }

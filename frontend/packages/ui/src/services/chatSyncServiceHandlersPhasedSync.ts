@@ -28,6 +28,10 @@ import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { decryptWithChatKey } from "./encryption/MessageEncryptor";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
 import {
+  filterPersistableSyncedMessagesWithSkipped,
+  markSyncedMessagesDeferred,
+} from "./chatSyncMessageKeyGuard";
+import {
   hasEncryptedChatKeyMismatch,
   mergeServerChatWithLocal,
 } from "./chatSyncMerge";
@@ -164,6 +168,11 @@ export async function handlePhase2RecentChatsImpl(
 
     if (chats.length === 0) {
       console.debug("[ChatSyncService] Phase 2 empty chats array");
+      serviceInstance.dispatchEvent(
+        new CustomEvent("phase_2_last_20_chats_ready", {
+          detail: { chat_count, total_chat_count },
+        }),
+      );
       return;
     }
 
@@ -396,7 +405,19 @@ export async function handleBackgroundMessageSyncImpl(
       }
 
       if (preparedMessages.length > 0) {
-        await chatDB.batchSaveMessages(preparedMessages);
+        const messageFilter = await filterPersistableSyncedMessagesWithSkipped(
+          preparedMessages,
+          new Map([[chatData.chat_id, undefined]]),
+          "Background message sync",
+        );
+        const persistableMessages = messageFilter.messages;
+        if (messageFilter.skippedChatIds.has(chatData.chat_id)) {
+          await markSyncedMessagesDeferred(chatData.chat_id, "Background message sync");
+          continue;
+        }
+        if (persistableMessages.length > 0) {
+          await chatDB.batchSaveMessages(persistableMessages);
+        }
       }
 
       // Update messages_v on the chat
@@ -711,16 +732,34 @@ async function storeRecentChats(
         chatId,
         "Phase 2",
       );
+      let persistableMessages = preparedMessages;
+      let messagesDeferred = false;
+      if (shouldSyncMessages && preparedMessages.length > 0) {
+        const messageFilter = await filterPersistableSyncedMessagesWithSkipped(
+          preparedMessages,
+          new Map([[chatId, mergedChat.encrypted_chat_key]]),
+          "Phase 2 recent chat sync",
+        );
+        if (messageFilter.skippedChatIds.has(chatId)) {
+          mergedChat.messages_v = existingChat?.messages_v ?? 0;
+          persistableMessages = [];
+          messagesDeferred = true;
+        } else {
+          persistableMessages = messageFilter.messages;
+        }
+      }
 
       // Save chat and messages
       try {
         await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
         chatListCache.upsertChat(mergedChat);
 
-        if (shouldSyncMessages && preparedMessages.length > 0) {
-          await chatDB.batchSaveMessages(preparedMessages);
+        if (shouldSyncMessages && persistableMessages.length > 0) {
+          await chatDB.batchSaveMessages(persistableMessages);
         }
-        processedChatIds.add(chatId);
+        if (!messagesDeferred) {
+          processedChatIds.add(chatId);
+        }
       } catch (saveError) {
         console.error(
           `[ChatSyncService] Phase 2 - Error saving chat/messages for chat ${chatId}:`,
@@ -947,21 +986,35 @@ async function storeAllChats(
         continue;
       }
 
+      let persistableMessages: Message[] = [];
+      if (shouldSyncMessages && messages && messages.length > 0) {
+        const preparedMessages = prepareMessagesForStorage(
+          messages,
+          chatId,
+          "Phase 3",
+        );
+
+        if (preparedMessages.length > 0) {
+          const messageFilter = await filterPersistableSyncedMessagesWithSkipped(
+            preparedMessages,
+            new Map([[chatId, mergedChat.encrypted_chat_key]]),
+            "Phase 3 full chat sync",
+          );
+          if (messageFilter.skippedChatIds.has(chatId)) {
+            mergedChat.messages_v = existingChat?.messages_v ?? 0;
+          } else {
+            persistableMessages = messageFilter.messages;
+          }
+        }
+      }
+
       // Save chat and messages
       try {
         await chatDB.addChat(mergedChat, undefined, syncSaveOptions);
         chatListCache.upsertChat(mergedChat);
 
-        if (shouldSyncMessages && messages && messages.length > 0) {
-          const preparedMessages = prepareMessagesForStorage(
-            messages,
-            chatId,
-            "Phase 3",
-          );
-
-          if (preparedMessages.length > 0) {
-            await chatDB.batchSaveMessages(preparedMessages);
-          }
+        if (persistableMessages.length > 0) {
+          await chatDB.batchSaveMessages(persistableMessages);
         }
       } catch (saveError) {
         console.error(

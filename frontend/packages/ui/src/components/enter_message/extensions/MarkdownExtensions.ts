@@ -56,17 +56,41 @@ export const MarkdownHighlight = Highlight.configure({
  * Check if a href is an internal hash-based link
  * Internal links include:
  * - #chat-id= or /#chat-id= - Chat deep links
+ * - #message= or /#message= - Message composer prefill links
  * - #settings/ or /#settings/ - Settings deep links (including Apps)
  */
-function isInternalHashLink(href: string): boolean {
+export function isMarkdownInternalHashLink(href: string): boolean {
   if (!href) return false;
   const normalizedHref = href.startsWith('/#') ? href.substring(1) : href;
   return (
     normalizedHref.startsWith('#chat-id=') ||
+    normalizedHref.startsWith('#message=') ||
     normalizedHref.startsWith('#settings') ||
     normalizedHref.includes('#chat-id=') ||
+    normalizedHref.includes('#message=') ||
     normalizedHref.includes('#settings/')
   );
+}
+
+export function dispatchMessagePrefillFromHref(href: string): boolean {
+  const normalizedHref = href.startsWith('/') ? href.substring(1) : href;
+  if (!normalizedHref.startsWith('#message=')) return false;
+
+  const encodedText = normalizedHref.slice('#message='.length);
+  if (!encodedText) return false;
+
+  try {
+    window.dispatchEvent(new CustomEvent('docsMessagePrefill', {
+      detail: {
+        text: decodeURIComponent(encodedText),
+        autoSend: false,
+      },
+    }));
+    return true;
+  } catch (error) {
+    if (!(error instanceof URIError)) throw error;
+    return false;
+  }
 }
 
 /**
@@ -103,7 +127,7 @@ export const MarkdownLink = Link.extend({
             normalizedHref = normalizedHref.substring(1); // Remove leading / from /#...
           }
           
-          const isInternal = isInternalHashLink(attributes.href);
+            const isInternal = isMarkdownInternalHashLink(attributes.href);
           
           if (isInternal) {
             // Internal link: same tab, no target="_blank"
@@ -134,14 +158,14 @@ export const MarkdownLink = Link.extend({
         parseHTML: element => {
           const href = element.getAttribute('href');
           // For internal links, always return null to prevent target attribute
-          if (href && isInternalHashLink(href)) {
+          if (href && isMarkdownInternalHashLink(href)) {
             return null; // No target for internal links
           }
           return element.getAttribute('target');
         },
         renderHTML: attributes => {
           // Check if this is an internal link
-          if (attributes.href && isInternalHashLink(attributes.href)) {
+          if (attributes.href && isMarkdownInternalHashLink(attributes.href)) {
             // Return empty object - this prevents target from being rendered
             return {};
           }
@@ -171,7 +195,7 @@ export const MarkdownLink = Link.extend({
                 const href = link.getAttribute('href');
                 const hasInternalAttr = link.hasAttribute('data-internal');
                 
-                if (hasInternalAttr && href && isInternalHashLink(href)) {
+                if (hasInternalAttr && href && isMarkdownInternalHashLink(href)) {
                   // Internal hash-based link: prevent default and navigate to hash
                   event.preventDefault();
                   event.stopPropagation();
@@ -180,9 +204,13 @@ export const MarkdownLink = Link.extend({
                   // Normalize href (remove leading / if present)
                   const normalizedHref = href.startsWith('/') ? href.substring(1) : href;
                   
-                  // Navigate to hash (triggers hashchange event)
+                  // Composer prefill links should update the currently mounted
+                  // message input directly, not navigate or open a new tab.
                   if (typeof window !== 'undefined') {
-                    window.location.hash = normalizedHref;
+                    if (!dispatchMessagePrefillFromHref(normalizedHref)) {
+                      // Navigate to hash (triggers hashchange event)
+                      window.location.hash = normalizedHref;
+                    }
                   }
                   
                   return true; // Indicate we handled the click

@@ -2,7 +2,20 @@
     import { onMount, createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { getApiEndpoint } from '../../../config/api';
+    import SettingsButton from '../elements/SettingsButton.svelte';
+    import SettingsButtonGroup from '../elements/SettingsButtonGroup.svelte';
+    import SettingsCard from '../elements/SettingsCard.svelte';
+    import SettingsCheckboxList from '../elements/SettingsCheckboxList.svelte';
+    import SettingsCodeBlock from '../elements/SettingsCodeBlock.svelte';
+    import SettingsConfirmBlock from '../elements/SettingsConfirmBlock.svelte';
+    import SettingsDetailRow from '../elements/SettingsDetailRow.svelte';
+    import SettingsDropdown from '../elements/SettingsDropdown.svelte';
+    import SettingsInfoBox from '../elements/SettingsInfoBox.svelte';
     import SettingsInput from '../elements/SettingsInput.svelte';
+    import SettingsItem from '../elements/SettingsItem.svelte';
+    import SettingsLoadingState from '../elements/SettingsLoadingState.svelte';
+    import SettingsPageContainer from '../elements/SettingsPageContainer.svelte';
+    import SettingsSectionHeading from '../elements/SettingsSectionHeading.svelte';
     import {
         encryptWithMasterKeyDirect,
         decryptWithMasterKey,
@@ -11,10 +24,12 @@
         getKeyFromStorage,
         uint8ArrayToBase64,
     } from '../../../services/cryptoService';
-    import { copyToClipboard as clipboardCopy } from '../../../utils/clipboardUtils';
-    import { focusTrap } from '../../../actions/focusTrap';
 
-    const _dispatch = createEventDispatcher();
+    const API_KEYS_ROOT_PATH = 'developers/api-keys';
+    const API_KEYS_CREATE_PATH = 'developers/api-keys/create';
+    const MAX_API_KEYS = 5;
+
+    const dispatch = createEventDispatcher();
 
     interface ApiKey {
         id: string;
@@ -29,18 +44,30 @@
         credit_limit?: { period: string; credits: number } | null;
     }
 
-    type CreateStep = 'scope' | 'credit' | 'expiration';
+    type CreditPeriod = 'unlimited' | 'daily' | 'weekly' | 'monthly' | 'lifetime';
+    type ExpirationPreset = '7d' | '30d' | '90d' | '1y' | 'never';
+    type AppsMode = 'all' | 'selected';
+    type ScopeOption = {
+        id: string;
+        label: string;
+        description?: string;
+        icon?: string;
+        checked: boolean;
+    };
 
-    // State using Svelte 5 $state() runes
+    let {
+        activeSettingsView = API_KEYS_ROOT_PATH,
+    }: {
+        activeSettingsView?: string;
+    } = $props();
+
     let apiKeys = $state<ApiKey[]>([]);
     let loading = $state(true);
     let error = $state<string>('');
-    let showCreateForm = $state(false);
     let newKeyName = $state('');
     let createdKey = $state('');
     let showCreatedKey = $state(false);
     let creatingKey = $state(false);
-    let createStep = $state<CreateStep>('scope');
     let fullAccess = $state(true);
     let chatCreateIncognito = $state(true);
     let chatCreateSaved = $state(true);
@@ -49,13 +76,82 @@
     let chatDelete = $state(true);
     let chatShare = $state(true);
     let memoryRead = $state(true);
-    let appsMode = $state<'all' | 'selected'>('all');
+    let appsMode = $state<AppsMode>('all');
     let allowedSkillText = $state('web:search');
-    let creditPeriod = $state<'unlimited' | 'daily' | 'weekly' | 'monthly' | 'lifetime'>('unlimited');
+    let creditPeriod = $state<CreditPeriod>('unlimited');
     let creditAmount = $state('1000');
-    let expirationPreset = $state<'7d' | '30d' | '90d' | '1y' | 'never'>('never');
+    let expirationPreset = $state<ExpirationPreset>('never');
+    let showRevokeConfirm = $state(false);
+    let revokeConfirmChecked = $state(false);
 
-    // Load API keys on mount
+    let isCreateView = $derived(activeSettingsView === API_KEYS_CREATE_PATH);
+    let selectedApiKeyId = $derived.by(() => {
+        if (!activeSettingsView.startsWith(`${API_KEYS_ROOT_PATH}/`)) return '';
+        if (activeSettingsView === API_KEYS_CREATE_PATH) return '';
+        return activeSettingsView.split('/')[2] ?? '';
+    });
+    let isDetailView = $derived(Boolean(selectedApiKeyId));
+    let selectedApiKey = $derived(apiKeys.find((key) => key.id === selectedApiKeyId) ?? null);
+
+    let creditPeriodOptions = $derived([
+        { value: 'unlimited', label: $text('settings.api_keys.credit_unlimited') },
+        { value: 'daily', label: $text('settings.api_keys.credit_daily') },
+        { value: 'weekly', label: $text('settings.api_keys.credit_weekly') },
+        { value: 'monthly', label: $text('settings.api_keys.credit_monthly') },
+        { value: 'lifetime', label: $text('settings.api_keys.credit_lifetime') },
+    ]);
+
+    let expirationOptions = $derived([
+        { value: '7d', label: $text('settings.api_keys.expiration_7d') },
+        { value: '30d', label: $text('settings.api_keys.expiration_30d') },
+        { value: '90d', label: $text('settings.api_keys.expiration_90d') },
+        { value: '1y', label: $text('settings.api_keys.expiration_1y') },
+        { value: 'never', label: $text('settings.api_keys.expiration_never') },
+    ]);
+
+    let appsModeOptions = $derived([
+        { value: 'all', label: $text('settings.api_keys.apps_all') },
+        { value: 'selected', label: $text('settings.api_keys.apps_selected') },
+    ]);
+
+    let scopeOptions = $derived<ScopeOption[]>([
+        {
+            id: 'chatCreateIncognito',
+            label: $text('settings.api_keys.scope_chat_create_incognito'),
+            checked: chatCreateIncognito,
+        },
+        {
+            id: 'chatCreateSaved',
+            label: $text('settings.api_keys.scope_chat_create_saved'),
+            checked: chatCreateSaved,
+        },
+        {
+            id: 'chatReadExisting',
+            label: $text('settings.api_keys.scope_chat_read_existing'),
+            checked: chatReadExisting,
+        },
+        {
+            id: 'chatAppendExisting',
+            label: $text('settings.api_keys.scope_chat_append_existing'),
+            checked: chatAppendExisting,
+        },
+        {
+            id: 'chatDelete',
+            label: $text('settings.api_keys.scope_chat_delete'),
+            checked: chatDelete,
+        },
+        {
+            id: 'chatShare',
+            label: $text('settings.api_keys.scope_chat_share'),
+            checked: chatShare,
+        },
+        {
+            id: 'memoryRead',
+            label: $text('settings.api_keys.scope_memory_read'),
+            checked: memoryRead,
+        },
+    ]);
+
     onMount(() => {
         loadApiKeys();
     });
@@ -72,7 +168,7 @@
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                credentials: 'include' // Include cookies for authentication
+                credentials: 'include'
             });
 
             if (!response.ok) {
@@ -82,8 +178,6 @@
 
             const data = await response.json();
             const rawKeys = data.api_keys || [];
-            
-            // Decrypt encrypted_name and encrypted_key_prefix for each key
             const masterKey = await getKeyFromStorage();
             if (!masterKey) {
                 throw new Error('Master key not found. Please log in again.');
@@ -94,23 +188,18 @@
                     let decryptedName = (key.encrypted_name as string) || '';
                     let decryptedPrefix = (key.encrypted_key_prefix as string) || '';
                     const lastUsed = (key.last_used_at as string) || null;
-                    
+
                     try {
                         if (key.encrypted_name) {
                             const decrypted = await decryptWithMasterKey(key.encrypted_name as string);
-                            if (decrypted) {
-                                decryptedName = decrypted;
-                            }
+                            if (decrypted) decryptedName = decrypted;
                         }
                         if (key.encrypted_key_prefix) {
                             const decrypted = await decryptWithMasterKey(key.encrypted_key_prefix as string);
-                            if (decrypted) {
-                                decryptedPrefix = decrypted;
-                            }
+                            if (decrypted) decryptedPrefix = decrypted;
                         }
                     } catch (err) {
                         console.error('Error decrypting API key fields:', err);
-                        // Keep encrypted values if decryption fails
                     }
 
                     return {
@@ -134,7 +223,6 @@
     }
 
     function generateApiKey(): string {
-        // Generate a secure API key: sk-api-[32 random chars]
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
         let result = 'sk-api-';
         const maxUnbiasedValue = Math.floor(256 / chars.length) * chars.length;
@@ -183,13 +271,26 @@
         return expires.toISOString();
     }
 
-    function closeCreateForm() {
-        showCreateForm = false;
-        createStep = 'scope';
+    function resetCreateForm() {
+        newKeyName = '';
+        createdKey = '';
+        showCreatedKey = false;
+        fullAccess = true;
+        chatCreateIncognito = true;
+        chatCreateSaved = true;
+        chatReadExisting = true;
+        chatAppendExisting = true;
+        chatDelete = true;
+        chatShare = true;
+        memoryRead = true;
+        appsMode = 'all';
+        allowedSkillText = 'web:search';
+        creditPeriod = 'unlimited';
+        creditAmount = '1000';
+        expirationPreset = 'never';
     }
 
     async function hashApiKey(key: string): Promise<string> {
-        // Use Web Crypto API for proper SHA-256 hashing
         const encoder = new TextEncoder();
         const data = encoder.encode(key);
         const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -199,7 +300,7 @@
 
     async function createApiKey() {
         if (!newKeyName.trim()) {
-            error = 'API key name is required';
+            error = $text('settings.api_keys.name_required');
             return;
         }
 
@@ -207,18 +308,14 @@
             creatingKey = true;
             error = '';
 
-            // Get master key for encryption
             const masterKey = await getKeyFromStorage();
             if (!masterKey) {
                 throw new Error('Master key not found. Please log in again.');
             }
 
-            // Generate API key client-side
             const apiKey = generateApiKey();
             const apiKeyHash = await hashApiKey(apiKey);
             const keyPrefix = apiKey.substring(0, 12) + '...';
-
-            // Encrypt name and key_prefix with master key (client-side encryption)
             const encryptedName = await encryptWithMasterKeyDirect(newKeyName.trim(), masterKey);
             const encryptedKeyPrefix = await encryptWithMasterKeyDirect(keyPrefix, masterKey);
 
@@ -226,12 +323,8 @@
                 throw new Error('Failed to encrypt API key data');
             }
 
-            // Derive key from API key and encrypt master key (for CLI/npm/pip access)
-            // Generate random salt for this API key
             const salt = crypto.getRandomValues(new Uint8Array(16));
             const derivedKey = await deriveKeyFromApiKey(apiKey, salt);
-            
-            // Encrypt master key with derived key
             const { wrapped: encryptedMasterKey, iv: keyIv } = await encryptKey(masterKey, derivedKey);
 
             const response = await fetch(getApiEndpoint('/v1/settings/api-keys'), {
@@ -240,7 +333,7 @@
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                credentials: 'include', // Include cookies for authentication
+                credentials: 'include',
                 body: JSON.stringify({
                     encrypted_name: encryptedName,
                     api_key_hash: apiKeyHash,
@@ -260,16 +353,10 @@
                 throw new Error(errorData.detail || 'Failed to create API key');
             }
 
-            // Show the created key to user (only time they'll see it)
             createdKey = apiKey;
             showCreatedKey = true;
-
-            // Refresh the list
-            await loadApiKeys();
-
-            // Reset form
             newKeyName = '';
-            closeCreateForm();
+            await loadApiKeys();
         } catch (err: unknown) {
             error = (err instanceof Error ? err.message : null) || 'Failed to create API key';
         } finally {
@@ -277,11 +364,7 @@
         }
     }
 
-    async function deleteApiKey(keyId: string, keyName: string) {
-        if (!confirm(`Are you sure you want to delete the API key "${keyName}"? This action cannot be undone.`)) {
-            return;
-        }
-
+    async function deleteApiKey(keyId: string) {
         try {
             const response = await fetch(getApiEndpoint(`/v1/settings/api-keys/${keyId}`), {
                 method: 'DELETE',
@@ -289,7 +372,7 @@
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                credentials: 'include' // Include cookies for authentication
+                credentials: 'include'
             });
 
             if (!response.ok) {
@@ -297,574 +380,305 @@
                 throw new Error(errorData.detail || 'Failed to delete API key');
             }
 
+            showRevokeConfirm = false;
+            revokeConfirmChecked = false;
             await loadApiKeys();
+            navigateToApiKeys('backward');
         } catch (err: unknown) {
             console.error('Error deleting API key:', err);
             error = (err instanceof Error ? err.message : null) || 'Failed to delete API key';
         }
     }
 
-    async function copyToClipboard(text: string) {
-        const result = await clipboardCopy(text);
-        if (!result.success) {
-            console.error('[SettingsApiKeys] Failed to copy to clipboard:', result.error);
-        }
-    }
-
     function formatDate(dateString: string | null | undefined) {
-        if (!dateString) return 'Unknown';
+        if (!dateString) return $text('settings.api_keys.unknown');
         return new Date(dateString).toLocaleDateString();
     }
 
     function describeCreditLimit(key: ApiKey) {
-        if (!key.credit_limit) return 'Unlimited credits';
-        return `${key.credit_limit.credits} credits / ${key.credit_limit.period}`;
+        if (!key.credit_limit) return $text('settings.api_keys.unlimited_credits');
+        return $text('settings.api_keys.credit_limit_summary')
+            .replace('{credits}', key.credit_limit.credits.toString())
+            .replace('{period}', key.credit_limit.period);
+    }
+
+    function describeLastUsed(key: ApiKey) {
+        if (!key.last_used) return $text('settings.api_keys.never_used');
+        return $text('settings.api_keys.last_used_on').replace('{date}', formatDate(key.last_used));
+    }
+
+    function describeAccess(key: ApiKey) {
+        return key.full_access ? $text('settings.api_keys.full_access') : $text('settings.api_keys.restricted_access');
+    }
+
+    function navigateToApiKeys(direction = 'forward') {
+        dispatch('openSettings', {
+            settingsPath: API_KEYS_ROOT_PATH,
+            direction,
+            icon: 'key',
+            title: $text('settings.developers_api_keys')
+        });
+    }
+
+    function navigateToCreateApiKey() {
+        if (apiKeys.length >= MAX_API_KEYS) return;
+        resetCreateForm();
+        dispatch('openSettings', {
+            settingsPath: API_KEYS_CREATE_PATH,
+            direction: 'forward',
+            icon: 'key',
+            title: $text('settings.api_keys.create_title')
+        });
+    }
+
+    function navigateToApiKeyDetails(key: ApiKey) {
+        showRevokeConfirm = false;
+        revokeConfirmChecked = false;
+        dispatch('openSettings', {
+            settingsPath: `${API_KEYS_ROOT_PATH}/${key.id}`,
+            direction: 'forward',
+            icon: 'key',
+            title: key.name || $text('settings.api_keys.detail_title')
+        });
+    }
+
+    function updateScopeOption(id: string, checked: boolean) {
+        if (id === 'chatCreateIncognito') chatCreateIncognito = checked;
+        if (id === 'chatCreateSaved') chatCreateSaved = checked;
+        if (id === 'chatReadExisting') chatReadExisting = checked;
+        if (id === 'chatAppendExisting') chatAppendExisting = checked;
+        if (id === 'chatDelete') chatDelete = checked;
+        if (id === 'chatShare') chatShare = checked;
+        if (id === 'memoryRead') memoryRead = checked;
     }
 </script>
 
-<div class="api-keys-container" data-testid="api-keys-container">
-    <div class="header">
-        <h2 class="title">{$text('settings.developers_api_keys')}</h2>
-        <p class="description">{$text('settings.developers_api_keys_description')}</p>
+{#if isCreateView}
+    <SettingsPageContainer maxWidth="wide">
+        {#if error}
+            <SettingsInfoBox type="error">{error}</SettingsInfoBox>
+        {/if}
 
-        <button
-            class="btn-create"
-            data-testid="api-key-create-button"
-            onclick={() => showCreateForm = true}
-            disabled={apiKeys.length >= 5}
-        >
-            + Create New API Key
-        </button>
-    </div>
+        {#if showCreatedKey}
+            <SettingsInfoBox type="warning">
+                <p>{$text('settings.api_keys.created_warning')}</p>
+            </SettingsInfoBox>
+            <SettingsCodeBlock code={createdKey} copyable dataTestid="api-key-created-value" />
+            <SettingsButtonGroup align="right">
+                <SettingsButton dataTestid="api-key-done-button" onClick={() => navigateToApiKeys('backward')}>
+                    {$text('settings.api_keys.copied_done')}
+                </SettingsButton>
+            </SettingsButtonGroup>
+        {:else}
+            <SettingsInfoBox type="info">
+                <p>{$text('settings.api_keys.create_description')}</p>
+            </SettingsInfoBox>
 
-    {#if error}
-        <div class="error-message">{error}</div>
-    {/if}
+            <SettingsSectionHeading title={$text('settings.api_keys.name_section')} icon="key" />
+            <SettingsInput
+                type="text"
+                placeholder={$text('settings.api_keys.name_placeholder')}
+                bind:value={newKeyName}
+                maxlength={100}
+                dataTestid="api-key-name-input"
+            />
 
-    {#if loading}
-        <div class="loading">Loading API keys...</div>
-    {:else if apiKeys.length === 0}
-        <div class="empty-state">
-            <div class="empty-icon">🔑</div>
-            <h3>No API Keys</h3>
-            <p>Create your first API key to access OpenMates programmatically.</p>
-        </div>
-    {:else}
-        <div class="api-keys-list">
-            {#each apiKeys as key (key.id)}
-                <div class="api-key-item" data-testid="api-key-item">
-                    <div class="key-info">
-                        <h4 class="key-name" data-testid="api-key-name">{key.name}</h4>
-                        <p class="key-prefix">{key.key_prefix}</p>
-                        <div class="key-meta">
-                            <span>Created: {formatDate(key.created_at)}</span>
-                            <span>{key.full_access ? 'Full access' : 'Restricted'}</span>
-                            <span>{describeCreditLimit(key)}</span>
-                            {#if key.last_used}
-                                <span>Last used: {formatDate(key.last_used)}</span>
-                            {:else}
-                                <span>Never used</span>
-                            {/if}
-                        </div>
-                    </div>
-                    <div class="key-actions">
-                        <button
-                            class="btn-delete"
-                            data-testid="api-key-delete-button"
-                            onclick={() => deleteApiKey(key.id, key.name)}
-                        >
-                            Delete
-                        </button>
-                    </div>
-                </div>
-            {/each}
-        </div>
-    {/if}
-
-    {#if apiKeys.length >= 5}
-        <div class="limit-warning" data-testid="api-key-limit-warning">
-            You've reached the maximum number of API keys (5). Delete an existing key to create a new one.
-        </div>
-    {/if}
-</div>
-
-<!-- Create API Key Modal -->
-{#if showCreateForm}
-    <div
-        class="modal-overlay"
-        role="presentation"
-        onmousedown={(e) => { if (e.target === e.currentTarget) showCreateForm = false; }}
-    >
-        <div
-            class="modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="apikey-create-title"
-            tabindex="-1"
-            use:focusTrap={{ onEscape: closeCreateForm }}
-            onmousedown={(e) => e.stopPropagation()}
-        >
-            <h3 id="apikey-create-title">Create New API Key</h3>
-
-            {#if createStep === 'scope'}
-                <p>Scope controls what this key can do. Full access is convenient but can read and create account data.</p>
-                <SettingsInput
-                    type="text"
-                    placeholder="e.g., My App Integration"
-                    bind:value={newKeyName}
-                    maxlength={100}
-                    dataTestid="api-key-name-input"
-                />
-
-                <label class="scope-toggle">
-                    <input type="checkbox" bind:checked={fullAccess} data-testid="api-key-full-access-toggle" />
-                    <span>Full access to supported API-key actions</span>
-                </label>
-                {#if fullAccess}
-                    <div class="warning-box" data-testid="api-key-full-access-warning">
-                        Full access can read encrypted account metadata, create chats, run app skills, and spend account credits.
-                    </div>
-                {:else}
-                    <div class="scope-grid" data-testid="api-key-scope-options">
-                        <label><input type="checkbox" bind:checked={chatCreateIncognito} /> Create non-persistent chats</label>
-                        <label><input type="checkbox" bind:checked={chatCreateSaved} /> Create saved chats</label>
-                        <label><input type="checkbox" bind:checked={chatReadExisting} /> Read existing chats</label>
-                        <label><input type="checkbox" bind:checked={chatAppendExisting} /> Append existing chats</label>
-                        <label><input type="checkbox" bind:checked={chatDelete} /> Delete chats</label>
-                        <label><input type="checkbox" bind:checked={chatShare} /> Share chats</label>
-                        <label><input type="checkbox" bind:checked={memoryRead} /> Read selected memories</label>
-                    </div>
-                    <details class="scope-details" open>
-                        <summary>App skill access</summary>
-                        <label class="scope-toggle">
-                            <input type="radio" bind:group={appsMode} value="all" />
-                            <span>All app skills</span>
-                        </label>
-                        <label class="scope-toggle">
-                            <input type="radio" bind:group={appsMode} value="selected" />
-                            <span>Selected app skills</span>
-                        </label>
-                        {#if appsMode === 'selected'}
-                            <SettingsInput
-                                type="text"
-                                placeholder="web:search, images:generate"
-                                bind:value={allowedSkillText}
-                                dataTestid="api-key-allowed-skills-input"
-                            />
-                        {/if}
-                    </details>
-                {/if}
-            {:else if createStep === 'credit'}
-                <p>Set one optional credit cap for this key. Unlimited is the default.</p>
-                <div class="radio-list" data-testid="api-key-credit-step">
-                    <label><input type="radio" bind:group={creditPeriod} value="unlimited" /> Unlimited</label>
-                    <label><input type="radio" bind:group={creditPeriod} value="daily" /> Daily</label>
-                    <label><input type="radio" bind:group={creditPeriod} value="weekly" /> Weekly</label>
-                    <label><input type="radio" bind:group={creditPeriod} value="monthly" /> Monthly</label>
-                    <label><input type="radio" bind:group={creditPeriod} value="lifetime" /> Lifetime</label>
-                </div>
-                {#if creditPeriod === 'unlimited'}
-                    <div class="warning-box" data-testid="api-key-credit-warning">
-                        This key can spend account credits without a per-key cap.
-                    </div>
-                {:else}
-                    <SettingsInput
-                        type="number"
-                        placeholder="Credit cap"
-                        bind:value={creditAmount}
-                        min="1"
-                        dataTestid="api-key-credit-amount-input"
-                    />
-                {/if}
+            <SettingsSectionHeading title={$text('settings.api_keys.access_section')} icon="privacy" />
+            <SettingsItem
+                type="subsubmenu"
+                icon="subsetting_icon key"
+                title={$text('settings.api_keys.full_access')}
+                subtitleTop={$text('settings.api_keys.full_access_description')}
+                hasToggle={true}
+                checked={fullAccess}
+                data-testid="api-key-full-access-toggle"
+                onClick={() => fullAccess = !fullAccess}
+            />
+            {#if fullAccess}
+                <SettingsInfoBox type="warning" ariaLabel={$text('settings.api_keys.full_access_warning_title')}>
+                    <p>{$text('settings.api_keys.full_access_warning')}</p>
+                </SettingsInfoBox>
             {:else}
-                <p>Choose when this key expires. Never is the default, but rotating keys is safer.</p>
-                <div class="radio-list" data-testid="api-key-expiration-step">
-                    <label><input type="radio" bind:group={expirationPreset} value="7d" /> 7 days</label>
-                    <label><input type="radio" bind:group={expirationPreset} value="30d" /> 30 days</label>
-                    <label><input type="radio" bind:group={expirationPreset} value="90d" /> 90 days</label>
-                    <label><input type="radio" bind:group={expirationPreset} value="1y" /> 1 year</label>
-                    <label><input type="radio" bind:group={expirationPreset} value="never" /> Never</label>
-                </div>
-                {#if expirationPreset === 'never'}
-                    <div class="warning-box" data-testid="api-key-expiration-warning">
-                        This key never expires. Delete it immediately if it is leaked.
-                    </div>
+                <SettingsCheckboxList
+                    options={scopeOptions}
+                    dataTestid="api-key-scope-options"
+                    onChange={updateScopeOption}
+                />
+                <SettingsDropdown
+                    value={appsMode}
+                    options={appsModeOptions}
+                    ariaLabel={$text('settings.api_keys.apps_access')}
+                    dataTestid="api-key-apps-mode-select"
+                    onChange={(value) => appsMode = value as AppsMode}
+                />
+                {#if appsMode === 'selected'}
+                    <SettingsInput
+                        type="text"
+                        placeholder={$text('settings.api_keys.allowed_skills_placeholder')}
+                        bind:value={allowedSkillText}
+                        dataTestid="api-key-allowed-skills-input"
+                    />
                 {/if}
             {/if}
 
-            <div class="modal-actions">
-                <button
-                    class="btn-cancel"
-                    data-testid="api-key-cancel-button"
-                    onclick={closeCreateForm}
-                    disabled={creatingKey}
+            <SettingsSectionHeading title={$text('settings.api_keys.limits_section')} icon="coins" />
+            <SettingsDropdown
+                value={creditPeriod}
+                options={creditPeriodOptions}
+                ariaLabel={$text('settings.api_keys.credit_limit')}
+                dataTestid="api-key-credit-period-select"
+                onChange={(value) => creditPeriod = value as CreditPeriod}
+            />
+            {#if creditPeriod === 'unlimited'}
+                <SettingsInfoBox type="warning" ariaLabel={$text('settings.api_keys.credit_unlimited_warning_title')}>
+                    <p>{$text('settings.api_keys.credit_unlimited_warning')}</p>
+                </SettingsInfoBox>
+            {:else}
+                <SettingsInput
+                    type="number"
+                    placeholder={$text('settings.api_keys.credit_amount_placeholder')}
+                    bind:value={creditAmount}
+                    min="1"
+                    dataTestid="api-key-credit-amount-input"
+                />
+            {/if}
+
+            <SettingsDropdown
+                value={expirationPreset}
+                options={expirationOptions}
+                ariaLabel={$text('settings.api_keys.expiration')}
+                dataTestid="api-key-expiration-select"
+                onChange={(value) => expirationPreset = value as ExpirationPreset}
+            />
+            {#if expirationPreset === 'never'}
+                <SettingsInfoBox type="warning" ariaLabel={$text('settings.api_keys.expiration_never_warning_title')}>
+                    <p>{$text('settings.api_keys.expiration_never_warning')}</p>
+                </SettingsInfoBox>
+            {/if}
+
+            <SettingsButtonGroup align="space-between">
+                <SettingsButton variant="secondary" dataTestid="api-key-cancel-button" onClick={() => navigateToApiKeys('backward')} disabled={creatingKey}>
+                    {$text('common.cancel')}
+                </SettingsButton>
+                <SettingsButton
+                    dataTestid="api-key-create-confirm"
+                    onClick={createApiKey}
+                    disabled={!newKeyName.trim()}
+                    loading={creatingKey}
                 >
-                    Cancel
-                </button>
-                {#if createStep !== 'scope'}
-                    <button
-                        class="btn-cancel"
-                        data-testid="api-key-back-button"
-                        onclick={() => createStep = createStep === 'expiration' ? 'credit' : 'scope'}
-                        disabled={creatingKey}
+                    {creatingKey ? $text('settings.api_keys.creating') : $text('settings.api_keys.create_title')}
+                </SettingsButton>
+            </SettingsButtonGroup>
+        {/if}
+    </SettingsPageContainer>
+{:else if isDetailView}
+    <SettingsPageContainer maxWidth="wide">
+        {#if error}
+            <SettingsInfoBox type="error">{error}</SettingsInfoBox>
+        {/if}
+
+        {#if loading}
+            <SettingsLoadingState text={$text('settings.api_keys.loading')} />
+        {:else if !selectedApiKey}
+            <SettingsLoadingState
+                variant="empty"
+                text={$text('settings.api_keys.not_found')}
+                hint={$text('settings.api_keys.not_found_hint')}
+            />
+        {:else}
+            <SettingsSectionHeading title={selectedApiKey.name} icon="key" />
+            <SettingsCard>
+                <SettingsDetailRow label={$text('settings.api_keys.prefix')} value={selectedApiKey.key_prefix} />
+                <SettingsDetailRow label={$text('settings.api_keys.created')} value={formatDate(selectedApiKey.created_at)} />
+                <SettingsDetailRow label={$text('settings.api_keys.last_used')} value={describeLastUsed(selectedApiKey)} />
+                <SettingsDetailRow label={$text('settings.api_keys.access')} value={describeAccess(selectedApiKey)} />
+                <SettingsDetailRow label={$text('settings.api_keys.credit_limit')} value={describeCreditLimit(selectedApiKey)} />
+            </SettingsCard>
+
+            <SettingsInfoBox type="info">
+                <p>{$text('settings.api_keys.detail_secret_note')}</p>
+            </SettingsInfoBox>
+
+            {#if showRevokeConfirm}
+                <SettingsConfirmBlock
+                    warningText={$text('settings.api_keys.revoke_warning')}
+                    confirmLabel={$text('settings.api_keys.revoke_confirm_label')}
+                    bind:checked={revokeConfirmChecked}
+                />
+                <SettingsButtonGroup align="space-between">
+                    <SettingsButton
+                        variant="secondary"
+                        dataTestid="api-key-revoke-cancel-button"
+                        onClick={() => {
+                            showRevokeConfirm = false;
+                            revokeConfirmChecked = false;
+                        }}
                     >
-                        Back
-                    </button>
-                {/if}
-                <button
-                    class="btn-create-confirm"
-                    data-testid="api-key-create-confirm"
-                    onclick={() => {
-                        if (createStep === 'scope') createStep = 'credit';
-                        else if (createStep === 'credit') createStep = 'expiration';
-                        else createApiKey();
-                    }}
-                    disabled={creatingKey || !newKeyName.trim()}
-                >
-                    {creatingKey ? 'Creating...' : createStep === 'expiration' ? 'Create API Key' : 'Continue'}
-                </button>
-            </div>
-        </div>
-    </div>
+                        {$text('common.cancel')}
+                    </SettingsButton>
+                    <SettingsButton
+                        variant="danger"
+                        dataTestid="api-key-delete-button"
+                        disabled={!revokeConfirmChecked}
+                        onClick={() => deleteApiKey(selectedApiKey.id)}
+                    >
+                        {$text('settings.api_keys.revoke_key')}
+                    </SettingsButton>
+                </SettingsButtonGroup>
+            {:else}
+                <SettingsButtonGroup align="right">
+                    <SettingsButton variant="danger" dataTestid="api-key-delete-button" onClick={() => showRevokeConfirm = true}>
+                        {$text('settings.api_keys.revoke_key')}
+                    </SettingsButton>
+                </SettingsButtonGroup>
+            {/if}
+        {/if}
+    </SettingsPageContainer>
+{:else}
+    <SettingsPageContainer maxWidth="wide">
+        <SettingsInfoBox type="info">
+            <p>{$text('settings.developers_api_keys_description')}</p>
+        </SettingsInfoBox>
+
+        {#if error}
+            <SettingsInfoBox type="error">{error}</SettingsInfoBox>
+        {/if}
+
+        <SettingsButtonGroup align="right">
+            <SettingsButton
+                dataTestid="api-key-create-button"
+                onClick={navigateToCreateApiKey}
+                disabled={apiKeys.length >= MAX_API_KEYS}
+            >
+                {$text('settings.api_keys.create_title')}
+            </SettingsButton>
+        </SettingsButtonGroup>
+
+        {#if loading}
+            <SettingsLoadingState text={$text('settings.api_keys.loading')} />
+        {:else if apiKeys.length === 0}
+            <SettingsLoadingState
+                variant="empty"
+                text={$text('settings.api_keys.empty_title')}
+                hint={$text('settings.api_keys.empty_hint')}
+            />
+        {:else}
+            {#each apiKeys as key (key.id)}
+                <SettingsItem
+                    type="subsubmenu"
+                    icon="subsetting_icon key"
+                    title={key.name}
+                    subtitleTop={`${key.key_prefix} · ${describeAccess(key)} · ${describeCreditLimit(key)}`}
+                    data-testid="api-key-item"
+                    onClick={() => navigateToApiKeyDetails(key)}
+                />
+            {/each}
+        {/if}
+
+        {#if apiKeys.length >= MAX_API_KEYS}
+            <SettingsInfoBox type="warning" ariaLabel={$text('settings.api_keys.limit_warning_title')}>
+                <p>{$text('settings.api_keys.limit_warning').replace('{max}', MAX_API_KEYS.toString())}</p>
+            </SettingsInfoBox>
+        {/if}
+    </SettingsPageContainer>
 {/if}
-
-<!-- Show Created Key Modal -->
-{#if showCreatedKey}
-    <div
-        class="modal-overlay"
-        role="presentation"
-        onmousedown={(e) => { if (e.target === e.currentTarget) showCreatedKey = false; }}
-    >
-        <div
-            class="modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="apikey-created-title"
-            tabindex="-1"
-            use:focusTrap={{ onEscape: () => showCreatedKey = false }}
-            onmousedown={(e) => e.stopPropagation()}
-        >
-            <h3 id="apikey-created-title">API Key Created</h3>
-            <p><strong>Important:</strong> Copy this API key now. You won't be able to see it again!</p>
-
-            <div class="created-key-container">
-                <code class="created-key" data-testid="api-key-created-value">{createdKey}</code>
-                <button
-                    class="btn-copy"
-                    data-testid="api-key-copy-button"
-                    onclick={() => copyToClipboard(createdKey)}
-                >
-                    Copy
-                </button>
-            </div>
-
-            <div class="modal-actions">
-                <button
-                    class="btn-done"
-                    data-testid="api-key-done-button"
-                    onclick={() => showCreatedKey = false}
-                >
-                    I've copied the key
-                </button>
-            </div>
-        </div>
-    </div>
-{/if}
-
-<style>
-    .api-keys-container {
-        padding: var(--spacing-10);
-    }
-
-    .header {
-        margin-bottom: var(--spacing-12);
-    }
-
-    .title {
-        font-size: var(--font-size-h2-mobile);
-        font-weight: 600;
-        margin-bottom: var(--spacing-4);
-        color: var(--text-primary);
-    }
-
-    .description {
-        font-size: var(--font-size-small);
-        color: var(--text-secondary);
-        margin-bottom: var(--spacing-8);
-        line-height: 1.5;
-    }
-
-    .btn-create {
-        background: var(--accent-color);
-        color: white;
-        border: none;
-        border-radius: var(--radius-2);
-        padding: var(--spacing-4) var(--spacing-8);
-        font-size: var(--font-size-small);
-        cursor: pointer;
-        transition: background-color var(--duration-normal);
-    }
-
-    .btn-create:hover:not(:disabled) {
-        background: var(--accent-color-hover);
-    }
-
-    .btn-create:disabled {
-        background: var(--border-color);
-        cursor: not-allowed;
-    }
-
-    .error-message {
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        color: #dc2626;
-        padding: var(--spacing-6);
-        border-radius: var(--radius-2);
-        margin-bottom: var(--spacing-8);
-        font-size: var(--font-size-small);
-    }
-
-    .loading {
-        text-align: center;
-        padding: var(--spacing-20);
-        color: var(--text-secondary);
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: var(--spacing-20);
-        color: var(--text-secondary);
-    }
-
-    .empty-icon {
-        font-size: var(--font-size-hero);
-        margin-bottom: var(--spacing-8);
-    }
-
-    .empty-state h3 {
-        margin-bottom: var(--spacing-4);
-        color: var(--text-primary);
-    }
-
-    .api-keys-list {
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-6);
-    }
-
-    .api-key-item {
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-3);
-        padding: var(--spacing-8);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: var(--bg-secondary);
-    }
-
-    .key-info {
-        flex: 1;
-    }
-
-    .key-name {
-        font-size: var(--font-size-p);
-        font-weight: 500;
-        margin-bottom: var(--spacing-2);
-        color: var(--text-primary);
-    }
-
-    .key-prefix {
-        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-        font-size: var(--font-size-xs);
-        color: var(--text-secondary);
-        margin-bottom: var(--spacing-4);
-    }
-
-    .key-meta {
-        display: flex;
-        gap: var(--spacing-8);
-        font-size: var(--font-size-xxs);
-        color: var(--text-tertiary);
-    }
-
-    .btn-delete {
-        background: #dc2626;
-        color: white;
-        border: none;
-        border-radius: var(--radius-1);
-        padding: var(--spacing-3) var(--spacing-6);
-        font-size: var(--font-size-xxs);
-        cursor: pointer;
-        transition: background-color var(--duration-normal);
-    }
-
-    .btn-delete:hover {
-        background: #b91c1c;
-    }
-
-    .limit-warning {
-        background: #fef3cd;
-        border: 1px solid #f59e0b;
-        color: #92400e;
-        padding: var(--spacing-6);
-        border-radius: var(--radius-2);
-        margin-top: var(--spacing-8);
-        font-size: var(--font-size-small);
-    }
-
-    /* Modal Styles */
-    .modal-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: var(--z-index-modal);
-    }
-
-    .modal {
-        background: var(--bg-primary);
-        border-radius: var(--radius-3);
-        padding: var(--spacing-12);
-        max-width: 620px;
-        width: 90%;
-        max-height: 90vh;
-        overflow: auto;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-    }
-
-    .modal h3 {
-        margin-bottom: var(--spacing-4);
-        color: var(--text-primary);
-    }
-
-    .modal p {
-        margin-bottom: var(--spacing-8);
-        color: var(--text-secondary);
-        font-size: var(--font-size-small);
-        line-height: 1.5;
-    }
-
-    .modal-actions {
-        display: flex;
-        gap: var(--spacing-6);
-        justify-content: flex-end;
-        margin-top: var(--spacing-8);
-    }
-
-    .scope-toggle,
-    .scope-grid label,
-    .radio-list label {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-4);
-        color: var(--text-primary);
-        font-size: var(--font-size-small);
-    }
-
-    .scope-toggle {
-        margin: var(--spacing-6) 0;
-    }
-
-    .scope-grid,
-    .radio-list {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: var(--spacing-4);
-        margin: var(--spacing-6) 0;
-    }
-
-    .scope-details {
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-2);
-        padding: var(--spacing-6);
-        margin-top: var(--spacing-6);
-    }
-
-    .scope-details summary {
-        cursor: pointer;
-        color: var(--text-primary);
-        font-weight: 600;
-    }
-
-    .warning-box {
-        background: #fef3cd;
-        border: 1px solid #f59e0b;
-        color: #92400e;
-        padding: var(--spacing-6);
-        border-radius: var(--radius-2);
-        margin: var(--spacing-6) 0;
-        font-size: var(--font-size-small);
-        line-height: 1.4;
-    }
-
-    .btn-cancel, .btn-create-confirm, .btn-done {
-        padding: var(--spacing-4) var(--spacing-8);
-        border-radius: var(--radius-2);
-        border: none;
-        font-size: var(--font-size-small);
-        cursor: pointer;
-        transition: background-color var(--duration-normal);
-    }
-
-    .btn-cancel {
-        background: var(--bg-secondary);
-        color: var(--text-primary);
-        border: 1px solid var(--border-color);
-    }
-
-    .btn-cancel:hover:not(:disabled) {
-        background: var(--border-color);
-    }
-
-    .btn-create-confirm, .btn-done {
-        background: var(--accent-color);
-        color: white;
-    }
-
-    .btn-create-confirm:hover:not(:disabled), .btn-done:hover {
-        background: var(--accent-color-hover);
-    }
-
-    .btn-create-confirm:disabled {
-        background: var(--border-color);
-        cursor: not-allowed;
-    }
-
-    .created-key-container {
-        display: flex;
-        gap: var(--spacing-4);
-        margin-bottom: var(--spacing-10);
-    }
-
-    .created-key {
-        flex: 1;
-        padding: var(--spacing-6);
-        background: var(--bg-secondary);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-2);
-        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-        font-size: var(--font-size-xs);
-        word-break: break-all;
-        line-height: 1.4;
-    }
-
-    .btn-copy {
-        padding: var(--spacing-6) var(--spacing-8);
-        background: var(--accent-color);
-        color: white;
-        border: none;
-        border-radius: var(--radius-2);
-        cursor: pointer;
-        font-size: var(--font-size-small);
-        transition: background-color var(--duration-normal);
-    }
-
-    .btn-copy:hover {
-        background: var(--accent-color-hover);
-    }
-</style>

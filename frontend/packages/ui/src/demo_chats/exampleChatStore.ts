@@ -172,20 +172,34 @@ const embedById = new Map<
   string,
   { embed: ExampleChatEmbed; chatId: string }
 >();
+const parentEmbedIdByChildId = new Map<string, string>();
 
 const LOOKUP_EXAMPLE_CHATS = [...ALL_EXAMPLE_CHATS, ...INTERNAL_EXAMPLE_CHATS];
+
+function indexExampleEmbed(embed: ExampleChatEmbed, chatId: string): void {
+  const embedId = normalizeEmbedId(embed.embed_id);
+  embedById.set(embedId, { embed, chatId });
+
+  if (embed.parent_embed_id) {
+    parentEmbedIdByChildId.set(embedId, normalizeEmbedId(embed.parent_embed_id));
+  }
+
+  for (const childEmbedId of embed.embed_ids ?? []) {
+    parentEmbedIdByChildId.set(normalizeEmbedId(childEmbedId), embedId);
+  }
+}
 
 for (const example of LOOKUP_EXAMPLE_CHATS) {
   chatById.set(example.chat_id, example);
   chatBySlug.set(example.slug, example);
   chatRecordById.set(example.chat_id, { example, rootOrder: example.metadata.order });
   for (const embed of example.embeds) {
-    embedById.set(embed.embed_id, { embed, chatId: example.chat_id });
+    indexExampleEmbed(embed, example.chat_id);
   }
   for (const subChat of example.sub_chats ?? []) {
     chatRecordById.set(subChat.chat_id, { example: subChat, rootOrder: example.metadata.order });
     for (const embed of subChat.embeds) {
-      embedById.set(embed.embed_id, { embed, chatId: subChat.chat_id });
+      indexExampleEmbed(embed, subChat.chat_id);
     }
   }
 }
@@ -196,7 +210,6 @@ for (const example of LOOKUP_EXAMPLE_CHATS) {
 
 /** Regex to extract embed_ref from TOON content */
 const EMBED_REF_RE = /^embed_ref:\s*"?([^\n"]+)"?\s*$/m;
-const APP_ID_RE = /^app_id:\s*"?([^\n"]+)"?\s*$/m;
 const EMBED_IDS_RE = /^embed_ids:\s*"?([^\n"]+)"?\s*$/m;
 
 function normalizeEmbedId(embedId: string): string {
@@ -226,13 +239,24 @@ export function registerExampleChatEmbedRefs(): void {
     ];
     for (const embed of embeds) {
       if (!embed.content || !embed.embed_id) continue;
+      const appId = toonField(embed.content, "app_id");
+      const skillId = toonField(embed.content, "skill_id");
+      embedStore.registerStaticEmbed({
+        embedId: embed.embed_id,
+        type: embed.type,
+        content: embed.content,
+        parentEmbedId: embed.parent_embed_id,
+        embedIds: embed.embed_ids,
+        appId,
+        skillId,
+      });
+
       const refMatch = embed.content.match(EMBED_REF_RE);
       if (!refMatch) continue;
-      const appIdMatch = embed.content.match(APP_ID_RE);
       embedStore.registerEmbedRef(
         refMatch[1].trim(),
         embed.embed_id,
-        appIdMatch ? appIdMatch[1].trim() : null,
+        appId,
       );
       registered++;
     }
@@ -295,6 +319,14 @@ export function resolveExampleFullscreenTarget(embedId: string): {
 } | null {
   const normalizedEmbedId = normalizeEmbedId(embedId);
   if (!embedById.has(normalizedEmbedId)) return null;
+
+  const structuredParentEmbedId = parentEmbedIdByChildId.get(normalizedEmbedId);
+  if (structuredParentEmbedId && embedById.has(structuredParentEmbedId)) {
+    return {
+      targetEmbedId: structuredParentEmbedId,
+      focusChildEmbedId: normalizedEmbedId,
+    };
+  }
 
   for (const example of LOOKUP_EXAMPLE_CHATS) {
     const records = [example, ...(example.sub_chats ?? [])];

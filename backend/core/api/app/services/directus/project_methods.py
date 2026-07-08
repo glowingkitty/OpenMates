@@ -24,6 +24,14 @@ ITEM_FIELDS = (
     "item_type,target_id_hash,target_id_encrypted,encrypted_display_name,"
     "encrypted_note,encrypted_metadata,deleted_target_state,created_at,updated_at,position"
 )
+SOURCE_FIELDS = (
+    "id,source_id,hashed_project_id,hashed_user_id,source_type,"
+    "encrypted_display_name,encrypted_metadata,capabilities,status,"
+    "created_at,updated_at,last_indexed_at"
+)
+PROJECT_SETTINGS_FIELDS = (
+    "id,hashed_project_id,hashed_user_id,write_mode,encrypted_settings,updated_at"
+)
 
 
 def hash_id(value: str) -> str:
@@ -86,6 +94,77 @@ class ProjectMethods:
         if not existing:
             return None
         return await self.directus_service.update_item("projects", existing["id"], patch)
+
+    async def list_sources(self, project_id: str, user_id: str) -> List[Dict[str, Any]]:
+        params = {
+            "filter[hashed_project_id][_eq]": hash_id(project_id),
+            "filter[hashed_user_id][_eq]": hash_id(user_id),
+            "fields": SOURCE_FIELDS,
+            "sort": "created_at",
+            "limit": -1,
+        }
+        response = await self.directus_service.get_items("project_sources", params=params, no_cache=True)
+        return response if isinstance(response, list) else []
+
+    async def create_source(
+        self,
+        project_id: str,
+        user_id: str,
+        payload: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        record = {
+            "source_id": payload["source_id"],
+            "hashed_project_id": hash_id(project_id),
+            "hashed_user_id": hash_id(user_id),
+            "source_type": payload["source_type"],
+            "encrypted_display_name": payload["encrypted_display_name"],
+            "encrypted_metadata": payload["encrypted_metadata"],
+            "capabilities": payload.get("capabilities", []),
+            "status": payload.get("status", "connected"),
+            "created_at": payload["created_at"],
+            "updated_at": payload["updated_at"],
+            "last_indexed_at": payload.get("last_indexed_at"),
+        }
+        success, data = await self.directus_service.create_item("project_sources", record)
+        if not success:
+            logger.error("Failed to create project source: %s", data)
+            return None
+        return data
+
+    async def get_project_settings(self, project_id: str, user_id: str) -> Optional[Dict[str, Any]]:
+        params = {
+            "filter[hashed_project_id][_eq]": hash_id(project_id),
+            "filter[hashed_user_id][_eq]": hash_id(user_id),
+            "fields": PROJECT_SETTINGS_FIELDS,
+            "limit": 1,
+        }
+        rows = await self.directus_service.get_items("project_settings", params=params, no_cache=True)
+        if rows and isinstance(rows, list):
+            return rows[0]
+        return None
+
+    async def upsert_project_settings(
+        self,
+        project_id: str,
+        user_id: str,
+        payload: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        record = {
+            "hashed_project_id": hash_id(project_id),
+            "hashed_user_id": hash_id(user_id),
+            "write_mode": payload["write_mode"],
+            "encrypted_settings": payload.get("encrypted_settings"),
+            "updated_at": payload["updated_at"],
+        }
+        existing = await self.get_project_settings(project_id, user_id)
+        if existing:
+            return await self.directus_service.update_item("project_settings", existing["id"], record)
+
+        success, data = await self.directus_service.create_item("project_settings", record)
+        if not success:
+            logger.error("Failed to create project settings: %s", data)
+            return None
+        return data
 
     async def delete_project(self, project_id: str, user_id: str) -> bool:
         existing = await self.get_project(project_id, user_id)

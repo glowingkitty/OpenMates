@@ -238,6 +238,198 @@ team:
   sv: Team
   he: צוות
   verified_by_human: []
+projects:
+  context: Settings menu entry for project settings
+  en: Projects
+  de: Projekte
+  zh: 项目
+  es: Proyectos
+  fr: Projets
+  pt: Projetos
+  ru: Проекты
+  ja: プロジェクト
+  ko: 프로젝트
+  it: Progetti
+  tr: Projeler
+  vi: Dự án
+  id: Proyek
+  pl: Projekty
+  nl: Projecten
+  ar: المشاريع
+  hi: प्रोजेक्ट
+  th: โปรเจ็กต์
+  cs: Projekty
+  sv: Projekt
+  he: פרויקטים
+  verified_by_human: []
+projects.description:
+  context: Description for Settings > Projects
+  en: Manage project-specific remote source permissions, write policies, and automation checks.
+  de: Verwalte projektspezifische Remote-Quellenberechtigungen, Schreibregeln und automatische Prüfungen.
+  zh: 管理项目专属的远程来源权限、写入策略和自动化检查。
+  es: Gestiona permisos de fuentes remotas, políticas de escritura y comprobaciones automáticas por proyecto.
+  fr: Gérez les autorisations de sources distantes, les règles d’écriture et les vérifications automatiques par projet.
+  pt: Gerencie permissões de fontes remotas, políticas de escrita e verificações automáticas por projeto.
+  ru: Управляйте разрешениями удалённых источников, правилами записи и автоматическими проверками для проекта.
+  ja: プロジェクトごとのリモートソース権限、書き込みポリシー、自動チェックを管理します。
+  ko: 프로젝트별 원격 소스 권한, 쓰기 정책, 자동 검사를 관리합니다.
+  it: Gestisci autorizzazioni delle sorgenti remote, criteri di scrittura e controlli automatici per progetto.
+  tr: Projeye özel uzak kaynak izinlerini, yazma politikalarını ve otomatik kontrolleri yönetin.
+  vi: Quản lý quyền nguồn từ xa, chính sách ghi và kiểm tra tự động theo từng dự án.
+  id: Kelola izin sumber jarak jauh, kebijakan tulis, dan pemeriksaan otomatis per proyek.
+  pl: Zarządzaj uprawnieniami zdalnych źródeł, zasadami zapisu i automatycznymi kontrolami dla projektu.
+  nl: Beheer projectspecifieke externe bronrechten, schrijfbeleid en automatische controles.
+  ar: إدارة أذونات المصادر البعيدة وسياسات الكتابة والفحوصات التلقائية لكل مشروع.
+  hi: प्रोजेक्ट-विशिष्ट रिमोट स्रोत अनुमतियां, लिखने की नीतियां और स्वचालित जांच प्रबंधित करें।
+  th: จัดการสิทธิ์แหล่งข้อมูลระยะไกล นโยบายการเขียน และการตรวจสอบอัตโนมัติของแต่ละโปรเจ็กต์
+  cs: Spravujte oprávnění vzdálených zdrojů, zásady zápisu a automatické kontroly pro jednotlivé projekty.
+  sv: Hantera projektspecifika fjärrkällbehörigheter, skrivpolicyer och automatiska kontroller.
+  he: ניהול הרשאות מקורות מרוחקים, מדיניות כתיבה ובדיקות אוטומטיות לכל פרויקט.
+  verified_by_human: []
+projects.project_settings:
+  context: Title for a single Project settings page
+  en: Project settings
+  de: Projekteinstellungen
+  zh: 项目设置
+  es: Ajustes del proyecto
+  fr: Paramètres du projet
+  pt: Configurações do projeto
+  ru: Настройки проекта
+  ja: プロジェクト設定
+  ko: 프로젝트 설정
+  it: Impostazioni progetto
+  tr: Proje ayarları
+  vi: Cài đặt dự án
+  id: Pengaturan proyek
+  pl: Ustawienia projektu
+  nl: Projectinstellingen
+  ar: إعدادات المشروع
+  hi: प्रोजेक्ट सेटिंग्स
+  th: การตั้งค่าโปรเจ็กต์
+  cs: Nastavení projektu
+  sv: Projektinställningar
+  he: הגדרות פרויקט
+  verified_by_human: []
+projects.load_error_title:
+  context: Project settings load failure title
+  en: Could not load Projects
+  de: Projekte konnten nicht geladen werden
+  zh: 无法加载项目
+  es: No se pudieron cargar los proyectos
+  fr: Impossible de charger les projets
+  pt: Não foi possível carregar os projetos
+  ru: Не удалось загрузить проекты
+  ja: プロジェクトを読み込めませんでした
+  ko: 프로젝트를 불러올 수 없습니다
+  it: Impossibile caricare i progetti
+  tr: Projeler yüklenemedi
+  vi: Không thể tải dự án
+  id: Tidak dapat memuat proyek
+  pl: Nie udało się wczytać projektów
+  nl: Kan projecten niet laden
+  ar: تعذر تحميل المشاريع
+  hi: प्रोजेक्ट लोड नहीं हो सके
+  th: โหลดโปรเจ็กต์ไม่ได้
+  cs: Projekty se nepodařilo načíst
+  sv: Kunde inte läsa in projekt
+  he: לא ניתן לטעון פרויקטים
+  verified_by_human: []
+projects.load_error:
+  context: Project settings load failure message
+  en: Please try again. Your encrypted project data was not changed.
+  de: Bitte versuche es erneut. Deine verschlüsselten Projektdaten wurden nicht geändert.
+  zh: 请重试。你的加密项目数据未被更改。
+  es: Inténtalo de nuevo. Tus datos cifrados del proyecto no cambiaron.
+  fr: Réessayez. Vos données de projet chiffrées n’ont pas été modifiées.
+  pt: Tente novamente. Seus dados criptografados do projeto não foram alterados.
+  ru: Попробуйте ещё раз. Зашифрованные данные проекта не изменялись.
+  ja: もう一度お試しください。暗号化されたプロジェクトデータは変更されていません。
+  ko: 다시 시도하세요. 암호화된 프로젝트 데이터는 변경되지 않았습니다.
+  it: Riprova. I dati crittografati del progetto non sono stati modificati.
+  tr: Lütfen tekrar deneyin. Şifrelenmiş proje verileriniz değiştirilmedi.
+  vi: Vui lòng thử lại. Dữ liệu dự án đã mã hóa của bạn chưa bị thay đổi.
+  id: Coba lagi. Data proyek terenkripsi Anda tidak diubah.
+  pl: Spróbuj ponownie. Zaszyfrowane dane projektu nie zostały zmienione.
+  nl: Probeer het opnieuw. Je versleutelde projectgegevens zijn niet gewijzigd.
+  ar: حاول مرة أخرى. لم يتم تغيير بيانات مشروعك المشفرة.
+  hi: कृपया फिर से कोशिश करें। आपका एन्क्रिप्टेड प्रोजेक्ट डेटा बदला नहीं गया।
+  th: โปรดลองอีกครั้ง ข้อมูลโปรเจ็กต์ที่เข้ารหัสของคุณไม่ได้ถูกเปลี่ยนแปลง
+  cs: Zkuste to znovu. Vaše šifrovaná data projektu nebyla změněna.
+  sv: Försök igen. Dina krypterade projektdata ändrades inte.
+  he: נסו שוב. נתוני הפרויקט המוצפנים שלך לא שונו.
+  verified_by_human: []
+projects.loading_title:
+  context: Project settings loading title
+  en: Loading Projects
+  de: Projekte werden geladen
+  zh: 正在加载项目
+  es: Cargando proyectos
+  fr: Chargement des projets
+  pt: Carregando projetos
+  ru: Загрузка проектов
+  ja: プロジェクトを読み込み中
+  ko: 프로젝트 불러오는 중
+  it: Caricamento progetti
+  tr: Projeler yükleniyor
+  vi: Đang tải dự án
+  id: Memuat proyek
+  pl: Wczytywanie projektów
+  nl: Projecten laden
+  ar: جارٍ تحميل المشاريع
+  hi: प्रोजेक्ट लोड हो रहे हैं
+  th: กำลังโหลดโปรเจ็กต์
+  cs: Načítání projektů
+  sv: Läser in projekt
+  he: טוען פרויקטים
+  verified_by_human: []
+projects.loading_description:
+  context: Project settings loading description
+  en: Decrypting your project list on this device.
+  de: Deine Projektliste wird auf diesem Gerät entschlüsselt.
+  zh: 正在此设备上解密你的项目列表。
+  es: Descifrando tu lista de proyectos en este dispositivo.
+  fr: Déchiffrement de votre liste de projets sur cet appareil.
+  pt: Descriptografando sua lista de projetos neste dispositivo.
+  ru: Расшифровываем список проектов на этом устройстве.
+  ja: このデバイスでプロジェクト一覧を復号しています。
+  ko: 이 기기에서 프로젝트 목록을 복호화하는 중입니다.
+  it: Decifro l’elenco dei progetti su questo dispositivo.
+  tr: Proje listeniz bu cihazda çözülüyor.
+  vi: Đang giải mã danh sách dự án trên thiết bị này.
+  id: Mendekripsi daftar proyek Anda di perangkat ini.
+  pl: Odszyfrowywanie listy projektów na tym urządzeniu.
+  nl: Je projectlijst wordt op dit apparaat ontsleuteld.
+  ar: يتم فك تشفير قائمة مشاريعك على هذا الجهاز.
+  hi: इस डिवाइस पर आपकी प्रोजेक्ट सूची डिक्रिप्ट की जा रही है।
+  th: กำลังถอดรหัสรายการโปรเจ็กต์ของคุณบนอุปกรณ์นี้
+  cs: Dešifruji seznam projektů na tomto zařízení.
+  sv: Dekrypterar din projektlista på den här enheten.
+  he: מפענח את רשימת הפרויקטים שלך במכשיר הזה.
+  verified_by_human: []
+projects.retry:
+  context: Retry button in Projects settings
+  en: Retry
+  de: Erneut versuchen
+  zh: 重试
+  es: Reintentar
+  fr: Réessayer
+  pt: Tentar novamente
+  ru: Повторить
+  ja: 再試行
+  ko: 다시 시도
+  it: Riprova
+  tr: Yeniden dene
+  vi: Thử lại
+  id: Coba lagi
+  pl: Spróbuj ponownie
+  nl: Opnieuw proberen
+  ar: إعادة المحاولة
+  hi: फिर कोशिश करें
+  th: ลองอีกครั้ง
+  cs: Zkusit znovu
+  sv: Försök igen
+  he: נסה שוב
+  verified_by_human: []
 incognito:
   context: Incognito mode toggle
   en: Incognito
@@ -265,127 +457,747 @@ incognito:
 learning_mode:
   context: Account-wide Learning Mode settings toggle
   en: Learning
-  verified_by_human: []
+  de: Lernen
+  zh: 学习
+  es: Aprendizaje
+  fr: Apprentissage
+  pt: Aprendizagem
+  ru: Обучение
+  ja: 学習
+  ko: 학습
+  it: Apprendimento
+  tr: Öğrenme
+  vi: Học tập
+  id: Pembelajaran
+  pl: Nauka
+  nl: Leren
+  ar: التعلّم
+  hi: सीखना
+  th: การเรียนรู้
+  cs: Učení
+  sv: Lärande
+  he: למידה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_active:
   context: Subtitle for Learning Mode settings toggle when active
   en: Active for all chats on this account
-  verified_by_human: []
+  de: Aktiv für alle Chats in diesem Konto
+  zh: 对此账号上的所有聊天生效
+  es: Activo para todos los chats de esta cuenta
+  fr: Actif pour tous les chats de ce compte
+  pt: Ativo para todos os chats nesta conta
+  ru: Активен для всех чатов в этом аккаунте
+  ja: このアカウントのすべてのチャットで有効
+  ko: 이 계정의 모든 채팅에 활성화됨
+  it: Attivo per tutte le chat di questo account
+  tr: Bu hesaptaki tüm sohbetler için etkin
+  vi: Đang hoạt động cho mọi cuộc trò chuyện trên tài khoản này
+  id: Aktif untuk semua obrolan di akun ini
+  pl: Aktywne dla wszystkich czatów na tym koncie
+  nl: Actief voor alle chats op dit account
+  ar: نشط لكل الدردشات على هذا الحساب
+  hi: इस खाते की सभी चैट के लिए सक्रिय
+  th: เปิดใช้งานสำหรับแชททั้งหมดในบัญชีนี้
+  cs: Aktivní pro všechny chaty na tomto účtu
+  sv: Aktivt för alla chattar på det här kontot
+  he: פעיל לכל הצ'אטים בחשבון הזה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_inactive:
   context: Subtitle for Learning Mode settings toggle when inactive
   en: Teach step-by-step instead of giving complete answers
-  verified_by_human: []
+  de: Schrittweise erklären, statt vollständige Antworten zu geben
+  zh: 逐步教学，而不是直接给出完整答案
+  es: Enseña paso a paso en lugar de dar respuestas completas
+  fr: Enseigner étape par étape au lieu de donner des réponses complètes
+  pt: Ensinar passo a passo em vez de dar respostas completas
+  ru: Обучать шаг за шагом вместо готовых ответов
+  ja: 完全な答えを出す代わりに段階的に教えます
+  ko: 완성된 답을 주는 대신 단계별로 가르칩니다
+  it: Insegna passo dopo passo invece di dare risposte complete
+  tr: Tam cevaplar vermek yerine adım adım öğretir
+  vi: Dạy từng bước thay vì đưa ra câu trả lời hoàn chỉnh
+  id: Ajarkan langkah demi langkah, bukan memberi jawaban lengkap
+  pl: Uczy krok po kroku zamiast podawać gotowe odpowiedzi
+  nl: Leg stap voor stap uit in plaats van volledige antwoorden te geven
+  ar: يعلّم خطوة بخطوة بدلاً من تقديم إجابات كاملة
+  hi: पूरे उत्तर देने के बजाय चरण-दर-चरण सिखाएं
+  th: สอนทีละขั้นแทนการให้คำตอบแบบสมบูรณ์
+  cs: Učí krok za krokem místo poskytování hotových odpovědí
+  sv: Lär ut steg för steg i stället för att ge fullständiga svar
+  he: מלמד צעד אחר צעד במקום לתת תשובות מלאות
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_load_error:
   context: Error shown when the Learning Mode backend status cannot be loaded
   en: Could not load Learning Mode status.
-  verified_by_human: []
+  de: Learning Mode-Status konnte nicht geladen werden.
+  zh: 无法加载 Learning Mode 状态。
+  es: No se pudo cargar el estado de Learning Mode.
+  fr: Impossible de charger le statut de Learning Mode.
+  pt: Não foi possível carregar o status do Learning Mode.
+  ru: Не удалось загрузить статус Learning Mode.
+  ja: Learning Mode のステータスを読み込めませんでした。
+  ko: Learning Mode 상태를 불러올 수 없습니다.
+  it: Impossibile caricare lo stato di Learning Mode.
+  tr: Learning Mode durumu yüklenemedi.
+  vi: Không thể tải trạng thái Learning Mode.
+  id: Tidak dapat memuat status Learning Mode.
+  pl: Nie udało się wczytać statusu Learning Mode.
+  nl: Kan de status van Learning Mode niet laden.
+  ar: تعذر تحميل حالة Learning Mode.
+  hi: Learning Mode स्थिति लोड नहीं हो सकी।
+  th: ไม่สามารถโหลดสถานะ Learning Mode ได้
+  cs: Nepodařilo se načíst stav Learning Mode.
+  sv: Kunde inte läsa in status för Learning Mode.
+  he: לא ניתן לטעון את מצב Learning Mode.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_save_error:
   context: Error shown when Learning Mode cannot be saved
   en: Could not update Learning Mode.
-  verified_by_human: []
+  de: Learning Mode konnte nicht aktualisiert werden.
+  zh: 无法更新 Learning Mode。
+  es: No se pudo actualizar Learning Mode.
+  fr: Impossible de mettre à jour Learning Mode.
+  pt: Não foi possível atualizar o Learning Mode.
+  ru: Не удалось обновить Learning Mode.
+  ja: Learning Mode を更新できませんでした。
+  ko: Learning Mode를 업데이트할 수 없습니다.
+  it: Impossibile aggiornare Learning Mode.
+  tr: Learning Mode güncellenemedi.
+  vi: Không thể cập nhật Learning Mode.
+  id: Tidak dapat memperbarui Learning Mode.
+  pl: Nie udało się zaktualizować Learning Mode.
+  nl: Kan Learning Mode niet bijwerken.
+  ar: تعذر تحديث Learning Mode.
+  hi: Learning Mode अपडेट नहीं हो सका।
+  th: ไม่สามารถอัปเดต Learning Mode ได้
+  cs: Nepodařilo se aktualizovat Learning Mode.
+  sv: Kunde inte uppdatera Learning Mode.
+  he: לא ניתן לעדכן את Learning Mode.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_enabled:
   context: Success notification after enabling Learning Mode
   en: Learning Mode enabled.
-  verified_by_human: []
+  de: Learning Mode aktiviert.
+  zh: Learning Mode 已启用。
+  es: Learning Mode activado.
+  fr: Learning Mode activé.
+  pt: Learning Mode ativado.
+  ru: Learning Mode включён.
+  ja: Learning Mode が有効になりました。
+  ko: Learning Mode가 활성화되었습니다.
+  it: Learning Mode abilitato.
+  tr: Learning Mode etkinleştirildi.
+  vi: Đã bật Learning Mode.
+  id: Learning Mode diaktifkan.
+  pl: Learning Mode włączony.
+  nl: Learning Mode ingeschakeld.
+  ar: تم تفعيل Learning Mode.
+  hi: Learning Mode सक्षम किया गया।
+  th: เปิดใช้งาน Learning Mode แล้ว
+  cs: Learning Mode zapnut.
+  sv: Learning Mode aktiverat.
+  he: Learning Mode הופעל.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_disabled:
   context: Success notification after disabling Learning Mode
   en: Learning Mode disabled.
-  verified_by_human: []
+  de: Learning Mode deaktiviert.
+  zh: Learning Mode 已停用。
+  es: Learning Mode desactivado.
+  fr: Learning Mode désactivé.
+  pt: Learning Mode desativado.
+  ru: Learning Mode отключён.
+  ja: Learning Mode が無効になりました。
+  ko: Learning Mode가 비활성화되었습니다.
+  it: Learning Mode disabilitato.
+  tr: Learning Mode devre dışı bırakıldı.
+  vi: Đã tắt Learning Mode.
+  id: Learning Mode dinonaktifkan.
+  pl: Learning Mode wyłączony.
+  nl: Learning Mode uitgeschakeld.
+  ar: تم إيقاف Learning Mode.
+  hi: Learning Mode अक्षम किया गया।
+  th: ปิดใช้งาน Learning Mode แล้ว
+  cs: Learning Mode vypnut.
+  sv: Learning Mode inaktiverat.
+  he: Learning Mode הושבת.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_age_group_prompt:
   context: Prompt asking for the learner age group when enabling Learning Mode
   en: "Learner age group: under_10, 10_12, 13_15, 16_18, or adult"
-  verified_by_human: []
+  de: "Altersgruppe der lernenden Person: under_10, 10_12, 13_15, 16_18 oder adult"
+  zh: "学习者年龄组：under_10、10_12、13_15、16_18 或 adult"
+  es: "Grupo de edad del estudiante: under_10, 10_12, 13_15, 16_18 o adult"
+  fr: "Groupe d'âge de l'apprenant : under_10, 10_12, 13_15, 16_18 ou adult"
+  pt: "Faixa etária do aprendiz: under_10, 10_12, 13_15, 16_18 ou adult"
+  ru: "Возрастная группа учащегося: under_10, 10_12, 13_15, 16_18 или adult"
+  ja: "学習者の年齢グループ: under_10、10_12、13_15、16_18、または adult"
+  ko: "학습자 연령대: under_10, 10_12, 13_15, 16_18 또는 adult"
+  it: "Fascia d'età dello studente: under_10, 10_12, 13_15, 16_18 o adult"
+  tr: "Öğrenci yaş grubu: under_10, 10_12, 13_15, 16_18 veya adult"
+  vi: "Nhóm tuổi người học: under_10, 10_12, 13_15, 16_18 hoặc adult"
+  id: "Kelompok usia pelajar: under_10, 10_12, 13_15, 16_18, atau adult"
+  pl: "Grupa wiekowa ucznia: under_10, 10_12, 13_15, 16_18 lub adult"
+  nl: "Leeftijdsgroep van de leerling: under_10, 10_12, 13_15, 16_18 of adult"
+  ar: "الفئة العمرية للمتعلم: under_10 أو 10_12 أو 13_15 أو 16_18 أو adult"
+  hi: "सीखने वाले का आयु समूह: under_10, 10_12, 13_15, 16_18, या adult"
+  th: "กลุ่มอายุของผู้เรียน: under_10, 10_12, 13_15, 16_18 หรือ adult"
+  cs: "Věková skupina studenta: under_10, 10_12, 13_15, 16_18 nebo adult"
+  sv: "Elevens åldersgrupp: under_10, 10_12, 13_15, 16_18 eller adult"
+  he: "קבוצת הגיל של הלומד: under_10, 10_12, 13_15, 16_18 או adult"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_enable_passcode_prompt:
   context: Prompt asking for the new Learning Mode passcode
   en: Set a Learning Mode passcode.
-  verified_by_human: []
+  de: Lege einen Learning Mode-Passcode fest.
+  zh: 设置 Learning Mode 密码。
+  es: Define un código de acceso para Learning Mode.
+  fr: Définissez un code d'accès pour Learning Mode.
+  pt: Defina um código de acesso para o Learning Mode.
+  ru: Задайте код доступа для Learning Mode.
+  ja: Learning Mode のパスコードを設定してください。
+  ko: Learning Mode 암호를 설정하세요.
+  it: Imposta un codice per Learning Mode.
+  tr: Learning Mode için bir parola belirleyin.
+  vi: Đặt mã khóa cho Learning Mode.
+  id: Atur kode akses Learning Mode.
+  pl: Ustaw kod dostępu do Learning Mode.
+  nl: Stel een toegangscode in voor Learning Mode.
+  ar: عيّن رمز مرور لـ Learning Mode.
+  hi: Learning Mode पासकोड सेट करें।
+  th: ตั้งรหัสผ่านสำหรับ Learning Mode
+  cs: Nastavte přístupový kód pro Learning Mode.
+  sv: Ställ in en lösenkod för Learning Mode.
+  he: הגדר קוד גישה ל-Learning Mode.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_disable_passcode_prompt:
   context: Prompt asking for the Learning Mode passcode before disabling
   en: Enter the Learning Mode passcode to disable it.
-  verified_by_human: []
+  de: Gib den Learning Mode-Passcode ein, um ihn zu deaktivieren.
+  zh: 输入 Learning Mode 密码以停用它。
+  es: Ingresa el código de acceso de Learning Mode para desactivarlo.
+  fr: Saisissez le code d'accès de Learning Mode pour le désactiver.
+  pt: Digite o código de acesso do Learning Mode para desativá-lo.
+  ru: Введите код доступа Learning Mode, чтобы отключить его.
+  ja: 無効にするには Learning Mode のパスコードを入力してください。
+  ko: 비활성화하려면 Learning Mode 암호를 입력하세요.
+  it: Inserisci il codice di Learning Mode per disattivarlo.
+  tr: Devre dışı bırakmak için Learning Mode parolasını girin.
+  vi: Nhập mã khóa Learning Mode để tắt chế độ này.
+  id: Masukkan kode akses Learning Mode untuk menonaktifkannya.
+  pl: Wpisz kod dostępu do Learning Mode, aby go wyłączyć.
+  nl: Voer de toegangscode van Learning Mode in om het uit te schakelen.
+  ar: أدخل رمز مرور Learning Mode لإيقافه.
+  hi: इसे अक्षम करने के लिए Learning Mode पासकोड दर्ज करें।
+  th: ป้อนรหัสผ่าน Learning Mode เพื่อปิดใช้งาน
+  cs: Zadejte přístupový kód Learning Mode pro jeho vypnutí.
+  sv: Ange lösenkoden för Learning Mode för att stänga av det.
+  he: הזן את קוד הגישה של Learning Mode כדי להשבית אותו.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_invalid_age_group:
   context: Error shown when the entered Learning Mode age group is invalid
   en: Invalid age group. Use under_10, 10_12, 13_15, 16_18, or adult.
-  verified_by_human: []
+  de: Ungültige Altersgruppe. Verwende under_10, 10_12, 13_15, 16_18 oder adult.
+  zh: 年龄组无效。请使用 under_10、10_12、13_15、16_18 或 adult。
+  es: Grupo de edad no válido. Usa under_10, 10_12, 13_15, 16_18 o adult.
+  fr: Groupe d'âge non valide. Utilisez under_10, 10_12, 13_15, 16_18 ou adult.
+  pt: Faixa etária inválida. Use under_10, 10_12, 13_15, 16_18 ou adult.
+  ru: Недопустимая возрастная группа. Используйте under_10, 10_12, 13_15, 16_18 или adult.
+  ja: 年齢グループが無効です。under_10、10_12、13_15、16_18、または adult を使用してください。
+  ko: 유효하지 않은 연령대입니다. under_10, 10_12, 13_15, 16_18 또는 adult를 사용하세요.
+  it: Fascia d'età non valida. Usa under_10, 10_12, 13_15, 16_18 o adult.
+  tr: Geçersiz yaş grubu. under_10, 10_12, 13_15, 16_18 veya adult kullanın.
+  vi: Nhóm tuổi không hợp lệ. Hãy dùng under_10, 10_12, 13_15, 16_18 hoặc adult.
+  id: Kelompok usia tidak valid. Gunakan under_10, 10_12, 13_15, 16_18, atau adult.
+  pl: Nieprawidłowa grupa wiekowa. Użyj under_10, 10_12, 13_15, 16_18 lub adult.
+  nl: Ongeldige leeftijdsgroep. Gebruik under_10, 10_12, 13_15, 16_18 of adult.
+  ar: فئة عمرية غير صالحة. استخدم under_10 أو 10_12 أو 13_15 أو 16_18 أو adult.
+  hi: अमान्य आयु समूह। under_10, 10_12, 13_15, 16_18, या adult उपयोग करें।
+  th: กลุ่มอายุไม่ถูกต้อง ใช้ under_10, 10_12, 13_15, 16_18 หรือ adult
+  cs: Neplatná věková skupina. Použijte under_10, 10_12, 13_15, 16_18 nebo adult.
+  sv: Ogiltig åldersgrupp. Använd under_10, 10_12, 13_15, 16_18 eller adult.
+  he: קבוצת גיל לא תקפה. השתמש ב-under_10, 10_12, 13_15, 16_18 או adult.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_enable_description:
   context: Description on the Learning Mode setup page before activation
   en: Choose the learner age group and set a passcode. Learning Mode will apply to every chat on this account.
-  verified_by_human: []
+  de: Wähle die Altersgruppe der lernenden Person und lege einen Passcode fest. Learning Mode gilt für jeden Chat in diesem Konto.
+  zh: 选择学习者年龄组并设置密码。Learning Mode 将应用于此账号上的每个聊天。
+  es: Elige el grupo de edad del estudiante y define un código de acceso. Learning Mode se aplicará a todos los chats de esta cuenta.
+  fr: Choisissez le groupe d'âge de l'apprenant et définissez un code d'accès. Learning Mode s'appliquera à chaque chat de ce compte.
+  pt: Escolha a faixa etária do aprendiz e defina um código de acesso. O Learning Mode será aplicado a todos os chats desta conta.
+  ru: Выберите возрастную группу учащегося и задайте код доступа. Learning Mode будет применяться ко всем чатам в этом аккаунте.
+  ja: 学習者の年齢グループを選び、パスコードを設定してください。Learning Mode はこのアカウントのすべてのチャットに適用されます。
+  ko: 학습자 연령대를 선택하고 암호를 설정하세요. Learning Mode는 이 계정의 모든 채팅에 적용됩니다.
+  it: Scegli la fascia d'età dello studente e imposta un codice. Learning Mode si applicherà a ogni chat di questo account.
+  tr: Öğrenci yaş grubunu seçin ve bir parola belirleyin. Learning Mode bu hesaptaki her sohbete uygulanır.
+  vi: Chọn nhóm tuổi người học và đặt mã khóa. Learning Mode sẽ áp dụng cho mọi cuộc trò chuyện trên tài khoản này.
+  id: Pilih kelompok usia pelajar dan atur kode akses. Learning Mode akan berlaku untuk setiap obrolan di akun ini.
+  pl: Wybierz grupę wiekową ucznia i ustaw kod dostępu. Learning Mode będzie stosowany do każdego czatu na tym koncie.
+  nl: Kies de leeftijdsgroep van de leerling en stel een toegangscode in. Learning Mode geldt voor elke chat op dit account.
+  ar: اختر الفئة العمرية للمتعلم وعيّن رمز مرور. سينطبق Learning Mode على كل دردشة في هذا الحساب.
+  hi: सीखने वाले का आयु समूह चुनें और पासकोड सेट करें। Learning Mode इस खाते की हर चैट पर लागू होगा।
+  th: เลือกกลุ่มอายุของผู้เรียนและตั้งรหัสผ่าน Learning Mode จะใช้กับแชททุกแชทในบัญชีนี้
+  cs: Vyberte věkovou skupinu studenta a nastavte přístupový kód. Learning Mode se použije na každý chat na tomto účtu.
+  sv: Välj elevens åldersgrupp och ställ in en lösenkod. Learning Mode gäller för varje chatt på det här kontot.
+  he: בחר את קבוצת הגיל של הלומד והגדר קוד גישה. Learning Mode יחול על כל צ'אט בחשבון הזה.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_disable_description:
   context: Description on the Learning Mode setup page before deactivation
   en: Enter the Learning Mode passcode to turn it off for this account.
-  verified_by_human: []
+  de: Gib den Learning Mode-Passcode ein, um ihn für dieses Konto auszuschalten.
+  zh: 输入 Learning Mode 密码以在此账号上关闭它。
+  es: Ingresa el código de acceso de Learning Mode para desactivarlo en esta cuenta.
+  fr: Saisissez le code d'accès de Learning Mode pour le désactiver pour ce compte.
+  pt: Digite o código de acesso do Learning Mode para desativá-lo nesta conta.
+  ru: Введите код доступа Learning Mode, чтобы отключить его для этого аккаунта.
+  ja: このアカウントでオフにするには、Learning Mode のパスコードを入力してください。
+  ko: 이 계정에서 끄려면 Learning Mode 암호를 입력하세요.
+  it: Inserisci il codice di Learning Mode per disattivarlo su questo account.
+  tr: Bu hesapta kapatmak için Learning Mode parolasını girin.
+  vi: Nhập mã khóa Learning Mode để tắt chế độ này cho tài khoản này.
+  id: Masukkan kode akses Learning Mode untuk mematikannya di akun ini.
+  pl: Wpisz kod dostępu do Learning Mode, aby wyłączyć go dla tego konta.
+  nl: Voer de toegangscode van Learning Mode in om het voor dit account uit te schakelen.
+  ar: أدخل رمز مرور Learning Mode لإيقافه لهذا الحساب.
+  hi: इस खाते के लिए इसे बंद करने के लिए Learning Mode पासकोड दर्ज करें।
+  th: ป้อนรหัสผ่าน Learning Mode เพื่อปิดสำหรับบัญชีนี้
+  cs: Zadejte přístupový kód Learning Mode, abyste jej pro tento účet vypnuli.
+  sv: Ange lösenkoden för Learning Mode för att stänga av det för det här kontot.
+  he: הזן את קוד הגישה של Learning Mode כדי לכבות אותו בחשבון הזה.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_guest_description:
   context: Description on the guest Learning Mode setup page
   en: Choose the learner age group. For guests, Learning Mode lasts only for this browser session and has no passcode.
-  verified_by_human: []
+  de: Wähle die Altersgruppe der lernenden Person. Für Gäste gilt Learning Mode nur für diese Browsersitzung und hat keinen Passcode.
+  zh: 选择学习者年龄组。对于访客，Learning Mode 仅在此浏览器会话中持续有效，且没有密码。
+  es: Elige el grupo de edad del estudiante. Para invitados, Learning Mode dura solo esta sesión del navegador y no tiene código de acceso.
+  fr: Choisissez le groupe d'âge de l'apprenant. Pour les invités, Learning Mode ne dure que pendant cette session de navigateur et n'a pas de code d'accès.
+  pt: Escolha a faixa etária do aprendiz. Para convidados, o Learning Mode dura apenas nesta sessão do navegador e não tem código de acesso.
+  ru: Выберите возрастную группу учащегося. Для гостей Learning Mode действует только в этой сессии браузера и не имеет кода доступа.
+  ja: 学習者の年齢グループを選択してください。ゲストの場合、Learning Mode はこのブラウザセッション中のみ有効で、パスコードはありません。
+  ko: 학습자 연령대를 선택하세요. 게스트의 경우 Learning Mode는 이 브라우저 세션 동안만 지속되며 암호가 없습니다.
+  it: Scegli la fascia d'età dello studente. Per gli ospiti, Learning Mode dura solo per questa sessione del browser e non ha un codice.
+  tr: Öğrenci yaş grubunu seçin. Misafirler için Learning Mode yalnızca bu tarayıcı oturumu boyunca sürer ve parolası yoktur.
+  vi: Chọn nhóm tuổi người học. Với khách, Learning Mode chỉ kéo dài trong phiên trình duyệt này và không có mã khóa.
+  id: Pilih kelompok usia pelajar. Untuk tamu, Learning Mode hanya berlangsung selama sesi browser ini dan tidak memiliki kode akses.
+  pl: Wybierz grupę wiekową ucznia. Dla gości Learning Mode działa tylko w tej sesji przeglądarki i nie ma kodu dostępu.
+  nl: Kies de leeftijdsgroep van de leerling. Voor gasten duurt Learning Mode alleen tijdens deze browsersessie en heeft het geen toegangscode.
+  ar: اختر الفئة العمرية للمتعلم. للضيوف، يستمر Learning Mode خلال جلسة المتصفح هذه فقط ولا يحتوي على رمز مرور.
+  hi: सीखने वाले का आयु समूह चुनें। अतिथियों के लिए, Learning Mode केवल इस ब्राउज़र सत्र तक रहता है और इसमें पासकोड नहीं होता।
+  th: เลือกกลุ่มอายุของผู้เรียน สำหรับผู้เยี่ยมชม Learning Mode จะมีผลเฉพาะในเซสชันเบราว์เซอร์นี้และไม่มีรหัสผ่าน
+  cs: Vyberte věkovou skupinu studenta. Pro hosty Learning Mode trvá pouze po dobu této relace prohlížeče a nemá přístupový kód.
+  sv: Välj elevens åldersgrupp. För gäster varar Learning Mode bara under den här webbläsarsessionen och har ingen lösenkod.
+  he: בחר את קבוצת הגיל של הלומד. לאורחים, Learning Mode נמשך רק בהפעלת הדפדפן הזו ואין לו קוד גישה.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_active_detail:
   context: Info text when Learning Mode is active
   en: Learning Mode is active for every chat on this account. Answers stay teaching-first and selected tools are restricted.
-  verified_by_human: []
+  de: Learning Mode ist für jeden Chat in diesem Konto aktiv. Antworten bleiben auf Lernen ausgerichtet, und ausgewählte Tools sind eingeschränkt.
+  zh: Learning Mode 对此账号上的每个聊天都处于启用状态。回答会优先教学，并且部分工具会受限。
+  es: Learning Mode está activo para todos los chats de esta cuenta. Las respuestas priorizan la enseñanza y algunas herramientas están restringidas.
+  fr: Learning Mode est actif pour chaque chat de ce compte. Les réponses restent axées sur l'enseignement et certains outils sont restreints.
+  pt: O Learning Mode está ativo para todos os chats desta conta. As respostas priorizam o ensino e algumas ferramentas são restritas.
+  ru: Learning Mode активен для всех чатов в этом аккаунте. Ответы остаются обучающими, а выбранные инструменты ограничены.
+  ja: Learning Mode はこのアカウントのすべてのチャットで有効です。回答は学習優先のままで、一部のツールは制限されます。
+  ko: Learning Mode가 이 계정의 모든 채팅에 활성화되어 있습니다. 답변은 교육 우선 방식으로 유지되며 선택한 도구는 제한됩니다.
+  it: Learning Mode è attivo per ogni chat di questo account. Le risposte restano orientate all'insegnamento e alcuni strumenti sono limitati.
+  tr: Learning Mode bu hesaptaki her sohbet için etkin. Yanıtlar öğretim öncelikli kalır ve seçili araçlar kısıtlanır.
+  vi: Learning Mode đang hoạt động cho mọi cuộc trò chuyện trên tài khoản này. Câu trả lời luôn ưu tiên giảng dạy và một số công cụ bị hạn chế.
+  id: Learning Mode aktif untuk setiap obrolan di akun ini. Jawaban tetap mengutamakan pengajaran dan alat tertentu dibatasi.
+  pl: Learning Mode jest aktywny dla każdego czatu na tym koncie. Odpowiedzi pozostają nastawione na nauczanie, a wybrane narzędzia są ograniczone.
+  nl: Learning Mode is actief voor elke chat op dit account. Antwoorden blijven gericht op uitleg en geselecteerde tools zijn beperkt.
+  ar: Learning Mode نشط لكل دردشة في هذا الحساب. تظل الإجابات موجهة للتعليم أولاً، وتكون أدوات محددة مقيّدة.
+  hi: Learning Mode इस खाते की हर चैट के लिए सक्रिय है। उत्तर शिक्षण-प्रथम रहते हैं और चुने गए टूल सीमित होते हैं।
+  th: Learning Mode เปิดใช้งานสำหรับทุกแชทในบัญชีนี้ คำตอบจะเน้นการสอนก่อน และเครื่องมือบางอย่างจะถูกจำกัด
+  cs: Learning Mode je aktivní pro každý chat na tomto účtu. Odpovědi zůstávají zaměřené na výuku a vybrané nástroje jsou omezené.
+  sv: Learning Mode är aktivt för varje chatt på det här kontot. Svaren förblir undervisningsinriktade och valda verktyg är begränsade.
+  he: Learning Mode פעיל לכל צ'אט בחשבון הזה. התשובות נשארות ממוקדות בהוראה וכלים נבחרים מוגבלים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_inactive_detail:
   context: Info text when Learning Mode is inactive
   en: When enabled, OpenMates guides the learner step by step instead of giving complete answers.
-  verified_by_human: []
+  de: Wenn aktiviert, führt OpenMates die lernende Person Schritt für Schritt, statt vollständige Antworten zu geben.
+  zh: 启用后，OpenMates 会逐步引导学习者，而不是给出完整答案。
+  es: Cuando está activo, OpenMates guía al estudiante paso a paso en lugar de dar respuestas completas.
+  fr: Lorsqu'il est activé, OpenMates guide l'apprenant étape par étape au lieu de donner des réponses complètes.
+  pt: Quando ativado, o OpenMates orienta o aprendiz passo a passo em vez de dar respostas completas.
+  ru: Когда он включён, OpenMates ведёт учащегося шаг за шагом вместо готовых ответов.
+  ja: 有効にすると、OpenMates は完全な答えを出す代わりに学習者を段階的に案内します。
+  ko: 활성화하면 OpenMates가 완성된 답을 주는 대신 학습자를 단계별로 안내합니다.
+  it: Quando è attivo, OpenMates guida lo studente passo dopo passo invece di dare risposte complete.
+  tr: Etkinleştirildiğinde OpenMates, tam cevaplar vermek yerine öğrenciyi adım adım yönlendirir.
+  vi: Khi được bật, OpenMates hướng dẫn người học từng bước thay vì đưa ra câu trả lời hoàn chỉnh.
+  id: Saat diaktifkan, OpenMates membimbing pelajar langkah demi langkah, bukan memberi jawaban lengkap.
+  pl: Po włączeniu OpenMates prowadzi ucznia krok po kroku zamiast podawać gotowe odpowiedzi.
+  nl: Als dit is ingeschakeld, begeleidt OpenMates de leerling stap voor stap in plaats van volledige antwoorden te geven.
+  ar: عند التفعيل، يوجّه OpenMates المتعلم خطوة بخطوة بدلاً من تقديم إجابات كاملة.
+  hi: सक्षम होने पर, OpenMates पूरे उत्तर देने के बजाय सीखने वाले को चरण-दर-चरण मार्गदर्शन देता है।
+  th: เมื่อเปิดใช้งาน OpenMates จะแนะนำผู้เรียนทีละขั้นแทนการให้คำตอบแบบสมบูรณ์
+  cs: Když je zapnutý, OpenMates vede studenta krok za krokem místo poskytování hotových odpovědí.
+  sv: När det är aktiverat vägleder OpenMates eleven steg för steg i stället för att ge fullständiga svar.
+  he: כשהוא מופעל, OpenMates מדריך את הלומד צעד אחר צעד במקום לתת תשובות מלאות.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_guest_active_detail:
   context: Info text when guest Learning Mode is active
   en: Learning Mode is active for anonymous chats in this browser session. Create an account to lock it with a passcode across devices.
-  verified_by_human: []
+  de: Learning Mode ist für anonyme Chats in dieser Browsersitzung aktiv. Erstelle ein Konto, um ihn geräteübergreifend mit einem Passcode zu sperren.
+  zh: Learning Mode 已在此浏览器会话的匿名聊天中启用。创建账号即可用密码在多台设备上锁定它。
+  es: Learning Mode está activo para chats anónimos en esta sesión del navegador. Crea una cuenta para bloquearlo con un código de acceso en todos tus dispositivos.
+  fr: Learning Mode est actif pour les chats anonymes dans cette session de navigateur. Créez un compte pour le verrouiller avec un code d'accès sur tous vos appareils.
+  pt: O Learning Mode está ativo para chats anônimos nesta sessão do navegador. Crie uma conta para bloqueá-lo com um código de acesso em todos os dispositivos.
+  ru: Learning Mode активен для анонимных чатов в этой сессии браузера. Создайте аккаунт, чтобы закрепить его кодом доступа на всех устройствах.
+  ja: Learning Mode はこのブラウザセッションの匿名チャットで有効です。アカウントを作成すると、デバイス間でパスコード付きでロックできます。
+  ko: Learning Mode가 이 브라우저 세션의 익명 채팅에 활성화되어 있습니다. 계정을 만들면 여러 기기에서 암호로 잠글 수 있습니다.
+  it: Learning Mode è attivo per le chat anonime in questa sessione del browser. Crea un account per bloccarlo con un codice su tutti i dispositivi.
+  tr: Learning Mode bu tarayıcı oturumundaki anonim sohbetler için etkin. Cihazlar arasında parola ile kilitlemek için bir hesap oluşturun.
+  vi: Learning Mode đang hoạt động cho các cuộc trò chuyện ẩn danh trong phiên trình duyệt này. Tạo tài khoản để khóa bằng mã khóa trên nhiều thiết bị.
+  id: Learning Mode aktif untuk obrolan anonim dalam sesi browser ini. Buat akun untuk menguncinya dengan kode akses di berbagai perangkat.
+  pl: Learning Mode jest aktywny dla anonimowych czatów w tej sesji przeglądarki. Utwórz konto, aby zablokować go kodem dostępu na różnych urządzeniach.
+  nl: Learning Mode is actief voor anonieme chats in deze browsersessie. Maak een account om het op al je apparaten met een toegangscode te vergrendelen.
+  ar: Learning Mode نشط للدردشات المجهولة في جلسة المتصفح هذه. أنشئ حساباً لقفله برمز مرور عبر الأجهزة.
+  hi: Learning Mode इस ब्राउज़र सत्र में अनाम चैट के लिए सक्रिय है। इसे सभी डिवाइस पर पासकोड से लॉक करने के लिए खाता बनाएं।
+  th: Learning Mode เปิดใช้งานสำหรับแชทแบบไม่ระบุตัวตนในเซสชันเบราว์เซอร์นี้ สร้างบัญชีเพื่อล็อกด้วยรหัสผ่านบนอุปกรณ์ต่าง ๆ
+  cs: Learning Mode je aktivní pro anonymní chaty v této relaci prohlížeče. Vytvořte si účet, abyste jej mohli zamknout přístupovým kódem napříč zařízeními.
+  sv: Learning Mode är aktivt för anonyma chattar i den här webbläsarsessionen. Skapa ett konto för att låsa det med en lösenkod på flera enheter.
+  he: Learning Mode פעיל לצ'אטים אנונימיים בהפעלת הדפדפן הזו. צור חשבון כדי לנעול אותו עם קוד גישה בכל המכשירים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_guest_inactive_detail:
   context: Info text when guest Learning Mode is inactive
   en: Guests can try Learning Mode for anonymous chats in this browser session. Create an account to lock it with a passcode.
-  verified_by_human: []
+  de: Gäste können Learning Mode für anonyme Chats in dieser Browsersitzung ausprobieren. Erstelle ein Konto, um ihn mit einem Passcode zu sperren.
+  zh: 访客可以在此浏览器会话中为匿名聊天试用 Learning Mode。创建账号即可用密码锁定它。
+  es: Los invitados pueden probar Learning Mode para chats anónimos en esta sesión del navegador. Crea una cuenta para bloquearlo con un código de acceso.
+  fr: Les invités peuvent essayer Learning Mode pour les chats anonymes dans cette session de navigateur. Créez un compte pour le verrouiller avec un code d'accès.
+  pt: Convidados podem experimentar o Learning Mode para chats anônimos nesta sessão do navegador. Crie uma conta para bloqueá-lo com um código de acesso.
+  ru: Гости могут попробовать Learning Mode для анонимных чатов в этой сессии браузера. Создайте аккаунт, чтобы закрепить его кодом доступа.
+  ja: ゲストはこのブラウザセッションの匿名チャットで Learning Mode を試せます。アカウントを作成すると、パスコードでロックできます。
+  ko: 게스트는 이 브라우저 세션의 익명 채팅에서 Learning Mode를 사용해 볼 수 있습니다. 계정을 만들면 암호로 잠글 수 있습니다.
+  it: Gli ospiti possono provare Learning Mode per le chat anonime in questa sessione del browser. Crea un account per bloccarlo con un codice.
+  tr: Misafirler bu tarayıcı oturumunda anonim sohbetler için Learning Mode'u deneyebilir. Parola ile kilitlemek için bir hesap oluşturun.
+  vi: Khách có thể thử Learning Mode cho các cuộc trò chuyện ẩn danh trong phiên trình duyệt này. Tạo tài khoản để khóa bằng mã khóa.
+  id: Tamu dapat mencoba Learning Mode untuk obrolan anonim dalam sesi browser ini. Buat akun untuk menguncinya dengan kode akses.
+  pl: Goście mogą wypróbować Learning Mode dla anonimowych czatów w tej sesji przeglądarki. Utwórz konto, aby zablokować go kodem dostępu.
+  nl: Gasten kunnen Learning Mode proberen voor anonieme chats in deze browsersessie. Maak een account om het met een toegangscode te vergrendelen.
+  ar: يمكن للضيوف تجربة Learning Mode للدردشات المجهولة في جلسة المتصفح هذه. أنشئ حساباً لقفله برمز مرور.
+  hi: अतिथि इस ब्राउज़र सत्र में अनाम चैट के लिए Learning Mode आज़मा सकते हैं। इसे पासकोड से लॉक करने के लिए खाता बनाएं।
+  th: ผู้เยี่ยมชมสามารถลองใช้ Learning Mode สำหรับแชทแบบไม่ระบุตัวตนในเซสชันเบราว์เซอร์นี้ สร้างบัญชีเพื่อล็อกด้วยรหัสผ่าน
+  cs: Hosté mohou vyzkoušet Learning Mode pro anonymní chaty v této relaci prohlížeče. Vytvořte si účet, abyste jej mohli zamknout přístupovým kódem.
+  sv: Gäster kan prova Learning Mode för anonyma chattar i den här webbläsarsessionen. Skapa ett konto för att låsa det med en lösenkod.
+  he: אורחים יכולים לנסות את Learning Mode לצ'אטים אנונימיים בהפעלת הדפדפן הזו. צור חשבון כדי לנעול אותו עם קוד גישה.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_age_group_label:
   context: Label for the Learning Mode learner age group dropdown
   en: Learner age group
-  verified_by_human: []
+  de: Altersgruppe der lernenden Person
+  zh: 学习者年龄组
+  es: Grupo de edad del estudiante
+  fr: Groupe d'âge de l'apprenant
+  pt: Faixa etária do aprendiz
+  ru: Возрастная группа учащегося
+  ja: 学習者の年齢グループ
+  ko: 학습자 연령대
+  it: Fascia d'età dello studente
+  tr: Öğrenci yaş grubu
+  vi: Nhóm tuổi người học
+  id: Kelompok usia pelajar
+  pl: Grupa wiekowa ucznia
+  nl: Leeftijdsgroep van de leerling
+  ar: الفئة العمرية للمتعلم
+  hi: सीखने वाले का आयु समूह
+  th: กลุ่มอายุของผู้เรียน
+  cs: Věková skupina studenta
+  sv: Elevens åldersgrupp
+  he: קבוצת הגיל של הלומד
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_age_under_10:
   context: Learning Mode learner age group option
   en: Under 10
-  verified_by_human: []
+  de: Unter 10
+  zh: 10 岁以下
+  es: Menor de 10
+  fr: Moins de 10 ans
+  pt: Menos de 10
+  ru: Младше 10
+  ja: 10歳未満
+  ko: 10세 미만
+  it: Meno di 10 anni
+  tr: 10 yaş altı
+  vi: Dưới 10 tuổi
+  id: Di bawah 10 tahun
+  pl: Poniżej 10 lat
+  nl: Jonger dan 10
+  ar: أقل من 10 سنوات
+  hi: 10 वर्ष से कम
+  th: ต่ำกว่า 10 ปี
+  cs: Méně než 10 let
+  sv: Under 10 år
+  he: מתחת לגיל 10
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_age_10_12:
   context: Learning Mode learner age group option
   en: 10 to 12
-  verified_by_human: []
+  de: 10 bis 12
+  zh: 10 至 12 岁
+  es: De 10 a 12
+  fr: 10 à 12 ans
+  pt: 10 a 12
+  ru: От 10 до 12
+  ja: 10〜12歳
+  ko: 10~12세
+  it: Da 10 a 12 anni
+  tr: 10-12 yaş
+  vi: 10 đến 12 tuổi
+  id: 10 hingga 12 tahun
+  pl: Od 10 do 12 lat
+  nl: 10 tot 12
+  ar: من 10 إلى 12 سنة
+  hi: 10 से 12 वर्ष
+  th: 10 ถึง 12 ปี
+  cs: 10 až 12 let
+  sv: 10 till 12 år
+  he: גיל 10 עד 12
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_age_13_15:
   context: Learning Mode learner age group option
   en: 13 to 15
-  verified_by_human: []
+  de: 13 bis 15
+  zh: 13 至 15 岁
+  es: De 13 a 15
+  fr: 13 à 15 ans
+  pt: 13 a 15
+  ru: От 13 до 15
+  ja: 13〜15歳
+  ko: 13~15세
+  it: Da 13 a 15 anni
+  tr: 13-15 yaş
+  vi: 13 đến 15 tuổi
+  id: 13 hingga 15 tahun
+  pl: Od 13 do 15 lat
+  nl: 13 tot 15
+  ar: من 13 إلى 15 سنة
+  hi: 13 से 15 वर्ष
+  th: 13 ถึง 15 ปี
+  cs: 13 až 15 let
+  sv: 13 till 15 år
+  he: גיל 13 עד 15
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_age_16_18:
   context: Learning Mode learner age group option
   en: 16 to 18
-  verified_by_human: []
+  de: 16 bis 18
+  zh: 16 至 18 岁
+  es: De 16 a 18
+  fr: 16 à 18 ans
+  pt: 16 a 18
+  ru: От 16 до 18
+  ja: 16〜18歳
+  ko: 16~18세
+  it: Da 16 a 18 anni
+  tr: 16-18 yaş
+  vi: 16 đến 18 tuổi
+  id: 16 hingga 18 tahun
+  pl: Od 16 do 18 lat
+  nl: 16 tot 18
+  ar: من 16 إلى 18 سنة
+  hi: 16 से 18 वर्ष
+  th: 16 ถึง 18 ปี
+  cs: 16 až 18 let
+  sv: 16 till 18 år
+  he: גיל 16 עד 18
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_age_adult:
   context: Learning Mode learner age group option
   en: Adult
-  verified_by_human: []
+  de: Erwachsen
+  zh: 成人
+  es: Adulto
+  fr: Adulte
+  pt: Adulto
+  ru: Взрослый
+  ja: 大人
+  ko: 성인
+  it: Adulto
+  tr: Yetişkin
+  vi: Người lớn
+  id: Dewasa
+  pl: Dorosły
+  nl: Volwassene
+  ar: بالغ
+  hi: वयस्क
+  th: ผู้ใหญ่
+  cs: Dospělý
+  sv: Vuxen
+  he: מבוגר
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_enable_passcode_label:
   context: Label for setting a Learning Mode passcode
   en: Set passcode
-  verified_by_human: []
+  de: Passcode festlegen
+  zh: 设置密码
+  es: Definir código de acceso
+  fr: Définir le code d'accès
+  pt: Definir código de acesso
+  ru: Задать код доступа
+  ja: パスコードを設定
+  ko: 암호 설정
+  it: Imposta codice
+  tr: Parola belirle
+  vi: Đặt mã khóa
+  id: Atur kode akses
+  pl: Ustaw kod dostępu
+  nl: Toegangscode instellen
+  ar: تعيين رمز المرور
+  hi: पासकोड सेट करें
+  th: ตั้งรหัสผ่าน
+  cs: Nastavit přístupový kód
+  sv: Ställ in lösenkod
+  he: הגדר קוד גישה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_disable_passcode_label:
   context: Label for entering the Learning Mode passcode before disabling
   en: Enter passcode
-  verified_by_human: []
+  de: Passcode eingeben
+  zh: 输入密码
+  es: Ingresar código de acceso
+  fr: Saisir le code d'accès
+  pt: Digitar código de acesso
+  ru: Введите код доступа
+  ja: パスコードを入力
+  ko: 암호 입력
+  it: Inserisci codice
+  tr: Parolayı gir
+  vi: Nhập mã khóa
+  id: Masukkan kode akses
+  pl: Wpisz kod dostępu
+  nl: Toegangscode invoeren
+  ar: إدخال رمز المرور
+  hi: पासकोड दर्ज करें
+  th: ป้อนรหัสผ่าน
+  cs: Zadat přístupový kód
+  sv: Ange lösenkod
+  he: הזן קוד גישה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_enable_passcode_placeholder:
   context: Placeholder for setting a Learning Mode passcode
   en: Create a passcode
-  verified_by_human: []
+  de: Passcode erstellen
+  zh: 创建密码
+  es: Crea un código de acceso
+  fr: Créez un code d'accès
+  pt: Crie um código de acesso
+  ru: Создайте код доступа
+  ja: パスコードを作成
+  ko: 암호 만들기
+  it: Crea un codice
+  tr: Bir parola oluşturun
+  vi: Tạo mã khóa
+  id: Buat kode akses
+  pl: Utwórz kod dostępu
+  nl: Maak een toegangscode
+  ar: أنشئ رمز مرور
+  hi: पासकोड बनाएं
+  th: สร้างรหัสผ่าน
+  cs: Vytvořte přístupový kód
+  sv: Skapa en lösenkod
+  he: צור קוד גישה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_disable_passcode_placeholder:
   context: Placeholder for entering a Learning Mode passcode
   en: Learning Mode passcode
-  verified_by_human: []
+  de: Learning Mode-Passcode
+  zh: Learning Mode 密码
+  es: Código de acceso de Learning Mode
+  fr: Code d'accès de Learning Mode
+  pt: Código de acesso do Learning Mode
+  ru: Код доступа Learning Mode
+  ja: Learning Mode のパスコード
+  ko: Learning Mode 암호
+  it: Codice di Learning Mode
+  tr: Learning Mode parolası
+  vi: Mã khóa Learning Mode
+  id: Kode akses Learning Mode
+  pl: Kod dostępu do Learning Mode
+  nl: Toegangscode van Learning Mode
+  ar: رمز مرور Learning Mode
+  hi: Learning Mode पासकोड
+  th: รหัสผ่าน Learning Mode
+  cs: Přístupový kód Learning Mode
+  sv: Lösenkod för Learning Mode
+  he: קוד גישה של Learning Mode
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_passcode_required:
   context: Validation error when Learning Mode passcode is missing
   en: Enter a passcode to continue.
-  verified_by_human: []
+  de: Gib einen Passcode ein, um fortzufahren.
+  zh: 输入密码以继续。
+  es: Ingresa un código de acceso para continuar.
+  fr: Saisissez un code d'accès pour continuer.
+  pt: Digite um código de acesso para continuar.
+  ru: Введите код доступа, чтобы продолжить.
+  ja: 続行するにはパスコードを入力してください。
+  ko: 계속하려면 암호를 입력하세요.
+  it: Inserisci un codice per continuare.
+  tr: Devam etmek için bir parola girin.
+  vi: Nhập mã khóa để tiếp tục.
+  id: Masukkan kode akses untuk melanjutkan.
+  pl: Wpisz kod dostępu, aby kontynuować.
+  nl: Voer een toegangscode in om door te gaan.
+  ar: أدخل رمز مرور للمتابعة.
+  hi: जारी रखने के लिए पासकोड दर्ज करें।
+  th: ป้อนรหัสผ่านเพื่อดำเนินการต่อ
+  cs: Pokračujte zadáním přístupového kódu.
+  sv: Ange en lösenkod för att fortsätta.
+  he: הזן קוד גישה כדי להמשיך.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_enable_button:
   context: Button text for enabling Learning Mode
   en: Start Learning Mode
-  verified_by_human: []
+  de: Learning Mode starten
+  zh: 启动 Learning Mode
+  es: Iniciar Learning Mode
+  fr: Démarrer Learning Mode
+  pt: Iniciar Learning Mode
+  ru: Запустить Learning Mode
+  ja: Learning Mode を開始
+  ko: Learning Mode 시작
+  it: Avvia Learning Mode
+  tr: Learning Mode'u başlat
+  vi: Bắt đầu Learning Mode
+  id: Mulai Learning Mode
+  pl: Uruchom Learning Mode
+  nl: Learning Mode starten
+  ar: بدء Learning Mode
+  hi: Learning Mode शुरू करें
+  th: เริ่ม Learning Mode
+  cs: Spustit Learning Mode
+  sv: Starta Learning Mode
+  he: התחל Learning Mode
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 learning_mode_disable_button:
   context: Button text for disabling Learning Mode
   en: Turn off Learning Mode
-  verified_by_human: []
+  de: Learning Mode ausschalten
+  zh: 关闭 Learning Mode
+  es: Desactivar Learning Mode
+  fr: Désactiver Learning Mode
+  pt: Desativar Learning Mode
+  ru: Отключить Learning Mode
+  ja: Learning Mode をオフにする
+  ko: Learning Mode 끄기
+  it: Disattiva Learning Mode
+  tr: Learning Mode'u kapat
+  vi: Tắt Learning Mode
+  id: Matikan Learning Mode
+  pl: Wyłącz Learning Mode
+  nl: Learning Mode uitschakelen
+  ar: إيقاف Learning Mode
+  hi: Learning Mode बंद करें
+  th: ปิด Learning Mode
+  cs: Vypnout Learning Mode
+  sv: Stäng av Learning Mode
+  he: כבה את Learning Mode
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 incognito_explainer_description:
   context: Description of what incognito mode does
   en: "Incognito mode applies only to new chats you create. New chats created while incognito mode is active are not synced across devices, not stored on the server, and not cached. These chats exist only in your current browser session. Existing chats remain unchanged."
@@ -2928,10 +3740,31 @@ server.stats:
   cs: Statistiky
   sv: Statistik
   he: סטטיסטיקות
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.stats.subtitle:
   context: Subtitle for the admin Server stats settings menu item
   en: View global server usage and growth metrics
-  verified_by_human: []
+  de: Globale Servernutzung und Wachstumsmetriken ansehen
+  zh: 查看全局服务器使用情况和增长指标
+  es: Ver métricas globales de uso y crecimiento del servidor
+  fr: Voir l'utilisation globale du serveur et les métriques de croissance
+  pt: Ver métricas globais de uso e crescimento do servidor
+  ru: Просмотр глобального использования сервера и метрик роста
+  ja: サーバー全体の使用状況と成長指標を表示
+  ko: 전체 서버 사용량 및 성장 지표 보기
+  it: Visualizza utilizzo globale del server e metriche di crescita
+  tr: Genel sunucu kullanımını ve büyüme metriklerini görüntüle
+  vi: Xem mức sử dụng máy chủ toàn cục và chỉ số tăng trưởng
+  id: Lihat penggunaan server global dan metrik pertumbuhan
+  pl: Zobacz globalne użycie serwera i metryki wzrostu
+  nl: Bekijk wereldwijd servergebruik en groeistatistieken
+  ar: عرض استخدام الخادم العام ومقاييس النمو
+  hi: वैश्विक सर्वर उपयोग और वृद्धि मेट्रिक्स देखें
+  th: ดูการใช้งานเซิร์ฟเวอร์โดยรวมและเมตริกการเติบโต
+  cs: Zobrazit globální využití serveru a metriky růstu
+  sv: Visa global serveranvändning och tillväxtmått
+  he: הצג שימוש גלובלי בשרת ומדדי צמיחה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.gift_cards:
   context: Admin gift card generator menu item in server settings
   en: Gift Cards
@@ -2959,199 +3792,1179 @@ server.gift_cards:
 server.free_testing_budget.title:
   context: Admin Server settings page title for configuring the Free testing credits signup promotion
   en: Free testing credits
-  verified_by_human: []
+  de: Kostenlose Test-Credits
+  zh: 免费测试额度
+  es: Créditos de prueba gratuitos
+  fr: Crédits de test gratuits
+  pt: Créditos de teste gratuitos
+  ru: Бесплатные тестовые кредиты
+  ja: 無料テストクレジット
+  ko: 무료 테스트 크레딧
+  it: Crediti di prova gratuiti
+  tr: Ücretsiz test kredileri
+  vi: Tín dụng thử nghiệm miễn phí
+  id: Kredit pengujian gratis
+  pl: Darmowe kredyty testowe
+  nl: Gratis testcredits
+  ar: أرصدة اختبار مجانية
+  hi: मुफ़्त परीक्षण क्रेडिट
+  th: เครดิตทดสอบฟรี
+  cs: Bezplatné testovací kredity
+  sv: Gratis testkrediter
+  he: קרדיטים חינמיים לבדיקה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_credits:
   context: Admin Server settings route title alias for the Free testing credits signup promotion
   en: Free testing credits
-  verified_by_human: []
+  de: Kostenlose Test-Credits
+  zh: 免费测试额度
+  es: Créditos de prueba gratuitos
+  fr: Crédits de test gratuits
+  pt: Créditos de teste gratuitos
+  ru: Бесплатные тестовые кредиты
+  ja: 無料テストクレジット
+  ko: 무료 테스트 크레딧
+  it: Crediti di prova gratuiti
+  tr: Ücretsiz test kredileri
+  vi: Tín dụng thử nghiệm miễn phí
+  id: Kredit pengujian gratis
+  pl: Darmowe kredyty testowe
+  nl: Gratis testcredits
+  ar: أرصدة اختبار مجانية
+  hi: मुफ़्त परीक्षण क्रेडिट
+  th: เครดิตทดสอบฟรี
+  cs: Bezplatné testovací kredity
+  sv: Gratis testkrediter
+  he: קרדיטים חינמיים לבדיקה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.subtitle:
   context: Subtitle for admin Free testing credits budget settings menu item
   en: Configure the signup testing credit budget
-  verified_by_human: []
+  de: Budget für Test-Credits bei der Registrierung konfigurieren
+  zh: 配置注册测试额度预算
+  es: Configura el presupuesto de créditos de prueba para registros
+  fr: Configurer le budget de crédits de test à l'inscription
+  pt: Configurar o orçamento de créditos de teste para cadastro
+  ru: Настройте бюджет тестовых кредитов при регистрации
+  ja: サインアップ用テストクレジット予算を設定
+  ko: 가입 테스트 크레딧 예산 구성
+  it: Configura il budget dei crediti di prova per la registrazione
+  tr: Kayıt test kredisi bütçesini yapılandır
+  vi: Cấu hình ngân sách tín dụng thử nghiệm khi đăng ký
+  id: Konfigurasi anggaran kredit pengujian pendaftaran
+  pl: Skonfiguruj budżet kredytów testowych przy rejestracji
+  nl: Configureer het budget voor testcredits bij registratie
+  ar: تكوين ميزانية أرصدة الاختبار عند التسجيل
+  hi: साइनअप परीक्षण क्रेडिट बजट कॉन्फ़िगर करें
+  th: กำหนดค่างบเครดิตทดสอบสำหรับการสมัคร
+  cs: Nastavit rozpočet testovacích kreditů při registraci
+  sv: Konfigurera budgeten för testkrediter vid registrering
+  he: הגדר תקציב קרדיטים לבדיקה בהרשמה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.loading:
   context: Loading state while fetching admin Free testing credits budget
   en: Loading Free testing credits budget...
-  verified_by_human: []
+  de: Budget für kostenlose Test-Credits wird geladen...
+  zh: 正在加载免费测试额度预算...
+  es: Cargando presupuesto de créditos de prueba gratuitos...
+  fr: Chargement du budget de crédits de test gratuits...
+  pt: Carregando orçamento de créditos de teste gratuitos...
+  ru: Загрузка бюджета бесплатных тестовых кредитов...
+  ja: 無料テストクレジット予算を読み込み中...
+  ko: 무료 테스트 크레딧 예산을 불러오는 중...
+  it: Caricamento del budget dei crediti di prova gratuiti...
+  tr: Ücretsiz test kredisi bütçesi yükleniyor...
+  vi: Đang tải ngân sách tín dụng thử nghiệm miễn phí...
+  id: Memuat anggaran kredit pengujian gratis...
+  pl: Wczytywanie budżetu darmowych kredytów testowych...
+  nl: Budget voor gratis testcredits laden...
+  ar: جارٍ تحميل ميزانية أرصدة الاختبار المجانية...
+  hi: मुफ़्त परीक्षण क्रेडिट बजट लोड हो रहा है...
+  th: กำลังโหลดงบเครดิตทดสอบฟรี...
+  cs: Načítání rozpočtu bezplatných testovacích kreditů...
+  sv: Läser in budget för gratis testkrediter...
+  he: טוען תקציב קרדיטים חינמיים לבדיקה...
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.load_error:
   context: Error shown when loading admin Free testing credits budget fails
   en: Failed to load Free testing credits budget.
-  verified_by_human: []
+  de: Budget für kostenlose Test-Credits konnte nicht geladen werden.
+  zh: 无法加载免费测试额度预算。
+  es: No se pudo cargar el presupuesto de créditos de prueba gratuitos.
+  fr: Impossible de charger le budget de crédits de test gratuits.
+  pt: Falha ao carregar o orçamento de créditos de teste gratuitos.
+  ru: Не удалось загрузить бюджет бесплатных тестовых кредитов.
+  ja: 無料テストクレジット予算を読み込めませんでした。
+  ko: 무료 테스트 크레딧 예산을 불러오지 못했습니다.
+  it: Impossibile caricare il budget dei crediti di prova gratuiti.
+  tr: Ücretsiz test kredisi bütçesi yüklenemedi.
+  vi: Không thể tải ngân sách tín dụng thử nghiệm miễn phí.
+  id: Gagal memuat anggaran kredit pengujian gratis.
+  pl: Nie udało się wczytać budżetu darmowych kredytów testowych.
+  nl: Kan budget voor gratis testcredits niet laden.
+  ar: فشل تحميل ميزانية أرصدة الاختبار المجانية.
+  hi: मुफ़्त परीक्षण क्रेडिट बजट लोड करने में विफल।
+  th: โหลดงบเครดิตทดสอบฟรีไม่สำเร็จ
+  cs: Nepodařilo se načíst rozpočet bezplatných testovacích kreditů.
+  sv: Det gick inte att läsa in budgeten för gratis testkrediter.
+  he: טעינת תקציב הקרדיטים החינמיים לבדיקה נכשלה.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.save_success:
   context: Success notification after saving admin Free testing credits budget
   en: Free testing credits budget saved.
-  verified_by_human: []
+  de: Budget für kostenlose Test-Credits gespeichert.
+  zh: 免费测试额度预算已保存。
+  es: Presupuesto de créditos de prueba gratuitos guardado.
+  fr: Budget de crédits de test gratuits enregistré.
+  pt: Orçamento de créditos de teste gratuitos salvo.
+  ru: Бюджет бесплатных тестовых кредитов сохранён.
+  ja: 無料テストクレジット予算を保存しました。
+  ko: 무료 테스트 크레딧 예산이 저장되었습니다.
+  it: Budget dei crediti di prova gratuiti salvato.
+  tr: Ücretsiz test kredisi bütçesi kaydedildi.
+  vi: Đã lưu ngân sách tín dụng thử nghiệm miễn phí.
+  id: Anggaran kredit pengujian gratis disimpan.
+  pl: Budżet darmowych kredytów testowych zapisany.
+  nl: Budget voor gratis testcredits opgeslagen.
+  ar: تم حفظ ميزانية أرصدة الاختبار المجانية.
+  hi: मुफ़्त परीक्षण क्रेडिट बजट सहेजा गया।
+  th: บันทึกงบเครดิตทดสอบฟรีแล้ว
+  cs: Rozpočet bezplatných testovacích kreditů uložen.
+  sv: Budget för gratis testkrediter har sparats.
+  he: תקציב הקרדיטים החינמיים לבדיקה נשמר.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.save_error:
   context: Error shown when saving admin Free testing credits budget fails
   en: Failed to save Free testing credits budget.
-  verified_by_human: []
+  de: Budget für kostenlose Test-Credits konnte nicht gespeichert werden.
+  zh: 无法保存免费测试额度预算。
+  es: No se pudo guardar el presupuesto de créditos de prueba gratuitos.
+  fr: Impossible d'enregistrer le budget de crédits de test gratuits.
+  pt: Falha ao salvar o orçamento de créditos de teste gratuitos.
+  ru: Не удалось сохранить бюджет бесплатных тестовых кредитов.
+  ja: 無料テストクレジット予算を保存できませんでした。
+  ko: 무료 테스트 크레딧 예산을 저장하지 못했습니다.
+  it: Impossibile salvare il budget dei crediti di prova gratuiti.
+  tr: Ücretsiz test kredisi bütçesi kaydedilemedi.
+  vi: Không thể lưu ngân sách tín dụng thử nghiệm miễn phí.
+  id: Gagal menyimpan anggaran kredit pengujian gratis.
+  pl: Nie udało się zapisać budżetu darmowych kredytów testowych.
+  nl: Kan budget voor gratis testcredits niet opslaan.
+  ar: فشل حفظ ميزانية أرصدة الاختبار المجانية.
+  hi: मुफ़्त परीक्षण क्रेडिट बजट सहेजने में विफल।
+  th: บันทึกงบเครดิตทดสอบฟรีไม่สำเร็จ
+  cs: Nepodařilo se uložit rozpočet bezplatných testovacích kreditů.
+  sv: Det gick inte att spara budgeten för gratis testkrediter.
+  he: שמירת תקציב הקרדיטים החינמיים לבדיקה נכשלה.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.status_active:
   context: Status message when Free testing credits can be granted to new signups
   en: Free testing credits are active for new signups.
-  verified_by_human: []
+  de: Kostenlose Test-Credits sind für neue Registrierungen aktiv.
+  zh: 免费测试额度已对新注册用户启用。
+  es: Los créditos de prueba gratuitos están activos para nuevos registros.
+  fr: Les crédits de test gratuits sont actifs pour les nouvelles inscriptions.
+  pt: Créditos de teste gratuitos estão ativos para novos cadastros.
+  ru: Бесплатные тестовые кредиты активны для новых регистраций.
+  ja: 無料テストクレジットは新規登録で有効です。
+  ko: 무료 테스트 크레딧이 신규 가입자에게 활성화되어 있습니다.
+  it: I crediti di prova gratuiti sono attivi per le nuove registrazioni.
+  tr: Ücretsiz test kredileri yeni kayıtlar için etkin.
+  vi: Tín dụng thử nghiệm miễn phí đang hoạt động cho người đăng ký mới.
+  id: Kredit pengujian gratis aktif untuk pendaftaran baru.
+  pl: Darmowe kredyty testowe są aktywne dla nowych rejestracji.
+  nl: Gratis testcredits zijn actief voor nieuwe registraties.
+  ar: أرصدة الاختبار المجانية نشطة للتسجيلات الجديدة.
+  hi: मुफ़्त परीक्षण क्रेडिट नए साइनअप के लिए सक्रिय हैं।
+  th: เครดิตทดสอบฟรีเปิดใช้งานสำหรับผู้สมัครใหม่
+  cs: Bezplatné testovací kredity jsou aktivní pro nové registrace.
+  sv: Gratis testkrediter är aktiva för nya registreringar.
+  he: קרדיטים חינמיים לבדיקה פעילים להרשמות חדשות.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.status_exhausted:
   context: Status message when Free testing credits budget is enabled but cannot grant another full user amount
   en: The budget is exhausted and will not grant partial credits.
-  verified_by_human: []
+  de: Das Budget ist erschöpft und gewährt keine Teil-Credits.
+  zh: 预算已用尽，不会发放部分额度。
+  es: El presupuesto se agotó y no otorgará créditos parciales.
+  fr: Le budget est épuisé et n'accordera pas de crédits partiels.
+  pt: O orçamento está esgotado e não concederá créditos parciais.
+  ru: Бюджет исчерпан и не будет выдавать частичные кредиты.
+  ja: 予算は使い切られており、部分的なクレジットは付与されません。
+  ko: 예산이 소진되어 부분 크레딧은 지급되지 않습니다.
+  it: Il budget è esaurito e non concederà crediti parziali.
+  tr: Bütçe tükendi ve kısmi kredi verilmeyecek.
+  vi: Ngân sách đã cạn và sẽ không cấp tín dụng một phần.
+  id: Anggaran habis dan tidak akan memberikan kredit sebagian.
+  pl: Budżet został wyczerpany i nie przyzna częściowych kredytów.
+  nl: Het budget is uitgeput en kent geen gedeeltelijke credits toe.
+  ar: استُنفدت الميزانية ولن تمنح أرصدة جزئية.
+  hi: बजट समाप्त हो गया है और आंशिक क्रेडिट नहीं दिए जाएंगे।
+  th: งบประมาณหมดแล้วและจะไม่ให้เครดิตบางส่วน
+  cs: Rozpočet je vyčerpán a nebude poskytovat částečné kredity.
+  sv: Budgeten är slut och kommer inte att ge delkrediter.
+  he: התקציב אזל ולא יעניק קרדיטים חלקיים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.status_disabled:
   context: Status message when Free testing credits are disabled or inactive
   en: Free testing credits are currently inactive.
-  verified_by_human: []
+  de: Kostenlose Test-Credits sind derzeit inaktiv.
+  zh: 免费测试额度当前未启用。
+  es: Los créditos de prueba gratuitos están inactivos actualmente.
+  fr: Les crédits de test gratuits sont actuellement inactifs.
+  pt: Créditos de teste gratuitos estão inativos no momento.
+  ru: Бесплатные тестовые кредиты сейчас неактивны.
+  ja: 無料テストクレジットは現在無効です。
+  ko: 무료 테스트 크레딧은 현재 비활성 상태입니다.
+  it: I crediti di prova gratuiti sono attualmente inattivi.
+  tr: Ücretsiz test kredileri şu anda etkin değil.
+  vi: Tín dụng thử nghiệm miễn phí hiện không hoạt động.
+  id: Kredit pengujian gratis saat ini tidak aktif.
+  pl: Darmowe kredyty testowe są obecnie nieaktywne.
+  nl: Gratis testcredits zijn momenteel inactief.
+  ar: أرصدة الاختبار المجانية غير نشطة حالياً.
+  hi: मुफ़्त परीक्षण क्रेडिट अभी निष्क्रिय हैं।
+  th: เครดิตทดสอบฟรียังไม่เปิดใช้งานในขณะนี้
+  cs: Bezplatné testovací kredity jsou momentálně neaktivní.
+  sv: Gratis testkrediter är för närvarande inaktiva.
+  he: קרדיטים חינמיים לבדיקה אינם פעילים כרגע.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.used:
   context: Label for used Free testing credits budget
   en: Used
-  verified_by_human: []
+  de: Verwendet
+  zh: 已使用
+  es: Usado
+  fr: Utilisé
+  pt: Usado
+  ru: Использовано
+  ja: 使用済み
+  ko: 사용됨
+  it: Usato
+  tr: Kullanıldı
+  vi: Đã dùng
+  id: Digunakan
+  pl: Wykorzystano
+  nl: Gebruikt
+  ar: مستخدم
+  hi: उपयोग किया गया
+  th: ใช้แล้ว
+  cs: Použito
+  sv: Använt
+  he: בשימוש
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.remaining:
   context: Label for remaining Free testing credits budget
   en: Remaining
-  verified_by_human: []
+  de: Verbleibend
+  zh: 剩余
+  es: Restante
+  fr: Restant
+  pt: Restante
+  ru: Осталось
+  ja: 残り
+  ko: 남음
+  it: Rimanenti
+  tr: Kalan
+  vi: Còn lại
+  id: Tersisa
+  pl: Pozostało
+  nl: Resterend
+  ar: المتبقي
+  hi: शेष
+  th: คงเหลือ
+  cs: Zbývá
+  sv: Återstår
+  he: נותר
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.exhausted_email_sent:
   context: Label for exhausted-budget admin email sent timestamp
   en: Exhausted email sent
-  verified_by_human: []
+  de: E-Mail zu erschöpftem Budget gesendet
+  zh: 已发送预算用尽邮件
+  es: Correo de agotamiento enviado
+  fr: E-mail d'épuisement envoyé
+  pt: Email de esgotamento enviado
+  ru: Письмо об исчерпании отправлено
+  ja: 使い切り通知メール送信済み
+  ko: 소진 이메일 전송됨
+  it: Email di esaurimento inviata
+  tr: Tükenme e-postası gönderildi
+  vi: Email báo cạn ngân sách đã gửi
+  id: Email habis terkirim
+  pl: Wysłano e-mail o wyczerpaniu
+  nl: E-mail over uitgeput budget verzonden
+  ar: تم إرسال بريد نفاد الميزانية
+  hi: समाप्ति ईमेल भेजा गया
+  th: ส่งอีเมลงบหมดแล้ว
+  cs: E-mail o vyčerpání odeslán
+  sv: E-post om förbrukad budget skickad
+  he: אימייל על מיצוי התקציב נשלח
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.updated_at:
   context: Label for Free testing credits budget updated timestamp
   en: Updated
-  verified_by_human: []
+  de: Aktualisiert
+  zh: 已更新
+  es: Actualizado
+  fr: Mis à jour
+  pt: Atualizado
+  ru: Обновлено
+  ja: 更新済み
+  ko: 업데이트됨
+  it: Aggiornato
+  tr: Güncellendi
+  vi: Đã cập nhật
+  id: Diperbarui
+  pl: Zaktualizowano
+  nl: Bijgewerkt
+  ar: تم التحديث
+  hi: अपडेट किया गया
+  th: อัปเดตแล้ว
+  cs: Aktualizováno
+  sv: Uppdaterad
+  he: עודכן
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.never:
   context: Value shown when a Free testing credits timestamp has never been set
   en: Never
-  verified_by_human: []
+  de: Nie
+  zh: 从未
+  es: Nunca
+  fr: Jamais
+  pt: Nunca
+  ru: Никогда
+  ja: なし
+  ko: 없음
+  it: Mai
+  tr: Hiçbir zaman
+  vi: Chưa bao giờ
+  id: Tidak pernah
+  pl: Nigdy
+  nl: Nooit
+  ar: أبداً
+  hi: कभी नहीं
+  th: ไม่เคย
+  cs: Nikdy
+  sv: Aldrig
+  he: אף פעם
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.enabled:
   context: Toggle label for enabling Free testing credits promotion
   en: Enable Free testing credits for new signups
-  verified_by_human: []
+  de: Kostenlose Test-Credits für neue Registrierungen aktivieren
+  zh: 为新注册用户启用免费测试额度
+  es: Activar créditos de prueba gratuitos para nuevos registros
+  fr: Activer les crédits de test gratuits pour les nouvelles inscriptions
+  pt: Ativar créditos de teste gratuitos para novos cadastros
+  ru: Включить бесплатные тестовые кредиты для новых регистраций
+  ja: 新規登録向け無料テストクレジットを有効にする
+  ko: 신규 가입자에게 무료 테스트 크레딧 활성화
+  it: Abilita crediti di prova gratuiti per le nuove registrazioni
+  tr: Yeni kayıtlar için ücretsiz test kredilerini etkinleştir
+  vi: Bật tín dụng thử nghiệm miễn phí cho người đăng ký mới
+  id: Aktifkan kredit pengujian gratis untuk pendaftaran baru
+  pl: Włącz darmowe kredyty testowe dla nowych rejestracji
+  nl: Gratis testcredits inschakelen voor nieuwe registraties
+  ar: تفعيل أرصدة الاختبار المجانية للتسجيلات الجديدة
+  hi: नए साइनअप के लिए मुफ़्त परीक्षण क्रेडिट सक्षम करें
+  th: เปิดใช้เครดิตทดสอบฟรีสำหรับผู้สมัครใหม่
+  cs: Zapnout bezplatné testovací kredity pro nové registrace
+  sv: Aktivera gratis testkrediter för nya registreringar
+  he: הפעל קרדיטים חינמיים לבדיקה להרשמות חדשות
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.total_budget:
   context: Input label for total Free testing credits budget
   en: Total budget credits
-  verified_by_human: []
+  de: Gesamte Budget-Credits
+  zh: 总预算额度
+  es: Créditos del presupuesto total
+  fr: Crédits du budget total
+  pt: Créditos do orçamento total
+  ru: Общий бюджет кредитов
+  ja: 総予算クレジット
+  ko: 총 예산 크레딧
+  it: Crediti del budget totale
+  tr: Toplam bütçe kredileri
+  vi: Tổng tín dụng ngân sách
+  id: Total kredit anggaran
+  pl: Łączny budżet kredytów
+  nl: Totaal budget aan credits
+  ar: إجمالي أرصدة الميزانية
+  hi: कुल बजट क्रेडिट
+  th: เครดิตงบประมาณทั้งหมด
+  cs: Celkové rozpočtové kredity
+  sv: Totala budgetkrediter
+  he: סך קרדיטי התקציב
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.per_user_grant:
   context: Input label for per-user Free testing credits grant amount
   en: Credits per new signup
-  verified_by_human: []
+  de: Credits pro neue Registrierung
+  zh: 每位新注册用户的额度
+  es: Créditos por nuevo registro
+  fr: Crédits par nouvelle inscription
+  pt: Créditos por novo cadastro
+  ru: Кредиты на одну новую регистрацию
+  ja: 新規登録ごとのクレジット
+  ko: 신규 가입자당 크레딧
+  it: Crediti per nuova registrazione
+  tr: Yeni kayıt başına kredi
+  vi: Tín dụng cho mỗi lượt đăng ký mới
+  id: Kredit per pendaftaran baru
+  pl: Kredyty na nową rejestrację
+  nl: Credits per nieuwe registratie
+  ar: الأرصدة لكل تسجيل جديد
+  hi: प्रत्येक नए साइनअप पर क्रेडिट
+  th: เครดิตต่อผู้สมัครใหม่
+  cs: Kredity na novou registraci
+  sv: Krediter per ny registrering
+  he: קרדיטים לכל הרשמה חדשה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.validation_below_used:
   context: Validation message when total budget is below already used Free testing credits
   en: Total budget cannot be below credits already granted.
-  verified_by_human: []
+  de: Das Gesamtbudget darf nicht unter den bereits gewährten Credits liegen.
+  zh: 总预算不能低于已发放的额度。
+  es: El presupuesto total no puede ser inferior a los créditos ya concedidos.
+  fr: Le budget total ne peut pas être inférieur aux crédits déjà accordés.
+  pt: O orçamento total não pode ser menor que os créditos já concedidos.
+  ru: Общий бюджет не может быть меньше уже выданных кредитов.
+  ja: 総予算はすでに付与されたクレジットを下回ることはできません。
+  ko: 총 예산은 이미 지급된 크레딧보다 낮을 수 없습니다.
+  it: Il budget totale non può essere inferiore ai crediti già concessi.
+  tr: Toplam bütçe, zaten verilen kredilerden düşük olamaz.
+  vi: Tổng ngân sách không được thấp hơn số tín dụng đã cấp.
+  id: Total anggaran tidak boleh kurang dari kredit yang sudah diberikan.
+  pl: Całkowity budżet nie może być niższy niż już przyznane kredyty.
+  nl: Het totale budget mag niet lager zijn dan al toegekende credits.
+  ar: لا يمكن أن يكون إجمالي الميزانية أقل من الأرصدة الممنوحة بالفعل.
+  hi: कुल बजट पहले से दिए गए क्रेडिट से कम नहीं हो सकता।
+  th: งบประมาณทั้งหมดต้องไม่ต่ำกว่าเครดิตที่ให้ไปแล้ว
+  cs: Celkový rozpočet nesmí být nižší než již poskytnuté kredity.
+  sv: Den totala budgeten kan inte vara lägre än redan beviljade krediter.
+  he: התקציב הכולל לא יכול להיות נמוך מהקרדיטים שכבר הוענקו.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.free_testing_budget.validation_no_partial:
   context: Validation message when remaining budget is below the per-user grant amount
   en: Remaining budget must cover one full user grant. Partial grants are not allowed.
-  verified_by_human: []
+  de: Das verbleibende Budget muss eine vollständige Nutzerzuteilung abdecken. Teilzuteilungen sind nicht erlaubt.
+  zh: 剩余预算必须覆盖一次完整的用户发放额度。不允许部分发放。
+  es: El presupuesto restante debe cubrir una concesión completa por usuario. No se permiten concesiones parciales.
+  fr: Le budget restant doit couvrir une attribution utilisateur complète. Les attributions partielles ne sont pas autorisées.
+  pt: O orçamento restante deve cobrir uma concessão completa por usuário. Concessões parciais não são permitidas.
+  ru: Оставшийся бюджет должен покрывать одну полную выдачу пользователю. Частичные выдачи не разрешены.
+  ja: 残り予算はユーザー1人分の全額付与をカバーする必要があります。部分付与は許可されません。
+  ko: 남은 예산은 사용자 1명에게 지급할 전체 크레딧을 충당해야 합니다. 부분 지급은 허용되지 않습니다.
+  it: Il budget rimanente deve coprire un accredito utente completo. Gli accrediti parziali non sono consentiti.
+  tr: Kalan bütçe bir tam kullanıcı hibesini karşılamalıdır. Kısmi hibeler izinli değildir.
+  vi: Ngân sách còn lại phải đủ cho một khoản cấp đầy đủ cho người dùng. Không cho phép cấp một phần.
+  id: Anggaran tersisa harus mencakup satu hibah pengguna penuh. Hibah sebagian tidak diizinkan.
+  pl: Pozostały budżet musi pokrywać jedną pełną pulę dla użytkownika. Częściowe przyznania nie są dozwolone.
+  nl: Het resterende budget moet één volledige gebruikerstoekenning dekken. Gedeeltelijke toekenningen zijn niet toegestaan.
+  ar: يجب أن تغطي الميزانية المتبقية منحة مستخدم كاملة واحدة. لا يُسمح بالمنح الجزئية.
+  hi: शेष बजट में एक पूर्ण उपयोगकर्ता अनुदान कवर होना चाहिए। आंशिक अनुदान की अनुमति नहीं है।
+  th: งบประมาณที่เหลือต้องครอบคลุมการให้เครดิตผู้ใช้หนึ่งคนแบบเต็ม ไม่อนุญาตให้ให้บางส่วน
+  cs: Zbývající rozpočet musí pokrýt jednu plnou uživatelskou dotaci. Částečné dotace nejsou povoleny.
+  sv: Återstående budget måste täcka en fullständig användartilldelning. Delvisa tilldelningar är inte tillåtna.
+  he: התקציב הנותר חייב לכסות מענק מלא למשתמש אחד. מענקים חלקיים אינם מותרים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.title:
   context: Admin Server settings page title for configuring anonymous free usage
   en: Anonymous free usage
-  verified_by_human: []
+  de: Anonyme kostenlose Nutzung
+  zh: 匿名免费使用
+  es: Uso gratuito anónimo
+  fr: Utilisation gratuite anonyme
+  pt: Uso gratuito anônimo
+  ru: Анонимное бесплатное использование
+  ja: 匿名無料利用
+  ko: 익명 무료 사용
+  it: Utilizzo gratuito anonimo
+  tr: Anonim ücretsiz kullanım
+  vi: Sử dụng miễn phí ẩn danh
+  id: Penggunaan gratis anonim
+  pl: Anonimowe bezpłatne użycie
+  nl: Anoniem gratis gebruik
+  ar: الاستخدام المجاني المجهول
+  hi: अनाम मुफ़्त उपयोग
+  th: การใช้งานฟรีแบบไม่ระบุตัวตน
+  cs: Anonymní bezplatné použití
+  sv: Anonym gratis användning
+  he: שימוש חינמי אנונימי
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.subtitle:
   context: Subtitle for admin anonymous free usage budget settings menu item
   en: Configure logged-out free chat budget caps
-  verified_by_human: []
+  de: Budgetlimits für kostenlose Chats ohne Anmeldung konfigurieren
+  zh: 配置未登录免费聊天预算上限
+  es: Configura límites de presupuesto para chats gratuitos sin sesión
+  fr: Configurer les plafonds de budget des chats gratuits hors connexion
+  pt: Configurar limites de orçamento para chats gratuitos sem login
+  ru: Настройте лимиты бюджета бесплатных чатов без входа
+  ja: ログアウト中の無料チャット予算上限を設定
+  ko: 로그아웃 상태의 무료 채팅 예산 한도 구성
+  it: Configura i limiti di budget per le chat gratuite senza accesso
+  tr: Oturum açmamış ücretsiz sohbet bütçe sınırlarını yapılandır
+  vi: Cấu hình giới hạn ngân sách chat miễn phí khi chưa đăng nhập
+  id: Konfigurasi batas anggaran obrolan gratis tanpa login
+  pl: Skonfiguruj limity budżetu darmowych czatów bez logowania
+  nl: Configureer budgetlimieten voor gratis chats zonder inloggen
+  ar: تكوين حدود ميزانية الدردشة المجانية للمستخدمين غير المسجلين
+  hi: लॉग-आउट मुफ़्त चैट बजट सीमा कॉन्फ़िगर करें
+  th: กำหนดค่าวงเงินงบประมาณแชทฟรีสำหรับผู้ที่ไม่ได้เข้าสู่ระบบ
+  cs: Nastavit rozpočtové limity bezplatných chatů bez přihlášení
+  sv: Konfigurera budgettak för gratis chattar utan inloggning
+  he: הגדר תקרות תקציב לצ'אט חינמי ללא התחברות
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.loading:
   context: Loading state while fetching admin anonymous free usage budget
   en: Loading anonymous free usage budget...
-  verified_by_human: []
+  de: Budget für anonyme kostenlose Nutzung wird geladen...
+  zh: 正在加载匿名免费使用预算...
+  es: Cargando presupuesto de uso gratuito anónimo...
+  fr: Chargement du budget d'utilisation gratuite anonyme...
+  pt: Carregando orçamento de uso gratuito anônimo...
+  ru: Загрузка бюджета анонимного бесплатного использования...
+  ja: 匿名無料利用予算を読み込み中...
+  ko: 익명 무료 사용 예산을 불러오는 중...
+  it: Caricamento del budget di utilizzo gratuito anonimo...
+  tr: Anonim ücretsiz kullanım bütçesi yükleniyor...
+  vi: Đang tải ngân sách sử dụng miễn phí ẩn danh...
+  id: Memuat anggaran penggunaan gratis anonim...
+  pl: Wczytywanie budżetu anonimowego bezpłatnego użycia...
+  nl: Budget voor anoniem gratis gebruik laden...
+  ar: جارٍ تحميل ميزانية الاستخدام المجاني المجهول...
+  hi: अनाम मुफ़्त उपयोग बजट लोड हो रहा है...
+  th: กำลังโหลดงบการใช้งานฟรีแบบไม่ระบุตัวตน...
+  cs: Načítání rozpočtu anonymního bezplatného použití...
+  sv: Läser in budget för anonym gratis användning...
+  he: טוען תקציב שימוש חינמי אנונימי...
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.load_error:
   context: Error shown when loading admin anonymous free usage budget fails
   en: Failed to load anonymous free usage budget.
-  verified_by_human: []
+  de: Budget für anonyme kostenlose Nutzung konnte nicht geladen werden.
+  zh: 无法加载匿名免费使用预算。
+  es: No se pudo cargar el presupuesto de uso gratuito anónimo.
+  fr: Impossible de charger le budget d'utilisation gratuite anonyme.
+  pt: Falha ao carregar o orçamento de uso gratuito anônimo.
+  ru: Не удалось загрузить бюджет анонимного бесплатного использования.
+  ja: 匿名無料利用予算を読み込めませんでした。
+  ko: 익명 무료 사용 예산을 불러오지 못했습니다.
+  it: Impossibile caricare il budget di utilizzo gratuito anonimo.
+  tr: Anonim ücretsiz kullanım bütçesi yüklenemedi.
+  vi: Không thể tải ngân sách sử dụng miễn phí ẩn danh.
+  id: Gagal memuat anggaran penggunaan gratis anonim.
+  pl: Nie udało się wczytać budżetu anonimowego bezpłatnego użycia.
+  nl: Kan budget voor anoniem gratis gebruik niet laden.
+  ar: فشل تحميل ميزانية الاستخدام المجاني المجهول.
+  hi: अनाम मुफ़्त उपयोग बजट लोड करने में विफल।
+  th: โหลดงบการใช้งานฟรีแบบไม่ระบุตัวตนไม่สำเร็จ
+  cs: Nepodařilo se načíst rozpočet anonymního bezplatného použití.
+  sv: Det gick inte att läsa in budgeten för anonym gratis användning.
+  he: טעינת תקציב השימוש החינמי האנונימי נכשלה.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.save_success:
   context: Success notification after saving admin anonymous free usage budget
   en: Anonymous free usage budget saved.
-  verified_by_human: []
+  de: Budget für anonyme kostenlose Nutzung gespeichert.
+  zh: 匿名免费使用预算已保存。
+  es: Presupuesto de uso gratuito anónimo guardado.
+  fr: Budget d'utilisation gratuite anonyme enregistré.
+  pt: Orçamento de uso gratuito anônimo salvo.
+  ru: Бюджет анонимного бесплатного использования сохранён.
+  ja: 匿名無料利用予算を保存しました。
+  ko: 익명 무료 사용 예산이 저장되었습니다.
+  it: Budget di utilizzo gratuito anonimo salvato.
+  tr: Anonim ücretsiz kullanım bütçesi kaydedildi.
+  vi: Đã lưu ngân sách sử dụng miễn phí ẩn danh.
+  id: Anggaran penggunaan gratis anonim disimpan.
+  pl: Budżet anonimowego bezpłatnego użycia zapisany.
+  nl: Budget voor anoniem gratis gebruik opgeslagen.
+  ar: تم حفظ ميزانية الاستخدام المجاني المجهول.
+  hi: अनाम मुफ़्त उपयोग बजट सहेजा गया।
+  th: บันทึกงบการใช้งานฟรีแบบไม่ระบุตัวตนแล้ว
+  cs: Rozpočet anonymního bezplatného použití uložen.
+  sv: Budget för anonym gratis användning har sparats.
+  he: תקציב השימוש החינמי האנונימי נשמר.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.save_error:
   context: Error shown when saving admin anonymous free usage budget fails
   en: Failed to save anonymous free usage budget.
-  verified_by_human: []
+  de: Budget für anonyme kostenlose Nutzung konnte nicht gespeichert werden.
+  zh: 无法保存匿名免费使用预算。
+  es: No se pudo guardar el presupuesto de uso gratuito anónimo.
+  fr: Impossible d'enregistrer le budget d'utilisation gratuite anonyme.
+  pt: Falha ao salvar o orçamento de uso gratuito anônimo.
+  ru: Не удалось сохранить бюджет анонимного бесплатного использования.
+  ja: 匿名無料利用予算を保存できませんでした。
+  ko: 익명 무료 사용 예산을 저장하지 못했습니다.
+  it: Impossibile salvare il budget di utilizzo gratuito anonimo.
+  tr: Anonim ücretsiz kullanım bütçesi kaydedilemedi.
+  vi: Không thể lưu ngân sách sử dụng miễn phí ẩn danh.
+  id: Gagal menyimpan anggaran penggunaan gratis anonim.
+  pl: Nie udało się zapisać budżetu anonimowego bezpłatnego użycia.
+  nl: Kan budget voor anoniem gratis gebruik niet opslaan.
+  ar: فشل حفظ ميزانية الاستخدام المجاني المجهول.
+  hi: अनाम मुफ़्त उपयोग बजट सहेजने में विफल।
+  th: บันทึกงบการใช้งานฟรีแบบไม่ระบุตัวตนไม่สำเร็จ
+  cs: Nepodařilo se uložit rozpočet anonymního bezplatného použití.
+  sv: Det gick inte att spara budgeten för anonym gratis användning.
+  he: שמירת תקציב השימוש החינמי האנונימי נכשלה.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.status_active:
   context: Status message when anonymous free usage can be used
   en: Anonymous free usage is active for new logged-out users.
-  verified_by_human: []
+  de: Anonyme kostenlose Nutzung ist für neue abgemeldete Nutzer aktiv.
+  zh: 匿名免费使用已对新的未登录用户启用。
+  es: El uso gratuito anónimo está activo para nuevos usuarios sin sesión.
+  fr: L'utilisation gratuite anonyme est active pour les nouveaux utilisateurs déconnectés.
+  pt: O uso gratuito anônimo está ativo para novos usuários desconectados.
+  ru: Анонимное бесплатное использование активно для новых пользователей без входа.
+  ja: 匿名無料利用は新しいログアウトユーザーに対して有効です。
+  ko: 익명 무료 사용이 새 로그아웃 사용자에게 활성화되어 있습니다.
+  it: L'utilizzo gratuito anonimo è attivo per i nuovi utenti non connessi.
+  tr: Anonim ücretsiz kullanım, oturum açmamış yeni kullanıcılar için etkin.
+  vi: Sử dụng miễn phí ẩn danh đang hoạt động cho người dùng mới chưa đăng nhập.
+  id: Penggunaan gratis anonim aktif untuk pengguna baru yang belum login.
+  pl: Anonimowe bezpłatne użycie jest aktywne dla nowych niezalogowanych użytkowników.
+  nl: Anoniem gratis gebruik is actief voor nieuwe uitgelogde gebruikers.
+  ar: الاستخدام المجاني المجهول نشط للمستخدمين الجدد غير المسجلين.
+  hi: अनाम मुफ़्त उपयोग नए लॉग-आउट उपयोगकर्ताओं के लिए सक्रिय है।
+  th: การใช้งานฟรีแบบไม่ระบุตัวตนเปิดใช้งานสำหรับผู้ใช้ใหม่ที่ไม่ได้เข้าสู่ระบบ
+  cs: Anonymní bezplatné použití je aktivní pro nové odhlášené uživatele.
+  sv: Anonym gratis användning är aktiv för nya utloggade användare.
+  he: שימוש חינמי אנונימי פעיל למשתמשים חדשים שאינם מחוברים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.status_daily_exhausted:
   context: Status message when anonymous free usage daily cap is exhausted
   en: The anonymous free usage daily cap is exhausted until the next reset.
-  verified_by_human: []
+  de: Das Tageslimit für anonyme kostenlose Nutzung ist bis zum nächsten Zurücksetzen erschöpft.
+  zh: 匿名免费使用的每日上限已用尽，直到下次重置。
+  es: El límite diario de uso gratuito anónimo está agotado hasta el próximo reinicio.
+  fr: Le plafond quotidien d'utilisation gratuite anonyme est épuisé jusqu'à la prochaine réinitialisation.
+  pt: O limite diário de uso gratuito anônimo está esgotado até a próxima redefinição.
+  ru: Дневной лимит анонимного бесплатного использования исчерпан до следующего сброса.
+  ja: 匿名無料利用の日次上限は次回リセットまで使い切られています。
+  ko: 익명 무료 사용 일일 한도가 다음 초기화까지 소진되었습니다.
+  it: Il limite giornaliero di utilizzo gratuito anonimo è esaurito fino al prossimo ripristino.
+  tr: Anonim ücretsiz kullanım günlük sınırı bir sonraki sıfırlamaya kadar tükendi.
+  vi: Giới hạn hằng ngày cho sử dụng miễn phí ẩn danh đã cạn cho đến lần đặt lại tiếp theo.
+  id: Batas harian penggunaan gratis anonim habis hingga reset berikutnya.
+  pl: Dzienny limit anonimowego bezpłatnego użycia został wyczerpany do następnego resetu.
+  nl: De dagelijkse limiet voor anoniem gratis gebruik is uitgeput tot de volgende reset.
+  ar: تم استنفاد الحد اليومي للاستخدام المجاني المجهول حتى إعادة التعيين التالية.
+  hi: अनाम मुफ़्त उपयोग की दैनिक सीमा अगले रीसेट तक समाप्त हो गई है।
+  th: วงเงินรายวันสำหรับการใช้งานฟรีแบบไม่ระบุตัวตนหมดแล้วจนกว่าจะรีเซ็ตครั้งถัดไป
+  cs: Denní limit anonymního bezplatného použití je vyčerpán až do dalšího resetu.
+  sv: Det dagliga taket för anonym gratis användning är slut tills nästa återställning.
+  he: התקרה היומית לשימוש חינמי אנונימי מוצתה עד האיפוס הבא.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.status_weekly_exhausted:
   context: Status message when anonymous free usage weekly cap is exhausted
   en: The anonymous free usage weekly cap is exhausted.
-  verified_by_human: []
+  de: Das Wochenlimit für anonyme kostenlose Nutzung ist erschöpft.
+  zh: 匿名免费使用的每周上限已用尽。
+  es: El límite semanal de uso gratuito anónimo está agotado.
+  fr: Le plafond hebdomadaire d'utilisation gratuite anonyme est épuisé.
+  pt: O limite semanal de uso gratuito anônimo está esgotado.
+  ru: Недельный лимит анонимного бесплатного использования исчерпан.
+  ja: 匿名無料利用の週次上限は使い切られています。
+  ko: 익명 무료 사용 주간 한도가 소진되었습니다.
+  it: Il limite settimanale di utilizzo gratuito anonimo è esaurito.
+  tr: Anonim ücretsiz kullanım haftalık sınırı tükendi.
+  vi: Giới hạn hằng tuần cho sử dụng miễn phí ẩn danh đã cạn.
+  id: Batas mingguan penggunaan gratis anonim habis.
+  pl: Tygodniowy limit anonimowego bezpłatnego użycia został wyczerpany.
+  nl: De wekelijkse limiet voor anoniem gratis gebruik is uitgeput.
+  ar: تم استنفاد الحد الأسبوعي للاستخدام المجاني المجهول.
+  hi: अनाम मुफ़्त उपयोग की साप्ताहिक सीमा समाप्त हो गई है।
+  th: วงเงินรายสัปดาห์สำหรับการใช้งานฟรีแบบไม่ระบุตัวตนหมดแล้ว
+  cs: Týdenní limit anonymního bezplatného použití je vyčerpán.
+  sv: Det veckovisa taket för anonym gratis användning är slut.
+  he: התקרה השבועית לשימוש חינמי אנונימי מוצתה.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.status_disabled:
   context: Status message when anonymous free usage is disabled or inactive
   en: Anonymous free usage is currently inactive.
-  verified_by_human: []
+  de: Anonyme kostenlose Nutzung ist derzeit inaktiv.
+  zh: 匿名免费使用当前未启用。
+  es: El uso gratuito anónimo está inactivo actualmente.
+  fr: L'utilisation gratuite anonyme est actuellement inactive.
+  pt: O uso gratuito anônimo está inativo no momento.
+  ru: Анонимное бесплатное использование сейчас неактивно.
+  ja: 匿名無料利用は現在無効です。
+  ko: 익명 무료 사용은 현재 비활성 상태입니다.
+  it: L'utilizzo gratuito anonimo è attualmente inattivo.
+  tr: Anonim ücretsiz kullanım şu anda etkin değil.
+  vi: Sử dụng miễn phí ẩn danh hiện không hoạt động.
+  id: Penggunaan gratis anonim saat ini tidak aktif.
+  pl: Anonimowe bezpłatne użycie jest obecnie nieaktywne.
+  nl: Anoniem gratis gebruik is momenteel inactief.
+  ar: الاستخدام المجاني المجهول غير نشط حالياً.
+  hi: अनाम मुफ़्त उपयोग अभी निष्क्रिय है।
+  th: การใช้งานฟรีแบบไม่ระบุตัวตนยังไม่เปิดใช้งานในขณะนี้
+  cs: Anonymní bezplatné použití je momentálně neaktivní.
+  sv: Anonym gratis användning är för närvarande inaktiv.
+  he: שימוש חינמי אנונימי אינו פעיל כרגע.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.daily_cap:
   context: Label for anonymous free usage daily hard cap credits
   en: Daily cap
-  verified_by_human: []
+  de: Tageslimit
+  zh: 每日上限
+  es: Límite diario
+  fr: Plafond quotidien
+  pt: Limite diário
+  ru: Дневной лимит
+  ja: 日次上限
+  ko: 일일 한도
+  it: Limite giornaliero
+  tr: Günlük sınır
+  vi: Giới hạn hằng ngày
+  id: Batas harian
+  pl: Limit dzienny
+  nl: Dagelijkse limiet
+  ar: الحد اليومي
+  hi: दैनिक सीमा
+  th: วงเงินรายวัน
+  cs: Denní limit
+  sv: Dagligt tak
+  he: תקרה יומית
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.weekly_cap:
   context: Label for anonymous free usage weekly cap credits
   en: Weekly cap
-  verified_by_human: []
+  de: Wochenlimit
+  zh: 每周上限
+  es: Límite semanal
+  fr: Plafond hebdomadaire
+  pt: Limite semanal
+  ru: Недельный лимит
+  ja: 週次上限
+  ko: 주간 한도
+  it: Limite settimanale
+  tr: Haftalık sınır
+  vi: Giới hạn hằng tuần
+  id: Batas mingguan
+  pl: Limit tygodniowy
+  nl: Wekelijkse limiet
+  ar: الحد الأسبوعي
+  hi: साप्ताहिक सीमा
+  th: วงเงินรายสัปดาห์
+  cs: Týdenní limit
+  sv: Veckotak
+  he: תקרה שבועית
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.daily_used:
   context: Label for anonymous free usage daily used credits
   en: Daily used
-  verified_by_human: []
+  de: Heute verwendet
+  zh: 每日已使用
+  es: Usado hoy
+  fr: Utilisé aujourd'hui
+  pt: Usado no dia
+  ru: Использовано за день
+  ja: 日次使用済み
+  ko: 일일 사용량
+  it: Usato oggi
+  tr: Günlük kullanılan
+  vi: Đã dùng trong ngày
+  id: Digunakan harian
+  pl: Użyto dzisiaj
+  nl: Vandaag gebruikt
+  ar: المستخدم يومياً
+  hi: दैनिक उपयोग
+  th: ใช้แล้วรายวัน
+  cs: Denně použito
+  sv: Använt dagligen
+  he: שימוש יומי
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.weekly_used:
   context: Label for anonymous free usage weekly used credits
   en: Weekly used
-  verified_by_human: []
+  de: Diese Woche verwendet
+  zh: 每周已使用
+  es: Usado esta semana
+  fr: Utilisé cette semaine
+  pt: Usado na semana
+  ru: Использовано за неделю
+  ja: 週次使用済み
+  ko: 주간 사용량
+  it: Usato questa settimana
+  tr: Haftalık kullanılan
+  vi: Đã dùng trong tuần
+  id: Digunakan mingguan
+  pl: Użyto w tym tygodniu
+  nl: Deze week gebruikt
+  ar: المستخدم أسبوعياً
+  hi: साप्ताहिक उपयोग
+  th: ใช้แล้วรายสัปดาห์
+  cs: Týdně použito
+  sv: Använt veckovis
+  he: שימוש שבועי
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.daily_remaining:
   context: Label for anonymous free usage daily remaining credits
   en: Daily remaining
-  verified_by_human: []
+  de: Heute verbleibend
+  zh: 每日剩余
+  es: Restante diario
+  fr: Restant aujourd'hui
+  pt: Restante no dia
+  ru: Осталось на день
+  ja: 日次残り
+  ko: 일일 남은 양
+  it: Rimanente oggi
+  tr: Günlük kalan
+  vi: Còn lại trong ngày
+  id: Sisa harian
+  pl: Pozostało dzisiaj
+  nl: Vandaag resterend
+  ar: المتبقي يومياً
+  hi: दैनिक शेष
+  th: คงเหลือรายวัน
+  cs: Denně zbývá
+  sv: Återstår dagligen
+  he: נותר יומי
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.weekly_remaining:
   context: Label for anonymous free usage weekly remaining credits
   en: Weekly remaining
-  verified_by_human: []
+  de: Diese Woche verbleibend
+  zh: 每周剩余
+  es: Restante semanal
+  fr: Restant cette semaine
+  pt: Restante na semana
+  ru: Осталось на неделю
+  ja: 週次残り
+  ko: 주간 남은 양
+  it: Rimanente questa settimana
+  tr: Haftalık kalan
+  vi: Còn lại trong tuần
+  id: Sisa mingguan
+  pl: Pozostało w tym tygodniu
+  nl: Deze week resterend
+  ar: المتبقي أسبوعياً
+  hi: साप्ताहिक शेष
+  th: คงเหลือรายสัปดาห์
+  cs: Týdně zbývá
+  sv: Återstår veckovis
+  he: נותר שבועי
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.monthly_remaining:
   context: Label for anonymous free usage monthly remaining credits
   en: Monthly remaining
-  verified_by_human: []
+  de: Diesen Monat verbleibend
+  zh: 每月剩余
+  es: Restante mensual
+  fr: Restant ce mois-ci
+  pt: Restante no mês
+  ru: Осталось на месяц
+  ja: 月次残り
+  ko: 월간 남은 양
+  it: Rimanente questo mese
+  tr: Aylık kalan
+  vi: Còn lại trong tháng
+  id: Sisa bulanan
+  pl: Pozostało w tym miesiącu
+  nl: Deze maand resterend
+  ar: المتبقي شهرياً
+  hi: मासिक शेष
+  th: คงเหลือรายเดือน
+  cs: Měsíčně zbývá
+  sv: Återstår månadsvis
+  he: נותר חודשי
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.reset_at:
   context: Label for anonymous free usage reset timestamp
   en: Daily reset
-  verified_by_human: []
+  de: Tägliches Zurücksetzen
+  zh: 每日重置
+  es: Reinicio diario
+  fr: Réinitialisation quotidienne
+  pt: Redefinição diária
+  ru: Ежедневный сброс
+  ja: 日次リセット
+  ko: 일일 초기화
+  it: Ripristino giornaliero
+  tr: Günlük sıfırlama
+  vi: Đặt lại hằng ngày
+  id: Reset harian
+  pl: Reset dzienny
+  nl: Dagelijkse reset
+  ar: إعادة التعيين اليومية
+  hi: दैनिक रीसेट
+  th: รีเซ็ตรายวัน
+  cs: Denní reset
+  sv: Daglig återställning
+  he: איפוס יומי
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.updated_at:
   context: Label for anonymous free usage updated timestamp
   en: Updated
-  verified_by_human: []
+  de: Aktualisiert
+  zh: 已更新
+  es: Actualizado
+  fr: Mis à jour
+  pt: Atualizado
+  ru: Обновлено
+  ja: 更新済み
+  ko: 업데이트됨
+  it: Aggiornato
+  tr: Güncellendi
+  vi: Đã cập nhật
+  id: Diperbarui
+  pl: Zaktualizowano
+  nl: Bijgewerkt
+  ar: تم التحديث
+  hi: अपडेट किया गया
+  th: อัปเดตแล้ว
+  cs: Aktualizováno
+  sv: Uppdaterad
+  he: עודכן
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.never:
   context: Value shown when an anonymous free usage timestamp has never been set
   en: Never
-  verified_by_human: []
+  de: Nie
+  zh: 从未
+  es: Nunca
+  fr: Jamais
+  pt: Nunca
+  ru: Никогда
+  ja: なし
+  ko: 없음
+  it: Mai
+  tr: Hiçbir zaman
+  vi: Chưa bao giờ
+  id: Tidak pernah
+  pl: Nigdy
+  nl: Nooit
+  ar: أبداً
+  hi: कभी नहीं
+  th: ไม่เคย
+  cs: Nikdy
+  sv: Aldrig
+  he: אף פעם
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.enabled:
   context: Toggle label for enabling anonymous free usage
   en: Enable anonymous free usage for logged-out users
-  verified_by_human: []
+  de: Anonyme kostenlose Nutzung für abgemeldete Nutzer aktivieren
+  zh: 为未登录用户启用匿名免费使用
+  es: Activar uso gratuito anónimo para usuarios sin sesión
+  fr: Activer l'utilisation gratuite anonyme pour les utilisateurs déconnectés
+  pt: Ativar uso gratuito anônimo para usuários desconectados
+  ru: Включить анонимное бесплатное использование для пользователей без входа
+  ja: ログアウトユーザー向け匿名無料利用を有効にする
+  ko: 로그아웃 사용자에게 익명 무료 사용 활성화
+  it: Abilita l'utilizzo gratuito anonimo per gli utenti non connessi
+  tr: Oturum açmamış kullanıcılar için anonim ücretsiz kullanımı etkinleştir
+  vi: Bật sử dụng miễn phí ẩn danh cho người dùng chưa đăng nhập
+  id: Aktifkan penggunaan gratis anonim untuk pengguna yang belum login
+  pl: Włącz anonimowe bezpłatne użycie dla niezalogowanych użytkowników
+  nl: Anoniem gratis gebruik inschakelen voor uitgelogde gebruikers
+  ar: تفعيل الاستخدام المجاني المجهول للمستخدمين غير المسجلين
+  hi: लॉग-आउट उपयोगकर्ताओं के लिए अनाम मुफ़्त उपयोग सक्षम करें
+  th: เปิดใช้การใช้งานฟรีแบบไม่ระบุตัวตนสำหรับผู้ใช้ที่ไม่ได้เข้าสู่ระบบ
+  cs: Zapnout anonymní bezplatné použití pro odhlášené uživatele
+  sv: Aktivera anonym gratis användning för utloggade användare
+  he: הפעל שימוש חינמי אנונימי למשתמשים שאינם מחוברים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.monthly_budget:
   context: Input label for monthly anonymous free usage credit budget
   en: Monthly budget credits
-  verified_by_human: []
+  de: Monatliche Budget-Credits
+  zh: 每月预算额度
+  es: Créditos del presupuesto mensual
+  fr: Crédits du budget mensuel
+  pt: Créditos do orçamento mensal
+  ru: Месячный бюджет кредитов
+  ja: 月次予算クレジット
+  ko: 월간 예산 크레딧
+  it: Crediti del budget mensile
+  tr: Aylık bütçe kredileri
+  vi: Tín dụng ngân sách hằng tháng
+  id: Kredit anggaran bulanan
+  pl: Miesięczny budżet kredytów
+  nl: Maandelijks budget aan credits
+  ar: أرصدة الميزانية الشهرية
+  hi: मासिक बजट क्रेडिट
+  th: เครดิตงบประมาณรายเดือน
+  cs: Měsíční rozpočtové kredity
+  sv: Månatliga budgetkrediter
+  he: קרדיטי תקציב חודשיים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.daily_percent:
   context: Input label for anonymous free usage daily hard cap percentage
   en: Daily hard cap percent
-  verified_by_human: []
+  de: Prozent für hartes Tageslimit
+  zh: 每日硬上限百分比
+  es: Porcentaje de límite diario estricto
+  fr: Pourcentage du plafond quotidien strict
+  pt: Percentual do limite diário rígido
+  ru: Процент жёсткого дневного лимита
+  ja: 日次ハード上限の割合
+  ko: 일일 하드 한도 비율
+  it: Percentuale del limite rigido giornaliero
+  tr: Günlük kesin sınır yüzdesi
+  vi: Phần trăm giới hạn cứng hằng ngày
+  id: Persen batas keras harian
+  pl: Procent twardego limitu dziennego
+  nl: Percentage harde dagelijkse limiet
+  ar: نسبة الحد اليومي الصارم
+  hi: दैनिक हार्ड कैप प्रतिशत
+  th: เปอร์เซ็นต์วงเงินสูงสุดรายวันแบบเข้มงวด
+  cs: Procento pevného denního limitu
+  sv: Procent för hårt dagligt tak
+  he: אחוז תקרה יומית קשיחה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.weekly_percent:
   context: Input label for anonymous free usage weekly cap percentage
   en: Weekly cap percent
-  verified_by_human: []
+  de: Prozent für Wochenlimit
+  zh: 每周上限百分比
+  es: Porcentaje de límite semanal
+  fr: Pourcentage du plafond hebdomadaire
+  pt: Percentual do limite semanal
+  ru: Процент недельного лимита
+  ja: 週次上限の割合
+  ko: 주간 한도 비율
+  it: Percentuale del limite settimanale
+  tr: Haftalık sınır yüzdesi
+  vi: Phần trăm giới hạn hằng tuần
+  id: Persen batas mingguan
+  pl: Procent limitu tygodniowego
+  nl: Percentage wekelijkse limiet
+  ar: نسبة الحد الأسبوعي
+  hi: साप्ताहिक कैप प्रतिशत
+  th: เปอร์เซ็นต์วงเงินรายสัปดาห์
+  cs: Procento týdenního limitu
+  sv: Procent för veckotak
+  he: אחוז תקרה שבועית
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.per_identity_cap:
   context: Input label for anonymous free usage per-identity daily cap
   en: Per-identity daily cap credits
-  verified_by_human: []
+  de: Tägliche Limit-Credits pro Identität
+  zh: 每个身份的每日上限额度
+  es: Créditos de límite diario por identidad
+  fr: Crédits du plafond quotidien par identité
+  pt: Créditos de limite diário por identidade
+  ru: Дневной лимит кредитов на одну идентичность
+  ja: IDごとの日次上限クレジット
+  ko: ID별 일일 한도 크레딧
+  it: Crediti del limite giornaliero per identità
+  tr: Kimlik başına günlük sınır kredileri
+  vi: Tín dụng giới hạn hằng ngày theo mỗi danh tính
+  id: Kredit batas harian per identitas
+  pl: Dzienny limit kredytów na tożsamość
+  nl: Dagelijkse limietcredits per identiteit
+  ar: أرصدة الحد اليومي لكل هوية
+  hi: प्रति पहचान दैनिक सीमा क्रेडिट
+  th: เครดิตวงเงินรายวันต่อข้อมูลประจำตัว
+  cs: Denní limit kreditů na identitu
+  sv: Dagliga takkrediter per identitet
+  he: קרדיטי תקרה יומית לכל זהות
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.derived_daily_cap:
   context: Read-only derived anonymous free usage daily cap label
   en: Derived daily cap
-  verified_by_human: []
+  de: Abgeleitetes Tageslimit
+  zh: 派生每日上限
+  es: Límite diario derivado
+  fr: Plafond quotidien calculé
+  pt: Limite diário derivado
+  ru: Расчётный дневной лимит
+  ja: 算出された日次上限
+  ko: 파생 일일 한도
+  it: Limite giornaliero derivato
+  tr: Türetilen günlük sınır
+  vi: Giới hạn hằng ngày được suy ra
+  id: Batas harian turunan
+  pl: Wyliczony limit dzienny
+  nl: Afgeleide dagelijkse limiet
+  ar: الحد اليومي المحسوب
+  hi: व्युत्पन्न दैनिक सीमा
+  th: วงเงินรายวันที่คำนวณได้
+  cs: Odvozený denní limit
+  sv: Härlett dagligt tak
+  he: תקרה יומית מחושבת
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.derived_weekly_cap:
   context: Read-only derived anonymous free usage weekly cap label
   en: Derived weekly cap
-  verified_by_human: []
+  de: Abgeleitetes Wochenlimit
+  zh: 派生每周上限
+  es: Límite semanal derivado
+  fr: Plafond hebdomadaire calculé
+  pt: Limite semanal derivado
+  ru: Расчётный недельный лимит
+  ja: 算出された週次上限
+  ko: 파생 주간 한도
+  it: Limite settimanale derivato
+  tr: Türetilen haftalık sınır
+  vi: Giới hạn hằng tuần được suy ra
+  id: Batas mingguan turunan
+  pl: Wyliczony limit tygodniowy
+  nl: Afgeleide wekelijkse limiet
+  ar: الحد الأسبوعي المحسوب
+  hi: व्युत्पन्न साप्ताहिक सीमा
+  th: วงเงินรายสัปดาห์ที่คำนวณได้
+  cs: Odvozený týdenní limit
+  sv: Härlett veckotak
+  he: תקרה שבועית מחושבת
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.validation_percent:
   context: Validation message when anonymous free usage percentage fields are invalid
   en: Percent values must be between 0 and 100.
-  verified_by_human: []
+  de: Prozentwerte müssen zwischen 0 und 100 liegen.
+  zh: 百分比值必须在 0 到 100 之间。
+  es: Los valores porcentuales deben estar entre 0 y 100.
+  fr: Les pourcentages doivent être compris entre 0 et 100.
+  pt: Os valores percentuais devem estar entre 0 e 100.
+  ru: Процентные значения должны быть от 0 до 100.
+  ja: パーセント値は 0 から 100 の間である必要があります。
+  ko: 백분율 값은 0에서 100 사이여야 합니다.
+  it: I valori percentuali devono essere compresi tra 0 e 100.
+  tr: Yüzde değerleri 0 ile 100 arasında olmalıdır.
+  vi: Giá trị phần trăm phải nằm trong khoảng từ 0 đến 100.
+  id: Nilai persen harus antara 0 dan 100.
+  pl: Wartości procentowe muszą być od 0 do 100.
+  nl: Percentagewaarden moeten tussen 0 en 100 liggen.
+  ar: يجب أن تكون قيم النسبة المئوية بين 0 و100.
+  hi: प्रतिशत मान 0 और 100 के बीच होने चाहिए।
+  th: ค่าเปอร์เซ็นต์ต้องอยู่ระหว่าง 0 ถึง 100
+  cs: Procentní hodnoty musí být mezi 0 a 100.
+  sv: Procentvärden måste vara mellan 0 och 100.
+  he: ערכי אחוזים חייבים להיות בין 0 ל-100.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.anonymous_free_usage_budget.validation_per_identity_cap:
   context: Validation message when anonymous free usage has a positive monthly budget but no per-identity daily credits
   en: Per-identity daily cap must be at least 1 credit when the monthly budget is above 0.
-  verified_by_human: []
+  de: Das Tageslimit pro Identität muss mindestens 1 Credit betragen, wenn das Monatsbudget über 0 liegt.
+  zh: 当每月预算大于 0 时，每个身份的每日上限必须至少为 1 个额度。
+  es: El límite diario por identidad debe ser de al menos 1 crédito cuando el presupuesto mensual es mayor que 0.
+  fr: Le plafond quotidien par identité doit être d'au moins 1 crédit lorsque le budget mensuel est supérieur à 0.
+  pt: O limite diário por identidade deve ser de pelo menos 1 crédito quando o orçamento mensal for maior que 0.
+  ru: Дневной лимит на идентичность должен быть не меньше 1 кредита, если месячный бюджет больше 0.
+  ja: 月次予算が 0 を超える場合、IDごとの日次上限は少なくとも 1 クレジットである必要があります。
+  ko: 월간 예산이 0보다 크면 ID별 일일 한도는 최소 1크레딧이어야 합니다.
+  it: Il limite giornaliero per identità deve essere di almeno 1 credito quando il budget mensile è superiore a 0.
+  tr: Aylık bütçe 0'ın üzerindeyse kimlik başına günlük sınır en az 1 kredi olmalıdır.
+  vi: Giới hạn hằng ngày theo mỗi danh tính phải ít nhất 1 tín dụng khi ngân sách hằng tháng lớn hơn 0.
+  id: Batas harian per identitas harus minimal 1 kredit ketika anggaran bulanan di atas 0.
+  pl: Dzienny limit na tożsamość musi wynosić co najmniej 1 kredyt, gdy miesięczny budżet jest większy niż 0.
+  nl: De dagelijkse limiet per identiteit moet minimaal 1 credit zijn wanneer het maandbudget boven 0 ligt.
+  ar: يجب أن يكون الحد اليومي لكل هوية رصيداً واحداً على الأقل عندما تكون الميزانية الشهرية أكبر من 0.
+  hi: जब मासिक बजट 0 से अधिक हो, तो प्रति पहचान दैनिक सीमा कम से कम 1 क्रेडिट होनी चाहिए।
+  th: วงเงินรายวันต่อข้อมูลประจำตัวต้องมีอย่างน้อย 1 เครดิตเมื่องบประมาณรายเดือนมากกว่า 0
+  cs: Denní limit na identitu musí být alespoň 1 kredit, když je měsíční rozpočet vyšší než 0.
+  sv: Det dagliga taket per identitet måste vara minst 1 kredit när månadsbudgeten är över 0.
+  he: התקרה היומית לכל זהות חייבת להיות לפחות קרדיט אחד כאשר התקציב החודשי גדול מ-0.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server.gift_cards.title:
   context: Title shown at top of admin gift card generator page
   en: Generate Gift Cards
@@ -3825,6 +5638,7 @@ server.gift_cards.invalid_prefix:
   he: הקידומת חייבת להכיל 1-4 תווים (A-Z, 2-9, ללא O, I, 0, 1)
   verified_by_human: []
 server_stats.title:
+  context: Title for the admin server statistics page
   en: Server Statistics
   de: Server-Statistiken
   zh: 服务器统计
@@ -3846,7 +5660,9 @@ server_stats.title:
   cs: Statistiky serveru
   sv: Serverstatistik
   he: סטטיסטיקות שרת
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.description:
+  context: Description for global server statistics
   en: Global usage and growth metrics
   de: Globale Nutzungs- und Wachstumsmetriken
   zh: 全局使用和增长指标
@@ -3868,7 +5684,9 @@ server_stats.description:
   cs: Globální metriky využití a růstu
   sv: Globala användnings- och tillväxtmått
   he: מדדי שימוש וצמיחה גלובליים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.loading:
+  context: Loading state for server statistics
   en: Loading statistics...
   de: Statistiken werden geladen...
   zh: 正在加载统计信息...
@@ -3890,7 +5708,9 @@ server_stats.loading:
   cs: Načítání statistik...
   sv: Laddar statistik...
   he: טוען סטטיסטיקות...
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.try_again:
+  context: Retry button for server statistics loading errors
   en: Try Again
   de: Erneut versuchen
   zh: 再试一次
@@ -3912,7 +5732,9 @@ server_stats.try_again:
   cs: Zkusit znovu
   sv: Försök igen
   he: נסה שוב
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.total_users:
+  context: Metric label for total non-admin users
   en: Total Users
   de: Benutzer gesamt
   zh: 总用户数
@@ -3934,7 +5756,9 @@ server_stats.total_users:
   cs: Celkem uživatelů
   sv: Totalt antal användare
   he: 'סה"כ משתמשים'
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.total_users_sub:
+  context: Subtitle explaining total users excludes admins
   en: Non-admin users
   de: Nicht-Admin-Benutzer
   zh: 非管理员用户
@@ -3956,7 +5780,9 @@ server_stats.total_users_sub:
   cs: Neadministrátoři
   sv: Icke-admin-användare
   he: משתמשים שאינם מנהלים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.active_subscriptions:
+  context: Metric label for active paid subscriptions
   en: Active Subscriptions
   de: Aktive Abonnements
   zh: 活动订阅
@@ -3978,7 +5804,9 @@ server_stats.active_subscriptions:
   cs: Aktivní předplatné
   sv: Aktiva prenumerationer
   he: מנויים פעילים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.active_subscriptions_sub:
+  context: Subtitle identifying Stripe subscription source
   en: Stripe subscriptions
   de: Stripe-Abonnements
   zh: Stripe 订阅
@@ -4000,7 +5828,9 @@ server_stats.active_subscriptions_sub:
   cs: Předplatné Stripe
   sv: Stripe-prenumerationer
   he: מנויי Stripe
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.total_liability:
+  context: Metric label for outstanding credit liability
   en: Total Liability
   de: Gesamtverbindlichkeiten
   zh: 总负债
@@ -4022,7 +5852,9 @@ server_stats.total_liability:
   cs: Celkové závazky
   sv: Totalt ansvar
   he: התחייבות כוללת
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.total_liability_sub:
+  context: Subtitle for outstanding user credits liability
   en: Outstanding credits
   de: Ausstehende Credits
   zh: 待处理积分
@@ -4044,7 +5876,9 @@ server_stats.total_liability_sub:
   cs: Nevyplacené kredity
   sv: Utestående krediter
   he: קרדיטים שטרם מומשו
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.newsletter_subscribers:
+  context: Metric label for newsletter subscriber count
   en: Newsletter Subscribers
   de: Newsletter-Abonnenten
   zh: 新闻订阅者
@@ -4066,7 +5900,9 @@ server_stats.newsletter_subscribers:
   cs: Odběratelé newsletteru
   sv: Nyhetsbrevsprenumeranter
   he: רשומים לניוזלטר
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.latest_activity:
+  context: Section title for latest daily server activity with date placeholder
   en: Latest Day Activity ({date})
   de: Letzte Tagesaktivität ({date})
   zh: 最近一天的活动 ({date})
@@ -4088,7 +5924,9 @@ server_stats.latest_activity:
   cs: Aktivita za poslední den ({date})
   sv: Senaste dagens aktivitet ({date})
   he: "פעילות ביום האחרון ({date})"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.new_registrations:
+  context: Metric label for new user registrations
   en: New Registrations
   de: Neuanmeldungen
   zh: 新注册
@@ -4110,7 +5948,9 @@ server_stats.new_registrations:
   cs: Nové registrace
   sv: Nya registreringar
   he: הרשמות חדשות
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.finished_signup:
+  context: Metric label for completed signups
   en: Finished Signup
   de: Anmeldung abgeschlossen
   zh: 完成注册
@@ -4132,7 +5972,9 @@ server_stats.finished_signup:
   cs: Dokončená registrace
   sv: Avslutad registrering
   he: סיימו הרשמה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.income:
+  context: Metric label for server revenue income
   en: Income
   de: Einnahmen
   zh: 收入
@@ -4154,7 +5996,9 @@ server_stats.income:
   cs: Příjem
   sv: Inkomst
   he: הכנסה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.credits_sold:
+  context: Metric label for credits sold
   en: Credits Sold
   de: Verkaufte Credits
   zh: 已售积分
@@ -4176,7 +6020,9 @@ server_stats.credits_sold:
   cs: Prodané kredity
   sv: Sålda krediter
   he: קרדיטים שנמכרו
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.credits_used:
+  context: Metric label for credits used
   en: Credits Used
   de: Verbrauchte Credits
   zh: 已用积分
@@ -4198,7 +6044,9 @@ server_stats.credits_used:
   cs: Využité kredity
   sv: Använda krediter
   he: קרדיטים שנוצלו
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.messages_sent:
+  context: Metric label for sent messages
   en: Messages Sent
   de: Gesendete Nachrichten
   zh: 已发送消息
@@ -4220,7 +6068,9 @@ server_stats.messages_sent:
   cs: Odeslané zprávy
   sv: Skickade meddelanden
   he: הודעות שנשלחו
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.chats_created:
+  context: Metric label for created chats
   en: Chats Created
   de: Erstellte Chats
   zh: 已创建聊天
@@ -4242,7 +6092,9 @@ server_stats.chats_created:
   cs: Vytvořené chaty
   sv: Skapade chattar
   he: "צ'אטים שנוצרו"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.daily_history:
+  context: Chart title for daily server history over 30 days
   en: Daily History (Last 30 Days)
   de: Täglicher Verlauf (Letzte 30 Tage)
   zh: 每日历史（最近 30 天）
@@ -4264,7 +6116,9 @@ server_stats.daily_history:
   cs: Denní historie (posledních 30 dní)
   sv: Daglig historik (senaste 30 dagarna)
   he: היסטוריה יומית (30 ימים אחרונים)
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.monthly_history:
+  context: Chart title for monthly server history over 12 months
   en: Monthly History (Last 12 Months)
   de: Monatlicher Verlauf (Letzte 12 Monate)
   zh: 每月历史（最近 12 个月）
@@ -4286,7 +6140,9 @@ server_stats.monthly_history:
   cs: Měsíční historie (posledních 12 měsíců)
   sv: Månadshistorik (senaste 12 månaderna)
   he: היסטוריה חודשית (12 חודשים אחרונים)
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.date:
+  context: Table column label for date
   en: Date
   de: Datum
   zh: 日期
@@ -4308,7 +6164,9 @@ server_stats.date:
   cs: Datum
   sv: Datum
   he: תאריך
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.new_users:
+  context: Table column label for new users
   en: New Users
   de: Neue Benutzer
   zh: 新用户
@@ -4330,7 +6188,9 @@ server_stats.new_users:
   cs: Noví uživatelé
   sv: Nya användare
   he: משתמשים חדשים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.signup_fin:
+  context: Abbreviated table column label for finished signups
   en: Signup Fin.
   de: Anm. abg.
   zh: 注册完成
@@ -4352,7 +6212,9 @@ server_stats.signup_fin:
   cs: Dokončená reg.
   sv: Avslutad reg.
   he: סיום הרשמה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.messages:
+  context: Table column label for messages
   en: Messages
   de: Nachrichten
   zh: 消息
@@ -4374,7 +6236,9 @@ server_stats.messages:
   cs: Zprávy
   sv: Meddelanden
   he: הודעות
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.chats:
+  context: Table column label for chats
   en: Chats
   de: Chats
   zh: 聊天
@@ -4396,7 +6260,9 @@ server_stats.chats:
   cs: Chaty
   sv: Chattar
   he: "צ'אטים"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.month:
+  context: Table column label for month
   en: Month
   de: Monat
   zh: 月份
@@ -4418,7 +6284,9 @@ server_stats.month:
   cs: Měsíc
   sv: Månad
   he: חודש
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.embeds:
+  context: Table column label for embed count
   en: Embeds
   de: Embeds
   zh: 嵌入
@@ -4440,6 +6308,7 @@ server_stats.embeds:
   cs: Vložení
   sv: Inbäddningar
   he: הטמעות
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.web_traffic:
   context: Section heading for web traffic analytics chart
   en: Web Traffic
@@ -4463,6 +6332,7 @@ server_stats.web_traffic:
   cs: Webový provoz
   sv: Webbtrafik
   he: תעבורת אינטרנט
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.page_loads:
   context: Label for total page load count metric
   en: Page Loads
@@ -4486,6 +6356,7 @@ server_stats.page_loads:
   cs: Načtení stránky
   sv: Sidladdningar
   he: טעינות דפים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.unique_visits:
   context: Label for approximate unique visits metric (HyperLogLog estimate)
   en: Unique Visits (approx.)
@@ -4509,6 +6380,7 @@ server_stats.unique_visits:
   cs: Unikátní návštěvy (přibližně)
   sv: Unika besök (ungefär)
   he: ביקורים ייחודיים (בקירוב)
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.top_countries:
   context: Section heading for top countries by page loads
   en: Top Countries
@@ -4532,6 +6404,7 @@ server_stats.top_countries:
   cs: Nejlepší země
   sv: Toppländer
   he: מדינות מובילות
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.devices:
   context: Section heading for device type breakdown
   en: Devices
@@ -4555,6 +6428,7 @@ server_stats.devices:
   cs: Zařízení
   sv: Enheter
   he: מכשירים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.top_browsers:
   context: Section heading for top browsers
   en: Top Browsers
@@ -4578,6 +6452,7 @@ server_stats.top_browsers:
   cs: Nejlepší prohlížeče
   sv: Toppwebbläsare
   he: דפדפנים מובילים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.session_duration:
   context: Section heading for session duration distribution
   en: Session Duration
@@ -4601,6 +6476,7 @@ server_stats.session_duration:
   cs: Délka relace
   sv: Sessionslängd
   he: משך סשן
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.top_referrers:
   context: Section heading for top referrer domains
   en: Top Referrers
@@ -4624,6 +6500,7 @@ server_stats.top_referrers:
   cs: Nejlepší zdroje
   sv: Topprefererare
   he: מקורות הגעה מובילים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.signup_funnel:
   context: Section heading for signup funnel analytics
   en: Signup Funnel
@@ -4647,6 +6524,7 @@ server_stats.signup_funnel:
   cs: Registrační trychtýř
   sv: Registreringstunnel
   he: משפך הרשמה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.funnel_started:
   context: Signup funnel step — user started signup (validated invite code)
   en: Started signup
@@ -4670,6 +6548,7 @@ server_stats.funnel_started:
   cs: Registrace zahájena
   sv: Påbörjad registrering
   he: התחילו הרשמה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.funnel_email_confirmed:
   context: Signup funnel step — email confirmed
   en: Email confirmed
@@ -4693,6 +6572,7 @@ server_stats.funnel_email_confirmed:
   cs: E-mail potvrzen
   sv: E-post bekräftad
   he: אימייל אושר
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.funnel_password_setup:
   context: Signup funnel step — password set up
   en: Password set up
@@ -4716,6 +6596,7 @@ server_stats.funnel_password_setup:
   cs: Heslo nastaveno
   sv: Lösenord inställt
   he: סיסמה הוגדרה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.funnel_passkey_setup:
   context: Signup funnel step — passkey registered
   en: Passkey registered
@@ -4739,6 +6620,7 @@ server_stats.funnel_passkey_setup:
   cs: Passkey zaregistrováno
   sv: Nyckel registrerad
   he: מפתח גישה נרשם
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.funnel_recovery_saved:
   context: Signup funnel step — recovery key acknowledged
   en: Recovery key saved
@@ -4762,6 +6644,7 @@ server_stats.funnel_recovery_saved:
   cs: Obnovovací klíč uložen
   sv: Återställningsnyckel sparad
   he: מפתח שחזור נשמר
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.funnel_reached_payment:
   context: Signup funnel step — user reached payment step
   en: Reached payment
@@ -4785,6 +6668,7 @@ server_stats.funnel_reached_payment:
   cs: Dosáhl platby
   sv: Nådde betalning
   he: הגיע לתשלום
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.funnel_payment_completed:
   context: Signup funnel step — first payment or gift card completed
   en: Payment completed
@@ -4808,6 +6692,7 @@ server_stats.funnel_payment_completed:
   cs: Platba dokončena
   sv: Betalning slutförd
   he: התשלום הושלם
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.funnel_auto_topup:
   context: Signup funnel step — auto top-up (subscription) configured
   en: Auto top-up set up
@@ -4831,6 +6716,7 @@ server_stats.funnel_auto_topup:
   cs: Automatické dobití nastaveno
   sv: Automatisk påfyllning inställd
   he: הוגדרה טעינה אוטומטית
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.app_usage:
   context: Section heading for app usage analytics
   en: App Usage
@@ -4854,6 +6740,7 @@ server_stats.app_usage:
   cs: Využití aplikace
   sv: Appanvändning
   he: שימוש באפליקציה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 server_stats.no_data:
   context: Placeholder shown when no analytics data is available yet
   en: No data yet
@@ -4877,6 +6764,7 @@ server_stats.no_data:
   cs: Zatím žádná data
   sv: Inga data ännu
   he: אין עדיין נתונים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 software_updates:
   context: Software updates settings menu item
   en: Software updates
@@ -9865,6 +11753,1606 @@ api_keys:
   sv: API-nycklar
   he: מפתחות API
   verified_by_human: []
+
+api_keys.create_title:
+  context: Button and route title for creating an API key
+  en: Create API Key
+  de: API-Schlüssel erstellen
+  zh: 创建 API 密钥
+  es: Crear clave API
+  fr: Créer une clé API
+  pt: Criar chave API
+  ru: Создать API-ключ
+  ja: APIキーを作成
+  ko: API 키 만들기
+  it: Crea chiave API
+  tr: API Anahtarı Oluştur
+  vi: Tạo khóa API
+  id: Buat Kunci API
+  pl: Utwórz klucz API
+  nl: API-sleutel maken
+  ar: إنشاء مفتاح API
+  hi: API कुंजी बनाएं
+  th: สร้างคีย์ API
+  cs: Vytvořit API klíč
+  sv: Skapa API-nyckel
+  he: צור מפתח API
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.detail_title:
+  context: Fallback route title for API key detail settings
+  en: API Key Details
+  de: API-Schlüsseldetails
+  zh: API 密钥详情
+  es: Detalles de clave API
+  fr: Détails de la clé API
+  pt: Detalhes da chave API
+  ru: Сведения об API-ключе
+  ja: APIキーの詳細
+  ko: API 키 세부 정보
+  it: Dettagli chiave API
+  tr: API Anahtarı Ayrıntıları
+  vi: Chi tiết khóa API
+  id: Detail Kunci API
+  pl: Szczegóły klucza API
+  nl: Details van API-sleutel
+  ar: تفاصيل مفتاح API
+  hi: API कुंजी विवरण
+  th: รายละเอียดคีย์ API
+  cs: Podrobnosti API klíče
+  sv: Information om API-nyckel
+  he: פרטי מפתח API
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.create_description:
+  context: Description shown when creating a new API key
+  en: Create an API key for CLI, SDK, or external integrations. The key is shown once after creation.
+  de: Erstelle einen API-Schlüssel für CLI, SDK oder externe Integrationen. Der Schlüssel wird nach der Erstellung einmal angezeigt.
+  zh: 为 CLI、SDK 或外部集成创建 API 密钥。密钥只会在创建后显示一次。
+  es: Crea una clave API para CLI, SDK o integraciones externas. La clave se muestra una vez después de crearla.
+  fr: Créez une clé API pour CLI, SDK ou des intégrations externes. La clé s'affiche une seule fois après sa création.
+  pt: Crie uma chave API para CLI, SDK ou integrações externas. A chave é mostrada uma vez após a criação.
+  ru: Создайте API-ключ для CLI, SDK или внешних интеграций. Ключ показывается один раз после создания.
+  ja: CLI、SDK、または外部連携用のAPIキーを作成します。キーは作成後に一度だけ表示されます。
+  ko: CLI, SDK 또는 외부 통합용 API 키를 만듭니다. 키는 생성 후 한 번만 표시됩니다.
+  it: Crea una chiave API per CLI, SDK o integrazioni esterne. La chiave viene mostrata una sola volta dopo la creazione.
+  tr: CLI, SDK veya harici entegrasyonlar için bir API anahtarı oluşturun. Anahtar oluşturulduktan sonra bir kez gösterilir.
+  vi: Tạo khóa API cho CLI, SDK hoặc tích hợp bên ngoài. Khóa chỉ hiển thị một lần sau khi tạo.
+  id: Buat kunci API untuk CLI, SDK, atau integrasi eksternal. Kunci hanya ditampilkan sekali setelah dibuat.
+  pl: Utwórz klucz API dla CLI, SDK lub integracji zewnętrznych. Klucz jest wyświetlany tylko raz po utworzeniu.
+  nl: Maak een API-sleutel voor CLI, SDK of externe integraties. De sleutel wordt na het maken één keer getoond.
+  ar: أنشئ مفتاح API لـ CLI أو SDK أو عمليات التكامل الخارجية. يظهر المفتاح مرة واحدة بعد إنشائه.
+  hi: CLI, SDK या बाहरी इंटीग्रेशन के लिए API कुंजी बनाएं। कुंजी बनने के बाद केवल एक बार दिखाई जाती है।
+  th: สร้างคีย์ API สำหรับ CLI, SDK หรือการผสานรวมภายนอก คีย์จะแสดงเพียงครั้งเดียวหลังจากสร้าง
+  cs: Vytvořte API klíč pro CLI, SDK nebo externí integrace. Klíč se po vytvoření zobrazí pouze jednou.
+  sv: Skapa en API-nyckel för CLI, SDK eller externa integrationer. Nyckeln visas en gång efter att den skapats.
+  he: צור מפתח API עבור CLI, SDK או אינטגרציות חיצוניות. המפתח מוצג פעם אחת לאחר היצירה.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.name_section:
+  context: Section heading for API key name input
+  en: Name
+  de: Name
+  zh: 名称
+  es: Nombre
+  fr: Nom
+  pt: Nome
+  ru: Имя
+  ja: 名前
+  ko: 이름
+  it: Nome
+  tr: Ad
+  vi: Tên
+  id: Nama
+  pl: Nazwa
+  nl: Naam
+  ar: الاسم
+  hi: नाम
+  th: ชื่อ
+  cs: Název
+  sv: Namn
+  he: שם
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.name_placeholder:
+  context: Placeholder for API key name input
+  en: e.g., My App Integration
+  de: z. B. Meine App-Integration
+  zh: 例如，我的应用集成
+  es: p. ej., Integración de mi app
+  fr: p. ex., Intégration de mon app
+  pt: ex., Integração do meu app
+  ru: например, Интеграция моего приложения
+  ja: "例: マイアプリ連携"
+  ko: "예: 내 앱 통합"
+  it: es. Integrazione della mia app
+  tr: örn. Uygulama Entegrasyonum
+  vi: "ví dụ: Tích hợp ứng dụng của tôi"
+  id: mis., Integrasi Aplikasi Saya
+  pl: np. Integracja mojej aplikacji
+  nl: bijv. Mijn app-integratie
+  ar: "مثال: تكامل تطبيقي"
+  hi: जैसे, मेरा ऐप इंटीग्रेशन
+  th: เช่น การผสานรวมแอปของฉัน
+  cs: např. Integrace mé aplikace
+  sv: t.ex. Min appintegration
+  he: לדוגמה, אינטגרציית האפליקציה שלי
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.name_required:
+  context: Validation error when API key name is empty
+  en: API key name is required
+  de: Name des API-Schlüssels ist erforderlich
+  zh: 必须填写 API 密钥名称
+  es: El nombre de la clave API es obligatorio
+  fr: Le nom de la clé API est requis
+  pt: O nome da chave API é obrigatório
+  ru: Требуется имя API-ключа
+  ja: APIキー名は必須です
+  ko: API 키 이름은 필수입니다
+  it: Il nome della chiave API è obbligatorio
+  tr: API anahtarı adı zorunludur
+  vi: Cần nhập tên khóa API
+  id: Nama kunci API wajib diisi
+  pl: Nazwa klucza API jest wymagana
+  nl: Naam van API-sleutel is verplicht
+  ar: اسم مفتاح API مطلوب
+  hi: API कुंजी का नाम आवश्यक है
+  th: ต้องระบุชื่อคีย์ API
+  cs: Název API klíče je povinný
+  sv: API-nyckelns namn krävs
+  he: נדרש שם מפתח API
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.access_section:
+  context: Section heading for API key access controls
+  en: Access
+  de: Zugriff
+  zh: 访问权限
+  es: Acceso
+  fr: Accès
+  pt: Acesso
+  ru: Доступ
+  ja: アクセス
+  ko: 액세스
+  it: Accesso
+  tr: Erişim
+  vi: Quyền truy cập
+  id: Akses
+  pl: Dostęp
+  nl: Toegang
+  ar: الوصول
+  hi: पहुंच
+  th: การเข้าถึง
+  cs: Přístup
+  sv: Åtkomst
+  he: גישה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.full_access:
+  context: API key full access label
+  en: Full access
+  de: Vollzugriff
+  zh: 完全访问权限
+  es: Acceso completo
+  fr: Accès complet
+  pt: Acesso total
+  ru: Полный доступ
+  ja: フルアクセス
+  ko: 전체 액세스
+  it: Accesso completo
+  tr: Tam erişim
+  vi: Toàn quyền truy cập
+  id: Akses penuh
+  pl: Pełny dostęp
+  nl: Volledige toegang
+  ar: وصول كامل
+  hi: पूर्ण पहुंच
+  th: สิทธิ์เข้าถึงเต็มรูปแบบ
+  cs: Plný přístup
+  sv: Full åtkomst
+  he: גישה מלאה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.full_access_description:
+  context: Description for API key full access toggle
+  en: Allow all supported API-key actions.
+  de: Alle unterstützten API-Schlüssel-Aktionen erlauben.
+  zh: 允许所有受支持的 API 密钥操作。
+  es: Permitir todas las acciones compatibles de claves API.
+  fr: Autoriser toutes les actions de clé API prises en charge.
+  pt: Permitir todas as ações de chave API compatíveis.
+  ru: Разрешить все поддерживаемые действия API-ключа.
+  ja: サポートされているすべてのAPIキー操作を許可します。
+  ko: 지원되는 모든 API 키 작업을 허용합니다.
+  it: Consenti tutte le azioni supportate per le chiavi API.
+  tr: Desteklenen tüm API anahtarı eylemlerine izin ver.
+  vi: Cho phép mọi hành động khóa API được hỗ trợ.
+  id: Izinkan semua tindakan kunci API yang didukung.
+  pl: Zezwól na wszystkie obsługiwane działania klucza API.
+  nl: Sta alle ondersteunde API-sleutelacties toe.
+  ar: السماح بكل إجراءات مفتاح API المدعومة.
+  hi: सभी समर्थित API-कुंजी कार्रवाइयों की अनुमति दें।
+  th: อนุญาตการดำเนินการคีย์ API ที่รองรับทั้งหมด
+  cs: Povolit všechny podporované akce API klíče.
+  sv: Tillåt alla API-nyckelåtgärder som stöds.
+  he: אפשר את כל פעולות מפתח ה-API הנתמכות.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.full_access_warning_title:
+  context: Accessibility title for full access warning
+  en: Full access warning
+  de: Warnung vor Vollzugriff
+  zh: 完全访问权限警告
+  es: Advertencia de acceso completo
+  fr: Avertissement d'accès complet
+  pt: Aviso de acesso total
+  ru: Предупреждение о полном доступе
+  ja: フルアクセスの警告
+  ko: 전체 액세스 경고
+  it: Avviso di accesso completo
+  tr: Tam erişim uyarısı
+  vi: Cảnh báo toàn quyền truy cập
+  id: Peringatan akses penuh
+  pl: Ostrzeżenie o pełnym dostępie
+  nl: Waarschuwing voor volledige toegang
+  ar: تحذير الوصول الكامل
+  hi: पूर्ण पहुंच चेतावनी
+  th: คำเตือนสิทธิ์เข้าถึงเต็มรูปแบบ
+  cs: Upozornění na plný přístup
+  sv: Varning för full åtkomst
+  he: אזהרת גישה מלאה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.full_access_warning:
+  context: Warning shown when API key full access is enabled
+  en: Full access can read encrypted account metadata, create chats, run app skills, and spend account credits.
+  de: Vollzugriff kann verschlüsselte Konto-Metadaten lesen, Chats erstellen, App-Skills ausführen und Konto-Credits ausgeben.
+  zh: 完全访问权限可以读取加密账号元数据、创建聊天、运行应用技能并消耗账号额度。
+  es: El acceso completo puede leer metadatos cifrados de la cuenta, crear chats, ejecutar habilidades de apps y gastar créditos de la cuenta.
+  fr: L'accès complet peut lire les métadonnées chiffrées du compte, créer des chats, exécuter des compétences d'apps et dépenser les crédits du compte.
+  pt: O acesso total pode ler metadados criptografados da conta, criar chats, executar habilidades de apps e gastar créditos da conta.
+  ru: Полный доступ позволяет читать зашифрованные метаданные аккаунта, создавать чаты, запускать навыки приложений и тратить кредиты аккаунта.
+  ja: フルアクセスでは、暗号化されたアカウントメタデータの読み取り、チャット作成、アプリスキルの実行、アカウントクレジットの消費ができます。
+  ko: 전체 액세스는 암호화된 계정 메타데이터를 읽고, 채팅을 만들고, 앱 스킬을 실행하고, 계정 크레딧을 사용할 수 있습니다.
+  it: L'accesso completo può leggere metadati account crittografati, creare chat, eseguire skill delle app e spendere crediti dell'account.
+  tr: Tam erişim, şifrelenmiş hesap meta verilerini okuyabilir, sohbet oluşturabilir, uygulama becerilerini çalıştırabilir ve hesap kredilerini harcayabilir.
+  vi: Toàn quyền truy cập có thể đọc siêu dữ liệu tài khoản đã mã hóa, tạo cuộc trò chuyện, chạy kỹ năng ứng dụng và tiêu tín dụng tài khoản.
+  id: Akses penuh dapat membaca metadata akun terenkripsi, membuat obrolan, menjalankan skill aplikasi, dan memakai kredit akun.
+  pl: Pełny dostęp może czytać zaszyfrowane metadane konta, tworzyć czaty, uruchamiać umiejętności aplikacji i wydawać kredyty konta.
+  nl: Volledige toegang kan versleutelde accountmetadata lezen, chats maken, app-skills uitvoeren en accountcredits besteden.
+  ar: يمكن للوصول الكامل قراءة بيانات الحساب الوصفية المشفرة، وإنشاء دردشات، وتشغيل مهارات التطبيقات، وإنفاق أرصدة الحساب.
+  hi: पूर्ण पहुंच एन्क्रिप्टेड खाता मेटाडेटा पढ़ सकती है, चैट बना सकती है, ऐप स्किल चला सकती है और खाते के क्रेडिट खर्च कर सकती है।
+  th: สิทธิ์เข้าถึงเต็มรูปแบบสามารถอ่านเมตาดาต้าบัญชีที่เข้ารหัส สร้างแชท เรียกใช้ทักษะแอป และใช้เครดิตบัญชีได้
+  cs: Plný přístup může číst šifrovaná metadata účtu, vytvářet chaty, spouštět dovednosti aplikací a utrácet kredity účtu.
+  sv: Full åtkomst kan läsa krypterad kontometadata, skapa chattar, köra appfärdigheter och spendera kontokrediter.
+  he: גישה מלאה יכולה לקרוא מטא-נתוני חשבון מוצפנים, ליצור צ'אטים, להפעיל מיומנויות אפליקציה ולהוציא קרדיטים מהחשבון.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.restricted_access:
+  context: API key restricted access label
+  en: Restricted access
+  de: Eingeschränkter Zugriff
+  zh: 受限访问权限
+  es: Acceso restringido
+  fr: Accès restreint
+  pt: Acesso restrito
+  ru: Ограниченный доступ
+  ja: 制限付きアクセス
+  ko: 제한된 액세스
+  it: Accesso limitato
+  tr: Kısıtlı erişim
+  vi: Quyền truy cập hạn chế
+  id: Akses terbatas
+  pl: Ograniczony dostęp
+  nl: Beperkte toegang
+  ar: وصول مقيّد
+  hi: सीमित पहुंच
+  th: สิทธิ์เข้าถึงแบบจำกัด
+  cs: Omezený přístup
+  sv: Begränsad åtkomst
+  he: גישה מוגבלת
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.scope_chat_create_incognito:
+  context: API key permission label
+  en: Create non-persistent chats
+  de: Nicht persistente Chats erstellen
+  zh: 创建非持久聊天
+  es: Crear chats no persistentes
+  fr: Créer des chats non persistants
+  pt: Criar chats não persistentes
+  ru: Создавать несохраняемые чаты
+  ja: 非永続チャットを作成
+  ko: 비영구 채팅 만들기
+  it: Crea chat non persistenti
+  tr: Kalıcı olmayan sohbetler oluştur
+  vi: Tạo cuộc trò chuyện không lưu giữ lâu dài
+  id: Buat obrolan non-persisten
+  pl: Twórz nietrwałe czaty
+  nl: Niet-permanente chats maken
+  ar: إنشاء دردشات غير دائمة
+  hi: गैर-स्थायी चैट बनाएं
+  th: สร้างแชทแบบไม่ถาวร
+  cs: Vytvářet neperzistentní chaty
+  sv: Skapa icke-beständiga chattar
+  he: צור צ'אטים לא מתמשכים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.scope_chat_create_saved:
+  context: API key permission label
+  en: Create saved chats
+  de: Gespeicherte Chats erstellen
+  zh: 创建已保存聊天
+  es: Crear chats guardados
+  fr: Créer des chats enregistrés
+  pt: Criar chats salvos
+  ru: Создавать сохранённые чаты
+  ja: 保存済みチャットを作成
+  ko: 저장된 채팅 만들기
+  it: Crea chat salvate
+  tr: Kaydedilen sohbetler oluştur
+  vi: Tạo cuộc trò chuyện đã lưu
+  id: Buat obrolan tersimpan
+  pl: Twórz zapisane czaty
+  nl: Opgeslagen chats maken
+  ar: إنشاء دردشات محفوظة
+  hi: सहेजी गई चैट बनाएं
+  th: สร้างแชทที่บันทึกไว้
+  cs: Vytvářet uložené chaty
+  sv: Skapa sparade chattar
+  he: צור צ'אטים שמורים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.scope_chat_read_existing:
+  context: API key permission label
+  en: Read existing chats
+  de: Vorhandene Chats lesen
+  zh: 读取现有聊天
+  es: Leer chats existentes
+  fr: Lire les chats existants
+  pt: Ler chats existentes
+  ru: Читать существующие чаты
+  ja: 既存のチャットを読み取り
+  ko: 기존 채팅 읽기
+  it: Leggi chat esistenti
+  tr: Mevcut sohbetleri oku
+  vi: Đọc cuộc trò chuyện hiện có
+  id: Baca obrolan yang ada
+  pl: Czytaj istniejące czaty
+  nl: Bestaande chats lezen
+  ar: قراءة الدردشات الحالية
+  hi: मौजूदा चैट पढ़ें
+  th: อ่านแชทที่มีอยู่
+  cs: Číst existující chaty
+  sv: Läs befintliga chattar
+  he: קרא צ'אטים קיימים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.scope_chat_append_existing:
+  context: API key permission label
+  en: Append existing chats
+  de: An vorhandene Chats anhängen
+  zh: 追加到现有聊天
+  es: Añadir a chats existentes
+  fr: Ajouter aux chats existants
+  pt: Anexar a chats existentes
+  ru: Добавлять в существующие чаты
+  ja: 既存のチャットに追加
+  ko: 기존 채팅에 추가
+  it: Aggiungi a chat esistenti
+  tr: Mevcut sohbetlere ekle
+  vi: Thêm vào cuộc trò chuyện hiện có
+  id: Tambahkan ke obrolan yang ada
+  pl: Dopisuj do istniejących czatów
+  nl: Toevoegen aan bestaande chats
+  ar: الإضافة إلى الدردشات الحالية
+  hi: मौजूदा चैट में जोड़ें
+  th: เพิ่มในแชทที่มีอยู่
+  cs: Přidávat do existujících chatů
+  sv: Lägg till i befintliga chattar
+  he: הוסף לצ'אטים קיימים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.scope_chat_delete:
+  context: API key permission label
+  en: Delete chats
+  de: Chats löschen
+  zh: 删除聊天
+  es: Eliminar chats
+  fr: Supprimer des chats
+  pt: Excluir chats
+  ru: Удалять чаты
+  ja: チャットを削除
+  ko: 채팅 삭제
+  it: Elimina chat
+  tr: Sohbetleri sil
+  vi: Xóa cuộc trò chuyện
+  id: Hapus obrolan
+  pl: Usuwaj czaty
+  nl: Chats verwijderen
+  ar: حذف الدردشات
+  hi: चैट हटाएं
+  th: ลบแชท
+  cs: Mazat chaty
+  sv: Radera chattar
+  he: מחק צ'אטים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.scope_chat_share:
+  context: API key permission label
+  en: Share chats
+  de: Chats teilen
+  zh: 分享聊天
+  es: Compartir chats
+  fr: Partager des chats
+  pt: Compartilhar chats
+  ru: Делиться чатами
+  ja: チャットを共有
+  ko: 채팅 공유
+  it: Condividi chat
+  tr: Sohbetleri paylaş
+  vi: Chia sẻ cuộc trò chuyện
+  id: Bagikan obrolan
+  pl: Udostępniaj czaty
+  nl: Chats delen
+  ar: مشاركة الدردشات
+  hi: चैट साझा करें
+  th: แชร์แชท
+  cs: Sdílet chaty
+  sv: Dela chattar
+  he: שתף צ'אטים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.scope_memory_read:
+  context: API key permission label
+  en: Read selected memories
+  de: Ausgewählte Erinnerungen lesen
+  zh: 读取选定记忆
+  es: Leer memorias seleccionadas
+  fr: Lire les mémoires sélectionnées
+  pt: Ler memórias selecionadas
+  ru: Читать выбранные воспоминания
+  ja: 選択したメモリを読み取り
+  ko: 선택한 기억 읽기
+  it: Leggi memorie selezionate
+  tr: Seçili anıları oku
+  vi: Đọc ký ức đã chọn
+  id: Baca memori yang dipilih
+  pl: Czytaj wybrane wspomnienia
+  nl: Geselecteerde herinneringen lezen
+  ar: قراءة الذكريات المحددة
+  hi: चुनी गई यादें पढ़ें
+  th: อ่านความทรงจำที่เลือก
+  cs: Číst vybrané vzpomínky
+  sv: Läs valda minnen
+  he: קרא זיכרונות נבחרים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.apps_access:
+  context: Label for API key app skill access dropdown
+  en: App skill access
+  de: Zugriff auf App-Skills
+  zh: 应用技能访问权限
+  es: Acceso a habilidades de apps
+  fr: Accès aux compétences d'apps
+  pt: Acesso a habilidades de apps
+  ru: Доступ к навыкам приложений
+  ja: アプリスキルへのアクセス
+  ko: 앱 스킬 액세스
+  it: Accesso alle skill delle app
+  tr: Uygulama becerisi erişimi
+  vi: Quyền truy cập kỹ năng ứng dụng
+  id: Akses skill aplikasi
+  pl: Dostęp do umiejętności aplikacji
+  nl: Toegang tot app-skills
+  ar: الوصول إلى مهارات التطبيقات
+  hi: ऐप स्किल पहुंच
+  th: สิทธิ์เข้าถึงทักษะแอป
+  cs: Přístup k dovednostem aplikací
+  sv: Åtkomst till appfärdigheter
+  he: גישה למיומנויות אפליקציה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.apps_all:
+  context: API key app skill access option
+  en: All app skills
+  de: Alle App-Skills
+  zh: 所有应用技能
+  es: Todas las habilidades de apps
+  fr: Toutes les compétences d'apps
+  pt: Todas as habilidades de apps
+  ru: Все навыки приложений
+  ja: すべてのアプリスキル
+  ko: 모든 앱 스킬
+  it: Tutte le skill delle app
+  tr: Tüm uygulama becerileri
+  vi: Tất cả kỹ năng ứng dụng
+  id: Semua skill aplikasi
+  pl: Wszystkie umiejętności aplikacji
+  nl: Alle app-skills
+  ar: كل مهارات التطبيقات
+  hi: सभी ऐप स्किल
+  th: ทักษะแอปทั้งหมด
+  cs: Všechny dovednosti aplikací
+  sv: Alla appfärdigheter
+  he: כל מיומנויות האפליקציה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.apps_selected:
+  context: API key app skill access option
+  en: Selected app skills
+  de: Ausgewählte App-Skills
+  zh: 选定应用技能
+  es: Habilidades de apps seleccionadas
+  fr: Compétences d'apps sélectionnées
+  pt: Habilidades de apps selecionadas
+  ru: Выбранные навыки приложений
+  ja: 選択したアプリスキル
+  ko: 선택한 앱 스킬
+  it: Skill delle app selezionate
+  tr: Seçili uygulama becerileri
+  vi: Kỹ năng ứng dụng đã chọn
+  id: Skill aplikasi yang dipilih
+  pl: Wybrane umiejętności aplikacji
+  nl: Geselecteerde app-skills
+  ar: مهارات التطبيقات المحددة
+  hi: चुनी गई ऐप स्किल
+  th: ทักษะแอปที่เลือก
+  cs: Vybrané dovednosti aplikací
+  sv: Valda appfärdigheter
+  he: מיומנויות אפליקציה נבחרות
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.allowed_skills_placeholder:
+  context: Placeholder for comma-separated API key skill allowlist
+  en: web:search, images:generate
+  de: web:search, images:generate
+  zh: web:search, images:generate
+  es: web:search, images:generate
+  fr: web:search, images:generate
+  pt: web:search, images:generate
+  ru: web:search, images:generate
+  ja: web:search, images:generate
+  ko: web:search, images:generate
+  it: web:search, images:generate
+  tr: web:search, images:generate
+  vi: web:search, images:generate
+  id: web:search, images:generate
+  pl: web:search, images:generate
+  nl: web:search, images:generate
+  ar: web:search, images:generate
+  hi: web:search, images:generate
+  th: web:search, images:generate
+  cs: web:search, images:generate
+  sv: web:search, images:generate
+  he: web:search, images:generate
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.limits_section:
+  context: Section heading for API key limits
+  en: Limits
+  de: Limits
+  zh: 限制
+  es: Límites
+  fr: Limites
+  pt: Limites
+  ru: Лимиты
+  ja: 制限
+  ko: 한도
+  it: Limiti
+  tr: Sınırlar
+  vi: Giới hạn
+  id: Batas
+  pl: Limity
+  nl: Limieten
+  ar: الحدود
+  hi: सीमाएं
+  th: ขีดจำกัด
+  cs: Limity
+  sv: Gränser
+  he: מגבלות
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.credit_limit:
+  context: API key credit limit label
+  en: Credit limit
+  de: Credit-Limit
+  zh: 额度限制
+  es: Límite de créditos
+  fr: Limite de crédits
+  pt: Limite de créditos
+  ru: Лимит кредитов
+  ja: クレジット上限
+  ko: 크레딧 한도
+  it: Limite di crediti
+  tr: Kredi sınırı
+  vi: Giới hạn tín dụng
+  id: Batas kredit
+  pl: Limit kredytów
+  nl: Creditlimiet
+  ar: حد الأرصدة
+  hi: क्रेडिट सीमा
+  th: วงเงินเครดิต
+  cs: Limit kreditů
+  sv: Kreditgräns
+  he: מגבלת קרדיטים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.credit_unlimited:
+  context: Unlimited credit period option
+  en: Unlimited
+  de: Unbegrenzt
+  zh: 无限制
+  es: Ilimitado
+  fr: Illimité
+  pt: Ilimitado
+  ru: Без ограничений
+  ja: 無制限
+  ko: 무제한
+  it: Illimitato
+  tr: Sınırsız
+  vi: Không giới hạn
+  id: Tidak terbatas
+  pl: Bez limitu
+  nl: Onbeperkt
+  ar: غير محدود
+  hi: असीमित
+  th: ไม่จำกัด
+  cs: Neomezeně
+  sv: Obegränsat
+  he: ללא הגבלה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.credit_daily:
+  context: Daily credit period option
+  en: Daily
+  de: Täglich
+  zh: 每日
+  es: Diario
+  fr: Quotidien
+  pt: Diário
+  ru: Ежедневно
+  ja: 毎日
+  ko: 일일
+  it: Giornaliero
+  tr: Günlük
+  vi: Hằng ngày
+  id: Harian
+  pl: Dziennie
+  nl: Dagelijks
+  ar: يومي
+  hi: दैनिक
+  th: รายวัน
+  cs: Denně
+  sv: Dagligen
+  he: יומי
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.credit_weekly:
+  context: Weekly credit period option
+  en: Weekly
+  de: Wöchentlich
+  zh: 每周
+  es: Semanal
+  fr: Hebdomadaire
+  pt: Semanal
+  ru: Еженедельно
+  ja: 毎週
+  ko: 주간
+  it: Settimanale
+  tr: Haftalık
+  vi: Hằng tuần
+  id: Mingguan
+  pl: Tygodniowo
+  nl: Wekelijks
+  ar: أسبوعي
+  hi: साप्ताहिक
+  th: รายสัปดาห์
+  cs: Týdně
+  sv: Veckovis
+  he: שבועי
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.credit_monthly:
+  context: Monthly credit period option
+  en: Monthly
+  de: Monatlich
+  zh: 每月
+  es: Mensual
+  fr: Mensuel
+  pt: Mensal
+  ru: Ежемесячно
+  ja: 毎月
+  ko: 월간
+  it: Mensile
+  tr: Aylık
+  vi: Hằng tháng
+  id: Bulanan
+  pl: Miesięcznie
+  nl: Maandelijks
+  ar: شهري
+  hi: मासिक
+  th: รายเดือน
+  cs: Měsíčně
+  sv: Månadsvis
+  he: חודשי
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.credit_lifetime:
+  context: Lifetime credit period option
+  en: Lifetime
+  de: Lebenslang
+  zh: 终身
+  es: De por vida
+  fr: À vie
+  pt: Vitalício
+  ru: На весь срок
+  ja: 無期限
+  ko: 평생
+  it: A vita
+  tr: Ömür boyu
+  vi: Trọn đời
+  id: Seumur hidup
+  pl: Dożywotnio
+  nl: Levenslang
+  ar: مدى الحياة
+  hi: आजीवन
+  th: ตลอดอายุ
+  cs: Doživotně
+  sv: Livstid
+  he: לכל החיים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.credit_unlimited_warning_title:
+  context: Accessibility title for unlimited credit warning
+  en: Unlimited credit warning
+  de: Warnung vor unbegrenzten Credits
+  zh: 无限制额度警告
+  es: Advertencia de créditos ilimitados
+  fr: Avertissement de crédits illimités
+  pt: Aviso de créditos ilimitados
+  ru: Предупреждение о неограниченных кредитах
+  ja: 無制限クレジットの警告
+  ko: 무제한 크레딧 경고
+  it: Avviso crediti illimitati
+  tr: Sınırsız kredi uyarısı
+  vi: Cảnh báo tín dụng không giới hạn
+  id: Peringatan kredit tidak terbatas
+  pl: Ostrzeżenie o nieograniczonych kredytach
+  nl: Waarschuwing voor onbeperkte credits
+  ar: تحذير الأرصدة غير المحدودة
+  hi: असीमित क्रेडिट चेतावनी
+  th: คำเตือนเครดิตไม่จำกัด
+  cs: Upozornění na neomezené kredity
+  sv: Varning för obegränsade krediter
+  he: אזהרת קרדיטים ללא הגבלה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.credit_unlimited_warning:
+  context: Warning shown when API key has no per-key credit cap
+  en: This key can spend account credits without a per-key cap.
+  de: Dieser Schlüssel kann Konto-Credits ohne eigenes Schlüssel-Limit ausgeben.
+  zh: 此密钥可以在没有单密钥上限的情况下消耗账号额度。
+  es: Esta clave puede gastar créditos de la cuenta sin un límite por clave.
+  fr: Cette clé peut dépenser les crédits du compte sans plafond par clé.
+  pt: Esta chave pode gastar créditos da conta sem limite por chave.
+  ru: Этот ключ может тратить кредиты аккаунта без отдельного лимита для ключа.
+  ja: このキーはキーごとの上限なしでアカウントクレジットを消費できます。
+  ko: 이 키는 키별 한도 없이 계정 크레딧을 사용할 수 있습니다.
+  it: Questa chiave può spendere crediti dell'account senza un limite per chiave.
+  tr: Bu anahtar, anahtar başına sınır olmadan hesap kredilerini harcayabilir.
+  vi: Khóa này có thể tiêu tín dụng tài khoản mà không có giới hạn riêng cho khóa.
+  id: Kunci ini dapat memakai kredit akun tanpa batas per kunci.
+  pl: Ten klucz może wydawać kredyty konta bez limitu dla klucza.
+  nl: Deze sleutel kan accountcredits besteden zonder limiet per sleutel.
+  ar: يمكن لهذا المفتاح إنفاق أرصدة الحساب دون حد لكل مفتاح.
+  hi: यह कुंजी प्रति-कुंजी सीमा के बिना खाते के क्रेडिट खर्च कर सकती है।
+  th: คีย์นี้สามารถใช้เครดิตบัญชีได้โดยไม่มีวงเงินเฉพาะคีย์
+  cs: Tento klíč může utrácet kredity účtu bez limitu pro daný klíč.
+  sv: Den här nyckeln kan spendera kontokrediter utan ett tak per nyckel.
+  he: מפתח זה יכול להוציא קרדיטים מהחשבון ללא תקרה לכל מפתח.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.credit_amount_placeholder:
+  context: Placeholder for API key credit amount input
+  en: Credit cap
+  de: Credit-Limit
+  zh: 额度上限
+  es: Límite de créditos
+  fr: Plafond de crédits
+  pt: Limite de créditos
+  ru: Лимит кредитов
+  ja: クレジット上限
+  ko: 크레딧 한도
+  it: Limite di crediti
+  tr: Kredi sınırı
+  vi: Mức trần tín dụng
+  id: Batas kredit
+  pl: Limit kredytów
+  nl: Creditplafond
+  ar: سقف الأرصدة
+  hi: क्रेडिट कैप
+  th: วงเงินเครดิต
+  cs: Strop kreditů
+  sv: Kredittak
+  he: תקרת קרדיטים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.expiration:
+  context: API key expiration label
+  en: Expiration
+  de: Ablauf
+  zh: 过期时间
+  es: Vencimiento
+  fr: Expiration
+  pt: Expiração
+  ru: Срок действия
+  ja: 有効期限
+  ko: 만료
+  it: Scadenza
+  tr: Sona erme
+  vi: Hết hạn
+  id: Kedaluwarsa
+  pl: Wygaśnięcie
+  nl: Vervaldatum
+  ar: الانتهاء
+  hi: समाप्ति
+  th: วันหมดอายุ
+  cs: Vypršení platnosti
+  sv: Utgång
+  he: תפוגה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.expiration_7d:
+  context: API key expiration option
+  en: 7 days
+  de: 7 Tage
+  zh: 7 天
+  es: 7 días
+  fr: 7 jours
+  pt: 7 dias
+  ru: 7 дней
+  ja: 7日
+  ko: 7일
+  it: 7 giorni
+  tr: 7 gün
+  vi: 7 ngày
+  id: 7 hari
+  pl: 7 dni
+  nl: 7 dagen
+  ar: 7 أيام
+  hi: 7 दिन
+  th: 7 วัน
+  cs: 7 dní
+  sv: 7 dagar
+  he: 7 ימים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.expiration_30d:
+  context: API key expiration option
+  en: 30 days
+  de: 30 Tage
+  zh: 30 天
+  es: 30 días
+  fr: 30 jours
+  pt: 30 dias
+  ru: 30 дней
+  ja: 30日
+  ko: 30일
+  it: 30 giorni
+  tr: 30 gün
+  vi: 30 ngày
+  id: 30 hari
+  pl: 30 dni
+  nl: 30 dagen
+  ar: 30 يوماً
+  hi: 30 दिन
+  th: 30 วัน
+  cs: 30 dní
+  sv: 30 dagar
+  he: 30 ימים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.expiration_90d:
+  context: API key expiration option
+  en: 90 days
+  de: 90 Tage
+  zh: 90 天
+  es: 90 días
+  fr: 90 jours
+  pt: 90 dias
+  ru: 90 дней
+  ja: 90日
+  ko: 90일
+  it: 90 giorni
+  tr: 90 gün
+  vi: 90 ngày
+  id: 90 hari
+  pl: 90 dni
+  nl: 90 dagen
+  ar: 90 يوماً
+  hi: 90 दिन
+  th: 90 วัน
+  cs: 90 dní
+  sv: 90 dagar
+  he: 90 ימים
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.expiration_1y:
+  context: API key expiration option
+  en: 1 year
+  de: 1 Jahr
+  zh: 1 年
+  es: 1 año
+  fr: 1 an
+  pt: 1 ano
+  ru: 1 год
+  ja: 1年
+  ko: 1년
+  it: 1 anno
+  tr: 1 yıl
+  vi: 1 năm
+  id: 1 tahun
+  pl: 1 rok
+  nl: 1 jaar
+  ar: سنة واحدة
+  hi: 1 वर्ष
+  th: 1 ปี
+  cs: 1 rok
+  sv: 1 år
+  he: שנה אחת
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.expiration_never:
+  context: API key expiration option
+  en: Never
+  de: Nie
+  zh: 永不
+  es: Nunca
+  fr: Jamais
+  pt: Nunca
+  ru: Никогда
+  ja: なし
+  ko: 없음
+  it: Mai
+  tr: Hiçbir zaman
+  vi: Không bao giờ
+  id: Tidak pernah
+  pl: Nigdy
+  nl: Nooit
+  ar: أبداً
+  hi: कभी नहीं
+  th: ไม่มีวันหมดอายุ
+  cs: Nikdy
+  sv: Aldrig
+  he: אף פעם
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.expiration_never_warning_title:
+  context: Accessibility title for never expires warning
+  en: Never expires warning
+  de: Warnung vor nie ablaufendem Schlüssel
+  zh: 永不过期警告
+  es: Advertencia de no expiración
+  fr: Avertissement d'absence d'expiration
+  pt: Aviso de nunca expira
+  ru: Предупреждение о ключе без срока действия
+  ja: 無期限の警告
+  ko: 만료 없음 경고
+  it: Avviso di nessuna scadenza
+  tr: Süresi dolmaz uyarısı
+  vi: Cảnh báo không bao giờ hết hạn
+  id: Peringatan tidak pernah kedaluwarsa
+  pl: Ostrzeżenie o braku wygaśnięcia
+  nl: Waarschuwing voor nooit verlopen
+  ar: تحذير عدم الانتهاء
+  hi: कभी समाप्त न होने की चेतावनी
+  th: คำเตือนไม่มีวันหมดอายุ
+  cs: Upozornění na neomezenou platnost
+  sv: Varning för att aldrig upphöra
+  he: אזהרת אי-תפוגה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.expiration_never_warning:
+  context: Warning shown when API key never expires
+  en: This key never expires. Revoke it immediately if it is leaked.
+  de: Dieser Schlüssel läuft nie ab. Widerrufe ihn sofort, wenn er offengelegt wird.
+  zh: 此密钥永不过期。如果泄露，请立即撤销。
+  es: Esta clave nunca vence. Revócala de inmediato si se filtra.
+  fr: Cette clé n'expire jamais. Révoquez-la immédiatement en cas de fuite.
+  pt: Esta chave nunca expira. Revogue-a imediatamente se ela vazar.
+  ru: Этот ключ никогда не истекает. Немедленно отзовите его, если он утечёт.
+  ja: このキーは期限切れになりません。漏えいした場合はすぐに取り消してください。
+  ko: 이 키는 만료되지 않습니다. 유출되면 즉시 취소하세요.
+  it: Questa chiave non scade mai. Revocala immediatamente se viene divulgata.
+  tr: Bu anahtarın süresi hiç dolmaz. Sızdırılırsa hemen iptal edin.
+  vi: Khóa này không bao giờ hết hạn. Hãy thu hồi ngay nếu bị rò rỉ.
+  id: Kunci ini tidak pernah kedaluwarsa. Cabut segera jika bocor.
+  pl: Ten klucz nigdy nie wygasa. Natychmiast go odwołaj, jeśli wycieknie.
+  nl: Deze sleutel verloopt nooit. Trek hem onmiddellijk in als hij is gelekt.
+  ar: لا تنتهي صلاحية هذا المفتاح أبداً. قم بإلغائه فوراً إذا تسرّب.
+  hi: यह कुंजी कभी समाप्त नहीं होती। यदि यह लीक हो जाए, तो इसे तुरंत रद्द करें।
+  th: คีย์นี้ไม่มีวันหมดอายุ หากรั่วไหลให้เพิกถอนทันที
+  cs: Tento klíč nikdy nevyprší. Pokud unikne, okamžitě jej odvolejte.
+  sv: Den här nyckeln upphör aldrig att gälla. Återkalla den omedelbart om den läcker.
+  he: מפתח זה לעולם אינו פג. בטל אותו מיד אם הוא דולף.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.creating:
+  context: Loading label while API key is being created
+  en: Creating...
+  de: Wird erstellt...
+  zh: 正在创建...
+  es: Creando...
+  fr: Création...
+  pt: Criando...
+  ru: Создание...
+  ja: 作成中...
+  ko: 만드는 중...
+  it: Creazione...
+  tr: Oluşturuluyor...
+  vi: Đang tạo...
+  id: Membuat...
+  pl: Tworzenie...
+  nl: Maken...
+  ar: جارٍ الإنشاء...
+  hi: बनाया जा रहा है...
+  th: กำลังสร้าง...
+  cs: Vytváření...
+  sv: Skapar...
+  he: יוצר...
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.created_warning:
+  context: Warning shown after an API key is created
+  en: Copy this API key now. You will not be able to see it again.
+  de: Kopiere diesen API-Schlüssel jetzt. Du kannst ihn später nicht erneut sehen.
+  zh: 现在复制此 API 密钥。之后你将无法再次查看。
+  es: Copia esta clave API ahora. No podrás volver a verla.
+  fr: Copiez cette clé API maintenant. Vous ne pourrez plus la voir.
+  pt: Copie esta chave API agora. Você não poderá vê-la novamente.
+  ru: Скопируйте этот API-ключ сейчас. Вы не сможете увидеть его снова.
+  ja: このAPIキーを今すぐコピーしてください。再度表示することはできません。
+  ko: 지금 이 API 키를 복사하세요. 다시 볼 수 없습니다.
+  it: Copia subito questa chiave API. Non potrai più vederla.
+  tr: Bu API anahtarını şimdi kopyalayın. Bir daha göremezsiniz.
+  vi: Sao chép khóa API này ngay bây giờ. Bạn sẽ không thể xem lại.
+  id: Salin kunci API ini sekarang. Anda tidak akan dapat melihatnya lagi.
+  pl: Skopiuj teraz ten klucz API. Nie zobaczysz go ponownie.
+  nl: Kopieer deze API-sleutel nu. Je kunt hem niet opnieuw zien.
+  ar: انسخ مفتاح API هذا الآن. لن تتمكن من رؤيته مرة أخرى.
+  hi: इस API कुंजी को अभी कॉपी करें। आप इसे फिर से नहीं देख पाएंगे।
+  th: คัดลอกคีย์ API นี้ตอนนี้ คุณจะไม่สามารถดูได้อีก
+  cs: Zkopírujte tento API klíč nyní. Už jej znovu neuvidíte.
+  sv: Kopiera den här API-nyckeln nu. Du kommer inte att kunna se den igen.
+  he: העתק את מפתח ה-API הזה עכשיו. לא תוכל לראות אותו שוב.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.copied_done:
+  context: Confirmation button after copying a created API key
+  en: I've copied the key
+  de: Ich habe den Schlüssel kopiert
+  zh: 我已复制密钥
+  es: He copiado la clave
+  fr: J'ai copié la clé
+  pt: Copiei a chave
+  ru: Я скопировал ключ
+  ja: キーをコピーしました
+  ko: 키를 복사했습니다
+  it: Ho copiato la chiave
+  tr: Anahtarı kopyaladım
+  vi: Tôi đã sao chép khóa
+  id: Saya sudah menyalin kunci
+  pl: Skopiowałem klucz
+  nl: Ik heb de sleutel gekopieerd
+  ar: لقد نسخت المفتاح
+  hi: मैंने कुंजी कॉपी कर ली है
+  th: ฉันคัดลอกคีย์แล้ว
+  cs: Klíč jsem zkopíroval(a)
+  sv: Jag har kopierat nyckeln
+  he: העתקתי את המפתח
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.loading:
+  context: Loading text while API keys are loading
+  en: Loading API keys...
+  de: API-Schlüssel werden geladen...
+  zh: 正在加载 API 密钥...
+  es: Cargando claves API...
+  fr: Chargement des clés API...
+  pt: Carregando chaves API...
+  ru: Загрузка API-ключей...
+  ja: APIキーを読み込み中...
+  ko: API 키를 불러오는 중...
+  it: Caricamento chiavi API...
+  tr: API anahtarları yükleniyor...
+  vi: Đang tải khóa API...
+  id: Memuat kunci API...
+  pl: Wczytywanie kluczy API...
+  nl: API-sleutels laden...
+  ar: جارٍ تحميل مفاتيح API...
+  hi: API कुंजियां लोड हो रही हैं...
+  th: กำลังโหลดคีย์ API...
+  cs: Načítání API klíčů...
+  sv: Läser in API-nycklar...
+  he: טוען מפתחות API...
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.empty_title:
+  context: Empty state title when no API keys exist
+  en: No API keys
+  de: Keine API-Schlüssel
+  zh: 没有 API 密钥
+  es: No hay claves API
+  fr: Aucune clé API
+  pt: Nenhuma chave API
+  ru: Нет API-ключей
+  ja: APIキーがありません
+  ko: API 키 없음
+  it: Nessuna chiave API
+  tr: API anahtarı yok
+  vi: Chưa có khóa API
+  id: Tidak ada kunci API
+  pl: Brak kluczy API
+  nl: Geen API-sleutels
+  ar: لا توجد مفاتيح API
+  hi: कोई API कुंजी नहीं
+  th: ไม่มีคีย์ API
+  cs: Žádné API klíče
+  sv: Inga API-nycklar
+  he: אין מפתחות API
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.empty_hint:
+  context: Empty state hint when no API keys exist
+  en: Create your first API key to access OpenMates programmatically.
+  de: Erstelle deinen ersten API-Schlüssel, um programmgesteuert auf OpenMates zuzugreifen.
+  zh: 创建你的第一个 API 密钥，以通过程序访问 OpenMates。
+  es: Crea tu primera clave API para acceder a OpenMates mediante programación.
+  fr: Créez votre première clé API pour accéder à OpenMates par programmation.
+  pt: Crie sua primeira chave API para acessar o OpenMates programaticamente.
+  ru: Создайте первый API-ключ, чтобы получать программный доступ к OpenMates.
+  ja: OpenMates にプログラムからアクセスするため、最初のAPIキーを作成してください。
+  ko: OpenMates에 프로그래밍 방식으로 접근하려면 첫 API 키를 만드세요.
+  it: Crea la tua prima chiave API per accedere a OpenMates a livello programmatico.
+  tr: OpenMates'e programatik olarak erişmek için ilk API anahtarınızı oluşturun.
+  vi: Tạo khóa API đầu tiên để truy cập OpenMates bằng chương trình.
+  id: Buat kunci API pertama Anda untuk mengakses OpenMates secara terprogram.
+  pl: Utwórz pierwszy klucz API, aby uzyskiwać programowy dostęp do OpenMates.
+  nl: Maak je eerste API-sleutel om programmatisch toegang te krijgen tot OpenMates.
+  ar: أنشئ أول مفتاح API للوصول إلى OpenMates برمجياً.
+  hi: OpenMates को प्रोग्रामेटिक रूप से एक्सेस करने के लिए अपनी पहली API कुंजी बनाएं।
+  th: สร้างคีย์ API แรกของคุณเพื่อเข้าถึง OpenMates แบบโปรแกรม
+  cs: Vytvořte svůj první API klíč pro programový přístup k OpenMates.
+  sv: Skapa din första API-nyckel för att komma åt OpenMates programmatiskt.
+  he: צור את מפתח ה-API הראשון שלך כדי לגשת ל-OpenMates באופן תכנותי.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.not_found:
+  context: Empty state title when an API key detail route no longer exists
+  en: API key not found
+  de: API-Schlüssel nicht gefunden
+  zh: 未找到 API 密钥
+  es: Clave API no encontrada
+  fr: Clé API introuvable
+  pt: Chave API não encontrada
+  ru: API-ключ не найден
+  ja: APIキーが見つかりません
+  ko: API 키를 찾을 수 없습니다
+  it: Chiave API non trovata
+  tr: API anahtarı bulunamadı
+  vi: Không tìm thấy khóa API
+  id: Kunci API tidak ditemukan
+  pl: Nie znaleziono klucza API
+  nl: API-sleutel niet gevonden
+  ar: لم يتم العثور على مفتاح API
+  hi: API कुंजी नहीं मिली
+  th: ไม่พบคีย์ API
+  cs: API klíč nenalezen
+  sv: API-nyckeln hittades inte
+  he: מפתח API לא נמצא
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.not_found_hint:
+  context: Empty state hint when an API key detail route no longer exists
+  en: It may have been revoked from another session.
+  de: Er wurde möglicherweise in einer anderen Sitzung widerrufen.
+  zh: 它可能已在另一个会话中被撤销。
+  es: Puede haber sido revocada desde otra sesión.
+  fr: Elle a peut-être été révoquée depuis une autre session.
+  pt: Ela pode ter sido revogada em outra sessão.
+  ru: Возможно, он был отозван в другой сессии.
+  ja: 別のセッションで取り消された可能性があります。
+  ko: 다른 세션에서 취소되었을 수 있습니다.
+  it: Potrebbe essere stata revocata da un'altra sessione.
+  tr: Başka bir oturumdan iptal edilmiş olabilir.
+  vi: Có thể khóa đã bị thu hồi từ phiên khác.
+  id: Mungkin telah dicabut dari sesi lain.
+  pl: Mógł zostać odwołany w innej sesji.
+  nl: Mogelijk is deze vanuit een andere sessie ingetrokken.
+  ar: ربما تم إلغاؤه من جلسة أخرى.
+  hi: हो सकता है इसे किसी अन्य सत्र से रद्द कर दिया गया हो।
+  th: อาจถูกเพิกถอนจากเซสชันอื่นแล้ว
+  cs: Možná byl odvolán z jiné relace.
+  sv: Den kan ha återkallats från en annan session.
+  he: ייתכן שהוא בוטל מסשן אחר.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.prefix:
+  context: API key prefix detail label
+  en: Prefix
+  de: Präfix
+  zh: 前缀
+  es: Prefijo
+  fr: Préfixe
+  pt: Prefixo
+  ru: Префикс
+  ja: プレフィックス
+  ko: 접두사
+  it: Prefisso
+  tr: Önek
+  vi: Tiền tố
+  id: Prefiks
+  pl: Prefiks
+  nl: Voorvoegsel
+  ar: البادئة
+  hi: प्रीफ़िक्स
+  th: คำนำหน้า
+  cs: Prefix
+  sv: Prefix
+  he: קידומת
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.created:
+  context: API key creation date detail label
+  en: Created
+  de: Erstellt
+  zh: 已创建
+  es: Creada
+  fr: Créée
+  pt: Criada
+  ru: Создан
+  ja: 作成日
+  ko: 생성됨
+  it: Creata
+  tr: Oluşturuldu
+  vi: Đã tạo
+  id: Dibuat
+  pl: Utworzono
+  nl: Gemaakt
+  ar: تم الإنشاء
+  hi: बनाया गया
+  th: สร้างแล้ว
+  cs: Vytvořeno
+  sv: Skapad
+  he: נוצר
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.last_used:
+  context: API key last used detail label
+  en: Last used
+  de: Zuletzt verwendet
+  zh: 上次使用
+  es: Último uso
+  fr: Dernière utilisation
+  pt: Último uso
+  ru: Последнее использование
+  ja: 最終使用
+  ko: 마지막 사용
+  it: Ultimo utilizzo
+  tr: Son kullanım
+  vi: Dùng lần cuối
+  id: Terakhir digunakan
+  pl: Ostatnio użyto
+  nl: Laatst gebruikt
+  ar: آخر استخدام
+  hi: अंतिम उपयोग
+  th: ใช้ล่าสุด
+  cs: Naposledy použito
+  sv: Senast använd
+  he: שימוש אחרון
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.access:
+  context: API key access detail label
+  en: Access
+  de: Zugriff
+  zh: 访问权限
+  es: Acceso
+  fr: Accès
+  pt: Acesso
+  ru: Доступ
+  ja: アクセス
+  ko: 액세스
+  it: Accesso
+  tr: Erişim
+  vi: Quyền truy cập
+  id: Akses
+  pl: Dostęp
+  nl: Toegang
+  ar: الوصول
+  hi: पहुंच
+  th: การเข้าถึง
+  cs: Přístup
+  sv: Åtkomst
+  he: גישה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.detail_secret_note:
+  context: Note shown on API key details page
+  en: The full secret is only shown once when the key is created. Revoke this key and create a new one if you lose it.
+  de: Das vollständige Secret wird nur einmal angezeigt, wenn der Schlüssel erstellt wird. Widerrufe diesen Schlüssel und erstelle einen neuen, wenn du ihn verlierst.
+  zh: 完整密钥只会在创建时显示一次。如果丢失，请撤销此密钥并创建新的密钥。
+  es: El secreto completo solo se muestra una vez al crear la clave. Revoca esta clave y crea una nueva si la pierdes.
+  fr: Le secret complet ne s'affiche qu'une seule fois lors de la création de la clé. Révoquez cette clé et créez-en une nouvelle si vous la perdez.
+  pt: O segredo completo só é mostrado uma vez quando a chave é criada. Revogue esta chave e crie uma nova se você a perder.
+  ru: Полный секрет показывается только один раз при создании ключа. Если вы потеряете его, отзовите этот ключ и создайте новый.
+  ja: 完全なシークレットはキー作成時に一度だけ表示されます。失くした場合はこのキーを取り消し、新しいキーを作成してください。
+  ko: 전체 비밀값은 키가 생성될 때 한 번만 표시됩니다. 잃어버리면 이 키를 취소하고 새 키를 만드세요.
+  it: Il segreto completo viene mostrato una sola volta quando la chiave viene creata. Revoca questa chiave e creane una nuova se la perdi.
+  tr: Tam gizli değer yalnızca anahtar oluşturulduğunda bir kez gösterilir. Kaybederseniz bu anahtarı iptal edip yenisini oluşturun.
+  vi: Bí mật đầy đủ chỉ hiển thị một lần khi khóa được tạo. Hãy thu hồi khóa này và tạo khóa mới nếu bạn làm mất.
+  id: Rahasia lengkap hanya ditampilkan sekali saat kunci dibuat. Cabut kunci ini dan buat yang baru jika Anda kehilangannya.
+  pl: Pełny sekret jest pokazywany tylko raz podczas tworzenia klucza. Jeśli go utracisz, odwołaj ten klucz i utwórz nowy.
+  nl: Het volledige geheim wordt slechts één keer getoond wanneer de sleutel wordt gemaakt. Trek deze sleutel in en maak een nieuwe als je hem kwijtraakt.
+  ar: يظهر السر الكامل مرة واحدة فقط عند إنشاء المفتاح. قم بإلغاء هذا المفتاح وأنشئ مفتاحاً جديداً إذا فقدته.
+  hi: पूरा सीक्रेट कुंजी बनाते समय केवल एक बार दिखाया जाता है। यदि आप इसे खो दें, तो इस कुंजी को रद्द करें और नई बनाएं।
+  th: ข้อมูลลับแบบเต็มจะแสดงเพียงครั้งเดียวเมื่อสร้างคีย์ หากทำหายให้เพิกถอนคีย์นี้และสร้างคีย์ใหม่
+  cs: Úplné tajemství se zobrazí pouze jednou při vytvoření klíče. Pokud jej ztratíte, odvolejte tento klíč a vytvořte nový.
+  sv: Den fullständiga hemligheten visas bara en gång när nyckeln skapas. Återkalla nyckeln och skapa en ny om du tappar bort den.
+  he: הסוד המלא מוצג פעם אחת בלבד בעת יצירת המפתח. אם איבדת אותו, בטל מפתח זה וצור מפתח חדש.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.revoke_warning:
+  context: Warning text before revoking an API key
+  en: Revoking this API key immediately blocks clients that use it. This cannot be undone.
+  de: Wenn du diesen API-Schlüssel widerrufst, werden Clients, die ihn verwenden, sofort blockiert. Dies kann nicht rückgängig gemacht werden.
+  zh: 撤销此 API 密钥会立即阻止使用它的客户端。此操作无法撤销。
+  es: Revocar esta clave API bloquea de inmediato a los clientes que la usan. Esto no se puede deshacer.
+  fr: Révoquer cette clé API bloque immédiatement les clients qui l'utilisent. Cette action est irréversible.
+  pt: Revogar esta chave API bloqueia imediatamente clientes que a usam. Isso não pode ser desfeito.
+  ru: Отзыв этого API-ключа немедленно заблокирует клиенты, которые его используют. Это нельзя отменить.
+  ja: このAPIキーを取り消すと、それを使用するクライアントはすぐにブロックされます。この操作は元に戻せません。
+  ko: 이 API 키를 취소하면 이를 사용하는 클라이언트가 즉시 차단됩니다. 이 작업은 되돌릴 수 없습니다.
+  it: Revocare questa chiave API blocca immediatamente i client che la usano. L'operazione non può essere annullata.
+  tr: Bu API anahtarını iptal etmek, onu kullanan istemcileri hemen engeller. Bu işlem geri alınamaz.
+  vi: Thu hồi khóa API này sẽ chặn ngay các client đang dùng khóa. Không thể hoàn tác thao tác này.
+  id: Mencabut kunci API ini langsung memblokir klien yang menggunakannya. Ini tidak dapat dibatalkan.
+  pl: Odwołanie tego klucza API natychmiast blokuje klientów, którzy go używają. Tego nie można cofnąć.
+  nl: Als je deze API-sleutel intrekt, worden clients die hem gebruiken onmiddellijk geblokkeerd. Dit kan niet ongedaan worden gemaakt.
+  ar: يؤدي إلغاء مفتاح API هذا إلى حظر العملاء الذين يستخدمونه فوراً. لا يمكن التراجع عن ذلك.
+  hi: इस API कुंजी को रद्द करने से इसका उपयोग करने वाले क्लाइंट तुरंत ब्लॉक हो जाएंगे। इसे वापस नहीं किया जा सकता।
+  th: การเพิกถอนคีย์ API นี้จะบล็อกไคลเอนต์ที่ใช้งานทันที ไม่สามารถย้อนกลับได้
+  cs: Odvolání tohoto API klíče okamžitě zablokuje klienty, kteří jej používají. Tuto akci nelze vrátit zpět.
+  sv: Om du återkallar den här API-nyckeln blockeras klienter som använder den omedelbart. Detta kan inte ångras.
+  he: ביטול מפתח API זה יחסום מיד לקוחות שמשתמשים בו. לא ניתן לבטל פעולה זו.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.revoke_confirm_label:
+  context: Confirmation toggle label before revoking an API key
+  en: I understand this key will stop working
+  de: Ich verstehe, dass dieser Schlüssel nicht mehr funktionieren wird
+  zh: 我明白此密钥将停止工作
+  es: Entiendo que esta clave dejará de funcionar
+  fr: Je comprends que cette clé cessera de fonctionner
+  pt: Entendo que esta chave deixará de funcionar
+  ru: Я понимаю, что этот ключ перестанет работать
+  ja: このキーが機能しなくなることを理解しています
+  ko: 이 키가 작동을 멈춘다는 것을 이해합니다
+  it: Capisco che questa chiave smetterà di funzionare
+  tr: Bu anahtarın çalışmayı durduracağını anlıyorum
+  vi: Tôi hiểu khóa này sẽ ngừng hoạt động
+  id: Saya mengerti kunci ini akan berhenti berfungsi
+  pl: Rozumiem, że ten klucz przestanie działać
+  nl: Ik begrijp dat deze sleutel niet meer zal werken
+  ar: أفهم أن هذا المفتاح سيتوقف عن العمل
+  hi: मैं समझता/समझती हूं कि यह कुंजी काम करना बंद कर देगी
+  th: ฉันเข้าใจว่าคีย์นี้จะหยุดทำงาน
+  cs: Rozumím, že tento klíč přestane fungovat
+  sv: Jag förstår att den här nyckeln slutar fungera
+  he: אני מבין שמפתח זה יפסיק לעבוד
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.revoke_key:
+  context: Destructive button label for revoking an API key
+  en: Revoke key
+  de: Schlüssel widerrufen
+  zh: 撤销密钥
+  es: Revocar clave
+  fr: Révoquer la clé
+  pt: Revogar chave
+  ru: Отозвать ключ
+  ja: キーを取り消す
+  ko: 키 취소
+  it: Revoca chiave
+  tr: Anahtarı iptal et
+  vi: Thu hồi khóa
+  id: Cabut kunci
+  pl: Odwołaj klucz
+  nl: Sleutel intrekken
+  ar: إلغاء المفتاح
+  hi: कुंजी रद्द करें
+  th: เพิกถอนคีย์
+  cs: Odvolat klíč
+  sv: Återkalla nyckel
+  he: בטל מפתח
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.limit_warning_title:
+  context: Accessibility title for API key count limit warning
+  en: API key limit reached
+  de: API-Schlüssel-Limit erreicht
+  zh: 已达到 API 密钥数量限制
+  es: Límite de claves API alcanzado
+  fr: Limite de clés API atteinte
+  pt: Limite de chaves API atingido
+  ru: Достигнут лимит API-ключей
+  ja: APIキーの上限に達しました
+  ko: API 키 한도에 도달했습니다
+  it: Limite di chiavi API raggiunto
+  tr: API anahtarı sınırına ulaşıldı
+  vi: Đã đạt giới hạn khóa API
+  id: Batas kunci API tercapai
+  pl: Osiągnięto limit kluczy API
+  nl: Limiet voor API-sleutels bereikt
+  ar: تم بلوغ حد مفاتيح API
+  hi: API कुंजी सीमा पूरी हो गई
+  th: ถึงขีดจำกัดคีย์ API แล้ว
+  cs: Dosažen limit API klíčů
+  sv: Gränsen för API-nycklar har nåtts
+  he: הגעת למגבלת מפתחות API
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.limit_warning:
+  context: Warning shown when maximum API key count is reached
+  en: You have reached the maximum number of API keys ({max}). Revoke an existing key to create a new one.
+  de: Du hast die maximale Anzahl an API-Schlüsseln erreicht ({max}). Widerrufe einen vorhandenen Schlüssel, um einen neuen zu erstellen.
+  zh: 你已达到 API 密钥数量上限 ({max})。请撤销现有密钥以创建新密钥。
+  es: Has alcanzado el número máximo de claves API ({max}). Revoca una clave existente para crear una nueva.
+  fr: Vous avez atteint le nombre maximal de clés API ({max}). Révoquez une clé existante pour en créer une nouvelle.
+  pt: Você atingiu o número máximo de chaves API ({max}). Revogue uma chave existente para criar uma nova.
+  ru: Вы достигли максимального числа API-ключей ({max}). Отзовите существующий ключ, чтобы создать новый.
+  ja: APIキーの最大数 ({max}) に達しました。新しいキーを作成するには既存のキーを取り消してください。
+  ko: API 키 최대 개수({max})에 도달했습니다. 새 키를 만들려면 기존 키를 취소하세요.
+  it: Hai raggiunto il numero massimo di chiavi API ({max}). Revoca una chiave esistente per crearne una nuova.
+  tr: Maksimum API anahtarı sayısına ulaştınız ({max}). Yeni bir tane oluşturmak için mevcut bir anahtarı iptal edin.
+  vi: Bạn đã đạt số lượng khóa API tối đa ({max}). Hãy thu hồi khóa hiện có để tạo khóa mới.
+  id: Anda telah mencapai jumlah maksimum kunci API ({max}). Cabut kunci yang ada untuk membuat yang baru.
+  pl: Osiągnięto maksymalną liczbę kluczy API ({max}). Odwołaj istniejący klucz, aby utworzyć nowy.
+  nl: Je hebt het maximale aantal API-sleutels bereikt ({max}). Trek een bestaande sleutel in om een nieuwe te maken.
+  ar: لقد بلغت الحد الأقصى لعدد مفاتيح API ({max}). قم بإلغاء مفتاح موجود لإنشاء مفتاح جديد.
+  hi: आप API कुंजियों की अधिकतम संख्या ({max}) तक पहुंच गए हैं। नई कुंजी बनाने के लिए मौजूदा कुंजी रद्द करें।
+  th: คุณมีคีย์ API ถึงจำนวนสูงสุดแล้ว ({max}) เพิกถอนคีย์ที่มีอยู่เพื่อสร้างคีย์ใหม่
+  cs: Dosáhli jste maximálního počtu API klíčů ({max}). Pro vytvoření nového odvolejte existující klíč.
+  sv: Du har nått det maximala antalet API-nycklar ({max}). Återkalla en befintlig nyckel för att skapa en ny.
+  he: הגעת למספר המרבי של מפתחות API ({max}). בטל מפתח קיים כדי ליצור מפתח חדש.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.unknown:
+  context: Fallback value for unknown API key dates
+  en: Unknown
+  de: Unbekannt
+  zh: 未知
+  es: Desconocido
+  fr: Inconnu
+  pt: Desconhecido
+  ru: Неизвестно
+  ja: 不明
+  ko: 알 수 없음
+  it: Sconosciuto
+  tr: Bilinmiyor
+  vi: Không xác định
+  id: Tidak diketahui
+  pl: Nieznane
+  nl: Onbekend
+  ar: غير معروف
+  hi: अज्ञात
+  th: ไม่ทราบ
+  cs: Neznámé
+  sv: Okänt
+  he: לא ידוע
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.unlimited_credits:
+  context: API key credit limit summary when unlimited
+  en: Unlimited credits
+  de: Unbegrenzte Credits
+  zh: 无限制额度
+  es: Créditos ilimitados
+  fr: Crédits illimités
+  pt: Créditos ilimitados
+  ru: Неограниченные кредиты
+  ja: 無制限クレジット
+  ko: 무제한 크레딧
+  it: Crediti illimitati
+  tr: Sınırsız kredi
+  vi: Tín dụng không giới hạn
+  id: Kredit tidak terbatas
+  pl: Nieograniczone kredyty
+  nl: Onbeperkte credits
+  ar: أرصدة غير محدودة
+  hi: असीमित क्रेडिट
+  th: เครดิตไม่จำกัด
+  cs: Neomezené kredity
+  sv: Obegränsade krediter
+  he: קרדיטים ללא הגבלה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.credit_limit_summary:
+  context: API key credit limit summary with replacements
+  en: "{credits} credits / {period}"
+  de: "{credits} Credits / {period}"
+  zh: "{credits} 额度 / {period}"
+  es: "{credits} créditos / {period}"
+  fr: "{credits} crédits / {period}"
+  pt: "{credits} créditos / {period}"
+  ru: "{credits} кредитов / {period}"
+  ja: "{credits} クレジット / {period}"
+  ko: "{credits} 크레딧 / {period}"
+  it: "{credits} crediti / {period}"
+  tr: "{credits} kredi / {period}"
+  vi: "{credits} tín dụng / {period}"
+  id: "{credits} kredit / {period}"
+  pl: "{credits} kredytów / {period}"
+  nl: "{credits} credits / {period}"
+  ar: "{credits} رصيد / {period}"
+  hi: "{credits} क्रेडिट / {period}"
+  th: "{credits} เครดิต / {period}"
+  cs: "{credits} kreditů / {period}"
+  sv: "{credits} krediter / {period}"
+  he: "{credits} קרדיטים / {period}"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.never_used:
+  context: API key last used summary when never used
+  en: Never used
+  de: Nie verwendet
+  zh: 从未使用
+  es: Nunca usada
+  fr: Jamais utilisée
+  pt: Nunca usada
+  ru: Никогда не использовался
+  ja: 未使用
+  ko: 사용된 적 없음
+  it: Mai usata
+  tr: Hiç kullanılmadı
+  vi: Chưa từng dùng
+  id: Tidak pernah digunakan
+  pl: Nigdy nie użyto
+  nl: Nooit gebruikt
+  ar: لم يُستخدم أبداً
+  hi: कभी उपयोग नहीं किया गया
+  th: ไม่เคยใช้
+  cs: Nikdy nepoužito
+  sv: Aldrig använd
+  he: מעולם לא שומש
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+api_keys.last_used_on:
+  context: API key last used summary with date replacement
+  en: "Last used: {date}"
+  de: "Zuletzt verwendet: {date}"
+  zh: "上次使用：{date}"
+  es: "Último uso: {date}"
+  fr: "Dernière utilisation : {date}"
+  pt: "Último uso: {date}"
+  ru: "Последнее использование: {date}"
+  ja: "最終使用: {date}"
+  ko: "마지막 사용: {date}"
+  it: "Ultimo utilizzo: {date}"
+  tr: "Son kullanım: {date}"
+  vi: "Dùng lần cuối: {date}"
+  id: "Terakhir digunakan: {date}"
+  pl: "Ostatnio użyto: {date}"
+  nl: "Laatst gebruikt: {date}"
+  ar: "آخر استخدام: {date}"
+  hi: "अंतिम उपयोग: {date}"
+  th: "ใช้ล่าสุด: {date}"
+  cs: "Naposledy použito: {date}"
+  sv: "Senast använd: {date}"
+  he: "שימוש אחרון: {date}"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 devices:
   context: Navigation label for the devices settings sub-page
   en: Devices

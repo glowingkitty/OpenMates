@@ -24,11 +24,55 @@ final class SettingsFullParityUITests: XCTestCase {
         for destination in guestDestinations {
             openDestination(destination, in: app)
             XCTAssertFalse(app.tables.firstMatch.exists, "Settings destination must not render default List/table chrome")
+            if destination.page == "settings-report-issue-page" {
+                XCTAssertTrue(app.descendants(matching: .any)["settings-report-issue-form"].waitForExistence(timeout: 5))
+                XCTAssertTrue(app.descendants(matching: .any)["report-issue-title"].exists)
+                XCTAssertTrue(app.descendants(matching: .any)["report-issue-submit"].exists)
+            }
             app.descendants(matching: .any)["settings-destination-back"].tap()
             XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 5))
         }
 
         attachScreenshot(name: "Guest settings submenu smoke")
+    }
+
+    func testReportIssueSubmissionSucceedsAndUploadsSimulatorLogs() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-report-issue-success",
+            "--ui-test-seed-report-logs",
+        ]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["settings-button"].waitForExistence(timeout: 15))
+        app.buttons["settings-button"].tap()
+        XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
+
+        openDestination((row: "settings-report-issue-row", page: "settings-report-issue-page"), in: app)
+        enterText("Report issue UI test submission", into: "report-issue-title", in: app)
+        enterText("Opened Settings, Report issue, and submitted from the simulator.", into: "report-issue-user-flow", in: app)
+        enterText("A success reference appears and logs are uploaded.", into: "report-issue-expected", in: app)
+        enterText("The UI test verifies the native issue-log payload.", into: "report-issue-actual", in: app)
+
+        app.descendants(matching: .any)["report-issue-submit"].tap()
+        XCTAssertTrue(waitForElement("report-issue-reference", in: app, timeout: 10))
+        XCTAssertTrue(app.staticTexts["report-issue-reference"].label.contains("OPE-IOS-UI-TEST"))
+
+        let logPayload = app.staticTexts["report-issue-debug-log-payload"]
+        XCTAssertTrue(logPayload.waitForExistence(timeout: 5))
+        XCTAssertTrue(logPayload.label.contains("issue-ios-ui-test"))
+        XCTAssertTrue(logPayload.label.contains("apple://settings/report_issue"))
+        XCTAssertTrue(logPayload.label.contains("OpenMates-Apple"))
+        XCTAssertTrue(logPayload.label.contains("ui_test_simulator"))
+        XCTAssertTrue(logPayload.label.contains("Report issue simulator diagnostic"))
+        XCTAssertTrue(logPayload.label.contains("Submitting native issue report"))
+        XCTAssertTrue(logPayload.label.contains("<email>"))
+        XCTAssertTrue(logPayload.label.contains("token=<redacted>"))
+        XCTAssertFalse(logPayload.label.contains("tester@example.org"))
+        XCTAssertFalse(logPayload.label.contains("token=secret"))
+
+        attachScreenshot(name: "Report issue submission success with simulator logs")
     }
 
     private var guestDestinations: [(row: String, page: String)] {
@@ -60,7 +104,19 @@ final class SettingsFullParityUITests: XCTestCase {
             scrollView.swipeUp()
             if element.waitForExistence(timeout: 1) { return true }
         }
+        for _ in 0..<6 where scrollView.exists {
+            scrollView.swipeDown()
+            if element.waitForExistence(timeout: 1) { return true }
+        }
         return false
+    }
+
+    private func enterText(_ text: String, into identifier: String, in app: XCUIApplication) {
+        let textView = app.textViews[identifier]
+        let element = textView.exists ? textView : app.descendants(matching: .any)[identifier]
+        XCTAssertTrue(element.waitForExistence(timeout: 5), "Expected text input \(identifier)")
+        element.tap()
+        element.typeText(text)
     }
 
     private func attachScreenshot(name: String) {

@@ -5,7 +5,7 @@ import AppIntents
 import Foundation
 
 struct SearchConnectionsIntent: AppIntent {
-    static let title: LocalizedStringResource = "Search Travel Connections"
+    static let title: LocalizedStringResource = "Travel | Search Connections"
     static let description: IntentDescription = "Search for flights or train connections between cities."
     static let openAppWhenRun = false
 
@@ -41,7 +41,7 @@ struct SearchConnectionsIntent: AppIntent {
 }
 
 struct SearchStaysIntent: AppIntent {
-    static let title: LocalizedStringResource = "Search Hotels"
+    static let title: LocalizedStringResource = "Travel | Search Stays"
     static let description: IntentDescription = "Search for hotels and accommodations."
     static let openAppWhenRun = false
 

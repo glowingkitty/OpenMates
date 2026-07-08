@@ -113,3 +113,35 @@ struct ChatImportView: View {
         }
     }
 }
+
+#if os(iOS)
+private struct DocumentPickerView: UIViewControllerRepresentable {
+    let onFileSelected: (URL) -> Void
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.zip, .archive])
+        picker.allowsMultipleSelection = false
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onFileSelected: onFileSelected)
+    }
+
+    final class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let onFileSelected: (URL) -> Void
+
+        init(onFileSelected: @escaping (URL) -> Void) {
+            self.onFileSelected = onFileSelected
+        }
+
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            guard let url = urls.first else { return }
+            onFileSelected(url)
+        }
+    }
+}
+#endif

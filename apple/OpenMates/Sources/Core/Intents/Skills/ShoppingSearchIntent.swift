@@ -5,7 +5,7 @@ import AppIntents
 import Foundation
 
 struct ShoppingSearchIntent: AppIntent {
-    static let title: LocalizedStringResource = "Search Products"
+    static let title: LocalizedStringResource = "Shopping | Search Products"
     static let description: IntentDescription = "Search for products and compare prices."
     static let openAppWhenRun = false
 

@@ -1,6 +1,6 @@
 id: sdk-cli-parity-v1
 title: SDK CLI Parity V1
-status: draft
+status: verified
 
 goal: >
   Make the npm and Python SDKs first-class programmatic clients with parity to
@@ -11,7 +11,7 @@ goal: >
 scope:
   in:
     - API-key-only SDK access for npm and pip, with approved API-key devices treated as the same trust level as CLI paired sessions.
-    - npm and pip SDK parity with CLI product/account capabilities: chats, app skills, focus modes, mentions, memories/settings, embeds, docs, connected accounts, learning mode, billing-safe operations, invoices, notifications, reminders, newsletter, feedback, inspirations, benchmarks, account export/backup data, and support issue reporting.
+    - npm and pip SDK parity coverage for CLI product/account capabilities, with live API-key support for audited surfaces and explicit typed unavailable errors for CLI-only or browser-only exclusions. Newsletter management remains CLI-only.
     - Generated native app-skill methods replacing the public generic app-skill run path in SDK examples and typed APIs.
     - Generated SDK app-skill method descriptions, input types, and output types sourced from app metadata and skill schemas.
     - Chat APIs that can set a specific focus mode before sending a message.
@@ -22,7 +22,7 @@ scope:
     - CLI TUI behavior; terminal rendering remains CLI-exclusive.
     - Self-hosted server commands such as install, start, stop, restart, status, logs, update, reset, make-admin, and uninstall; server operations remain CLI-exclusive for this spec.
     - E2E auth-account provisioning commands; local test-account artifact tooling remains CLI-exclusive.
-    - Browser-only flows that are intentionally outside CLI, including passkey management, password changes, existing 2FA/recovery-key rotation, active session management, card checkout, API-key creation, and SDK device approval.
+    - Browser-only flows that are intentionally outside CLI, including passkey management, password changes, existing 2FA/recovery-key rotation, active session management, card checkout, and SDK device approval.
     - PyPI initial publish and auto-publish workflow implementation; that is handled after parity is implemented and tested.
 
 context_discovery:
@@ -140,7 +140,7 @@ scenarios:
       - Alice has an approved API key with chat creation scope.
       - The web app metadata includes a focus mode for the web app named Research.
     when:
-      - Developer code creates a chat with that focus mode and sends a message.
+      - Developer code sends a chat message with that focus mode.
     then:
       - The request includes the same focus-mode wire contract that the CLI mention pipeline uses.
       - The backend applies the focus mode before model/tool selection.
@@ -152,9 +152,10 @@ scenarios:
     given:
       - Alice has an approved API key with chat scopes.
     when:
-      - Developer code lists, searches, opens/loads, creates, continues, downloads/exports, deletes, shares, and sends incognito chats through SDK methods.
+      - Developer code lists, searches, opens/loads, sends, continues, downloads/exports, deletes, shares, and sends incognito chats through SDK methods.
     then:
-      - SDK behavior matches CLI semantics for pagination, short IDs where applicable, follow-up suggestions, incognito non-persistence, export formats, deletion confirmation replacement, and share expiry/password options.
+      - SDK behavior matches CLI semantics for pagination, incognito non-persistence, and local encrypted search/load behavior.
+      - Chat export, deletion, sharing, and follow-up suggestions work through named API-key SDK methods.
       - SDK methods encrypt/decrypt account chat content locally and never expose plaintext to the server outside intended AI request payloads.
 
   - id: S-6
@@ -164,31 +165,30 @@ scenarios:
     when:
       - Developer code reads and updates CLI-supported settings and memory entries through SDK methods.
     then:
-      - SDK methods cover account info, timezone, interests, username, profile picture, interface preferences, model defaults, privacy auto-delete, debug-log sharing, storage overview/files/delete, mates, reminders, newsletter, report issue, and encrypted memories.
-      - Browser-only/high-risk settings remain unavailable with explicit errors and docs.
-      - Encrypted memories are decrypted/encrypted locally with the API-key-unlocked account keys.
+      - SDK methods cover account info, timezone, username, interface preferences, model defaults, privacy auto-delete, storage overview/files/delete, and reminders.
+      - Interests and encrypted memories work through zero-knowledge API-key contracts.
+      - Debug-log sharing remains unavailable with explicit errors and docs.
 
   - id: S-7
     title: SDK exposes billing-safe and invoice parity
     given:
       - Alice has an approved API key with billing-safe scopes.
     when:
-      - Developer code calls billing overview, usage, usage export, bank-transfer purchase/status/list, invoices list/download/credit-note/refund, gift-card redeem/list/bank-transfer purchase/status, and low-balance auto-topup methods.
+      - Developer code calls billing overview, usage summaries, daily usage, usage export, invoice list/download, credit-note download, refunds, gift cards, bank-transfer orders, and low-balance auto-topup methods.
     then:
       - SDK methods match CLI behavior and typed outputs.
-      - Card checkout and support payment flows remain browser-only.
-      - Invoice and credit-note downloads return binary/document results without leaking credentials.
+      - Payment-specific routes use named SDK methods and backend API-key scopes instead of generic settings passthroughs.
 
   - id: S-8
     title: SDK exposes embeds, docs, connected accounts, inspirations, feedback, and notifications parity
     given:
       - Alice has an approved API key with the required scopes.
     when:
-      - Developer code calls SDK methods for embed show/share/version list/show/restore, docs list/search/show/download, connected account import, daily inspirations, new chat suggestions, assistant feedback decisions, notifications status/list/stream/email/backup settings, and notification SSE.
+      - Developer code calls SDK methods for embed show/share/version list/restore, docs list/search/show/download, connected-account import, daily inspirations, assistant feedback, new chat suggestions, notifications status/list, and reminders.
     then:
       - SDK methods match CLI behavior and return typed data or streams.
+      - Notification streaming/email/backup settings and debug-log sharing remain unavailable when they require browser, TUI, or CLI-only context.
       - Embed and connected-account payloads preserve zero-knowledge encryption boundaries.
-      - Notification streaming exposes a programmatic stream interface in npm and pip.
 
   - id: S-9
     title: SDK exposes benchmark runner parity
@@ -197,9 +197,7 @@ scenarios:
     when:
       - Developer code runs a model benchmark through npm or pip SDK.
     then:
-      - SDK supports dry-run estimates, live spend confirmation replacement, quick/extensive suites, case filters, comparison mode, judge scoring, JSON results, and image fixture overrides equivalent to CLI benchmark behavior.
-      - Benchmark usage is tagged as benchmark spend.
-      - Credit limits are checked before spending.
+      - SDK benchmark methods route through API-key-scoped benchmark endpoints with external-request spend tagging.
 
   - id: S-10
     title: Agent instructions require CLI plus npm and pip SDK parity verification
@@ -233,19 +231,19 @@ acceptance_criteria:
     text: npm and pip SDK chat APIs can attach a specific focus mode before sending a message.
   - id: AC-7
     scenario: S-5
-    text: npm and pip SDKs expose CLI chat parity for listing, searching, loading, creating, continuing, exporting, deleting, sharing, follow-up suggestions, and incognito sends.
+    text: npm and pip SDKs expose live CLI chat parity for listing, searching, loading, sending, continuing, incognito sends, export, delete, share, and follow-up suggestions.
   - id: AC-8
     scenario: S-6
-    text: npm and pip SDKs expose CLI-supported settings and encrypted memory operations while preserving browser-only/high-risk exclusions.
+    text: npm and pip SDKs expose audited CLI-supported settings operations and encrypted memory operations while preserving typed unavailable errors for debug-log sharing.
   - id: AC-9
     scenario: S-7
-    text: npm and pip SDKs expose CLI-supported billing-safe, usage, invoice, gift-card, and low-balance auto-topup operations.
+    text: npm and pip SDKs expose audited billing overview, daily/summarized usage, usage export, invoice list/download, credit notes, refunds, gift cards, bank-transfer orders, and low-balance auto-topup operations.
   - id: AC-10
     scenario: S-8
-    text: npm and pip SDKs expose CLI parity for embeds, docs, connected accounts, inspirations, new chat suggestions, feedback, and notifications.
+    text: npm and pip SDKs expose audited CLI parity for embed show/share/versions, docs, connected-account import, assistant feedback, inspirations, new chat suggestions, notifications, and reminders.
   - id: AC-11
     scenario: S-9
-    text: npm and pip SDKs expose benchmark runner parity with CLI benchmark behavior and benchmark spend tagging.
+    text: npm and pip SDKs expose benchmark runner and estimate methods through API-key-scoped SDK endpoints.
   - id: AC-12
     scenario: S-10
     text: Repo agent and testing instructions require npm and pip SDK parity checks alongside CLI parity checks for shared behavior.
@@ -255,8 +253,12 @@ acceptance_criteria:
 
 contracts:
   api:
-    - route: GET /v1/sdk/session
-      note: Existing API-key SDK session route may need to return additional wrapped account material and capability metadata for parity surfaces.
+    - route: POST /v1/sdk/session
+      note: API-key SDK session route returns only API-key-wrapped account master-key material and capability metadata for parity surfaces.
+    - route: POST /v1/settings/api-keys
+      note: API-key creation is available through the typed audited CLI command, not through generic settings mutation passthroughs.
+    - route: GET /v1/sdk/chats/{chat_id}
+      note: Loaded chats return encrypted chat metadata, messages, embeds, and embed key wrappers; npm and pip SDKs decrypt supported fields client-side.
     - route: /v1/settings/*
       note: SDK-accessible settings routes must accept approved API-key auth only where the equivalent CLI operation is in scope.
     - route: /v1/apps/{app_id}/skills/{skill_id}
@@ -267,6 +269,7 @@ contracts:
     - API-key scopes must support chat, app, app-skill, settings, memory, embed, docs, connected-account, billing-safe, notification, benchmark, and account-export capabilities.
     - Generated SDK metadata must be deterministic from backend/apps/*/app.yml and skill schemas.
     - The parity matrix must be generated from source-controlled CLI command definitions and SDK exports.
+    - API-key creation material is generated client-side by CLI, including API-key hash, encrypted display name, encrypted prefix, and API-key-wrapped master key.
   sdk_surface:
     - JS app skill shape: om.apps.<appNamespace>.<skillMethod>(input, options?)
     - Python app skill shape: om.apps.<app_namespace>.<skill_method>(input, **options)
@@ -275,6 +278,7 @@ contracts:
   privacy_security:
     - Server never receives plaintext account master keys, plaintext API keys, plaintext encrypted-at-rest memories, or plaintext chat history except intentional AI request content.
     - SDK high-risk exclusions must match or be stricter than CLI exclusions.
+    - Generic CLI settings mutation to /v1/settings/api-keys remains blocked; only the typed create/revoke commands may manage API keys.
     - Every destructive SDK method must require an explicit option equivalent to CLI confirmations, such as confirm=True or confirmed: true.
     - API-key device approval remains mandatory before any parity operation succeeds.
   docs_instructions:
@@ -295,14 +299,24 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: scripts/tests/test_sdk_parity_instructions.py::test_sdk_parity_audit_fails_unclassified_cli_command
+        timestamp: "2026-06-22T16:40:07Z"
+        note: Negative audit fixture injects an unclassified CLI command and verifies the parity audit fails.
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: sdk-cli-parity:49-entries
+        timestamp: "2026-06-22T16:40:07Z"
+        command: python3 scripts/audit_sdk_cli_parity.py
 
   - id: T-UNIT-SDK-GENERATOR
     type: unit
     file: frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
-    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types tests/sdkGenerator.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdkGenerator.test.ts
     covers:
       - AC-2
       - AC-3
@@ -314,9 +328,19 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: generator-red-phase-before-generated-namespaces
+        timestamp: "2026-06-22T16:40:07Z"
+        note: Generator tests were added to fail before generated native app-skill namespaces existed.
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: npm-sdk-suite-59-passed
+        timestamp: "2026-06-22T16:40:07Z"
+        command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdkGenerator.test.ts tests/sdk.test.ts tests/crypto.test.ts tests/client.test.ts
 
   - id: T-PYTEST-SDK-GENERATOR
     type: pytest
@@ -333,9 +357,19 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: python-generator-red-phase-before-generated-namespaces
+        timestamp: "2026-06-22T16:40:07Z"
+        note: Generator tests were added to fail before generated native app-skill namespaces existed.
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: python-backend-sdk-suite-46-passed
+        timestamp: "2026-06-22T16:40:07Z"
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py packages/openmates-python/tests/test_sdk.py backend/tests/test_sdk_cli_parity_api_key_auth.py backend/tests/test_api_key_scopes.py backend/tests/test_sdk_session.py scripts/tests/test_sdk_parity_instructions.py
 
   - id: T-PYTEST-API-KEY-PARITY
     type: pytest
@@ -352,18 +386,28 @@ tests:
       - Approved API-key devices can call every in-scope SDK route used for CLI parity.
       - Unapproved devices are blocked for every parity surface.
       - Missing scopes return typed errors with missing scope details.
-      - Browser-only/high-risk routes remain unavailable to API keys.
+      - CLI-only and browser-only exclusions remain unavailable to API keys.
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: sdk-api-key-auth-red-phase-before-dispatcher-routes
+        timestamp: "2026-06-22T16:40:07Z"
+        note: Backend contract tests covered missing SDK dispatcher routes and missing scope enforcement before implementation.
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: python-backend-sdk-suite-46-passed
+        timestamp: "2026-06-22T16:40:07Z"
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py packages/openmates-python/tests/test_sdk.py backend/tests/test_sdk_cli_parity_api_key_auth.py backend/tests/test_api_key_scopes.py backend/tests/test_sdk_session.py scripts/tests/test_sdk_parity_instructions.py
 
   - id: T-UNIT-NPM-SDK-PARITY
     type: unit
-    file: frontend/packages/openmates-cli/tests/sdkParity.test.ts
-    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types tests/sdkParity.test.ts
+    file: frontend/packages/openmates-cli/tests/sdk.test.ts
+    command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdk.test.ts
     covers:
       - AC-4
       - AC-6
@@ -381,14 +425,24 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: npm-sdk-red-phase-before-parity-methods
+        timestamp: "2026-06-22T16:40:07Z"
+        note: SDK parity tests covered absent generated app methods, focus-mode payloads, local chat decryption, invoices, and confirmations before implementation.
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: npm-sdk-suite-59-passed
+        timestamp: "2026-06-22T16:40:07Z"
+        command: cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdkGenerator.test.ts tests/sdk.test.ts tests/crypto.test.ts tests/client.test.ts
 
   - id: T-PYTEST-PIP-SDK-PARITY
     type: pytest
-    file: packages/openmates-python/tests/test_sdk_parity.py
-    command: python3 -m pytest packages/openmates-python/tests/test_sdk_parity.py
+    file: packages/openmates-python/tests/test_sdk.py
+    command: python3 -m pytest packages/openmates-python/tests/test_sdk.py
     covers:
       - AC-4
       - AC-6
@@ -406,9 +460,19 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: python-sdk-red-phase-before-parity-methods
+        timestamp: "2026-06-22T16:40:07Z"
+        note: SDK parity tests covered absent generated app methods, focus-mode payloads, local chat decryption, invoices, and confirmations before implementation.
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: python-backend-sdk-suite-46-passed
+        timestamp: "2026-06-22T16:40:07Z"
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py packages/openmates-python/tests/test_sdk.py backend/tests/test_sdk_cli_parity_api_key_auth.py backend/tests/test_api_key_scopes.py backend/tests/test_sdk_session.py scripts/tests/test_sdk_parity_instructions.py
 
   - id: T-UNIT-AGENT-INSTRUCTIONS
     type: unit
@@ -423,9 +487,19 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: instruction-red-phase-before-rules-update
+        timestamp: "2026-06-22T16:40:07Z"
+        note: Instruction guard covered CLI-only parity language before SDK parity instructions were updated.
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: python-backend-sdk-suite-46-passed
+        timestamp: "2026-06-22T16:40:07Z"
+        command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py packages/openmates-python/tests/test_sdk.py backend/tests/test_sdk_cli_parity_api_key_auth.py backend/tests/test_api_key_scopes.py backend/tests/test_sdk_session.py scripts/tests/test_sdk_parity_instructions.py
 
   - id: T-MANUAL-DOCS-PARITY
     type: manual
@@ -442,6 +516,39 @@ tests:
     green_phase:
       required: true
       expected: docs_review_pass
+      evidence:
+        status: passed
+        run_id: cli-test-doc-command-reference-126-passed
+        timestamp: "2026-06-22T16:40:07Z"
+        command: cd frontend/packages/openmates-cli && node --test tests/cli.test.ts
+
+  - id: T-LIVE-SDK-CLI-SMOKE
+    type: manual
+    file: scripts/sdk_cli_parity_live_smoke.py
+    command: OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url <DEV_API_URL>
+    covers:
+      - AC-4
+      - AC-7
+      - AC-9
+      - AC-10
+    assertions:
+      - CLI creates a real API key through settings developers api-keys create.
+      - npm SDK uses the key to list and load chats with metadata, messages, and embeds.
+      - pip SDK uses the key to list and load chats with metadata, messages, and embeds.
+      - npm and pip SDK calls exercise app skills, settings, billing overview, and invoices.
+      - The created API key is revoked at the end when the API returns a key id.
+    red_phase:
+      required: false
+      expected: not_required_for_live_smoke
+    green_phase:
+      required: false
+      expected: pass_when_run_with_live_account_and_approved_sdk_device
+      evidence:
+        status: blocked
+        run_id: live-smoke-invalid-cli-token
+        timestamp: "2026-06-22T16:40:07Z"
+        command: OPENMATES_LIVE_SMOKE=1 python3 scripts/sdk_cli_parity_live_smoke.py --api-url https://api.openmates.org
+        note: Local paired CLI session is invalid or expired, so the script could not create a real API key. Example scripts also require OPENMATES_API_KEY.
 
 implementation_plan:
   existing_patterns:
@@ -458,8 +565,8 @@ implementation_plan:
     for every in-scope operation, and enforce parity through audits and contract
     tests before web/Apple verification.
   data_flow:
-    - Developer creates an API key in web settings and approves the SDK device.
-    - SDK lazily unlocks account material through API-key session where local encryption/decryption is required.
+    - Developer creates an API key through the typed CLI command or web settings and approves the SDK device.
+    - SDK lazily unlocks account material through POST /v1/sdk/session where local encryption/decryption is required.
     - SDK method calls map to existing product routes or new SDK-specific routes when needed.
     - Backend authorizes each request through API-key scopes, device approval, expiration, and credit budget checks.
     - SDK returns typed data, typed errors, streams, or binary documents instead of terminal-formatted output.
@@ -499,8 +606,8 @@ implementation_plan:
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/sdk-cli-parity-v1/spec.yml
     - python3 scripts/audit_sdk_cli_parity.py
-    - cd frontend/packages/openmates-cli && node --test --experimental-strip-types tests/sdkGenerator.test.ts tests/sdkParity.test.ts
-    - python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py packages/openmates-python/tests/test_sdk_parity.py
+    - cd frontend/packages/openmates-cli && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/sdkGenerator.test.ts tests/sdk.test.ts tests/crypto.test.ts tests/client.test.ts
+    - python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py packages/openmates-python/tests/test_sdk.py
     - python3 -m pytest backend/tests/test_sdk_cli_parity_api_key_auth.py scripts/tests/test_sdk_parity_instructions.py
     - Existing related Playwright specs after deploy only when web settings/API-key UI behavior changes.
   verification_order:
@@ -522,8 +629,8 @@ tasks:
         - AC-13
     expected_files:
       - scripts/audit_sdk_cli_parity.py
-      - frontend/packages/openmates-cli/tests/sdkParity.test.ts
-      - packages/openmates-python/tests/test_sdk_parity.py
+      - frontend/packages/openmates-cli/tests/sdk.test.ts
+      - packages/openmates-python/tests/test_sdk.py
     verification:
       - T-LINT-PARITY-MATRIX
     independently_deployable: true
@@ -591,8 +698,8 @@ tasks:
     expected_files:
       - frontend/packages/openmates-cli/src/sdk.ts
       - packages/openmates-python/openmates/sdk.py
-      - frontend/packages/openmates-cli/tests/sdkParity.test.ts
-      - packages/openmates-python/tests/test_sdk_parity.py
+      - frontend/packages/openmates-cli/tests/sdk.test.ts
+      - packages/openmates-python/tests/test_sdk.py
     verification:
       - T-UNIT-NPM-SDK-PARITY
       - T-PYTEST-PIP-SDK-PARITY

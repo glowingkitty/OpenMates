@@ -67,8 +67,8 @@ All Playwright specs use `getE2EDebugUrl()` which injects `#e2e-debug={runId}-{s
 
 ## Additional Test Rules
 
-- **New functionality verification order:** Test new functionality in OpenMates CLI first, web app `*.spec.ts` second, and Apple app third when there is a native counterpart. CLI evidence is the cheapest and fastest proof of backend/API/WebSocket correctness; Playwright proves browser-specific Svelte/TipTap/IndexedDB/user-interaction behavior; Apple verification proves native parity. Do not skip directly to Playwright for shared product behavior unless the change is clearly browser-only.
-- **Cross-app parity order:** For chat, AI pipeline, settings-backed chat behavior, app skills, embeds, sync, or any feature that exists across clients, the same CLI → web → Apple order is mandatory. If a chat-related Playwright spec fails and no matching CLI contract exists, write or propose the minimal CLI contract before changing the web spec, unless the failure is clearly browser-only (selector, layout, screenshot, pointer-event overlay, or Svelte-only rendering).
+- **New functionality verification order:** Test new functionality in OpenMates CLI first, npm SDK second, pip SDK third, web app `*.spec.ts` fourth, and Apple app fifth when there is a native counterpart. CLI and SDK evidence are the cheapest proof of backend/API/WebSocket correctness; Playwright proves browser-specific Svelte/TipTap/IndexedDB/user-interaction behavior; Apple verification proves native parity. Do not skip directly to Playwright for shared product behavior unless the change is clearly browser-only.
+- **Cross-app parity order:** For chat, AI pipeline, settings-backed chat behavior, app skills, embeds, sync, billing, notifications, benchmark behavior, or any feature that exists across clients, the same CLI → npm SDK → pip SDK → web → Apple order is mandatory. Run `python3 scripts/audit_sdk_cli_parity.py` when the CLI or SDK surface changes. If a chat-related Playwright spec fails and no matching CLI/SDK contract exists, write or propose the minimal CLI/SDK contract before changing the web spec, unless the failure is clearly browser-only (selector, layout, screenshot, pointer-event overlay, or Svelte-only rendering).
 - When a spec failure points to a repeated flaky pattern, first look for a
   deterministic helper or audit improvement that would prevent the class of
   failure across specs. Prefer shared helpers and `scripts/audit_*` checks over
@@ -103,13 +103,13 @@ Every bug fix and feature MUST follow this test-first workflow. No exceptions un
 
 ### Features
 
-1. **Plan the verification ladder:** identify the CLI command/contract, web `*.spec.ts`, and Apple `scripts/apple_remote.py test-ios` or `build-ios` evidence required for the feature. If no Apple counterpart exists, record `Apple not affected`.
+1. **Plan the verification ladder:** identify the CLI command/contract, npm SDK contract, pip SDK contract, web `*.spec.ts`, and Apple `scripts/apple_remote.py test-ios` or `build-ios` evidence required for the feature. If no Apple counterpart exists, record `Apple not affected`.
 2. **Implement the feature.**
-3. **CLI first:** add or run the OpenMates CLI proof before Playwright for shared product behavior.
+3. **CLI and SDK first:** add or run the OpenMates CLI, npm SDK, and pip SDK proofs before Playwright for shared product behavior.
 4. **Check for existing web spec:** Run `sessions.py check-tests --session <id>`.
 5. **Spec exists → extend it:** Add assertions for the new behavior. Run to confirm green.
 6. **No spec exists → propose a test plan:** For user-facing features, propose an E2E test (user flow, assertions, which spec to create or extend). Wait for user confirmation, then write and run.
-7. **Apple third:** after CLI and web evidence are green, run or attempt Apple verification with `scripts/apple_remote.py` when the feature has an Apple counterpart.
+7. **Apple last:** after CLI, npm SDK, pip SDK, and web evidence are green, run or attempt Apple verification with `scripts/apple_remote.py` when the feature has an Apple counterpart.
 8. **Run related specs:** Ensure no regressions in adjacent functionality.
 
 ### Exempt Changes (no spec required)

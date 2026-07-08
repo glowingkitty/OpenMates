@@ -92,15 +92,15 @@ function isPublicChatId(chatId: string): boolean {
 }
 
 /**
- * Open the sidebar and return the titles of the first N user-owned chats
+ * Open the sidebar and return the first N user-owned chats
  * (excluding public/demo/intro/legal/newsletter chats).
  * Closes the sidebar afterwards.
  */
-async function getSidebarChatTitles(
+async function getSidebarChats(
 	page: any,
 	logStep: (...args: any[]) => void,
 	count: number = 5
-): Promise<string[]> {
+): Promise<Array<{ chatId: string; title: string }>> {
 	// Open sidebar
 	const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
 	const activityHistory = page.getByTestId('activity-history-wrapper');
@@ -115,40 +115,58 @@ async function getSidebarChatTitles(
 	// Get user-owned chat titles (skip public/demo/intro, encrypted, and unnamed chats)
 	const chatWrappers = page.locator('[data-testid="chat-item-wrapper"]');
 	const wrapperCount = await chatWrappers.count();
-	const titles: string[] = [];
+	const chats: Array<{ chatId: string; title: string }> = [];
 	for (let i = 0; i < Math.min(wrapperCount, count * 3); i++) {
-		if (titles.length >= count) break;
+		if (chats.length >= count) break;
 		const chatId = await chatWrappers.nth(i).getAttribute('data-chat-id');
 		if (!chatId || isPublicChatId(chatId)) continue;
-		const titleEl = chatWrappers.nth(i).locator('.chat-title');
+		const titleEl = chatWrappers.nth(i).getByTestId('chat-title');
 		const text = (await titleEl.textContent())?.trim() || '';
 		if (
 			text &&
 			!text.includes('+') &&
 			!text.includes('=') &&
 			text !== 'Unnamed chat' &&
+			text !== 'Untitled chat' &&
 			text.toLowerCase() !== 'processing'
 		) {
-			titles.push(text);
+			chats.push({ chatId, title: text });
 		}
 	}
-	logStep(`Sidebar has ${titles.length} user-owned chats (scanned ${Math.min(wrapperCount, count * 3)})`);
-	return titles;
+	logStep(`Sidebar has ${chats.length} user-owned chats (scanned ${Math.min(wrapperCount, count * 3)})`);
+	return chats;
 }
 
 /**
- * Click a chat in the sidebar by its title.
+ * Click a chat in the sidebar by its stable data-chat-id.
  * Sidebar must already be open.
  */
-async function clickChatByTitle(
+async function clickChatById(
 	page: any,
-	title: string,
+	chatId: string,
 	logStep: (...args: any[]) => void
 ): Promise<void> {
-	const chatItem = page.locator('[data-testid="chat-item"]').filter({ hasText: title }).first();
+	const chatItem = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${chatId}"]`).first();
 	await expect(chatItem).toBeVisible({ timeout: 10000 });
 	await chatItem.click();
-	logStep(`Clicked chat: "${title}"`);
+	logStep(`Clicked chat id: "${chatId}"`);
+	// Wait for chat to load (messages appear)
+	await page.waitForTimeout(3000);
+}
+
+/**
+ * Click a chat from the recent-cards carousel by its stable data-chat-id.
+ */
+async function clickRecentCardById(
+	page: any,
+	chatId: string,
+	logStep: (...args: any[]) => void
+): Promise<void> {
+	const container = page.getByTestId('recent-chats-scroll-container');
+	const card = container.locator(`[data-chat-id="${chatId}"]`).first();
+	await expect(card).toBeVisible({ timeout: 10000 });
+	await card.click();
+	logStep(`Clicked recent chat card id: "${chatId}"`);
 	// Wait for chat to load (messages appear)
 	await page.waitForTimeout(3000);
 }
@@ -200,10 +218,26 @@ async function closeSidebar(page: any, logStep: (...args: any[]) => void): Promi
  * Returns null if no resume card is visible.
  */
 async function getResumeCardTitle(page: any): Promise<string | null> {
-	// Try large card first, then compact card
+	// Prefer the primary last-opened resume card. The carousel may render
+	// priority/reminder cards before it, and those cards reuse the title test IDs.
+	const primaryResumeCard = page
+		.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]')
+		.first();
+	if (await primaryResumeCard.isVisible({ timeout: 10000 }).catch(() => false)) {
+		const largeTitle = primaryResumeCard.getByTestId('resume-large-title').first();
+		const compactTitle = primaryResumeCard.getByTestId('resume-chat-title').first();
+		if (await largeTitle.isVisible({ timeout: 500 }).catch(() => false)) {
+			return (await largeTitle.textContent())?.trim() || null;
+		}
+		if (await compactTitle.isVisible({ timeout: 500 }).catch(() => false)) {
+			return (await compactTitle.textContent())?.trim() || null;
+		}
+	}
+
+	// Fallback for the edge case where the current resume chat is also promoted
+	// into the priority section, which intentionally suppresses the primary card.
 	const largeTitle = page.getByTestId('resume-large-title').first();
 	const compactTitle = page.getByTestId('resume-chat-title').first();
-
 	if (await largeTitle.isVisible({ timeout: 500 }).catch(() => false)) {
 		return (await largeTitle.textContent())?.trim() || null;
 	}
@@ -327,20 +361,19 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	await performLogin(page, logStep, takeStepScreenshot);
 	await takeStepScreenshot(page, '01-logged-in');
 
-	// Get sidebar chat titles — need at least 2 real chats
-	const chatTitles = await getSidebarChatTitles(page, logStep, 10);
-	logStep(`Available chats: ${JSON.stringify(chatTitles.slice(0, 5))}`);
-	expect(chatTitles.length).toBeGreaterThanOrEqual(2);
+	// Get sidebar chats — need at least 1 real chat to seed the resume-card flow.
+	const sidebarChats = await getSidebarChats(page, logStep, 10);
+	logStep(`Available chats: ${JSON.stringify(sidebarChats.slice(0, 5))}`);
+	expect(sidebarChats.length).toBeGreaterThanOrEqual(1);
 
-	const chatA_title = chatTitles[0];
-	const chatB_title = chatTitles[1];
-	logStep(`Chat A: "${chatA_title}", Chat B: "${chatB_title}"`);
+	const chatA = sidebarChats[0];
+	logStep(`Chat A: "${chatA.title}" (${chatA.chatId})`);
 
 	// =========================================================================
 	// PHASE 2: Open chat A → New Chat → verify resume card shows chat A
 	// =========================================================================
 	logStep('Phase 2: Opening chat A...');
-	await clickChatByTitle(page, chatA_title, logStep);
+	await clickChatById(page, chatA.chatId, logStep);
 	const chatA_visibleTitle = await getVisibleChatHeaderTitle(page);
 	await takeStepScreenshot(page, '02-chat-a-opened');
 
@@ -372,6 +405,12 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	expect(dupes1).toEqual([]);
 	logStep('PASS: No duplicate cards found.');
 
+	const chatB = allCards1.find(
+		(card) => card.chatId && card.chatId !== chatA.chatId && card.title !== 'Untitled chat'
+	);
+	expect(chatB, 'Expected a second recent chat card to open for phase 3').toBeTruthy();
+	logStep(`Chat B from recent cards: "${chatB?.title}" (${chatB?.chatId})`);
+
 	await takeStepScreenshot(page, '02-verified');
 
 	// =========================================================================
@@ -379,13 +418,7 @@ test('resume card updates to last opened chat on each new-chat transition', asyn
 	// =========================================================================
 	logStep('Phase 3: Opening chat B...');
 
-	// Open sidebar, click chat B
-	const menuToggle = page.locator('[data-testid="sidebar-toggle"]');
-	await expect(menuToggle).toBeVisible({ timeout: 5000 });
-	await menuToggle.click();
-	await page.waitForTimeout(2000);
-
-	await clickChatByTitle(page, chatB_title, logStep);
+	await clickRecentCardById(page, chatB!.chatId!, logStep);
 	const chatB_visibleTitle = await getVisibleChatHeaderTitle(page);
 	await takeStepScreenshot(page, '03-chat-b-opened');
 

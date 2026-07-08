@@ -6,11 +6,24 @@
 # each user's ordered inspiration list after personalized video/wiki items are
 # prepared. Edit this file to change feature copy or settings destinations.
 
+import os
 import time
 import uuid
 from typing import List
 
-from backend.apps.ai.daily_inspiration.schemas import DailyInspiration, DailyInspirationFeature
+from backend.apps.ai.daily_inspiration.schemas import (
+    DailyInspiration,
+    DailyInspirationDirectVideo,
+    DailyInspirationFeature,
+)
+
+
+PRODUCT_VIDEO_BASE_URL_ENV = "OPENMATES_PRODUCT_VIDEOS_BASE_URL"
+DEFAULT_PRODUCT_VIDEO_BASE_URL = (
+    "https://openmates-product-media.nbg1.your-objectstorage.com/"
+    "daily-inspiration/product-videos/v1"
+)
+TEASER_ASSET_BASE_PATH = "/daily-inspiration-videos"
 
 
 FEATURE_TIPS = [
@@ -33,6 +46,40 @@ FEATURE_TIPS = [
         "phrase": "Want stronger privacy controls? Add custom data to PII detection.",
         "category": "openmates_official",
         "requires_authentication": False,
+        "direct_video_filename": "custom-pii-detection.mp4",
+    },
+    {
+        "feature_id": "events-search",
+        "icon": "calendar-search",
+        "title": "Find events",
+        "description": "Search Meetup, Luma, Google Events, Resident Advisor, and more.",
+        "settings_path": "apps/events/skill/search",
+        "phrase": "Looking for something to do? OpenMates can search events across multiple sources.",
+        "category": "openmates_official",
+        "requires_authentication": False,
+        "direct_video_filename": "events-search.mp4",
+    },
+    {
+        "feature_id": "web-video-skills",
+        "icon": "search",
+        "title": "Trusted source quotes",
+        "description": "Ask mates to inspect sources and quote the exact lines that support an answer.",
+        "settings_path": "apps/all/skills",
+        "phrase": "Need an answer you can verify? OpenMates can quote the source it used.",
+        "category": "openmates_official",
+        "requires_authentication": False,
+        "direct_video_filename": "web-video-skills.mp4",
+    },
+    {
+        "feature_id": "image-detection",
+        "icon": "image",
+        "title": "AI image detection",
+        "description": "Upload an image and see AI-generation signals directly in the chat.",
+        "settings_path": "apps/all/skills",
+        "phrase": "Wondering if an image was AI-generated? Upload it and inspect the signals.",
+        "category": "openmates_official",
+        "requires_authentication": False,
+        "direct_video_filename": "image-detection.mp4",
     },
     {
         "feature_id": "focus-modes",
@@ -51,26 +98,6 @@ FEATURE_TIPS = [
         "description": "Save preferences and memories so mates can help without repeated context.",
         "settings_path": "settings_memories",
         "phrase": "Repeating yourself gets old. Memories help OpenMates remember what matters.",
-        "category": "openmates_official",
-        "requires_authentication": False,
-    },
-    {
-        "feature_id": "events-search",
-        "icon": "calendar-search",
-        "title": "Find events",
-        "description": "Search Meetup, Luma, Google Events, Resident Advisor, and more.",
-        "settings_path": "apps/events/skill/search",
-        "phrase": "Looking for something to do? OpenMates can search events across multiple sources.",
-        "category": "openmates_official",
-        "requires_authentication": False,
-    },
-    {
-        "feature_id": "web-video-skills",
-        "icon": "search",
-        "title": "Search and videos",
-        "description": "Use app skills to search the web, inspect pages, and find useful videos.",
-        "settings_path": "apps/all/skills",
-        "phrase": "OpenMates can do more than chat. App skills connect mates to useful sources.",
         "category": "openmates_official",
         "requires_authentication": False,
     },
@@ -95,6 +122,27 @@ FEATURE_TIPS = [
         "requires_authentication": False,
     },
 ]
+
+
+def _build_direct_video(tip: dict) -> DailyInspirationDirectVideo | None:
+    filename = tip.get("direct_video_filename")
+    if not filename:
+        return None
+
+    base_url = os.getenv(PRODUCT_VIDEO_BASE_URL_ENV, DEFAULT_PRODUCT_VIDEO_BASE_URL).strip().rstrip("/")
+    if not base_url:
+        return None
+
+    feature_id = tip["feature_id"]
+    teaser_base = f"{TEASER_ASSET_BASE_PATH}/{feature_id}-teaser"
+    return DailyInspirationDirectVideo(
+        title=tip["title"],
+        mp4_url=f"{base_url}/{filename}",
+        thumbnail_url=f"{teaser_base}.webp",
+        teaser_url=f"{teaser_base}.webm",
+        teaser_mp4_url=f"{teaser_base}.mp4",
+        teaser_webp_url=f"{teaser_base}.webp",
+    )
 
 
 def feature_requires_authentication(feature_id: str | None) -> bool:
@@ -137,6 +185,7 @@ def build_feature_inspirations(
                 category=tip["category"],
                 content_type="feature",
                 feature=feature,
+                direct_video=_build_direct_video(tip),
                 generated_at=now_ts,
                 follow_up_suggestions=[],
             )

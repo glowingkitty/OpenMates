@@ -15,10 +15,17 @@ test('app root loads without console errors', async ({ page }) => {
 	test.slow();
 
 	const errorLogs: string[] = [];
+	const failedResponses: string[] = [];
 	const attachErrorListeners = (targetPage: typeof page): void => {
 		targetPage.on('console', (message) => {
 			if (message.type() === 'error') {
 				errorLogs.push(`[console.error] ${message.text()}`);
+			}
+		});
+
+		targetPage.on('response', (response) => {
+			if (response.status() >= 400) {
+				failedResponses.push(`${response.status()} ${response.url()}`);
 			}
 		});
 
@@ -42,7 +49,16 @@ test('app root loads without console errors', async ({ page }) => {
 		for (const line of errorLogs) {
 			console.error(line);
 		}
+		if (failedResponses.length > 0) {
+			console.error('Failed responses during app load:');
+			for (const line of failedResponses) {
+				console.error(line);
+			}
+		}
 	}
 
-	expect(errorLogs, `Expected zero browser errors, got ${errorLogs.length}`).toEqual([]);
+	expect(
+		errorLogs,
+		`Expected zero browser errors, got ${errorLogs.length}. Failed responses: ${failedResponses.join(', ') || 'none'}`
+	).toEqual([]);
 });

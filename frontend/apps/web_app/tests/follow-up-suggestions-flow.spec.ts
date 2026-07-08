@@ -123,6 +123,26 @@ async function expectLlmQuickTipCard(
 	expect(LLM_QUICK_TIP_SLUGS).toContain(slug as string);
 }
 
+async function waitForAssistantAfterOptionalMemoryPrompt(
+	page: any,
+	log: (message: string, metadata?: Record<string, unknown>) => void,
+): Promise<any> {
+	const permissionDialog = page.getByTestId('app-settings-memories-permission-dialog');
+	const assistantMessage = page.getByTestId('message-assistant').last();
+	const firstResponseOrPermission = await Promise.race([
+		permissionDialog.waitFor({ state: 'visible', timeout: 60000 }).then(() => 'permission').catch(() => null),
+		assistantMessage.waitFor({ state: 'visible', timeout: 60000 }).then(() => 'assistant').catch(() => null)
+	]);
+
+	if (firstResponseOrPermission === 'permission') {
+		log('App memories permission dialog appeared; rejecting memories for deterministic test flow.');
+		await page.getByTestId('btn-reject').click();
+		await expect(permissionDialog).not.toBeVisible({ timeout: 10000 });
+	}
+
+	return waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+}
+
 // ---------------------------------------------------------------------------
 // Test: Follow-up suggestions appear after an AI response
 // ---------------------------------------------------------------------------
@@ -287,7 +307,7 @@ test('shows an LLM-selected quick tip card after a travel planning response', as
 	await sendButton.click();
 	log('Sent travel planning message for LLM quick-tip selection.');
 
-	const assistantMessage = await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+	const assistantMessage = await waitForAssistantAfterOptionalMemoryPrompt(page, log);
 	await expect(assistantMessage).toContainText('Kyoto and Osaka quick tip test', { timeout: 60000 });
 	await expectLlmQuickTipCard(page, log);
 	await screenshot(page, 'llm-quick-tip-visible');
@@ -356,7 +376,7 @@ test('disables follow-up suggestions in settings and avoids proactive follow-up 
 		await sendButton.click();
 		log('Message sent with follow-up suggestions disabled.');
 
-		const assistantMessage = await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
+		const assistantMessage = await waitForAssistantAfterOptionalMemoryPrompt(page, log);
 		await expect(async () => {
 			const msgText = await assistantMessage.textContent();
 			expect((msgText || '').trim().length).toBeGreaterThan(20);

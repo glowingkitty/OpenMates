@@ -8,7 +8,8 @@ import XCTest
 @MainActor
 final class ChatManagementSharingParityUITests: XCTestCase {
     private let fixtureShareURL = "https://app.dev.openmates.org/s/Abc123XY#testKey"
-    private let fixtureSafariURL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    private let fixtureSafariURL = "https://example.com/openmates-share-fixture"
+    private let recentChatSeedPrompt = "Share extension recent chat destination seed"
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -78,39 +79,52 @@ final class ChatManagementSharingParityUITests: XCTestCase {
 
         let app = RealAccountUITestSupport.launchApp()
         RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: recentChatSeedPrompt)
         app.terminate()
 
         let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
         openSafariURL(fixtureSafariURL, in: safari)
 
-        let shareButton = safari.buttons["Share"]
-        XCTAssertTrue(
-            shareButton.waitForExistence(timeout: 15),
-            "Expected Safari Share button before opening OpenMates extension. Visible UI: \(visibleStateLabels(in: safari))"
-        )
-        shareButton.tap()
+        tapSafariShareButton(in: safari)
 
         XCTAssertTrue(
             tapOpenMatesShareTarget(timeout: 15),
             "Expected OpenMates in the iOS share sheet. Visible Safari UI: \(visibleStateLabels(in: safari))"
         )
 
-        let messageInput = safari.textViews["share-extension-message-input"]
+        let shareHosts = shareExtensionHosts(in: safari)
+        let messageInput = waitForShareExtensionElement(
+            identifier: "share-extension-message-input",
+            in: shareHosts,
+            timeout: 20
+        )
         XCTAssertTrue(
-            messageInput.waitForExistence(timeout: 20),
+            messageInput?.exists == true,
             "Expected OpenMates share extension message input. Visible UI: \(visibleStateLabels(in: safari))"
         )
         XCTAssertTrue(
-            (messageInput.value as? String ?? messageInput.label).contains("youtube.com/watch"),
+            shareInputContainsExpectedURL(messageInput),
             "Expected the shared Safari URL to be prefilled in the editable message input."
         )
 
-        messageInput.tap()
-        messageInput.typeText("\nSummarize this video for me")
+        let recentChat = waitForShareExtensionElement(
+            identifier: "share-extension-chat-destination",
+            in: shareHosts,
+            timeout: 20
+        )
+        XCTAssertTrue(
+            recentChat?.exists == true,
+            "Expected at least one selectable recent chat destination. Status: \(safari.staticTexts["share-extension-status"].label)"
+        )
+        recentChat?.tap()
+        XCTAssertEqual(recentChat?.value as? String, "Selected")
 
-        let sendButton = safari.buttons["share-extension-send"]
-        XCTAssertTrue(sendButton.waitForExistence(timeout: 5))
-        sendButton.tap()
+        messageInput?.tap()
+        messageInput?.typeText("\nSummarize this video for me")
+
+        let sendButton = waitForShareExtensionElement(identifier: "share-extension-send", in: shareHosts, timeout: 5)
+        XCTAssertTrue(sendButton?.exists == true)
+        sendButton?.tap()
 
         XCTAssertTrue(
             waitForShareExtensionToClose(in: safari, timeout: 45),
@@ -119,6 +133,63 @@ final class ChatManagementSharingParityUITests: XCTestCase {
 
         waitForSimulatedCompletionNotificationIfRequested()
         attachScreenshot(name: "Safari share to OpenMates extension completed")
+    }
+
+    func testSafariShareSheetShowsUnifiedOpenMatesComposer() throws {
+        registerShareExtensionHostApp()
+
+        let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
+        openSafariURL(fixtureSafariURL, in: safari)
+
+        tapSafariShareButton(in: safari)
+
+        XCTAssertTrue(
+            tapOpenMatesShareTarget(timeout: 15),
+            "Expected OpenMates in the iOS share sheet. Visible Safari UI: \(visibleStateLabels(in: safari))"
+        )
+
+        let shareHosts = shareExtensionHosts(in: safari)
+        XCTAssertNotNil(
+            waitForShareExtensionElement(identifier: "share-extension-root", in: shareHosts, timeout: 20),
+            "Expected OpenMates share extension root. Visible UI: \(visibleStateLabels(in: safari))"
+        )
+        XCTAssertNotNil(
+            waitForShareExtensionElement(identifier: "message-composer", in: shareHosts, timeout: 5),
+            "Expected share extension to expose the unified message composer container."
+        )
+        XCTAssertNotNil(
+            waitForShareExtensionElement(identifier: "message-field", in: shareHosts, timeout: 5),
+            "Expected share extension to expose the unified message field."
+        )
+
+        let messageInput = waitForShareExtensionElement(
+            identifier: "share-extension-message-input",
+            in: shareHosts,
+            timeout: 5
+        )
+        XCTAssertTrue(
+            messageInput?.exists == true,
+            "Expected OpenMates share extension message input. Visible UI: \(visibleStateLabels(in: safari))"
+        )
+        XCTAssertTrue(
+            shareInputContainsExpectedURL(messageInput),
+            "Expected the shared Safari URL to be prefilled in the editable message input."
+        )
+        XCTAssertNotNil(waitForShareExtensionElement(identifier: "share-extension-send", in: shareHosts, timeout: 5))
+
+        attachScreenshot(name: "Safari share extension unified composer")
+    }
+
+    private func registerShareExtensionHostApp() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-shell-metrics"]
+        app.launchEnvironment["UI_TEST_SHELL_METRICS"] = "1"
+        app.launch()
+        XCTAssertTrue(
+            app.wait(for: .runningForeground, timeout: 10),
+            "Expected OpenMates host app to launch before using its share extension."
+        )
+        app.terminate()
     }
 
     private func attachScreenshot(name: String) {
@@ -131,8 +202,29 @@ final class ChatManagementSharingParityUITests: XCTestCase {
     private func visibleStateLabels(in app: XCUIApplication) -> String {
         let buttons = elementSummaries(app.buttons.allElementsBoundByIndex, prefix: "button")
         let textFields = elementSummaries(app.textFields.allElementsBoundByIndex, prefix: "textField")
+        let textViews = elementSummaries(app.textViews.allElementsBoundByIndex, prefix: "textView")
         let staticTexts = elementSummaries(app.staticTexts.allElementsBoundByIndex, prefix: "text")
-        return (buttons + textFields + staticTexts).prefix(30).joined(separator: " | ")
+        return (buttons + textFields + textViews + staticTexts).prefix(30).joined(separator: " | ")
+    }
+
+    private func shareExtensionHosts(in safari: XCUIApplication) -> [XCUIApplication] {
+        [safari, XCUIApplication(bundleIdentifier: "org.openmates.app.share")]
+    }
+
+    private func waitForShareExtensionElement(
+        identifier: String,
+        in hosts: [XCUIApplication],
+        timeout: TimeInterval
+    ) -> XCUIElement? {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            for host in hosts {
+                let element = host.descendants(matching: .any)[identifier]
+                if element.exists { return element }
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        } while Date() < deadline
+        return nil
     }
 
     private func waitForSystemShareSheet(in app: XCUIApplication, timeout: TimeInterval) -> Bool {
@@ -158,6 +250,14 @@ final class ChatManagementSharingParityUITests: XCTestCase {
             continueButton.tap()
         }
 
+        if safariAlreadyShowsFixturePage(safari) {
+            XCTAssertTrue(
+                waitForSafariShareSurface(in: safari, timeout: 20),
+                "Expected Safari to expose a share surface for the existing fixture page. Visible UI: \(visibleStateLabels(in: safari))"
+            )
+            return
+        }
+
         let addressCandidates = [
             safari.textFields["Address"],
             safari.textFields["Search or enter website name"],
@@ -174,25 +274,95 @@ final class ChatManagementSharingParityUITests: XCTestCase {
         addressField.typeText("\n")
 
         XCTAssertTrue(
-            safari.buttons["Share"].waitForExistence(timeout: 20),
-            "Expected Safari to load the fixture URL and expose Share. Visible UI: \(visibleStateLabels(in: safari))"
+            waitForSafariShareSurface(in: safari, timeout: 20),
+            "Expected Safari to load the fixture URL and expose a share surface. Visible UI: \(visibleStateLabels(in: safari))"
         )
     }
 
+    private func safariAlreadyShowsFixturePage(_ safari: XCUIApplication) -> Bool {
+        let addressValues = safari.textFields.allElementsBoundByIndex.map {
+            String(describing: $0.value ?? $0.label).lowercased()
+        }
+        return addressValues.contains { $0.contains("example.com") || $0.contains("youtube.com") || $0.contains("youtu.be") }
+    }
+
+    private func shareInputContainsExpectedURL(_ element: XCUIElement?) -> Bool {
+        let value = (element?.value as? String ?? element?.label ?? "").lowercased()
+        return value.contains("example.com") || value.contains("youtube.com") || value.contains("youtu.be")
+    }
+
+    private func tapSafariShareButton(in safari: XCUIApplication) {
+        if let directShareButton = waitForSafariShareAction(in: [safari], timeout: 3) {
+            directShareButton.tap()
+            return
+        }
+
+        let moreButton = safari.buttons["MoreMenuButton"]
+        XCTAssertTrue(
+            moreButton.waitForExistence(timeout: 10),
+            "Expected Safari Share or More button. Visible UI: \(visibleStateLabels(in: safari))"
+        )
+        moreButton.tap()
+
+        let shareHosts = [safari, XCUIApplication(bundleIdentifier: "com.apple.springboard")]
+        let shareButton = waitForSafariShareAction(in: shareHosts, timeout: 5)
+        XCTAssertTrue(
+            shareButton?.exists == true,
+            "Expected Share action inside Safari More menu. Visible UI: \(visibleStateLabels(in: safari))"
+        )
+        shareButton?.tap()
+    }
+
+    private func waitForSafariShareAction(in hosts: [XCUIApplication], timeout: TimeInterval) -> XCUIElement? {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            for host in hosts {
+                let shareByLabel = host.buttons["Share"]
+                if shareByLabel.exists { return shareByLabel }
+                let shareByIdentifier = host.buttons["ShareButton"]
+                if shareByIdentifier.exists { return shareByIdentifier }
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        } while Date() < deadline
+        return nil
+    }
+
+    private func waitForSafariShareSurface(in safari: XCUIApplication, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if safari.buttons["Share"].exists || safari.buttons["MoreMenuButton"].exists {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        } while Date() < deadline
+        return false
+    }
+
     private func tapOpenMatesShareTarget(timeout: TimeInterval) -> Bool {
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let shareSheetHosts = [
+            XCUIApplication(bundleIdentifier: "com.apple.springboard"),
+            XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
+        ]
         let deadline = Date().addingTimeInterval(timeout)
 
         repeat {
-            let target = springboard.descendants(matching: .any)
-                .matching(NSPredicate(format: "label == %@ OR identifier == %@", "OpenMates", "OpenMates"))
-                .firstMatch
-            if target.exists {
-                target.tap()
-                return true
+            for host in shareSheetHosts {
+                let target = host.descendants(matching: .any)
+                    .matching(NSPredicate(format: "label == %@ OR identifier == %@", "OpenMates", "OpenMates"))
+                    .firstMatch
+                if target.exists {
+                    target.tap()
+                    return true
+                }
             }
 
-            springboard.collectionViews.firstMatch.swipeLeft()
+            for host in shareSheetHosts {
+                let carousel = host.collectionViews.firstMatch
+                if carousel.exists {
+                    carousel.swipeLeft()
+                    break
+                }
+            }
             RunLoop.current.run(until: Date().addingTimeInterval(0.4))
         } while Date() < deadline
 
@@ -231,7 +401,8 @@ final class ChatManagementSharingParityUITests: XCTestCase {
     }
 
     private func elementSummaries(_ elements: [XCUIElement], prefix: String) -> [String] {
-        elements.compactMap { element in
+        elements.prefix(4).compactMap { element in
+            guard element.exists else { return nil }
             let identifier = element.identifier.trimmingCharacters(in: .whitespacesAndNewlines)
             let label = element.label.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !identifier.isEmpty || !label.isEmpty else { return nil }

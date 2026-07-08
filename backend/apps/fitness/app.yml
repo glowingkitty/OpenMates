@@ -5,20 +5,139 @@ icon_image: |
 category: personal
 last_updated: '2025-11-12'
 embed_types:
-  - id: search_locations_and_courses
+  - id: search_locations
     category: app-skill-use
-    skill_id: search_locations_and_courses
+    skill_id: search_locations
     frontend_type: app-skill-use
     backend_type: app_skill_use
-    has_children: false
+    has_children: true
+    child_type: location
+    child_frontend_type: fitness-location
+    groupable: false
+    preview_component: fitness/FitnessSearchEmbedPreview.svelte
+    fullscreen_component: fitness/FitnessSearchEmbedFullscreen.svelte
+    child_preview_component: fitness/FitnessResultEmbedPreview.svelte
+    child_fullscreen_component: fitness/FitnessResultEmbedFullscreen.svelte
     icon: fitness
     gradient_var: "--color-app-fitness"
-    i18n_namespace: embeds.fitness.search_locations_and_courses
+    i18n_namespace: embeds.fitness.search_locations
+  - id: search_classes
+    category: app-skill-use
+    skill_id: search_classes
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: true
+    child_type: class
+    child_frontend_type: fitness-class
+    groupable: false
+    preview_component: fitness/FitnessSearchEmbedPreview.svelte
+    fullscreen_component: fitness/FitnessSearchEmbedFullscreen.svelte
+    child_preview_component: fitness/FitnessResultEmbedPreview.svelte
+    child_fullscreen_component: fitness/FitnessResultEmbedFullscreen.svelte
+    icon: fitness
+    gradient_var: "--color-app-fitness"
+    i18n_namespace: embeds.fitness.search_classes
 skills:
-  - id: search_locations_and_courses
-    name_translation_key: fitness.search_locations_and_courses
-    description_translation_key: fitness.search_locations_and_courses.description
+  - id: search_locations
+    name_translation_key: fitness.search_locations
+    description_translation_key: fitness.search_locations.description
+    preprocessor_hint: >
+      Search Urban Sports Club public fitness locations. Use this when the user
+      asks for gyms, studios, pools, or Urban Sports locations near a city,
+      address, or radius. Do not use it for class availability; use
+      fitness.search_classes for dated class searches.
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+              city:
+                type: string
+              address:
+                type: string
+              lat:
+                type: number
+              lon:
+                type: number
+              radius_km:
+                type: number
+              plan:
+                type: string
+              category:
+                type: string
+              limit:
+                type: number
+          description: Location search requests.
     class_path: |
-      skills.search_locations_and_courses.SearchLocationsAndCoursesSkill
+      backend.apps.fitness.skills.search_locations.SearchLocationsSkill
+    pricing:
+      fixed: 5
     providers:
-      - Urban Sports Club
+      - name: Urban Sports Club
+        id: urban_sports_club
+        scope: city
+        region: Europe
+        no_api_key: true
+  - id: search_classes
+    name_translation_key: fitness.search_classes
+    description_translation_key: fitness.search_classes.description
+    preprocessor_hint: >
+      Search available Urban Sports Club public fitness classes. Use this when
+      the user asks for dated fitness classes, course availability, free spots,
+      on-site classes, online classes, or plan-filtered Urban Sports classes.
+      Omit plan unless the user explicitly asks for Essential, Classic,
+      Premium, or Max.
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+              city:
+                type: string
+              address:
+                type: string
+              lat:
+                type: number
+              lon:
+                type: number
+              radius_km:
+                type: number
+              start_date:
+                type: string
+              end_date:
+                type: string
+              days:
+                type: number
+              plan:
+                type: string
+              attendance_mode:
+                type: string
+              min_spots:
+                type: number
+              category:
+                type: string
+              venue_id:
+                type: string
+              limit:
+                type: number
+          description: Class search requests.
+    class_path: |
+      backend.apps.fitness.skills.search_classes.SearchClassesSkill
+    pricing:
+      fixed: 5
+    providers:
+      - name: Urban Sports Club
+        id: urban_sports_club
+        scope: city
+        region: Europe
+        no_api_key: true

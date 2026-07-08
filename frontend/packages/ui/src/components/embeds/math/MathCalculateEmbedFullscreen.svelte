@@ -14,6 +14,7 @@
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   /**
    * Individual calculation result from the backend TOON content.
@@ -89,7 +90,7 @@
   let titleProp = $derived(typeof dc.title === 'string' ? dc.title : undefined);
   let subtitleProp = $derived(typeof dc.subtitle === 'string' ? dc.subtitle : undefined);
   let statusProp = $derived(normalizeStatus(dc.status));
-  let resultsProp = $derived(Array.isArray(dc.results) ? dc.results as CalculateResult[] : undefined);
+  let resultsProp = $derived(extractSearchResultsFromContent(dc) as CalculateResult[]);
 
   // ── Local state ─────────────────────────────────────────────────────────────
   let localQuery    = $state('');
@@ -103,7 +104,7 @@
     localTitle    = titleProp    || '';
     localSubtitle = subtitleProp || '';
     localStatus   = statusProp   || 'finished';
-    localResults  = resultsProp  || [];
+    localResults  = resultsProp;
   });
 
   let query    = $derived(localQuery);

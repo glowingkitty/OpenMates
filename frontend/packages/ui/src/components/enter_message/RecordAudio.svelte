@@ -47,10 +47,12 @@
     interface Props {
         initialPosition: { x: number; y: number };
         externalStream?: MediaStream | null;
+        startedFromKeyboard?: boolean;
     }
     let {
         initialPosition,
-        externalStream = null
+        externalStream = null,
+        startedFromKeyboard = false
     }: Props = $props();
 
     // --- Internal State ---
@@ -388,7 +390,7 @@
 <div class="record-overlay" data-testid="record-overlay" transition:fade={{ duration: 150 }}>
     <!-- Top: "Release to finish" heading -->
     <div class="record-header">
-        <span class="release-text" data-testid="release-text">{@html $text('enter_message.record_audio.release_to_finish')}</span>
+        <span class="release-text" data-testid="release-text">{$text('enter_message.record_audio.release_to_finish')}</span>
     </div>
 
     <!-- Bottom controls: timer | cancel hint | mic circle -->
@@ -398,10 +400,14 @@
             {formatTime(recordingTime)}
         </div>
 
-        <!-- "← Slide left to cancel" hint, fades as user drags left -->
+        <!-- Pointer/touch starts can drag left; keyboard starts cancel with Escape. -->
         <div class="cancel-hint" data-testid="cancel-hint" style="opacity: {Math.max(0.3, 1 + dragOffsetX / 80)}">
-            <span class="cancel-arrow">‹</span>
-            <span class="cancel-text">{@html $text('enter_message.record_audio.slide_left_to_cancel')}</span>
+            {#if startedFromKeyboard}
+                <span class="cancel-text">{$text('enter_message.record_audio.press_esc_to_cancel')}</span>
+            {:else}
+                <span class="cancel-arrow">‹</span>
+                <span class="cancel-text">{$text('enter_message.record_audio.slide_left_to_cancel')}</span>
+            {/if}
         </div>
 
         <!-- Green mic circle follows horizontal drag -->

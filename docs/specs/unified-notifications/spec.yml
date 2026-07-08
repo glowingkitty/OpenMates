@@ -1,6 +1,6 @@
 id: unified-notifications
 title: Unified Notifications And Private Push Payloads
-status: approved
+status: implementing
 
 goal: >
   OpenMates should have one notification event model that can drive in-app UI,
@@ -19,6 +19,8 @@ scope:
     - APNs alert payloads that show only localized or generic safe text by default.
     - APNs custom encrypted payload metadata for device-local preview decryption.
     - Apple client support for encrypted notification payload registration and decryption.
+    - Foreground-visible client detection for assistant completion notification suppression.
+    - Multiple browser/APNs push targets per user without a Directus schema migration.
     - Tests proving plaintext assistant responses and chat titles are not sent to APNs alert fields or public notification streams.
   out:
     - Restoring browser Web Push service worker support.
@@ -32,10 +34,13 @@ context_discovery:
     - docs/architecture/android/notifications.md
   code_patterns:
     - backend/core/api/app/routes/push.py
+    - backend/core/api/app/services/push_subscription_targets.py
     - backend/core/api/app/services/push_notification_service.py
     - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/routes/connection_manager.py
     - backend/core/api/app/tasks/push_notification_task.py
     - backend/core/api/app/services/cache.py
+    - frontend/packages/ui/src/services/websocketService.ts
     - frontend/packages/ui/src/i18n/sources/notifications.yml
     - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
   tests:
@@ -131,6 +136,29 @@ scenarios:
     then:
       - The CLI returns recent safe notification events from /v1/notifications.
       - openmates settings notifications stream --count 1 --json reads one safe SSE notification event and exits.
+  - id: S-8
+    title: Hidden web tab does not suppress native notification
+    given:
+      - Alice is logged in on the web app and the iOS app.
+      - Alice sends a chat message from the web app.
+      - The web tab becomes hidden or the browser is backgrounded before the assistant finishes.
+    when:
+      - The assistant response completes.
+    then:
+      - The hidden web WebSocket does not count as foreground-visible for this chat.
+      - OpenMates sends a push notification to registered push targets, including APNs devices.
+      - If a web or native client is visibly viewing that same chat, the system notification is suppressed.
+  - id: S-9
+    title: Browser and native push registrations coexist
+    given:
+      - Alice enables browser push notifications.
+      - Alice also registers an iOS APNs device token.
+    when:
+      - Either device registers or refreshes its push credentials.
+    then:
+      - The new registration replaces only the matching target.
+      - Existing browser and APNs targets remain registered for the user.
+      - A chat notification fans out to all stored targets.
 
 acceptance_criteria:
   - id: AC-1
@@ -163,18 +191,27 @@ acceptance_criteria:
   - id: AC-10
     scenario: S-7
     text: OpenMates CLI exposes safe notification list and SSE stream commands.
+  - id: AC-11
+    scenario: S-8
+    text: Assistant completion notification suppression is based on a fresh foreground connection viewing the same chat, not merely any active WebSocket.
+  - id: AC-12
+    scenario: S-9
+    text: Browser Web Push and APNs registrations can coexist and receive the same assistant completion notification fan-out.
 
 contracts:
   api:
     - GET /v1/notifications?limit=50&after=<cursor> returns recent safe events for the authenticated user.
     - GET /v1/notifications/stream returns text/event-stream for authenticated clients.
     - POST /v1/notifications/register-device accepts optional notification_public_key and encryption_version.
+    - Web and native clients may send native_client_lifecycle with is_foreground to mark whether their connection can suppress system notifications.
   data:
     - First slice may store short-lived events in Redis for SSE/recent-list support.
     - Durable storage can be added later if product requires notification history across restarts.
     - APNs registration stores public encryption material only.
+    - "push_notification_subscription may contain legacy single-target JSON or {type: multi, targets: [...]} JSON."
   ui_states:
     - Web and Apple show generic safe text for assistant-message notifications when no local decrypted preview is available.
+    - A hidden web tab must not suppress native push for an assistant response completion.
     - Apple Notification Service Extension may replace the generic text with a decrypted preview only on device.
     - SSE consumers receive safe fallback text keys and routing metadata only.
   privacy_security:
@@ -182,6 +219,7 @@ contracts:
     - No assistant response plaintext or chat title plaintext in SSE payloads.
     - Encrypted APNs preview ciphertext is allowed as custom payload metadata.
     - Notification encryption is device-targeted; private keys must not leave the user's Apple device.
+    - Foreground lifecycle state is metadata only; it must not include message content, chat title, or user private data.
     - Public developer streams are authenticated and user-scoped.
 
 tests:
@@ -194,17 +232,29 @@ tests:
       - AC-4
       - AC-5
       - AC-8
+      - AC-12
     assertions:
       - safe notification events use localization keys
       - APNs alert fields exclude chat titles and assistant responses
       - encrypted custom payload metadata can set mutable-content
       - email fallback behavior is not broadened
+      - multiple push targets can coexist and fan out
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: historical-red-phase-not-recorded
+        timestamp: "2026-07-06T23:59:00Z"
+        notes: "This spec predates strict red-phase evidence recording for this existing pytest; green evidence was re-run and recorded during notification lifecycle verification."
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-2026-07-06T23:56Z
+        timestamp: "2026-07-06T23:56:00Z"
+        notes: "python3 -m pytest backend/tests/test_unified_notifications.py backend/tests/test_notifications_api.py backend/tests/test_websocket_set_active_chat.py passed 12/12."
   - id: T-PYTEST-002
     type: pytest
     file: backend/tests/test_notifications_api.py
@@ -219,9 +269,19 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: historical-red-phase-not-recorded
+        timestamp: "2026-07-06T23:59:00Z"
+        notes: "This spec predates strict red-phase evidence recording for this existing pytest; green evidence was re-run and recorded during notification lifecycle verification."
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-2026-07-06T23:56Z
+        timestamp: "2026-07-06T23:56:00Z"
+        notes: "python3 -m pytest backend/tests/test_unified_notifications.py backend/tests/test_notifications_api.py backend/tests/test_websocket_set_active_chat.py passed 12/12."
   - id: T-APPLE-001
     type: unit
     file: apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
@@ -276,10 +336,15 @@ tests:
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: local-build-translations-2026-07-06T23:57Z
+        timestamp: "2026-07-06T23:57:00Z"
+        notes: "npm run build:translations completed successfully in frontend/packages/ui and generated 21 locale JSON files."
   - id: T-CLI-001
     type: unit
     file: frontend/packages/openmates-cli/tests/cli.test.ts
-    command: python3 scripts/run_tests.py --suite vitest
+    command: python3 scripts/tests.py run -- --suite vitest
     covers:
       - AC-10
     assertions:
@@ -289,9 +354,70 @@ tests:
     red_phase:
       required: true
       expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: historical-red-phase-not-recorded
+        timestamp: "2026-07-06T23:59:00Z"
+        notes: "This spec predates strict red-phase evidence recording for this existing vitest suite; green evidence was re-run through scripts/tests.py and recorded."
     green_phase:
       required: true
       expected: pass
+      evidence:
+        status: passed
+        run_id: "28831540315"
+        timestamp: "2026-07-06T23:58:15Z"
+        notes: "Unified test runner dispatched vitest to GitHub Actions; 488/488 passed."
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_websocket_set_active_chat.py
+    command: python3 -m pytest backend/tests/test_websocket_set_active_chat.py
+    covers:
+      - AC-11
+    assertions:
+      - hidden/background connections are not completion-capable
+      - foreground suppression is specific to the active chat
+      - active chat state resumes after foreground lifecycle returns
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: historical-red-phase-not-recorded
+        timestamp: "2026-07-06T23:59:00Z"
+        notes: "The focused backend tests were added before this resumed verification step; no failing red run was preserved, so the gap is recorded explicitly."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-2026-07-06T23:56Z
+        timestamp: "2026-07-06T23:56:00Z"
+        notes: "python3 -m pytest backend/tests/test_unified_notifications.py backend/tests/test_notifications_api.py backend/tests/test_websocket_set_active_chat.py passed 12/12."
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/web-lifecycle-notification-suppression.spec.ts
+    command: python3 scripts/tests.py run -- --spec web-lifecycle-notification-suppression.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-11
+    assertions:
+      - web client sends native_client_lifecycle foreground true after WebSocket connect
+      - web client sends native_client_lifecycle foreground false when document visibility becomes hidden
+      - web client sends native_client_lifecycle foreground true when document visibility returns visible
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "28831379233"
+        timestamp: "2026-07-06T23:55:26Z"
 
 implementation_plan:
   existing_patterns:
@@ -300,6 +426,7 @@ implementation_plan:
     - backend/core/api/app/routes/websockets.py
     - backend/core/api/app/services/cache.py
     - frontend/packages/ui/src/i18n/sources/notifications.yml
+    - frontend/packages/ui/src/services/websocketService.ts
     - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
   architecture: >
     Build a provider-agnostic notification event layer without introducing a
@@ -312,6 +439,9 @@ implementation_plan:
     - The event is cached in Redis and published to the user's notification channel.
     - SSE subscribers receive only safe JSON.
     - APNs sends generic alert text plus optional encrypted custom ciphertext.
+    - Web clients mark their WebSocket foreground state from Page Visibility and pagehide events.
+    - Assistant completion push is suppressed only when a foreground client is viewing the same chat.
+    - Browser and APNs registrations are stored as multi-target JSON and fanned out by the push service.
     - Apple decrypts locally and falls back to generic safe text on failure.
     - Simulator UI coverage injects a server-shaped APNs payload with simctl push while the app is backgrounded.
   affected_files:
@@ -323,12 +453,18 @@ implementation_plan:
       reason: Include notification routes.
     - path: backend/core/api/app/routes/push.py
       reason: APNs token registration with encryption public key.
+    - path: backend/core/api/app/services/push_subscription_targets.py
+      reason: Pure browser/APNs target merge and normalization helpers.
     - path: backend/core/api/app/services/push_notification_service.py
       reason: Encrypted APNs custom payload and mutable-content.
     - path: backend/core/api/app/tasks/push_notification_task.py
       reason: Pass encrypted notification payload fields.
     - path: backend/core/api/app/routes/websockets.py
       reason: Use event service for assistant-message notification dispatch.
+    - path: backend/core/api/app/routes/connection_manager.py
+      reason: Track chat-specific foreground visibility for notification suppression.
+    - path: frontend/packages/ui/src/services/websocketService.ts
+      reason: Report web tab visibility lifecycle to the backend.
     - path: backend/tests/test_unified_notifications.py
       reason: Safe event and APNs privacy tests.
     - path: backend/tests/test_notifications_api.py
@@ -345,15 +481,18 @@ implementation_plan:
       reason: CLI commands.
   verification_strategy:
     - python3 -m pytest backend/tests/test_unified_notifications.py backend/tests/test_notifications_api.py
+    - python3 -m pytest backend/tests/test_websocket_set_active_chat.py
+    - python3 scripts/tests.py run -- --spec web-lifecycle-notification-suppression.spec.ts
     - python3 -m py_compile backend/core/api/app/services/notification_event_service.py backend/core/api/app/routes/notifications.py backend/core/api/app/services/push_notification_service.py
     - cd frontend/packages/ui && npm run build:translations
-    - python3 scripts/run_tests.py --suite vitest
+    - python3 scripts/tests.py run -- --suite vitest
     - python3 scripts/apple_background_notification_simulator_test.py --push-delay 75
   risks:
     - Notification Service Extension setup may require Xcode project changes that are hard to fully verify on Linux.
     - Persisting notification history may require Directus schema work; avoid this in the first slice unless required.
     - Encrypted previews protect against Apple seeing content, but not against the OpenMates backend seeing previews if the backend generates them from plaintext.
     - Simulator push verification proves client handling/display only; real APNs delivery still requires a physical iOS device and Push Notifications entitlement.
+    - Page Visibility is a best-effort browser signal; unknown or stale state should prefer sending a notification over suppressing it.
 
 tasks:
   - id: TASK-1
@@ -432,4 +571,21 @@ tasks:
       - frontend/packages/ui/src/i18n/sources/notifications.yml
       - docs/specs/unified-notifications/spec.yml
     verification: [T-I18N-001]
+    independently_deployable: true
+  - id: TASK-8
+    title: Make assistant completion push foreground-aware across web and Apple clients
+    covers:
+      scenarios: [S-8, S-9]
+      acceptance_criteria: [AC-11, AC-12]
+    expected_files:
+      - backend/core/api/app/routes/connection_manager.py
+      - backend/core/api/app/routes/websockets.py
+      - backend/core/api/app/routes/push.py
+      - backend/core/api/app/services/push_notification_service.py
+      - backend/core/api/app/services/push_subscription_targets.py
+      - frontend/packages/ui/src/services/websocketService.ts
+      - backend/tests/test_websocket_set_active_chat.py
+      - backend/tests/test_unified_notifications.py
+      - frontend/apps/web_app/tests/web-lifecycle-notification-suppression.spec.ts
+    verification: [T-PYTEST-001, T-PYTEST-003, T-E2E-001]
     independently_deployable: true

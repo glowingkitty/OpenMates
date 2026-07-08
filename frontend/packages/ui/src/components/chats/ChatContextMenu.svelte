@@ -6,6 +6,7 @@
     import { isDemoChat, isLegalChat, isPublicChat } from '../../demo_chats'; // Import chat type checks
     import { chatMetadataCache } from '../../services/chatMetadataCache'; // Import chat metadata cache for decrypted summary
     import { chatDB } from '../../services/db'; // Import chatDB for fresh chat reads
+    import { activeChatFocusStore } from '../../stores/activeChatFocusStore';
     import { apiEndpoints, getApiEndpoint } from '../../config/api'; // Import API endpoints for usage lookup
     import { chatDebugStore } from '../../stores/chatDebugStore'; // Chat debug mode toggle
     import { userProfile } from '../../stores/userProfile';
@@ -74,6 +75,7 @@
     
     // State for active focus mode
     let activeFocusId = $state<string | null>(null);
+    let liveActiveFocusId = $derived(chat ? ($activeChatFocusStore[chat.chat_id] ?? null) : null);
     
     // Format credits with dots as thousand separators (European style)
     function formatCredits(credits: number): string {
@@ -108,7 +110,7 @@
                 const chatToUse = freshChat ?? chat;
                 return chatMetadataCache.getDecryptedMetadata(chatToUse);
             }).then(metadata => {
-                activeFocusId = metadata?.activeFocusId ?? null;
+                activeFocusId = metadata?.activeFocusId ?? liveActiveFocusId;
             });
         } else {
             activeFocusId = null;

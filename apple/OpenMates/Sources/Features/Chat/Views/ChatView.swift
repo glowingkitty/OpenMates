@@ -104,6 +104,9 @@ struct ChatView: View {
     var initialEmbeds: [EmbedRecord] = []
     var wsManager: WebSocketManager? = nil
     var chatStore: ChatStore? = nil
+    var inputFocusRequest = 0
+    var cameraCaptureRequest = 0
+    var searchTarget: ChatSearchSelection? = nil
     /// Mirrors web `.chat-container.menu-open`; used by the banner header to
     /// collapse from viewport-responsive height to the fixed adjacent-panel height.
     var isSettingsOpen = false
@@ -125,11 +128,14 @@ struct ChatView: View {
 
     @StateObject private var viewModel = ChatViewModel()
     @StateObject private var handoffManager = HandoffManager()
+    @StateObject private var piiPrivacySettingsStore = PIIPrivacySettingsStore.shared
+    @StateObject private var enhancedPIIModelController = EnhancedPIIModelDownloadController.shared
+    @StateObject private var enhancedPIIRecommendationStore = EnhancedPIIRecommendationStore.shared
     @State private var messageText = ""
     @State private var selectedEmbed: EmbedRecord?
     @State private var showEmbedFullscreen = false
     @State private var showReminder = false
-    @State private var showPIIPlaceholders = false
+    @State private var isPIIRevealed = false
     @State private var showAttachmentMenu = false
     @State private var showCameraCapture = false
     @State private var composerOverlay: ComposerOverlay?
@@ -137,10 +143,13 @@ struct ChatView: View {
     @State private var recordHintVisible = false
     @State private var recordDragOffsetX: CGFloat = 0
     @State private var recordAttemptActive = false
+    @State private var recordStartedFromKeyboard = false
+    @State private var suppressKeyboardRecordSpaceUntilKeyUp = false
     @State private var recordStartTask: Task<Void, Never>?
     @State private var recordHintTask: Task<Void, Never>?
     @State private var detectedPIIMatches: [PIIMatch] = []
     @State private var piiExclusions: Set<String> = []
+    @State private var enhancedPIIDetectionTask: Task<Void, Never>?
     @State private var mentionQuery: String?
     @State private var actionMessage: Message?
     @State private var chatViewportHeight: CGFloat = 0
@@ -149,6 +158,8 @@ struct ChatView: View {
     @State private var isAtBottom = false
     @State private var hasRestoredInitialScroll = false
     @State private var isRestoringScroll = false
+    @State private var handledInputFocusRequest = 0
+    @State private var handledCameraCaptureRequest = 0
     @State private var lastReportedVisibleMessageId: String?
     @State private var assistantFeedbackMessageId: String?
     @State private var selectedAssistantRating: Int?
@@ -181,6 +192,14 @@ struct ChatView: View {
         latestAssistantMessageId != nil && !viewModel.isStreaming
     }
 
+    private var activeProcessingSteps: [ProcessingDetailsView.ProcessingStep] {
+        guard viewModel.streamingLifecycle.shouldShowProcessingDetails,
+              let step = viewModel.streamingLifecycle.preprocessingStep else {
+            return []
+        }
+        return [.fromPreprocessing(step)]
+    }
+
     private var introTeaserVideoURL: URL? {
         Bundle.main.url(forResource: "intro-teaser", withExtension: "mp4", subdirectory: "Videos")
             ?? Bundle.main.url(forResource: "intro-teaser", withExtension: "mp4")
@@ -194,6 +213,10 @@ struct ChatView: View {
                         if effectiveBannerState == nil {
                             chatTopBar
                         }
+                    }
+
+                    if IncognitoChatSession.isIncognitoChatId(chatId) {
+                        incognitoSessionBanner
                     }
 
                     messageList
@@ -261,6 +284,12 @@ struct ChatView: View {
                 NotificationCenter.default.post(name: .toggleIncognito, object: nil)
             }
         )
+        .onKeyPress(.space, phases: [.down, .repeat, .up]) { press in
+            handleKeyboardRecordSpace(press)
+        }
+        .onKeyPress(.escape, phases: .down) { _ in
+            handleKeyboardRecordEscape()
+        }
         #if os(iOS)
         .fullScreenCover(isPresented: $showCameraCapture) {
             CameraCaptureView(
@@ -275,8 +304,18 @@ struct ChatView: View {
         #endif
         .onAppear {
             applyUITestRecordingOverlayIfNeeded()
+            applyInputFocusRequestIfNeeded()
+            applyCameraCaptureRequestIfNeeded()
+        }
+        .onChange(of: inputFocusRequest) { _, _ in
+            applyInputFocusRequestIfNeeded()
+        }
+        .onChange(of: cameraCaptureRequest) { _, _ in
+            applyCameraCaptureRequestIfNeeded()
         }
         .task(id: chatId) {
+            await ApplePrivacySettingsService.shared.load()
+            isPIIRevealed = false
             viewModel.configure(wsManager: wsManager, chatStore: chatStore)
             await viewModel.loadChat(id: chatId, initialChat: initialChat, initialMessages: initialMessages, initialEmbeds: initialEmbeds)
             #if DEBUG
@@ -330,6 +369,9 @@ struct ChatView: View {
         .onChange(of: messageText) { _, newValue in
             updatePIIMatches(for: newValue)
             updateMentionQuery(for: newValue)
+        }
+        .onChange(of: piiPrivacySettingsStore.settings) { _, _ in
+            updatePIIMatches(for: messageText)
         }
         .onReceive(NotificationCenter.default.publisher(for: .pendingDeferredSendRequested)) { notification in
             handleComposerDeferredSend(notification)
@@ -400,6 +442,16 @@ struct ChatView: View {
             ChatHeaderView(chat: viewModel.chat, isLoading: viewModel.isLoading)
 
             Spacer()
+
+            if chatHasPIIMappings {
+                chatFloatingAction(
+                    icon: isPIIRevealed ? "hidden" : "visible",
+                    label: isPIIRevealed ? AppStrings.piiHide : AppStrings.piiShow,
+                    accessibilityIdentifier: "chat-pii-toggle"
+                ) {
+                    isPIIRevealed.toggle()
+                }
+            }
         }
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing3)
@@ -410,6 +462,53 @@ struct ChatView: View {
                 .fill(Color.grey20)
                 .frame(height: 1)
         }
+    }
+
+    private var chatHasPIIMappings: Bool {
+        viewModel.messages.contains { ($0.piiMappings?.isEmpty == false) || ($0.encryptedPIIMappings?.isEmpty == false) }
+    }
+
+    private var cumulativePIIMappings: [PIIMapping] {
+        var byPlaceholder: [String: PIIMapping] = [:]
+        for message in viewModel.messages where message.role == .user {
+            for mapping in message.piiMappings ?? [] {
+                byPlaceholder[mapping.placeholder] = mapping
+            }
+        }
+        return Array(byPlaceholder.values)
+    }
+
+    private var displayedEmbedRecords: [String: EmbedRecord] {
+        guard isPIIRevealed else { return viewModel.embedRecords }
+        return viewModel.embedRecords.mapValues { displayEmbed($0) }
+    }
+
+    private func displayEmbed(_ embed: EmbedRecord) -> EmbedRecord {
+        guard isPIIRevealed else { return embed }
+        return PIIDetector.restorePII(in: embed, mappings: cumulativePIIMappings)
+    }
+
+    private func displayedEmbeds(for message: Message) -> [EmbedRecord] {
+        viewModel.embeds(for: message).map(displayEmbed)
+    }
+
+    private var incognitoSessionBanner: some View {
+        HStack(spacing: .spacing3) {
+            Icon("hidden", size: 14)
+                .accessibilityHidden(true)
+            Text(AppStrings.incognitoModeActive)
+                .font(.omXs)
+                .fontWeight(.medium)
+            Spacer()
+        }
+        .foregroundStyle(Color.fontButton)
+        .padding(.horizontal, .spacing4)
+        .padding(.vertical, .spacing2)
+        .background(Color.grey80)
+        .accessibilityElement(children: .combine)
+        .help(Text(AppStrings.incognitoModeActive))
+        .accessibilityLabel(AppStrings.incognitoModeActive)
+        .accessibilityIdentifier("incognito-mode-banner")
     }
 
     private func customOverlay<Content: View>(
@@ -455,22 +554,23 @@ struct ChatView: View {
 
     @ViewBuilder
     private func embedFullscreenSheet(for embed: EmbedRecord) -> some View {
+        let displayedSelectedEmbed = displayEmbed(embed)
         let matchingMessage = viewModel.messages.first { msg in
             msg.embedRefs?.contains(where: { $0.id == embed.id }) == true
         }
         let fallbackMessage = matchingMessage ?? viewModel.messages.last
         let messageEmbeds: [EmbedRecord] = if let msg = fallbackMessage {
-            viewModel.embeds(for: msg)
+            displayedEmbeds(for: msg)
         } else {
             []
         }
-        let fullscreenEmbeds = messageEmbeds.contains(where: { $0.id == embed.id })
+        let fullscreenEmbeds = messageEmbeds.contains(where: { $0.id == displayedSelectedEmbed.id })
             ? messageEmbeds
-            : [embed]
+            : [displayedSelectedEmbed]
         EmbedFullscreenContainer(
             embeds: fullscreenEmbeds,
-            initialEmbedId: embed.id,
-            allEmbedRecords: viewModel.embedRecords,
+            initialEmbedId: displayedSelectedEmbed.id,
+            allEmbedRecords: displayedEmbedRecords,
             chatId: chatId,
             onClose: {
                 showEmbedFullscreen = false
@@ -544,10 +644,14 @@ struct ChatView: View {
                                         message: message,
                                         chatId: chatId,
                                         appId: viewModel.chat?.category ?? viewModel.chat?.appId,
-                                        embeds: viewModel.embeds(for: message),
-                                        allEmbedRecords: viewModel.embedRecords,
+                                        embeds: displayedEmbeds(for: message),
+                                        allEmbedRecords: displayedEmbedRecords,
                                         streamingContent: viewModel.isStreamingMessage(message.id) ? viewModel.streamingContent : nil,
+                                        piiMappings: cumulativePIIMappings,
+                                        isPIIRevealed: isPIIRevealed,
                                         containerWidth: scrollGeo.size.width,
+                                        isSearchTarget: searchTarget?.messageId == message.id,
+                                        searchHighlightQuery: searchTarget?.messageId == message.id ? searchTarget?.query : nil,
                                         onEmbedTap: { embed in
                                             selectedEmbed = embed
                                             showEmbedFullscreen = true
@@ -571,7 +675,24 @@ struct ChatView: View {
                                     )
                                 }
 
-                                if viewModel.isStreaming && viewModel.streamingContent.isEmpty {
+                                if !activeProcessingSteps.isEmpty {
+                                    ProcessingDetailsView(steps: activeProcessingSteps, isComplete: false)
+                                        .padding(.leading, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 86 : 0)
+                                        .padding(.trailing, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 12 : 0)
+                                        .id("processing-details")
+                                }
+
+                                if viewModel.streamingLifecycle.shouldShowThinkingDetails {
+                                    ThinkingSectionView(
+                                        content: viewModel.streamingLifecycle.thinkingContent,
+                                        isStreaming: viewModel.streamingLifecycle.isThinkingStreaming
+                                    )
+                                    .padding(.leading, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 86 : 0)
+                                    .padding(.trailing, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 12 : 0)
+                                    .id("thinking-section")
+                                }
+
+                                if viewModel.isStreaming && viewModel.streamingContent.isEmpty && !viewModel.streamingLifecycle.shouldShowThinkingDetails {
                                     StreamingIndicator()
                                         .id("streaming")
                                 }
@@ -661,14 +782,27 @@ struct ChatView: View {
                 }
                 .onChange(of: viewModel.messages.map(\.id)) { _, _ in
                     restoreInitialScrollIfNeeded(proxy: proxy)
+                    scrollToSearchTargetIfNeeded(proxy: proxy)
                 }
-                .onChange(of: viewModel.streamingContent) { _, _ in
-                    withAnimation {
-                        proxy.scrollTo("scroll-bottom", anchor: .bottom)
-                    }
+                .onChange(of: searchTarget) { _, _ in
+                    scrollToSearchTargetIfNeeded(proxy: proxy)
                 }
             }
         }
+    }
+
+    private func scrollToSearchTargetIfNeeded(proxy: ScrollViewProxy) {
+        guard let targetMessageId = searchTarget?.messageId else { return }
+        if viewModel.messages.contains(where: { $0.id == targetMessageId }) {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                proxy.scrollTo(targetMessageId, anchor: UnitPoint(x: 0.5, y: 0.18))
+            }
+            NativeSyncPerfLog.info("phase=chatSearchScroll chat=\(chatId.prefix(8)) message=\(targetMessageId.prefix(8)) mode=visible")
+            return
+        }
+
+        guard viewModel.hasOlderMessages, !viewModel.isLoadingOlder else { return }
+        viewModel.loadOlderMessages()
     }
 
     private func scrollSentinel(id: String, edge: ChatScrollSentinelEdge) -> some View {
@@ -764,6 +898,7 @@ struct ChatView: View {
         }
         .buttonStyle(.plain)
         .opacity(0.7)
+        .help(Text(isTop ? AppStrings.scrollToTop : AppStrings.scrollToBottom))
         .accessibilityLabel(isTop ? AppStrings.scrollToTop : AppStrings.scrollToBottom)
         .accessibilityIdentifier(isTop ? "scroll-to-top-button" : "scroll-to-bottom-button")
     }
@@ -774,8 +909,8 @@ struct ChatView: View {
                 chatFloatingAction(icon: "share", label: AppStrings.share, accessibilityIdentifier: "chat-share-button") {
                     onShareChat?()
                 }
-                chatFloatingAction(icon: "bug", label: AppStrings.report) {
-                    ToastManager.shared.show(AppStrings.report, type: .info)
+                chatFloatingAction(icon: "bug", label: AppStrings.settingsReportIssue) {
+                    onReportIssue?(.assistantResponseQuality())
                 }
             }
 
@@ -803,8 +938,11 @@ struct ChatView: View {
                 .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .help(Text(label))
         .accessibilityLabel(label)
         .accessibilityIdentifier(accessibilityIdentifier ?? "chat-floating-action-\(icon)")
+        .accessibilityAddTraits(.isButton)
     }
 
     // MARK: - Streaming banner
@@ -895,6 +1033,7 @@ struct ChatView: View {
             }
             .font(.omXs)
             .foregroundStyle(Color.error)
+            .help(Text(AppStrings.stopResponse))
             .accessibilityLabel(AppStrings.stopResponse)
         }
         .padding(.horizontal, .spacing4)
@@ -926,7 +1065,7 @@ struct ChatView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("new-chat-button")
-        .frame(maxWidth: 1000)
+        .frame(maxWidth: MessageComposerMetric.mainAppMaxWidth)
         .frame(maxWidth: .infinity)
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing3)
@@ -969,6 +1108,8 @@ struct ChatView: View {
             subChatBroadcastToggle
             inputField(compact: false, placeholder: AppStrings.typeMessage)
         }
+            .frame(maxWidth: MessageComposerMetric.mainAppMaxWidth)
+            .frame(maxWidth: .infinity)
             .padding(.horizontal, .spacing4)
             .padding(.vertical, .spacing3)
             .background(Color.grey0)
@@ -1147,75 +1288,78 @@ struct ChatView: View {
 
     private func inputField(compact: Bool, placeholder: String, expandedMinHeight: CGFloat = 100) -> some View {
         let overlayActive = composerOverlay != nil || isUITestRecordingOverlayForced
+        let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
         return VStack(spacing: .spacing2) {
-            let activePIIMatches = detectedPIIMatches.filter { !piiExclusions.contains($0.id) }
-            PIIWarningBanner(matches: activePIIMatches) {
-                piiExclusions.formUnion(detectedPIIMatches.map(\.id))
-            }
-
-            if let chatId = viewModel.chat?.id {
-                UploadProgressBar(uploads: pendingUploads.uploadsForChat(chatId))
-            }
-
-            PendingComposerEmbedsList(embeds: viewModel.pendingComposerEmbeds) { embed in
-                viewModel.removePendingComposerEmbed(id: embed.id)
-            }
-
-            #if DEBUG
-            if shouldShowUITestPendingComposerEmbedFallback {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: .spacing3) {
-                        PendingComposerEmbedPreview(embed: .uiTestFixture) {}
-                    }
-                    .padding(.horizontal, .spacing4)
-                }
-                .padding(.vertical, .spacing2)
-                .accessibilityIdentifier("pending-composer-embed")
-            }
-            #endif
-
-            if let mentionQuery {
-                MentionDropdownView(
-                    query: mentionQuery,
-                    onSelect: insertMention,
-                    onDismiss: { self.mentionQuery = nil }
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, .spacing5)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-            }
-
-            OMMessageInputField(
+            MessageComposerView(
                 text: $messageText,
                 isFocused: $isInputFocused,
                 compact: compact && !overlayActive,
                 placeholder: placeholder,
                 expandedMinHeight: overlayActive ? 400 : expandedMinHeight,
+                maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
-                overlayContent: composerOverlayView(),
-                onSubmit: sendMessage
+                onSubmit: sendMessage,
+                inlineFieldContent: pendingComposerInlineFieldContent
             ) {
+                PIIWarningBanner(matches: activePIIMatches) {
+                    piiExclusions.formUnion(detectedPIIMatches.map(\.id))
+                }
+
+                if enhancedPIIModelController.isDownloadConfigured,
+                   enhancedPIIRecommendationStore.shouldRecommend(
+                       regexMatches: activePIIMatches,
+                       modelStatus: enhancedPIIModelController.status
+                   ) {
+                    EnhancedPIIModelSuggestionBanner(
+                        onDownload: { Task { await enhancedPIIModelController.performPrimaryAction() } },
+                        onDismiss: { enhancedPIIRecommendationStore.dismiss() }
+                    )
+                }
+
+                PIIHighlightStrip(matches: activePIIMatches) { match in
+                    piiExclusions.insert(match.id)
+                }
+
+                if let chatId = viewModel.chat?.id {
+                    UploadProgressBar(uploads: pendingUploads.uploadsForChat(chatId))
+                }
+                if let mentionQuery {
+                    MentionDropdownView(
+                        query: mentionQuery,
+                        onSelect: insertMention,
+                        onDismiss: { self.mentionQuery = nil }
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, .spacing5)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
+            } overlayContent: {
+                if let overlay = composerOverlayView() {
+                    overlay
+                }
+            } actionButtons: {
                 HStack(spacing: .spacing6) {
                 AttachmentPicker(
                     isPresented: $showAttachmentMenu,
                     onImageSelected: { data, filename in
                         Task { await viewModel.uploadAttachment(data: data, filename: filename) }
                     },
-                    onFileSelected: { url in
-                        Task { await viewModel.uploadFile(url: url) }
+                    onFileSelected: { data, filename in
+                        Task { await viewModel.uploadFile(data: data, filename: filename) }
                     }
                 )
+                .help(Text(AppStrings.attachFiles))
                 .accessibilityLabel(AppStrings.attachFiles)
                 .accessibilityIdentifier("attach-files-button")
 
-                inputActionButton(icon: "maps", label: AppStrings.shareLocation) {
+                MessageComposerActionIcon(icon: "maps", label: AppStrings.shareLocation) {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         composerOverlay = .location
                         isInputFocused = true
                     }
                 }
 
-                inputActionButton(icon: "whiteboard", label: AppStrings.sketchAction) {
+                MessageComposerActionIcon(icon: "whiteboard", label: AppStrings.sketchAction) {
                     #if os(iOS)
                     withAnimation(.easeInOut(duration: 0.2)) {
                         composerOverlay = .sketch
@@ -1229,32 +1373,21 @@ struct ChatView: View {
                 Spacer()
 
                 #if os(iOS)
-                inputActionButton(icon: "camera", label: AppStrings.takePhoto) {
+                MessageComposerActionIcon(icon: "camera", label: AppStrings.takePhoto, identifier: "take-photo-button") {
                     showCameraCapture = true
                 }
-                .accessibilityIdentifier("take-photo-button")
                 #endif
 
                 if messageText.isEmpty && !viewModel.hasPendingComposerEmbeds && !viewModel.isStreaming {
                     recordActionControls
                 } else {
-                    Button(action: sendMessage) {
-                        Text(AppStrings.sendAction)
-                            .font(.omP)
-                            .fontWeight(.medium)
-                            .foregroundStyle(Color.fontButton)
-                            .padding(.horizontal, .spacing8)
-                            .padding(.vertical, .spacing4)
-                            .frame(height: 40)
-                            .background(Color.buttonPrimary)
-                            .clipShape(RoundedRectangle(cornerRadius: .radius8))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled((messageText.isEmpty && !viewModel.hasPendingComposerEmbeds) || viewModel.isStreaming)
-                    .opacity((messageText.isEmpty && !viewModel.hasPendingComposerEmbeds) ? 0.6 : 1.0)
-                    .accessibilityLabel(AppStrings.sendMessage)
+                    MessageComposerSendButton(
+                        title: AppStrings.sendAction,
+                        disabled: messageText.isEmpty && !viewModel.hasPendingComposerEmbeds,
+                        accessibilityLabel: AppStrings.sendMessage,
+                        action: sendMessage
+                    )
                     .accessibilityHint(AppStrings.typeMessage)
-                    .accessibilityIdentifier("send-button")
                     #if os(macOS)
                     .keyboardShortcut(.return, modifiers: .command)
                     #endif
@@ -1262,8 +1395,20 @@ struct ChatView: View {
                 }
                 .padding(.horizontal, .spacing5)
                 .padding(.bottom, .spacing6)
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("action-buttons")
+            }
+
+            if let queuedMessageText = viewModel.streamingLifecycle.queuedMessageText {
+                Text(queuedMessageText)
+                    .font(.omXs)
+                    .fontWeight(.medium)
+                    .foregroundStyle(Color.fontSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing2)
+                    .background(Color.grey10)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                    .padding(.horizontal, .spacing5)
+                    .accessibilityIdentifier("queued-message-indicator")
             }
 
             if let recordPermissionHintText {
@@ -1275,6 +1420,23 @@ struct ChatView: View {
                     .transition(.opacity)
             }
         }
+        .frame(maxWidth: MessageComposerMetric.mainAppMaxWidth)
+    }
+
+    private var pendingComposerInlineFieldContent: AnyView? {
+        if viewModel.hasPendingComposerEmbeds {
+            return AnyView(PendingComposerEmbedsList(embeds: viewModel.pendingComposerEmbeds) { embed in
+                viewModel.removePendingComposerEmbed(id: embed.id)
+            })
+        }
+
+        #if DEBUG
+        if shouldShowUITestPendingComposerEmbedFallback {
+            return AnyView(PendingComposerEmbedsList(embeds: [.uiTestFixture]) { _ in })
+        }
+        #endif
+
+        return nil
     }
 
     private func composerOverlayView() -> AnyView? {
@@ -1320,20 +1482,21 @@ struct ChatView: View {
             ComposerRecordingOverlay(
                 recorder: composerRecorder,
                 dragOffsetX: recordDragOffsetX,
+                startedFromKeyboard: recordStartedFromKeyboard,
                 onStop: { url in
                     self.composerOverlay = nil
                     self.recordAttemptActive = false
+                    self.recordStartedFromKeyboard = false
                     self.recordDragOffsetX = 0
                     Task {
-                        if let transcript = await viewModel.uploadRecording(url: url, duration: composerRecorder.duration) {
-                            appendRecordingTranscript(transcript)
-                        }
+                        await viewModel.uploadRecording(url: url, duration: composerRecorder.duration)
                     }
                 },
                 onCancel: {
                     composerRecorder.cancelRecording()
                     self.composerOverlay = nil
                     self.recordAttemptActive = false
+                    self.recordStartedFromKeyboard = false
                     self.recordDragOffsetX = 0
                 }
             )
@@ -1343,7 +1506,18 @@ struct ChatView: View {
     private var isUITestRecordingOverlayForced: Bool {
         #if DEBUG
         return ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay")
+            || ProcessInfo.processInfo.arguments.contains("--ui-test-force-keyboard-recording-overlay")
             || ProcessInfo.processInfo.environment["UI_TEST_FORCE_RECORDING_OVERLAY"] == "1"
+            || ProcessInfo.processInfo.environment["UI_TEST_FORCE_KEYBOARD_RECORDING_OVERLAY"] == "1"
+        #else
+        return false
+        #endif
+    }
+
+    private var isUITestKeyboardRecordingOverlayForced: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("--ui-test-force-keyboard-recording-overlay")
+            || ProcessInfo.processInfo.environment["UI_TEST_FORCE_KEYBOARD_RECORDING_OVERLAY"] == "1"
         #else
         return false
         #endif
@@ -1353,6 +1527,7 @@ struct ChatView: View {
         #if DEBUG
         guard isUITestRecordingOverlayForced else { return }
         micPermissionState = .granted
+        recordStartedFromKeyboard = isUITestKeyboardRecordingOverlayForced
         composerOverlay = .recording
         isInputFocused = true
         #endif
@@ -1385,6 +1560,7 @@ struct ChatView: View {
             .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 2)
         }
         .buttonStyle(.plain)
+        .help(Text(AppStrings.newChat))
         .accessibilityLabel(AppStrings.newChat)
         .accessibilityIdentifier("new-chat-button")
     }
@@ -1422,17 +1598,8 @@ struct ChatView: View {
                 )
         }
         .buttonStyle(.plain)
+        .help(Text(messageText.isEmpty ? AppStrings.cancel : AppStrings.saveDraft))
         .accessibilityLabel(messageText.isEmpty ? AppStrings.cancel : AppStrings.saveDraft)
-    }
-
-    private func inputActionButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Icon(icon, size: 25)
-                .foregroundStyle(LinearGradient.primary)
-                .frame(width: 25, height: 25)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
     }
 
     private var recordActionControls: some View {
@@ -1452,11 +1619,14 @@ struct ChatView: View {
     }
 
     private var recordGestureButton: some View {
-        Icon("recordaudio", size: 25)
-            .foregroundStyle(recordAttemptActive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
-            .frame(width: 25, height: 25)
+        Button(action: {}) {
+            Icon("recordaudio", size: 25)
+                .foregroundStyle(recordAttemptActive ? AnyShapeStyle(Color.error) : AnyShapeStyle(LinearGradient.primary))
+                .frame(width: 25, height: 25)
+        }
+            .buttonStyle(.plain)
             .contentShape(Circle())
-            .gesture(
+            .simultaneousGesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
                         handleRecordGestureChanged(value)
@@ -1465,8 +1635,8 @@ struct ChatView: View {
                         finishRecordAttempt()
                     }
             )
+            .help(Text(AppStrings.recordAudio))
             .accessibilityLabel(AppStrings.recordAudio)
-            .accessibilityAddTraits(.isButton)
             .accessibilityIdentifier("record-audio-button")
     }
 
@@ -1500,6 +1670,7 @@ struct ChatView: View {
     }
 
     private func beginRecordAttempt(startLocation _: CGPoint) {
+        recordStartedFromKeyboard = false
         recordAttemptActive = true
         recordDragOffsetX = 0
         recordStartTask?.cancel()
@@ -1543,11 +1714,10 @@ struct ChatView: View {
         if composerOverlay == .recording, let url = composerRecorder.stopRecording() {
             composerOverlay = nil
             recordAttemptActive = false
+            recordStartedFromKeyboard = false
             recordDragOffsetX = 0
             Task {
-                if let transcript = await viewModel.uploadRecording(url: url, duration: composerRecorder.duration) {
-                    appendRecordingTranscript(transcript)
-                }
+                await viewModel.uploadRecording(url: url, duration: composerRecorder.duration)
             }
             return
         }
@@ -1556,6 +1726,7 @@ struct ChatView: View {
             showRecordHint()
         }
         recordAttemptActive = false
+        recordStartedFromKeyboard = false
         recordDragOffsetX = 0
     }
 
@@ -1565,7 +1736,77 @@ struct ChatView: View {
         composerRecorder.cancelRecording()
         composerOverlay = nil
         recordAttemptActive = false
+        recordStartedFromKeyboard = false
         recordDragOffsetX = 0
+    }
+
+    private func beginKeyboardRecordAttempt() {
+        recordStartedFromKeyboard = true
+        recordAttemptActive = true
+        recordDragOffsetX = 0
+        recordStartTask?.cancel()
+
+        if micPermissionState == .denied {
+            showRecordHint()
+            return
+        }
+
+        if micPermissionState == .unknown {
+            Task { @MainActor in
+                let granted = await composerRecorder.requestPermission()
+                micPermissionState = granted ? .granted : .denied
+                recordAttemptActive = false
+                recordStartedFromKeyboard = false
+                showRecordHint(duration: granted ? 2500 : 0)
+            }
+            return
+        }
+
+        recordStartTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(200))
+            guard !Task.isCancelled, recordAttemptActive, recordStartedFromKeyboard, micPermissionState == .granted else { return }
+            composerRecorder.startRecording()
+            guard composerRecorder.error == nil else {
+                micPermissionState = .denied
+                recordAttemptActive = false
+                recordStartedFromKeyboard = false
+                showRecordHint(duration: 0)
+                return
+            }
+            withAnimation(.easeInOut(duration: 0.15)) {
+                composerOverlay = .recording
+                isInputFocused = true
+            }
+        }
+    }
+
+    private func handleKeyboardRecordSpace(_ press: KeyPress) -> KeyPress.Result {
+        guard press.modifiers.isEmpty else { return .ignored }
+
+        if press.phase == .up {
+            if suppressKeyboardRecordSpaceUntilKeyUp {
+                suppressKeyboardRecordSpaceUntilKeyUp = false
+                return .handled
+            }
+            guard recordStartedFromKeyboard else { return .ignored }
+            finishRecordAttempt()
+            return .handled
+        }
+
+        if suppressKeyboardRecordSpaceUntilKeyUp || recordStartedFromKeyboard {
+            return .handled
+        }
+
+        guard !isInputFocused else { return .ignored }
+        beginKeyboardRecordAttempt()
+        return .handled
+    }
+
+    private func handleKeyboardRecordEscape() -> KeyPress.Result {
+        guard recordStartedFromKeyboard else { return .ignored }
+        suppressKeyboardRecordSpaceUntilKeyUp = true
+        cancelRecordAttempt()
+        return .handled
     }
 
     private func showRecordHint(duration: Int = 2500) {
@@ -1579,41 +1820,60 @@ struct ChatView: View {
         }
     }
 
-    private func appendRecordingTranscript(_ transcript: String) {
-        let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        messageText += messageText.isEmpty ? trimmed : "\n\(trimmed)"
-    }
-
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty || viewModel.hasPendingComposerEmbeds else { return }
-        let sanitizedText = PIIDetector.redactedText(text, matches: detectedPIIMatches, excludedIds: piiExclusions)
-        let piiMappings = PIIDetector.mappings(for: detectedPIIMatches, excludedIds: piiExclusions)
-        if let chatId = viewModel.chat?.id, pendingUploads.hasActiveUploads(chatId: chatId) {
-            let blockingIds = Set(pendingUploads.uploadsForChat(chatId).map(\.id))
-            pendingUploads.addPendingSend(
-                chatId: chatId,
-                content: sanitizedText,
-                piiMappings: piiMappings,
-                blockingUploadIds: blockingIds,
-                dispatchThroughActiveComposer: true
-            )
-            messageText = ""
-            return
+        let excludedIds = piiExclusions
+        let pendingChatId = viewModel.chat?.id
+        let blockingUploadIds = pendingChatId.flatMap { chatId -> Set<String>? in
+            guard pendingUploads.hasActiveUploads(chatId: chatId) else { return nil }
+            return Set(pendingUploads.uploadsForChat(chatId).map(\.id))
         }
         messageText = ""
         detectedPIIMatches = []
         piiExclusions = []
         mentionQuery = nil
 
-        Task {
+        Task { @MainActor in
+            let redaction = await enhancedRedactionResult(in: text, excludedIds: excludedIds)
+            let sanitizedText = redaction.redactedText
+            let piiMappings = redaction.mappings
+            if let chatId = pendingChatId, let blockingUploadIds {
+                pendingUploads.addPendingSend(
+                    chatId: chatId,
+                    content: sanitizedText,
+                    piiMappings: piiMappings,
+                    blockingUploadIds: blockingUploadIds,
+                    dispatchThroughActiveComposer: true
+                )
+                return
+            }
             await viewModel.sendMessage(
                 sanitizedText,
                 piiMappings: piiMappings,
                 broadcastToSiblings: broadcastToSiblingSubChats
             )
         }
+    }
+
+    private func applyInputFocusRequestIfNeeded() {
+        guard inputFocusRequest > 0, handledInputFocusRequest != inputFocusRequest else { return }
+        handledInputFocusRequest = inputFocusRequest
+        Task { @MainActor in
+            await Task.yield()
+            isInputFocused = true
+        }
+    }
+
+    private func applyCameraCaptureRequestIfNeeded() {
+        guard cameraCaptureRequest > 0, handledCameraCaptureRequest != cameraCaptureRequest else { return }
+        handledCameraCaptureRequest = cameraCaptureRequest
+        #if os(iOS)
+        Task { @MainActor in
+            await Task.yield()
+            showCameraCapture = true
+        }
+        #endif
     }
 
     private func handleComposerDeferredSend(_ notification: Notification) {
@@ -1633,9 +1893,38 @@ struct ChatView: View {
     }
 
     private func updatePIIMatches(for text: String) {
-        detectedPIIMatches = PIIDetector.detect(in: text)
+        let options = piiPrivacySettingsStore.detectionOptions()
+        let regexMatches = PIIDetector.detect(in: text, options: options)
+        detectedPIIMatches = regexMatches
         let currentIds = Set(detectedPIIMatches.map(\.id))
         piiExclusions = piiExclusions.intersection(currentIds)
+
+        enhancedPIIDetectionTask?.cancel()
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              enhancedPIIModelController.modelDetector != nil else { return }
+        let snapshot = text
+        enhancedPIIDetectionTask = Task { @MainActor in
+            let result = await enhancedDetector.detect(in: snapshot, options: options)
+            guard !Task.isCancelled, snapshot == messageText else { return }
+            detectedPIIMatches = result.matches
+            let currentIds = Set(result.matches.map(\.id))
+            piiExclusions = piiExclusions.intersection(currentIds)
+        }
+    }
+
+    private var enhancedDetector: EnhancedPIIDetector {
+        EnhancedPIIDetector(modelDetector: enhancedPIIModelController.modelDetector)
+    }
+
+    private func enhancedRedactionResult(in text: String, excludedIds: Set<String>) async -> PIIRedactionResult {
+        let options = piiPrivacySettingsStore.detectionOptions()
+        let detection = await enhancedDetector.detect(in: text, options: options)
+        return PIIDetector.redactionResult(
+            in: text,
+            matches: detection.matches,
+            excludedIds: excludedIds,
+            options: options
+        )
     }
 
     private func updateMentionQuery(for text: String) {
@@ -1728,6 +2017,7 @@ private struct AssistantResponseFeedbackView: View {
                                     .foregroundStyle(starColor(for: rating))
                             }
                             .buttonStyle(.plain)
+                            .help(Text(AppStrings.assistantFeedbackStarLabel(count: rating)))
                             .accessibilityLabel(AppStrings.assistantFeedbackStarLabel(count: rating))
                             .accessibilityIdentifier("assistant-feedback-star-\(rating)")
                         }
@@ -1786,7 +2076,11 @@ struct MessageBubble: View {
     let embeds: [EmbedRecord]
     let allEmbedRecords: [String: EmbedRecord]
     let streamingContent: String?
+    let piiMappings: [PIIMapping]
+    let isPIIRevealed: Bool
     let containerWidth: CGFloat
+    let isSearchTarget: Bool
+    let searchHighlightQuery: String?
     let onEmbedTap: (EmbedRecord) -> Void
     let onOpenPublicChat: ((String) -> Void)?
     let onInteractiveQuestionSubmit: ((String) -> Void)?
@@ -1806,8 +2100,9 @@ struct MessageBubble: View {
     private var assistantCategory: String? { message.appId ?? appId }
 
     var displayContent: String {
-        if let streaming = streamingContent { return streaming }
-        return message.content ?? ""
+        let content = streamingContent ?? message.content ?? ""
+        guard isPIIRevealed else { return content }
+        return PIIDetector.restorePII(in: content, mappings: piiMappings)
     }
 
     private var viewAllowsInteractiveQuestionSubmit: Bool {
@@ -1946,7 +2241,8 @@ struct MessageBubble: View {
                     content: displayContent,
                     isUserMessage: true,
                     allEmbedRecords: allEmbedRecords,
-                    onEmbedTap: onEmbedTap
+                    onEmbedTap: onEmbedTap,
+                    searchHighlightQuery: searchHighlightQuery
                 )
                     .foregroundStyle(Color.fontPrimary)
                     .padding(.spacing6)
@@ -1956,6 +2252,7 @@ struct MessageBubble: View {
                     .overlay(alignment: .bottomTrailing) {
                         SpeechTailView(side: .trailing, color: Color.greyBlue)
                     }
+                    .searchTargetOutline(isSearchTarget)
                     .onLongPressGesture {
                         onShowActions?()
                     }
@@ -2004,7 +2301,8 @@ struct MessageBubble: View {
                             allEmbedRecords: allEmbedRecords,
                             hiddenEmbedIds: hiddenInlineEmbedIds,
                             onEmbedTap: onEmbedTap,
-                            onInteractiveQuestionSubmit: viewAllowsInteractiveQuestionSubmit ? onInteractiveQuestionSubmit : nil
+                            onInteractiveQuestionSubmit: viewAllowsInteractiveQuestionSubmit ? onInteractiveQuestionSubmit : nil,
+                            searchHighlightQuery: searchHighlightQuery
                         )
                     }
                     .foregroundStyle(Color.grey100)
@@ -2015,6 +2313,7 @@ struct MessageBubble: View {
                     .overlay(alignment: .topLeading) {
                         SpeechTailView(side: useStackedLayout ? .top : .leading, color: Color.grey0)
                     }
+                    .searchTargetOutline(isSearchTarget)
                     .onLongPressGesture {
                         onShowActions?()
                     }
@@ -2080,6 +2379,19 @@ struct MessageBubble: View {
         .accessibilityLabel("\(isUser ? "You" : "AI"): \(displayContent.prefix(200))")
         .accessibilityHint("Long press for options")
         .accessibilityIdentifier(isUser ? "message-user" : "message-assistant")
+    }
+}
+
+private extension View {
+    func searchTargetOutline(_ isActive: Bool) -> some View {
+        overlay {
+            if isActive {
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.buttonPrimary, lineWidth: 2)
+                    .padding(-4)
+                    .allowsHitTesting(false)
+            }
+        }
     }
 }
 

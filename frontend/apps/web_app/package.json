@@ -1,11 +1,12 @@
 {
 	"name": "web_app",
-	"version": "0.13.0",
+	"version": "0.14.0",
 	"private": true,
 	"type": "module",
 	"scripts": {
 		"dev": "node scripts/process-docs.js && vite dev",
 		"build": "node scripts/process-docs.js && vite build && node scripts/audit-example-seo.js",
+		"build:vscode": "node scripts/process-docs.js && node scripts/build-vscode.js",
 		"build:docs": "node scripts/process-docs.js",
 		"audit:seo": "node scripts/audit-example-seo.js",
 		"preview": "vite preview",
@@ -16,6 +17,9 @@
 		"lint": "eslint .",
 		"test:integration": "playwright test",
 		"test:unit": "vitest"
+	},
+	"engines": {
+		"node": "24.x"
 	},
 	"dependencies": {
 		"@fontsource-variable/lexend-deca": "^5.2.9",

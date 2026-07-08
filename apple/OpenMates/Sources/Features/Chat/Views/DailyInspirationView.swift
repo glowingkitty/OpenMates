@@ -123,6 +123,7 @@ struct DailyInspirationBanner: View {
 
 struct InspirationCard: View {
     let inspiration: DailyInspirationData
+    let containerSize: CGSize
     let onTap: () -> Void
 
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -130,9 +131,19 @@ struct InspirationCard: View {
     @State private var decoAppeared = false
     @State private var showMobileVideo = false
 
-    private var isCompact: Bool { sizeClass == .compact }
-    /// Web mobile screenshot parity: fixed minimum card height.
-    private let bannerHeight: CGFloat = 240
+    private var isCompact: Bool { sizeClass == .compact || containerSize.width <= 730 }
+
+    /// Web `.daily-inspiration-banner`: `height: 35vh; min-height: 240px`,
+    /// switching to fixed `190px` at the mobile breakpoint.
+    private var bannerHeight: CGFloat {
+        guard !isCompact else { return 190 }
+        let responsiveHeight = containerSize.height * 0.35
+        return max(240, responsiveHeight)
+    }
+
+    private var shouldShowSideBySideVideo: Bool {
+        hasVideo && !isCompact && containerSize.width >= 520
+    }
 
     private var category: String { inspiration.category ?? "general_knowledge" }
     private var hasVideo: Bool { inspiration.video?.thumbnailUrl != nil || inspiration.video?.youtubeId != nil }
@@ -185,6 +196,7 @@ struct InspirationCard: View {
             .onTapGesture(perform: onTap)
         }
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("daily-inspiration-card")
         .accessibleButton(
             "Daily inspiration: \(inspiration.text)",
             hint: "Starts a new chat with this inspiration"
@@ -226,7 +238,7 @@ struct InspirationCard: View {
                     .opacity(isCompact && hasVideo && showMobileVideo ? 0 : 1)
                     .offset(y: isCompact && hasVideo && showMobileVideo ? -6 : 0)
 
-                if !isCompact, hasVideo {
+                if shouldShowSideBySideVideo {
                     videoPreviewLayer
                         .frame(maxWidth: 220, maxHeight: .infinity)
                 }

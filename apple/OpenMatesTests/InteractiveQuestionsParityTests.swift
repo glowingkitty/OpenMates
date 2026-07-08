@@ -33,6 +33,58 @@ final class InteractiveQuestionsParityTests: XCTestCase {
         XCTAssertEqual(payload.options?.first?.text, "items[::2]")
     }
 
+    func testChoiceQuestionParsesEmbedReferences() throws {
+        let markdown = """
+        ```interactive_question
+        {
+          "type": "choice",
+          "id": "choose_snippet",
+          "question": "Which implementation should we use?",
+          "options": [
+            { "id": "minimal", "text": "Minimal implementation", "embed_ids": ["embed-code-a"] }
+          ]
+        }
+        ```
+        """
+
+        let blocks = MarkdownParser.parse(markdown)
+
+        guard case .interactiveQuestion(let payload) = blocks.first else {
+            XCTFail("Expected valid embed-backed interactive question block")
+            return
+        }
+        XCTAssertEqual(payload.options?.first?.embedIds, ["embed-code-a"])
+    }
+
+    @MainActor
+    func testChoiceResponseIncludesSelectedEmbedReferences() throws {
+        let json = """
+        {
+          "type": "choice",
+          "id": "choose_snippet",
+          "multiple": false,
+          "question": "Which implementation should we use?",
+          "options": [
+            { "id": "minimal", "text": "Minimal implementation", "embed_ids": ["embed-code-a"] },
+            { "id": "robust", "text": "More robust implementation", "embed_ids": ["embed-code-b"] }
+          ]
+        }
+        """
+        let payload = try JSONDecoder().decode(
+            AppleInteractiveQuestionPayload.self,
+            from: XCTUnwrap(json.data(using: .utf8))
+        )
+
+        let content = payload.responseContent(response: [
+            "id": "choose_snippet",
+            "selection": ["robust"]
+        ])
+
+        XCTAssertTrue(content.contains("\"embed_ids\" : ["))
+        XCTAssertTrue(content.contains("\"embed-code-b\""))
+        XCTAssertFalse(content.contains("function robustImplementation"))
+    }
+
     func testInputQuestionWithoutTitleParsesAsInteractiveQuestionBlock() {
         let markdown = """
         ```interactive_question

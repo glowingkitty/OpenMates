@@ -167,6 +167,7 @@ def platform_feature_id(feature_id: str) -> str:
 
 PLATFORM_FEATURES: tuple[FeatureDefinition, ...] = (
     FeatureDefinition(id=platform_feature_id("projects"), kind="platform", default_enabled=False, source="platform"),
+    FeatureDefinition(id=platform_feature_id("plans"), kind="platform", default_enabled=False, source="platform"),
     FeatureDefinition(id=platform_feature_id("workflows"), kind="platform", default_enabled=False, source="platform"),
     FeatureDefinition(id=platform_feature_id("tasks"), kind="platform", default_enabled=False, source="platform"),
 )

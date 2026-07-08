@@ -5,7 +5,7 @@ import AppIntents
 import Foundation
 
 struct MapsSearchIntent: AppIntent {
-    static let title: LocalizedStringResource = "Search Places"
+    static let title: LocalizedStringResource = "Maps | Search"
     static let description: IntentDescription = "Search for places, restaurants, and points of interest."
     static let openAppWhenRun = false
 

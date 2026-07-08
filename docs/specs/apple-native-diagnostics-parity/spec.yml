@@ -1,0 +1,702 @@
+id: apple-native-diagnostics-parity
+title: Apple Native Diagnostics And Report Issue Parity
+status: verified
+
+goal: >
+  Make Apple issue reports and debug-log sharing at least as useful as the web
+  app's report issue flow by collecting privacy-safe native logs, action
+  history, runtime state, SwiftData/offline metadata, report-time performance
+  snapshots, and MetricKit diagnostics without capturing private message
+  plaintext, keys, tokens, or request/response bodies.
+
+scope:
+  in:
+    - Extract native diagnostics helpers out of `ReportIssueView.swift` into a reusable `Core/Diagnostics` layer.
+    - Route Apple native logs through a single privacy-safe diagnostics logger that feeds both unified logging and issue/debug buffers.
+    - Bridge existing `NativeSyncPerfLog` output into report/debug buffers so chat opening, sync, embed hydration, and offline performance logs are captured automatically.
+    - Include native runtime debug state in issue reports: current surface, WebSocket state, recent sync state, network flags, thermal/low-power state, pending uploads/sends, active streaming lifecycle, chat opening counters, and frame monitor summary.
+    - Add a native action-history tracker for stable navigation/button actions, excluding user-entered text.
+    - Add a SwiftData/ChatStore inspection report equivalent to web IndexedDB inspection, with counts, version fields, encrypted field presence/lengths, and hashed/prefixed identifiers only.
+    - Add report-time rolling frame/jank metrics using a lightweight display-link monitor on iOS.
+    - Add MetricKit setup for daily metric reports and event diagnostics where supported, storing recent sanitized summaries for issue report context.
+    - Implement Apple debug-session live forwarding to `/v1/settings/debug-logs` and default anonymized warn/error telemetry to `/v1/client-logs` for authenticated users who have not opted out.
+    - Include structured native sync phase summaries with run IDs, elapsed timings, duplicate/dedup warning counts, and recent phase fields so performance reports do not rely on truncated console text.
+    - Include native log-forwarder status in issue reports: default/debug running state, opt-out state, last flush timestamp, status, and count.
+    - Best-effort flush default telemetry and active debug-session logs immediately after issue creation, before uploading issue-time logs.
+    - Include non-identifying device/build state such as app build, OS version, model identifier, battery state, memory, and processor count.
+    - Update Apple agent instructions to require `NativeDiagnostics`/metrics APIs for new Apple logging and performance instrumentation.
+    - Add unit/UI tests proving payload richness, redaction, log bridging, default telemetry sanitization, debug-session forwarding payload shape, and report issue upload behavior.
+  out:
+    - Capturing message plaintext automatically in logs, inspection reports, MetricKit metadata, or action history.
+    - Capturing chat keys, embed keys, master keys, recovery keys, session tokens, cookies, push tokens, full share URL fragments, private file paths, or raw request/response bodies.
+    - Uploading screenshots without explicit user attachment.
+    - Adding new backend endpoints unless an existing contract cannot safely represent the native diagnostics.
+    - Rewriting the Apple chat transcript or app shell for performance; this spec adds observability, not UI virtualization.
+    - Making MetricKit reports a prerequisite for issue submission, because MetricKit delivery is periodic/event-based and may not be immediately available.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search failed with 401 Bad credentials on 2026-07-04."
+    - "`gh issue list --repo glowingkitty/OpenMates --search \"Apple diagnostics report issue logs MetricKit iOS performance\" --state all --limit 10` returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/apple-workspace-reporting-parity/spec.yml
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    - docs/specs/apple-settings-billing-parity/spec.yml
+    - docs/architecture/infrastructure/admin-console-log-forwarding.md
+    - docs/contributing/guides/debugging.md
+    - docs/user-guide/issue-reporting.md
+    - apple/AGENTS.md
+    - apple/CLAUDE.md
+    - .claude/rules/apple-ui.md
+  external_docs:
+    - "Apple MetricKit: daily performance reports, event diagnostics for crashes/hangs/CPU/disk/app launch, and signpost interval metrics."
+    - "Apple OSSignposter: records task intervals and points of interest using unified logging/Instruments."
+    - "Apple CADisplayLink: exposes timestamp/targetTimestamp for measuring actual frame duration and frame pacing."
+  code_patterns:
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/services/logCollector.ts
+    - frontend/packages/ui/src/services/clientLogForwarder.ts
+    - frontend/packages/ui/src/services/userActionTracker.ts
+    - backend/core/api/app/routes/settings.py
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Networking/SyncManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsShareDebugLogsView.swift
+  tests:
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Diagnostics/*.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Networking/SyncManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineSyncBridge.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsShareDebugLogsView.swift
+    - apple/OpenMates/Sources/App/OpenMatesApp.swift
+    - apple/OpenMatesTests/SettingsFullParityTests.swift
+    - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    - apple/AGENTS.md
+    - .claude/rules/apple-ui.md
+  parity_expectations:
+    - Apple diagnostics must mirror the web report issue privacy model while using native signals that web cannot provide, including frame pacing, thermal state, Low Power Mode, and MetricKit diagnostic summaries.
+    - Apple report payloads must keep using `/v1/settings/issues` and `/v1/settings/issue-logs` with backend-compatible field names where possible.
+    - Native debug-log sharing must follow web debug-session semantics: explicit session ID for user-enabled live logs, issue-time logs tied to a submitted issue, and default anonymized warn/error telemetry without user identity.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsFullParityTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsFullParityUITests/testReportIssueSubmissionSucceedsAndUploadsSimulatorLogs
+  intentional_native_differences:
+    - MetricKit reports are not synchronous with issue submission; issue reports include the latest locally available MetricKit summaries, not a guaranteed fresh system report.
+    - Native frame monitoring uses iOS display-link sampling rather than browser performance APIs.
+    - Native action history uses stable Swift-side route/control identifiers instead of DOM selectors.
+
+clarification:
+  rounds:
+    - question: Should Apple diagnostics include default anonymized warn/error telemetry for authenticated users who have not opted out, or only issue reports and explicit debug sessions?
+      answer: Include default telemetry.
+  vision_summary: >
+    Apple diagnostics should become a first-class observability surface rather
+    than a report-form-only helper. Support should be able to answer what screen
+    the user was on, what safe actions led there, whether sync/WebSocket/offline
+    work was active, how much local data was involved, whether the UI was janky,
+    and whether native system diagnostics point to hangs/crashes, while preserving
+    zero-knowledge and privacy boundaries.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Apple issue report contains rich native context
+    given:
+      - Alice is authenticated in the Apple app.
+      - Alice experiences poor performance on a chat screen.
+    when:
+      - Alice opens Report issue and submits a report.
+    then:
+      - The issue payload includes native logs, action history, runtime debug state, offline/chat inspection metadata, frame metrics, and recent MetricKit summaries when available.
+      - The payload excludes message plaintext, keys, auth tokens, cookies, full share fragments, request/response bodies, and private file paths.
+      - The backend returns a report reference and Apple pushes issue-time logs to `/v1/settings/issue-logs` using the internal issue ID.
+
+  - id: S-2
+    title: Native sync and chat performance logs flow into issue reports
+    given:
+      - Apple has emitted `NativeSyncPerfLog` entries during cold load, phased sync, chat open, or embed hydration.
+    when:
+      - Alice submits an issue report after those events.
+    then:
+      - The submitted logs include those structured phase timing entries.
+      - The same entries are redacted and capped by ring-buffer limits.
+      - Critical warning/error entries survive high-volume info/debug noise.
+
+  - id: S-3
+    title: Apple records privacy-safe action history
+    given:
+      - Alice navigates from chats to settings, opens billing, returns to chat, and opens Report issue.
+    when:
+      - Alice submits the report.
+    then:
+      - The action history shows stable route/control labels and timestamps.
+      - The action history does not include text typed into the composer or report form.
+      - Report-issue form focus/input noise does not hide the meaningful actions that happened before the report.
+
+  - id: S-4
+    title: Apple debug-session forwarding mirrors web semantics
+    given:
+      - Alice starts a debug-log sharing session in Apple settings.
+      - Native warn/error/info entries occur while the session is active.
+    when:
+      - The native forwarder flushes a batch.
+    then:
+      - The request targets `/v1/settings/debug-logs` with the active `debugging_id` and sanitized log entries.
+      - The forwarder retries or queues locally when offline and does not block UI interactions.
+      - Stopping the debug session stops live forwarding after a best-effort drain.
+
+  - id: S-5
+    title: Apple default telemetry sends only anonymized warn/error diagnostics
+    given:
+      - Alice is authenticated and has not opted out of diagnostic logging.
+      - Native warnings or errors occur outside an explicit debug session.
+    when:
+      - The default telemetry forwarder flushes.
+    then:
+      - The request targets `/v1/client-logs` with a per-install/session pseudonym and no user email or user ID.
+      - Only warn/error entries are sent.
+      - Content-level sanitization strips emails, UUID-like chat/message/embed IDs, base64 blobs, tokens, long strings, and private paths.
+
+  - id: S-6
+    title: MetricKit and frame probes improve performance triage
+    given:
+      - Apple has sampled recent frame pacing and has received one or more MetricKit metric or diagnostic reports.
+    when:
+      - Alice submits an issue report.
+    then:
+      - Runtime state includes recent average FPS, worst frame, jank counts, Low Power Mode, and thermal state where supported.
+      - Recent MetricKit summaries include report type, time range/event timestamp, app version/environment, and sanitized diagnostic categories.
+      - MetricKit absence is represented explicitly rather than treated as an error.
+
+  - id: S-7
+    title: Agent instructions enforce native diagnostics APIs
+    given:
+      - A future agent edits Apple code that logs errors, warnings, network failures, sync phases, chat-open performance, or expensive operations.
+    when:
+      - The agent reads Apple instructions.
+    then:
+      - The instructions require `NativeDiagnostics` or the approved metrics/signpost helpers instead of new ad-hoc `print` or isolated `Logger` calls for product diagnostics.
+      - The instructions restate privacy boundaries for diagnostics and issue reports.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Apple report issue payloads include native diagnostics fields comparable to web report issue fields, plus native-only frame/MetricKit summaries.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-001
+      - T-APPLE-UI-001
+  - id: AC-2
+    scenario: S-1
+    text: Diagnostics redaction prevents automatic capture of plaintext messages, keys, tokens, cookies, private paths, full share fragments, request/response bodies, and raw typed text.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-001
+  - id: AC-3
+    scenario: S-2
+    text: Existing `NativeSyncPerfLog` entries are bridged into the issue/debug log ring buffer without removing unified logging.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-002
+  - id: AC-4
+    scenario: S-3
+    text: Apple action history captures stable route/control actions and excludes user-entered text.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-003
+  - id: AC-5
+    scenario: S-4
+    text: Apple debug-session forwarding builds backend-compatible `/v1/settings/debug-logs` batches with `debugging_id`, sanitized logs, and metadata.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-004
+  - id: AC-6
+    scenario: S-5
+    text: Apple default telemetry sends only anonymized warn/error diagnostics to `/v1/client-logs` when enabled and authenticated.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-004
+  - id: AC-7
+    scenario: S-6
+    text: Apple report-time performance context includes frame pacing summary, thermal/low-power state, and latest MetricKit summaries or explicit absence.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-UNIT-005
+  - id: AC-8
+    scenario: S-7
+    text: Apple agent instructions require the new diagnostics/metrics APIs for future product logging and performance instrumentation.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids:
+      - T-STATIC-001
+
+assumptions:
+  - id: A-1
+    text: The existing backend `/v1/settings/issues`, `/v1/settings/issue-logs`, `/v1/settings/debug-logs`, and `/v1/client-logs` contracts can accept Apple diagnostics using existing schemas or backwards-compatible metadata.
+    category: backend
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/settings.py
+        summary: Issue report request already accepts `console_logs`, `runtime_debug_state`, `action_history`, screenshots, and trace IDs; issue/debug log endpoints accept formatted logs and metadata.
+  - id: A-2
+    text: The first implementation can prove MetricKit integration through unit-testable summaries and simulator build/tests, but real device MetricKit delivery must be treated as asynchronous and may not appear during CI.
+    category: apple
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: Apple MetricKit documentation
+        summary: Metric reports are daily/periodic while diagnostics are event-based where supported.
+
+contracts:
+  api:
+    - route: POST /v1/settings/issues
+      request: >
+        Existing web-compatible issue report body with Apple-provided `console_logs`,
+        `runtime_debug_state`, `action_history`, optional screenshot, and trace IDs.
+      response: Existing `IssueReportResponse` with internal and short issue identifiers.
+      errors:
+        - Native diagnostics collection failure must not block issue submission; the payload should include an explicit diagnostics error field where safe.
+    - route: POST /v1/settings/issue-logs
+      request: "{ issue_id: string, logs_text: string, page_url: string, user_agent: string }"
+      errors:
+        - Upload failure is non-fatal and logged locally.
+    - route: POST /v1/settings/debug-logs
+      request: "{ logs: LogEntry[], metadata: object, debugging_id: string }"
+      errors:
+        - Offline or failed batches remain queued or are dropped only after bounded retry/queue limits.
+    - route: POST /v1/client-logs
+      request: "Anonymized warn/error log batch matching the existing default diagnostic logging contract."
+      errors:
+        - Disabled when the user opts out or is unauthenticated.
+  data:
+    - Diagnostic buffers are bounded in memory and local queue storage.
+    - Any persisted debug queue contains only sanitized entries and metadata.
+    - MetricKit summaries are sanitized and capped before inclusion in reports.
+  ui_states:
+    - Report issue form remains usable if diagnostics collection fails.
+    - Debug log sharing settings show active/inactive states and session ID using OpenMates settings primitives when touched.
+  privacy_security:
+    - Redaction must run before data enters durable queues or upload payloads where practical, not only at final upload time.
+    - IDs in reports should be short prefixes or one-way hashes unless an endpoint requires a full issue ID for correlation.
+    - Automatic diagnostics must never contain raw message text, encryption keys, auth/session headers, cookies, or request/response bodies.
+
+tests:
+  - id: T-APPLE-UNIT-001
+    type: unit
+    file: apple/OpenMatesTests/SettingsFullParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsFullParityTests
+    covers:
+      - AC-1
+      - AC-2
+    assertions:
+      - issue payload includes native runtime diagnostics, offline inspection, frame metrics, MetricKit summary field, and action history
+      - runtime diagnostics include structured sync summary, forwarder status, and device/build state
+      - redaction removes emails, tokens, share keys, private paths, long/base64 blobs, and raw typed message examples
+      - report issue still includes backend-compatible `/v1/settings/issues` fields
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: "apple_remote_tests_committed_checkout_only"
+        timestamp: "2026-07-04T22:23:02Z"
+        summary: "Remote Apple tests run from the Mac checkout's committed branch, so local uncommitted red-phase assertions could not be exercised before implementation."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "apple_remote_test_ios_SettingsFullParityTests_18_pass"
+        timestamp: "2026-07-06T15:24:30Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 18 tests on commit 6a2f663."
+
+  - id: T-APPLE-UNIT-002
+    type: unit
+    file: apple/OpenMatesTests/SettingsFullParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsFullParityTests
+    covers:
+      - AC-3
+    assertions:
+      - calling `NativeSyncPerfLog.info` adds a sanitized entry to `NativeClientLogCollector`
+      - native sync phase summaries extract elapsed timing and duplicate embed/dedup warning fields into structured JSON
+      - warning/error entries survive buffer churn
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: "apple_remote_tests_committed_checkout_only"
+        timestamp: "2026-07-04T22:23:02Z"
+        summary: "Remote Apple tests run from the Mac checkout's committed branch, so local uncommitted red-phase assertions could not be exercised before implementation."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "apple_remote_test_ios_SettingsFullParityTests_18_pass"
+        timestamp: "2026-07-06T15:24:30Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 18 tests on commit 6a2f663."
+
+  - id: T-APPLE-UNIT-003
+    type: unit
+    file: apple/OpenMatesTests/SettingsFullParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsFullParityTests
+    covers:
+      - AC-4
+    assertions:
+      - native action tracker records stable route/control events
+      - tracker suppresses user-entered text and report-form noise
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: "apple_remote_tests_committed_checkout_only"
+        timestamp: "2026-07-04T22:23:02Z"
+        summary: "Remote Apple tests run from the Mac checkout's committed branch, so local uncommitted red-phase assertions could not be exercised before implementation."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "apple_remote_test_ios_SettingsFullParityTests_18_pass"
+        timestamp: "2026-07-06T15:24:30Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 18 tests on commit 6a2f663."
+
+  - id: T-APPLE-UNIT-004
+    type: unit
+    file: apple/OpenMatesTests/SettingsFullParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsFullParityTests
+    covers:
+      - AC-5
+      - AC-6
+    assertions:
+      - debug-session batch includes `debugging_id`, metadata, and sanitized log entries
+      - default telemetry batch includes only warn/error entries and no user identity
+      - opt-out disables default telemetry
+      - forwarder status snapshots expose running state and report-time flush results
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: "apple_remote_tests_committed_checkout_only"
+        timestamp: "2026-07-04T22:23:02Z"
+        summary: "Remote Apple tests run from the Mac checkout's committed branch, so local uncommitted red-phase assertions could not be exercised before implementation."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "apple_remote_test_ios_SettingsFullParityTests_18_pass"
+        timestamp: "2026-07-06T15:24:30Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 18 tests on commit 6a2f663."
+
+  - id: T-APPLE-UNIT-005
+    type: unit
+    file: apple/OpenMatesTests/SettingsFullParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsFullParityTests
+    covers:
+      - AC-7
+    assertions:
+      - frame monitor summary reports bounded window metrics
+      - MetricKit summary storage reports latest available summaries or explicit absence
+      - thermal and Low Power fields are present when platform APIs support them
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: "apple_remote_tests_committed_checkout_only"
+        timestamp: "2026-07-04T22:23:02Z"
+        summary: "Remote Apple tests run from the Mac checkout's committed branch, so local uncommitted red-phase assertions could not be exercised before implementation."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "apple_remote_test_ios_SettingsFullParityTests_18_pass"
+        timestamp: "2026-07-06T15:24:30Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/SettingsFullParityTests passed 18 tests on commit 6a2f663."
+
+  - id: T-APPLE-UI-001
+    type: unit
+    file: apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsFullParityUITests/testReportIssueSubmissionSucceedsAndUploadsSimulatorLogs
+    covers:
+      - AC-1
+    assertions:
+      - simulator report issue submission succeeds
+      - debug payload contains native diagnostics, bridged logs, page URL, user agent, and sanitized simulator log
+      - debug payload does not leak seeded email/token values
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: "apple_remote_tests_committed_checkout_only"
+        timestamp: "2026-07-04T22:23:02Z"
+        summary: "Remote Apple tests run from the Mac checkout's committed branch, so local uncommitted red-phase assertions could not be exercised before implementation."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "apple_remote_ui_SettingsFullParityUITests_report_issue_pass"
+        timestamp: "2026-07-06T15:26:48Z"
+        summary: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesUITests/SettingsFullParityUITests/testReportIssueSubmissionSucceedsAndUploadsSimulatorLogs passed on commit 6a2f663."
+
+  - id: T-STATIC-001
+    type: manual
+    file: apple/AGENTS.md
+    command: python3 scripts/spec_validate.py docs/specs/apple-native-diagnostics-parity/spec.yml
+    covers:
+      - AC-8
+    assertions:
+      - Apple instructions mention `NativeDiagnostics` for product logs
+      - Apple instructions mention approved performance metrics/signpost helpers
+      - Apple instructions restate diagnostics privacy boundaries
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "spec_validate_static_review"
+        timestamp: "2026-07-06T15:27:13Z"
+        summary: "Apple diagnostics instructions in apple/AGENTS.md and .claude/rules/apple-ui.md include NativeDiagnostics, performance helpers, and privacy boundaries."
+
+verifications:
+  - id: V-APPLE-BUILD-001
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-8
+    status: passed
+    evidence:
+      status: passed
+      summary: "python3 scripts/apple_remote.py build-ios --simulator \"iPhone 17\" succeeded on commit 6a2f663."
+      timestamp: "2026-07-06T15:27:13Z"
+  - id: V-PRIVACY-REVIEW-001
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-2
+    status: passed
+    evidence:
+      status: passed
+      summary: "Changed diagnostics sanitize emails, tokens, share keys, private paths, UUIDs, and long blobs; tests verify seeded sensitive values are absent from issue/debug/telemetry payloads."
+      timestamp: "2026-07-06T15:27:13Z"
+
+implementation_plan:
+  existing_patterns:
+    - frontend/packages/ui/src/services/logCollector.ts
+    - frontend/packages/ui/src/services/clientLogForwarder.ts
+    - frontend/packages/ui/src/services/userActionTracker.ts
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+  architecture: >
+    Add a `Core/Diagnostics` layer that centralizes native log capture,
+    redaction, action history, runtime snapshots, offline inspection,
+    frame metrics, MetricKit summaries, and forwarding payloads. Existing
+    feature code should call `NativeDiagnostics` or specialized diagnostics
+    helpers rather than writing ad-hoc `print` logs for product-debuggable
+    events. `ReportIssueView` consumes a single diagnostics context provider
+    when constructing `/v1/settings/issues` and `/v1/settings/issue-logs`
+    payloads.
+  data_flow:
+    - Native feature code records sanitized events through `NativeDiagnostics`.
+    - "`NativeClientLogCollector` keeps bounded all-level and warning/error buffers."
+    - "`NativeActionTracker` records stable screen/control events."
+    - "`NativeRuntimeSnapshotProvider` reads current app/session/chat/network/performance state at report time."
+    - "`NativeSyncDiagnosticsStore` stores structured native sync phase summaries with bounded recent phases."
+    - "`NativeLogForwarder` records status and drains best-effort report-time flushes before issue logs upload."
+    - "`NativeIssueContextProvider` assembles console logs, action history, offline inspection, frame metrics, MetricKit summaries, and runtime debug state."
+    - "`ReportIssueView` submits the enriched issue payload and then pushes issue-time logs."
+    - "`NativeLogForwarder` forwards debug-session and default telemetry batches under the existing backend contracts."
+  affected_files:
+    - path: apple/OpenMates/Sources/Core/Diagnostics/NativeDiagnostics.swift
+      reason: Central logging, redaction, buffers, and payload helpers
+    - path: apple/OpenMates/Sources/Core/Diagnostics/NativeActionTracker.swift
+      reason: Privacy-safe user action history
+    - path: apple/OpenMates/Sources/Core/Diagnostics/NativeIssueContextProvider.swift
+      reason: Assemble report issue diagnostics context
+    - path: apple/OpenMates/Sources/Core/Diagnostics/NativeRuntimeSnapshotProvider.swift
+      reason: Runtime debug state snapshot
+    - path: apple/OpenMates/Sources/Core/Diagnostics/NativePerformanceMonitor.swift
+      reason: Frame pacing and thermal/low-power metrics
+    - path: apple/OpenMates/Sources/Core/Diagnostics/NativeMetricKitReporter.swift
+      reason: MetricKit report/diagnostic summaries
+    - path: apple/OpenMates/Sources/Core/Diagnostics/NativeLogForwarder.swift
+      reason: Debug-session and default telemetry forwarding payloads
+    - path: apple/OpenMates/Sources/Core/Models/ChatModels.swift
+      reason: Bridge `NativeSyncPerfLog` into diagnostics buffers
+    - path: apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+      reason: Use diagnostics provider and remove embedded collector classes
+    - path: apple/AGENTS.md
+      reason: Enforce diagnostics helper usage in Apple code
+    - path: .claude/rules/apple-ui.md
+      reason: Mirror enforcement for shared agent rules
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/apple-native-diagnostics-parity/spec.yml
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/SettingsFullParityTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/SettingsFullParityUITests/testReportIssueSubmissionSucceedsAndUploadsSimulatorLogs
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/spec_verify.py docs/specs/apple-native-diagnostics-parity/spec.yml
+  verification_order:
+    - Spec validation first
+    - Apple unit red phase for new diagnostics assertions
+    - Implement diagnostics layer
+    - Apple unit green phase
+    - Apple UI report issue green phase
+    - Apple build and privacy review
+
+tasks:
+  - id: TASK-1
+    title: Create native diagnostics core and redaction tests
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+    expected_files:
+      - apple/OpenMates/Sources/Core/Diagnostics/NativeDiagnostics.swift
+      - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+      - apple/OpenMatesTests/SettingsFullParityTests.swift
+    verification_ids:
+      - T-APPLE-UNIT-001
+      - T-APPLE-UNIT-002
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add action history runtime snapshots offline inspection and performance summaries
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-3
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-4
+        - AC-7
+    expected_files:
+      - apple/OpenMates/Sources/Core/Diagnostics/NativeActionTracker.swift
+      - apple/OpenMates/Sources/Core/Diagnostics/NativeRuntimeSnapshotProvider.swift
+      - apple/OpenMates/Sources/Core/Diagnostics/NativeOfflineInspection.swift
+      - apple/OpenMates/Sources/Core/Diagnostics/NativePerformanceMonitor.swift
+      - apple/OpenMates/Sources/Core/Diagnostics/NativeMetricKitReporter.swift
+      - apple/OpenMatesTests/SettingsFullParityTests.swift
+    verification_ids:
+      - T-APPLE-UNIT-001
+      - T-APPLE-UNIT-003
+      - T-APPLE-UNIT-005
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Wire report issue and forwarding payloads
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-5
+        - AC-6
+    expected_files:
+      - apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift
+      - apple/OpenMates/Sources/Core/Diagnostics/NativeIssueContextProvider.swift
+      - apple/OpenMates/Sources/Core/Diagnostics/NativeLogForwarder.swift
+      - apple/OpenMatesUITests/SettingsFullParityUITests.swift
+    verification_ids:
+      - T-APPLE-UNIT-004
+      - T-APPLE-UI-001
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Update Apple agent diagnostics instructions
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-7
+      acceptance_criteria:
+        - AC-8
+    expected_files:
+      - apple/AGENTS.md
+      - .claude/rules/apple-ui.md
+    verification_ids:
+      - T-STATIC-001
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false

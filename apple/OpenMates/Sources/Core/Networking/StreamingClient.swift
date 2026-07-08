@@ -23,6 +23,9 @@ actor StreamingClient {
         case thinkingComplete(chatId: String, messageId: String)
         case messageReady(chatId: String, messageId: String)
         case preprocessingStep(chatId: String, step: String, data: [String: Any]?)
+        case typingEnded(chatId: String, messageId: String?)
+        case messageQueued(chatId: String, taskId: String?, userMessageId: String?, message: String?)
+        case cancelRequested(chatId: String, taskId: String?)
         case postProcessingCompleted(chatId: String, taskId: String, followUpSuggestions: [String], newChatSuggestions: [String], chatSummary: String?, chatTags: [String], updatedTitle: String?)
         case error(String)
     }

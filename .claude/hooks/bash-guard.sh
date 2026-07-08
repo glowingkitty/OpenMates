@@ -55,6 +55,42 @@ if echo "$COMMAND" | grep -qE '\bgit\s+stash\b'; then
   exit 2
 fi
 
+# --- Block Vercel project setting mutations that can enable paid build machines ---
+if echo "$COMMAND" | grep -qiE 'api\.vercel\.com/.*/projects|api\.vercel\.com/v[0-9]+/projects|\bvercel\s+project\b'; then
+  if echo "$COMMAND" | grep -qiE '(-X|--request)[[:space:]]*(PATCH|PUT|POST|DELETE)|\.(patch|put|post|delete)\s*\(|--data|-d[[:space:]]|buildMachine(Type|Selection)?|elasticConcurrency|resourceConfig'; then
+    echo '{"decision":"block","reason":"BLOCKED: Vercel project-setting mutations are forbidden from agent terminal commands because they can switch build machines to paid Turbo/Dynamic. Use the Vercel dashboard manually and keep buildMachineType=standard/buildMachineSelection=fixed."}' >&2
+    exit 2
+  fi
+fi
+
+if echo "$COMMAND" | grep -qiE 'buildMachine(Type|Selection)?|elasticConcurrency|buildMachineElastic|Turbo|Dynamic build'; then
+  if echo "$COMMAND" | grep -qiE 'api\.vercel\.com|\bvercel\b|VERCEL_TOKEN'; then
+    echo '{"decision":"block","reason":"BLOCKED: Vercel build-machine or elastic-build settings may not be modified from terminal commands. Keep Vercel builds on standard/fixed only."}' >&2
+    exit 2
+  fi
+fi
+
+# Also block running a repo script that contains the same Vercel paid-build mutation surface.
+# This catches attempts hidden behind commands like `python3 scripts/foo.py`.
+for script_path in $(echo "$COMMAND" | grep -oE '(^|[[:space:];&|])([^[:space:];&|]+\.(py|sh|js|mjs|ts))' | awk '{print $NF}' | sort -u); do
+  case "$script_path" in
+    /*) candidate="$script_path" ;;
+    *) candidate="/home/superdev/projects/OpenMates/$script_path" ;;
+  esac
+  if [ ! -f "$candidate" ]; then
+    continue
+  fi
+  case "$candidate" in
+    /home/superdev/projects/OpenMates/scripts/tests/*) continue ;;
+  esac
+  if grep -qiE 'api\.vercel\.com/.*/projects|api\.vercel\.com/v[0-9]+/projects|\bvercel\s+project\b' "$candidate" \
+    && grep -qiE 'buildMachine(Type|Selection)?|elasticConcurrency|buildMachineElastic|resourceConfig|Dynamic build' "$candidate" \
+    && grep -qiE '(-X|--request)[[:space:]]*(PATCH|PUT|POST|DELETE)|\.(patch|put|post|delete)\s*\(|urlopen\([^)]*method=["'"'"'](PATCH|PUT|POST|DELETE)["'"'"']' "$candidate"; then
+    echo '{"decision":"block","reason":"BLOCKED: Refusing to run a repo script that can mutate Vercel build-machine/project settings. Keep Vercel buildMachineType=standard and buildMachineSelection=fixed."}' >&2
+    exit 2
+  fi
+done
+
 # --- Block git worktree (all work in main directory) ---
 if echo "$COMMAND" | grep -qE '\bgit\s+worktree\b'; then
   echo '{"decision":"block","reason":"BLOCKED: git worktree is forbidden. All work happens in the main working directory."}' >&2

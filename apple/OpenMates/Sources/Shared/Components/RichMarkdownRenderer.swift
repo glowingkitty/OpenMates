@@ -50,6 +50,58 @@ private extension LinearGradient {
     }
 }
 
+private enum SearchTextHighlighter {
+    static func highlighted(_ text: String, query: String?) -> AttributedString {
+        var attributed = AttributedString(text)
+        highlightMatches(in: &attributed, query: query)
+        return attributed
+    }
+
+    static func highlighted(_ text: String, ranges: [NSRange]) -> AttributedString {
+        var attributed = AttributedString(text)
+        highlightRanges(in: &attributed, sourceText: text, ranges: ranges)
+        return attributed
+    }
+
+    static func attributed(_ text: String, query: String?, foregroundColor: Color) -> AttributedString {
+        var attributed = AttributedString(text)
+        attributed.foregroundColor = foregroundColor
+        highlightMatches(in: &attributed, query: query)
+        return attributed
+    }
+
+    static func attributed(_ text: String, ranges: [NSRange], foregroundColor: Color) -> AttributedString {
+        var attributed = AttributedString(text)
+        attributed.foregroundColor = foregroundColor
+        highlightRanges(in: &attributed, sourceText: text, ranges: ranges)
+        return attributed
+    }
+
+    static func highlightMatches(in attributed: inout AttributedString, query: String?) {
+        guard let query else { return }
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        var searchStart = attributed.startIndex
+        while let range = attributed[searchStart...].range(of: trimmed, options: [.caseInsensitive, .diacriticInsensitive]) {
+            attributed[range].backgroundColor = Color.highlightYellowSolid.opacity(0.4)
+            searchStart = range.upperBound
+        }
+    }
+
+    static func highlightRanges(in attributed: inout AttributedString, sourceText: String, ranges: [NSRange]) {
+        guard !ranges.isEmpty else { return }
+        for range in ranges {
+            guard let sourceRange = Range(range, in: sourceText),
+                  let start = AttributedString.Index(sourceRange.lowerBound, within: attributed),
+                  let end = AttributedString.Index(sourceRange.upperBound, within: attributed) else {
+                continue
+            }
+            attributed[start..<end].backgroundColor = Color.highlightYellowSolid.opacity(0.4)
+        }
+    }
+}
+
 // MARK: - Block parser
 
 /// Parses raw markdown text into a sequence of typed blocks for rendering.
@@ -77,6 +129,13 @@ struct AppleInteractiveQuestionPayload: Decodable, Equatable {
     struct Option: Decodable, Equatable, Identifiable {
         let id: String
         let text: String
+        let embedIds: [String]?
+
+        private enum CodingKeys: String, CodingKey {
+            case id
+            case text
+            case embedIds = "embed_ids"
+        }
     }
 
     struct Field: Decodable, Equatable, Identifiable {
@@ -132,7 +191,7 @@ struct AppleInteractiveQuestionPayload: Decodable, Equatable {
     @MainActor
     func responseContent(response: [String: Any]) -> String {
         let displayText = displayText(for: response)
-        let json = Self.prettyPrintedJSON(response)
+        let json = Self.prettyPrintedJSON(responseWithReferencedEmbedIds(response))
         return "\(displayText)\n\n```interactive_response\n\(json)\n```"
     }
 
@@ -232,6 +291,43 @@ struct AppleInteractiveQuestionPayload: Decodable, Equatable {
         ].contains(where: { pattern in
             normalizedText == pattern || normalizedText.contains(pattern)
         })
+    }
+
+    private func responseWithReferencedEmbedIds(_ response: [String: Any]) -> [String: Any] {
+        let embedIds: [String]
+        switch type {
+        case "choice":
+            let selection = response["selection"] as? [String] ?? []
+            embedIds = Self.uniqueEmbedIds(
+                (options ?? [])
+                    .filter { selection.contains($0.id) }
+                    .flatMap { $0.embedIds ?? [] }
+            )
+        case "swipe":
+            let swipes = response["swipes"] as? [String: String] ?? [:]
+            embedIds = Self.uniqueEmbedIds(
+                (cards ?? [])
+                    .filter { swipes[$0.id] != nil }
+                    .flatMap { $0.embedIds ?? [] }
+            )
+        default:
+            embedIds = []
+        }
+
+        guard !embedIds.isEmpty else { return response }
+        var enriched = response
+        enriched["embed_ids"] = embedIds
+        return enriched
+    }
+
+    private static func uniqueEmbedIds(_ embedIds: [String]) -> [String] {
+        var seen = Set<String>()
+        return embedIds.compactMap { rawId in
+            let embedId = rawId.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !embedId.isEmpty, !seen.contains(embedId) else { return nil }
+            seen.insert(embedId)
+            return embedId
+        }
     }
 }
 
@@ -498,6 +594,7 @@ struct RichMarkdownView: View {
     let hiddenEmbedIds: Set<String>
     let onEmbedTap: ((EmbedRecord) -> Void)?
     let onInteractiveQuestionSubmit: ((String) -> Void)?
+    let searchHighlightQuery: String?
     private let blocks: [MarkdownBlock]
 
     init(
@@ -508,7 +605,8 @@ struct RichMarkdownView: View {
         allEmbedRecords: [String: EmbedRecord] = [:],
         hiddenEmbedIds: Set<String> = [],
         onEmbedTap: ((EmbedRecord) -> Void)? = nil,
-        onInteractiveQuestionSubmit: ((String) -> Void)? = nil
+        onInteractiveQuestionSubmit: ((String) -> Void)? = nil,
+        searchHighlightQuery: String? = nil
     ) {
         self.content = content
         self.isUserMessage = isUserMessage
@@ -518,6 +616,7 @@ struct RichMarkdownView: View {
         self.hiddenEmbedIds = hiddenEmbedIds
         self.onEmbedTap = onEmbedTap
         self.onInteractiveQuestionSubmit = onInteractiveQuestionSubmit
+        self.searchHighlightQuery = searchHighlightQuery
         self.blocks = MarkdownParser.parse(content)
     }
 
@@ -537,22 +636,24 @@ struct RichMarkdownView: View {
                 content: text,
                 isUserMessage: isUserMessage,
                 allEmbedRecords: allEmbedRecords,
-                onEmbedTap: onEmbedTap
+                onEmbedTap: onEmbedTap,
+                searchHighlightQuery: searchHighlightQuery
             )
 
         case .codeBlock(let language, let code):
-            CodeBlockView(language: language, code: code)
+            CodeBlockView(language: language, code: code, searchHighlightQuery: searchHighlightQuery)
 
         case .blockquote(let text):
             BlockquoteView(
                 text: text,
                 isUserMessage: isUserMessage,
                 allEmbedRecords: allEmbedRecords,
-                onEmbedTap: onEmbedTap
+                onEmbedTap: onEmbedTap,
+                searchHighlightQuery: searchHighlightQuery
             )
 
         case .header(let level, let text):
-            HeaderView(level: level, text: text, isUserMessage: isUserMessage)
+            HeaderView(level: level, text: text, isUserMessage: isUserMessage, searchHighlightQuery: searchHighlightQuery)
 
         case .horizontalRule:
             Divider()
@@ -564,7 +665,8 @@ struct RichMarkdownView: View {
                 ordered: false,
                 isUserMessage: isUserMessage,
                 allEmbedRecords: allEmbedRecords,
-                onEmbedTap: onEmbedTap
+                onEmbedTap: onEmbedTap,
+                searchHighlightQuery: searchHighlightQuery
             )
 
         case .orderedList(let items):
@@ -573,11 +675,12 @@ struct RichMarkdownView: View {
                 ordered: true,
                 isUserMessage: isUserMessage,
                 allEmbedRecords: allEmbedRecords,
-                onEmbedTap: onEmbedTap
+                onEmbedTap: onEmbedTap,
+                searchHighlightQuery: searchHighlightQuery
             )
 
         case .table(let headers, let rows):
-            TableBlockView(headers: headers, rows: rows, isUserMessage: isUserMessage)
+            TableBlockView(headers: headers, rows: rows, isUserMessage: isUserMessage, searchHighlightQuery: searchHighlightQuery)
 
         case .demoGroup(let kind):
             DemoRichGroupView(kind: kind, onOpenPublicChat: onOpenPublicChat)
@@ -1034,6 +1137,7 @@ private struct LargeEmbedPreviewCarousel: View {
                                 .frame(width: index == selectedIndex ? 18 : 7, height: 7)
                         }
                         .buttonStyle(.plain)
+                        .help(Text("Go to slide \(index + 1) of \(embeds.count)"))
                         .accessibilityLabel("Go to slide \(index + 1) of \(embeds.count)")
                     }
                 }
@@ -1071,6 +1175,7 @@ private struct LargeEmbedPreviewCarousel: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .help(Text(label))
         .accessibilityLabel(label)
     }
 }
@@ -1153,26 +1258,34 @@ struct InlineMarkdownText: View {
     let isUserMessage: Bool
     let allEmbedRecords: [String: EmbedRecord]
     let onEmbedTap: ((EmbedRecord) -> Void)?
+    let searchHighlightQuery: String?
     @Environment(\.colorScheme) private var colorScheme
     private let attributedContent: AttributedString
     private let inlineTokens: [InlineMarkdownToken]
+    private let inlineTokenHighlightRanges: [[NSRange]]
     private let needsCustomInlineLayout: Bool
 
     init(
         content: String,
         isUserMessage: Bool,
         allEmbedRecords: [String: EmbedRecord] = [:],
-        onEmbedTap: ((EmbedRecord) -> Void)? = nil
+        onEmbedTap: ((EmbedRecord) -> Void)? = nil,
+        searchHighlightQuery: String? = nil
     ) {
         self.content = content
         self.isUserMessage = isUserMessage
         self.allEmbedRecords = allEmbedRecords
         self.onEmbedTap = onEmbedTap
+        self.searchHighlightQuery = searchHighlightQuery
         self.attributedContent = (try? AttributedString(markdown: content, options: .init(
             interpretedSyntax: .inlineOnlyPreservingWhitespace
         ))) ?? AttributedString(content)
         let shouldUseCustomInlineLayout = Self.shouldUseCustomInlineLayout(for: content)
-        self.inlineTokens = shouldUseCustomInlineLayout ? InlineMarkdownTokenizer.parse(content) : []
+        let tokens = shouldUseCustomInlineLayout ? InlineMarkdownTokenizer.parse(content) : []
+        self.inlineTokens = tokens
+        self.inlineTokenHighlightRanges = shouldUseCustomInlineLayout
+            ? Self.highlightRangesByToken(in: tokens, query: searchHighlightQuery)
+            : []
         self.needsCustomInlineLayout = shouldUseCustomInlineLayout
     }
 
@@ -1186,18 +1299,22 @@ struct InlineMarkdownText: View {
     var body: some View {
         if needsCustomInlineLayout {
             InlineMarkdownFlowLayout(spacing: 0, lineSpacing: 2) {
-                ForEach(Array(inlineTokens.enumerated()), id: \.offset) { _, token in
-                    tokenView(token)
+                ForEach(Array(inlineTokens.enumerated()), id: \.offset) { index, token in
+                    tokenView(token, highlightRanges: highlightRanges(forTokenAt: index))
                 }
             }
             .textSelection(.disabled)
         } else {
-            Text(styledAttributedContent)
-                .font(.omP)
-                .fontWeight(.medium)
-                .lineSpacing(2)
-                .textSelection(.enabled)
+            standardText
         }
+    }
+
+    private var standardText: some View {
+        Text(styledAttributedContent)
+            .font(.omP)
+            .fontWeight(.medium)
+            .lineSpacing(2)
+            .textSelection(.enabled)
     }
 
     private var styledAttributedContent: AttributedString {
@@ -1209,22 +1326,21 @@ struct InlineMarkdownText: View {
                 content[run.range].foregroundColor = Color.markdownBoldText(for: colorScheme)
             }
         }
+        SearchTextHighlighter.highlightMatches(in: &content, query: searchHighlightQuery)
         return content
     }
 
     @ViewBuilder
-    private func tokenView(_ token: InlineMarkdownToken) -> some View {
+    private func tokenView(_ token: InlineMarkdownToken, highlightRanges: [NSRange]) -> some View {
         switch token {
         case .text(let text, let isBold):
-            Text(text)
+            Text(highlightedText(text, isBold: isBold, highlightRanges: highlightRanges))
                 .font(.omP)
                 .fontWeight(isBold ? .semibold : .medium)
-                .foregroundStyle(textColor(isBold: isBold))
                 .fixedSize()
         case .inlineCode(let text):
-            Text(text)
+            Text(highlightedText(text, isBold: false, highlightRanges: highlightRanges))
                 .font(.system(size: 14, design: .monospaced))
-                .foregroundStyle(Color.fontPrimary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(Color.grey10)
@@ -1235,7 +1351,12 @@ struct InlineMarkdownText: View {
                 }
                 .fixedSize()
         case .wiki(let displayText, let wikiTitle, let isBold):
-            WikiInlineChip(displayText: displayText, wikiTitle: wikiTitle, isBold: isBold) { embed in
+            WikiInlineChip(
+                displayText: displayText,
+                wikiTitle: wikiTitle,
+                isBold: isBold,
+                highlightRanges: highlightRanges
+            ) { embed in
                 onEmbedTap?(embed)
             }
         case .embed(let displayText, let embedRef, let isBold):
@@ -1243,7 +1364,8 @@ struct InlineMarkdownText: View {
                 displayText: displayText,
                 embed: resolveEmbed(ref: embedRef),
                 fallbackAppId: nil,
-                isBold: isBold
+                isBold: isBold,
+                highlightRanges: highlightRanges
             ) { embed in
                 onEmbedTap?(embed)
             }
@@ -1252,8 +1374,57 @@ struct InlineMarkdownText: View {
                 displayText: displayText,
                 urlString: url,
                 isInternal: isInternal,
-                isBold: isBold
+                isBold: isBold,
+                highlightRanges: highlightRanges
             )
+        }
+    }
+
+    private func highlightedText(_ text: String, isBold: Bool, highlightRanges: [NSRange]) -> AttributedString {
+        SearchTextHighlighter.attributed(text, ranges: highlightRanges, foregroundColor: textColor(isBold: isBold))
+    }
+
+    private func highlightRanges(forTokenAt index: Int) -> [NSRange] {
+        guard inlineTokenHighlightRanges.indices.contains(index) else { return [] }
+        return inlineTokenHighlightRanges[index]
+    }
+
+    private static func highlightRangesByToken(in tokens: [InlineMarkdownToken], query: String?) -> [[NSRange]] {
+        guard let query else { return Array(repeating: [NSRange](), count: tokens.count) }
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return Array(repeating: [NSRange](), count: tokens.count) }
+
+        let visibleText = tokens.map(\.searchText).joined()
+        guard !visibleText.isEmpty else { return Array(repeating: [NSRange](), count: tokens.count) }
+
+        var rangesByToken = Array(repeating: [NSRange](), count: tokens.count)
+        var searchStart = visibleText.startIndex
+        while let range = visibleText[searchStart...].range(of: trimmed, options: [.caseInsensitive, .diacriticInsensitive]) {
+            let match = NSRange(range, in: visibleText)
+            appendMatch(match, tokens: tokens, rangesByToken: &rangesByToken)
+            searchStart = range.upperBound
+        }
+        return rangesByToken
+    }
+
+    private static func appendMatch(_ match: NSRange, tokens: [InlineMarkdownToken], rangesByToken: inout [[NSRange]]) {
+        let matchStart = match.location
+        let matchEnd = match.location + match.length
+        var tokenStart = 0
+
+        for (index, token) in tokens.enumerated() {
+            let tokenLength = token.searchText.utf16.count
+            let tokenEnd = tokenStart + tokenLength
+            let overlapStart = max(matchStart, tokenStart)
+            let overlapEnd = min(matchEnd, tokenEnd)
+            if overlapStart < overlapEnd {
+                rangesByToken[index].append(NSRange(
+                    location: overlapStart - tokenStart,
+                    length: overlapEnd - overlapStart
+                ))
+            }
+            tokenStart = tokenEnd
+            if tokenStart >= matchEnd { break }
         }
     }
 
@@ -1277,6 +1448,17 @@ private enum InlineMarkdownToken: Equatable {
     case wiki(displayText: String, wikiTitle: String, isBold: Bool)
     case embed(displayText: String, embedRef: String, isBold: Bool)
     case link(displayText: String, url: String, isInternal: Bool, isBold: Bool)
+
+    var searchText: String {
+        switch self {
+        case .text(let text, _), .inlineCode(let text):
+            return text
+        case .wiki(let displayText, _, _),
+             .embed(let displayText, _, _),
+             .link(let displayText, _, _, _):
+            return displayText
+        }
+    }
 }
 
 private enum InlineMarkdownTokenizer {
@@ -1458,6 +1640,7 @@ private struct WikiInlineChip: View {
     let displayText: String
     let wikiTitle: String
     let isBold: Bool
+    let highlightRanges: [NSRange]
     let onTap: (EmbedRecord) -> Void
     @Environment(\.colorScheme) private var colorScheme
     @State private var isHovering = false
@@ -1496,7 +1679,7 @@ private struct WikiInlineChip: View {
                         .foregroundStyle(Color.fontButton)
                 }
 
-            Text(displayText)
+            Text(SearchTextHighlighter.highlighted(displayText, ranges: highlightRanges))
                 .font(.omP)
                 .fontWeight(isBold ? .semibold : .medium)
                 .foregroundStyle(Color.wikiInlineText(for: colorScheme))
@@ -1541,6 +1724,7 @@ private struct EmbedInlineChip: View {
     let embed: EmbedRecord?
     let fallbackAppId: String?
     let isBold: Bool
+    let highlightRanges: [NSRange]
     let onTap: (EmbedRecord) -> Void
     @Environment(\.colorScheme) private var colorScheme
     @State private var isHovering = false
@@ -1564,6 +1748,7 @@ private struct EmbedInlineChip: View {
                 updateHover(hovering, isClickable: true)
             }
             .accessibilityElement(children: .combine)
+            .help(Text(displayText))
             .accessibilityLabel(displayText)
         } else {
             chipContent
@@ -1584,7 +1769,7 @@ private struct EmbedInlineChip: View {
                         .foregroundStyle(Color.fontButton)
                 }
 
-            Text(displayText)
+            Text(SearchTextHighlighter.highlighted(displayText, ranges: highlightRanges))
                 .font(.omP)
                 .fontWeight(isBold ? .semibold : .medium)
                 .foregroundStyle(Color.wikiInlineText(for: colorScheme))
@@ -1610,6 +1795,7 @@ private struct MarkdownLinkChip: View {
     let urlString: String
     let isInternal: Bool
     let isBold: Bool
+    let highlightRanges: [NSRange]
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
     @State private var isHovering = false
@@ -1627,6 +1813,7 @@ private struct MarkdownLinkChip: View {
             .contentShape(Rectangle())
             .onHover(perform: updateHover)
             .accessibilityElement(children: .combine)
+            .help(Text(displayText))
             .accessibilityLabel(displayText)
         } else {
             chipContent
@@ -1649,7 +1836,7 @@ private struct MarkdownLinkChip: View {
                     }
             }
 
-            Text(displayText)
+            Text(SearchTextHighlighter.highlighted(displayText, ranges: highlightRanges))
                 .font(.omP)
                 .fontWeight(isBold ? .semibold : .medium)
                 .foregroundStyle(LinearGradient.markdownLinkText(for: colorScheme))
@@ -1725,6 +1912,7 @@ private struct InlineMarkdownFlowLayout: Layout {
 struct CodeBlockView: View {
     let language: String?
     let code: String
+    let searchHighlightQuery: String?
     @State private var copied = false
 
     var body: some View {
@@ -1774,7 +1962,10 @@ struct CodeBlockView: View {
         // This is a lightweight approach — full TreeSitter would be overkill for a chat app.
         var result = AttributedString(code)
 
-        guard let language = language?.lowercased() else { return result }
+        guard let language = language?.lowercased() else {
+            SearchTextHighlighter.highlightMatches(in: &result, query: searchHighlightQuery)
+            return result
+        }
 
         let keywords: [String]
         switch language {
@@ -1848,6 +2039,8 @@ struct CodeBlockView: View {
         highlightPattern(&result, pattern: #"//[^\n]*"#, color: .gray)
         highlightPattern(&result, pattern: #"#[^\n]*"#, color: .gray)
 
+        SearchTextHighlighter.highlightMatches(in: &result, query: searchHighlightQuery)
+
         return result
     }
 
@@ -1887,6 +2080,7 @@ struct BlockquoteView: View {
     let isUserMessage: Bool
     let allEmbedRecords: [String: EmbedRecord]
     let onEmbedTap: ((EmbedRecord) -> Void)?
+    let searchHighlightQuery: String?
 
     private var sourceQuote: (quote: String, embed: EmbedRecord)? {
         let pattern = #"\[([^\]]+)\]\(embed:([^)]+)\)"#
@@ -1905,11 +2099,14 @@ struct BlockquoteView: View {
                 onEmbedTap?(sourceQuote.embed)
             } label: {
                 VStack(alignment: .leading, spacing: .spacing4) {
-                    Text("\"\(sourceQuote.quote)\"")
+                    Text(SearchTextHighlighter.attributed(
+                        "\"\(sourceQuote.quote)\"",
+                        query: searchHighlightQuery,
+                        foregroundColor: Color.fontPrimary
+                    ))
                         .font(.omSmall)
                         .fontWeight(.medium)
                         .italic()
-                        .foregroundStyle(Color.fontPrimary)
                         .lineLimit(5)
                         .multilineTextAlignment(.leading)
 
@@ -1940,7 +2137,13 @@ struct BlockquoteView: View {
                     .fill(Color.buttonPrimary.opacity(0.5))
                     .frame(width: 3)
 
-                InlineMarkdownText(content: text, isUserMessage: isUserMessage)
+                InlineMarkdownText(
+                    content: text,
+                    isUserMessage: isUserMessage,
+                    allEmbedRecords: allEmbedRecords,
+                    onEmbedTap: onEmbedTap,
+                    searchHighlightQuery: searchHighlightQuery
+                )
                     .opacity(0.85)
             }
             .padding(.vertical, .spacing1)
@@ -2008,12 +2211,16 @@ struct HeaderView: View {
     let level: Int
     let text: String
     let isUserMessage: Bool
+    let searchHighlightQuery: String?
 
     var body: some View {
-        Text(text)
+        Text(SearchTextHighlighter.attributed(
+            text,
+            query: searchHighlightQuery,
+            foregroundColor: isUserMessage ? Color.fontPrimary : Color.grey100
+        ))
             .font(headerFont)
             .fontWeight(.semibold)
-            .foregroundStyle(isUserMessage ? Color.fontPrimary : Color.grey100)
             .padding(.top, level <= 2 ? .spacing3 : .spacing2)
             .textSelection(.enabled)
     }
@@ -2036,6 +2243,7 @@ struct ListBlockView: View {
     let isUserMessage: Bool
     let allEmbedRecords: [String: EmbedRecord]
     let onEmbedTap: ((EmbedRecord) -> Void)?
+    let searchHighlightQuery: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing2) {
@@ -2050,7 +2258,8 @@ struct ListBlockView: View {
                         content: item,
                         isUserMessage: isUserMessage,
                         allEmbedRecords: allEmbedRecords,
-                        onEmbedTap: onEmbedTap
+                        onEmbedTap: onEmbedTap,
+                        searchHighlightQuery: searchHighlightQuery
                     )
                 }
             }
@@ -2065,6 +2274,7 @@ struct TableBlockView: View {
     let headers: [String]
     let rows: [[String]]
     let isUserMessage: Bool
+    let searchHighlightQuery: String?
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -2072,10 +2282,13 @@ struct TableBlockView: View {
                 // Header row
                 HStack(spacing: 0) {
                     ForEach(Array(headers.enumerated()), id: \.offset) { _, header in
-                        Text(header)
+                        Text(SearchTextHighlighter.attributed(
+                            header,
+                            query: searchHighlightQuery,
+                            foregroundColor: Color.fontPrimary
+                        ))
                             .font(.omSmall)
                             .fontWeight(.semibold)
-                            .foregroundStyle(Color.fontPrimary)
                             .padding(.horizontal, .spacing3)
                             .padding(.vertical, .spacing2)
                             .frame(minWidth: 80, alignment: .leading)
@@ -2089,9 +2302,12 @@ struct TableBlockView: View {
                 ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                     HStack(spacing: 0) {
                         ForEach(Array(row.enumerated()), id: \.offset) { _, cell in
-                            Text(cell)
+                            Text(SearchTextHighlighter.attributed(
+                                cell,
+                                query: searchHighlightQuery,
+                                foregroundColor: Color.fontPrimary
+                            ))
                                 .font(.omSmall)
-                                .foregroundStyle(Color.fontPrimary)
                                 .padding(.horizontal, .spacing3)
                                 .padding(.vertical, .spacing2)
                                 .frame(minWidth: 80, alignment: .leading)
@@ -2285,6 +2501,7 @@ private struct DemoRichCard: View {
             }
         }
         .accessibilityElement(children: .combine)
+        .help(Text(item.title))
         .accessibilityLabel(item.title)
     }
 

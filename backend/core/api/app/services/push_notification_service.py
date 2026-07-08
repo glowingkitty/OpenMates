@@ -171,6 +171,18 @@ class PushNotificationService:
             return False
 
         subscription_type = subscription_info.get("type")
+        if subscription_type == "multi":
+            return self._send_multi_target_notification(
+                subscription_info=subscription_info,
+                title=title,
+                body=body,
+                url=url,
+                tag=tag,
+                chat_id=chat_id,
+                category=category,
+                icon=icon,
+                badge=badge,
+            )
         if subscription_type == "apns":
             return self._send_apns_notification(
                 subscription_info=subscription_info,
@@ -184,6 +196,9 @@ class PushNotificationService:
         if not self.is_ready():
             logger.error("[PushNotificationService] Cannot send Web Push — VAPID keys not initialized")
             return False
+
+        web_subscription_info = dict(subscription_info)
+        web_subscription_info.pop("type", None)
 
         payload = json.dumps(
             {
@@ -202,7 +217,7 @@ class PushNotificationService:
             from pywebpush import webpush  # type: ignore[import]
 
             webpush(
-                subscription_info=subscription_info,
+                subscription_info=web_subscription_info,
                 data=payload,
                 vapid_private_key=self._vapid_private_key,
                 vapid_claims={
@@ -230,6 +245,45 @@ class PushNotificationService:
                     exc_info=True,
                 )
             return False
+
+    def _send_multi_target_notification(
+        self,
+        subscription_info: dict,
+        title: str,
+        body: str,
+        url: Optional[str],
+        tag: Optional[str],
+        chat_id: Optional[str],
+        category: str,
+        icon: str,
+        badge: str,
+    ) -> bool:
+        """Fan out one notification to all stored browser/APNs targets."""
+        targets = subscription_info.get("targets")
+        if not isinstance(targets, list):
+            logger.error("[PushNotificationService] Multi-target subscription missing targets")
+            return False
+
+        any_success = False
+        for target in targets:
+            if not isinstance(target, dict):
+                continue
+            try:
+                target_success = self.send_push_notification(
+                    subscription_json=json.dumps(target),
+                    title=title,
+                    body=body,
+                    url=url,
+                    tag=tag,
+                    chat_id=chat_id,
+                    category=category,
+                    icon=icon,
+                    badge=badge,
+                )
+                any_success = any_success or target_success
+            except Exception as exc:
+                logger.error("[PushNotificationService] Multi-target dispatch failed: %s", exc, exc_info=True)
+        return any_success
 
     def _send_apns_notification(
         self,

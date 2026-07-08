@@ -77,6 +77,14 @@ class FakeDirectusService:
         self.rows.append(payload)
         return payload
 
+    async def update_item(self, collection, item_id, payload):
+        assert collection == "embed_diffs"
+        for row in self.rows:
+            if row.get("id") == item_id:
+                row.update(payload)
+                return row
+        return None
+
 
 class FakeConnectionManager:
     def __init__(self):
@@ -105,7 +113,9 @@ def diff_payload(**overrides):
 @pytest.mark.asyncio
 async def test_store_embed_diff_allows_owner_encrypted_row_and_derives_owner_hash():
     manager = FakeConnectionManager()
-    directus = FakeDirectusService(existing_embed={"embed_id": "embed-1", "hashed_user_id": OWNER_HASH})
+    directus = FakeDirectusService(
+        existing_embed={"embed_id": "embed-1", "hashed_user_id": OWNER_HASH}
+    )
 
     handle_store_embed_diff = get_handle_store_embed_diff()
     await handle_store_embed_diff(
@@ -129,7 +139,9 @@ async def test_store_embed_diff_allows_owner_encrypted_row_and_derives_owner_has
 @pytest.mark.asyncio
 async def test_store_embed_diff_rejects_shared_recipient_write():
     manager = FakeConnectionManager()
-    directus = FakeDirectusService(existing_embed={"embed_id": "embed-1", "hashed_user_id": OWNER_HASH})
+    directus = FakeDirectusService(
+        existing_embed={"embed_id": "embed-1", "hashed_user_id": OWNER_HASH}
+    )
 
     handle_store_embed_diff = get_handle_store_embed_diff()
     await handle_store_embed_diff(
@@ -150,7 +162,9 @@ async def test_store_embed_diff_rejects_shared_recipient_write():
 @pytest.mark.asyncio
 async def test_store_embed_diff_rejects_unencrypted_or_empty_row():
     manager = FakeConnectionManager()
-    directus = FakeDirectusService(existing_embed={"embed_id": "embed-1", "hashed_user_id": OWNER_HASH})
+    directus = FakeDirectusService(
+        existing_embed={"embed_id": "embed-1", "hashed_user_id": OWNER_HASH}
+    )
 
     handle_store_embed_diff = get_handle_store_embed_diff()
     await handle_store_embed_diff(
@@ -169,11 +183,14 @@ async def test_store_embed_diff_rejects_unencrypted_or_empty_row():
 
 
 @pytest.mark.asyncio
-async def test_store_embed_diff_does_not_duplicate_existing_version_row():
+async def test_store_embed_diff_upserts_existing_version_row_ciphertext():
     manager = FakeConnectionManager()
-    directus = FakeDirectusService(existing_embed={"embed_id": "embed-1", "hashed_user_id": OWNER_HASH})
+    directus = FakeDirectusService(
+        existing_embed={"embed_id": "embed-1", "hashed_user_id": OWNER_HASH}
+    )
     directus.rows.append(
         {
+            "id": "row-1",
             "embed_id": "embed-1",
             "version_number": 1,
             "encrypted_snapshot": "encrypted-snapshot",
@@ -195,6 +212,7 @@ async def test_store_embed_diff_does_not_duplicate_existing_version_row():
     )
 
     assert len(directus.rows) == 1
-    assert directus.rows[0]["encrypted_snapshot"] == "encrypted-snapshot"
+    assert directus.rows[0]["encrypted_snapshot"] == "new-ciphertext"
+    assert directus.rows[0]["encrypted_patch"] is None
     assert manager.personal_messages == []
-    assert manager.broadcasts == []
+    assert len(manager.broadcasts) == 1

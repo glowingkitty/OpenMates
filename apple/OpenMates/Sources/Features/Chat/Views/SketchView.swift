@@ -56,6 +56,7 @@ struct SketchComposerOverlay: View {
                     Icon("close", size: 20).foregroundStyle(Color.fontSecondary)
                 }
                 .buttonStyle(.plain)
+                .help(Text(AppStrings.cancel))
                 .accessibilityLabel(AppStrings.cancel)
 
                 Button(action: saveAndSend) {
@@ -68,6 +69,7 @@ struct SketchComposerOverlay: View {
                         .clipShape(RoundedRectangle(cornerRadius: .radius8))
                 }
                 .buttonStyle(.plain)
+                .help(Text(AppStrings.sendAction))
                 .accessibilityLabel(AppStrings.sendAction)
             }
             .padding(.horizontal, .spacing5)

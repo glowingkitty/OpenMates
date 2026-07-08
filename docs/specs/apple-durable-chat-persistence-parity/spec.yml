@@ -1,0 +1,466 @@
+id: apple-durable-chat-persistence-parity
+title: Apple Durable Chat Persistence Parity
+status: implementing
+
+goal: >
+  Ensure every server-visible Apple-created chat has durable zero-knowledge
+  encrypted message rows and coherent version state before it is considered
+  cross-client loadable. Web, CLI, and Apple must never observe a chat shell with
+  advanced `messages_v` and encrypted metadata but zero stored messages after an
+  Apple foreground, background, share, or shortcut send.
+
+scope:
+  in:
+    - Authenticated Apple foreground sends from ChatViewModel.
+    - Authenticated Apple background notification replies, share-extension sends, macOS quick-capture sends, and Shortcut/AppIntent sends that use BackgroundChatSender or the same chat id contract.
+    - Apple-generated chat and message identifiers used in server-visible authenticated chats.
+    - Backend invariants and health/debug repair tooling for `messages_v` versus durable encrypted chat message rows.
+    - Tests that prove queued/background Apple sends still include encrypted user-message storage and that bad persisted rows are detected safely.
+  out:
+    - Storing plaintext private message content on the server.
+    - Replacing Apple streaming UI or the broader lifecycle parity work covered by docs/specs/apple-chat-streaming-parity/spec.yml.
+    - Public CLI, npm SDK, or pip SDK API changes.
+    - Bulk production data repair without explicit operator approval.
+    - Touching unrelated Apple composer or UI refactors already present in the worktree.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me failed with 401 Bad credentials, so issue discovery is unavailable through MCP in this session."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    - docs/specs/apple-chat-opening-parity/spec.yml
+    - docs/specs/macos-menu-bar-quick-capture/spec.yml
+    - docs/architecture/apple/sync-parity.md
+    - docs/architecture/data/sync.md
+  code_patterns:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift contains foreground encrypted user-message persistence and assistant completion persistence.
+    - apple/OpenMatesShared/BackgroundChatSender.swift builds background storage payloads and currently skips storage after `message_queued` events.
+    - apple/OpenMates/Sources/App/MainAppView.swift and apple/OpenMates/Sources/Core/Intents/AskOpenMatesIntent.swift generate new authenticated chat ids with `UUID().uuidString`.
+    - backend/apps/ai/tasks/stream_consumer.py updates `messages_v` for AI lifecycle/cache purposes before client-encrypted durable rows are guaranteed.
+    - backend/scripts/debug_chat.py and backend/scripts/debug_health.py already expect `messages_v` to match durable message count for health/debug checks.
+  tests:
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    - backend/tests/test_encrypted_chat_metadata_guard.py
+    - backend/tests/test_chat_directus_encryption_guards.py
+    - backend/tests/test_apple_chat_parity_audit.py
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Intents/AskOpenMatesIntent.swift
+    - apple/OpenMatesShareExtension/ShareViewController.swift
+    - apple/OpenMatesShareExtensionMacOS/MacShareViewController.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+  parity_expectations:
+    - Apple uses the same lowercase server-visible chat id shape as web for authenticated UUID chats.
+    - Apple sends encrypted user-message storage for queued/background sends, including `message_queued`, instead of relying on later metadata-only events.
+    - Foreground Apple retries or defers encrypted user-message storage when the AI stream races ahead of local pending-message registration.
+    - No Apple change may weaken zero-knowledge storage or log plaintext messages, keys, tokens, or private identifiers.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/BackgroundChatSenderParityTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatSendPipelineParityTests
+  intentional_native_differences:
+    - Apple uses Swift and App Group storage while web uses browser storage, but durable encrypted-message semantics must match.
+
+clarification:
+  rounds:
+    - question: Should the work proceed through a focused spec and then implementation for the Apple-created chat persistence issue?
+      answer: The user asked to create a spec and then implement it, then instructed to continue when next steps were clear.
+  vision_summary: >
+    Fix the Apple-created chat persistence gap end-to-end. A chat created or sent
+    from Apple may stream locally, but it must not become a cross-client-visible
+    metadata shell with `messages_v` advanced and no durable encrypted message
+    rows. Apple entry points need the same encrypted storage contract as web, and
+    backend tooling must detect and safely repair already-bad version/message
+    state.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Apple foreground new chat is durable before cross-client load
+    given:
+      - Alice is authenticated in Apple with an unlocked chat key.
+      - Alice starts a new chat from the foreground composer.
+    when:
+      - Alice sends a message and the AI lifecycle emits task, typing, chunk, and completion events.
+    then:
+      - Apple persists the encrypted user message even if the AI lifecycle races ahead of local pending-message registration.
+      - Apple sends encrypted assistant completion through the existing zero-knowledge completion path.
+      - Web and CLI load the chat with durable user and assistant message rows, not only metadata.
+
+  - id: S-2
+    title: Apple queued and background sends store encrypted user rows
+    given:
+      - Alice sends from a background notification reply, share extension, macOS quick capture, or other BackgroundChatSender entry point.
+    when:
+      - The backend responds with `message_queued` because another task is active.
+    then:
+      - Apple still sends the encrypted user-message storage package for the queued message.
+      - The storage package includes chat id, message id, encrypted content, encrypted chat key, sender metadata, and version metadata.
+      - Later cross-client sync can show and decrypt the queued user message.
+
+  - id: S-3
+    title: Apple generated authenticated chat ids match web UUID shape
+    given:
+      - Alice creates a server-visible authenticated chat from foreground Apple, background Apple, share extension, macOS share extension, or Shortcut.
+    when:
+      - Apple generates a new UUID chat id.
+    then:
+      - The id is lowercase before it is used in WebSocket, REST, local store, encrypted metadata, or deep-link state.
+      - Existing anonymous/incognito prefixes keep their intentional non-UUID shapes.
+
+  - id: S-4
+    title: Backend detects incoherent durable message/version state
+    given:
+      - A chat exists in Directus with encrypted metadata and `messages_v > 0`.
+    when:
+      - The durable `chat_messages` count is lower than `messages_v`, especially zero.
+    then:
+      - Debug and health tooling report a deterministic mismatch.
+      - Repair tooling can reset metadata version state to the durable row count only when explicitly requested.
+      - Repair never invents plaintext or encrypted message content.
+
+  - id: S-5
+    title: AI processing cannot permanently publish unrecoverable zero-row shells
+    given:
+      - Backend AI lifecycle needs cache/version state for an active request.
+    when:
+      - Client encrypted user or assistant persistence has not produced durable Directus message rows yet.
+    then:
+      - Any Directus `messages_v` advancement remains consistent with durable encrypted rows or is recoverable by explicit repair.
+      - Health/debug expectations continue to treat `messages_v` as the durable message count for persisted Directus chat history.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Apple foreground sends retry or defer encrypted user-message storage until the local pending user message can be found, instead of silently dropping storage when AI events arrive first.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-FOREGROUND-STORAGE
+  - id: AC-2
+    scenario: S-2
+    text: BackgroundChatSender sends encrypted user-message storage after `message_queued` events.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-BACKGROUND-QUEUED-STORAGE
+  - id: AC-3
+    scenario: S-3
+    text: Server-visible authenticated Apple UUID chat ids are lowercase across foreground, background, share, macOS share, and Shortcut creation paths.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-LOWERCASE-UUIDS
+  - id: AC-4
+    scenario: S-4
+    text: Backend debug/health tooling detects `messages_v` greater than durable `chat_messages` count and offers explicit non-content-inventing repair to align version state with durable rows.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-BACKEND-VERSION-REPAIR
+  - id: AC-5
+    scenario: S-5
+    text: Backend AI/version logic does not leave new unrecoverable Directus chats with `messages_v > 0` and zero durable encrypted messages.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-BACKEND-VERSION-INVARIANT
+
+assumptions:
+  - id: A-1
+    text: The durable Directus `messages_v` contract remains equal to durable encrypted message row count for persisted chat history.
+    category: sync
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/scripts/debug_chat.py
+        summary: Debug output reports `messages_v` mismatch when the value differs from actual Directus chat message count.
+      - source: backend/scripts/debug_health.py
+        summary: Health check reports single-chat `messages_v` mismatch when stored version differs from message count.
+  - id: A-2
+    text: Repair can safely align version metadata down to durable row count because it does not create or decrypt private content.
+    category: privacy_security
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/architecture/data/sync.md
+        summary: Durable private content remains zero-knowledge encrypted client data; server repair must only touch metadata counters.
+
+contracts:
+  api:
+    - route: Existing Apple WebSocket send path
+      request: "plaintext AI request plus client-encrypted storage metadata for durable zero-knowledge persistence"
+      response: "AI lifecycle events including queued, typing, streaming, completion, and post-processing events"
+      errors:
+        - Storage package may retry; failures must be visible in diagnostics and not silently swallowed.
+    - route: Existing debug_chat/debug_health scripts
+      request: "chat id or health scope plus explicit repair flag when mutation is intended"
+      response: "detected mismatch details and optional metadata-only repair result"
+      errors:
+        - Repair without an explicit flag is refused.
+        - Repair never writes message content.
+  data:
+    - Directus `chats.messages_v` for durable chat history equals the count of durable encrypted rows in `chat_messages`.
+    - Apple locally generated server-visible UUID chat ids are lowercase.
+    - Apple storage retry state contains only encrypted content or local message references needed to produce encrypted content.
+  privacy_security:
+    - No plaintext private message content, raw chat keys, auth/session tokens, or private user identifiers may be logged or added to committed test fixtures.
+    - Metadata-only repair cannot infer, create, or decrypt missing messages.
+
+tests:
+  - id: T-APPLE-BACKGROUND-QUEUED-STORAGE
+    type: unit
+    file: apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/BackgroundChatSenderParityTests
+    covers:
+      - AC-2
+    assertions:
+      - "BackgroundChatStorageContract.shouldSendEncryptedStoragePackage(afterInboundEventType: \"message_queued\") returns true"
+      - storage payload for a queued background send includes encrypted user content and version metadata
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: remote-mac-ran-committed-checkout-not-local-test-edits
+        timestamp: "2026-07-06T13:06:25Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: remote-mac-openmatestests-backgroundchatsenderparity-e1c987332-2026-07-06
+        timestamp: "2026-07-06T15:02:09Z"
+
+  - id: T-APPLE-FOREGROUND-STORAGE
+    type: unit
+    file: apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatSendPipelineParityTests
+    covers:
+      - AC-1
+    assertions:
+      - foreground encrypted user storage is retried or deferred when pending user message lookup initially fails
+      - retry stops after successful encrypted storage package send
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: remote-mac-ran-committed-checkout-not-local-test-edits
+        timestamp: "2026-07-06T13:06:25Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: remote-mac-openmatestests-chatsendpipelineparity-e1c987332-2026-07-06
+        timestamp: "2026-07-06T15:00:58Z"
+
+  - id: T-APPLE-LOWERCASE-UUIDS
+    type: unit
+    file: apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/BackgroundChatSenderParityTests
+    covers:
+      - AC-3
+    assertions:
+      - new authenticated background chat ids are lowercase UUID strings
+      - share and shortcut creation helpers expose lowercase authenticated UUID ids
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: remote-mac-ran-committed-checkout-not-local-test-edits
+        timestamp: "2026-07-06T13:06:25Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: remote-mac-openmatestests-backgroundchatsenderparity-e1c987332-2026-07-06
+        timestamp: "2026-07-06T15:02:09Z"
+
+  - id: T-BACKEND-VERSION-REPAIR
+    type: pytest
+    file: backend/tests/test_chat_version_integrity.py
+    command: python3 -m pytest backend/tests/test_chat_version_integrity.py
+    covers:
+      - AC-4
+    assertions:
+      - mismatch detector reports `messages_v > durable message count`
+      - metadata-only repair aligns `messages_v` to durable row count when explicitly requested
+      - repair does not write message content
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: local-pytest-missing-helper-2026-07-06
+        timestamp: "2026-07-06T13:09:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-chat-version-integrity-2026-07-06
+        timestamp: "2026-07-06T13:14:14Z"
+
+  - id: T-BACKEND-VERSION-INVARIANT
+    type: pytest
+    file: backend/tests/test_chat_version_integrity.py
+    command: python3 -m pytest backend/tests/test_chat_version_integrity.py
+    covers:
+      - AC-5
+    assertions:
+      - version helper distinguishes AI cache/in-flight version state from durable Directus message count
+      - new Directus metadata updates cannot mark a zero-row chat as having durable messages without encrypted message rows or explicit repair
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: local-pytest-missing-helper-2026-07-06
+        timestamp: "2026-07-06T13:09:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-chat-version-integrity-2026-07-06
+        timestamp: "2026-07-06T13:14:14Z"
+
+implementation_plan:
+  existing_patterns:
+    - apple/OpenMatesShared/BackgroundChatSender.swift
+    - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    - backend/scripts/debug_chat.py
+    - backend/scripts/debug_health.py
+    - backend/tests/test_chat_directus_encryption_guards.py
+  architecture: >
+    Make Apple send paths durable first by ensuring storage is sent for queued
+    background messages, foreground storage misses are retried instead of
+    silently dropped, and authenticated UUID ids are lowercase at generation.
+    Add backend metadata-only integrity helpers/tests so existing and future
+    mismatches are detectable and repairable without inventing encrypted
+    content.
+  data_flow:
+    - Apple creates or receives a chat id and normalizes authenticated UUID ids to lowercase.
+    - Apple sends plaintext AI request for processing and sends client-encrypted user storage metadata for durable Directus persistence.
+    - Backend streams AI lifecycle events but durable chat history remains based on encrypted rows in `chat_messages`.
+    - Debug/health tools compare durable row count with Directus `messages_v` and optionally repair metadata only.
+  affected_files:
+    - path: docs/specs/apple-durable-chat-persistence-parity/spec.yml
+      reason: Executable product and verification contract.
+    - path: apple/OpenMatesShared/BackgroundChatSender.swift
+      reason: Send storage after queued events and normalize new background chat ids.
+    - path: apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+      reason: Encode queued storage and lowercase UUID parity.
+    - path: apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      reason: Retry/defer foreground encrypted user storage when local pending message lookup races.
+    - path: apple/OpenMates/Sources/App/MainAppView.swift
+      reason: Normalize foreground new authenticated chat ids when touched after re-reading concurrent changes.
+    - path: apple/OpenMates/Sources/Core/Intents/AskOpenMatesIntent.swift
+      reason: Normalize Shortcut-created authenticated chat ids.
+    - path: backend/tests/test_chat_version_integrity.py
+      reason: Guard durable version/count mismatch detection and metadata-only repair.
+    - path: backend/shared/python_utils/chat_version_integrity.py
+      reason: Shared deterministic helper for mismatch detection and safe repair payloads.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/apple-durable-chat-persistence-parity/spec.yml
+    - python3 -m pytest backend/tests/test_chat_version_integrity.py
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/BackgroundChatSenderParityTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/ChatSendPipelineParityTests
+  verification_order:
+    - Backend pytest red/green for metadata integrity helper.
+    - Apple unit test red/green through remote Mac when available.
+    - Apple build after source changes.
+
+tasks:
+  - id: TASK-1
+    title: Guard background queued storage and lowercase background ids
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+    expected_files:
+      - apple/OpenMatesShared/BackgroundChatSender.swift
+      - apple/OpenMatesTests/BackgroundChatSenderParityTests.swift
+    verification:
+      - T-APPLE-BACKGROUND-QUEUED-STORAGE
+      - T-APPLE-LOWERCASE-UUIDS
+    verification_ids:
+      - T-APPLE-BACKGROUND-QUEUED-STORAGE
+      - T-APPLE-LOWERCASE-UUIDS
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Add backend durable version integrity helper
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+    expected_files:
+      - backend/shared/python_utils/chat_version_integrity.py
+      - backend/tests/test_chat_version_integrity.py
+    verification:
+      - T-BACKEND-VERSION-REPAIR
+      - T-BACKEND-VERSION-INVARIANT
+    verification_ids:
+      - T-BACKEND-VERSION-REPAIR
+      - T-BACKEND-VERSION-INVARIANT
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+  - id: TASK-3
+    title: Retry foreground encrypted user storage races
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+      acceptance_criteria:
+        - AC-1
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMatesTests/ChatSendPipelineParityTests.swift
+    verification:
+      - T-APPLE-FOREGROUND-STORAGE
+    verification_ids:
+      - T-APPLE-FOREGROUND-STORAGE
+    blockers:
+      - Re-read concurrent ChatViewModel changes before editing.
+    follow_up_tasks: []
+    independently_deployable: true

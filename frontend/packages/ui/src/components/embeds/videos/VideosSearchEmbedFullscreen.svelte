@@ -22,6 +22,7 @@
 
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   /**
    * Video search result interface (transformed from child embeds)
@@ -75,11 +76,7 @@
   let provider = $derived(typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Brave');
   let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
   let resultsProp = $derived(
-    Array.isArray(data.decodedContent?.results)
-      ? data.decodedContent.results as unknown[]
-      : Array.isArray(data.decodedContent?.preview_results)
-        ? data.decodedContent.preview_results as unknown[]
-        : []
+    extractSearchResultsFromContent(data.decodedContent)
   );
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
 

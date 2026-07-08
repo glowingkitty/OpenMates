@@ -428,9 +428,9 @@ test('focus mode UI elements work correctly after activation', async ({
 	// CHECK 6: Details link (test 8)
 	// ======================================================================
 	await test.step('Details link opens focus mode settings page', async () => {
-		logCheckpoint('Clicking activated embed to open context menu...');
+		logCheckpoint('Opening activated embed context menu for Details...');
 		const activatedEmbedNow = page.locator(SELECTORS.focusModeBarActivated);
-		await activatedEmbedNow.first().click();
+		await activatedEmbedNow.first().click({ button: 'right' });
 		await page.waitForTimeout(500);
 		await takeStepScreenshot(page, 'ui-details-context-menu');
 
@@ -471,18 +471,28 @@ test('focus mode UI elements work correctly after activation', async ({
 			expect(isAnySettingsOpen).toBeTruthy();
 		}
 
-		// Close settings
-		await page.keyboard.press('Escape');
-		await page.waitForTimeout(500);
+		// Close settings before testing Stop. Escape does not close the details
+		// panel in this layout, and the panel intercepts the embed context menu.
+		const closeSettingsButton = page
+			.locator(
+				'[data-testid="settings-menu"].visible [data-testid="icon-button-close"], [data-testid="settings-panel"] [data-testid="icon-button-close"], [data-testid="icon-button-close"]'
+			)
+			.first();
+		await expect(closeSettingsButton).toBeVisible({ timeout: 5000 });
+		await closeSettingsButton.click();
+		await expect(page.locator('[data-testid="settings-menu"].visible')).not.toBeVisible({
+			timeout: 5000
+		});
+		await expect(page.locator(SELECTORS.focusModeBarActivated).first()).toBeVisible({ timeout: 5000 });
 	});
 
 	// ======================================================================
 	// CHECK 7: Stop button deactivates focus mode (test 7) — MUST BE LAST
 	// ======================================================================
 	await test.step('Stop button deactivates focus mode', async () => {
-		logCheckpoint('Clicking activated embed to open context menu for Stop...');
+		logCheckpoint('Opening activated embed context menu for Stop...');
 		const activatedEmbedNow = page.locator(SELECTORS.focusModeBarActivated);
-		await activatedEmbedNow.first().click();
+		await activatedEmbedNow.first().click({ button: 'right' });
 		await page.waitForTimeout(500);
 		await takeStepScreenshot(page, 'ui-stop-context-menu');
 

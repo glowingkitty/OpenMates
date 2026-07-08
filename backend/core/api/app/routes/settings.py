@@ -36,6 +36,7 @@ from backend.core.api.app.utils.report_issue_ids import (
     create_issue_record_with_short_id,
     issue_identifier_filter,
 )
+from backend.core.api.app.utils.issue_report_contact_email import resolve_account_contact_email
 from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService
 
 # Create an optional API key scheme that doesn't fail if missing (for endpoints that support both session and API key auth)
@@ -116,6 +117,7 @@ async def _are_ai_models_configured(request: Request) -> bool:
             return True
 
     return False
+
 
 # --- Define a simple success response model ---
 class SimpleSuccessResponse(BaseModel):
@@ -2688,6 +2690,9 @@ async def report_issue(
             logger.info(f"Issue report submitted by authenticated user {reported_by_user_id}")
         else:
             logger.info("Issue report submitted by non-authenticated user")
+
+        directus_service: DirectusService = request.app.state.directus_service
+        encryption_service: EncryptionService = request.app.state.encryption_service
         
         # SECURITY: Two-layer sanitization before any processing
         # Layer 1: Remove invisible Unicode characters (ASCII smuggling protection)
@@ -2785,6 +2790,18 @@ async def report_issue(
             else:
                 logger.warning(f"Invalid email format in issue report: {email_str[:50]}")
                 sanitized_email = None
+
+        if current_user and not sanitized_email:
+            sanitized_email = await resolve_account_contact_email(
+                directus_service,
+                encryption_service,
+                current_user.id,
+            )
+            if sanitized_email:
+                logger.info(
+                    "Resolved authenticated issue report contact email from account contact record for user %s",
+                    current_user.id[:8],
+                )
         
         # Validate and sanitise the language code from the client
         # Only allow simple ISO 639-1 / BCP-47 codes (e.g. "en", "de", "zh"); default to "en"
@@ -2896,10 +2913,6 @@ async def report_issue(
             except Exception as _e:
                 logger.warning(f"Failed to serialise runtime_debug_state: {_e}")
 
-        # Retrieve encryption service early — needed for both screenshot key encryption
-        # and the regular field encryption block below.
-        encryption_service: EncryptionService = request.app.state.encryption_service
-
         # Process screenshot PNG if provided.
         # The frontend sends a base64-encoded PNG captured via getDisplayMedia() (authenticated users only).
         # We store it unencrypted in the issue_logs S3 bucket so admins and LLMs can view it via
@@ -3010,8 +3023,6 @@ async def report_issue(
         
         # Save issue report to database
         try:
-            directus_service: DirectusService = request.app.state.directus_service
-            
             # Parse timestamp string back to datetime for database
             timestamp_dt = datetime.strptime(current_time, '%Y-%m-%d %H:%M:%S UTC').replace(tzinfo=timezone.utc)
             current_timestamp = datetime.now(timezone.utc)

@@ -11,6 +11,7 @@
   import CodeRepoEmbedFullscreen from './CodeRepoEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
+  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   interface RepoResult {
     embed_id: string;
@@ -58,7 +59,7 @@
 
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
   let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
-  let legacyResults = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
+  let legacyResults = $derived(extractSearchResultsFromContent(data.decodedContent));
   let query = $state('');
   let provider = $state('GitHub');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('finished');

@@ -5,20 +5,27 @@
 
 import hashlib
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.services.feature_availability_guards import ensure_projects_enabled
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowNotFoundError, WorkflowService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/projects", tags=["Projects"], dependencies=[Depends(ensure_projects_enabled)])
+
+PROJECT_SOURCE_ID_MAX_LENGTH = 128
+PROJECT_SOURCE_CIPHERTEXT_MAX_LENGTH = 128_000
+PROJECT_SOURCE_CAPABILITIES_MAX_COUNT = 8
+PROJECT_SETTINGS_DEFAULT_WRITE_MODE = "always_ask"
 
 
 def get_directus_service(request: Request) -> DirectusService:
@@ -95,6 +102,26 @@ class ProjectUploadEmbedRequest(BaseModel):
     item: ProjectItemCreateRequest
 
 
+class ProjectSourceCreateRequest(BaseModel):
+    source_id: str = Field(max_length=PROJECT_SOURCE_ID_MAX_LENGTH)
+    source_type: Literal[
+        "local_folder",
+        "local_git_repository",
+        "remote_folder",
+        "remote_git_repository",
+    ]
+    encrypted_display_name: str = Field(max_length=PROJECT_SOURCE_CIPHERTEXT_MAX_LENGTH)
+    encrypted_metadata: str = Field(max_length=PROJECT_SOURCE_CIPHERTEXT_MAX_LENGTH)
+    capabilities: List[Literal["read", "search", "import", "write_request"]] = Field(
+        default_factory=list,
+        max_length=PROJECT_SOURCE_CAPABILITIES_MAX_COUNT,
+    )
+    status: Literal["connected", "offline", "permission_required", "revoked"] = "connected"
+    created_at: int
+    updated_at: int
+    last_indexed_at: Optional[int] = None
+
+
 class DeletePrecheckRequest(BaseModel):
     chat_id: str
 
@@ -103,6 +130,26 @@ class DeletePrecheckResponse(BaseModel):
     requires_decision: bool
     protected_embed_ids: List[str]
     project_reference_counts: Dict[str, int]
+
+
+class ProjectSettingsUpdateRequest(BaseModel):
+    write_mode: Literal["always_ask", "auto_approve_safe_writes"]
+    encrypted_settings: Optional[str] = None
+    updated_at: int
+
+
+def serialize_project_settings(settings: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not settings:
+        return {
+            "write_mode": PROJECT_SETTINGS_DEFAULT_WRITE_MODE,
+            "encrypted_settings": None,
+            "updated_at": None,
+        }
+    return {
+        "write_mode": settings.get("write_mode") or PROJECT_SETTINGS_DEFAULT_WRITE_MODE,
+        "encrypted_settings": settings.get("encrypted_settings"),
+        "updated_at": settings.get("updated_at"),
+    }
 
 
 @router.get("")
@@ -160,6 +207,82 @@ async def update_project(
     if not updated:
         raise HTTPException(status_code=404, detail="Project not found")
     return {"project": updated}
+
+
+@router.get("/{project_id}/sources")
+@limiter.limit("60/minute")
+async def list_project_sources(
+    request: Request,
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    project = await directus_service.project.get_project(project_id, current_user.id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    sources = await directus_service.project.list_sources(project_id, current_user.id)
+    return {"sources": sources}
+
+
+@router.post("/{project_id}/sources")
+@limiter.limit("30/minute")
+async def create_project_source(
+    request: Request,
+    project_id: str,
+    body: ProjectSourceCreateRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    project = await directus_service.project.get_project(project_id, current_user.id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    source = await directus_service.project.create_source(
+        project_id,
+        current_user.id,
+        body.model_dump(),
+    )
+    if not source:
+        raise HTTPException(status_code=500, detail="Failed to create project source")
+    return {"source": source}
+
+
+@router.get("/{project_id}/settings")
+@limiter.limit("60/minute")
+async def get_project_settings(
+    request: Request,
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    project = await directus_service.project.get_project(project_id, current_user.id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    settings = await directus_service.project.get_project_settings(project_id, current_user.id)
+    return {"settings": serialize_project_settings(settings)}
+
+
+@router.patch("/{project_id}/settings")
+@limiter.limit("30/minute")
+async def update_project_settings(
+    request: Request,
+    project_id: str,
+    body: ProjectSettingsUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    project = await directus_service.project.get_project(project_id, current_user.id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    settings = await directus_service.project.upsert_project_settings(
+        project_id,
+        current_user.id,
+        body.model_dump(),
+    )
+    if not settings:
+        raise HTTPException(status_code=500, detail="Failed to update project settings")
+    return {"settings": serialize_project_settings(settings)}
 
 
 @router.delete("/{project_id}")
@@ -369,6 +492,12 @@ async def _validate_project_target(
         embed = await directus_service.embed.get_embed_by_id(target_id)
         if not embed or embed.get("hashed_user_id") != hash_id(user_id):
             raise HTTPException(status_code=404, detail="Embed not found")
+        return
+    if item_type == "workflow":
+        try:
+            await run_in_threadpool(WorkflowService(DirectusWorkflowRepository()).get_workflow, target_id, user_id)
+        except WorkflowNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="Workflow not found") from exc
 
 
 def _validate_project_upload_keys(

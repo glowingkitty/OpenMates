@@ -1,0 +1,92 @@
+{
+  "images": [
+    {
+      "filename": "watch-notification-48.png",
+      "idiom": "watch",
+      "scale": "2x",
+      "size": "24x24",
+      "role": "notificationCenter",
+      "subtype": "38mm"
+    },
+    {
+      "filename": "watch-notification-55.png",
+      "idiom": "watch",
+      "scale": "2x",
+      "size": "27.5x27.5",
+      "role": "notificationCenter",
+      "subtype": "42mm"
+    },
+    {
+      "filename": "watch-settings-58.png",
+      "idiom": "watch",
+      "scale": "2x",
+      "size": "29x29",
+      "role": "companionSettings"
+    },
+    {
+      "filename": "watch-settings-87.png",
+      "idiom": "watch",
+      "scale": "3x",
+      "size": "29x29",
+      "role": "companionSettings"
+    },
+    {
+      "filename": "watch-launcher-80.png",
+      "idiom": "watch",
+      "scale": "2x",
+      "size": "40x40",
+      "role": "appLauncher",
+      "subtype": "38mm"
+    },
+    {
+      "filename": "watch-launcher-88.png",
+      "idiom": "watch",
+      "scale": "2x",
+      "size": "44x44",
+      "role": "appLauncher",
+      "subtype": "40mm"
+    },
+    {
+      "filename": "watch-launcher-100.png",
+      "idiom": "watch",
+      "scale": "2x",
+      "size": "50x50",
+      "role": "appLauncher",
+      "subtype": "44mm"
+    },
+    {
+      "filename": "watch-quicklook-172.png",
+      "idiom": "watch",
+      "scale": "2x",
+      "size": "86x86",
+      "role": "quickLook",
+      "subtype": "38mm"
+    },
+    {
+      "filename": "watch-quicklook-196.png",
+      "idiom": "watch",
+      "scale": "2x",
+      "size": "98x98",
+      "role": "quickLook",
+      "subtype": "42mm"
+    },
+    {
+      "filename": "watch-quicklook-216.png",
+      "idiom": "watch",
+      "scale": "2x",
+      "size": "108x108",
+      "role": "quickLook",
+      "subtype": "44mm"
+    },
+    {
+      "filename": "watch-marketing-1024.png",
+      "idiom": "watch-marketing",
+      "scale": "1x",
+      "size": "1024x1024"
+    }
+  ],
+  "info": {
+    "author": "opencode",
+    "version": 1
+  }
+}

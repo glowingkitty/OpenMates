@@ -2,7 +2,7 @@
 //
 // Validates internal markdown links before they are rendered as clickable UI.
 // LLM output can hallucinate hash routes such as nonexistent settings pages;
-// those must remain plain text instead of navigating users into dead panels.
+// those degrade to a safe #message prefill link instead of dead navigation.
 // Keep this lightweight and free of Svelte component imports so markdown parsing
 // can use it without pulling the settings view tree into chat rendering.
 
@@ -103,10 +103,28 @@ const STATIC_SETTINGS_ROUTES = new Set([
 
 const VALID_ALL_APPS_FILTERS = new Set([
   "all",
+  "memories",
   "settings_memories",
   "focus_modes",
   "skills",
 ]);
+
+const MEMORY_SEGMENT = "memories";
+const INTERNAL_MEMORY_SEGMENT = "settings_memories";
+
+type SettingsMemoryCategory = {
+  id: string;
+  schema?: {
+    properties?: Record<string, unknown>;
+  };
+  schema_definition?: {
+    properties?: Record<string, unknown>;
+  };
+};
+
+type SettingsAppMetadata = {
+  settings_and_memories?: SettingsMemoryCategory[];
+};
 
 function stripHashPrefix(href: string): string | null {
   if (!href) return null;
@@ -122,8 +140,10 @@ export function isInternalHashLink(href: string): boolean {
   const normalizedHref = href.startsWith("/#") ? href.substring(1) : href;
   return (
     normalizedHref.startsWith("#chat-id=") ||
+    normalizedHref.startsWith("#message=") ||
     normalizedHref.startsWith("#settings") ||
     normalizedHref.includes("#chat-id=") ||
+    normalizedHref.includes("#message=") ||
     normalizedHref.includes("#settings/")
   );
 }
@@ -144,8 +164,8 @@ export function normalizeSettingsDeepLinkPath(href: string): string | null {
     path = "apps" + path.substring("appstore".length);
   }
 
-  if (path === "memories" || path.startsWith("memories/")) {
-    path = "settings_memories" + path.substring("memories".length);
+  if (path === MEMORY_SEGMENT || path.startsWith(`${MEMORY_SEGMENT}/`)) {
+    path = INTERNAL_MEMORY_SEGMENT + path.substring(MEMORY_SEGMENT.length);
   }
 
   const aiDetailMatch = path.match(/^(ai\/(?:model|provider))\/(.*)/);
@@ -157,7 +177,10 @@ export function normalizeSettingsDeepLinkPath(href: string): string | null {
 
   const allAppsFilterMatch = path.match(/^apps\/all\/(.+)$/);
   if (allAppsFilterMatch) {
-    path = VALID_ALL_APPS_FILTERS.has(allAppsFilterMatch[1])
+    const filter = allAppsFilterMatch[1] === MEMORY_SEGMENT
+      ? INTERNAL_MEMORY_SEGMENT
+      : allAppsFilterMatch[1];
+    path = VALID_ALL_APPS_FILTERS.has(filter)
       ? "apps/all"
       : path;
   }
@@ -165,6 +188,7 @@ export function normalizeSettingsDeepLinkPath(href: string): string | null {
   if (path.startsWith("apps/")) {
     path = path.replace(/\/skills\//, "/skill/");
     path = path.replace(/\/focuses\//, "/focus/");
+    path = path.replace(/\/memories\//, "/settings_memories/");
   }
 
   if (path === "billing/referral_code") {
@@ -177,11 +201,29 @@ export function normalizeSettingsDeepLinkPath(href: string): string | null {
 export function isRenderableInternalHref(href: string): boolean {
   if (!isInternalHashLink(href)) return true;
   if (href.includes("#chat-id=")) return true;
+  if (href.includes("#message=")) return true;
 
   const settingsPath = normalizeSettingsDeepLinkPath(href);
   if (settingsPath === null) return false;
 
-  return isExistingSettingsPath(settingsPath);
+  return isExistingSettingsPath(settingsPath) && hasValidPrefillFields(href, settingsPath);
+}
+
+export function buildMessagePrefillHref(text: string): string {
+  return `#message=${encodeURIComponent(text.trim())}`;
+}
+
+export function getRenderableInternalHref(href: string, fallbackText = ""): string | null {
+  if (!isInternalHashLink(href)) return href;
+  if (href.includes("#chat-id=")) return href.startsWith("/#") ? href.substring(1) : href;
+  if (href.includes("#message=")) return href.startsWith("/#") ? href.substring(1) : href;
+
+  const settingsPath = normalizeSettingsDeepLinkPath(href);
+  if (settingsPath === null || !isExistingSettingsPath(settingsPath) || !hasValidPrefillFields(href, settingsPath)) {
+    return fallbackText.trim() ? buildMessagePrefillHref(fallbackText) : null;
+  }
+
+  return buildCanonicalSettingsHref(href, settingsPath);
 }
 
 export function isExistingSettingsPath(path: string): boolean {
@@ -242,4 +284,91 @@ export function isExistingSettingsPath(path: string): boolean {
   }
 
   return false;
+}
+
+function buildCanonicalSettingsHref(href: string, path: string): string {
+  const hashIndex = href.indexOf("#settings");
+  const rawAfterSettings = hashIndex >= 0 ? href.slice(hashIndex + "#settings".length) : "";
+  const queryIdx = rawAfterSettings.indexOf("?");
+  const queryString = queryIdx >= 0 ? rawAfterSettings.substring(queryIdx + 1) : "";
+  const userPath = buildPublicSettingsPath(rawAfterSettings, path);
+  const encodedPrefill = extractEncodedPrefill(queryString);
+  return encodedPrefill
+    ? `#settings/${userPath}?prefill=${encodedPrefill}`
+    : `#settings/${userPath}`;
+}
+
+function buildPublicSettingsPath(rawAfterSettings: string, path: string): string {
+  const rawPath = rawAfterSettings.split("?", 1)[0].replace(/^\/+/, "").replace(/-/g, "_");
+  const allAppsFilterMatch = rawPath.match(/^apps\/all\/(.+)$/);
+  if (path === "apps/all" && allAppsFilterMatch) {
+    const filter = allAppsFilterMatch[1] === INTERNAL_MEMORY_SEGMENT
+      ? MEMORY_SEGMENT
+      : allAppsFilterMatch[1];
+    return `apps/all/${filter}`;
+  }
+
+  return path.replace(/(^|\/)settings_memories(?=\/|$)/g, `$1${MEMORY_SEGMENT}`);
+}
+
+function hasValidPrefillFields(href: string, path: string): boolean {
+  const prefill = parsePrefill(href);
+  if (prefill === null) return !hasPrefillParameter(href);
+
+  const route = parseSettingsMemoryRoute(path);
+  if (!route) return false;
+
+  const category = route.app.settings_and_memories?.find(
+    (candidate) => candidate.id === route.categoryId,
+  );
+  const schemaProperties = category?.schema?.properties ?? category?.schema_definition?.properties;
+  if (!schemaProperties || typeof schemaProperties !== "object") return true;
+
+  return Object.keys(prefill).every((key) => Object.prototype.hasOwnProperty.call(schemaProperties, key));
+}
+
+function hasPrefillParameter(href: string): boolean {
+  const hashIndex = href.indexOf("#settings");
+  if (hashIndex < 0) return false;
+  const queryIdx = href.indexOf("?", hashIndex);
+  if (queryIdx < 0) return false;
+  return href.substring(queryIdx + 1).includes("prefill=");
+}
+
+function parseSettingsMemoryRoute(path: string): { app: SettingsAppMetadata; categoryId: string } | null {
+  const match = path.match(/^apps\/([^/]+)\/settings_memories\/([^/]+)\/(?:create|entry\/[^/]+\/edit)$/);
+  if (!match) return null;
+  const app = appSkillsStore.getState().apps[match[1]];
+  if (!app) return null;
+  return { app, categoryId: match[2] };
+}
+
+function parsePrefill(href: string): Record<string, unknown> | null {
+  const hashIndex = href.indexOf("#settings");
+  if (hashIndex < 0) return null;
+  const queryIdx = href.indexOf("?", hashIndex);
+  if (queryIdx < 0) return null;
+  const encoded = extractEncodedPrefill(href.substring(queryIdx + 1));
+  if (!encoded) return null;
+  try {
+    const parsed = JSON.parse(decodeURIComponent(encoded));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function extractEncodedPrefill(queryString: string): string | null {
+  const prefillPrefix = "prefill=";
+  const prefillIdx = queryString.indexOf(prefillPrefix);
+  if (prefillIdx < 0) return null;
+  const raw = queryString.substring(prefillIdx + prefillPrefix.length).split("&", 1)[0];
+  if (!raw) return null;
+  try {
+    const decoded = decodeURIComponent(raw).replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+    const parsed = JSON.parse(decoded);
+    return encodeURIComponent(JSON.stringify(parsed));
+  } catch {
+    return null;
+  }
 }

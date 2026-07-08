@@ -31,6 +31,7 @@ final class OfflineSyncBridge: ObservableObject {
     private var offlinePrefetchCursor = 10
 
     private let offlinePrefetchChunkSize = 3
+    private let startupRecentChatLimit = 20
     private let offlinePrefetchMaxMessages = 10_000
     private let offlinePrefetchInterChunkDelayNs: UInt64 = 2_000_000_000
 
@@ -143,40 +144,59 @@ final class OfflineSyncBridge: ObservableObject {
     }
 
     private func persistOfflinePrefetch(_ response: OfflinePrefetchResponse) {
-        if !response.chats.isEmpty {
-            offlineStore.persistChats(response.chats)
+        let eligibleChats = response.chats.filter { !$0.isHiddenFromNormalSurfaces }
+        let skippedChats = response.chats.count - eligibleChats.count
+        let eligibleChatIds = response.chats.isEmpty ? nil : Set(eligibleChats.map(\.id))
+
+        if !eligibleChats.isEmpty {
+            offlineStore.persistChats(eligibleChats)
         }
         if !response.embedKeys.isEmpty {
             EmbedKeyManager.shared.store(response.embedKeys, source: "offlinePrefetch")
             offlineStore.persistEmbedKeys(response.embedKeys)
         }
 
-        let messagesByChat = response.decodedMessagesByChat()
+        let messagesByChat = response.decodedMessagesByChat().filter { chatId, _ in
+            eligibleChatIds?.contains(chatId) ?? true
+        }
         if !messagesByChat.isEmpty {
             offlineStore.persistMessagesBatch(messagesByChat)
         }
 
-        let embedsByChat = response.groupedEmbedsByChat(messagesByChat: messagesByChat)
+        let embedsByChat = response.groupedEmbedsByChat(messagesByChat: messagesByChat).filter { chatId, _ in
+            eligibleChatIds?.contains(chatId) ?? true
+        }
         if !embedsByChat.isEmpty {
             offlineStore.persistEmbedsBatch(embedsByChat)
+        }
+        if skippedChats > 0 {
+            NativeSyncPerfLog.info("phase=offlinePrefetch skippedHiddenChats=\(skippedChats)")
         }
     }
 
     // MARK: - Cold boot: load from disk before network is available
 
-    func loadFromDisk() {
+    func loadFromDisk(lastOpenedChatId: String? = nil) {
+        let start = NativeSyncPerfLog.now()
+        let lastOpenedLabel = lastOpenedChatId.map { String($0.prefix(8)) } ?? "none"
         chatStore.performWithoutPersistence {
-            loadPersistedDataIntoStore()
+            loadPersistedDataIntoStore(lastOpenedChatId: lastOpenedChatId)
         }
+        NativeSyncPerfLog.info(
+            "phase=offlineColdLoad lastOpened=\(lastOpenedLabel) limit=\(startupRecentChatLimit) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
+        )
     }
 
-    private func loadPersistedDataIntoStore() {
+    private func loadPersistedDataIntoStore(lastOpenedChatId: String?) {
         let embedKeys = offlineStore.loadEmbedKeys()
         if !embedKeys.isEmpty {
             EmbedKeyManager.shared.store(embedKeys, source: "offline")
         }
 
-        let chats = offlineStore.loadChats()
+        let chats = offlineStore.loadStartupChats(
+            lastOpenedChatId: lastOpenedChatId,
+            limit: startupRecentChatLimit
+        )
         for chat in chats {
             chatStore.upsertChat(chat)
         }

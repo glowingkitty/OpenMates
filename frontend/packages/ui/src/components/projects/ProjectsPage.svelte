@@ -9,10 +9,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
+  import CodeEmbedFullscreen from '../embeds/code/CodeEmbedFullscreen.svelte';
   import ProjectBrowserItem from './ProjectBrowserItem.svelte';
+  import ProjectRemotePreviewCard from './ProjectRemotePreviewCard.svelte';
+  import TasksPage from '../tasks/TasksPage.svelte';
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
   import { notificationStore } from '../../stores/notificationStore';
   import { panelState } from '../../stores/panelStateStore';
+  import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { userProfile } from '../../stores/userProfile';
   import { computeSHA256 } from '../../message_parsing/utils';
   import {
@@ -20,12 +24,27 @@
     createProject,
     deleteProject,
     getProjectContents,
+    listProjectSources,
     listProjects,
     uploadFileToProject,
     type ProjectFolderViewModel,
     type ProjectItemViewModel,
+    type ProjectSourceViewModel,
     type ProjectViewModel,
   } from '../../services/projectService';
+  import {
+    buildRemoteFileUploadCandidate,
+    buildVirtualRemoteFullscreenDetail,
+    normalizeRemoteFilePreview,
+    type VirtualRemoteFullscreenDetail,
+    type VirtualRemoteFilePreview,
+  } from '../../services/projectRemoteSources';
+
+  interface RemotePreviewEntry {
+    preview: VirtualRemoteFilePreview;
+    uploadContent: string | Blob | null;
+    sourceLabel: string;
+  }
 
   let { variant = 'main' }: { variant?: 'main' | 'sidebar' } = $props();
 
@@ -33,6 +52,7 @@
   let selectedProject = $state<ProjectViewModel | null>(null);
   let folders = $state<ProjectFolderViewModel[]>([]);
   let items = $state<ProjectItemViewModel[]>([]);
+  let sources = $state<ProjectSourceViewModel[]>([]);
   let isLoading = $state(true);
   let isSaving = $state(false);
   let newProjectName = $state('');
@@ -43,6 +63,7 @@
   let currentFolder = $state<ProjectFolderViewModel | null>(null);
   let currentFolderHash = $state<string | null>(null);
   let folderHashes = $state(new Map<string, string>());
+  let activeRemoteFullscreen = $state<VirtualRemoteFullscreenDetail | null>(null);
 
   let sortedProjects = $derived([...projects].sort((a, b) => (b.encrypted.created_at || 0) - (a.encrypted.created_at || 0)));
   let recentProjects = $derived(sortedProjects.slice(0, 8));
@@ -83,14 +104,19 @@
     if (!selectedProject) {
       folders = [];
       items = [];
+      sources = [];
       currentFolder = null;
       currentFolderHash = null;
       folderHashes = new Map();
       return;
     }
-    const contents = await getProjectContents(selectedProject);
+    const [contents, projectSources] = await Promise.all([
+      getProjectContents(selectedProject),
+      listProjectSources(selectedProject),
+    ]);
     folders = contents.folders;
     items = contents.items;
+    sources = projectSources;
     folderHashes = new Map(await Promise.all(contents.folders.map(async (folder) => [folder.folder_id, await computeSHA256(folder.folder_id)] as const)));
     if (currentFolder && !contents.folders.some((folder) => folder.folder_id === currentFolder?.folder_id)) {
       currentFolder = null;
@@ -176,6 +202,116 @@
     }
   }
 
+  async function handleUploadRemotePreview(entry: RemotePreviewEntry): Promise<void> {
+    if (!selectedProject || !entry.uploadContent || isSaving) return;
+    isSaving = true;
+    try {
+      const candidate = buildRemoteFileUploadCandidate({
+        preview: entry.preview,
+        content: entry.uploadContent,
+      });
+      await uploadFileToProject(selectedProject, candidate.file, candidate.metadata);
+      await refreshSelectedProject();
+      notificationStore.success('Remote file uploaded to OpenMates');
+    } catch (error) {
+      console.error('[ProjectsPage] Failed to upload remote preview to project:', error);
+      notificationStore.error('Failed to upload remote file');
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  function openRemotePreview(preview: VirtualRemoteFilePreview): void {
+    activeRemoteFullscreen = buildVirtualRemoteFullscreenDetail(preview);
+  }
+
+  function closeRemotePreview(): void {
+    activeRemoteFullscreen = null;
+  }
+
+  function handleRemoteFullscreenClick(event: MouseEvent): void {
+    if (!activeRemoteFullscreen) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('[data-testid="embed-minimize"]')) {
+      closeRemotePreview();
+    }
+  }
+
+  function handleRemoteFullscreenKeydown(event: KeyboardEvent): void {
+    if (!activeRemoteFullscreen || event.key !== 'Escape') return;
+    closeRemotePreview();
+  }
+
+  function getRemotePreviewEntries(source: ProjectSourceViewModel): RemotePreviewEntry[] {
+    const candidates = getRemotePreviewCandidates(source.metadata);
+    return candidates.flatMap((candidate) => {
+      try {
+        const preview = normalizeRemoteFilePreview({
+          sourceId: source.source_id,
+          path: getString(candidate, 'path') || getString(candidate, 'remote_path'),
+          displayName: getString(candidate, 'displayName') || getString(candidate, 'display_name') || getString(candidate, 'path') || source.displayName || source.source_id,
+          remoteItemId: getString(candidate, 'remoteItemId') || getString(candidate, 'remote_item_id'),
+          kind: getPreviewKind(candidate),
+          language: getString(candidate, 'language') || 'text',
+          snippet: getString(candidate, 'snippet'),
+          baseHash: getString(candidate, 'baseHash') || getString(candidate, 'base_hash'),
+          sizeBytes: getNumber(candidate, 'sizeBytes') ?? getNumber(candidate, 'size_bytes'),
+          lineCount: getNumber(candidate, 'lineCount') ?? getNumber(candidate, 'line_count'),
+          mtime: getString(candidate, 'mtime'),
+          contentHash: getString(candidate, 'contentHash') || getString(candidate, 'content_hash'),
+          gitStatus: getString(candidate, 'gitStatus') || getString(candidate, 'git_status'),
+          previewPolicy: getString(candidate, 'previewPolicy') || getString(candidate, 'preview_policy'),
+          safetyFlags: getStringArray(candidate, 'safetyFlags') ?? getStringArray(candidate, 'safety_flags') ?? [],
+        });
+        return [{
+          preview,
+          uploadContent: getUploadContent(candidate),
+          sourceLabel: source.displayName || source.source_id,
+        }];
+      } catch (error) {
+        console.warn('[ProjectsPage] Ignoring invalid remote preview metadata:', error);
+        return [];
+      }
+    });
+  }
+
+  function getRemotePreviewCandidates(metadata: Record<string, unknown>): Record<string, unknown>[] {
+    const previewFiles = metadata.preview_files ?? metadata.previewFiles ?? metadata.remote_previews;
+    if (Array.isArray(previewFiles)) return previewFiles.filter(isRecord);
+    const preview = metadata.preview ?? metadata.remote_preview;
+    return isRecord(preview) ? [preview] : [];
+  }
+
+  function getPreviewKind(candidate: Record<string, unknown>): 'file' | 'folder' {
+    return getString(candidate, 'kind') === 'folder' ? 'folder' : 'file';
+  }
+
+  function getUploadContent(candidate: Record<string, unknown>): string | Blob | null {
+    const content = candidate.full_content ?? candidate.fullContent ?? candidate.content;
+    if (typeof content === 'string') return content;
+    if (typeof Blob !== 'undefined' && content instanceof Blob) return content;
+    return null;
+  }
+
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+  }
+
+  function getString(candidate: Record<string, unknown>, key: string): string {
+    const value = candidate[key];
+    return typeof value === 'string' ? value : '';
+  }
+
+  function getNumber(candidate: Record<string, unknown>, key: string): number | undefined {
+    const value = candidate[key];
+    return Number.isInteger(value) && Number(value) >= 0 ? Number(value) : undefined;
+  }
+
+  function getStringArray(candidate: Record<string, unknown>, key: string): string[] | undefined {
+    const value = candidate[key];
+    return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : undefined;
+  }
+
   function selectProject(project: ProjectViewModel): void {
     selectedProject = project;
     currentFolder = null;
@@ -202,6 +338,12 @@
 
   function handleStartProjectInspiration(): void {
     panelState.openChats();
+  }
+
+  function openSelectedProjectSettings(): void {
+    if (!selectedProject) return;
+    panelState.openSettings();
+    settingsDeepLink.set(`projects/${selectedProject.project_id}`);
   }
 
   onMount(() => {
@@ -332,6 +474,65 @@
           </div>
         {/if}
       </section>
+
+      <section class="project-section" data-testid="project-remote-sources-section">
+        <div class="section-title">
+          <div>
+            <h3>Remote sources</h3>
+            <p class="muted">Connected folders and repositories stay on your machine unless you upload selected files.</p>
+          </div>
+          <button class="settings-gear-button" type="button" data-testid="project-settings-button" aria-label="Open project settings" onclick={openSelectedProjectSettings}>
+            Settings
+          </button>
+        </div>
+        {#if sources.length === 0}
+          <div class="empty-state compact" data-testid="project-remote-sources-empty">
+            <h3>No remote sources connected</h3>
+            <p>Use the OpenMates CLI remote-access bridge to attach a folder or repository.</p>
+          </div>
+        {:else}
+          <div class="source-list" data-testid="project-remote-sources-list">
+            {#each sources as source (source.source_id)}
+              <article class="source-card" data-testid="project-remote-source-card" data-status={source.status}>
+                <div class="source-card-header">
+                  <div class="source-summary">
+                    <span class="source-kind">{source.source_type.replaceAll('_', ' ')}</span>
+                    <strong>{source.displayName || source.source_id}</strong>
+                    {#if typeof source.metadata.root === 'string'}
+                      <small>{source.metadata.root}</small>
+                    {/if}
+                  </div>
+                  <span class="source-status">{source.status.replaceAll('_', ' ')}</span>
+                </div>
+                <div class="source-previews">
+                  {#each getRemotePreviewEntries(source) as previewEntry (previewEntry.preview.embed.embed_id)}
+                    <ProjectRemotePreviewCard
+                      preview={previewEntry.preview}
+                      sourceLabel={previewEntry.sourceLabel}
+                      canUpload={!!previewEntry.uploadContent}
+                      isUploading={isSaving}
+                      onOpenFullscreen={() => openRemotePreview(previewEntry.preview)}
+                      onUpload={() => void handleUploadRemotePreview(previewEntry)}
+                    />
+                  {/each}
+                </div>
+              </article>
+            {/each}
+          </div>
+        {/if}
+      </section>
+
+      <section class="project-section" data-testid="project-tasks-section">
+        <div class="section-title">
+          <div>
+            <h3>Project tasks</h3>
+            <p class="muted">Plan work for this project and hand focused next steps to AI.</p>
+          </div>
+        </div>
+        {#key selectedProject.project_id}
+          <TasksPage projectId={selectedProject.project_id} compact />
+        {/key}
+      </section>
     {:else}
       <div class="empty-state large">
         <h2>Continue where you left off</h2>
@@ -411,6 +612,26 @@
     </main>
   </section>
 {/if}
+
+{#if activeRemoteFullscreen}
+  <div
+    class="projects-remote-fullscreen"
+    data-testid="project-remote-fullscreen-overlay"
+    onclickcapture={handleRemoteFullscreenClick}
+  >
+    <CodeEmbedFullscreen
+      data={{
+        decodedContent: activeRemoteFullscreen.decodedContent,
+        attrs: activeRemoteFullscreen.attrs,
+        embedData: activeRemoteFullscreen.embedData,
+      }}
+      embedId={activeRemoteFullscreen.embedId}
+      onClose={closeRemotePreview}
+    />
+  </div>
+{/if}
+
+<svelte:window onkeydown={handleRemoteFullscreenKeydown} />
 
 <style>
   .projects-page {
@@ -737,6 +958,68 @@
     max-width: 520px;
     margin: 12vh auto;
     text-align: center;
+  }
+
+  .empty-state.compact {
+    box-shadow: none;
+  }
+
+  .settings-gear-button {
+    background: var(--color-grey-10);
+    color: var(--color-font-primary);
+  }
+
+  .source-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .source-card {
+    display: grid;
+    gap: 16px;
+    padding: 14px 16px;
+    border: 1px solid var(--color-grey-20);
+    border-radius: var(--radius-5);
+    background: var(--color-grey-0);
+  }
+
+  .source-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .source-summary {
+    display: grid;
+    gap: 4px;
+  }
+
+  .source-previews {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+
+  .source-kind,
+  .source-status {
+    color: var(--color-font-secondary);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .source-status {
+    padding: 5px 8px;
+    border-radius: var(--radius-3);
+    background: var(--color-grey-10);
+  }
+
+  .projects-remote-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-index-popover);
+    background: var(--color-grey-0);
   }
 
   .load-error {

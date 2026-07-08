@@ -26,6 +26,9 @@ const CIPHERTEXT_MAGIC_0 = 0x4f; // 'O'
 const CIPHERTEXT_MAGIC_1 = 0x4d; // 'M'
 const FINGERPRINT_LENGTH = 4;
 const CIPHERTEXT_HEADER_LENGTH = 2 + FINGERPRINT_LENGTH; // 6 bytes
+const API_KEY_PREFIX = "sk-api-";
+const API_KEY_RANDOM_LENGTH = 32;
+const API_KEY_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
 export function base64ToBytes(input: string): Uint8Array {
   return new Uint8Array(Buffer.from(input, "base64"));
@@ -209,6 +212,82 @@ export async function createRecoveryKeyMaterial(masterKeyB64: string, userEmailS
   };
 }
 
+export interface ApiKeyCryptoMaterial {
+  apiKey: string;
+  apiKeyHash: string;
+  encryptedName: string;
+  encryptedKeyPrefix: string;
+  encryptedMasterKey: string;
+  keyIv: string;
+  saltB64: string;
+}
+
+function generateApiKey(): string {
+  let result = API_KEY_PREFIX;
+  const maxUnbiasedValue = Math.floor(256 / API_KEY_CHARS.length) * API_KEY_CHARS.length;
+  while (result.length < API_KEY_PREFIX.length + API_KEY_RANDOM_LENGTH) {
+    const randomValues = cryptoApi.getRandomValues(new Uint8Array(API_KEY_RANDOM_LENGTH));
+    for (const value of randomValues) {
+      if (value >= maxUnbiasedValue) continue;
+      result += API_KEY_CHARS.charAt(value % API_KEY_CHARS.length);
+      if (result.length >= API_KEY_PREFIX.length + API_KEY_RANDOM_LENGTH) break;
+    }
+  }
+  return result;
+}
+
+function sha256Hex(input: string): string {
+  return createHash("sha256").update(input).digest("hex");
+}
+
+export async function createApiKeyCryptoMaterial(
+  name: string,
+  masterKeyB64: string,
+): Promise<ApiKeyCryptoMaterial> {
+  const masterKey = base64ToBytes(masterKeyB64);
+  const apiKey = generateApiKey();
+  const keyPrefix = `${apiKey.slice(0, 12)}...`;
+  const wrappingSalt = generateSalt(EMAIL_SALT_LENGTH);
+  const wrappingKey = await deriveKeyFromPassword(apiKey, wrappingSalt);
+  const encryptedMasterKey = await encryptRawKeyWithAesGcm(masterKey, wrappingKey);
+
+  return {
+    apiKey,
+    apiKeyHash: sha256Hex(apiKey),
+    encryptedName: await encryptWithAesGcmCombined(name.trim(), masterKey),
+    encryptedKeyPrefix: await encryptWithAesGcmCombined(keyPrefix, masterKey),
+    encryptedMasterKey: encryptedMasterKey.wrapped,
+    keyIv: encryptedMasterKey.iv,
+    saltB64: bytesToBase64(wrappingSalt),
+  };
+}
+
+export async function unwrapApiKeyMasterKey(params: {
+  apiKey: string;
+  encryptedMasterKeyB64: string;
+  saltB64: string;
+  keyIvB64: string;
+}): Promise<Uint8Array | null> {
+  try {
+    const wrappingKeyBytes = await deriveKeyFromPassword(params.apiKey, base64ToBytes(params.saltB64));
+    const wrappingKey = await cryptoApi.subtle.importKey(
+      "raw",
+      toArrayBuffer(wrappingKeyBytes),
+      { name: "AES-GCM" },
+      false,
+      ["decrypt"],
+    );
+    const decrypted = await cryptoApi.subtle.decrypt(
+      { name: "AES-GCM", iv: toArrayBuffer(base64ToBytes(params.keyIvB64)) },
+      wrappingKey,
+      toArrayBuffer(base64ToBytes(params.encryptedMasterKeyB64)),
+    );
+    return new Uint8Array(decrypted);
+  } catch {
+    return null;
+  }
+}
+
 export async function derivePairKey(
   pin: string,
   upperToken: string,
@@ -352,6 +431,33 @@ export async function decryptBytesWithAesGcm(
   } catch {
     return null;
   }
+}
+
+/**
+ * Derive an embed-specific AES key deterministically from the chat key.
+ *
+ * Mirrors the browser's deriveEmbedKeyFromChatKey() contract so CLI-created
+ * embed version rows stay decryptable across updates and devices.
+ */
+export async function deriveEmbedKeyFromChatKey(
+  chatKey: Uint8Array,
+  embedId: string,
+): Promise<Uint8Array> {
+  const hkdfKey = await cryptoApi.subtle.importKey(
+    "raw",
+    toArrayBuffer(new Uint8Array(chatKey)),
+    "HKDF",
+    false,
+    ["deriveBits"],
+  );
+  const salt = new TextEncoder().encode("openmates-embed-key-v1");
+  const info = new TextEncoder().encode(embedId);
+  const derivedBits = await cryptoApi.subtle.deriveBits(
+    { name: "HKDF", hash: "SHA-256", salt: toArrayBuffer(salt), info: toArrayBuffer(info) },
+    hkdfKey,
+    256,
+  );
+  return new Uint8Array(derivedBits);
 }
 
 /**

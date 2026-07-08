@@ -98,11 +98,49 @@ calendar:
   context: App name for the Calendar app
   en: Calendar
   de: Kalender
+  zh: 日历
+  es: Calendario
+  fr: Calendrier
+  pt: Calendário
+  ru: Календарь
+  ja: カレンダー
+  ko: 캘린더
+  it: Calendario
+  tr: Takvim
+  vi: Lịch
+  id: Kalender
+  pl: Kalendarz
+  nl: Kalender
+  ar: التقويم
+  hi: कैलेंडर
+  th: ปฏิทิน
+  cs: Kalendář
+  sv: Kalender
+  he: לוח שנה
   verified_by_human: [en, de]
 calendar.description:
   context: Description for the Calendar app
   en: Connect your calendar so mates can read, create, update, and delete events with your permission.
   de: Verbinde deinen Kalender, damit Mates mit deiner Erlaubnis Termine lesen, erstellen, bearbeiten und löschen können.
+  zh: 连接你的日历，让 Mates 在获得你许可后读取、创建、更新和删除事件。
+  es: Conecta tu calendario para que los mates puedan leer, crear, actualizar y eliminar eventos con tu permiso.
+  fr: Connectez votre calendrier afin que les mates puissent lire, créer, mettre à jour et supprimer des événements avec votre autorisation.
+  pt: Conecte seu calendário para que os mates possam ler, criar, atualizar e excluir eventos com sua permissão.
+  ru: Подключите календарь, чтобы mates могли с вашего разрешения читать, создавать, обновлять и удалять события.
+  ja: カレンダーを接続すると、あなたの許可に基づいて Mates が予定の読み取り、作成、更新、削除を行えます。
+  ko: 캘린더를 연결하면 Mates가 사용자의 허락을 받아 일정을 읽고, 만들고, 업데이트하고, 삭제할 수 있습니다.
+  it: Collega il tuo calendario così i mates possono leggere, creare, aggiornare ed eliminare eventi con il tuo permesso.
+  tr: Takviminizi bağlayın; mates izninizle etkinlikleri okuyabilir, oluşturabilir, güncelleyebilir ve silebilir.
+  vi: Kết nối lịch của bạn để mates có thể đọc, tạo, cập nhật và xóa sự kiện khi bạn cho phép.
+  id: Hubungkan kalender Anda agar mates dapat membaca, membuat, memperbarui, dan menghapus acara dengan izin Anda.
+  pl: Połącz kalendarz, aby mates mogły za Twoją zgodą czytać, tworzyć, aktualizować i usuwać wydarzenia.
+  nl: Koppel je agenda zodat mates met jouw toestemming afspraken kunnen lezen, maken, bijwerken en verwijderen.
+  ar: اربط تقويمك ليتمكن mates من قراءة الأحداث وإنشائها وتحديثها وحذفها بإذنك.
+  hi: अपना कैलेंडर कनेक्ट करें ताकि mates आपकी अनुमति से इवेंट पढ़, बना, अपडेट और हटा सकें।
+  th: เชื่อมต่อปฏิทินของคุณเพื่อให้ mates อ่าน สร้าง อัปเดต และลบกิจกรรมได้เมื่อคุณอนุญาต
+  cs: Připojte svůj kalendář, aby mates mohli s vaším svolením číst, vytvářet, aktualizovat a mazat události.
+  sv: Anslut din kalender så att mates kan läsa, skapa, uppdatera och ta bort händelser med din tillåtelse.
+  he: חבר את לוח השנה שלך כדי ש-mates יוכלו לקרוא, ליצור, לעדכן ולמחוק אירועים בהרשאתך.
   verified_by_human: [en, de]
 social_media:
   context: App name for the Social Media app
@@ -1499,10 +1537,50 @@ news.description:
 politics:
   context: App name for the Politics app
   en: Politics
+  de: Politik
+  zh: 政治
+  es: Política
+  fr: Politique
+  pt: Política
+  ru: Политика
+  ja: 政治
+  ko: 정치
+  it: Politica
+  tr: Politika
+  vi: Chính trị
+  id: Politik
+  pl: Polityka
+  nl: Politiek
+  ar: السياسة
+  hi: राजनीति
+  th: การเมือง
+  cs: Politika
+  sv: Politik
+  he: פוליטיקה
   verified_by_human: [en]
 politics.description:
   context: Description for the Politics app
   en: Prepare for civic and political discussions with facts, questions, and balanced perspectives.
+  de: Bereite dich mit Fakten, Fragen und ausgewogenen Perspektiven auf gesellschaftliche und politische Diskussionen vor.
+  zh: 用事实、问题和平衡的视角为公民和政治讨论做准备。
+  es: Prepárate para debates cívicos y políticos con datos, preguntas y perspectivas equilibradas.
+  fr: Préparez vos discussions citoyennes et politiques avec des faits, des questions et des points de vue équilibrés.
+  pt: Prepare-se para discussões cívicas e políticas com fatos, perguntas e perspectivas equilibradas.
+  ru: Готовьтесь к гражданским и политическим обсуждениям с фактами, вопросами и сбалансированными точками зрения.
+  ja: 事実、質問、バランスの取れた視点で市民的・政治的な議論に備えましょう。
+  ko: 사실, 질문, 균형 잡힌 관점으로 시민적·정치적 토론을 준비하세요.
+  it: Preparati a discussioni civiche e politiche con fatti, domande e prospettive equilibrate.
+  tr: Toplumsal ve siyasi tartışmalara gerçekler, sorular ve dengeli bakış açılarıyla hazırlanın.
+  vi: Chuẩn bị cho các cuộc thảo luận công dân và chính trị bằng dữ kiện, câu hỏi và góc nhìn cân bằng.
+  id: Persiapkan diskusi kewargaan dan politik dengan fakta, pertanyaan, dan sudut pandang yang seimbang.
+  pl: Przygotuj się do dyskusji obywatelskich i politycznych dzięki faktom, pytaniom i zrównoważonym perspektywom.
+  nl: Bereid je voor op maatschappelijke en politieke gesprekken met feiten, vragen en evenwichtige perspectieven.
+  ar: استعد للنقاشات المدنية والسياسية بالحقائق والأسئلة ووجهات النظر المتوازنة.
+  hi: तथ्यों, सवालों और संतुलित दृष्टिकोणों के साथ नागरिक और राजनीतिक चर्चाओं की तैयारी करें।
+  th: เตรียมพร้อมสำหรับการสนทนาทางพลเมืองและการเมืองด้วยข้อเท็จจริง คำถาม และมุมมองที่สมดุล
+  cs: Připravte se na občanské a politické diskuse s fakty, otázkami a vyváženými pohledy.
+  sv: Förbered dig för samhälleliga och politiska diskussioner med fakta, frågor och balanserade perspektiv.
+  he: התכונן לדיונים אזרחיים ופוליטיים בעזרת עובדות, שאלות ונקודות מבט מאוזנות.
   verified_by_human: [en]
 news.search:
   context: Skill name for search in News app
@@ -1696,6 +1774,342 @@ events.search.description:
   sv: Hitta meetups, konferenser och lokala evenemang.
   he: מצא מפגשים, כנסים ואירועים מקומיים.
   verified_by_human: []
+workflows:
+  context: App name for the Workflows app
+  en: Workflows
+  de: Workflows
+  zh: 工作流
+  es: Flujos de trabajo
+  fr: Workflows
+  pt: Fluxos de trabalho
+  ru: Рабочие процессы
+  ja: ワークフロー
+  ko: 워크플로
+  it: Workflow
+  tr: İş akışları
+  vi: Quy trình công việc
+  id: Alur kerja
+  pl: Przepływy pracy
+  nl: Workflows
+  ar: سير العمل
+  hi: वर्कफ़्लो
+  th: เวิร์กโฟลว์
+  cs: Pracovní postupy
+  sv: Arbetsflöden
+  he: תהליכי עבודה
+  verified_by_human: [en, de]
+workflows.description:
+  context: Description for the Workflows app
+  en: Create and run reusable automations.
+  de: Wiederverwendbare Automatisierungen erstellen und ausführen.
+  zh: 创建并运行可重复使用的自动化。
+  es: Crea y ejecuta automatizaciones reutilizables.
+  fr: Créez et exécutez des automatisations réutilisables.
+  pt: Crie e execute automações reutilizáveis.
+  ru: Создавайте и запускайте многоразовые автоматизации.
+  ja: 再利用可能な自動化を作成して実行します。
+  ko: 재사용 가능한 자동화를 만들고 실행하세요.
+  it: Crea ed esegui automazioni riutilizzabili.
+  tr: Yeniden kullanılabilir otomasyonlar oluşturun ve çalıştırın.
+  vi: Tạo và chạy các tự động hóa có thể tái sử dụng.
+  id: Buat dan jalankan otomatisasi yang dapat digunakan kembali.
+  pl: Twórz i uruchamiaj automatyzacje wielokrotnego użytku.
+  nl: Maak en voer herbruikbare automatiseringen uit.
+  ar: أنشئ وشغّل أتمتات قابلة لإعادة الاستخدام.
+  hi: दोबारा उपयोग की जा सकने वाली ऑटोमेशन बनाएं और चलाएं।
+  th: สร้างและเรียกใช้ระบบอัตโนมัติที่ใช้ซ้ำได้
+  cs: Vytvářejte a spouštějte opakovaně použitelné automatizace.
+  sv: Skapa och kör återanvändbara automatiseringar.
+  he: יצירה והרצה של אוטומציות שניתנות לשימוש חוזר.
+  verified_by_human: [en, de]
+workflows.skills.search:
+  context: Internal skill name for finding user workflows
+  en: Search Workflows
+  de: Workflows suchen
+  zh: 搜索工作流
+  es: Buscar flujos de trabajo
+  fr: Rechercher des workflows
+  pt: Pesquisar fluxos de trabalho
+  ru: Поиск рабочих процессов
+  ja: ワークフローを検索
+  ko: 워크플로 검색
+  it: Cerca workflow
+  tr: İş akışlarında ara
+  vi: Tìm quy trình công việc
+  id: Cari alur kerja
+  pl: Szukaj przepływów pracy
+  nl: Workflows zoeken
+  ar: البحث في سير العمل
+  hi: वर्कफ़्लो खोजें
+  th: ค้นหาเวิร์กโฟลว์
+  cs: Hledat pracovní postupy
+  sv: Sök arbetsflöden
+  he: חיפוש תהליכי עבודה
+  verified_by_human: [en, de]
+workflows.skills.search.description:
+  context: Internal skill description for finding user workflows
+  en: Find user-owned workflows that match a chat intent.
+  de: Nutzer-Workflows finden, die zu einer Chat-Absicht passen.
+  zh: 查找符合聊天意图的用户自有工作流。
+  es: Encuentra flujos de trabajo del usuario que coincidan con una intención del chat.
+  fr: Trouver les workflows appartenant à l'utilisateur qui correspondent à une intention de chat.
+  pt: Encontre fluxos de trabalho do usuário que correspondam a uma intenção do chat.
+  ru: Найти рабочие процессы пользователя, соответствующие намерению чата.
+  ja: チャットの意図に一致するユーザー所有のワークフローを見つけます。
+  ko: 채팅 의도와 일치하는 사용자 소유 워크플로를 찾습니다.
+  it: Trova workflow dell'utente che corrispondono a un intento della chat.
+  tr: Sohbet amacına uyan kullanıcıya ait iş akışlarını bulun.
+  vi: Tìm các quy trình công việc do người dùng sở hữu phù hợp với ý định trò chuyện.
+  id: Temukan alur kerja milik pengguna yang cocok dengan maksud chat.
+  pl: Znajdź przepływy pracy użytkownika pasujące do intencji czatu.
+  nl: Vind workflows van de gebruiker die passen bij een chatintentie.
+  ar: ابحث عن سير العمل المملوك للمستخدم والذي يطابق هدف الدردشة.
+  hi: चैट इरादे से मेल खाने वाले उपयोगकर्ता-स्वामित्व वाले वर्कफ़्लो खोजें।
+  th: ค้นหาเวิร์กโฟลว์ของผู้ใช้ที่ตรงกับเจตนาในแชต
+  cs: Najděte pracovní postupy vlastněné uživatelem, které odpovídají záměru chatu.
+  sv: Hitta användarägda arbetsflöden som matchar en chattavsikt.
+  he: מציאת תהליכי עבודה בבעלות המשתמש שמתאימים לכוונת הצ'אט.
+  verified_by_human: [en, de]
+workflows.skills.run:
+  context: Internal skill name for preparing a workflow run
+  en: Run Workflow
+  de: Workflow ausführen
+  zh: 运行工作流
+  es: Ejecutar flujo de trabajo
+  fr: Exécuter le workflow
+  pt: Executar fluxo de trabalho
+  ru: Запустить рабочий процесс
+  ja: ワークフローを実行
+  ko: 워크플로 실행
+  it: Esegui workflow
+  tr: İş akışını çalıştır
+  vi: Chạy quy trình công việc
+  id: Jalankan alur kerja
+  pl: Uruchom przepływ pracy
+  nl: Workflow uitvoeren
+  ar: تشغيل سير العمل
+  hi: वर्कफ़्लो चलाएं
+  th: เรียกใช้เวิร์กโฟลว์
+  cs: Spustit pracovní postup
+  sv: Kör arbetsflöde
+  he: הפעלת תהליך עבודה
+  verified_by_human: [en, de]
+workflows.skills.run.description:
+  context: Internal skill description for preparing a workflow run
+  en: Prepare a workflow run with countdown or approval.
+  de: Einen Workflow-Lauf mit Countdown oder Freigabe vorbereiten.
+  zh: 准备带倒计时或审批的工作流运行。
+  es: Prepara una ejecución de flujo de trabajo con cuenta atrás o aprobación.
+  fr: Préparer une exécution de workflow avec compte à rebours ou approbation.
+  pt: Prepare uma execução de fluxo de trabalho com contagem regressiva ou aprovação.
+  ru: Подготовить запуск рабочего процесса с обратным отсчётом или подтверждением.
+  ja: カウントダウンまたは承認付きのワークフロー実行を準備します。
+  ko: 카운트다운 또는 승인으로 워크플로 실행을 준비합니다.
+  it: Prepara l'esecuzione di un workflow con conto alla rovescia o approvazione.
+  tr: Geri sayım veya onay ile bir iş akışı çalıştırması hazırlayın.
+  vi: Chuẩn bị một lượt chạy quy trình công việc với đếm ngược hoặc phê duyệt.
+  id: Siapkan eksekusi alur kerja dengan hitung mundur atau persetujuan.
+  pl: Przygotuj uruchomienie przepływu pracy z odliczaniem lub akceptacją.
+  nl: Bereid een workflowrun voor met aftellen of goedkeuring.
+  ar: حضّر تشغيل سير عمل مع عد تنازلي أو موافقة.
+  hi: काउंटडाउन या स्वीकृति के साथ वर्कफ़्लो रन तैयार करें।
+  th: เตรียมการเรียกใช้เวิร์กโฟลว์พร้อมการนับถอยหลังหรือการอนุมัติ
+  cs: Připravte spuštění pracovního postupu s odpočtem nebo schválením.
+  sv: Förbered en arbetsflödeskörning med nedräkning eller godkännande.
+  he: הכנת הרצת תהליך עבודה עם ספירה לאחור או אישור.
+  verified_by_human: [en, de]
+workflows.skills.schedule_once:
+  context: Internal skill name for creating a temporary one-time workflow
+  en: Schedule One-Time Workflow
+  de: Einmaligen Workflow planen
+  zh: 安排一次性工作流
+  es: Programar flujo de trabajo único
+  fr: Planifier un workflow ponctuel
+  pt: Agendar fluxo de trabalho único
+  ru: Запланировать разовый рабочий процесс
+  ja: 1回限りのワークフローをスケジュール
+  ko: 일회성 워크플로 예약
+  it: Pianifica workflow una tantum
+  tr: Tek seferlik iş akışı planla
+  vi: Lên lịch quy trình công việc một lần
+  id: Jadwalkan alur kerja satu kali
+  pl: Zaplanuj jednorazowy przepływ pracy
+  nl: Eenmalige workflow plannen
+  ar: جدولة سير عمل لمرة واحدة
+  hi: एक-बार का वर्कफ़्लो शेड्यूल करें
+  th: กำหนดเวลาเวิร์กโฟลว์แบบครั้งเดียว
+  cs: Naplánovat jednorázový pracovní postup
+  sv: Schemalägg engångsarbetsflöde
+  he: תזמון תהליך עבודה חד-פעמי
+  verified_by_human: [en, de]
+workflows.skills.schedule_once.description:
+  context: Internal skill description for creating a temporary one-time workflow
+  en: Create a temporary one-time workflow from chat.
+  de: Einen temporären einmaligen Workflow aus dem Chat erstellen.
+  zh: 从聊天创建临时一次性工作流。
+  es: Crea un flujo de trabajo temporal de una sola vez desde el chat.
+  fr: Créer un workflow temporaire et ponctuel depuis le chat.
+  pt: Crie um fluxo de trabalho temporário e único a partir do chat.
+  ru: Создать временный разовый рабочий процесс из чата.
+  ja: チャットから一時的な1回限りのワークフローを作成します。
+  ko: 채팅에서 임시 일회성 워크플로를 만듭니다.
+  it: Crea un workflow temporaneo una tantum dalla chat.
+  tr: Sohbetten geçici, tek seferlik bir iş akışı oluşturun.
+  vi: Tạo một quy trình công việc tạm thời dùng một lần từ chat.
+  id: Buat alur kerja sementara satu kali dari chat.
+  pl: Utwórz tymczasowy jednorazowy przepływ pracy z czatu.
+  nl: Maak vanuit de chat een tijdelijke eenmalige workflow.
+  ar: أنشئ سير عمل مؤقتًا لمرة واحدة من الدردشة.
+  hi: चैट से अस्थायी एक-बार का वर्कफ़्लो बनाएं।
+  th: สร้างเวิร์กโฟลว์ชั่วคราวแบบครั้งเดียวจากแชต
+  cs: Vytvořte z chatu dočasný jednorázový pracovní postup.
+  sv: Skapa ett tillfälligt engångsarbetsflöde från chatten.
+  he: יצירת תהליך עבודה זמני וחד-פעמי מהצ'אט.
+  verified_by_human: [en, de]
+workflows.skills.schedule_recurring:
+  context: Internal skill name for creating a recurring workflow
+  en: Schedule Recurring Workflow
+  de: Wiederkehrenden Workflow planen
+  zh: 安排重复工作流
+  es: Programar flujo de trabajo recurrente
+  fr: Planifier un workflow récurrent
+  pt: Agendar fluxo de trabalho recorrente
+  ru: Запланировать повторяющийся рабочий процесс
+  ja: 繰り返しワークフローをスケジュール
+  ko: 반복 워크플로 예약
+  it: Pianifica workflow ricorrente
+  tr: Yinelenen iş akışı planla
+  vi: Lên lịch quy trình công việc định kỳ
+  id: Jadwalkan alur kerja berulang
+  pl: Zaplanuj cykliczny przepływ pracy
+  nl: Terugkerende workflow plannen
+  ar: جدولة سير عمل متكرر
+  hi: दोहराया जाने वाला वर्कफ़्लो शेड्यूल करें
+  th: กำหนดเวลาเวิร์กโฟลว์แบบเกิดซ้ำ
+  cs: Naplánovat opakovaný pracovní postup
+  sv: Schemalägg återkommande arbetsflöde
+  he: תזמון תהליך עבודה חוזר
+  verified_by_human: [en, de]
+workflows.skills.schedule_recurring.description:
+  context: Internal skill description for creating a recurring workflow
+  en: Create a persisted recurring workflow from chat.
+  de: Einen gespeicherten wiederkehrenden Workflow aus dem Chat erstellen.
+  zh: 从聊天创建持久保存的重复工作流。
+  es: Crea un flujo de trabajo recurrente persistente desde el chat.
+  fr: Créer un workflow récurrent enregistré depuis le chat.
+  pt: Crie um fluxo de trabalho recorrente persistente a partir do chat.
+  ru: Создать сохранённый повторяющийся рабочий процесс из чата.
+  ja: チャットから保存される繰り返しワークフローを作成します。
+  ko: 채팅에서 저장되는 반복 워크플로를 만듭니다.
+  it: Crea un workflow ricorrente salvato dalla chat.
+  tr: Sohbetten kalıcı bir yinelenen iş akışı oluşturun.
+  vi: Tạo một quy trình công việc định kỳ được lưu từ chat.
+  id: Buat alur kerja berulang yang tersimpan dari chat.
+  pl: Utwórz z czatu zapisany cykliczny przepływ pracy.
+  nl: Maak vanuit de chat een opgeslagen terugkerende workflow.
+  ar: أنشئ سير عمل متكررًا محفوظًا من الدردشة.
+  hi: चैट से स्थायी दोहराया जाने वाला वर्कफ़्लो बनाएं।
+  th: สร้างเวิร์กโฟลว์แบบเกิดซ้ำที่บันทึกไว้จากแชต
+  cs: Vytvořte z chatu uložený opakovaný pracovní postup.
+  sv: Skapa ett sparat återkommande arbetsflöde från chatten.
+  he: יצירת תהליך עבודה חוזר ושמור מהצ'אט.
+  verified_by_human: [en, de]
+workflows.skills.cancel_pending:
+  context: Internal skill name for canceling a pending workflow run
+  en: Cancel Pending Workflow
+  de: Ausstehenden Workflow abbrechen
+  zh: 取消待处理工作流
+  es: Cancelar flujo de trabajo pendiente
+  fr: Annuler le workflow en attente
+  pt: Cancelar fluxo de trabalho pendente
+  ru: Отменить ожидающий рабочий процесс
+  ja: 保留中のワークフローをキャンセル
+  ko: 대기 중인 워크플로 취소
+  it: Annulla workflow in sospeso
+  tr: Bekleyen iş akışını iptal et
+  vi: Hủy quy trình công việc đang chờ
+  id: Batalkan alur kerja tertunda
+  pl: Anuluj oczekujący przepływ pracy
+  nl: Wachtende workflow annuleren
+  ar: إلغاء سير العمل المعلّق
+  hi: लंबित वर्कफ़्लो रद्द करें
+  th: ยกเลิกเวิร์กโฟลว์ที่รอดำเนินการ
+  cs: Zrušit čekající pracovní postup
+  sv: Avbryt väntande arbetsflöde
+  he: ביטול תהליך עבודה ממתין
+  verified_by_human: [en, de]
+workflows.skills.cancel_pending.description:
+  context: Internal skill description for canceling a pending workflow run
+  en: Cancel a pending countdown or approval workflow run.
+  de: Einen ausstehenden Countdown- oder Freigabe-Workflow abbrechen.
+  zh: 取消待处理的倒计时或审批工作流运行。
+  es: Cancela una ejecución de flujo de trabajo pendiente con cuenta atrás o aprobación.
+  fr: Annuler une exécution de workflow en attente avec compte à rebours ou approbation.
+  pt: Cancele uma execução pendente de fluxo de trabalho com contagem regressiva ou aprovação.
+  ru: Отменить ожидающий запуск рабочего процесса с обратным отсчётом или подтверждением.
+  ja: 保留中のカウントダウンまたは承認ワークフロー実行をキャンセルします。
+  ko: 대기 중인 카운트다운 또는 승인 워크플로 실행을 취소합니다.
+  it: Annulla un'esecuzione di workflow in sospeso con conto alla rovescia o approvazione.
+  tr: Bekleyen bir geri sayım veya onay iş akışı çalıştırmasını iptal edin.
+  vi: Hủy một lượt chạy quy trình công việc đang chờ với đếm ngược hoặc phê duyệt.
+  id: Batalkan eksekusi alur kerja hitung mundur atau persetujuan yang tertunda.
+  pl: Anuluj oczekujące uruchomienie przepływu pracy z odliczaniem lub akceptacją.
+  nl: Annuleer een wachtende workflowrun met aftellen of goedkeuring.
+  ar: ألغِ تشغيل سير عمل معلّقًا مع عد تنازلي أو موافقة.
+  hi: लंबित काउंटडाउन या स्वीकृति वर्कफ़्लो रन रद्द करें।
+  th: ยกเลิกการเรียกใช้เวิร์กโฟลว์แบบนับถอยหลังหรืออนุมัติที่รอดำเนินการ
+  cs: Zrušte čekající spuštění pracovního postupu s odpočtem nebo schválením.
+  sv: Avbryt en väntande arbetsflödeskörning med nedräkning eller godkännande.
+  he: ביטול הרצת תהליך עבודה ממתינה עם ספירה לאחור או אישור.
+  verified_by_human: [en, de]
+workflows.skills.keep_temporary:
+  context: Internal skill name for keeping a temporary workflow
+  en: Keep Temporary Workflow
+  de: Temporären Workflow behalten
+  zh: 保留临时工作流
+  es: Conservar flujo de trabajo temporal
+  fr: Conserver le workflow temporaire
+  pt: Manter fluxo de trabalho temporário
+  ru: Сохранить временный рабочий процесс
+  ja: 一時ワークフローを保持
+  ko: 임시 워크플로 유지
+  it: Mantieni workflow temporaneo
+  tr: Geçici iş akışını koru
+  vi: Giữ quy trình công việc tạm thời
+  id: Simpan alur kerja sementara
+  pl: Zachowaj tymczasowy przepływ pracy
+  nl: Tijdelijke workflow bewaren
+  ar: الاحتفاظ بسير عمل مؤقت
+  hi: अस्थायी वर्कफ़्लो रखें
+  th: เก็บเวิร์กโฟลว์ชั่วคราวไว้
+  cs: Zachovat dočasný pracovní postup
+  sv: Behåll tillfälligt arbetsflöde
+  he: שמירת תהליך עבודה זמני
+  verified_by_human: [en, de]
+workflows.skills.keep_temporary.description:
+  context: Internal skill description for keeping a temporary workflow
+  en: Convert a temporary workflow into a reusable workflow.
+  de: Einen temporären Workflow in einen wiederverwendbaren Workflow umwandeln.
+  zh: 将临时工作流转换为可重复使用的工作流。
+  es: Convierte un flujo de trabajo temporal en uno reutilizable.
+  fr: Convertir un workflow temporaire en workflow réutilisable.
+  pt: Converta um fluxo de trabalho temporário em um fluxo reutilizável.
+  ru: Преобразовать временный рабочий процесс в многоразовый.
+  ja: 一時的なワークフローを再利用可能なワークフローに変換します。
+  ko: 임시 워크플로를 재사용 가능한 워크플로로 변환합니다.
+  it: Converti un workflow temporaneo in un workflow riutilizzabile.
+  tr: Geçici bir iş akışını yeniden kullanılabilir iş akışına dönüştürün.
+  vi: Chuyển một quy trình công việc tạm thời thành quy trình có thể tái sử dụng.
+  id: Ubah alur kerja sementara menjadi alur kerja yang dapat digunakan kembali.
+  pl: Przekształć tymczasowy przepływ pracy w przepływ wielokrotnego użytku.
+  nl: Zet een tijdelijke workflow om in een herbruikbare workflow.
+  ar: حوّل سير عمل مؤقتًا إلى سير عمل قابل لإعادة الاستخدام.
+  hi: अस्थायी वर्कफ़्लो को दोबारा उपयोग योग्य वर्कफ़्लो में बदलें।
+  th: แปลงเวิร์กโฟลว์ชั่วคราวให้เป็นเวิร์กโฟลว์ที่ใช้ซ้ำได้
+  cs: Převeďte dočasný pracovní postup na opakovaně použitelný.
+  sv: Konvertera ett tillfälligt arbetsflöde till ett återanvändbart arbetsflöde.
+  he: המרת תהליך עבודה זמני לתהליך עבודה שניתן לשימוש חוזר.
+  verified_by_human: [en, de]
 reminder:
   context: App name for the Reminder app
   en: Reminder
@@ -2180,11 +2594,49 @@ mindmaps:
   context: App name for the Mind Maps app
   en: Mind Maps
   de: Mindmaps
+  zh: 思维导图
+  es: Mapas mentales
+  fr: Cartes mentales
+  pt: Mapas mentais
+  ru: Интеллект-карты
+  ja: マインドマップ
+  ko: 마인드맵
+  it: Mappe mentali
+  tr: Zihin haritaları
+  vi: Sơ đồ tư duy
+  id: Peta pikiran
+  pl: Mapy myśli
+  nl: Mindmaps
+  ar: خرائط ذهنية
+  hi: माइंड मैप्स
+  th: แผนที่ความคิด
+  cs: Myšlenkové mapy
+  sv: Tankekartor
+  he: מפות חשיבה
   verified_by_human: [en, de]
 mindmaps.description:
   context: Description for the Mind Maps app
   en: Create structured idea maps and brainstorm topic trees.
   de: Erstelle strukturierte Ideen-Karten und Brainstorming-Bäume.
+  zh: 创建结构化的想法图，并头脑风暴主题树。
+  es: Crea mapas de ideas estructurados y árboles de temas para lluvia de ideas.
+  fr: Créez des cartes d'idées structurées et des arbres de sujets pour le brainstorming.
+  pt: Crie mapas de ideias estruturados e árvores de tópicos para brainstorming.
+  ru: Создавайте структурированные карты идей и деревья тем для мозгового штурма.
+  ja: 構造化されたアイデアマップやブレインストーミング用のトピックツリーを作成します。
+  ko: 구조화된 아이디어 맵과 브레인스토밍용 주제 트리를 만드세요.
+  it: Crea mappe di idee strutturate e alberi di argomenti per il brainstorming.
+  tr: Yapılandırılmış fikir haritaları ve beyin fırtınası konu ağaçları oluşturun.
+  vi: Tạo bản đồ ý tưởng có cấu trúc và cây chủ đề để động não.
+  id: Buat peta ide terstruktur dan pohon topik untuk curah pendapat.
+  pl: Twórz uporządkowane mapy pomysłów i drzewa tematów do burzy mózgów.
+  nl: Maak gestructureerde ideeënkaarten en onderwerpstructuren voor brainstorms.
+  ar: أنشئ خرائط أفكار منظمة وأشجار موضوعات للعصف الذهني.
+  hi: संरचित आइडिया मैप और ब्रेनस्टॉर्मिंग टॉपिक ट्री बनाएं।
+  th: สร้างแผนที่ไอเดียแบบมีโครงสร้างและต้นไม้หัวข้อสำหรับระดมความคิด
+  cs: Vytvářejte strukturované mapy nápadů a tematické stromy pro brainstorming.
+  sv: Skapa strukturerade idékartor och ämnesträd för brainstorming.
+  he: יצירת מפות רעיונות מובנות ועצי נושאים לסיעור מוחות.
   verified_by_human: [en, de]
 math:
   context: App name for the Math app

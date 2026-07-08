@@ -14,16 +14,17 @@ struct ImageEmbedRenderer: View {
     let mode: EmbedDisplayMode
 
     private var filename: String? { data?["filename"]?.value as? String }
-    private var s3Url: String? { data?["s3_url"]?.value as? String }
-    private var aesKey: String? { data?["aes_key"]?.value as? String }
-    private var aesNonce: String? { data?["aes_nonce"]?.value as? String }
+    private var s3Url: String? { EmbedMediaPayload.s3URL(from: data) }
+    private var s3Key: String? { EmbedMediaPayload.s3Key(from: data) }
+    private var aesKey: String? { EmbedMediaPayload.string(data, keys: ["aes_key"]) }
+    private var aesNonce: String? { EmbedMediaPayload.string(data, keys: ["aes_nonce"]) }
 
     var body: some View {
         switch mode {
         case .preview:
             if s3Url != nil && aesKey != nil {
                 EncryptedImageView(
-                    s3Url: s3Url, aesKey: aesKey, aesNonce: aesNonce,
+                    s3Url: s3Url, s3Key: s3Key, aesKey: aesKey, aesNonce: aesNonce,
                     contentMode: .fill
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -45,6 +46,7 @@ struct ImageEmbedRenderer: View {
                 if s3Url != nil && aesKey != nil {
                     TappableEncryptedImageView(
                         s3Url: s3Url,
+                        s3Key: s3Key,
                         aesKey: aesKey,
                         aesNonce: aesNonce,
                         filename: filename
@@ -54,4 +56,3 @@ struct ImageEmbedRenderer: View {
         }
     }
 }
-

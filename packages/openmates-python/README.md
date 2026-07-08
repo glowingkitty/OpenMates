@@ -27,7 +27,7 @@ from openmates import OpenMates
 
 om = OpenMates()  # reads OPENMATES_API_KEY
 
-result = om.apps.run("web", "search", {
+result = om.apps.web.search({
     "requests": [{"query": "OpenMates SDK examples"}],
 })
 ```
@@ -44,16 +44,18 @@ all_chats = om.chats.list(limit=0)
 Create a non-persistent chat. This is the default and does not save the transcript to your OpenMates account:
 
 ```python
-chat = om.chats.create()
-response = chat.send("Summarize this release note draft.")
+response = om.chats.send("Summarize this release note draft.")
 print(response.content)
 ```
 
 Create a saved account chat explicitly:
 
 ```python
-chat = om.chats.create(save_to_account=True)
-chat.send("Create a project kickoff checklist.")
+om.chats.send("Create a project kickoff checklist.", save_to_account=True)
+
+om.billing.overview()
+om.billing.invoices()
+om.docs.search("api keys")
 ```
 
 ## Errors
@@ -61,3 +63,9 @@ chat.send("Create a project kickoff checklist.")
 The SDK raises `OpenMatesConfigError` for missing configuration and `OpenMatesApiError` for API responses such as expired keys, unapproved devices, missing scopes, or exceeded credit limits.
 
 Full source docs: `docs/user-guide/developers/sdk.md` in the OpenMates repository.
+
+## Publishing
+
+Maintainers publish this package through PyPI Trusted Publishing from GitHub
+Actions. See `docs/contributing/guides/publish-python-sdk.md` for first-time
+PyPI setup, versioning rules, and the automated `dev`/`main` release flow.

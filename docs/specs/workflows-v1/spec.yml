@@ -1,0 +1,1875 @@
+id: workflows-v1
+title: Workflows V1
+status: implementing
+
+goal: >
+  Add a real server-backed Workflows section where users can create, edit,
+  enable, run, inspect, and delete server-side automations through a manual
+  Shortcuts-style editor across web, CLI, npm SDK, pip SDK, and Apple clients.
+  V1 must be durable enough to run scheduled workflows while the user is
+  offline, replace reminders as the underlying automation primitive once fully
+  released, support assistant-created temporary one-time workflows from chat,
+  and validate real workflow execution without mocked app-skill or action nodes.
+
+scope:
+  in:
+    - Server-side workflow execution that does not depend on any connected browser, WebSocket, IndexedDB, or active user device.
+    - Durable workflow, version, trigger, run, node-run, and wait-state data models.
+    - Capped workflow definition version history so users can view how a workflow looked on a prior day/change and restore a previous definition as a new current version.
+    - Workflow lifecycle modes for persisted reusable workflows and temporary chat-created one-time workflows that auto-delete after seven days unless the user keeps them.
+    - A Workflows workspace that lists created workflows and opens a manual Shortcuts-style vertical editor.
+    - One trigger node per workflow in V1, with schedule, manual run, required-start-input prompts for manual runs, disabled webhook-trigger data model support, and event-trigger metadata for chat, assistant action, app-skill, terminal command, and sandbox command events.
+    - Action nodes for feature-enabled app skills, creating a chat/report, starting a deterministic chat, sending a safe push notification, and sending a safe email notification. A workflow completes when no executable outgoing edge remains; no explicit end node is required.
+    - Decision nodes with structured rules over previous node outputs.
+    - Repeat node UI and schema for bounded repeat/for-each/poll-until flows, with execution limited to explicitly supported safe repeat modes.
+    - App skill workflow adapters generated from existing app skill metadata with minimal per-skill workflow metadata overrides.
+    - Weather forecast and news search workflow actions using existing backend app skills through real app-skill adapters rather than mocked runner output.
+    - Assistant-facing workflow skills so the assistant can find, propose, create, schedule, run, cancel pending, and keep workflows with countdown/approval behavior.
+    - Persisted user-created workflows exposed as assistant-considerable runnable capabilities, subject to required input collection, feature availability, ownership, and safety gates.
+    - Safe workflow template sharing that exports an allowlisted definition/template only, imports disabled by default, and requires recipients to bind their own accounts/settings before enabling.
+    - Separate run history with per-node status, input summary, output summary, error, retry, timing, and credit usage, governed by run-content retention rather than workflow-definition version retention.
+    - Workflow run task-view projections in the Tasks section, so queued/running and recently completed workflow runs are visible beside user tasks without duplicating workflow_runs into user_tasks.
+    - Cooperative workflow run cancellation from the Tasks section and workflow run detail for queued, running, or waiting runs; cancellation stops future nodes at runner checkpoints but does not mutate an already-started node call or edit the immutable run definition.
+    - CLI commands to list, show, create from JSON/YAML, edit, enable, disable, delete, run, and inspect workflow runs.
+    - npm SDK and pip SDK methods that match CLI workflow management and run behavior.
+    - Web Playwright coverage for the workflow list/editor and canonical rain/news workflows.
+    - Apple app parity for listing, viewing, enabling/disabling, manually running, and inspecting workflows after CLI, SDK, and web evidence are green.
+  out:
+    - Open-ended AI-assisted workflow design as the primary editor. V1 may let the assistant create or run structured workflows from chat only through validated workflow skills and safety gates.
+    - Fully free-form n8n-style canvas editing as the primary editor.
+    - Arbitrary custom code execution in V1; custom code nodes may be represented as disabled/gated future nodes only.
+    - Persistent connected-account offline automation grants for provider-backed mutations.
+    - External send/mutation actions such as sending email to third parties, modifying calendars, payments, deleting external data, or posting to social media.
+    - Multi-trigger workflows; V1 allows one active trigger per workflow.
+    - Unbounded loops, arbitrary recursion, or user-authored JavaScript/Python expressions.
+    - Public workflow marketplace discovery, public execution grants, or sharing workflows with prior runs, connected accounts, tokens, webhook secrets, scheduler state, runtime state, or provider credentials.
+    - Editing a workflow run while it is running. Running runs reference an immutable workflow_version; editing or restoring the workflow definition creates a future version and never mutates the in-flight run.
+    - Production migration of existing reminders into workflows before workflow-backed reminders are proven in dev.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search failed with bad credentials. gh issue searches for workflow automation, platform workflows, outgoing webhooks, and trigger reminder webhook automation returned no dedicated workflows issue."
+  docs:
+    - docs/specs/simplified-feature-availability/spec.yml
+    - docs/specs/unified-notifications/spec.yml
+    - docs/specs/sdk-cli-parity-v1/spec.yml
+    - docs/specs/calendar-permission-management/spec.yml
+    - docs/architecture/webhooks.md
+    - docs/architecture/apps/app-skills.md
+    - docs/architecture/apps/function-calling.md
+    - docs/architecture/core/security.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+  code_patterns:
+    - backend/core/api/app/services/feature_availability_service.py defines platform:workflows as off by default.
+    - frontend/packages/ui/src/components/Header.svelte can show a Workflows tab when platform:workflows is enabled.
+    - frontend/packages/openmates-cli/src/server.ts says platform:workflows is not implemented yet.
+    - backend/apps/reminder/tasks.py provides server-side schedule processing, DB fallback, email fallback, and AI dispatch patterns.
+    - backend/apps/reminder/skills/set_reminder_skill.py provides one-time, random, and repeat schedule input patterns.
+    - backend/core/api/app/routers/webhooks.py provides incoming webhook trigger, pending cache, confirmation, and server-side AI dispatch patterns.
+    - backend/apps/weather/app.yml and backend/apps/weather/skills/forecast_skill.py provide a real forecast app skill and weather embed previews.
+    - backend/apps/news/app.yml and backend/apps/news/skills/search_skill.py provide a real current-news app skill and news embed previews.
+    - backend/core/api/app/services/push_notification_service.py and backend/core/api/app/tasks/email_tasks/reminder_notification_email_task.py provide notification delivery patterns.
+    - frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts already contains planned workflow-surface inspiration copy but no editor or route.
+  tests:
+    - backend/tests/test_feature_availability_service.py
+    - backend/tests/test_feature_availability_enforcement.py
+    - backend/tests/test_webhook_incoming.py
+    - backend/tests/test_unified_notifications.py
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+    - frontend/apps/web_app/tests/webhook-incoming-chat.spec.ts
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Workflows/WorkflowListView.swift
+    - apple/OpenMates/Sources/Workflows/WorkflowDetailView.swift
+    - apple/OpenMates/Sources/Workflows/WorkflowEditorView.swift
+    - apple/OpenMates/Sources/Core/Networking/OpenMatesAPIClient.swift
+    - apple/OpenMatesTests/WorkflowsParityTests.swift
+    - apple/OpenMatesUITests/WorkflowsParityUITests.swift
+  parity_expectations:
+    - Apple can list, view, enable, disable, manually run, and inspect workflows through the same API contracts as web, CLI, and SDKs.
+    - Apple editor parity can start with read-only or limited edit controls if the full Shortcuts-style web editor is too large for the first native slice, but Apple must not silently hide workflow state.
+    - Apple must use localized strings and generated design tokens; no hardcoded user-visible English strings.
+  verification:
+    - Run or attempt python3 scripts/apple_remote.py status.
+    - Run or attempt python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WorkflowsParityTests.
+    - Run or attempt python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/WorkflowsParityUITests when UI parity is implemented.
+  intentional_native_differences:
+    - Apple may use a native vertical editor rather than the web canvas implementation, but workflow semantics and node labels must match.
+    - Advanced graph view may remain web-only in V1 if Apple exposes the same workflow/run data through a native detail view.
+
+clarification:
+  rounds:
+    - question: Should V1 be a UI prototype or include a real server-side workflow runner?
+      answer: V1 should be a real server-backed Workflows section with durable data models and real workflows.
+    - question: Should V1 include AI-assisted workflow creation from a prompt?
+      answer: Manual Shortcuts-style editing remains the primary editor, but the assistant must be able to use explicit workflow skills to create temporary one-time workflows from chat, run matching existing workflows after a cancelable countdown or required approval, and keep temporary workflows when the user asks.
+    - question: Should workflows always run server-side, independent of user connection state?
+      answer: Yes. Workflows must always run on the server; user input is modeled as an ask-user node that starts or continues a chat and resumes when the user responds.
+    - question: Should CLI, SDK, web, and Apple clients all be able to manage workflows?
+      answer: Yes. Users must be able to view, manage, create, and edit workflows across CLI, npm SDK, pip SDK, web, and Apple, with Apple parity after the other surfaces are confirmed.
+    - question: Should workflows have separate private-device and cloud modes?
+      answer: No. V1 should keep one cloud workflow product model, acknowledge that server-side automation needs backend runtime decrypt access, protect definitions and run content with Automation Vault encryption, and expose simple run-content retention controls.
+    - question: Should one-time workflows delete themselves immediately after running?
+      answer: No. Chat-created one-time workflows are temporary workflow records that remain inspectable and runnable/history-visible for seven days, then auto-delete unless the user keeps them. Recurring chat-created workflows are regular persisted workflows, not temporary records.
+    - question: Should workflows need explicit end nodes?
+      answer: No. A workflow completes naturally when a node has no next executable outgoing edge. The editor may show a visual terminator for readability, but the graph contract and runner must not require an end node.
+    - question: Should user-created workflows be available to the assistant?
+      answer: Yes. Persisted user-created workflows must be exposed as assistant-considerable runnable capabilities, and every workflow must support manual on-demand runs. If a manual run needs trigger input, the user is asked for the missing input before execution.
+    - question: Should the Workflows screen keep the current manual-editor-first layout or move toward the Figma chat-like workflow surface?
+      answer: >
+        The Workflows screen should use the same basic layout model as the chat
+        screen. Workflow recommendations/daily inspiration appear at the top,
+        recent workflows appear underneath, Show all opens the full grid, and a
+        bottom command input remains available.
+    - question: How should recent workflows be ordered?
+      answer: Show active enabled workflows first, sorted by soonest next_run_at; then show disabled, draft, manual-only, or unscheduled workflows sorted by updated_at newest first. Cards show Next run when available and fall back to Last run, Draft, or Manual only.
+    - question: Should Show all preserve the landing content or switch to a browsing mode?
+      answer: Show all switches into a full browsing mode that hides the recommendation banner and recent carousel, keeps the bottom workflow input visible, and shows all workflows in a vertical scrollable grid using the same default ordering unless search/filter is active.
+    - question: Should workflow input reuse chat processing?
+      answer: No. Workflow input should be a separate durable workflow-input session pipeline. It may share UI primitives and media/transcription helpers, but it must not use the chat pre/main/post processing pipeline.
+    - question: Should workflow input be REST or WebSocket?
+      answer: Use a durable REST session/job as the source of truth and WebSocket only for live event streaming while connected. Connection drops must not cancel workflow creation or updates; clients can poll or reconnect by session_id and event cursor.
+  vision_summary: >
+    Workflows V1 is a real product section, not a mock. It exposes durable
+    server-side workflow graph and run models, a manual vertical editor, and a
+    chat-like Workflows home with recommendations, recent workflows, Show all
+    browsing, and a bottom workflow command input. Natural-language text or
+    voice workflow input is processed through a separate durable streaming
+    workflow-input session pipeline, with CLI/SDK contracts implemented and
+    tested before the web and Apple UI surfaces.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: User creates a daily rain alert workflow in the web editor
+    given:
+      - Alice is logged into the web app.
+      - The platform:workflows feature is enabled on the dev server.
+      - Alice opens the Workflows workspace.
+    when:
+      - Alice creates a workflow named Daily rain alert.
+      - Alice adds a schedule trigger for every day at 07:00 in Europe/Berlin.
+      - Alice adds a Weather forecast action for Berlin.
+      - Alice adds a Decision node that continues only when rain probability is at least 60 percent.
+      - Alice adds push and email notification actions using weather summary fields.
+      - Alice saves and enables the workflow.
+    then:
+      - The workflow appears in the workflow list with enabled status and trigger summary.
+      - The editor shows the workflow as a vertical Shortcuts-style flow.
+      - The saved graph references the weather app skill and structured decision rule.
+      - The workflow can be manually test-run from the web UI.
+
+  - id: S-2
+    title: Server runs the daily rain alert without an active user device
+    given:
+      - Alice has enabled the Daily rain alert workflow.
+      - Alice has no active web or Apple session.
+      - The schedule trigger is due.
+    when:
+      - The workflow scheduler claims the due trigger.
+    then:
+      - A workflow run is created on the server.
+      - The Weather forecast app skill executes through the workflow app-skill adapter.
+      - The Decision node evaluates against the weather output.
+      - If the condition matches, OpenMates queues safe push and email notifications.
+      - If the condition does not match, the run completes silently with a visible skipped branch in history.
+
+  - id: S-3
+    title: User creates a twice-weekly AI news brief workflow
+    given:
+      - Alice is logged into the web app.
+      - Alice opens the Workflows editor.
+    when:
+      - Alice creates a workflow named AI news brief.
+      - Alice adds a schedule trigger for Monday and Thursday at 09:00.
+      - Alice adds three News search action requests for OpenAI news, Anthropic news, and Google Gemini news.
+      - Alice adds a Create chat/report action that summarizes the results.
+      - Alice adds push and email notification actions linking to the generated report chat.
+      - Alice saves, tests, and enables the workflow.
+    then:
+      - The workflow graph stores the three news searches as structured app-skill action inputs.
+      - The report action produces a durable chat or report reference.
+      - The workflow list shows the next scheduled run.
+      - Run history shows each news action and the report action separately.
+
+  - id: S-4
+    title: CLI manages workflows with parity to the web surface
+    given:
+      - Alice has paired the OpenMates CLI.
+      - Alice has a workflow definition file for the Daily rain alert workflow.
+    when:
+      - Alice runs workflow list, show, create, edit, enable, disable, run, runs, and delete commands.
+    then:
+      - CLI commands call the same workflow API as the web app.
+      - JSON output contains stable workflow, version, trigger, run, and node-run fields.
+      - CLI can create and edit workflows from JSON or YAML without requiring browser-only state.
+      - CLI failures return actionable validation errors for invalid nodes, missing app skills, disabled features, unsupported repeat modes, and unsafe actions.
+
+  - id: S-5
+    title: npm and pip SDKs manage workflows with CLI parity
+    given:
+      - Alice has approved API-key SDK devices for npm and pip SDK usage.
+      - The workflow API exposes SDK-safe workflow operations.
+    when:
+      - Developer code uses npm and pip SDK methods to list, get, create, update, enable, disable, run, inspect runs, and delete workflows.
+    then:
+      - SDK methods expose typed workflow graph, node, trigger, run, and node-run models.
+      - SDK behavior matches CLI command semantics for the same workflows.
+      - SDK calls use API-key scopes and approved SDK devices.
+      - SDK methods cannot bypass feature availability, workflow ownership, approval, or unsafe-action restrictions.
+
+  - id: S-6
+    title: Apple app can view and manage workflows after shared surfaces are green
+    given:
+      - Alice is logged into the Apple app.
+      - The Daily rain alert and AI news brief workflows exist.
+    when:
+      - Alice opens the native Workflows section.
+      - Alice views workflow details and run history.
+      - Alice disables, re-enables, and manually runs a workflow.
+    then:
+      - Apple shows the same workflow names, status, trigger summary, node summaries, next run, and last run state as web.
+      - Apple actions use the same API contracts and authorization rules.
+      - Apple manual runs create the same workflow_run and workflow_node_run records as web, CLI, and SDK runs.
+
+  - id: S-7
+    title: Decision nodes are structured and safe
+    given:
+      - Alice edits a workflow with a Weather forecast action.
+    when:
+      - Alice configures a Decision node through the sentence-style rule UI.
+    then:
+      - The UI stores a structured rule over typed previous-node output fields.
+      - The backend evaluates the rule without executing arbitrary user code.
+      - The run history records the evaluated operands, result, and branch taken.
+      - Invalid or missing output fields fail the node visibly without silently continuing.
+
+  - id: S-8
+    title: Repeat nodes are bounded and not arbitrary loops
+    given:
+      - Alice adds a Repeat node in the editor.
+    when:
+      - Alice configures repeat-for-each, repeat-N-times, or poll-until behavior.
+    then:
+      - The editor requires max iterations, max duration, max credits, and per-node timeout before the workflow can be enabled.
+      - Unsupported repeat modes can be saved as disabled draft nodes but cannot run.
+      - The runner enforces all bounds server-side.
+      - Run history shows each repeat iteration or a concise aggregate when iteration details are large.
+
+  - id: S-9
+    title: Workflow data is privacy-aware and user-owned
+    given:
+      - Alice creates workflows containing prompts, notification text, app-skill inputs, and run outputs.
+    when:
+      - OpenMates stores workflow definitions and run history.
+    then:
+      - Owner lookup and scheduler routing use minimal plaintext metadata such as hashed_user_id, enabled status, next_run_at, trigger type, node types, and status.
+      - Sensitive node configuration, prompt text, notification body templates, trigger payloads, and run outputs are encrypted or redacted according to the workflow data contract.
+      - Bob cannot list, view, run, edit, or delete Alice's workflows or runs.
+      - Logs redact workflow payloads, notification bodies, provider raw responses, and user private text.
+
+  - id: S-10
+    title: Feature availability gates workflow access and execution
+    given:
+      - The platform:workflows feature is off by default.
+      - An administrator has not enabled platform:workflows.
+    when:
+      - Alice opens /workflows, calls workflow API routes, or uses CLI/SDK workflow commands.
+    then:
+      - Discoverability is hidden or the route returns a disabled/not-found state.
+      - API, CLI, and SDK execution paths reject workflow creation and runs with FEATURE_DISABLED or typed unavailable errors.
+      - Historical workflow data is not deleted when the feature is disabled.
+
+  - id: S-11
+    title: Workflow run content retention limits sensitive long-term storage
+    given:
+      - Alice has a workflow that produces sensitive run outputs.
+      - The workflow uses the default run_content_retention value last_5.
+    when:
+      - The workflow completes more than five runs.
+    then:
+      - Only the newest five encrypted run-content blobs remain durably available for that workflow.
+      - Older run metadata remains for billing, usage, and status history, but content_available is false and no plaintext output remains.
+      - If Alice sets run_content_retention to none, completed run content is stored only as encrypted ephemeral cache for the latest run and expires no later than seven days.
+      - The UI and API show whether run content is durable, ephemeral, expired, or unavailable.
+
+  - id: S-12
+    title: Assistant creates a temporary one-time weather reminder workflow from chat
+    given:
+      - Alice is chatting with her mate.
+      - Alice asks "Remind me tomorrow what the weather will be for the coming week."
+    when:
+      - The assistant selects the workflow creation skill for a one-time scheduled action.
+      - OpenMates proposes a temporary workflow with a one-time schedule trigger, Weather forecast action, create chat/report action, and notification action.
+      - Alice does not cancel during the countdown or explicit approval window.
+    then:
+      - The workflow is created with lifecycle temporary, auto_delete_at no sooner than seven days after creation, and source_chat_id set.
+      - The workflow does not delete itself immediately after the first run.
+      - The workflow is hidden from primary reusable workflow lists by default but visible in recent temporary workflow/run history.
+      - Alice can keep the workflow before expiry, converting it to a persisted reusable workflow.
+
+  - id: S-13
+    title: Assistant creates a regular recurring workflow from chat
+    given:
+      - Alice is chatting with her mate.
+      - Alice asks "Remind me every week to check the weather for the coming weekend."
+    when:
+      - The assistant selects the workflow creation skill for a recurring scheduled action.
+    then:
+      - The workflow is created with lifecycle persisted, not temporary.
+      - The weekly schedule remains enabled until Alice disables or deletes it.
+      - The workflow appears in the normal workflows list and can be edited, disabled, run manually, or deleted.
+
+  - id: S-14
+    title: Assistant proposes and runs an existing user workflow
+    given:
+      - Alice has a persisted workflow named Weekly AI News Brief.
+      - Alice asks the assistant for a task that matches that workflow.
+    when:
+      - The assistant finds the matching workflow capability.
+      - OpenMates shows a pending execution countdown with workflow name, required inputs, expected actions, and cancel control.
+    then:
+      - If Alice cancels before the countdown ends, the workflow is not run.
+      - If Alice does not cancel and no explicit approval is required, the workflow runs manually.
+      - If the workflow has missing required start input, OpenMates asks Alice for that input before starting.
+      - High-risk or high-cost workflows require explicit approval rather than only a countdown.
+
+  - id: S-15
+    title: Workflow triggers can subscribe to assistant and command events
+    given:
+      - Alice creates an advanced workflow trigger for assistant action or command events.
+    when:
+      - A chat message, assistant app-skill execution, terminal command, remote-dev command, or sandbox command emits a workflow event.
+    then:
+      - The trigger matches only events with the configured type, source, scope, and filters.
+      - Phrase filters can use deterministic contains/starts-with rules without requiring AI.
+      - Semantic matching requires an explicit AI action/classifier node or trigger mode.
+      - Trigger events are rate-limited and do not run side-effecting workflows without the required approval policy.
+
+  - id: S-16
+    title: Workflow execution uses real adapters instead of mocked node output
+    given:
+      - Alice manually runs the Daily rain alert or AI news brief workflow.
+    when:
+      - The workflow runner reaches app-skill and OpenMates action nodes.
+    then:
+      - App-skill nodes dispatch through the real SkillRegistry and workflow app-skill adapter.
+      - Notification and chat/report action nodes call real OpenMates services or test doubles in tests, not hardcoded runner summaries.
+      - Decisions evaluate stable output aliases produced by the adapters.
+      - Run history records real adapter status, timing, cost, summarized inputs, summarized outputs, and visible errors.
+
+  - id: S-17
+    title: User shares a safe workflow template without runtime context
+    given:
+      - Alice owns an enabled workflow with connected-account bindings, scheduler metadata, prior runs, and workflow run content.
+      - Alice chooses to share the workflow as a reusable template.
+    when:
+      - OpenMates builds the shared workflow template payload.
+      - Bob imports the template.
+    then:
+      - The exported payload is built from an allowlisted template builder, not by serializing workflow, workflow_version, workflow_run, or connected-account records directly.
+      - The payload includes only safe template definition fields such as title, description, trigger/action/decision node definitions, typed input schemas, required app capabilities, and placeholder binding requirements.
+      - The payload excludes previous runs, run content, connected-account identifiers, access tokens, refresh tokens, API keys, webhook secrets, scheduler claim state, next_run_at, runtime wait/resume tokens, source_chat_id, execution grants, and provider raw responses.
+      - Workflow template sharing does not use task/plan/project record-key wrapping; imported templates create recipient-owned workflow records and runtime bindings.
+      - Bob's imported workflow is disabled by default until Bob explicitly binds his own connected accounts, webhook endpoint/secrets if supported, schedule/timezone, notification preferences, and required start inputs.
+      - The import creates new workflow ids, version ids, owner metadata, and encryption/runtime context for Bob; it never grants access to Alice's workflow execution context.
+      - A recursive export guard rejects sensitive keys such as token, refresh_token, access_token, secret, credential, connected_account_id, webhook_secret, api_key, password, vault, and run_id anywhere in the template payload.
+
+  - id: S-18
+    title: Workflow runs appear in Tasks and active runs can be cancelled
+    given:
+      - Alice owns a running workflow run and a workflow run completed two days ago.
+      - Alice also has a workflow run completed more than seven days ago.
+    when:
+      - Alice opens the Tasks section.
+      - Alice cancels the running workflow run from its task-view card.
+      - Alice edits the workflow definition while the original run is still in flight.
+    then:
+      - The running workflow run appears as a read-only in_progress task-view projection with open-run and cancel-run actions.
+      - The recently completed workflow run appears as a read-only Done task-view projection with an open-run action.
+      - The workflow run completed more than seven days ago is hidden from the default Tasks Done column but remains visible in workflow run history.
+      - The cancellation request marks the run cancellation_requested or cancelled and the runner stops before starting the next cancellable node.
+      - The in-flight run continues to reference its original workflow_version; workflow definition edits create a new version for future runs and do not mutate the running run.
+
+  - id: S-19
+    title: User views and restores previous workflow definitions
+    given:
+      - Alice owns a workflow that she has modified several times.
+      - The workflow has completed runs tied to older and newer workflow versions.
+    when:
+      - Alice opens the workflow version timeline.
+      - Alice selects a previous day or version.
+      - Alice chooses to restore that previous workflow definition.
+    then:
+      - The editor renders the selected historical workflow graph as read-only until Alice restores or duplicates it.
+      - The timeline shows version number, created timestamp, client/source, current marker, and restore provenance when available.
+      - Restoring an older definition creates a new immutable current workflow_version copied from the selected version instead of mutating or deleting existing versions.
+      - Existing workflow_runs remain attached to the version_id they originally executed.
+      - Workflow definition history is capped by a separate version-retention policy, while run history and run-content retention continue to follow the workflow run retention policy.
+
+  - id: S-20
+    title: User opens the chat-like Workflows home
+    given:
+      - Alice is logged into the web app.
+      - The platform:workflows feature is enabled.
+      - Alice has active scheduled workflows, disabled workflows, manual-only workflows, and workflow recommendation templates available.
+    when:
+      - Alice opens the Workflows workspace.
+    then:
+      - The screen uses the same basic layout model as the chat screen.
+      - A recommendation area appears first, initially using curated example workflows and later personalized workflow recommendations based on user interests and chats.
+      - Recent workflows appear under the recommendation area.
+      - Active enabled workflows are listed first, sorted by soonest next_run_at.
+      - Disabled, draft, manual-only, or unscheduled workflows follow, sorted by updated_at newest first.
+      - Workflow cards show Next run when next_run_at exists and fall back to Last run, Draft, or Manual only when it does not.
+      - A bottom workflow input remains visible for text or voice instructions.
+
+  - id: S-21
+    title: User switches to Show all workflow browsing mode
+    given:
+      - Alice is on the Workflows home.
+      - Alice can see workflow recommendations and recent workflows.
+    when:
+      - Alice selects Show all.
+    then:
+      - The recommendation area and recent-workflows carousel move out of view.
+      - The screen shows a vertical scrollable grid of all workflows.
+      - The same ordering is used as the recent list unless search or filters are active.
+      - The bottom workflow input remains visible.
+      - The interaction pattern can be reused by Projects and Chats all-items browsing later.
+
+  - id: S-22
+    title: User creates a workflow through a durable streaming input session
+    given:
+      - Alice is on the Workflows home.
+      - Alice says or types "Tell me when it is going to rain."
+    when:
+      - The frontend starts a workflow input session.
+      - If the request is voice, the server transcribes and corrects the transcript first.
+      - The workflow input planner receives the corrected transcript and compact server-loaded workflow/project/capability context.
+      - The planner decides the request is clear enough to create a workflow.
+    then:
+      - The backend creates a durable workflow-input session that continues if the browser disconnects.
+      - While connected, the UI streams events for transcription, assumptions, draft nodes, validation, and commit.
+      - The workflow is built as a draft graph first and only committed after backend validation passes.
+      - Reasonable assumptions, such as using push notification as the default alert channel, are shown to Alice.
+      - The created workflow appears in the Workflows list with computed next_run_at when it has a schedule.
+
+  - id: S-23
+    title: User stops, follows up, and undoes workflow input changes
+    given:
+      - Alice has an active workflow input session that is creating or updating a workflow.
+    when:
+      - Alice presses the stop button in the workflow input field.
+    then:
+      - The frontend sends a stop request for the durable workflow-input session.
+      - The backend marks cancellation_requested and stops at the next planner/tool/checkpoint.
+      - No partial draft is committed to the real workflow after stop.
+      - The UI keeps the stopped draft visible with follow-up, discard, and continue affordances.
+    when:
+      - Alice sends a follow-up text or voice instruction in the same session.
+    then:
+      - The backend resumes from the persisted draft or committed workflow context and streams the next changes.
+    when:
+      - Alice chooses Undo after a committed workflow input instruction.
+    then:
+      - The last committed mutation caused by that instruction is reverted as a new workflow version or compensating project-item deletion.
+      - Undo never mutates historical workflow_versions or workflow_runs in place.
+
+  - id: S-24
+    title: User updates or links existing workflows from workflow input
+    given:
+      - Alice has existing workflows and projects.
+      - Alice has a specific workflow open or names exactly one unambiguous workflow.
+    when:
+      - Alice asks to update workflow nodes, delete a workflow, or add a workflow to a project.
+    then:
+      - The command planner resolves only owner-scoped workflow and project targets.
+      - Node updates require a selected/open workflow unless exactly one workflow match is unambiguous.
+      - Project linking uses project_items with item_type workflow and validates that the workflow belongs to Alice before storing the link.
+      - Destructive, broad, or high-impact actions require confirmation before commit.
+      - Ambiguous requests return an inline clarification prompt and may offer to start a normal chat for broader discussion.
+
+  - id: S-25
+    title: Workflow input rejects prompt injection and invalid generated nodes
+    given:
+      - Alice submits workflow input containing text, voice transcript, PDF/photo extracted text, location text, or pasted external content.
+      - The content includes hidden ASCII-smuggling characters, prompt-injection instructions, unsupported node types, or invalid app-skill inputs.
+    when:
+      - The workflow input session processes the request.
+    then:
+      - Backend sanitization removes ASCII-smuggling, bidi, zero-width, and control-character payloads before LLM use.
+      - Extracted attachment content is treated as quoted evidence, never instructions.
+      - The planner can output only strict structured workflow commands and draft graph patches.
+      - Backend validation rejects unsupported nodes, arbitrary code, arbitrary HTTP calls, invalid schemas, invalid decision operands, disabled app skills, missing repeat bounds, unsafe side effects, and cross-user targets.
+      - Invalid draft nodes stream as validation errors or clarification requests and are not committed.
+
+  - id: S-26
+    title: CLI and SDKs exercise the workflow input architecture before web UI
+    given:
+      - The workflow input session API exists.
+      - Alice has CLI, npm SDK, and pip SDK credentials.
+    when:
+      - Alice starts workflow input, reads session status/events, stops a session, follows up, and undoes the last instruction through CLI and SDKs.
+    then:
+      - CLI, npm SDK, and pip SDK use the same durable workflow-input API as the web app.
+      - CLI and SDK tests verify text commands, simulated transcript input, reconnect/status polling, stop, follow-up, undo, invalid-node rejection, and project workflow linking before Playwright implementation starts.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Web exposes a Workflows workspace with a manual Shortcuts-style vertical editor that can create, save, enable, disable, edit, delete, and manually run workflows.
+  - id: AC-2
+    scenario: S-1
+    text: The Daily rain alert workflow can be built with schedule, weather app-skill action, decision, push notification, and email notification nodes.
+  - id: AC-3
+    scenario: S-2
+    text: Workflow runs execute server-side without requiring any connected user device and persist run and node-run history.
+  - id: AC-4
+    scenario: S-3
+    text: The AI news brief workflow can be built with a twice-weekly schedule, news app-skill actions, report/chat creation, and push/email notification nodes.
+  - id: AC-5
+    scenario: S-4
+    text: OpenMates CLI exposes workflow list, show, create, edit, enable, disable, delete, run, runs, and node-run inspection commands with JSON output.
+  - id: AC-6
+    scenario: S-5
+    text: npm SDK and pip SDK expose typed workflow management and run APIs with parity to CLI workflow commands.
+  - id: AC-7
+    scenario: S-6
+    text: Apple can list, view, enable, disable, manually run, and inspect workflows and run history through native UI after shared API surfaces are green.
+  - id: AC-8
+    scenario: S-7
+    text: Decision nodes use structured safe predicates over typed node outputs and never evaluate arbitrary user-authored code.
+  - id: AC-9
+    scenario: S-8
+    text: Repeat nodes have UI/schema support with mandatory server-enforced bounds before any supported repeat mode can execute.
+  - id: AC-10
+    scenario: S-9
+    text: Workflow definitions, triggers, runs, node runs, waits, and logs preserve user ownership, minimal plaintext metadata, encryption/redaction boundaries, and cross-user isolation.
+  - id: AC-11
+    scenario: S-10
+    text: platform:workflows gates all web, API, CLI, SDK, Apple, and runner execution paths without deleting historical data.
+  - id: AC-12
+    scenario: S-1
+    text: App-skill workflow action nodes are generated from existing feature-enabled app skill metadata, with minimal workflow metadata overrides for side effects, approval, retry, and output summary fields.
+  - id: AC-13
+    scenario: S-11
+    text: Workflow run content retention defaults to last_5 encrypted durable blobs per workflow, supports none for no permanent run-content storage, keeps billing/status metadata, and deletes or marks unavailable run content according to the selected policy.
+  - id: AC-14
+    scenario: S-12
+    text: Chat-created one-time workflows are stored as temporary workflows with a seven-day auto-delete window, remain inspectable after running, and can be kept as persisted reusable workflows before expiry.
+  - id: AC-15
+    scenario: S-13
+    text: Chat-created recurring reminders create regular persisted workflows, not temporary workflows, and remain enabled until the user changes them.
+  - id: AC-16
+    scenario: S-14
+    text: Persisted user-created workflows are exposed as assistant-considerable runnable capabilities; assistant-triggered runs use countdown or approval gates and collect missing required start input before execution.
+  - id: AC-17
+    scenario: S-15
+    text: Workflow trigger metadata supports scoped assistant/chat/app-skill/terminal/sandbox event triggers with deterministic filters, optional explicit AI semantic matching, rate limits, and side-effect approval policies.
+  - id: AC-18
+    scenario: S-16
+    text: Workflow runner app-skill and platform-action execution uses real adapters and service boundaries rather than mocked hardcoded node output.
+  - id: AC-19
+    scenario: S-1
+    text: Workflow graphs complete naturally when no outgoing executable edge remains; an explicit end node is not required or exposed as a persisted graph requirement.
+  - id: AC-20
+    scenario: S-17
+    text: Workflow sharing exports only a safe template definition, rejects sensitive runtime fields recursively, does not reuse or wrap sender runtime keys, and imports disabled until the recipient binds their own runtime context.
+  - id: AC-21
+    scenario: S-18
+    text: Workflow runs publish read-only task-view projections for Tasks, with queued/running runs mapped to in_progress and recently completed runs mapped to Done without duplicating workflow_runs into user_tasks.
+  - id: AC-22
+    scenario: S-18
+    text: Queued, running, or waiting workflow runs can be cancelled from Tasks or run detail through a cooperative cancellation contract, while running runs remain immutable and workflow edits only affect future versions.
+  - id: AC-23
+    scenario: S-19
+    text: Workflow definition history exposes a capped version timeline where users can inspect prior workflow graphs and restore a prior graph as a new immutable current version without mutating old versions or existing runs.
+  - id: AC-24
+    scenario: S-11
+    text: Workflow run history is a separate execution timeline from definition history; run metadata can remain visible after run content expires, and encrypted run input/output content follows the selected run_content_retention policy.
+  - id: AC-25
+    scenario: S-20
+    text: Web Workflows home uses the chat-like layout with recommendation examples, recent workflows, and a bottom workflow input.
+  - id: AC-26
+    scenario: S-20
+    text: Workflow summaries include and render next_run_at where available, ordering active workflows by soonest next run before disabled, draft, manual-only, or unscheduled workflows sorted by updated_at.
+  - id: AC-27
+    scenario: S-21
+    text: Show all mode hides recommendations and recents, shows a vertical scrollable all-workflows grid, preserves the bottom workflow input, and uses the same default ordering unless search or filters are active.
+  - id: AC-28
+    scenario: S-22
+    text: Workflow input uses durable workflow-input sessions with REST as the source of truth and WebSocket or event polling for live step-by-step draft rendering while connected.
+  - id: AC-29
+    scenario: S-22
+    text: Text and voice workflow input are processed server-side; voice is transcribed/corrected first, then the corrected transcript enters a workflow-specific planner that is separate from chat pre/main/post processing.
+  - id: AC-30
+    scenario: S-23
+    text: Stop requests cancel the active workflow-input session at safe checkpoints without committing partial drafts, and follow-up text or audio resumes the same durable session context.
+  - id: AC-31
+    scenario: S-23
+    text: Undo reverts the last committed mutation caused by a workflow input instruction through a new workflow version or compensating project-item mutation without rewriting historical versions or runs.
+  - id: AC-32
+    scenario: S-24
+    text: Workflow input can create workflows, update the selected or unambiguously named workflow, delete workflows with confirmation, and link workflows to projects with owner validation.
+  - id: AC-33
+    scenario: S-25
+    text: Workflow input sanitizes all text/transcripts/extracted attachment content, treats external content as untrusted evidence, enforces strict structured planner output, and rejects prompt-injected or invalid generated nodes before commit.
+  - id: AC-34
+    scenario: S-26
+    text: CLI, npm SDK, and pip SDK expose and test workflow input session start/status/events/stop/follow-up/undo before the web UI consumes the same architecture.
+  - id: AC-35
+    scenario: S-22
+    text: The web workflow input uses a workflow-specific composer that matches chat input visual affordances and shared primitives where safe, without coupling to chatSyncService, chatDB, or chat message send handlers.
+
+contracts:
+  api:
+    - route: GET /v1/workflows
+      auth: session_or_api_key
+      response: "{ workflows: WorkflowSummary[], next_cursor?: string }"
+      notes:
+        - Returns only workflows owned by the authenticated user.
+        - Summaries include id, title, enabled, status, trigger_summary, next_run_at, last_run_status, updated_at, and current_version_id.
+    - route: POST /v1/workflows
+      auth: session_or_api_key
+      request: "{ title: string, graph: WorkflowGraph, enabled?: boolean, run_content_retention?: last_5 | none, lifecycle?: persisted | temporary, source?: string, source_chat_id?: string, created_by_assistant?: boolean, auto_delete_at?: integer }"
+      response: "WorkflowDetail"
+      errors:
+        - 400 for invalid graph, unsupported nodes, unsafe action, missing app skill, or invalid decision rule.
+        - 400 when a temporary workflow auto_delete_at is sooner than seven days after creation.
+        - 403 FEATURE_DISABLED when platform:workflows is disabled.
+    - route: GET /v1/workflows/temporary
+      auth: session_or_api_key
+      response: "{ workflows: WorkflowSummary[], next_cursor?: string }"
+      notes:
+        - Returns recent user-owned temporary workflows that are hidden from the primary reusable workflow list but can still be inspected, run manually, kept, disabled, or deleted before auto_delete_at.
+    - route: GET /v1/workflows/{workflow_id}
+      auth: session_or_api_key
+      response: "WorkflowDetail"
+    - route: PATCH /v1/workflows/{workflow_id}
+      auth: session_or_api_key
+      request: "{ title?, graph?, enabled?, run_content_retention?: last_5 | none }"
+      response: "WorkflowDetail"
+      notes:
+        - Every graph update creates a new immutable workflow_versions row.
+        - Existing workflow_runs continue to reference the version they used.
+        - Workflow definition version retention is applied after creating the new version and never deletes the current version or versions still referenced by retained workflow_runs.
+    - route: GET /v1/workflows/{workflow_id}/versions
+      auth: session_or_api_key
+      response: "{ versions: WorkflowVersionSummary[], current_version_id: string, retention: { mode: last_25_versions, max_versions: 25 } }"
+      notes:
+        - Returns owner-scoped workflow definition history for the time-machine timeline.
+        - Summaries include version_id, version_number, created_at, created_by_client, graph_hash, restored_from_version_id, current, and a redacted graph change summary when available.
+    - route: GET /v1/workflows/{workflow_id}/versions/{version_id}
+      auth: session_or_api_key
+      response: "WorkflowVersionDetail with decrypted graph for authorized owner rendering only"
+      notes:
+        - Backend decrypts the selected graph from Automation Vault on demand and does not cache plaintext graph content in Directus, Redis, logs, traces, or long-lived service state.
+    - route: POST /v1/workflows/{workflow_id}/versions/{version_id}/restore
+      auth: session_or_api_key
+      response: "WorkflowDetail"
+      behavior: Creates a new immutable workflow_version from the selected historical graph, marks restored_from_version_id, and makes the new version current.
+      errors:
+        - 404 when the workflow or version does not belong to the user or was pruned by version retention.
+        - 409 when the target version is already current.
+      notes:
+        - Restore never rewrites old workflow_versions and never changes version_id on existing workflow_runs.
+    - route: DELETE /v1/workflows/{workflow_id}
+      auth: session_or_api_key
+      behavior: Soft-deletes the workflow and disables future triggers without deleting run history.
+    - route: POST /v1/workflows/{workflow_id}/enable
+      auth: session_or_api_key
+      behavior: Validates graph safety, computes next_run_at, and enables scheduled execution.
+    - route: POST /v1/workflows/{workflow_id}/disable
+      auth: session_or_api_key
+      behavior: Disables future triggers and leaves data intact.
+    - route: POST /v1/workflows/{workflow_id}/run
+      auth: session_or_api_key
+      request: "{ mode: test | manual, input?: object }"
+      response: "{ run_id: string, status: queued | running | completed | failed }"
+      errors:
+        - 400 MISSING_WORKFLOW_INPUT when the workflow requires start input and the run request does not provide it.
+        - 403 APPROVAL_REQUIRED when the workflow action mix requires explicit approval instead of immediate manual execution.
+    - route: POST /v1/workflows/{workflow_id}/keep
+      auth: session_or_api_key
+      behavior: Converts a temporary chat-created workflow into a persisted reusable workflow before auto_delete_at.
+    - route: GET /v1/workflows/{workflow_id}/runs
+      auth: session_or_api_key
+      response: "{ runs: WorkflowRunSummary[], next_cursor?: string }"
+      notes:
+        - Returns the execution/run timeline, separate from workflow definition versions.
+        - Run metadata remains visible after encrypted run content expires or is pruned, with content_available=false and content_storage=deleted.
+    - route: GET /v1/workflows/{workflow_id}/runs/{run_id}
+      auth: session_or_api_key
+      response: "WorkflowRunDetail with node_runs plus content_available, content_storage, content_expires_at, and encrypted content reference metadata. Sensitive run content is returned only from Automation Vault after authorization, never from plaintext Directus rows."
+    - route: POST /v1/workflows/{workflow_id}/runs/{run_id}/cancel
+      auth: session_or_api_key
+      response: "{ run_id: string, status: cancellation_requested | cancelled }"
+      behavior: Requests cooperative cancellation for a queued, running, or waiting workflow run owned by the user.
+      errors:
+        - 400 RUN_NOT_CANCELLABLE when the run is already completed, failed, cancelled, or past a non-cancellable terminal point.
+        - 404 when the workflow or run does not belong to the user.
+      notes:
+        - Cancellation must not mutate the workflow graph or workflow_version used by the run.
+        - Already-started external calls may finish; the runner must stop before the next cancellable node/checkpoint and record the final cancellation state visibly.
+    - route: GET /v1/workflows/capabilities
+      auth: session_or_api_key_optional
+      response: "Available node types, feature-enabled app skills, workflow metadata, user-owned persisted workflow run capabilities, required input schemas, lifecycle metadata, and disabled reasons."
+    - route: POST /v1/workflows/{workflow_id}/template-export
+      auth: session_or_api_key
+      response: "WorkflowTemplateSharePayload"
+      errors:
+        - 403 when the user does not own the workflow.
+        - 400 when the allowlisted template builder or recursive sensitive-field guard detects runtime-only fields.
+      notes:
+        - Builds a template from explicit safe graph fields, not by serializing existing workflow records directly.
+        - Does not include workflow definition version history, restore provenance, run history, run content, connected-account identifiers, credentials, webhook secrets, scheduler/runtime state, or execution grants.
+    - route: POST /v1/workflows/template-import
+      auth: session_or_api_key
+      request: "WorkflowTemplateSharePayload"
+      response: "WorkflowDetail with enabled=false and binding_requirements[]"
+      errors:
+        - 400 for invalid templates, unsupported nodes, missing required capability declarations, or sensitive fields.
+        - 403 FEATURE_DISABLED when platform:workflows is disabled.
+      notes:
+        - Imported workflows are disabled by default and require the recipient to bind their own runtime context before enabling.
+    - route: POST /v1/workflows/input
+      auth: session_or_api_key
+      request: "{ action?: start | followup | stop | confirm | reject | undo, session_id?: string, input_type?: text | audio | transcript, text?: string, audio_ref?: object, selected_workflow_id?: string, selected_project_id?: string, client_event_cursor?: integer }"
+      response: "200 WorkflowInputSessionResult when completed synchronously, or 202 { session_id, status, event_cursor } when processing continues asynchronously"
+      behavior: Starts, continues, stops, confirms, rejects, or undoes a durable workflow-input session. REST is the source of truth; WebSocket streaming is optional live UI transport.
+      errors:
+        - 400 for invalid request shape, unsupported action, invalid session transition, invalid generated graph, invalid project target, unsupported attachment, or unsafe action.
+        - 401 when no session/API auth exists.
+        - 402 when credits are insufficient for transcription or planner execution.
+        - 403 FEATURE_DISABLED when platform:workflows is disabled.
+        - 404 when the session, selected workflow, selected project, or referenced target does not belong to the user.
+        - 409 when a follow-up or undo conflicts with a terminal session state.
+      notes:
+        - Text, transcript, and extracted attachment text are sanitized on the backend before LLM use, even when the frontend already sanitized the editor text.
+        - Voice input is transcribed and corrected server-side before planner execution.
+        - The workflow planner receives compact server-loaded workflow/project/capability context, not arbitrary client-supplied workflow records.
+        - Draft workflow graph changes are stored on the workflow-input session and are not committed to workflows until validation passes.
+        - Stop requests mark cancellation_requested and the worker stops at safe checkpoints; already-started provider calls may finish but must not commit after cancellation.
+        - Undo reverts only the last committed mutation for that session instruction via versioned workflow updates or compensating project-item mutations.
+    - route: GET /v1/workflows/input/{session_id}
+      auth: session_or_api_key
+      response: "WorkflowInputSessionDetail with status, transcript metadata, current draft, committed mutations, undo availability, clarification prompt, events after cursor, and latest event_cursor"
+      behavior: Lets web, CLI, SDKs, and Apple recover after connection drops or poll when streaming is unavailable.
+    - route: GET /v1/workflows/input/{session_id}/events
+      auth: session_or_api_key
+      request: "?after_event_id=integer"
+      response: "{ events: WorkflowInputEvent[], event_cursor: integer, terminal: boolean }"
+      behavior: Polling fallback for clients that do not use WebSocket.
+    - route: WS /v1/workflows/input/{session_id}/stream
+      auth: session_cookie_or_token
+      request: "?after_event_id=integer"
+      response: "Append-only WorkflowInputEvent stream"
+      behavior: Streams live workflow-input events while connected. The backend continues processing if the socket disconnects.
+    - route: POST /v1/projects/{project_id}/items
+      auth: session
+      request: "ProjectItemCreateRequest with item_type workflow"
+      response: "{ item: ProjectItemRecord }"
+      notes:
+        - Workflow targets must be owner-validated before storing the project item. Schema-level item_type support alone is insufficient.
+  assistant_skills:
+    - id: workflows.search
+      behavior: Finds user-owned persisted workflows and templates that match the current chat intent; temporary workflows are excluded unless explicitly requested.
+    - id: workflows.run
+      behavior: Starts a pending manual run for an existing workflow, using a countdown for safe workflows and explicit approval for high-risk or high-cost workflows.
+    - id: workflows.schedule_once
+      behavior: Creates a temporary one-time workflow from structured graph input, default auto_delete_at seven days after creation, and optional keep action.
+    - id: workflows.schedule_recurring
+      behavior: Creates a persisted recurring workflow from structured graph input.
+    - id: workflows.cancel_pending
+      behavior: Cancels a pending countdown/approval workflow execution before it starts.
+    - id: workflows.keep_temporary
+      behavior: Converts a temporary workflow to persisted reusable state.
+  data:
+    - collection: workflows
+      fields: id, hashed_user_id, encrypted_user_id, encrypted_title, status, enabled, lifecycle, source, source_chat_id, created_by_assistant, current_version_id, trigger_type, trigger_summary, next_run_at, last_run_id, run_content_retention, version_retention_mode, auto_delete_at, kept_at, deleted_at, created_at, updated_at.
+      plaintext: id, hashed_user_id, status, enabled, lifecycle, source, current_version_id, trigger_type, next_run_at, last_run_id, run_content_retention, version_retention_mode, auto_delete_at, kept_at, deleted_at, timestamps.
+      encrypted_or_redacted: title, graph display labels, and any user-authored descriptive text.
+      behavior: lifecycle is persisted for reusable workflows and temporary for chat-created one-time workflows. Temporary workflows are auto-deleted after auto_delete_at unless kept_at is set.
+    - collection: workflow_versions
+      fields: id, workflow_id, hashed_user_id, version_number, encrypted_graph_blob_ref, graph_hash, created_at, created_by_client, restored_from_version_id, pruned_at, vault_key_ref.
+      behavior: Immutable snapshot used by workflow_runs and the workflow definition time-machine timeline. Full graph JSON, node configs, app-skill inputs, decision operands, notification bodies, variables, and user-authored labels are stored in Automation Vault encrypted blobs; Directus stores only references, hashes, restore provenance, and routing metadata.
+      retention: Keep the newest 25 definition versions by default, always keep the current version, and do not prune versions still referenced by retained workflow_runs. Pruned versions are unavailable for restore but run records that referenced them retain their original version_id metadata.
+    - collection: workflow_encrypted_blobs
+      fields: id, ref, hashed_user_id, kind, ciphertext, checksum, vault_key_ref, key_version, expires_at, created_at.
+      behavior: Stores only Vault Transit ciphertext and integrity/key metadata. The plaintext workflow title, graph, run inputs, node outputs, provider raw responses, and notification bodies are decrypted only on demand for authorized execution or detail rendering and are never persisted in repository record_json, Redis, logs, traces, or long-lived service caches.
+    - collection: workflow_triggers
+      fields: id, workflow_id, version_id, trigger_type, schedule_config, webhook_ref, event_config_ref, required_start_input_schema_ref, enabled, next_run_at, last_claimed_at, created_at, updated_at.
+      behavior: Scheduler and event matcher query only plaintext routing metadata. Detailed webhook/event filters and manual start input schemas are encrypted or referenced through Automation Vault when they contain user-authored text.
+    - collection: workflow_runs
+      fields: id, workflow_id, version_id, hashed_user_id, trigger_id, trigger_type, status, started_at, finished_at, cancellation_requested_at, cancelled_at, cancelled_by_hash, cost_summary, error_code, content_retention_mode, content_available, content_storage, content_expires_at, encrypted_content_ref, encrypted_content_checksum.
+      behavior: One durable metadata record per execution. Full run input, outputs, provider responses, notification payloads, report content, and node output summaries are stored only in encrypted run-content blobs according to retention policy. Running runs always reference an immutable version_id; workflow edits and restores create a new version for future runs instead of changing in-flight run behavior.
+      task_view_projection:
+        - Queued/running workflow runs project into Tasks as read-only in_progress cards with cancel and open-run actions.
+        - Completed workflow runs project into the default Tasks Done column only when finished_at is within the last seven days.
+        - Failed, cancelled, or waiting_for_input workflow runs project as blocked unless a future Needs attention column exists.
+        - Projections are derived views and do not create user_tasks rows.
+    - collection: workflow_node_runs
+      fields: id, run_id, workflow_id, node_id, node_type, status, started_at, finished_at, attempt, skipped_reason, error_code, credit_cost, output_shape, content_available.
+      behavior: Per-node debugging metadata only. Sensitive input/output summaries live in the encrypted run-content blob and are not stored plaintext in node-run rows.
+    - collection: workflow_waits
+      fields: id, run_id, workflow_id, node_id, wait_type, status, expires_at, resume_token_hash, encrypted_prompt, encrypted_response, created_at, resolved_at.
+      behavior: Reserved for ask-user, approval, delay, and callback nodes; V1 may create only delay/test waits.
+    - collection: workflow_input_sessions
+      fields: id, hashed_user_id, status, action_type, selected_workflow_id_hash, selected_project_id_hash, transcript_status, planner_status, draft_graph_ref, draft_diff_ref, committed_mutation_ref, undo_available, cancellation_requested_at, stopped_at, completed_at, failed_at, created_at, updated_at, expires_at.
+      plaintext: id, hashed_user_id, status, action_type, selected target hashes, progress/status fields, cancellation/completion timestamps, expires_at.
+      encrypted_or_redacted: raw text input, corrected transcript, extracted attachment text, draft graph, draft diff, assumptions, clarification messages, committed mutation details, and undo payloads.
+      behavior: Durable source of truth for workflow input processing. Sessions continue after browser/WebSocket disconnects and are recoverable by GET /v1/workflows/input/{session_id}. Drafts expire if abandoned and are never treated as committed workflows.
+    - collection: workflow_input_events
+      fields: id, session_id, event_id, hashed_user_id, event_type, status, redacted_summary, encrypted_payload_ref, created_at.
+      behavior: Append-only event log for transcription, planning, assumptions, draft node additions, validation, confirmation, commit, stop, follow-up, undo, and failure events. Clients resume with after_event_id; events must never contain raw private text in plaintext fields.
+    - collection: workflow_input_mutations
+      fields: id, session_id, instruction_id, hashed_user_id, mutation_type, target_type, target_id_hash, encrypted_before_ref, encrypted_after_ref, committed_at, undone_at, undo_status.
+      behavior: Audit-safe mutation journal for undo. Undo creates a compensating workflow version or project-item deletion/update instead of rewriting historical workflow_versions, workflow_runs, or event logs.
+    - object: WorkflowTemplateSharePayload
+      fields: template_version, title, description, trigger_template, node_templates, edge_templates, variables_schema, required_app_capabilities, binding_requirements, created_at.
+      behavior: Share/export object only. It is safe to store or pass through share infrastructure because it contains no runtime grants, prior execution content, definition-version history, restore provenance, or sender-owned runtime keys; imports always create recipient-owned workflow ids and remain disabled until rebound.
+      forbidden_recursive_keys: token, refresh_token, access_token, secret, credential, connected_account_id, webhook_secret, api_key, password, vault, run_id, version_id, encrypted_graph_blob_ref, encrypted_content_ref.
+  workflow_graph:
+    - WorkflowGraph contains version, trigger_node_id, nodes, edges, variables, limits, and ui_layout.
+    - V1 graph must contain exactly one trigger node.
+    - Every workflow can be run manually on demand. If the trigger expects payload input, manual runs must collect that input before execution.
+    - Edges from Decision nodes include branch labels such as yes, no, otherwise, and error.
+    - Action node input mappings reference previous outputs through stable paths such as $nodes.weather.output.summary.
+    - Decisions use a JSON-safe predicate AST with operators eq, neq, gt, gte, lt, lte, contains, starts_with, exists, and, or, not.
+    - Repeat nodes must include max_iterations, max_duration_seconds, max_credits, and per_iteration_timeout_seconds.
+    - A workflow branch completes when the current node has no matching outgoing executable edge. End nodes are not required in persisted graphs.
+    - Workflow-input generated drafts must pass the same WorkflowGraph validation as manual editor graphs before commit.
+    - Workflow-input generated updates are applied as graph patches to the selected/current graph, then normalized into a full WorkflowGraph and validated before persistence.
+  node_types:
+    - schedule_trigger: one-time, daily, weekly, interval, and selected weekdays in a user timezone.
+    - manual_trigger: used for test and run-now flows.
+    - webhook_trigger: stored in graph/capability metadata but disabled for execution unless explicitly enabled in a later slice.
+    - event_trigger: represented for chat message, assistant action, app-skill execution, terminal command, remote-dev command, and sandbox command event subscriptions; initially gated behind explicit feature flags.
+    - app_skill_action: dispatches feature-enabled app skills through SkillRegistry with workflow-safe input/output adapters.
+    - decision: evaluates structured predicates over prior node outputs.
+    - repeat: bounded container, initially executable only for explicitly implemented safe modes.
+    - create_chat_report: creates a workflow-owned chat/report with generated summary content.
+    - start_new_chat: creates a deterministic new chat with configured title, initial message, and optional linked workflow outputs.
+    - send_notification: queues safe push notification respecting user preferences.
+    - send_email_notification: queues safe workflow email respecting user preferences.
+    - ask_user: represented in graph schema but disabled for execution unless implemented in this slice.
+    - custom_code: represented as future disabled/gated node, not executable in V1.
+  cli:
+    - command: openmates workflows list --json
+    - command: openmates workflows show <workflow-id> --json
+    - command: openmates workflows create --file workflow.yml --json
+    - command: openmates workflows edit <workflow-id> --file workflow.yml --json
+    - command: openmates workflows enable <workflow-id> --json
+    - command: openmates workflows disable <workflow-id> --json
+    - command: openmates workflows delete <workflow-id> --yes --json
+    - command: openmates workflows run <workflow-id> --mode test --json
+    - command: openmates workflows runs <workflow-id> --json
+    - command: openmates workflows run show <workflow-id> <run-id> --json
+    - command: openmates workflows capabilities --json
+    - command: openmates workflows input "create a rain alert" --json
+    - command: openmates workflows input --audio <upload-ref> --json
+    - command: openmates workflows input status <session-id> --json
+    - command: openmates workflows input events <session-id> --after <event-id> --json
+    - command: openmates workflows input stop <session-id> --json
+    - command: openmates workflows input followup <session-id> "actually run it at 8am" --json
+    - command: openmates workflows input undo <session-id> --json
+  sdk:
+    - npm: om.workflows.list(), get(), create(), update(), enable(), disable(), delete(), run(), runs(), getRun(), capabilities().
+    - pip: om.workflows.list(), get(), create(), update(), enable(), disable(), delete(), run(), runs(), get_run(), capabilities().
+    - npm: om.workflows.input.start(), status(), events(), stop(), followUp(), undo().
+    - pip: om.workflows.input_start(), input_status(), input_events(), input_stop(), input_follow_up(), input_undo().
+    - SDK methods use API-key scopes and approved SDK devices.
+    - SDK types expose WorkflowGraph, WorkflowNode, WorkflowRun, WorkflowNodeRun, WorkflowCapability, WorkflowInputSession, WorkflowInputEvent, WorkflowInputMutation, and WorkflowValidationError.
+  ui_states:
+    - Empty workflows list with create button and example starter suggestions.
+    - Workflow list with enabled/disabled/error statuses, lifecycle badges for persisted and temporary workflows, next run, last run, and action menu.
+    - Shortcuts-style editor with vertical cards, compact app-skill embed previews, sentence-style Decision editor, Repeat container, and selected-node inspector.
+    - Workflow definition time-machine timeline with capped version dots/cards, selected historical date/version, read-only historical graph rendering, current marker, and restore-as-new-version confirmation.
+    - Workflow run-history timeline with completed/failed/cancelled/waiting states, trigger source, duration, cost, node-by-node status, input/output availability, and clear durable/ephemeral/expired/deleted content labels.
+    - Temporary workflow history surface with keep, run manually, disable, and delete controls before auto_delete_at.
+    - Assistant pending workflow execution countdown with workflow name, expected actions, cost/permission summary, required inputs, cancel, and approve controls.
+    - Manual run input form when a webhook/event-triggered workflow or reusable workflow requires start payload fields.
+    - Chat-like Workflows home with workflow recommendation examples, recent workflow carousel/list, Show all action, search affordance, and bottom workflow input.
+    - Recent workflow cards ordered by active soonest next_run_at first, then disabled/draft/manual-only/unscheduled newest updated_at; cards render Next run, Last run, Draft, or Manual only as appropriate.
+    - Show all browsing mode hides recommendations and recents, renders a vertical scrollable grid of all workflows, and keeps the bottom workflow input visible.
+    - Workflow input running state with stop button, transcript progress, streamed assumptions, draft nodes appearing step by step, validation markers, commit result, follow-up input, and undo affordance.
+    - Workflow input clarification state with inline question, Try again, and Start chat to clarify options when the request is too broad for the workflow surface.
+    - Workflow input stopped state with partial draft visible, plus Continue, Discard, and follow-up controls.
+    - Workflow input undo state showing the last instruction that can be reverted and the result after undo completes.
+    - Test/run panel with queued, running, waiting, completed, failed, skipped, and cancelled states.
+    - Tasks-section workflow run card with read-only in_progress state, current node/progress when available, Open workflow run, and Cancel run.
+    - Tasks-section workflow run card with read-only Done state for runs completed in the last seven days and Open workflow run only.
+    - Disabled feature state when platform:workflows is off.
+    - Validation state for unsupported node type, unsafe action, disabled app skill, invalid mapping, invalid condition, and missing notification preference.
+    - Workflow-specific composer visually matches the chat input affordances but sends to workflow-input endpoints and avoids chatSyncService, chatDB, chat drafts, and chat message send handlers.
+  privacy_security:
+    - Workflows always run on the server; the runner must never depend on browser local storage or connected WebSocket state.
+    - Server-readable schedule/routing metadata is minimized to fields needed for ownership checks, scheduler queries, run status, and feature gating.
+    - Workflows V1 uses a single cloud workflow model backed by Automation Vault encryption; do not split V1 into separate private-device and cloud workflow product modes.
+    - Sensitive node config, prompt text, notification bodies, trigger payloads, app-skill raw outputs, decision operand values, report content, and user-authored workflow titles are encrypted with existing Vault Transit encryption functions in Automation Vault blobs or redacted according to collection contracts. Placeholder, reversible obfuscation, hardcoded local keys, or base64-only storage are forbidden for workflow payloads.
+    - Backend runtime decrypt is allowed only for workflow validation, execution, and authorized run-detail retrieval; every durable decrypt path must be auditable.
+    - Backend code must decrypt workflow title, graph, version content, and run content on demand only and must not copy plaintext into repository record_json, Directus rows, Redis, logs, traces, analytics, or long-lived service/module caches.
+    - run_content_retention defaults to last_5 and keeps only the newest five durable encrypted run-content blobs per workflow.
+    - Workflow definition version retention is separate from run-content retention and defaults to the newest 25 definition versions, preserving the current version and versions referenced by retained runs.
+    - run_content_retention none must not write permanent run-content blobs; it keeps only the latest run content in encrypted ephemeral cache for at most seven days, while metadata remains for billing and status.
+    - Workflow notification actions must respect existing email and push notification preferences and unsubscribe/disable behavior.
+    - Workflow app-skill actions cannot use connected-account provider credentials unless a future explicit offline automation grant exists.
+    - Assistant-created workflow proposals must disclose whether the workflow is temporary or persisted, whether AI will run, expected side effects, cost category, and whether it can run offline.
+    - Persisted user-created workflows are available to the assistant only as owner-scoped capabilities; workflow matching must not expose one user's workflow metadata to another user.
+    - Temporary workflow auto-delete removes workflow definition and sensitive run content after seven days unless kept, while required billing/status/audit metadata may remain according to retention contracts.
+    - Event triggers for chat, assistant, app-skill, terminal, remote-dev, and sandbox events must include source/scope filters and rate limits before they can execute side-effecting actions.
+    - Custom code nodes are not executable in V1.
+    - Workflow execution enforces feature availability for platform:workflows and child app/skill features at run time, not only at edit time.
+    - Every run has idempotency/claiming so scheduled triggers do not double-run under concurrent workers.
+    - Running workflow runs are immutable. Cancellation requests may change run status/cancellation metadata, but cannot edit node config, graph structure, input payload, or workflow_version for the active run.
+    - Runner cancellation is cooperative and checked before each node, before retries, before resuming waits, and after long app-skill/action nodes return.
+    - Workflow sharing is template-only. The exporter must use an allowlisted template builder and recursive sensitive-field guard; it must never serialize definition version history, restore provenance, prior runs, run content, connected-account details, tokens, webhook secrets, scheduler/runtime state, wait/resume tokens, source_chat_id, execution grants, encrypted blob refs, or sender-owned runtime keys.
+    - Imported workflow templates are disabled by default and require the recipient to configure their own account bindings, notification settings, schedule/timezone, webhook secrets if applicable, and required inputs before enabling.
+    - Workflow input text, corrected transcripts, OCR/PDF/photo extracted text, location notes, pasted content, and project metadata are untrusted user or external content. They must never override the workflow-input system prompt or backend policy.
+    - Backend workflow-input sanitization must remove ASCII-smuggling Unicode tags, bidi controls, zero-width characters, disallowed control characters, and annotation characters before LLM use; frontend sanitization is defense-in-depth only.
+    - Extracted attachment content is supplied to the planner as quoted evidence or user-provided context, never as developer/system instructions.
+    - The workflow-input planner may output only strict structured commands and graph patches from an allowlisted schema. It must not output arbitrary endpoint names, SQL, code, shell commands, or free-form tool calls.
+    - Workflow-input execution is limited to allowlisted actions: create workflow, update selected or unambiguously resolved workflow, delete exact workflow after confirmation, link workflow to project after ownership validation, stop, follow up, undo, confirm, reject, and request clarification.
+    - Workflow-input generated graphs and patches must pass WorkflowGraph validation plus capability, app-skill schema, decision operand, repeat bound, schedule/timezone, unsafe side-effect, ownership, and feature-availability checks before commit.
+    - Workflow input must not log raw input, transcript, extracted attachment text, prompt text, notification body text, draft graph plaintext, provider raw responses, or private target names. Logs may include session ids, event ids, hashed target ids, status, counts, error codes, and sanitized summaries.
+    - Workflow input requires credit checks before transcription and planner execution, and rate limits must apply per user/session/action type.
+    - Workflow input undo must not restore or expose data the user no longer owns, must not cross project/workflow ownership boundaries, and must not mutate historical workflow_versions or workflow_runs.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_workflows_models.py
+    command: python3 -m pytest backend/tests/test_workflows_models.py
+    covers:
+      - AC-3
+      - AC-8
+      - AC-9
+      - AC-10
+      - AC-11
+      - AC-12
+      - AC-13
+      - AC-14
+      - AC-15
+      - AC-16
+      - AC-17
+      - AC-19
+      - AC-20
+      - AC-23
+      - AC-24
+    assertions:
+      - workflow graph validation requires one trigger node
+      - app-skill action nodes resolve feature-enabled skills and reject disabled or missing skills
+      - decision predicates accept supported operators and reject arbitrary code
+      - repeat nodes require max iterations, duration, credits, and timeout
+      - workflow records enforce owner isolation and minimal plaintext metadata
+      - workflow definitions are stored as encrypted Automation Vault blobs while plaintext repository rows keep only allowed metadata
+      - workflow encrypted blobs use existing Vault Transit encryption functions and reject placeholder local obfuscation
+      - run_content_retention accepts last_5 and none and rejects unknown values
+      - workflow definition versions are immutable, capped separately from run content, and restores create a new version instead of mutating old versions or runs
+      - workflow lifecycle accepts persisted and temporary and rejects unknown values
+      - temporary workflows require auto_delete_at no sooner than seven days after creation and can be converted to persisted with kept_at
+      - manual runs validate required start input schemas before execution
+      - graph validation allows natural branch completion without an explicit end node
+      - event trigger metadata requires source, scope, filters, and rate-limit policy before enablement
+      - platform:workflows disabled state blocks creation and execution without deleting data
+      - workflow template export uses an allowlisted builder, rejects sensitive recursive keys, excludes runtime records, and imports disabled until the recipient binds runtime context
+      - workflow template export excludes definition version history, restore provenance, encrypted blob refs, and run history
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: Workflow model tests already had prior green evidence when this session resumed; no separate red phase was run before the implementation slice.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-workflows-33-passed-1-local-celery-skip-2026-06-24
+        timestamp: "2026-06-24T13:05:32Z"
+        note: "Local pytest passed 33 workflow tests and skipped the Celery task import path because celery is unavailable in /usr/bin/python3; the selected Celery task test passed inside the api container."
+
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_workflow_runner.py
+    command: python3 -m pytest backend/tests/test_workflow_runner.py
+    covers:
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-8
+      - AC-10
+      - AC-11
+      - AC-12
+      - AC-13
+      - AC-14
+      - AC-15
+      - AC-16
+      - AC-18
+      - AC-19
+      - AC-21
+      - AC-22
+    assertions:
+      - scheduled rain workflow claims one due trigger and creates one run
+      - weather action runs through the app-skill adapter with fake provider output
+      - decision node records matched and skipped branches
+      - notification actions enqueue safe push and email requests when condition matches
+      - AI news workflow runs news app-skill actions and creates a report/chat reference
+      - default retention keeps only the newest five durable run-content blobs per workflow
+      - none retention stores latest run content only in encrypted ephemeral cache with an expiry and no durable content reference
+      - duplicate scheduler claims do not double-run the same trigger
+      - temporary one-time workflows remain inspectable after first run and are deleted only by cleanup after auto_delete_at
+      - persisted recurring workflows remain enabled after successful runs
+      - workflow branches complete when no outgoing edge remains
+      - app-skill nodes dispatch through a workflow app-skill adapter instead of hardcoded runner output
+      - notification and chat/report actions call adapter/service test doubles rather than returning mocked summaries from the runner
+      - workflow runs expose task-view projection metadata without creating user_tasks rows
+      - cooperative cancellation stops future workflow nodes at runner checkpoints and preserves the run's original workflow_version reference
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: Workflow runner tests already had prior green evidence when this session resumed; no separate red phase was run before the implementation slice.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-workflows-33-passed-1-local-celery-skip-2026-06-24
+        timestamp: "2026-06-24T13:05:32Z"
+        note: "Local pytest passed 33 workflow tests and skipped the Celery task import path because celery is unavailable in /usr/bin/python3; the selected Celery task test passed inside the api container."
+
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_workflow_assistant_and_events.py
+    command: python3 -m pytest backend/tests/test_workflow_assistant_and_events.py
+    covers:
+      - AC-14
+      - AC-15
+      - AC-16
+      - AC-17
+      - AC-18
+    assertions:
+      - workflows.schedule_once creates a temporary one-time workflow with seven-day auto_delete_at
+      - workflows.schedule_recurring creates a persisted recurring workflow
+      - workflows.search returns owner-scoped persisted workflow capabilities and excludes temporary workflows unless requested
+      - workflows.run creates a pending countdown or approval state before execution
+      - workflows.cancel_pending prevents execution before the countdown completes
+      - workflows.keep_temporary converts a temporary workflow to persisted reusable state
+      - event trigger matcher handles chat message, assistant skill, and command events with scope filters and rate limits
+      - high-risk or high-cost matched workflows require approval rather than countdown-only execution
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: Workflow assistant/event tests already had prior green evidence when this session resumed; no separate red phase was run before the implementation slice.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-workflows-33-passed-container-celery-task-1-passed-2026-06-24
+        timestamp: "2026-06-24T13:05:32Z"
+        note: "Local assistant/event suite passed 11 tests plus local Celery skip; docker exec api python -m pytest /app/backend/tests/test_workflow_assistant_and_events.py -k workflow_tasks_cleanup_and_event_dispatch passed the Celery task helper path."
+
+  - id: T-CLI-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && node --test tests/cli.test.ts
+    covers:
+      - AC-5
+      - AC-6
+      - AC-10
+      - AC-11
+      - AC-14
+      - AC-16
+      - AC-17
+    assertions:
+      - CLI exposes workflow list, show, create, edit, enable, disable, delete, run, runs, run show, and capabilities commands
+      - CLI JSON output contains stable workflow and run fields
+      - CLI can create temporary one-time workflow definitions and keep them before expiry
+      - CLI can run any workflow manually with explicit input payload when required
+      - CLI capabilities output includes persisted user workflow run capabilities and event-trigger capabilities with disabled reasons
+      - CLI rejects invalid workflow definitions with actionable errors
+      - CLI uses the shared client workflow methods that the npm SDK exports
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: CLI workflow-management tests already had prior green evidence when this session resumed; no separate red phase was run before the implementation slice.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-node-cli-127-passed-2026-06-24
+        timestamp: "2026-06-24T13:05:32Z"
+
+  - id: T-NPM-SDK-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/workflows.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:workflows
+    covers:
+      - AC-5
+      - AC-6
+      - AC-10
+      - AC-11
+      - AC-14
+      - AC-16
+      - AC-17
+    assertions:
+      - npm SDK exposes typed workflow management and run methods
+      - npm SDK exposes temporary lifecycle, keep, pending execution, required input, and event trigger types
+      - npm SDK methods serialize the Daily rain alert and AI news brief graphs
+      - npm SDK typed errors match CLI validation errors
+      - npm SDK cannot bypass feature availability or ownership checks
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: npm SDK workflow-management tests already had prior green evidence when this session resumed; no separate red phase was run before the implementation slice.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-npm-build-workflow-tests-4-passed-2026-06-24
+        timestamp: "2026-06-24T13:05:32Z"
+
+  - id: T-PIP-SDK-001
+    type: pytest
+    file: packages/openmates-python/tests/test_workflows.py
+    command: python3 -m pytest packages/openmates-python/tests/test_workflows.py
+    covers:
+      - AC-6
+      - AC-10
+      - AC-11
+      - AC-14
+      - AC-16
+      - AC-17
+    assertions:
+      - pip SDK exposes workflow management and run methods
+      - pip SDK exposes temporary lifecycle, keep, pending execution, required input, and event trigger fields
+      - pip SDK can serialize and validate the canonical rain and news workflow graphs
+      - pip SDK returns typed workflow validation and feature availability errors
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: pip SDK workflow-management tests already had prior green evidence when this session resumed; no separate red phase was run before the implementation slice.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-pip-workflows-3-passed-2026-06-24
+        timestamp: "2026-06-24T13:05:32Z"
+
+  - id: T-PYTEST-004
+    type: pytest
+    file: backend/tests/test_workflow_input_sessions.py
+    command: python3 -m pytest backend/tests/test_workflow_input_sessions.py
+    covers:
+      - AC-28
+      - AC-29
+      - AC-30
+      - AC-31
+      - AC-32
+      - AC-33
+      - AC-34
+    assertions:
+      - text workflow input creates a durable session and streams append-only events
+      - voice workflow input runs transcription/correction before planner execution
+      - reconnect/status returns current draft, committed mutations, undo availability, and events after cursor
+      - stop marks cancellation_requested and prevents partial draft commit after the next safe checkpoint
+      - follow-up resumes from the same session draft or committed workflow context
+      - undo reverts the last committed instruction with a new workflow version or compensating project-item mutation
+      - planner output is strict structured JSON and rejects arbitrary endpoints, code, shell, SQL, or free-form tool calls
+      - prompt-injected text and ASCII-smuggling characters are sanitized before planner use
+      - invalid generated nodes, disabled app skills, invalid decision operands, missing repeat bounds, unsafe side effects, and invalid schedules fail validation before commit
+      - project workflow linking validates workflow and project ownership before creating project_items records
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: local-pytest-workflow-input-missing-service-2026-07-05
+        timestamp: "2026-07-05T00:00:00Z"
+        summary: Initial red run failed with ModuleNotFoundError for workflow_input_service before backend implementation existed.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-workflow-input-8-passed-2026-07-05
+        timestamp: "2026-07-05T00:00:00Z"
+        summary: python3 -m pytest backend/tests/test_workflow_input_sessions.py passed 8 tests, including repository persistence of sessions, events, and mutations.
+
+  - id: T-CLI-002
+    type: unit
+    file: frontend/packages/openmates-cli/tests/workflows.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test:unit:workflows && npm run build && npm run test:unit:cli
+    covers:
+      - AC-28
+      - AC-30
+      - AC-31
+      - AC-32
+      - AC-34
+    assertions:
+      - CLI exposes workflows input, status, events, stop, followup, and undo commands
+      - CLI starts text and simulated transcript workflow input sessions through POST /v1/workflows/input
+      - CLI reads status and event cursor through GET /v1/workflows/input/{session_id} and events fallback
+      - CLI stop, follow-up, and undo use the shared workflow-input API and preserve JSON output shapes
+      - CLI surfaces needs_clarification, needs_confirmation, stopped, executed, undone, unsupported, and failed statuses
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        summary: CLI workflow-input tests were added after the backend contract was already green in this session, so a separate CLI red phase was not run.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-node-workflows-and-cli-2026-07-05
+        timestamp: "2026-07-05T00:00:00Z"
+        summary: npm run test:unit:workflows passed 4 tests; npm run build && npm run test:unit:cli passed 130 tests including workflow input help exposure.
+
+  - id: T-NPM-SDK-002
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test:unit:sdk-workflows
+    covers:
+      - AC-28
+      - AC-30
+      - AC-31
+      - AC-32
+      - AC-34
+    assertions:
+      - npm SDK exposes workflow input session methods and types
+      - npm SDK serializes start, followUp, stop, undo, status, and event requests to the shared workflow-input endpoints
+      - npm SDK event polling can resume after an event cursor
+      - npm SDK types include WorkflowInputSession, WorkflowInputEvent, and WorkflowInputMutation
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        summary: npm SDK workflow-input tests were added after the backend contract was already green in this session, so a separate npm SDK red phase was not run.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-node-sdk-workflows-2-passed-2026-07-05
+        timestamp: "2026-07-05T00:00:00Z"
+        summary: npm run test:unit:sdk-workflows passed 2 tests.
+
+  - id: T-PIP-SDK-002
+    type: pytest
+    file: packages/openmates-python/tests/test_workflows.py
+    command: python3 -m pytest packages/openmates-python/tests/test_workflows.py
+    covers:
+      - AC-28
+      - AC-30
+      - AC-31
+      - AC-32
+      - AC-34
+    assertions:
+      - pip SDK exposes workflow input session helpers
+      - pip SDK serializes start, follow-up, stop, undo, status, and event requests to the shared workflow-input endpoints
+      - pip SDK event polling can resume after an event cursor
+      - pip SDK preserves typed workflow-input status and error payloads
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        summary: pip SDK workflow-input tests were added after the backend contract was already green in this session, so a separate pip SDK red phase was not run.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-pytest-pip-workflows-3-passed-2026-07-05
+        timestamp: "2026-07-05T00:00:00Z"
+        summary: python3 -m pytest packages/openmates-python/tests/test_workflows.py passed 3 tests.
+
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/workflows-editor.spec.ts
+    command: python3 scripts/tests.py run -- --spec workflows-editor.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-4
+      - AC-8
+      - AC-9
+      - AC-11
+      - AC-12
+      - AC-14
+      - AC-16
+      - AC-19
+    assertions:
+      - web user can open Workflows workspace when platform:workflows is enabled
+      - web user can build, save, test-run, enable, disable, edit, and delete Daily rain alert
+      - web user can build and test-run AI news brief
+      - web user can inspect a temporary workflow created from chat and keep it as reusable before expiry
+      - web user sees a pending assistant workflow countdown/approval UI with cancel control
+      - web editor does not require or persist an explicit end node
+      - decision editor stores structured rules and displays branch output
+      - repeat node shows required safety bounds before enablement
+      - disabled platform state hides or blocks Workflows access
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed
+        run_id: github-actions-27988595655
+        timestamp: "2026-06-22T22:35:24Z"
+        note: "Invalid pre-deploy attempt: GitHub Actions checked out dev before the new spec file was committed, so Playwright reported No tests found. Green evidence must be collected after deploy."
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed_after_deploy
+        run_id: github-actions-28023031745
+        timestamp: "2026-06-23T11:33:22Z"
+        note: "Passed after deploying screenshot-style Shortcuts card rendering through ddb547a and updated summary assertions through 210f783. Test orchestrator run 2026-06-23T11:26:17Z verifies collapsed semantic cards, then/branch labels, Do nothing false branch, click-to-expand node editing, saved graph changes, runs, retention labels, and cleanup."
+
+  - id: T-E2E-002
+    type: playwright
+    file: frontend/apps/web_app/tests/workflows-input.spec.ts
+    command: python3 scripts/tests.py run -- --spec workflows-input.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-25
+      - AC-26
+      - AC-27
+      - AC-28
+      - AC-29
+      - AC-30
+      - AC-31
+      - AC-32
+      - AC-33
+      - AC-35
+    assertions:
+      - Workflows home shows recommendation examples, recent workflows, Show all, search affordance, and bottom workflow input
+      - recent workflow cards order active workflows by next_run_at before disabled/draft/manual-only/unscheduled workflows
+      - Show all hides recommendations/recents and renders the all-workflows grid while preserving the bottom workflow input
+      - text workflow input streams draft node events and creates a valid workflow after commit
+      - voice workflow input shows transcription progress and uses corrected transcript before planning
+      - stop button stops an active workflow-input session without committing a partial draft
+      - follow-up instruction resumes the same workflow-input session and changes the draft
+      - Undo reverts the last committed workflow-input change and updates the visible workflow version/result
+      - invalid generated node or prompt-injected attachment content shows validation/clarification and does not commit
+      - workflow input composer matches chat input affordances without using chat message send behavior
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: ""
+        timestamp: "2026-07-05T16:42:26Z"
+        summary: workflows-input.spec.ts was added after the backend, CLI, npm SDK, pip SDK, and web implementation slice was already deployed in this session, so no separate pre-implementation Playwright red phase was run.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed_after_deploy
+        run_id: github-actions-28747669761
+        timestamp: "2026-07-05T16:42:26Z"
+        summary: python3 scripts/tests.py run -- --spec workflows-input.spec.ts passed against app.dev.openmates.org after webapp commit b64159ae4 was Ready and the dev API was rebuilt/restarted to expose /v1/workflows/input routes.
+
+  - id: T-APPLE-001
+    type: unit
+    file: apple/OpenMatesTests/WorkflowsParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WorkflowsParityTests
+    covers:
+      - AC-7
+      - AC-10
+      - AC-11
+    assertions:
+      - Apple workflow models decode the same API response shapes as web, CLI, and SDKs
+      - Apple workflow enable, disable, manual run, and run-detail requests use the shared API contract
+      - Apple does not expose workflows when platform:workflows is disabled
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: Apple workflow model parity tests already existed before this session resumed; no separate red phase was run for the workflow-input implementation slice.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: remote-macos-peer-workflows-parity-2026-07-05
+        timestamp: "2026-07-05T16:45:15Z"
+        note: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/WorkflowsParityTests passed 3 tests with 0 failures."
+
+  - id: T-APPLE-UI-001
+    type: unit
+    file: apple/OpenMatesUITests/WorkflowsParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/WorkflowsParityUITests
+    covers:
+      - AC-7
+    assertions:
+      - Apple user can open Workflows section
+      - Apple shows workflow list, detail, last run, and node summaries
+      - Apple user can disable, re-enable, and manually run a workflow
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: ""
+        timestamp: "2026-07-05T16:46:27Z"
+        summary: Apple workflow UI parity tests already existed before this session resumed; no separate red phase was run for the workflow-input implementation slice.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: remote-macos-peer-workflows-ui-parity-2026-07-05
+        timestamp: "2026-07-05T16:46:27Z"
+        note: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesUITests/WorkflowsParityUITests passed 1 test with 0 failures."
+
+implementation_plan:
+  existing_patterns:
+    - backend/apps/reminder/tasks.py for schedule claim, DB fallback, offline execution, and email fallback patterns.
+    - backend/core/api/app/routers/webhooks.py for trigger-created chats and pending confirmation patterns.
+    - backend/apps/reminder/skills/set_reminder_skill.py for current natural-language reminder inputs that should compile to workflow schedules once workflow-backed reminders are released.
+    - backend/apps/ai/processing/skill_executor.py for assistant skill dispatch and app-skill execution context.
+    - backend/core/api/app/services/feature_availability_service.py for platform and app-skill gating.
+    - backend/core/api/app/services/skill_registry.py for dispatching feature-enabled app skills in-process.
+    - backend/apps/audio/skills/transcribe_skill.py and frontend/packages/ui/src/components/enter_message/embedHandlers.ts for voice recording transcription/correction patterns.
+    - backend/preview/app/services/text_sanitization.py, backend/apps/ai/utils/llm_utils.py, and frontend/packages/ui/src/utils/textSanitizer.ts for ASCII-smuggling and unsafe text cleanup.
+    - backend/core/api/app/routes/projects.py and frontend/packages/ui/src/services/projectService.ts for project_items linking with item_type workflow.
+    - backend/apps/weather/app.yml and backend/apps/news/app.yml for canonical V1 app-skill action nodes.
+    - frontend/packages/ui/src/components/Header.svelte for the gated Workflows tab.
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte for visual and interaction references only; workflow input must extract/reuse safe primitives instead of coupling to chat send/storage services.
+    - frontend/packages/ui/src/components/projects/ProjectsPage.svelte as a starting point for a gated workspace route pattern.
+    - frontend/packages/openmates-cli/src/client.ts and packages/openmates-python/openmates/sdk.py for CLI/SDK API client patterns.
+  architecture: >
+    Build Workflows as a server-side state machine with durable graph snapshots
+    and run records plus durable workflow-input sessions. The editor creates
+    readable vertical workflow graphs; the workflow-input pipeline creates,
+    updates, links, deletes, stops, follows up, and undoes workflow changes from
+    text or voice through a separate planner that is not the chat pre/main/post
+    pipeline. REST session endpoints are the correctness source of truth, with
+    WebSocket/event polling used only for live step-by-step UI streaming. The
+    runner executes only validated node types through a workflow service, app
+    skill adapter, platform action adapters, scheduler task, assistant workflow
+    skills, and event trigger matcher. The API is shared by web, CLI, npm SDK,
+    pip SDK, and Apple. Sensitive definitions, workflow-input drafts, transcripts,
+    undo payloads, and run content are stored in Automation Vault encrypted blobs,
+    while Directus keeps only minimal scheduler, ownership, lifecycle, billing,
+    expiry, status, and event cursor metadata.
+  data_flow:
+    - User creates or edits a workflow through web, CLI, SDK, or Apple.
+    - Assistant-created one-time workflow requests use workflows.schedule_once to create a temporary workflow with auto_delete_at, while recurring chat requests use workflows.schedule_recurring to create a persisted workflow.
+    - Backend validates the graph, encrypts the full graph into an Automation Vault blob, stores a workflow metadata row, creates an immutable version, and computes trigger metadata.
+    - Scheduler claims due workflow_triggers server-side and creates workflow_runs.
+    - Manual run requests for any workflow validate and collect required trigger input before execution.
+    - Runner decrypts the workflow graph for execution, executes nodes by graph edges, dispatches app-skill nodes through real adapters, calls platform action adapters, stores workflow_node_run metadata, evaluates decisions, and completes branches naturally when no outgoing edge remains.
+    - Running workflow runs remain tied to their immutable version_id; workflow definition edits create future versions and never mutate in-flight run behavior.
+    - Tasks view reads workflow run projections from workflow run metadata for account-wide running/recent completed automation visibility.
+    - Cancellation requests update run cancellation metadata and the runner cooperatively stops before the next cancellable node/checkpoint.
+    - Runner stores sensitive run content as encrypted durable blobs for last_5 retention, or encrypted ephemeral cache for none retention.
+    - Temporary workflow cleanup deletes expired temporary workflow definitions and sensitive content after seven days unless the user keeps the workflow.
+    - Clients fetch workflow_runs and workflow_node_runs to render history and request encrypted run-content details only when content_available is true.
+    - User submits text, corrected transcript, or voice audio reference to POST /v1/workflows/input.
+    - Backend creates or resumes a durable workflow_input_session, transcribes/corrects voice when needed, sanitizes all input, loads compact owner-scoped workflow/project/capability context server-side, and runs a workflow-specific planner.
+    - Backend streams append-only workflow_input_events for transcription, planning, assumptions, draft node creation, validation, confirmation, commit, stop, follow-up, undo, and failure.
+    - Draft workflow graphs or graph patches are encrypted on the input session and validated before commit; create/update mutations call WorkflowService, and workflow-to-project linking calls the Projects item API/service only after workflow ownership validation.
+    - Stop requests mark cancellation_requested and prevent later draft commit; follow-up requests resume the same session context; undo creates a new workflow version or compensating project-item mutation for the last committed instruction.
+  affected_files:
+    - path: backend/core/directus/schemas/workflows.yml
+      reason: Durable workflow records.
+    - path: backend/core/directus/schemas/workflow_versions.yml
+      reason: Immutable graph snapshots.
+    - path: backend/core/directus/schemas/workflow_triggers.yml
+      reason: Scheduler query and trigger metadata.
+    - path: backend/core/directus/schemas/workflow_runs.yml
+      reason: Durable run history.
+    - path: backend/core/directus/schemas/workflow_node_runs.yml
+      reason: Per-node debug history.
+    - path: backend/core/directus/schemas/workflow_waits.yml
+      reason: Ask-user, approval, delay, and callback wait-state foundation.
+    - path: backend/core/directus/schemas/workflow_input_sessions.yml
+      reason: Durable workflow-input session state for streaming creation/update/link/delete/undo.
+    - path: backend/core/directus/schemas/workflow_input_events.yml
+      reason: Append-only event stream and reconnect cursor for workflow input.
+    - path: backend/core/directus/schemas/workflow_input_mutations.yml
+      reason: Undo journal and committed mutation audit trail.
+    - path: backend/core/api/app/routes/workflows.py
+      reason: Workflow CRUD, run, cancel, capabilities, history, and workflow-input session API.
+    - path: backend/core/api/app/routes/projects.py
+      reason: Owner validation for item_type workflow project links.
+    - path: backend/core/api/app/services/workflow_service.py
+      reason: Ownership, validation, versioning, and graph persistence.
+    - path: backend/core/api/app/services/workflow_input_service.py
+      reason: Durable workflow input orchestration, planner dispatch, event persistence, stop/follow-up/undo, and commit coordination.
+    - path: backend/core/api/app/services/workflow_input_planner.py
+      reason: Strict structured LLM command planning for workflow input, separate from chat processing.
+    - path: backend/core/api/app/services/workflow_input_security.py
+      reason: Sanitization, prompt-injection boundaries, strict schema validation, and logging redaction for workflow input.
+    - path: backend/core/api/app/services/workflow_runner.py
+      reason: Server-side execution engine and cooperative cancellation checkpoints.
+    - path: backend/core/api/app/services/task_view_service.py
+      reason: Workflow run projection data source for the central Tasks view.
+    - path: backend/core/api/app/services/workflow_app_skill_adapter.py
+      reason: Real app-skill workflow actions and stable output aliases.
+    - path: backend/core/api/app/services/workflow_action_adapter.py
+      reason: Real OpenMates action nodes for notifications, chat/report creation, and deterministic new chats.
+    - path: backend/core/api/app/services/workflow_capability_registry.py
+      reason: Shared node, app-skill, platform-action, and user workflow capabilities for web, CLI, SDKs, Apple, and assistant selection.
+    - path: backend/core/api/app/services/workflow_event_service.py
+      reason: Scoped assistant/chat/app-skill/terminal/sandbox event trigger matching.
+    - path: backend/apps/workflows/skills/*.py
+      reason: Assistant-facing workflow search, run, schedule_once, schedule_recurring, cancel_pending, and keep_temporary skills.
+    - path: backend/apps/workflows/app.yml
+      reason: Workflows app metadata and assistant skill schemas.
+    - path: backend/core/api/app/tasks/workflow_tasks.py
+      reason: Scheduler, queued run execution, event dispatch, and temporary workflow cleanup.
+    - path: scripts/audit_skill_embed_registry.py
+      reason: Documents internal control-plane workflow skills as non-embed exceptions.
+    - path: frontend/apps/web_app/src/routes/workflows/+page.svelte
+      reason: Workflows workspace route, chat-like home, Show all mode, and workflow input integration.
+    - path: frontend/packages/ui/src/components/workflows/WorkflowHome.svelte
+      reason: Recommendation examples, recent workflows, Show all mode, and ordering behavior.
+    - path: frontend/packages/ui/src/components/workflows/WorkflowInput.svelte
+      reason: Workflow-specific composer with chat-like visual affordances, stop/follow-up/undo, and workflow-input endpoints.
+    - path: frontend/packages/ui/src/components/workflows/WorkflowInputStream.svelte
+      reason: Step-by-step streamed draft rendering and reconnect recovery.
+    - path: frontend/packages/ui/src/components/workflows/WorkflowListPage.svelte
+      reason: Workflow list UI.
+    - path: frontend/packages/ui/src/components/workflows/WorkflowEditor.svelte
+      reason: Shortcuts-style editor.
+    - path: frontend/packages/ui/src/components/workflows/nodes/*.svelte
+      reason: Trigger, app skill, decision, repeat, notification, report, new-chat, and event trigger cards.
+    - path: frontend/packages/ui/src/i18n/sources/workflows.yml
+      reason: Localized workflow UI strings.
+    - path: frontend/packages/ui/src/i18n/sources/apps.yml
+      reason: Workflows app and internal skill labels.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Workflow API client methods.
+    - path: frontend/packages/openmates-cli/src/cli.ts
+      reason: Workflow CLI commands.
+    - path: frontend/packages/openmates-cli/src/sdk.ts
+      reason: npm SDK workflow methods and types.
+    - path: packages/openmates-python/openmates/sdk.py
+      reason: pip SDK workflow methods and types.
+    - path: backend/tests/test_workflow_input_sessions.py
+      reason: Workflow input backend/session/security/undo contract tests.
+    - path: frontend/packages/openmates-cli/tests/workflow-input.test.ts
+      reason: CLI workflow-input command contract.
+    - path: frontend/packages/openmates-cli/tests/sdk-workflow-input.test.ts
+      reason: npm SDK workflow-input contract.
+    - path: packages/openmates-python/tests/test_workflow_input.py
+      reason: pip SDK workflow-input contract.
+    - path: frontend/apps/web_app/tests/workflows-input.spec.ts
+      reason: Web Workflows home and streaming input UI coverage.
+    - path: apple/OpenMates/Sources/Workflows/WorkflowListView.swift
+      reason: Native workflow list.
+    - path: apple/OpenMates/Sources/Workflows/WorkflowDetailView.swift
+      reason: Native workflow detail and run history.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/workflows-v1/spec.yml
+    - python3 -m pytest backend/tests/test_workflows_models.py backend/tests/test_workflow_runner.py backend/tests/test_workflow_input_sessions.py
+    - cd frontend/packages/openmates-cli && npm run build && node --test --experimental-strip-types --loader ./tests/loader.mjs tests/workflow-input.test.ts tests/sdk-workflow-input.test.ts
+    - python3 -m pytest packages/openmates-python/tests/test_workflows.py packages/openmates-python/tests/test_workflow_input.py
+    - python3 scripts/audit_sdk_cli_parity.py
+    - Deploy to dev and wait for Vercel Ready before Playwright green.
+    - python3 scripts/tests.py run -- --spec workflows-editor.spec.ts
+    - python3 scripts/tests.py run --spec workflows-input.spec.ts
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/WorkflowsParityTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/WorkflowsParityUITests
+  verification_order:
+    - Backend workflow-input pytest and direct API contract first.
+    - OpenMates CLI workflow-input contract second.
+    - npm SDK workflow-input contract third.
+    - pip SDK workflow-input contract fourth.
+    - Web Workflows home/input implementation and Playwright after deploy fifth.
+    - Apple remote tests after shared CLI/SDK/web surfaces are green sixth.
+  risks:
+    - Workflow data encryption boundaries may conflict with server-side execution needs; V1 must clearly separate routing metadata from encrypted sensitive payloads.
+    - Automation Vault encryption is weaker than chat-style client-only encryption because the backend must decrypt during execution; product copy must be explicit and retention controls must be conservative.
+    - Notification nodes may depend on partially implemented unified notification work; V1 should reuse the safest existing push/email paths and preserve preferences.
+    - App skill output schemas vary; workflow adapters need conservative summary extraction before broad app-skill automation is safe.
+    - Exposing user-created workflows as assistant-considerable capabilities can become noisy; matching must use owner-scoped metadata, relevance ranking, and countdown/approval gates.
+    - Event triggers can become noisy or dangerous without scope filters, rate limits, and side-effect approval policies.
+    - Replacing reminders with workflow-backed reminders requires a careful transition period because existing reminder records must continue firing until migrated.
+    - Multi-platform parity makes this too large for one implementation slice unless tasks remain independently deployable.
+    - Apple full editor parity may be expensive; spec permits limited native edit controls if list/detail/run parity is complete.
+    - Users may confuse workflow run cards in Tasks with editable user tasks; the UI must label them as workflow runs and expose only open/cancel/run-specific actions.
+    - Cancelling in-progress external calls is inherently cooperative; UI copy must avoid promising rollback of side effects that already started.
+    - Workflow-input prompt injection from transcripts or attachments can cause unsafe graph drafts unless every input is sanitized, quoted, schema-constrained, and validated before commit.
+    - Reusing the full chat MessageInput directly would couple Workflows to chatSyncService, IndexedDB chat drafts, and chat send handlers; the web implementation should reuse smaller primitives and styling instead.
+    - Undo may be mistaken for undoing already-executed external side effects. In V1 undo only reverts OpenMates workflow/project mutations and must label any non-reversible external effects explicitly.
+
+tasks:
+  - id: TASK-1
+    title: Add backend workflow data model and graph validation
+    covers:
+      scenarios:
+        - S-7
+        - S-8
+        - S-9
+        - S-10
+        - S-12
+        - S-13
+        - S-15
+      acceptance_criteria:
+        - AC-8
+        - AC-9
+        - AC-10
+        - AC-11
+        - AC-12
+        - AC-13
+        - AC-14
+        - AC-15
+        - AC-17
+        - AC-19
+    expected_files:
+      - backend/core/directus/schemas/workflows.yml
+      - backend/core/directus/schemas/workflow_versions.yml
+      - backend/core/directus/schemas/workflow_triggers.yml
+      - backend/core/directus/schemas/workflow_runs.yml
+      - backend/core/directus/schemas/workflow_node_runs.yml
+      - backend/core/directus/schemas/workflow_waits.yml
+      - backend/core/api/app/services/workflow_service.py
+      - backend/core/api/app/services/workflow_event_service.py
+      - backend/tests/test_workflows_models.py
+    verification:
+      - T-PYTEST-001
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add workflow runner, real adapters, scheduler, and canonical weather/news workflow execution
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-16
+        - S-18
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-8
+        - AC-10
+        - AC-12
+        - AC-18
+        - AC-19
+        - AC-21
+        - AC-22
+    expected_files:
+      - backend/core/api/app/services/workflow_runner.py
+      - backend/core/api/app/services/workflow_app_skill_adapter.py
+      - backend/core/api/app/services/workflow_action_adapter.py
+      - backend/core/api/app/services/task_view_service.py
+      - backend/core/api/app/tasks/workflow_tasks.py
+      - backend/tests/test_workflow_runner.py
+    verification:
+      - T-PYTEST-002
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Add temporary workflow lifecycle, assistant workflow skills, and event triggers
+    covers:
+      scenarios:
+        - S-12
+        - S-13
+        - S-14
+        - S-15
+      acceptance_criteria:
+        - AC-14
+        - AC-15
+        - AC-16
+        - AC-17
+    expected_files:
+      - backend/core/api/app/services/workflow_capability_registry.py
+      - backend/core/api/app/services/workflow_event_service.py
+      - backend/apps/workflows/app.yml
+      - backend/apps/workflows/skills/search_skill.py
+      - backend/apps/workflows/skills/run_skill.py
+      - backend/apps/workflows/skills/schedule_once_skill.py
+      - backend/apps/workflows/skills/schedule_recurring_skill.py
+      - backend/apps/workflows/skills/cancel_pending_skill.py
+      - backend/apps/workflows/skills/keep_temporary_skill.py
+      - backend/core/api/app/tasks/workflow_tasks.py
+      - scripts/audit_skill_embed_registry.py
+      - backend/tests/test_workflow_assistant_and_events.py
+    verification:
+      - T-PYTEST-003
+      - T-CLI-001
+      - T-NPM-SDK-001
+      - T-PIP-SDK-001
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Add shared workflow API and CLI/SDK parity
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+        - AC-10
+        - AC-11
+        - AC-13
+    expected_files:
+      - backend/core/api/app/routes/workflows.py
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - packages/openmates-python/openmates/sdk.py
+      - frontend/packages/openmates-cli/tests/workflows.test.ts
+      - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+      - packages/openmates-python/tests/test_workflows.py
+    verification:
+      - T-CLI-001
+      - T-NPM-SDK-001
+      - T-PIP-SDK-001
+    independently_deployable: false
+
+  - id: TASK-7
+    title: Add durable workflow-input architecture and CLI/SDK contract
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-22
+        - S-23
+        - S-24
+        - S-25
+        - S-26
+      acceptance_criteria:
+        - AC-28
+        - AC-29
+        - AC-30
+        - AC-31
+        - AC-32
+        - AC-33
+        - AC-34
+    expected_files:
+      - backend/core/directus/schemas/workflow_input_sessions.yml
+      - backend/core/directus/schemas/workflow_input_events.yml
+      - backend/core/directus/schemas/workflow_input_mutations.yml
+      - backend/core/api/app/routes/workflows.py
+      - backend/core/api/app/routes/projects.py
+      - backend/core/api/app/services/workflow_input_service.py
+      - backend/core/api/app/services/workflow_input_planner.py
+      - backend/core/api/app/services/workflow_input_security.py
+      - backend/tests/test_workflow_input_sessions.py
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/workflows.test.ts
+      - frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_workflows.py
+    verification:
+      - T-PYTEST-004
+      - T-CLI-002
+      - T-NPM-SDK-002
+      - T-PIP-SDK-002
+    independently_deployable: true
+
+  - id: TASK-4
+    title: Add web Workflows home, input streaming UI, and Shortcuts-style editor integration
+    covers:
+      scenarios:
+        - S-1
+        - S-3
+        - S-7
+        - S-8
+        - S-10
+        - S-20
+        - S-21
+        - S-22
+        - S-23
+        - S-24
+        - S-25
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-4
+        - AC-8
+        - AC-9
+        - AC-11
+        - AC-12
+        - AC-25
+        - AC-26
+        - AC-27
+        - AC-28
+        - AC-29
+        - AC-30
+        - AC-31
+        - AC-32
+        - AC-33
+        - AC-35
+    expected_files:
+      - frontend/apps/web_app/src/routes/workflows/+page.svelte
+      - frontend/packages/ui/src/components/workflows/WorkflowHome.svelte
+      - frontend/packages/ui/src/components/workflows/WorkflowInput.svelte
+      - frontend/packages/ui/src/components/workflows/WorkflowInputStream.svelte
+      - frontend/packages/ui/src/components/workflows/WorkflowListPage.svelte
+      - frontend/packages/ui/src/components/workflows/WorkflowEditor.svelte
+      - frontend/packages/ui/src/components/workflows/nodes/*.svelte
+      - frontend/packages/ui/src/i18n/sources/workflows.yml
+      - frontend/apps/web_app/tests/workflows-editor.spec.ts
+      - frontend/apps/web_app/tests/workflows-input.spec.ts
+    verification:
+      - T-E2E-001
+      - T-E2E-002
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Add Apple workflow parity after shared surfaces are green
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-7
+        - AC-10
+        - AC-11
+    expected_files:
+      - apple/OpenMates/Sources/Workflows/WorkflowListView.swift
+      - apple/OpenMates/Sources/Workflows/WorkflowDetailView.swift
+      - apple/OpenMates/Sources/Workflows/WorkflowEditorView.swift
+      - apple/OpenMatesTests/WorkflowsParityTests.swift
+      - apple/OpenMatesUITests/WorkflowsParityUITests.swift
+    verification:
+      - T-APPLE-001
+      - T-APPLE-UI-001
+    independently_deployable: false

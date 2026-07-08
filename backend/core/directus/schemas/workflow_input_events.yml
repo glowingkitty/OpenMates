@@ -1,0 +1,33 @@
+# backend/core/directus/schemas/workflow_input_events.yml
+# Append-only workflow-input event stream used by REST polling and future live
+# transports. Payloads must be sanitized/redacted before persistence.
+workflow_input_events:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Primary Key - event id."
+    session_id:
+      type: string
+      note: "[Indexed] Workflow input session id."
+    hashed_user_id:
+      type: string
+      note: "[Indexed] SHA256(user_id) of the owner."
+    event_id:
+      type: integer
+      note: "Monotonic cursor within the session."
+    type:
+      type: string
+      note: "Event type such as input_received, draft_node_added, committed, or failed."
+    status:
+      type: string
+      note: "ok or error."
+    redacted_summary:
+      type: string
+      note: "Safe summary only; never raw user text."
+    payload_json:
+      type: json
+      note: "Sanitized event payload for clients."
+    created_at:
+      type: integer
+      note: "Unix timestamp."

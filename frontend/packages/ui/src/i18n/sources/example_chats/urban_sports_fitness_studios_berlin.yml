@@ -1,0 +1,1404 @@
+title:
+  context: "Title of example chat: Urban Sports fitness studios near Kottbusser Tor"
+  en: "Urban Sports fitness studios near Kottbusser Tor"
+  de: "Urban Sports Fitnessstudios nahe Kottbusser Tor"
+  zh: "Urban Sports fitness studios near Kottbusser Tor"
+  es: "Urban Sports fitness studios near Kottbusser Tor"
+  fr: "Urban Sports fitness studios near Kottbusser Tor"
+  pt: "Urban Sports fitness studios near Kottbusser Tor"
+  ru: "Urban Sports fitness studios near Kottbusser Tor"
+  ja: "Urban Sports fitness studios near Kottbusser Tor"
+  ko: "Urban Sports fitness studios near Kottbusser Tor"
+  it: "Urban Sports fitness studios near Kottbusser Tor"
+  tr: "Urban Sports fitness studios near Kottbusser Tor"
+  vi: "Urban Sports fitness studios near Kottbusser Tor"
+  id: "Urban Sports fitness studios near Kottbusser Tor"
+  pl: "Urban Sports fitness studios near Kottbusser Tor"
+  nl: "Urban Sports fitness studios near Kottbusser Tor"
+  ar: "Urban Sports fitness studios near Kottbusser Tor"
+  hi: "Urban Sports fitness studios near Kottbusser Tor"
+  th: "Urban Sports fitness studios near Kottbusser Tor"
+  cs: "Urban Sports fitness studios near Kottbusser Tor"
+  sv: "Urban Sports fitness studios near Kottbusser Tor"
+  he: "Urban Sports fitness studios near Kottbusser Tor"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Urban Sports fitness studios near Kottbusser Tor"
+  en: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  de: "Finde nahegelegene Urban-Sports-Club-Gyms und Fitnessstudios rund um Kottbusser Tor in Berlin."
+  zh: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  es: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  fr: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  pt: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  ru: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  ja: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  ko: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  it: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  tr: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  vi: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  id: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  pl: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  nl: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  ar: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  hi: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  th: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  cs: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  sv: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  he: "Find nearby Urban Sports Club gyms and fitness studios around Kottbusser Tor in Berlin."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Urban Sports fitness studios near Kottbusser Tor. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  de: "Ich bin in der Naehe vom Kottbusser Tor in Berlin. Kannst du Urban-Sports-Club-Gyms oder Fitnessstudios in der Naehe finden?"
+  zh: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  es: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  fr: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  pt: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  ru: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  ja: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  ko: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  it: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  tr: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  vi: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  id: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  pl: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  nl: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  ar: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  hi: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  th: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  cs: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  sv: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  he: "I'm near Kottbusser Tor in Berlin. Can you find Urban Sports Club gyms or fitness studios nearby?"
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Urban Sports fitness studios near Kottbusser Tor. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    Es gibt mehrere Urban-Sports-Club-Standorte in Laufnaehe oder nur eine kurze Fahrradfahrt vom Kottbusser Tor entfernt. Ob Kampfsport, Schwimmen, Bouldern oder intensives Training: Der Bereich [Kreuzberg](wiki:Kreuzberg) bietet viele Optionen.
+    
+    ### Empfohlene Studios in der Naehe
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        Ein bekannter Ort fuer [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu) und allgemeines Fitnesstraining. Das Gym liegt in der Lobeckstrasse und ist fuer seine professionelle Trainingsatmosphaere beliebt.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        Eine der beliebtesten [Boulder](wiki:Bouldering)-Hallen der Stadt, nahe dem [Goerlitzer Park](wiki:Görlitzer_Park). Dort gibt es viele Routen fuer unterschiedliche Levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Lokal als "Prinzenbad" bekannt, ist dieses ikonische Freibad ideal zum Bahnenziehen oder zum Abkuehlen im Sommer.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Nahe [Hermannplatz](wiki:Hermannplatz) bietet dieses Studio intensive [HIIT](wiki:High-intensity_interval_training)-Einheiten, die Laufband-Intervalle mit Krafttraining kombinieren.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Spezialisiert auf [HYROX](wiki:Hyrox)-Training, [Crosstraining](wiki:Crossfit) und allgemeine Fitness fuer alle, die wettkampforientiert trainieren moechten.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        Eine besondere Option, wenn du dich fuer [Fechten](wiki:Fencing) interessierst, direkt am Mariannenplatz.
+    
+    ### Kurze Uebersicht der Optionen
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Pruefe vor dem Besuch in der offiziellen App die jeweiligen **Check-in-Limits** fuer deinen Urban-Sports-Club-Tarif (S, M, L oder XL), da manche Standorte einen hoeheren Tarif voraussetzen oder monatliche Besuchslimits haben.
+    
+    Moechtest du den Kursplan fuer eines dieser Studios sehen, oder soll ich nach gesunden Essensoptionen in der Naehe fuer nach dem Training suchen?
+    
+    [Fitnessziel setzen](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Neue USC-Standorte erkunden"})
+    [Kottbusser Tor als Lieblingsort speichern](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *Hinweis: Das ist nur allgemeine Information und keine medizinische Beratung. Bitte konsultiere fuer medizinische Entscheidungen deine Aerztin oder deinen Arzt.*
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "f2add1a4-be1b-472f-8052-a88b5096e785", "app_id": "fitness", "skill_id": "search_locations", "provider": "Urban Sports Club", "location": "Kottbusser Tor"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b5439cd7-675c-42e6-9c76-df8c53d5aca0", "app_id": "images", "skill_id": "search", "query": "Fenriz Gym Berlin interior", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "9ace6d75-fe43-4a1e-87db-baea6d522d61", "app_id": "images", "skill_id": "search", "query": "BOULDERKLUB Kreuzberg bouldering gym", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "ad54aeff-aefc-4c94-84a6-fd40be826a81", "app_id": "images", "skill_id": "search", "query": "STORM Bootcamp Berlin fitness studio", "provider": "Brave Search"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "b1f4a664-bbce-4a02-a786-7c1a8770726a", "app_id": "images", "skill_id": "search", "query": "Sommerbad Kreuzberg swimming pool", "provider": "Brave Search"}
+    ```
+    
+    There are several Urban Sports Club (USC) venues within walking distance or a short bike ride from Kottbusser Tor. Whether you're looking for combat sports, swimming, bouldering, or high-intensity training, the [Kreuzberg](wiki:Kreuzberg) area has a lot to offer.
+    
+    ### Featured Venues Nearby
+    
+    [!](embed:eu.gymfluencers.com-Duf)
+    [!](embed:climbinghouse.com-fkE)
+    [!](embed:berlininsider.org-i7W)
+    [!](embed:berlinerbaeder.de-bSV)
+    
+    *   **[Fenriz Gym](embed:fenriz-gym-aaZ)** (0.88 km)
+        A well-known spot for [Mixed Martial Arts](wiki:Mixed_martial_arts), [Brazilian Jiu-Jitsu](wiki:Brazilian_jiu-jitsu), and general fitness. It's located on Lobeckstraße and is popular for its professional training atmosphere.
+    *   **[BOULDERKLUB Kreuzberg](embed:boulderklub-kreuzberg-DAJ)** (0.89 km)
+        One of the most popular [bouldering](wiki:Bouldering) gyms in the city, located near [Görlitzer Park](wiki:Görlitzer_Park). It offers a wide variety of routes for all skill levels.
+    *   **[Sommerbad Kreuzberg](embed:sommerbad-kreuzberg-8o7)** (0.88 km)
+        Known locally as "Prinzenbad," this iconic outdoor [swimming pool](wiki:Swimming_pool) is perfect for laps or cooling off during the summer months.
+    *   **[STORM Bootcamp Berlin - Neue Welt](embed:storm-bootcamp-berlin-Y1M)** (1.54 km)
+        Located near [Hermannplatz](wiki:Hermannplatz), this studio offers high-intensity [HIIT](wiki:High-intensity_interval_training) sessions that combine treadmill work with strength training.
+    *   **[HYROX Performance Center Kreuzberg](embed:hyrox-performance-center-Kyk)** (1.20 km)
+        Specializes in [HYROX](wiki:Hyrox) training, [Crosstraining](wiki:Crossfit), and general fitness for those looking for a competitive edge.
+    *   **[presence+blade @Bethanien](embed:presence-blade-bethanien-4U9)** (0.69 km)
+        A unique option if you're interested in [Fencing](wiki:Fencing), located right at Mariannenplatz.
+    
+    ### Quick Summary of Options
+    ```json
+    {"type": "sheet", "embed_id": "5a802314-c1ad-49b2-9eff-2c80f20c7cb1"}
+    ```
+    
+    Before you go, make sure to check the specific **check-in limits** for your Urban Sports Club plan (S, M, L, or XL) on the official app, as some venues require a higher tier or have limited monthly visits.
+    
+    Would you like to see the class schedule for any of these studios, or should I look for healthy food spots nearby for a post-workout meal?
+    
+    [Set a fitness goal](/#settings/apps/fitness/settings_memories/goals/create?prefill={"name":"Explore new USC venues"})
+    [Save Kottbusser Tor as a favorite location](/#settings/apps/maps/settings_memories/favorite_places/create?prefill={"name":"Kottbusser Tor","city":"Berlin"})
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for fitness classes at Fenriz Gym"
+  de: "Suche nach Fitnesskursen im Fenriz Gym"
+  zh: "Search for fitness classes at Fenriz Gym"
+  es: "Search for fitness classes at Fenriz Gym"
+  fr: "Search for fitness classes at Fenriz Gym"
+  pt: "Search for fitness classes at Fenriz Gym"
+  ru: "Search for fitness classes at Fenriz Gym"
+  ja: "Search for fitness classes at Fenriz Gym"
+  ko: "Search for fitness classes at Fenriz Gym"
+  it: "Search for fitness classes at Fenriz Gym"
+  tr: "Search for fitness classes at Fenriz Gym"
+  vi: "Search for fitness classes at Fenriz Gym"
+  id: "Search for fitness classes at Fenriz Gym"
+  pl: "Search for fitness classes at Fenriz Gym"
+  nl: "Search for fitness classes at Fenriz Gym"
+  ar: "Search for fitness classes at Fenriz Gym"
+  hi: "Search for fitness classes at Fenriz Gym"
+  th: "Search for fitness classes at Fenriz Gym"
+  cs: "Search for fitness classes at Fenriz Gym"
+  sv: "Search for fitness classes at Fenriz Gym"
+  he: "Search for fitness classes at Fenriz Gym"
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain the benefits of HIIT training"
+  de: "Erklaere die Vorteile von HIIT-Training"
+  zh: "Explain the benefits of HIIT training"
+  es: "Explain the benefits of HIIT training"
+  fr: "Explain the benefits of HIIT training"
+  pt: "Explain the benefits of HIIT training"
+  ru: "Explain the benefits of HIIT training"
+  ja: "Explain the benefits of HIIT training"
+  ko: "Explain the benefits of HIIT training"
+  it: "Explain the benefits of HIIT training"
+  tr: "Explain the benefits of HIIT training"
+  vi: "Explain the benefits of HIIT training"
+  id: "Explain the benefits of HIIT training"
+  pl: "Explain the benefits of HIIT training"
+  nl: "Explain the benefits of HIIT training"
+  ar: "Explain the benefits of HIIT training"
+  hi: "Explain the benefits of HIIT training"
+  th: "Explain the benefits of HIIT training"
+  cs: "Explain the benefits of HIIT training"
+  sv: "Explain the benefits of HIIT training"
+  he: "Explain the benefits of HIIT training"
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Find healthy food spots near Kottbusser Tor"
+  de: "Finde gesunde Essensorte nahe Kottbusser Tor"
+  zh: "Find healthy food spots near Kottbusser Tor"
+  es: "Find healthy food spots near Kottbusser Tor"
+  fr: "Find healthy food spots near Kottbusser Tor"
+  pt: "Find healthy food spots near Kottbusser Tor"
+  ru: "Find healthy food spots near Kottbusser Tor"
+  ja: "Find healthy food spots near Kottbusser Tor"
+  ko: "Find healthy food spots near Kottbusser Tor"
+  it: "Find healthy food spots near Kottbusser Tor"
+  tr: "Find healthy food spots near Kottbusser Tor"
+  vi: "Find healthy food spots near Kottbusser Tor"
+  id: "Find healthy food spots near Kottbusser Tor"
+  pl: "Find healthy food spots near Kottbusser Tor"
+  nl: "Find healthy food spots near Kottbusser Tor"
+  ar: "Find healthy food spots near Kottbusser Tor"
+  hi: "Find healthy food spots near Kottbusser Tor"
+  th: "Find healthy food spots near Kottbusser Tor"
+  cs: "Find healthy food spots near Kottbusser Tor"
+  sv: "Find healthy food spots near Kottbusser Tor"
+  he: "Find healthy food spots near Kottbusser Tor"
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "List essential items to bring to a bouldering gym"
+  de: "Liste wichtige Dinge fuer den Besuch einer Boulderhalle auf"
+  zh: "List essential items to bring to a bouldering gym"
+  es: "List essential items to bring to a bouldering gym"
+  fr: "List essential items to bring to a bouldering gym"
+  pt: "List essential items to bring to a bouldering gym"
+  ru: "List essential items to bring to a bouldering gym"
+  ja: "List essential items to bring to a bouldering gym"
+  ko: "List essential items to bring to a bouldering gym"
+  it: "List essential items to bring to a bouldering gym"
+  tr: "List essential items to bring to a bouldering gym"
+  vi: "List essential items to bring to a bouldering gym"
+  id: "List essential items to bring to a bouldering gym"
+  pl: "List essential items to bring to a bouldering gym"
+  nl: "List essential items to bring to a bouldering gym"
+  ar: "List essential items to bring to a bouldering gym"
+  hi: "List essential items to bring to a bouldering gym"
+  th: "List essential items to bring to a bouldering gym"
+  cs: "List essential items to bring to a bouldering gym"
+  sv: "List essential items to bring to a bouldering gym"
+  he: "List essential items to bring to a bouldering gym"
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Show me the schedule for STORM Bootcamp Berlin"
+  de: "Zeig mir den Kursplan fuer STORM Bootcamp Berlin"
+  zh: "Show me the schedule for STORM Bootcamp Berlin"
+  es: "Show me the schedule for STORM Bootcamp Berlin"
+  fr: "Show me the schedule for STORM Bootcamp Berlin"
+  pt: "Show me the schedule for STORM Bootcamp Berlin"
+  ru: "Show me the schedule for STORM Bootcamp Berlin"
+  ja: "Show me the schedule for STORM Bootcamp Berlin"
+  ko: "Show me the schedule for STORM Bootcamp Berlin"
+  it: "Show me the schedule for STORM Bootcamp Berlin"
+  tr: "Show me the schedule for STORM Bootcamp Berlin"
+  vi: "Show me the schedule for STORM Bootcamp Berlin"
+  id: "Show me the schedule for STORM Bootcamp Berlin"
+  pl: "Show me the schedule for STORM Bootcamp Berlin"
+  nl: "Show me the schedule for STORM Bootcamp Berlin"
+  ar: "Show me the schedule for STORM Bootcamp Berlin"
+  hi: "Show me the schedule for STORM Bootcamp Berlin"
+  th: "Show me the schedule for STORM Bootcamp Berlin"
+  cs: "Show me the schedule for STORM Bootcamp Berlin"
+  sv: "Show me the schedule for STORM Bootcamp Berlin"
+  he: "Show me the schedule for STORM Bootcamp Berlin"
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Help me understand the differences between USC plans"
+  de: "Hilf mir, die Unterschiede zwischen den USC-Tarifen zu verstehen"
+  zh: "Help me understand the differences between USC plans"
+  es: "Help me understand the differences between USC plans"
+  fr: "Help me understand the differences between USC plans"
+  pt: "Help me understand the differences between USC plans"
+  ru: "Help me understand the differences between USC plans"
+  ja: "Help me understand the differences between USC plans"
+  ko: "Help me understand the differences between USC plans"
+  it: "Help me understand the differences between USC plans"
+  tr: "Help me understand the differences between USC plans"
+  vi: "Help me understand the differences between USC plans"
+  id: "Help me understand the differences between USC plans"
+  pl: "Help me understand the differences between USC plans"
+  nl: "Help me understand the differences between USC plans"
+  ar: "Help me understand the differences between USC plans"
+  hi: "Help me understand the differences between USC plans"
+  th: "Help me understand the differences between USC plans"
+  cs: "Help me understand the differences between USC plans"
+  sv: "Help me understand the differences between USC plans"
+  he: "Help me understand the differences between USC plans"
+  verified_by_human: []

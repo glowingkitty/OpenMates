@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+AI_STREAM_SNAPSHOT_TTL_SECONDS = 600
+
 _REAL_CHAT_UUID_PATTERN = re.compile(
     r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
     re.IGNORECASE,
@@ -33,6 +35,46 @@ def _is_real_chat_id(active_chat_id: Optional[str]) -> bool:
         not active_chat_id.startswith("demo-")
         and not active_chat_id.startswith("legal-")
         and (_REAL_CHAT_UUID_PATTERN.match(active_chat_id) or active_chat_id.startswith("/chat/"))
+    )
+
+
+def ai_stream_snapshot_cache_key(chat_id: str) -> str:
+    return f"active_ai_stream_snapshot:{chat_id}"
+
+
+async def _send_inflight_ai_stream_snapshot(
+    manager: "ConnectionManager",
+    cache_service: "CacheService",
+    user_id: str,
+    device_fingerprint_hash: str,
+    active_chat_id: Optional[str],
+) -> None:
+    if not active_chat_id or not hasattr(cache_service, "get"):
+        return
+
+    try:
+        snapshot = await cache_service.get(ai_stream_snapshot_cache_key(active_chat_id))
+    except Exception as err:
+        logger.warning(
+            f"User {user_id}: Failed to read active AI stream snapshot for chat {active_chat_id}: {err}"
+        )
+        return
+
+    if not isinstance(snapshot, dict):
+        return
+    if snapshot.get("user_id_uuid") != user_id:
+        return
+    if snapshot.get("external_request") or snapshot.get("is_final_chunk"):
+        return
+
+    await manager.send_personal_message(
+        {"type": "ai_message_update", "payload": snapshot},
+        user_id,
+        device_fingerprint_hash,
+    )
+    logger.debug(
+        f"User {user_id}, Device {device_fingerprint_hash}: Replayed active AI stream snapshot "
+        f"for chat {active_chat_id}, message {str(snapshot.get('message_id', ''))[:8]}"
     )
 
 
@@ -100,6 +142,14 @@ async def handle_set_active_chat(
             {"type": "active_chat_set_ack", "payload": {"chat_id": active_chat_id}},
             user_id,
             device_fingerprint_hash,
+        )
+
+        await _send_inflight_ai_stream_snapshot(
+            manager,
+            cache_service,
+            user_id,
+            device_fingerprint_hash,
+            active_chat_id,
         )
 
         if _is_real_chat_id(active_chat_id):

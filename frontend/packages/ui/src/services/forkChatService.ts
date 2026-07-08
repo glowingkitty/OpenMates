@@ -346,15 +346,16 @@ async function runForkAsync(
   }
 
   // Show a "fork complete" notification that opens the forked chat on click
+  const $text = get(text);
   notificationStore.addNotificationWithOptions("success", {
-    message: "chats.fork.complete_notification",
+    message: $text("chats.fork.complete_notification"),
     duration: 12000,
     dismissible: true,
     onAction: () => {
       activeChatStore.setActiveChat(newChatId);
       forkProgressStore.reset();
     },
-    actionLabel: "chats.fork.complete_notification",
+    actionLabel: $text("chats.fork.complete_notification"),
   });
 }
 

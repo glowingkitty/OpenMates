@@ -19,8 +19,8 @@
     - Replaces the shimmer with a calm, non-animated error state
     - Stays visible until user sends another message or switches chat
 
-  State B — Loaded (isLoading=false, isCreditsError=false, title+category present):
-    - Background: category gradient (from getCategoryGradientColors)
+  State B — Loaded (isLoading=false, isCreditsError=false, title present):
+    - Background: category gradient when category exists, otherwise primary gradient
     - AI icon/text fade out, replaced by:
       - Category icon (38×38px, white) centered
       - Title (20px, white, bold) centered below icon
@@ -552,8 +552,10 @@
   });
 
   /** Whether the loaded state should be shown (transition from processing → loaded).
-   *  For incognito chats, this is always true — there's no loading phase. */
-  let isLoaded = $derived(isIncognito || (!isLoading && !!title && !!category));
+   *  For incognito chats, this is always true — there's no loading phase.
+   *  Category can be absent on legacy/cross-device partial metadata; render the
+   *  title with the primary gradient instead of keeping the header stuck loading. */
+  let isLoaded = $derived(isIncognito || (!isLoading && !!title));
 
   /** Whether to show the summary with its expand animation. */
   let showSummary = $derived(isLoaded && !!summary);
@@ -628,7 +630,7 @@
     return $text('chat.header.started_date', { values: { date: dateStr, time: timeStr } });
   });
 
-  /** Whether to show the creation time line. Only shown once we have a title+category. */
+  /** Whether to show the creation time line. Only shown once the loaded header is visible. */
   let showTime = $derived(isLoaded && !!formattedTime);
 
   // ─── Highlights pill ───────────────────────────────────────────────────────
@@ -805,7 +807,7 @@
           {#if isExampleChat}
             <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
           {:else if isSharedChat}
-            <span class="chat-kind-badge" data-testid="shared-chat-badge">Shared chat</span>
+            <span class="chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
           {/if}
 
           {#if !isIntroTeaserChat && showSummary}
@@ -953,7 +955,7 @@
               {#if isExampleChat}
                 <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
               {:else if isSharedChat}
-                <span class="chat-kind-badge" data-testid="shared-chat-badge">Shared chat</span>
+                <span class="chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
               {/if}
             </div>
           {/if}
@@ -1064,7 +1066,7 @@
           {#if isExampleChat}
             <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
           {:else if isSharedChat}
-            <span class="chat-kind-badge" data-testid="shared-chat-badge">Shared chat</span>
+            <span class="chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
           {/if}
 
           <!-- Summary: fades in with max-height expand when available -->

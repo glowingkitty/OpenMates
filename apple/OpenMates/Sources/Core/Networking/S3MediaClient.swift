@@ -17,9 +17,10 @@ actor S3MediaClient {
     func fetchAndDecrypt(
         s3Url: String,
         aesKeyHex: String,
-        aesNonceHex: String
+        aesNonceHex: String,
+        s3Key: String? = nil
     ) async throws -> Data {
-        let cacheKey = s3Url
+        let cacheKey = s3Key ?? s3Url
 
         if let cached = cache[cacheKey] {
             return cached
@@ -34,11 +35,11 @@ actor S3MediaClient {
         }
 
         let task = Task<Data, Error> {
-            let encryptedData = try await Self.downloadFromS3(url: s3Url)
+            let encryptedData = try await Self.downloadFromS3(url: s3Url, s3Key: s3Key)
             return try Self.decryptAESGCM(
                 data: encryptedData,
-                keyHex: aesKeyHex,
-                nonceHex: aesNonceHex
+                encodedKey: aesKeyHex,
+                encodedNonce: aesNonceHex
             )
         }
 
@@ -61,8 +62,20 @@ actor S3MediaClient {
 
     // MARK: - Download
 
-    private static func downloadFromS3(url urlString: String) async throws -> Data {
-        guard let url = URL(string: urlString) else {
+    private static func downloadFromS3(url urlString: String, s3Key: String?) async throws -> Data {
+        let downloadURLString: String
+        if let s3Key, !s3Key.isEmpty {
+            let encoded = s3Key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? s3Key
+            let response: PresignedURLResponse = try await APIClient.shared.request(
+                .get,
+                path: "/v1/embeds/presigned-url?s3_key=\(encoded)"
+            )
+            downloadURLString = response.url
+        } else {
+            downloadURLString = urlString
+        }
+
+        guard let url = URL(string: downloadURLString) else {
             throw S3Error.invalidURL
         }
         let (data, response) = try await URLSession.shared.data(from: url)
@@ -75,24 +88,93 @@ actor S3MediaClient {
 
     // MARK: - Decrypt
 
-    private static func decryptAESGCM(data: Data, keyHex: String, nonceHex: String) throws -> Data {
-        let keyData = Data(hexString: keyHex)
-        let nonceData = Data(hexString: nonceHex)
+    private static func decryptAESGCM(data: Data, encodedKey: String, encodedNonce: String) throws -> Data {
+        let keyData = decodeKeyMaterial(encodedKey)
 
         guard keyData.count == 32 else { throw S3Error.invalidKey }
-        guard nonceData.count == 12 else { throw S3Error.invalidNonce }
 
         let key = SymmetricKey(data: keyData)
-        let nonce = try AES.GCM.Nonce(data: nonceData)
 
         let tagLength = 16
+        let nonceLength = 12
         guard data.count > tagLength else { throw S3Error.dataTooShort }
 
-        let ciphertext = data.prefix(data.count - tagLength)
-        let tag = data.suffix(tagLength)
+        let nonceData: Data
+        let encryptedBody: Data.SubSequence
+        if encodedNonce.isEmpty {
+            guard data.count > nonceLength + tagLength else { throw S3Error.dataTooShort }
+            nonceData = data.prefix(nonceLength)
+            encryptedBody = data.dropFirst(nonceLength)
+        } else {
+            nonceData = decodeKeyMaterial(encodedNonce)
+            guard nonceData.count == nonceLength else { throw S3Error.invalidNonce }
+            encryptedBody = data[...]
+        }
+
+        let nonce = try AES.GCM.Nonce(data: nonceData)
+
+        let ciphertext = encryptedBody.prefix(encryptedBody.count - tagLength)
+        let tag = encryptedBody.suffix(tagLength)
 
         let sealedBox = try AES.GCM.SealedBox(nonce: nonce, ciphertext: ciphertext, tag: tag)
         return try AES.GCM.open(sealedBox, using: key)
+    }
+
+    private static func decodeKeyMaterial(_ value: String) -> Data {
+        if let base64 = Data(base64Encoded: value), !base64.isEmpty {
+            return base64
+        }
+        return Data(hexString: value)
+    }
+}
+
+private struct PresignedURLResponse: Decodable {
+    let url: String
+}
+
+enum EmbedMediaPayload {
+    static func s3Key(from raw: [String: AnyCodable]?) -> String? {
+        guard let raw else { return nil }
+        return originalS3Key(from: raw)
+    }
+
+    static func s3URL(from raw: [String: AnyCodable]?) -> String? {
+        guard let raw else { return nil }
+        if let direct = string(raw, keys: ["s3_url"]), !direct.isEmpty {
+            return direct
+        }
+        guard let base = string(raw, keys: ["s3_base_url"]), !base.isEmpty,
+              let key = originalS3Key(from: raw), !key.isEmpty else {
+            return nil
+        }
+        return base.hasSuffix("/") ? "\(base)\(key)" : "\(base)/\(key)"
+    }
+
+    static func string(_ raw: [String: AnyCodable]?, keys: [String]) -> String? {
+        guard let raw else { return nil }
+        return string(raw, keys: keys)
+    }
+
+    private static func string(_ raw: [String: AnyCodable], keys: [String]) -> String? {
+        for key in keys {
+            if let value = raw[key]?.value as? String, !value.isEmpty {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private static func originalS3Key(from raw: [String: AnyCodable]) -> String? {
+        guard let files = raw["files"]?.value as? [String: Any] else { return nil }
+        if let original = files["original"] as? [String: Any], let key = original["s3_key"] as? String {
+            return key
+        }
+        for value in files.values {
+            if let variant = value as? [String: Any], let key = variant["s3_key"] as? String {
+                return key
+            }
+        }
+        return nil
     }
 }
 
@@ -214,7 +296,7 @@ struct EmbedMediaOfflineCache {
         for embed in embeds {
             guard let raw = embed.rawData else { continue }
             remoteURLs.append(contentsOf: remoteImageURLs(from: raw))
-            if let s3URL = firstString(in: raw, keys: ["s3_url", "s3_base_url"]),
+            if let s3URL = EmbedMediaPayload.s3URL(from: raw),
                let aesKey = firstString(in: raw, keys: ["aes_key"]),
                let aesNonce = firstString(in: raw, keys: ["aes_nonce"]) {
                 _ = try? await S3MediaClient.shared.fetchAndDecrypt(

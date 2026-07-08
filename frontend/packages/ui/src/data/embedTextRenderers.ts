@@ -54,6 +54,7 @@ import { renderVideosSearch, renderVideoTranscript, renderVideoGenerate, renderV
 import { renderImageGenerate, renderImagesSearch, renderImage, renderImageResult } from '../components/embeds/images/imageEmbedText';
 import { renderMapsSearch, renderMapsPlace } from '../components/embeds/maps/mapsEmbedText';
 import { renderEventsSearch, renderEvent } from '../components/embeds/events/eventsEmbedText';
+import { renderFitnessResult, renderFitnessSearch } from '../components/embeds/fitness/fitnessEmbedText';
 import { renderMailSearch, renderEmail } from '../components/embeds/mail/mailEmbedText';
 import { renderHealthSearch, renderAppointment } from '../components/embeds/health/healthEmbedText';
 import { renderHomeSearch, renderListing } from '../components/embeds/home/homeEmbedText';
@@ -141,7 +142,8 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:health:create_report': renderGenericAppSkill,
 	'app:home:search': renderHomeSearch,
 	'app:books:translate': renderGenericAppSkill,
-	'app:fitness:search_locations_and_courses': renderGenericAppSkill,
+	'app:fitness:search_locations': renderFitnessSearch,
+	'app:fitness:search_classes': renderFitnessSearch,
 	'app:openmates:share-usecase': renderGenericAppSkill,
 	'app:openmates:get-docs': renderGenericAppSkill,
 	'app:openmates:search-docs': renderGenericAppSkill,
@@ -184,6 +186,8 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 		'mindmaps-mindmap': renderMindMap,
 		'mindmap': renderMindMap,
 		'events-event': renderEvent,
+	'fitness-location': renderFitnessResult,
+	'fitness-class': renderFitnessResult,
 	'health-appointment': renderAppointment,
 	'home-listing': renderListing,
 	'shopping-product': renderShoppingProduct,

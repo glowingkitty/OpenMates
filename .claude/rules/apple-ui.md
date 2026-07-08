@@ -191,6 +191,12 @@ Multiple Svelte files or CSS files are fine — list all that apply.
 - Prefer stable identity for rows, embeds, and media-heavy cells.
 - Profile with Instruments when a performance-sensitive surface changes or visible jank is reported.
 
+### Native diagnostics and logging
+- Use `NativeDiagnostics` for Apple product diagnostics instead of adding new ad-hoc `print` calls or isolated `Logger` calls.
+- Use `NativeSyncPerfLog` for sync, chat-opening, embed-hydration, and offline phase timings so entries reach unified logging plus issue/debug buffers.
+- Use approved performance helpers (`NativePerformanceMonitor`, MetricKit summaries, or signpost-style phase logs) for expensive operations and frame/jank triage.
+- Never log message plaintext, encryption keys, auth/session tokens, cookies, push tokens, full share URL fragments, request/response bodies, private file paths, or raw typed text. Keep automatic diagnostics to counts, durations, sanitized categories, and hashed/prefixed identifiers.
+
 ### Chat transcript performance
 - The chat transcript is a high-risk SwiftUI performance surface because it combines streaming updates, long scroll history, markdown, embeds, images, and dynamic layout.
 - If transcript scrolling or streaming becomes visibly janky, prefer a UIKit-backed transcript implementation using `UICollectionView` with reusable cells, embedded in SwiftUI.

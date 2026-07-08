@@ -20,6 +20,7 @@ struct HighlightNavigationOverlay: View {
                     Icon("up", size: 14)
                 }
                 .disabled(currentIndex <= 0)
+                .help(Text("Previous highlight"))
                 .accessibilityLabel("Previous highlight")
 
                 Text("\(currentIndex + 1) / \(highlightCount)")
@@ -33,6 +34,7 @@ struct HighlightNavigationOverlay: View {
                     Icon("down", size: 14)
                 }
                 .disabled(currentIndex >= highlightCount - 1)
+                .help(Text("Next highlight"))
                 .accessibilityLabel("Next highlight")
 
                 Divider().frame(height: 20)
@@ -43,6 +45,7 @@ struct HighlightNavigationOverlay: View {
                     Icon("close", size: 12)
                         .foregroundStyle(Color.fontTertiary)
                 }
+                .help(Text("Close highlight navigation"))
                 .accessibilityLabel("Close highlight navigation")
             }
             .padding(.horizontal, .spacing4)
@@ -104,6 +107,7 @@ private struct ToolbarButton: View {
             .frame(width: 64, height: 48)
         }
         .buttonStyle(.plain)
+        .help(Text(label))
         .accessibilityLabel(label)
     }
 }

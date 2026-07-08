@@ -14,7 +14,10 @@ from fastapi import HTTPException
 
 from backend.core.api.app.services.feature_availability_guards import (
     ensure_application_preview_enabled,
+    ensure_plans_enabled,
     ensure_projects_enabled,
+    ensure_tasks_enabled,
+    ensure_workflows_enabled,
 )
 
 
@@ -56,3 +59,22 @@ def test_projects_route_allows_admin_enabled_platform_feature() -> None:
     ensure_projects_enabled(
         make_request({"feature_overrides": {"enabled": ["platform:projects"], "disabled": []}})
     )
+
+
+@pytest.mark.parametrize(
+    ("guard", "feature_id"),
+    [
+        (ensure_projects_enabled, "platform:projects"),
+        (ensure_plans_enabled, "platform:plans"),
+        (ensure_workflows_enabled, "platform:workflows"),
+        (ensure_tasks_enabled, "platform:tasks"),
+    ],
+)
+def test_unfinished_platform_guards_block_by_default_and_allow_admin_override(guard, feature_id: str) -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        guard(make_request({}))
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.detail == "FEATURE_DISABLED"
+
+    guard(make_request({"feature_overrides": {"enabled": [feature_id], "disabled": []}}))

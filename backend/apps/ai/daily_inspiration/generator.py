@@ -31,7 +31,7 @@ from backend.apps.ai.daily_inspiration.category_age_policy import (
     video_age_years,
 )
 from backend.apps.ai.daily_inspiration.content_filter import (
-    check_video_metadata,
+    check_daily_inspiration_entry,
     is_blocked_topic,
 )
 from backend.apps.ai.daily_inspiration.schemas import DailyInspiration, DailyInspirationVideo
@@ -592,24 +592,24 @@ async def generate_inspirations(
             )
             continue
 
-        # ── Layer 3 (post-LLM): keyword check on generated + video content ────
-        # The LLM may have selected a video or written content that violates policy.
-        # Check the combined text of the generated content + video metadata against
-        # the keyword blocklist before accepting the inspiration.
-        combined_violations = check_video_metadata(
-            title=candidate.get("title", ""),
-            channel_name=candidate.get("channel_name"),
-        )
-        # Also check the LLM-generated text itself
-        generated_text = f"{phrase} {title} {assistant_response or ''}"
-        from backend.apps.ai.daily_inspiration.content_filter import check_text
-        generated_violations = check_text(generated_text)
-        all_violations = {**combined_violations, **generated_violations}
-        if all_violations:
-            matched_cats = list(all_violations.keys())
-            matched_kws = [kw for kws in all_violations.values() for kw in kws[:3]]
+        # ── Layer 3 (post-LLM): shared daily-inspiration content policy ───────
+        # Reject both obvious keyword violations and company/brand subjects, even
+        # when the source is an independent educator rather than a corporate channel.
+        policy_result = check_daily_inspiration_entry({
+            "title": title,
+            "phrase": phrase,
+            "assistant_response": assistant_response or "",
+            "category": category,
+            "content_type": "video",
+            "video_title": candidate.get("title", ""),
+            "video_channel_name": candidate.get("channel_name"),
+        })
+        if policy_result["verdict"] == "REJECT":
+            violations = policy_result.get("violations", {})
+            matched_cats = list(violations.keys())
+            matched_kws = [kw for kws in violations.values() for kw in kws[:3]]
             logger.warning(
-                f"[DailyInspiration][{task_id}] Layer 3 keyword filter REJECTED inspiration "
+                f"[DailyInspiration][{task_id}] Layer 3 content policy REJECTED inspiration "
                 f"'{title}' (video: {candidate.get('title', '')[:50]}) — "
                 f"categories={matched_cats}, keywords={matched_kws}"
             )

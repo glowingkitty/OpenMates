@@ -57,6 +57,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
     var showActionButtonsWhenCompact = false
     var expandedMinHeight: CGFloat = 100
     var accessibilityHint: String
+    var inlineFieldContent: AnyView? = nil
     var overlayContent: AnyView? = nil
     var onSubmit: () -> Void
     @ViewBuilder var actionButtons: () -> ActionButtons
@@ -69,6 +70,15 @@ struct OMMessageInputField<ActionButtons: View>: View {
         compact ? compactHeight : expandedMinHeight
     }
 
+    private var resolvedFieldHeight: CGFloat? {
+        if compact { return compactHeight }
+        if inlineFieldContent != nil { return nil }
+        if text.isEmpty && expandedMinHeight <= MessageComposerMetric.focusedEmptyHeight {
+            return MessageComposerMetric.focusedEmptyHeight
+        }
+        return nil
+    }
+
     private var cornerRadius: CGFloat {
         compact ? compactCornerRadius : 24
     }
@@ -77,26 +87,48 @@ struct OMMessageInputField<ActionButtons: View>: View {
         !compact || showActionButtonsWhenCompact
     }
 
+    private var textEditorMinHeight: CGFloat {
+        inlineFieldContent == nil ? fieldHeight : 40
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
-            TextField("", text: $text, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(.omP)
-                .lineLimit(compact ? 1...1 : 1...6)
-                .tint(Color.buttonPrimary)
-                .focused(isFocused)
-                .onSubmit(onSubmit)
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(Color.clear)
+                .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
+                .accessibilityElement()
                 .accessibilityLabel(AppStrings.chatMessageInput)
                 .accessibilityHint(accessibilityHint)
-                .accessibilityIdentifier("message-editor")
-                .padding(.horizontal, compact ? .spacing6 : expandedHorizontalPadding)
-                .padding(.top, compact ? 0 : expandedTopPadding)
-                .padding(.bottom, compact ? 0 : expandedBottomPadding)
-                .fontWeight(compact ? .semibold : .regular)
-                .multilineTextAlignment(compact ? .center : .leading)
-                .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: compact ? .center : .topLeading)
+                .accessibilityIdentifier("message-field")
 
-            if text.isEmpty && !isFocused.wrappedValue {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                if let inlineFieldContent {
+                    inlineFieldContent
+                        .padding(.horizontal, compact ? .spacing4 : .spacing4)
+                        .padding(.top, compact ? .spacing2 : .spacing4)
+                }
+
+                TextField("", text: $text, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(.omP)
+                    .lineLimit(compact ? 1...1 : 1...6)
+                    .tint(Color.buttonPrimary)
+                    .focused(isFocused)
+                    .onSubmit(onSubmit)
+                    .accessibilityLabel(AppStrings.chatMessageInput)
+                    .accessibilityHint(accessibilityHint)
+                    .accessibilityIdentifier("message-editor")
+                    .padding(.horizontal, compact ? .spacing6 : expandedHorizontalPadding)
+                    .padding(.top, compact ? 0 : (inlineFieldContent == nil ? expandedTopPadding : .spacing2))
+                    .padding(.bottom, compact ? 0 : expandedBottomPadding)
+                    .fontWeight(compact ? .semibold : .regular)
+                    .multilineTextAlignment(compact ? .center : .leading)
+                    .frame(maxWidth: .infinity, minHeight: textEditorMinHeight, alignment: compact ? .center : .topLeading)
+            }
+            .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: compact ? .center : .topLeading)
+            .zIndex(1)
+
+            if text.isEmpty && !isFocused.wrappedValue && inlineFieldContent == nil {
                 Text(placeholder)
                     .font(.omP)
                     .fontWeight(.medium)
@@ -111,21 +143,27 @@ struct OMMessageInputField<ActionButtons: View>: View {
 
             if shouldShowActionButtons {
                 actionButtons()
+                    .zIndex(2)
             }
 
             if let overlayContent {
                 overlayContent
+                    .zIndex(3)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: fieldHeight, maxHeight: compact ? fieldHeight : nil)
+        .frame(maxWidth: .infinity, minHeight: fieldHeight, maxHeight: resolvedFieldHeight)
         .background(Color.greyBlue)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-        // Web `.message-field` has no border/focus ring; focus changes placeholder/action state only.
         .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
         .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
         .onTapGesture {
             isFocused.wrappedValue = true
         }
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                isFocused.wrappedValue = true
+            }
+        )
         .animation(.easeInOut(duration: 0.25), value: compact)
     }
 }
@@ -350,6 +388,7 @@ struct OMDropdown: View {
             }
         }
         .accessibilityLabel(title)
+        .help(Text(title))
     }
 }
 
@@ -400,6 +439,7 @@ struct OMSettingsPickerRow: View {
         .padding(.horizontal, .spacing5)
         .padding(.vertical, .spacing2)
         .accessibilityLabel(title)
+        .help(Text(title))
     }
 }
 
@@ -588,6 +628,7 @@ struct OMIconButton: View {
                 .contentShape(RoundedRectangle(cornerRadius: .radius7))
         }
         .buttonStyle(.plain)
+        .help(Text(label))
         .accessibilityLabel(label)
     }
 }
@@ -836,6 +877,7 @@ struct OMSettingsRow: View {
         .buttonStyle(.plain)
         .clipShape(RoundedRectangle(cornerRadius: .radius3)) // border-radius: var(--radius-3)
         .accessibilityLabel(title)
+        .help(Text(title))
     }
 
     private var rowContent: some View {

@@ -11,9 +11,23 @@ Use these commands — **never** `vercel logs` (fails silently on ERROR deployme
 ```bash
 python3 scripts/sessions.py debug-vercel          # auto-starts session + shows errors/warnings
 python3 backend/scripts/debug.py vercel           # errors/warnings only (fastest)
+python3 backend/scripts/debug.py vercel --failed  # latest ERROR/CANCELED deployment and full error log
 python3 backend/scripts/debug.py vercel --all     # full build log
 python3 backend/scripts/debug.py vercel --n 3     # last 3 deployments
 ```
+
+First separate real failed deployments from noisy red warnings on READY builds.
+Node deprecation notices, app-metadata exclusions, and Svelte warnings can appear
+in red without failing the deployment. For Dependabot npm preview failures, check
+whether `scripts/vercel_ignore_build.py` should skip the preview before install;
+do not spawn repeated fix sessions for non-dev dependency-update branches unless
+the branch is intentionally being validated.
+
+If a dependency update raises a package `engines.node` floor above the configured
+Vercel runtime, either move Vercel to the supported Node major or keep the preview
+ignored by the deterministic preflight. Vercel Node runtime changes should be
+made in Project Settings or via a specific `package.json` major such as `24.x`;
+avoid broad ranges like `>=18` for selecting the Vercel build runtime.
 
 ## Vercel Deployment — Wait Before Testing
 

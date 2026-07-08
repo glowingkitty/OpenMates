@@ -71,7 +71,8 @@ final class ChatStore: ObservableObject {
     }
 
     func makeSyncClientState(clientSuggestionsCount: Int) -> SyncClientState {
-        let versions = chats.reduce(into: [String: [String: Int]]()) { result, chat in
+        let syncableChats = chats.filter { !IncognitoChatSession.isIncognitoChatId($0.id) }
+        let versions = syncableChats.reduce(into: [String: [String: Int]]()) { result, chat in
             var chatVersions: [String: Int] = [:]
             if let messagesV = chat.messagesV {
                 chatVersions["messages_v"] = messagesV
@@ -89,7 +90,7 @@ final class ChatStore: ObservableObject {
         let embedIds = Set(embedsByChat.values.flatMap { $0.keys }).sorted()
         return SyncClientState(
             clientChatVersions: versions,
-            clientChatIds: chats.map(\.id),
+            clientChatIds: syncableChats.map(\.id),
             clientSuggestionsCount: clientSuggestionsCount,
             clientEmbedIds: embedIds
         )
@@ -326,7 +327,10 @@ private extension Chat {
             budgetLimit: incoming.budgetLimit ?? budgetLimit,
             budgetSpent: incoming.budgetSpent ?? budgetSpent,
             encryptedActiveFocusId: incoming.encryptedActiveFocusId ?? encryptedActiveFocusId,
-            activeFocusId: incoming.activeFocusId ?? activeFocusId
+            activeFocusId: incoming.activeFocusId ?? activeFocusId,
+            isPrivate: incoming.isPrivate ?? isPrivate,
+            isHidden: incoming.isHidden ?? isHidden,
+            isHiddenCandidate: incoming.isHiddenCandidate ?? isHiddenCandidate
         )
     }
 
@@ -358,7 +362,10 @@ private extension Chat {
             budgetLimit: budgetLimit,
             budgetSpent: budgetSpent,
             encryptedActiveFocusId: encryptedActiveFocusId,
-            activeFocusId: activeFocusId
+            activeFocusId: activeFocusId,
+            isPrivate: isPrivate,
+            isHidden: isHidden,
+            isHiddenCandidate: isHiddenCandidate
         )
     }
 
@@ -390,7 +397,10 @@ private extension Chat {
             budgetLimit: budgetLimit,
             budgetSpent: budgetSpent,
             encryptedActiveFocusId: encryptedActiveFocusId,
-            activeFocusId: activeFocusId
+            activeFocusId: activeFocusId,
+            isPrivate: isPrivate,
+            isHidden: isHidden,
+            isHiddenCandidate: isHiddenCandidate
         )
     }
 }

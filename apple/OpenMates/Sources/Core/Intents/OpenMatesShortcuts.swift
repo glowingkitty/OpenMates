@@ -44,7 +44,7 @@ struct OpenMatesShortcuts: AppShortcutsProvider {
                 "Search the web with \(.applicationName)",
                 "\(.applicationName) web search",
             ],
-            shortTitle: "Web Search",
+            shortTitle: "Web | Search",
             systemImageName: "globe"
         )
 
@@ -55,7 +55,7 @@ struct OpenMatesShortcuts: AppShortcutsProvider {
                 "Search news with \(.applicationName)",
                 "\(.applicationName) news",
             ],
-            shortTitle: "Search News",
+            shortTitle: "News | Search",
             systemImageName: "newspaper"
         )
 
@@ -66,7 +66,7 @@ struct OpenMatesShortcuts: AppShortcutsProvider {
                 "Find events with \(.applicationName)",
                 "\(.applicationName) events",
             ],
-            shortTitle: "Find Events",
+            shortTitle: "Events | Search",
             systemImageName: "calendar"
         )
 
@@ -77,7 +77,7 @@ struct OpenMatesShortcuts: AppShortcutsProvider {
                 "Search flights with \(.applicationName)",
                 "\(.applicationName) flights",
             ],
-            shortTitle: "Search Flights",
+            shortTitle: "Travel | Search Connections",
             systemImageName: "airplane"
         )
 
@@ -88,7 +88,7 @@ struct OpenMatesShortcuts: AppShortcutsProvider {
                 "Find hotels with \(.applicationName)",
                 "\(.applicationName) hotels",
             ],
-            shortTitle: "Search Hotels",
+            shortTitle: "Travel | Search Stays",
             systemImageName: "bed.double"
         )
 
@@ -122,7 +122,7 @@ struct OpenMatesShortcuts: AppShortcutsProvider {
                 "Calculate with \(.applicationName)",
                 "\(.applicationName) calculate",
             ],
-            shortTitle: "Calculate",
+            shortTitle: "Math | Calculate",
             systemImageName: "function"
         )
     }

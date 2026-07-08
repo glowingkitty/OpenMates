@@ -16,6 +16,14 @@ import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesSto
 import { isProviderHealthy } from "../../../stores/appHealthStore";
 import { text } from "../../../i18n/translations";
 import { userProfile } from "../../../stores/userProfile";
+import {
+  getProjectSettings,
+  listProjects,
+  listProjectSources,
+  type ProjectSourceViewModel,
+  type ProjectViewModel,
+} from "../../../services/projectService";
+import type { ProjectMentionAccessMode } from "../extensions/GenericMentionNode";
 
 /**
  * Types of mentionable items in the @ dropdown.
@@ -27,7 +35,10 @@ export type MentionType =
   | "skill"
   | "focus_mode"
   | "settings_memory"
-  | "settings_memory_entry";
+  | "settings_memory_entry"
+  | "project"
+  | "project_folder"
+  | "project_file";
 
 /**
  * Base interface for all mention search results.
@@ -177,6 +188,13 @@ export interface SettingsMemoryEntryMentionResult extends MentionResult {
   colorEnd?: string;
 }
 
+export interface ProjectMentionResult extends MentionResult {
+  type: "project" | "project_folder" | "project_file";
+  projectId: string;
+  projectPath?: string;
+  projectAccessMode: ProjectMentionAccessMode;
+}
+
 /**
  * Union type for all mention results.
  */
@@ -187,7 +205,8 @@ export type AnyMentionResult =
   | SkillMentionResult
   | FocusModeMentionResult
   | SettingsMemoryMentionResult
-  | SettingsMemoryEntryMentionResult;
+  | SettingsMemoryEntryMentionResult
+  | ProjectMentionResult;
 
 /**
  * Convert a name to hyphenated format for mention display.
@@ -227,6 +246,8 @@ function buildSearchTerms(...strings: (string | undefined)[]): string[] {
 
 /** Score boost for settings/memory categories and entries when the query matches (so they can appear in results). */
 const SETTINGS_MEMORY_SCORE_BOOST = 30;
+const PROJECT_MENTION_SCORE_BOOST = 40;
+const PROJECT_MENTION_LIMIT = 8;
 
 /**
  * Calculate match score for a search query against terms.
@@ -261,7 +282,159 @@ function calculateMatchScore(
     score += SETTINGS_MEMORY_SCORE_BOOST;
   }
 
+  if (
+    score > 0 &&
+    (type === "project" || type === "project_folder" || type === "project_file")
+  ) {
+    score += PROJECT_MENTION_SCORE_BOOST;
+  }
+
   return score;
+}
+
+function toProjectMentionAccessMode(writeMode: unknown): ProjectMentionAccessMode {
+  return writeMode === "auto_approve_safe_writes" ? "read_write" : "read";
+}
+
+export function buildProjectMentionSyntax(
+  type: ProjectMentionResult["type"],
+  projectId: string,
+  accessMode: ProjectMentionAccessMode,
+  path?: string,
+): string {
+  if (type === "project") {
+    return `@project:${projectId}:${accessMode}`;
+  }
+  const encodedPath = encodeURIComponent(path ?? "/");
+  return type === "project_folder"
+    ? `@project-folder:${projectId}:${encodedPath}:${accessMode}`
+    : `@project-file:${projectId}:${encodedPath}:${accessMode}`;
+}
+
+function getStringField(value: unknown, field: string): string | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const fieldValue = (value as Record<string, unknown>)[field];
+  return typeof fieldValue === "string" && fieldValue.trim() ? fieldValue : undefined;
+}
+
+function extractPathCandidates(metadata: Record<string, unknown>, keys: string[]): string[] {
+  const paths: string[] = [];
+  for (const key of keys) {
+    const value = metadata[key];
+    if (!Array.isArray(value)) continue;
+    for (const item of value) {
+      if (typeof item === "string" && item.trim()) {
+        paths.push(item);
+        continue;
+      }
+      const path = getStringField(item, "path") ?? getStringField(item, "remote_path");
+      if (path) paths.push(path);
+    }
+  }
+  return Array.from(new Set(paths)).slice(0, PROJECT_MENTION_LIMIT);
+}
+
+function basename(path: string): string {
+  const trimmed = path.replace(/\/+$/, "");
+  return trimmed.split("/").filter(Boolean).pop() || trimmed || "/";
+}
+
+function buildProjectMentionResult(
+  type: ProjectMentionResult["type"],
+  project: ProjectViewModel,
+  accessMode: ProjectMentionAccessMode,
+  label: string,
+  subtitle: string,
+  path?: string,
+): ProjectMentionResult {
+  const mentionDisplayName = toHyphenatedName(label);
+  return {
+    id: path ? `${type}:${project.project_id}:${path}` : `${type}:${project.project_id}`,
+    type,
+    displayName: label,
+    mentionDisplayName,
+    subtitle,
+    icon: "project",
+    mentionSyntax: buildProjectMentionSyntax(type, project.project_id, accessMode, path),
+    searchTerms: buildSearchTerms(label, subtitle, project.name, project.project_id, path),
+    projectId: project.project_id,
+    projectPath: path,
+    projectAccessMode: accessMode,
+  };
+}
+
+function buildProjectSourceMentionResults(
+  project: ProjectViewModel,
+  source: ProjectSourceViewModel,
+  accessMode: ProjectMentionAccessMode,
+): ProjectMentionResult[] {
+  const results: ProjectMentionResult[] = [];
+  const sourceLabel = source.displayName || source.source_id;
+  const rootPath = getStringField(source.metadata, "root_path") ?? getStringField(source.metadata, "path") ?? "/";
+  results.push(
+    buildProjectMentionResult(
+      "project_folder",
+      project,
+      accessMode,
+      `${project.name}-${sourceLabel}`,
+      `Remote source folder: ${source.status}`,
+      rootPath,
+    ),
+  );
+
+  for (const path of extractPathCandidates(source.metadata, ["files", "remote_files", "file_paths"])) {
+    results.push(
+      buildProjectMentionResult(
+        "project_file",
+        project,
+        accessMode,
+        `${project.name}-${basename(path)}`,
+        path,
+        path,
+      ),
+    );
+  }
+  return results;
+}
+
+export async function searchProjectMentions(
+  query: string,
+  limit: number = PROJECT_MENTION_LIMIT,
+): Promise<ProjectMentionResult[]> {
+  try {
+    const projects = await listProjects();
+    const results: ProjectMentionResult[] = [];
+    for (const project of projects) {
+      const settings = await getProjectSettings(project).catch(() => null);
+      const accessMode = toProjectMentionAccessMode(settings?.writeMode);
+      results.push(
+        buildProjectMentionResult(
+          "project",
+          project,
+          accessMode,
+          project.name,
+          "Project context",
+        ),
+      );
+
+      const sources = await listProjectSources(project).catch(() => []);
+      for (const source of sources) {
+        results.push(...buildProjectSourceMentionResults(project, source, accessMode));
+      }
+    }
+
+    return results
+      .map((result) => ({
+        ...result,
+        score: calculateMatchScore(query, result.searchTerms, result.type),
+      }))
+      .filter((result) => result.score > 0)
+      .sort((a, b) => (b.score || 0) - (a.score || 0))
+      .slice(0, limit);
+  } catch (error) {
+    console.warn("[MentionSearch] Failed to load Project mention results:", error);
+    return [];
+  }
 }
 
 /**

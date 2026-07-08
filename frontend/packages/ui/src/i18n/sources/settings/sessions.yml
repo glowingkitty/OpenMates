@@ -26,6 +26,7 @@ title:
   sv: Aktiva sessioner
   he: סשנים פעילים
 
+  verified_by_human: []
 description:
   context: Description shown at the top of the active sessions page
   en: Manage your active sessions across all devices. You can remove individual sessions or log out from all devices at once.
@@ -50,6 +51,7 @@ description:
   sv: Hantera dina aktiva sessioner på alla enheter. Du kan ta bort enskilda sessioner eller logga ut från alla enheter på en gång.
   he: נהל את הסשנים הפעילים שלך בכל המכשירים. תוכל להסיר סשנים בודדים או להתנתק מכל המכשירים בבת אחת.
 
+  verified_by_human: []
 description_short:
   context: Short subtitle shown in the security menu for the sessions entry
   en: Manage your connected devices
@@ -74,6 +76,7 @@ description_short:
   sv: Hantera dina anslutna enheter
   he: נהל את המכשירים המחוברים שלך
 
+  verified_by_human: []
 loading:
   context: Loading state message while sessions are being fetched
   en: Loading sessions...
@@ -98,6 +101,7 @@ loading:
   sv: Laddar sessioner...
   he: טוען סשנים...
 
+  verified_by_human: []
 no_sessions:
   context: Empty state message when no sessions are found
   en: No active sessions found.
@@ -122,6 +126,7 @@ no_sessions:
   sv: Inga aktiva sessioner hittades.
   he: לא נמצאו סשנים פעילים.
 
+  verified_by_human: []
 this_device:
   context: Badge label indicating the current device session
   en: This device
@@ -146,6 +151,7 @@ this_device:
   sv: Den här enheten
   he: המכשיר הזה
 
+  verified_by_human: []
 unknown_device:
   context: Fallback device name when device cannot be identified
   en: Unknown device
@@ -170,6 +176,7 @@ unknown_device:
   sv: Okänd enhet
   he: מכשיר לא מזוהה
 
+  verified_by_human: []
 unknown_location:
   context: Fallback location text when location is not available
   en: Unknown location
@@ -194,6 +201,7 @@ unknown_location:
   sv: Okänd plats
   he: מיקום לא ידוע
 
+  verified_by_human: []
 logged_in:
   context: Label for the login time detail row
   en: Logged in
@@ -218,6 +226,7 @@ logged_in:
   sv: Inloggad
   he: מחובר
 
+  verified_by_human: []
 session_type:
   context: Label for the session type detail row (stay logged in vs session-only)
   en: Session type
@@ -242,6 +251,7 @@ session_type:
   sv: Sessionstyp
   he: סוג הסשן
 
+  verified_by_human: []
 staying_logged_in:
   context: Value when user chose to stay logged in (persistent session)
   en: Stay logged in
@@ -266,6 +276,7 @@ staying_logged_in:
   sv: Förbli inloggad
   he: הישאר מחובר
 
+  verified_by_human: []
 session_only:
   context: Value when session expires on browser close
   en: Session only
@@ -290,6 +301,7 @@ session_only:
   sv: Endast session
   he: סשן בלבד
 
+  verified_by_human: []
 remove:
   context: Button text to remove/revoke a single session
   en: Remove
@@ -314,6 +326,7 @@ remove:
   sv: Ta bort
   he: הסר
 
+  verified_by_human: []
 removing:
   context: Button text while a session removal is in progress
   en: Removing...
@@ -338,6 +351,7 @@ removing:
   sv: Tar bort...
   he: מסיר...
 
+  verified_by_human: []
 confirm_remove:
   context: Confirmation dialog text before removing a session
   en: Remove this session? The device will be logged out immediately.
@@ -362,6 +376,7 @@ confirm_remove:
   sv: Ta bort den här sessionen? Enheten loggas ut omedelbart.
   he: להסיר את הסשן הזה? המכשיר יתנתק מיד.
 
+  verified_by_human: []
 logout_all_others:
   context: Button text to log out all other devices except current
   en: Log out all other devices
@@ -386,6 +401,7 @@ logout_all_others:
   sv: Logga ut från alla andra enheter
   he: התנתק מכל המכשירים האחרים
 
+  verified_by_human: []
 confirm_logout_others:
   context: Confirmation dialog text before logging out all other devices
   en: Log out all other devices? They will need to log in again.
@@ -410,6 +426,7 @@ confirm_logout_others:
   sv: Logga ut från alla andra enheter? De måste logga in igen.
   he: להתנתק מכל המכשירים האחרים? הם יצטרכו להתחבר מחדש.
 
+  verified_by_human: []
 logout_all_devices:
   context: Button text to log out from all devices including current (nuclear option)
   en: Log out on all devices
@@ -434,6 +451,7 @@ logout_all_devices:
   sv: Logga ut från alla enheter
   he: התנתק מכל המכשירים
 
+  verified_by_human: []
 confirm_logout_all:
   context: Confirmation dialog text before logging out all devices
   en: Log out on all devices? This will also log you out of this device and clear all trusted devices. Every future login will require re-authentication.
@@ -458,6 +476,7 @@ confirm_logout_all:
   sv: Logga ut från alla enheter? Detta loggar dig även ut från den här enheten och tar bort alla betrodda enheter. Varje framtida inloggning kräver omautentisering.
   he: להתנתק מכל המכשירים? פעולה זו גם תנתק אותך ממכשיר זה ותמחק את כל המכשירים המהימנים. כל כניסה עתידית תדרוש אימות מחדש.
 
+  verified_by_human: []
 logout_all_hint:
   context: Warning hint text below the logout-all button
   en: This will also clear all trusted devices. Every future login will require full re-authentication.
@@ -482,6 +501,7 @@ logout_all_hint:
   sv: Detta rensar också alla betrodda enheter. Varje framtida inloggning kräver fullständig omautentisering.
   he: פעולה זו תמחק גם את כל המכשירים המהימנים. כל כניסה עתידית תדרוש אימות מחדש מלא.
 
+  verified_by_human: []
 processing:
   context: Button text while a bulk logout operation is in progress
   en: Processing...
@@ -506,6 +526,7 @@ processing:
   sv: Bearbetar...
   he: מעבד...
 
+  verified_by_human: []
 just_now:
   context: Relative time label for events that happened less than a minute ago
   en: Just now
@@ -530,6 +551,7 @@ just_now:
   sv: Just nu
   he: ממש עכשיו
 
+  verified_by_human: []
 minute_ago:
   context: Relative time label for exactly 1 minute ago
   en: 1 minute ago
@@ -554,6 +576,7 @@ minute_ago:
   sv: För 1 minut sedan
   he: לפני דקה
 
+  verified_by_human: []
 minutes_ago:
   context: Relative time label for N minutes ago (placeholder {n} is replaced with the number)
   en: "{n} minutes ago"
@@ -578,6 +601,7 @@ minutes_ago:
   sv: "För {n} minuter sedan"
   he: "לפני {n} דקות"
 
+  verified_by_human: []
 hour_ago:
   context: Relative time label for exactly 1 hour ago
   en: 1 hour ago
@@ -602,6 +626,7 @@ hour_ago:
   sv: För 1 timme sedan
   he: לפני שעה
 
+  verified_by_human: []
 hours_ago:
   context: Relative time label for N hours ago (placeholder {n} is replaced with the number)
   en: "{n} hours ago"
@@ -626,6 +651,7 @@ hours_ago:
   sv: "För {n} timmar sedan"
   he: "לפני {n} שעות"
 
+  verified_by_human: []
 day_ago:
   context: Relative time label for exactly 1 day ago
   en: 1 day ago
@@ -650,6 +676,7 @@ day_ago:
   sv: För 1 dag sedan
   he: לפני יום
 
+  verified_by_human: []
 days_ago:
   context: Relative time label for N days ago (placeholder {n} is replaced with the number)
   en: "{n} days ago"
@@ -678,6 +705,7 @@ days_ago:
 # Magic Pair Login — Initiating device (SettingsSessionsPairInitiate)
 # ---------------------------------------------------------------------------
 
+  verified_by_human: []
 pair_initiate_title:
   context: Title for the "log in from another device" initiation page
   en: Log In from Another Device
@@ -702,6 +730,7 @@ pair_initiate_title:
   sv: Logga in från en annan enhet
   he: התחבר ממכשיר אחר
 
+  verified_by_human: []
 pair_initiate_description:
   context: Description shown on the pair initiation page
   en: Scan the QR code or enter the code below on your new device to log in.
@@ -726,6 +755,7 @@ pair_initiate_description:
   sv: Skanna QR-koden eller ange koden nedan på din nya enhet för att logga in.
   he: סרוק את קוד ה-QR או הזן את הקוד למטה במכשיר החדש שלך כדי להתחבר.
 
+  verified_by_human: []
 pair_code_label:
   context: Label above the 6-character pair code
   en: Pair code
@@ -750,6 +780,7 @@ pair_code_label:
   sv: Parkopplningskod
   he: קוד ההתאמה
 
+  verified_by_human: []
 pair_url_label:
   context: Label for the URL section showing the full pair URL
   en: Or open this link
@@ -774,6 +805,82 @@ pair_url_label:
   sv: Eller öppna den här länken
   he: או פתח את הקישור הזה
 
+  verified_by_human: []
+pair_confirm_on_iphone:
+  context: Watch login state shown when a paired iPhone is reachable and must approve the login request
+  en: Confirm login on iPhone
+
+  verified_by_human: []
+pair_confirm_on_iphone_description:
+  context: Description on Apple Watch explaining that the iPhone must approve the login request
+  en: We sent a login request to your connected iPhone. Approve it there to continue.
+
+  verified_by_human: []
+pair_login_without_iphone:
+  context: Button on Apple Watch that reveals the manual pair-login fallback
+  en: Login without iPhone
+
+  verified_by_human: []
+pair_show_qr_code:
+  context: Button on Apple Watch that opens the full-screen pair-login QR code
+  en: Show QR code
+
+  verified_by_human: []
+pair_full_url_label:
+  context: Label for the full pair-login URL shown on Apple Watch fallback
+  en: Full login URL
+
+  verified_by_human: []
+pair_server_label:
+  context: Compact label on Apple Watch showing which OpenMates server/domain the login will use
+  en: Server
+
+  verified_by_human: []
+pair_server_production:
+  context: Apple Watch button label for using the production OpenMates server during login
+  en: Production
+
+  verified_by_human: []
+pair_server_development:
+  context: Apple Watch button label for using the development OpenMates server during login
+  en: Dev
+
+  verified_by_human: []
+pair_server_custom_placeholder:
+  context: Apple Watch text field placeholder for a custom or self-hosted OpenMates domain
+  en: custom domain
+
+  verified_by_human: []
+pair_server_use_custom:
+  context: Apple Watch button label that applies the typed custom/self-hosted OpenMates domain
+  en: Use custom
+
+  verified_by_human: []
+pair_connect_apple_watch_title:
+  context: iPhone approval screen title for logging in a paired Apple Watch
+  en: Connect Apple Watch
+
+  verified_by_human: []
+pair_connect_apple_watch_description:
+  context: iPhone approval screen description for an Apple Watch login request
+  en: Your Apple Watch is asking to log in to OpenMates. Only approve this if you started the request.
+
+  verified_by_human: []
+pair_watch_login_server_mismatch:
+  context: Error shown on iPhone when Apple Watch login was created for a different OpenMates server/domain than the iPhone is currently using
+  en: This Apple Watch login was created for {watch_server}, but this iPhone is using {phone_server}. Switch both devices to the same OpenMates server and restart Watch login.
+
+  verified_by_human: []
+pair_approve_watch_login:
+  context: iPhone button label to approve an Apple Watch login request
+  en: Allow Watch Login
+
+  verified_by_human: []
+pair_watch_login_approved:
+  context: Success message after the iPhone approves an Apple Watch login request
+  en: Apple Watch login approved.
+
+  verified_by_human: []
 pair_auto_logout_label:
   context: Label for the auto-logout timer selector on the pair initiation page
   en: Auto-logout after
@@ -798,6 +905,7 @@ pair_auto_logout_label:
   sv: Automatisk utloggning efter
   he: התנתקות אוטומטית לאחר
 
+  verified_by_human: []
 pair_auto_logout_none:
   context: Option for no auto-logout in the selector
   en: Never (manual logout only)
@@ -822,6 +930,7 @@ pair_auto_logout_none:
   sv: Aldrig (endast manuell utloggning)
   he: אף פעם (התנתקות ידנית בלבד)
 
+  verified_by_human: []
 pair_auto_logout_30m:
   context: Option for 30-minute auto-logout
   en: 30 minutes
@@ -846,6 +955,7 @@ pair_auto_logout_30m:
   sv: 30 minuter
   he: 30 דקות
 
+  verified_by_human: []
 pair_auto_logout_1h:
   context: Option for 1-hour auto-logout
   en: 1 hour
@@ -870,6 +980,7 @@ pair_auto_logout_1h:
   sv: 1 timme
   he: שעה אחת
 
+  verified_by_human: []
 pair_auto_logout_4h:
   context: Option for 4-hour auto-logout
   en: 4 hours
@@ -894,6 +1005,7 @@ pair_auto_logout_4h:
   sv: 4 timmar
   he: 4 שעות
 
+  verified_by_human: []
 pair_auto_logout_8h:
   context: Option for 8-hour auto-logout
   en: 8 hours
@@ -918,6 +1030,7 @@ pair_auto_logout_8h:
   sv: 8 timmar
   he: 8 שעות
 
+  verified_by_human: []
 pair_auto_logout_24h:
   context: Option for 24-hour auto-logout
   en: 24 hours
@@ -942,6 +1055,7 @@ pair_auto_logout_24h:
   sv: 24 timmar
   he: 24 שעות
 
+  verified_by_human: []
 pair_waiting:
   context: Status shown while waiting for the other device to scan the code
   en: Waiting for the other device…
@@ -966,6 +1080,7 @@ pair_waiting:
   sv: Väntar på den andra enheten…
   he: ממתין למכשיר האחר…
 
+  verified_by_human: []
 pair_generating:
   context: Status shown while generating the pair code
   en: Generating code…
@@ -990,6 +1105,7 @@ pair_generating:
   sv: Genererar kod…
   he: מייצר קוד…
 
+  verified_by_human: []
 pair_expired:
   context: Status shown when the pair code has expired
   en: Code expired
@@ -1014,6 +1130,7 @@ pair_expired:
   sv: Koden har gått ut
   he: הקוד פג תוקף
 
+  verified_by_human: []
 pair_refresh:
   context: Button to generate a new pair code after expiry
   en: Generate a new code
@@ -1038,6 +1155,7 @@ pair_refresh:
   sv: Generera en ny kod
   he: צור קוד חדש
 
+  verified_by_human: []
 pair_copy_link:
   context: Button to copy the pair URL to clipboard
   en: Copy link
@@ -1062,6 +1180,7 @@ pair_copy_link:
   sv: Kopiera länk
   he: העתק קישור
 
+  verified_by_human: []
 pair_copied:
   context: Brief confirmation after the link was copied
   en: Copied!
@@ -1090,6 +1209,7 @@ pair_copied:
 # Magic Pair Login — Authorizing device (SettingsSessionsConfirmPair)
 # ---------------------------------------------------------------------------
 
+  verified_by_human: []
 pair_confirm_title:
   context: Title shown on the authorizing device when confirming a pairing request
   en: Confirm Device Login
@@ -1114,6 +1234,7 @@ pair_confirm_title:
   sv: Bekräfta enhetsinloggning
   he: אשר כניסת מכשיר
 
+  verified_by_human: []
 pair_confirm_description:
   context: Description shown on the authorizing device, prompting review of the requesting device info
   en: A new device is requesting access. Review the details below before allowing.
@@ -1138,6 +1259,7 @@ pair_confirm_description:
   sv: En ny enhet begär åtkomst. Granska uppgifterna nedan innan du tillåter.
   he: מכשיר חדש מבקש גישה. בדוק את הפרטים למטה לפני האישור.
 
+  verified_by_human: []
 pair_confirm_requesting_device:
   context: Section label showing the requesting device details
   en: Requesting device
@@ -1162,6 +1284,7 @@ pair_confirm_requesting_device:
   sv: Begärande enhet
   he: המכשיר המבקש
 
+  verified_by_human: []
 pair_confirm_allow:
   context: Button to allow/authorize the pairing request
   en: Allow
@@ -1186,6 +1309,7 @@ pair_confirm_allow:
   sv: Tillåt
   he: אשר
 
+  verified_by_human: []
 pair_confirm_deny:
   context: Button to deny the pairing request
   en: Deny
@@ -1210,6 +1334,7 @@ pair_confirm_deny:
   sv: Neka
   he: דחה
 
+  verified_by_human: []
 pair_confirm_allowing:
   context: Button state while authorization is in progress
   en: Authorizing…
@@ -1234,6 +1359,7 @@ pair_confirm_allowing:
   sv: Auktoriserar…
   he: מאשר…
 
+  verified_by_human: []
 pair_confirm_show_pin:
   context: Label for the PIN section shown to the authorizing user after allowing
   en: Share this PIN with the other device
@@ -1258,6 +1384,7 @@ pair_confirm_show_pin:
   sv: Dela denna PIN med den andra enheten
   he: שתף את ה-PIN הזה עם המכשיר האחר
 
+  verified_by_human: []
 pair_confirm_pin_hint:
   context: Hint shown below the PIN explaining it must be entered on the new device
   en: Enter this PIN on the new device to complete login.
@@ -1282,6 +1409,7 @@ pair_confirm_pin_hint:
   sv: Ange denna PIN på den nya enheten för att slutföra inloggningen.
   he: הזן PIN זה במכשיר החדש כדי להשלים את הכניסה.
 
+  verified_by_human: []
 pair_confirm_auto_logout_label:
   context: Label for the auto-logout option shown to the authorizing device before approving
   en: Auto-logout on the new device after
@@ -1306,6 +1434,7 @@ pair_confirm_auto_logout_label:
   sv: Automatisk utloggning på den nya enheten efter
   he: התנתקות אוטומטית במכשיר החדש לאחר
 
+  verified_by_human: []
 pair_confirm_denied:
   context: Message shown after the request was denied
   en: Request denied.
@@ -1330,6 +1459,7 @@ pair_confirm_denied:
   sv: Begäran nekad.
   he: הבקשה נדחתה.
 
+  verified_by_human: []
 pair_confirm_error:
   context: Generic error shown when authorization fails
   en: Authorization failed. Please try again.
@@ -1354,6 +1484,7 @@ pair_confirm_error:
   sv: Auktoriseringen misslyckades. Försök igen.
   he: האישור נכשל. אנא נסה שוב.
 
+  verified_by_human: []
 pair_confirm_cancel:
   context: Cancel button shown on PIN display page to go back without waiting for completion
   en: Cancel
@@ -1378,6 +1509,7 @@ pair_confirm_cancel:
   sv: Avbryt
   he: ביטול
 
+  verified_by_human: []
 pair_complete_success:
   context: Success notification shown after device pairing completes
   en: Device paired successfully
@@ -1402,6 +1534,7 @@ pair_complete_success:
   sv: Enheten parkopplades framgångsrikt
   he: המכשיר הותאם בהצלחה
 
+  verified_by_human: []
 new_badge:
   context: Badge shown on a newly paired device in the sessions list
   en: New
@@ -1426,6 +1559,7 @@ new_badge:
   sv: Ny
   he: חדש
 
+  verified_by_human: []
 pair_invalid_token:
   context: Error when the pair token is invalid or not found
   en: This pair code is invalid or has expired. Ask the other device to generate a new code.
@@ -1454,6 +1588,7 @@ pair_invalid_token:
 # Magic Pair Login — Completing device (PIN entry on new device)
 # ---------------------------------------------------------------------------
 
+  verified_by_human: []
 pair_enter_pin_title:
   context: Title for the PIN entry step on the initiating device
   en: Enter PIN
@@ -1478,6 +1613,7 @@ pair_enter_pin_title:
   sv: Ange PIN
   he: הזן PIN
 
+  verified_by_human: []
 pair_enter_pin_description:
   context: Description for the PIN entry step
   en: Enter the 6-character PIN shown on your other device.
@@ -1502,6 +1638,7 @@ pair_enter_pin_description:
   sv: Ange den 6-teckens PIN som visas på din andra enhet.
   he: הזן את ה-PIN בן 6 התווים המוצג במכשיר האחר שלך.
 
+  verified_by_human: []
 pair_pin_placeholder:
   context: Placeholder for the PIN input field
   en: "ABC123"
@@ -1526,6 +1663,7 @@ pair_pin_placeholder:
   sv: "ABC123"
   he: "ABC123"
 
+  verified_by_human: []
 pair_login:
   context: Button to complete login after entering PIN
   en: Log in
@@ -1550,6 +1688,7 @@ pair_login:
   sv: Logga in
   he: התחבר
 
+  verified_by_human: []
 pair_logging_in:
   context: Button state while login is in progress
   en: Logging in…
@@ -1574,6 +1713,7 @@ pair_logging_in:
   sv: Loggar in…
   he: מתחבר…
 
+  verified_by_human: []
 pair_pin_error:
   context: Error when the PIN is incorrect
   en: Incorrect PIN. {n} attempt(s) remaining.
@@ -1598,6 +1738,7 @@ pair_pin_error:
   sv: Felaktig PIN. {n} försök kvar.
   he: PIN שגוי. נותרו {n} ניסיון/ות.
 
+  verified_by_human: []
 pair_pin_locked:
   context: Error when too many wrong PIN attempts have been made
   en: Too many incorrect attempts. This pair code is now invalid.
@@ -1626,6 +1767,7 @@ pair_pin_locked:
 # Magic Pair Login — Restricted session banner
 # ---------------------------------------------------------------------------
 
+  verified_by_human: []
 pair_restricted_banner:
   context: Banner shown at the top of the screen during a restricted pair session
   en: Restricted session — logged in from {device}
@@ -1650,6 +1792,7 @@ pair_restricted_banner:
   sv: Begränsad session — inloggad från {device}
   he: סשן מוגבל — מחובר מ-{device}
 
+  verified_by_human: []
 pair_restricted_banner_no_device:
   context: Banner shown when the authorizer device name is not available
   en: Restricted session
@@ -1674,6 +1817,7 @@ pair_restricted_banner_no_device:
   sv: Begränsad session
   he: סשן מוגבל
 
+  verified_by_human: []
 pair_restricted_auto_logout:
   context: Timer shown in the restricted session banner (auto-logout countdown)
   en: Auto-logout in {time}
@@ -1702,6 +1846,7 @@ pair_restricted_auto_logout:
 # Magic Pair Login — "Log in from another device" entry point
 # ---------------------------------------------------------------------------
 
+  verified_by_human: []
 pair_login_from_device_title:
   context: Title for the entry point on the Sessions page and Login page
   en: Log In from Another Device
@@ -1726,6 +1871,7 @@ pair_login_from_device_title:
   sv: Logga in från en annan enhet
   he: התחבר ממכשיר אחר
 
+  verified_by_human: []
 pair_login_from_device_description:
   context: Short description for the entry point
   en: Use a QR code or short code to log in without a password.
@@ -1750,6 +1896,7 @@ pair_login_from_device_description:
   sv: Använd en QR-kod eller kort kod för att logga in utan lösenord.
   he: השתמש בקוד QR או בקוד קצר כדי להתחבר ללא סיסמה.
 
+  verified_by_human: []
 pair_login_from_device_button:
   context: Button label to start the pair login flow
   en: Set up code
@@ -1773,3 +1920,4 @@ pair_login_from_device_button:
   cs: Nastavit kód
   sv: Konfigurera kod
   he: הגדר קוד
+  verified_by_human: []

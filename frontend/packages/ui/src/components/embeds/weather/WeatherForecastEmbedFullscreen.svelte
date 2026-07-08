@@ -11,6 +11,7 @@
   import WeatherDayEmbedFullscreen from './WeatherDayEmbedFullscreen.svelte';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
+  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   interface WeatherDayResult {
     embed_id: string;
@@ -60,7 +61,7 @@
   });
   let provider = $derived(typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Weather');
   let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
-  let legacyResults = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
+  let legacyResults = $derived(extractSearchResultsFromContent(data.decodedContent));
 
 
   function transformToWeatherDay(embedId: string, content: Record<string, unknown>): WeatherDayResult {

@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, urlparse
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+import httpx
 import pytest
 
 
@@ -161,6 +162,51 @@ async def test_google_oauth_credentials_ignore_env_values(monkeypatch) -> None:
         "vault-client-id",
         "vault-client-secret",
     )
+
+
+@pytest.mark.anyio
+async def test_google_refresh_token_exchange_maps_provider_error(monkeypatch, caplog) -> None:
+    from backend.shared.providers.google_calendar import oauth
+
+    class FakeAsyncClient:
+        def __init__(self, timeout: float) -> None:
+            self.timeout = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, traceback) -> None:
+            return None
+
+        async def post(self, url: str, data: dict[str, str]) -> httpx.Response:
+            assert url == oauth.GOOGLE_OAUTH_TOKEN_URL
+            assert data["client_secret"] == "vault-client-secret"
+            return httpx.Response(
+                400,
+                json={
+                    "error": "invalid_grant",
+                    "error_description": "Token has been expired or revoked.",
+                },
+                request=httpx.Request("POST", url),
+            )
+
+    async def fake_get_google_oauth_credentials():
+        return "vault-client-id", "vault-client-secret"
+
+    monkeypatch.setattr(oauth, "get_google_oauth_credentials", fake_get_google_oauth_credentials)
+    monkeypatch.setattr(oauth.httpx, "AsyncClient", FakeAsyncClient)
+
+    with caplog.at_level("WARNING"), pytest.raises(oauth.GoogleOAuthTokenExchangeError) as exc_info:
+        await oauth.exchange_google_refresh_token(
+            "secret-refresh-token",
+            {"connected_account_id": "acct-1", "action": "read"},
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.provider_error == "invalid_grant"
+    assert "secret-refresh-token" not in str(exc_info.value)
+    assert "invalid_grant" in caplog.text
+    assert "secret-refresh-token" not in caplog.text
 
 
 def test_google_calendar_start_uses_events_scope_for_write_or_delete(monkeypatch) -> None:

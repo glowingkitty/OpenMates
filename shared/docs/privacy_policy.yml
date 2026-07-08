@@ -617,6 +617,26 @@ provider_groups:
           - Note: Transmitted via Webshare proxy without user identifiers
 
   # =====================================================================
+  # Group I2 — Fitness. Only used when you invoke the fitness Urban Sports
+  # location or class search skills.
+  # =====================================================================
+  fitness:
+    description: >
+      This provider is only used when you invoke the fitness app's Urban Sports
+      location or class search skills. We query public logged-out discovery pages
+      and do not send OpenMates user identifiers or Urban Sports credentials.
+    providers:
+      urban_sports_club:
+        privacy_policy: https://urbansportsclub.com/en/privacy-policy
+        location: EU
+        used_for:
+          - fitness location search through Urban Sports Club public listings
+          - fitness class availability search through Urban Sports Club public listings
+        data_shared:
+          - Fitness search queries, city, address or coordinates, radius, dates, and plan filters
+          - Note: Shared without user identifiers
+
+  # =====================================================================
   # Group J — Shopping. Only used when you invoke the shopping skill.
   # =====================================================================
   shopping:

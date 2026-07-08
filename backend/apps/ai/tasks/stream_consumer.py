@@ -2726,6 +2726,21 @@ APPLICATION_PREVIEW_DEFAULT_VITE_CONFIG = (
 
 INTERACTIVE_QUESTION_FALLBACK_TEXT = "Failed to display question."
 INTERACTIVE_QUESTION_TYPES = {"choice", "input", "slider", "swipe", "rating"}
+EMBED_REFERENCE_FENCE_PATTERN = re.compile(
+    r'```(?:json|json_embed)\s*\n\s*(\{[^`]*?"embed_id"\s*:\s*"([^"]+)"[^`]*?\})\s*\n```',
+    re.DOTALL,
+)
+EMBED_ID_UUID_PATTERN = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
+
+
+def _has_valid_embed_ids(value: Any) -> bool:
+    if value is None:
+        return True
+    if not isinstance(value, list):
+        return False
+    return all(isinstance(embed_id, str) and bool(embed_id.strip()) for embed_id in value)
 
 
 def _learning_mode_context(request_data: AskSkillRequest) -> Dict[str, Any]:
@@ -2822,6 +2837,11 @@ def _is_valid_interactive_question_payload(payload: Any) -> bool:
         options = payload.get("options")
         if not isinstance(options, list) or len(options) == 0:
             return False
+        for option in options:
+            if not isinstance(option, dict):
+                return False
+            if not _has_valid_embed_ids(option.get("embed_ids")):
+                return False
         custom_option_id = payload.get("custom_option_id")
         if custom_option_id is not None:
             if not isinstance(custom_option_id, str) or not custom_option_id.strip():
@@ -2842,12 +2862,85 @@ def _is_valid_interactive_question_payload(payload: Any) -> bool:
         return payload.get("min") is not None and payload.get("max") is not None
     if question_type == "swipe":
         cards = payload.get("cards")
-        return isinstance(cards, list) and len(cards) > 0
+        if not isinstance(cards, list) or len(cards) == 0:
+            return False
+        return all(isinstance(card, dict) and _has_valid_embed_ids(card.get("embed_ids")) for card in cards)
     if question_type == "rating":
         if not isinstance(payload.get("question"), str) or not payload["question"].strip():
             return False
         return payload.get("max") is not None or payload.get("scale") is not None
     return False
+
+
+def _extract_standalone_embed_ids(text: str) -> list[str]:
+    embed_ids: list[str] = []
+    for match in EMBED_REFERENCE_FENCE_PATTERN.finditer(text):
+        try:
+            reference = json.loads(match.group(1))
+        except json.JSONDecodeError:
+            continue
+        embed_id = reference.get("embed_id")
+        if isinstance(embed_id, str) and embed_id.strip():
+            embed_ids.append(embed_id)
+    return embed_ids
+
+
+def _has_uuid_embed_ids(value: Any) -> bool:
+    return (
+        isinstance(value, list)
+        and len(value) > 0
+        and all(
+            isinstance(embed_id, str) and EMBED_ID_UUID_PATTERN.match(embed_id)
+            for embed_id in value
+        )
+    )
+
+
+def _attach_preceding_embed_ids_to_interactive_question(
+    payload: Dict[str, Any],
+    preceding_text: str,
+) -> tuple[Dict[str, Any], bool]:
+    question_type = payload.get("type")
+    if question_type not in {"choice", "swipe"}:
+        return payload, False
+
+    embed_ids = _extract_standalone_embed_ids(preceding_text)
+    if not embed_ids:
+        return payload, False
+    if not all(EMBED_ID_UUID_PATTERN.match(embed_id) for embed_id in embed_ids):
+        return payload, False
+
+    item_key = "options" if question_type == "choice" else "cards"
+    items = payload.get(item_key)
+    if not isinstance(items, list):
+        return payload, False
+
+    custom_option_id = payload.get("custom_option_id") if question_type == "choice" else None
+    repairable_items = [
+        item
+        for item in items
+        if isinstance(item, dict)
+        and item.get("id") != custom_option_id
+    ]
+    if len(repairable_items) != len(embed_ids):
+        return payload, False
+
+    needs_repair = False
+    for item, embed_id in zip(repairable_items, embed_ids):
+        current_embed_ids = item.get("embed_ids")
+        if current_embed_ids == [embed_id]:
+            continue
+        if _has_uuid_embed_ids(current_embed_ids):
+            return payload, False
+        needs_repair = True
+
+    if not needs_repair:
+        return payload, False
+
+    for item, embed_id in zip(repairable_items, embed_ids):
+        if item.get("embed_ids") != [embed_id]:
+            item["embed_ids"] = [embed_id]
+    return payload, True
 
 
 def _is_inside_open_interactive_question(text: str) -> bool:
@@ -2917,7 +3010,17 @@ def _finalize_interactive_question_protocol(text: str) -> str:
                 is_valid = False
 
         if is_valid:
-            output.extend(lines[start:index + 1])
+            payload, repaired = _attach_preceding_embed_ids_to_interactive_question(
+                payload,
+                "".join(output),
+            )
+            if repaired and _is_valid_interactive_question_payload(payload):
+                output.append("```interactive_question\n")
+                output.append(json.dumps(payload, indent=2, ensure_ascii=False))
+                output.append("\n```\n")
+                changed = True
+            else:
+                output.extend(lines[start:index + 1])
             index += 1
             continue
 
@@ -7460,22 +7563,26 @@ async def _consume_main_processing_stream(
     # We don't save anything to cache or publish any Redis messages in this case
     if awaiting_app_settings_memories_permission:
         logger.info(f"{log_prefix} Task completing without response - awaiting user permission for app settings/memories. No final marker will be sent.")
+        debug_metadata["user_task_blocked_reason_code"] = "permission_required"
         # Return early - no message processing needed
         # The client will receive the permission request via WebSocket and show the dialog
         return "", False, False, [], debug_metadata
 
     if awaiting_connected_account_permission:
         logger.info(f"{log_prefix} Task completing without response - awaiting user permission for connected account. No final marker will be sent.")
+        debug_metadata["user_task_blocked_reason_code"] = "connected_account_required"
         return "", False, False, [], debug_metadata
         
     # Handle paused execution cases: waiting for sub-chats or user input
     # The client handles the paused state without finalizing the current message
     if awaiting_user_input:
         logger.info(f"{log_prefix} Task completing without response - awaiting user input. No final marker will be sent.")
+        debug_metadata["user_task_blocked_reason_code"] = "user_input_required"
         return "", False, False, [], debug_metadata
 
     if awaiting_sub_chat_confirmation:
         logger.info(f"{log_prefix} Task completing without response - awaiting sub-chat confirmation. No final marker will be sent.")
+        debug_metadata["user_task_blocked_reason_code"] = "sub_chat_confirmation_required"
         return "", False, False, [], debug_metadata
 
     if awaiting_sub_chats_completion and not aggregated_response:

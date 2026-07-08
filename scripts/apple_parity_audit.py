@@ -28,7 +28,19 @@ GET_BY_TEST_ID_RE = re.compile(r"getByTestId\(\s*['\"]([^'\"]+)['\"]\s*\)")
 DATA_TEST_ID_RE = re.compile(r"data-testid\s*=\s*['\"]([^'\"]+)['\"]")
 LOCATOR_DATA_TEST_ID_RE = re.compile(r"\[data-testid=['\"]([^'\"]+)['\"]\]")
 ACCESSIBILITY_ID_RE = re.compile(r"accessibilityIdentifier\(\s*\"([^\"]+)\"\s*\)")
+ACCESSIBILITY_HELP_RE = re.compile(r"\.help\s*\(")
+ACCESSIBILITY_LABEL_RE = re.compile(r"\.accessibilityLabel\s*\(")
 MARKDOWN_PATH_RE = re.compile(r"`([^`]+\.(?:svelte|css|ts|swift))`")
+
+HELP_AUDIT_ROOTS = (
+    APPLE_SOURCE_ROOT / "App",
+    APPLE_SOURCE_ROOT / "Features",
+    APPLE_SOURCE_ROOT / "Shared" / "Components",
+    APPLE_SOURCE_ROOT / "Shared" / "Extensions",
+)
+HELP_HELPER_PATHS = {
+    APPLE_SOURCE_ROOT / "Shared" / "Extensions" / "AccessibilityModifiers.swift",
+}
 
 
 def read_text(path: Path) -> str:
@@ -63,6 +75,59 @@ def extract_apple_accessibility_ids() -> dict[str, list[str]]:
         if ids:
             by_file[repo_path(path)] = unique_sorted(ids)
     return by_file
+
+
+def extract_apple_help_usage() -> dict[str, list[int]]:
+    by_file: dict[str, list[int]] = {}
+    for root in HELP_AUDIT_ROOTS:
+        for path in sorted(root.rglob("*.swift")):
+            lines = read_text(path).splitlines()
+            help_lines = [index for index, line in enumerate(lines, start=1) if ACCESSIBILITY_HELP_RE.search(line)]
+            if help_lines:
+                by_file[repo_path(path)] = help_lines
+    return by_file
+
+
+def extract_apple_missing_help_candidates() -> list[dict[str, object]]:
+    candidates: list[dict[str, object]] = []
+    for root in HELP_AUDIT_ROOTS:
+        for path in sorted(root.rglob("*.swift")):
+            if path in HELP_HELPER_PATHS:
+                continue
+            lines = read_text(path).splitlines()
+            for index, line in enumerate(lines):
+                if not ACCESSIBILITY_LABEL_RE.search(line):
+                    continue
+
+                start = max(0, index - 8)
+                modifier_end = min(len(lines), index + 4)
+                help_window = "\n".join(lines[start:modifier_end])
+                interactive_window = "\n".join(lines[start : index + 1])
+                if (
+                    ".help(" in help_window
+                    or ".accessibleButton(" in help_window
+                    or ".accessibleToggle(" in help_window
+                    or ".accessibleEmbed(" in help_window
+                ):
+                    continue
+
+                interactive = (
+                    "Button" in interactive_window
+                    or ".buttonStyle" in interactive_window
+                    or ".accessibilityAddTraits(.isButton)" in interactive_window
+                    or ".accessibilityAddTraits(.isToggle)" in interactive_window
+                )
+                if not interactive:
+                    continue
+
+                candidates.append(
+                    {
+                        "file": repo_path(path),
+                        "line": index + 1,
+                        "source": line.strip(),
+                    }
+                )
+    return candidates
 
 
 def extract_counterpart_paths() -> dict[str, object]:
@@ -102,6 +167,8 @@ def build_inventory() -> dict[str, object]:
     web_ids = flatten_values(web_ids_by_file)
     apple_ids = flatten_values(apple_ids_by_file)
     shared_ids = sorted(set(web_ids) & set(apple_ids))
+    apple_help_usage = extract_apple_help_usage()
+    apple_missing_help_candidates = extract_apple_missing_help_candidates()
 
     web_components = sorted((REPO_ROOT / "frontend" / "packages" / "ui" / "src" / "components").rglob("*.svelte"))
     web_routes = sorted((REPO_ROOT / "frontend" / "apps" / "web_app" / "src" / "routes").rglob("*.svelte"))
@@ -117,6 +184,8 @@ def build_inventory() -> dict[str, object]:
             "apple_feature_swift_files": len(apple_feature_swift),
             "apple_app_swift_files": len(apple_app_swift),
             "apple_unique_accessibility_ids": len(apple_ids),
+            "apple_accessibility_help_calls": sum(len(lines) for lines in apple_help_usage.values()),
+            "apple_missing_help_candidates": len(apple_missing_help_candidates),
             "shared_ids": len(shared_ids),
         },
         "web_test_ids": {
@@ -126,6 +195,10 @@ def build_inventory() -> dict[str, object]:
         "apple_accessibility_ids": {
             "all": apple_ids,
             "by_file": apple_ids_by_file,
+        },
+        "apple_accessibility_help": {
+            "by_file": apple_help_usage,
+            "missing_candidates": apple_missing_help_candidates,
         },
         "shared_ids": shared_ids,
         "web_ids_missing_on_apple": sorted(set(web_ids) - set(apple_ids)),
@@ -143,9 +216,20 @@ def main() -> int:
         help=f"Output JSON path (default: {DEFAULT_OUTPUT.relative_to(REPO_ROOT)})",
     )
     parser.add_argument("--check", action="store_true", help="Do not write; fail if output is stale or missing.")
+    parser.add_argument("--audit-help", action="store_true", help="Fail if interactive Apple controls with accessibility labels lack .help(...).")
     args = parser.parse_args()
 
     inventory = build_inventory()
+    if args.audit_help:
+        candidates = inventory["apple_accessibility_help"]["missing_candidates"]  # type: ignore[index]
+        if candidates:
+            print("Apple accessibility help audit failed:")
+            for candidate in candidates:
+                print(f"- {candidate['file']}:{candidate['line']} {candidate['source']}")
+            return 1
+        print("Apple accessibility help audit passed")
+        return 0
+
     serialized = json.dumps(inventory, indent=2, sort_keys=True) + "\n"
     output = args.output if args.output.is_absolute() else REPO_ROOT / args.output
 

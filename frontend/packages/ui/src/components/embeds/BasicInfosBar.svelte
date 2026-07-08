@@ -22,6 +22,7 @@
   import { text } from '@repo/ui';
   import { handleImageError } from '../../utils/offlineImageHandler';
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../utils/imageProxy';
+  import { resolveIconName } from '../../utils/iconNameResolver';
   
   /**
    * Props interface for basic info bar
@@ -189,8 +190,12 @@
   
   // Compute app gradient style using CSS variables from theme.css
   let appGradientStyle = $derived(`background: var(--color-app-${appId});`);
-  let safeAppIconName = $derived(normalizeIconName(appIconName));
+  let safeAppIconName = $derived(normalizeIconName(appIconName ? resolveIconName(appIconName) : undefined));
   let appIconStyle = $derived(safeAppIconName ? `--embed-app-icon-url: var(--icon-url-${safeAppIconName});` : '');
+  let fallbackAppIconName = $derived(normalizeIconName(resolveIconName(appId)));
+  let fallbackAppIconStyle = $derived(fallbackAppIconName ? `--embed-app-icon-url: var(--icon-url-${fallbackAppIconName});` : '');
+  let safeSkillIconName = $derived(normalizeIconName(resolveIconName(skillIconName)));
+  let skillIconStyle = $derived(safeSkillIconName ? `--embed-skill-icon-url: var(--icon-url-${safeSkillIconName});` : '');
   
   // Handle stop button click - prevent event propagation
   function handleStopClick(e: MouseEvent) {
@@ -219,7 +224,7 @@
         {#if safeAppIconName}
           <div class="app-icon-mask" style={appIconStyle} data-testid="embed-app-icon-mask"></div>
         {:else}
-          <div class="icon_rounded {appId}"></div>
+          <div class="icon_rounded {appId}" style={fallbackAppIconStyle}></div>
         {/if}
       </div>
     {/if}
@@ -227,7 +232,7 @@
     <!-- Skill icon (centered) - only show for app skills -->
     {#if showSkillIcon}
       <div class="skill-icon-container">
-        <div class="skill-icon" data-skill-icon={skillIconName}></div>
+        <div class="skill-icon" data-skill-icon={skillIconName} style={skillIconStyle}></div>
       </div>
     {/if}
     
@@ -266,13 +271,13 @@
       {#if safeAppIconName}
         <div class="app-icon-mask" style={appIconStyle} data-testid="embed-app-icon-mask"></div>
       {:else}
-        <div class="icon_rounded {appId}"></div>
+        <div class="icon_rounded {appId}" style={fallbackAppIconStyle}></div>
       {/if}
     </div>
     
     <!-- Skill icon (29x29px) - only show for app skills -->
     {#if showSkillIcon}
-      <div class="skill-icon" data-skill-icon={skillIconName}></div>
+      <div class="skill-icon" data-skill-icon={skillIconName} style={skillIconStyle}></div>
     {/if}
     
     <!-- Status text with optional favicon next to title -->
@@ -391,6 +396,7 @@
   }
   
   .basic-infos-bar.desktop .app-icon-circle .icon_rounded::after {
+    background-image: var(--embed-app-icon-url, none);
     filter: brightness(0) invert(1);
   }
 
@@ -433,6 +439,8 @@
     width: 29px;
     height: 29px;
     background-color: var(--color-grey-70);
+    -webkit-mask-image: var(--embed-skill-icon-url, none);
+    mask-image: var(--embed-skill-icon-url, none);
     -webkit-mask-position: center;
     mask-position: center;
     -webkit-mask-repeat: no-repeat;
@@ -803,6 +811,7 @@
   }
   
   .basic-infos-bar.mobile .app-icon-container .icon_rounded::after {
+    background-image: var(--embed-app-icon-url, none);
     background-size: 16px 16px;
     filter: brightness(0) invert(1);
   }
@@ -831,6 +840,8 @@
     width: 29px;
     height: 29px;
     background-color: var(--color-grey-70);
+    -webkit-mask-image: var(--embed-skill-icon-url, none);
+    mask-image: var(--embed-skill-icon-url, none);
     -webkit-mask-position: center;
     mask-position: center;
     -webkit-mask-repeat: no-repeat;

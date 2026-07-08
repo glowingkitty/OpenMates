@@ -34,9 +34,18 @@ type ContractStateDefinition = {
 const STYLE_PROPERTIES = [
 	'display',
 	'position',
+	'width',
+	'min-width',
+	'max-width',
+	'height',
+	'min-height',
 	'align-items',
 	'justify-content',
 	'gap',
+	'margin-top',
+	'margin-right',
+	'margin-bottom',
+	'margin-left',
 	'padding-top',
 	'padding-right',
 	'padding-bottom',
@@ -50,6 +59,29 @@ const STYLE_PROPERTIES = [
 	'line-height',
 	'box-shadow',
 	'opacity'
+];
+
+const COMPOSER_EMBED_STYLE_PROPERTIES = [
+	'display',
+	'position',
+	'width',
+	'min-width',
+	'max-width',
+	'height',
+	'min-height',
+	'margin-top',
+	'margin-right',
+	'margin-bottom',
+	'margin-left',
+	'padding-top',
+	'padding-right',
+	'padding-bottom',
+	'padding-left',
+	'border-radius',
+	'background-color',
+	'box-shadow',
+	'overflow',
+	'vertical-align'
 ];
 
 async function waitForStableBox(page: any, locator: any): Promise<void> {
@@ -168,8 +200,92 @@ function writeContractArtifact(contract: any, filename = `${contract.surface}.js
 	return outputPath;
 }
 
+async function captureComposerEmbedContract(
+	page: any,
+	options: { id: string; embedType?: string; screenshot?: boolean }
+): Promise<any> {
+	const editor = page.getByTestId('message-editor').last();
+	const wrapperSelector = options.embedType
+		? `[data-testid="embed-full-width-wrapper"][data-embed-type="${options.embedType}"]`
+		: '[data-testid="embed-full-width-wrapper"]';
+	const wrapper = editor.locator(wrapperSelector).first();
+	await waitForStableBox(page, wrapper);
+
+	const capture = await wrapper.evaluate((element: HTMLElement, styleProperties: string[]) => {
+		const editorElement = element.closest('[data-testid="message-editor"]');
+		const messageField = element.closest('[data-testid="message-field"]');
+		const container = Array.from(element.children).find((child): child is HTMLElement => {
+			return child instanceof HTMLElement && child.dataset.embedType === element.dataset.embedType;
+		});
+		const captureStyle = (target: HTMLElement | null) => {
+			if (!target) return null;
+			const computed = window.getComputedStyle(target);
+			const style: Record<string, string> = {};
+			for (const property of styleProperties) {
+				style[property] = computed.getPropertyValue(property);
+			}
+			return style;
+		};
+		const rectToObject = (rect: DOMRect) => ({
+			x: Math.round(rect.x * 100) / 100,
+			y: Math.round(rect.y * 100) / 100,
+			width: Math.round(rect.width * 100) / 100,
+			height: Math.round(rect.height * 100) / 100
+		});
+
+		return {
+			embedType: element.dataset.embedType ?? null,
+			insideMessageEditor: Boolean(editorElement),
+			insideMessageField: Boolean(messageField),
+			wrapper: {
+				tagName: element.tagName.toLowerCase(),
+				classList: Array.from(element.classList).sort(),
+				style: captureStyle(element),
+				boundingBox: rectToObject(element.getBoundingClientRect())
+			},
+			container: container ? {
+				tagName: container.tagName.toLowerCase(),
+				classList: Array.from(container.classList).sort(),
+				style: captureStyle(container),
+				boundingBox: rectToObject(container.getBoundingClientRect())
+			} : null,
+			editor: editorElement ? {
+				classList: Array.from(editorElement.classList).sort(),
+				boundingBox: rectToObject(editorElement.getBoundingClientRect())
+			} : null,
+			messageField: messageField ? {
+				classList: Array.from(messageField.classList).sort(),
+				boundingBox: rectToObject(messageField.getBoundingClientRect())
+			} : null
+		};
+	}, COMPOSER_EMBED_STYLE_PROPERTIES);
+
+	expect(capture.insideMessageEditor, `${options.id}: embed must be inside message-editor`).toBe(true);
+	expect(capture.insideMessageField, `${options.id}: embed must be inside message-field`).toBe(true);
+	expect(capture.container, `${options.id}: embed container`).not.toBeNull();
+
+	const contract = createContract('composer-pending-embed', await page.viewportSize(), [
+		{
+			id: options.id,
+			description: 'Pending composer embed rendered inside the TipTap message editor',
+			capture
+		}
+	]);
+	const outputPath = writeContractArtifact(contract, `${options.id}.json`);
+	console.log(`[APPLE_UI_CONTRACT] Saved composer pending embed contract to ${outputPath}`);
+
+	if (options.screenshot) {
+		const screenshotPath = path.join(CONTRACT_ARTIFACT_DIR, `${options.id}.png`);
+		await page.getByTestId('message-field').last().screenshot({ path: screenshotPath });
+		console.log(`[APPLE_UI_CONTRACT] Saved composer pending embed screenshot to ${screenshotPath}`);
+	}
+
+	return contract;
+}
+
 module.exports = {
 	captureContractState,
+	captureComposerEmbedContract,
 	createContract,
 	writeContractArtifact
 };

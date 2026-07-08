@@ -8,6 +8,7 @@ options:
   deploymentTarget:
     iOS: "17.0"
     macOS: "14.0"
+    watchOS: "10.0"
   xcodeVersion: "16.0"
   createIntermediateGroups: true
   defaultConfig: Debug
@@ -15,9 +16,10 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.0.0"
-    CURRENT_PROJECT_VERSION: 1
-    DEVELOPMENT_TEAM: 3QCDAKVQFU
+    MARKETING_VERSION: "0.14.0"
+    CURRENT_PROJECT_VERSION: 12
+    DEVELOPMENT_TEAM: Z9B2YFKN2X
+    CODE_SIGN_STYLE: Automatic
     SWIFT_STRICT_CONCURRENCY: complete
     ENABLE_USER_SCRIPT_SANDBOXING: true
 
@@ -72,28 +74,35 @@ targets:
         INFOPLIST_FILE: OpenMates/Resources/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app
-        CODE_SIGN_ENTITLEMENTS: OpenMates/Resources/OpenMates.entitlements
+        CODE_SIGN_ENTITLEMENTS: OpenMates/Resources/OpenMatesPasskey.entitlements
       configs:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
-          OPENMATES_DEV_WEBCREDENTIALS: webcredentials:app.dev.openmates.org?mode=developer
+          OPENMATES_DEV_WEBCREDENTIALS: webcredentials:app.dev.openmates.org
           # StoreKit testing configuration for sandbox purchases
           STOREKIT_CONFIGURATION: OpenMates/Resources/OpenMates.storekit
         Release:
           SWIFT_OPTIMIZATION_LEVEL: -Owholemodule
           OPENMATES_DEV_WEBCREDENTIALS: webcredentials:app.dev.openmates.org
     entitlements:
-      path: OpenMates/Resources/OpenMates.entitlements
+      path: OpenMates/Resources/OpenMatesPasskey.entitlements
       properties:
         keychain-access-groups:
           - $(AppIdentifierPrefix)$(CFBundleIdentifier)
           - $(AppIdentifierPrefix)org.openmates.app
         com.apple.security.application-groups:
-          - group.org.openmates.app
+          - group.org.openmates.app.shared
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.developer.associated-domains:
+          - webcredentials:openmates.org
+          - $(OPENMATES_DEV_WEBCREDENTIALS)
+          - webcredentials:app.openmates.org
     info:
       path: OpenMates/Resources/Info.plist
       properties:
         CFBundleDisplayName: OpenMates
+        CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
         CFBundleName: OpenMates
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
@@ -103,6 +112,8 @@ targets:
           - org.openmates.app.viewChat
           - org.openmates.app.composeChat
           - org.openmates.app.browseChats
+        NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
+        ITSAppUsesNonExemptEncryption: false
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -128,6 +139,94 @@ targets:
         platforms: [macOS]
       - target: OpenMatesWidget
         platforms: [iOS]
+      - target: OpenMatesWatch
+        platforms: [iOS]
+        embed: true
+
+  # Independent watchOS app — starts with standalone target plumbing; auth/chat UI lands in later spec tasks.
+  OpenMatesWatch:
+    type: application
+    platform: watchOS
+    deploymentTarget: "10.0"
+    sources:
+      - path: OpenMatesWatch/Sources
+      - path: OpenMates/Sources/Core/Models/AuthError.swift
+      - path: OpenMates/Sources/Core/Models/AuthModels.swift
+      - path: OpenMates/Sources/Core/Crypto/CryptoManager.swift
+      - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
+      - path: OpenMates/Sources/Core/Models/EmbedModels.swift
+      - path: OpenMates/Sources/Core/Networking/APIClient.swift
+      - path: OpenMates/Sources/Core/Networking/ServerConfiguration.swift
+      - path: OpenMates/Sources/Core/Watch/WatchChatRuntime.swift
+      - path: OpenMates/Sources/Core/Watch/WatchEmbedPreviewModel.swift
+      - path: OpenMates/Sources/Features/Auth/ViewModels/PairLoginRuntime.swift
+      - path: OpenMates/Sources/Shared/Extensions/AnyCodable.swift
+      - path: OpenMates/Sources/Shared/Extensions/DataExtensions.swift
+      - path: OpenMatesShared/OpenMatesSharedEnvironment.swift
+      - path: ../frontend/packages/ui/src/tokens/generated/swift/ColorTokens.generated.swift
+        name: ColorTokens.generated.swift
+      - path: ../frontend/packages/ui/src/tokens/generated/swift/GradientTokens.generated.swift
+        name: GradientTokens.generated.swift
+      - path: ../frontend/packages/ui/src/tokens/generated/swift/SpacingTokens.generated.swift
+        name: SpacingTokens.generated.swift
+      - path: ../frontend/packages/ui/src/tokens/generated/swift/TypographyTokens.generated.swift
+        name: TypographyTokens.generated.swift
+    resources:
+      - path: OpenMatesWatch/Assets.xcassets
+      - path: ../frontend/packages/ui/src/tokens/generated/swift/Assets.xcassets
+      - path: OpenMates/Resources/Fonts
+        buildPhase: resources
+        name: Fonts
+        type: folder
+      - path: ../frontend/packages/ui/src/i18n/locales
+        buildPhase: resources
+        name: i18n
+        type: folder
+    settings:
+      base:
+        ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: WatchAppIcon
+        CODE_SIGN_ENTITLEMENTS: OpenMatesWatch/OpenMatesWatch.entitlements
+        GENERATE_PKGINFO_FILE: YES
+        INFOPLIST_FILE: OpenMatesWatch/Info.plist
+        PRIVATE_HEADERS_FOLDER_PATH: $(CONTENTS_FOLDER_PATH)/PrivateHeaders
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.watch
+        PRODUCT_NAME: OpenMatesWatch
+        SDKROOT: watchos
+        SKIP_INSTALL: YES
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "4"
+        WRAPPER_EXTENSION: app
+      configs:
+        Debug:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+        Release:
+          SWIFT_OPTIMIZATION_LEVEL: -Owholemodule
+    entitlements:
+      path: OpenMatesWatch/OpenMatesWatch.entitlements
+    info:
+      path: OpenMatesWatch/Info.plist
+      properties:
+        CFBundleIconFiles:
+          - WatchAppIcon
+        CFBundleDisplayName: OpenMates
+        CFBundleExecutable: $(EXECUTABLE_NAME)
+        CFBundleName: OpenMates
+        CFBundlePackageType: APPL
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        WKCompanionAppBundleIdentifier: org.openmates.app
+        WKApplication: true
+        WKRunsIndependentlyOfCompanionApp: true
+        ITSAppUsesNonExemptEncryption: false
+        NSMicrophoneUsageDescription: OpenMates uses the microphone to record voice messages you choose to send in chat.
+        UIAppFonts:
+          - LexendDeca-Light.ttf
+          - LexendDeca-Regular.ttf
+          - LexendDeca-Medium.ttf
+          - LexendDeca-SemiBold.ttf
+          - LexendDeca-Bold.ttf
+          - LexendDeca-ExtraBold.ttf
 
   # Share extension — share URLs, text, and images from other apps into OpenMates chats
   OpenMatesShareExtension:
@@ -153,7 +252,7 @@ targets:
           - $(AppIdentifierPrefix)$(CFBundleIdentifier)
           - $(AppIdentifierPrefix)org.openmates.app
         com.apple.security.application-groups:
-          - group.org.openmates.app
+          - group.org.openmates.app.shared
 
   # macOS share extension — share URLs and text from Mac apps into OpenMates chats
   OpenMatesShareExtension_macOS:
@@ -169,7 +268,7 @@ targets:
     settings:
       base:
         INFOPLIST_FILE: OpenMatesShareExtensionMacOS/Info.plist
-        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.share-macos
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.sharemacos
         CODE_SIGN_ENTITLEMENTS: OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements
         SWIFT_VERSION: "6.0"
     entitlements:
@@ -179,7 +278,7 @@ targets:
           - $(AppIdentifierPrefix)$(CFBundleIdentifier)
           - $(AppIdentifierPrefix)org.openmates.app
         com.apple.security.application-groups:
-          - group.org.openmates.app
+          - group.org.openmates.app.shared
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
   # WidgetKit extension — Daily Inspiration home screen widget
@@ -202,7 +301,7 @@ targets:
           - $(AppIdentifierPrefix)$(CFBundleIdentifier)
           - $(AppIdentifierPrefix)org.openmates.app
         com.apple.security.application-groups:
-          - group.org.openmates.app
+          - group.org.openmates.app.shared
 
   OpenMatesUITests:
     type: bundle.ui-testing
@@ -244,3 +343,7 @@ schemes:
       targets:
         - OpenMatesTests
         - OpenMatesUITests
+  OpenMatesWatch:
+    build:
+      targets:
+        OpenMatesWatch: all

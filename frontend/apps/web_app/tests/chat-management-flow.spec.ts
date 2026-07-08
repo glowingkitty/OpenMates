@@ -60,6 +60,14 @@ test.afterEach(async ({}, testInfo: any) => {
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+async function waitForChatSettled(page: any): Promise<void> {
+	await expect(page.getByTestId('typing-indicator')).toHaveCount(0, { timeout: 60000 });
+	await expect(page.locator('[data-testid="embed-preview"][data-status="processing"]')).toHaveCount(0, {
+		timeout: 60000
+	});
+	await expect(page.locator('[data-action="stop-generation"]')).toHaveCount(0, { timeout: 60000 });
+}
+
 /**
  * Create a test chat by sending a message and waiting for AI response.
  */
@@ -88,6 +96,7 @@ async function createTestChat(
 	// Wait for AI response so the chat has content
 	const assistantResponse = page.getByTestId('message-assistant');
 	await expect(assistantResponse.last()).toBeVisible({ timeout: 45000 });
+	await waitForChatSettled(page);
 	await page.waitForTimeout(3000); // Allow title to generate
 }
 
@@ -222,7 +231,7 @@ test('marks a chat as unread showing unread badge, then marks as read removing b
 	await page.waitForTimeout(3000);
 
 	log('Creating test chat for mark-unread/read test...');
-	await createTestChat(page, 'How does a rainbow form?', log);
+	await createTestChat(page, 'Reply in one short sentence: rainbows form when light refracts in water droplets.', log);
 	await screenshot(page, 'chat-created');
 
 	await ensureSidebarOpen(page);

@@ -53,6 +53,8 @@ const MOCK_ADDRESS_LINE_1 = 'Sorauer Str. 19';
 const MOCK_POSTAL_CODE = '10997';
 const MOCK_CITY = 'Berlin';
 const MOCK_COUNTRY = 'Germany';
+const MOCK_PENDING_INVOICE_REFERENCE = 'OM-TEST-PENDING';
+const MOCK_COMPLETED_INVOICE_REFERENCE = 'OM-TEST-COMPLETED';
 
 test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view', async ({
 	page
@@ -129,6 +131,50 @@ test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view
 		});
 	});
 
+	await page.route('**/v1/payments/invoices', async (route: any) => {
+		log('Intercepted invoices request with pending and completed bank-transfer references.');
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				invoices: [
+					{
+						id: 'bt_pending_invoice_test',
+						order_id: 'bt_pending_invoice_test',
+						date: '2026-07-03',
+						amount: '10000',
+						credits_purchased: 110000,
+						filename: '',
+						is_gift_card: false,
+						refunded_at: null,
+						refund_status: null,
+						currency: 'eur',
+						provider: 'bank_transfer',
+						bank_transfer_reference: MOCK_PENDING_INVOICE_REFERENCE,
+						transaction_status: 'pending',
+						document_status: 'pending_bank_transfer',
+					},
+					{
+						id: 'invoice_completed_bank_transfer_test',
+						order_id: 'bt_completed_invoice_test',
+						date: '2026-07-02',
+						amount: '2000',
+						credits_purchased: 21000,
+						filename: 'Invoice_2026_07_02.pdf',
+						is_gift_card: false,
+						refunded_at: null,
+						refund_status: 'none',
+						currency: 'eur',
+						provider: 'bank_transfer',
+						bank_transfer_reference: MOCK_COMPLETED_INVOICE_REFERENCE,
+						transaction_status: 'completed',
+						document_status: 'ready',
+					},
+				],
+			}),
+		});
+	});
+
 	await loginToTestAccount(page, log, screenshot);
 	await page.waitForTimeout(4000);
 
@@ -184,6 +230,44 @@ test('settings buy credits: 110k EUR-only tier auto-routes to bank transfer view
 	// No back button — SEPA-only tier can't switch to card
 	await expect(page.getByTestId('bank-transfer-back')).not.toBeVisible();
 	log('No back button shown (correct for bank-transfer-only tier).');
+
+	await page.getByTestId('icon-button-close').click();
+	await expect(page.locator('[data-testid="settings-menu"].visible')).not.toBeVisible({ timeout: 5000 });
+	log('Closed settings after verifying bank-transfer details.');
+
+	await profileContainer.click();
+	const reopenedSettingsMenu = page.locator('[data-testid="settings-menu"].visible');
+	await expect(reopenedSettingsMenu).toBeVisible({ timeout: 8000 });
+
+	const billingAfterReopen = reopenedSettingsMenu
+		.locator('[data-testid="menu-item"][role="menuitem"]')
+		.filter({ hasText: /billing/i });
+	await expect(billingAfterReopen).toBeVisible({ timeout: 10000 });
+	await billingAfterReopen.click();
+
+	const invoicesItem = page
+		.locator('[data-testid="settings-menu"].visible')
+		.locator('[data-testid="menu-item"][role="menuitem"]')
+		.filter({ hasText: /invoices/i });
+	await expect(invoicesItem).toBeVisible({ timeout: 10000 });
+	await invoicesItem.click();
+	await screenshot(page, '05-invoices-page-bank-transfer-references');
+
+	const invoiceReferences = page.getByTestId('invoice-bank-transfer-reference');
+	await expect(invoiceReferences.filter({ hasText: MOCK_PENDING_INVOICE_REFERENCE })).toBeVisible({
+		timeout: 10000,
+	});
+	await expect(invoiceReferences.filter({ hasText: MOCK_COMPLETED_INVOICE_REFERENCE })).toBeVisible({
+		timeout: 10000,
+	});
+	await expect(page.getByTestId('invoice-bank-transfer-status').filter({ hasText: /pending bank transfer/i })).toBeVisible({
+		timeout: 5000,
+	});
+	await expect(page.getByTestId('invoice-bank-transfer-status').filter({ hasText: /bank transfer completed/i })).toBeVisible({
+		timeout: 5000,
+	});
+	await expect(page.getByTestId('invoice-bank-transfer-pending')).toBeVisible({ timeout: 5000 });
+	log('Pending and completed bank-transfer OM references are visible in Billing > Invoices.');
 
 	log('✅ 110k EUR-only tier auto-routing test passed.');
 });

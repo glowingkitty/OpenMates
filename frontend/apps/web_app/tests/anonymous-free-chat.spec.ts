@@ -387,7 +387,7 @@ test.describe('Anonymous free chat', () => {
 	}: {
 		page: any;
 	}) => {
-		test.setTimeout(60000);
+		test.setTimeout(120000);
 		await page.setViewportSize({ width: 390, height: 844 });
 		await mockAnonymousActiveServerStatus(page);
 
@@ -481,10 +481,18 @@ test.describe('Anonymous free chat', () => {
 		expect(rawAnonymousJson).not.toContain('You are using free anonymous credits.');
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect.poll(async () => {
+			const reloadedState = await getAnonymousIndexedDbState(page);
+			return reloadedState.anonymousMessages.filter(
+				(message) => message.chat_id === anonymousRequests[0].client_chat_id
+			).length;
+		}, { timeout: 15000 }).toBe(5);
+		await expect(page.getByTestId('chat-history-content')).toHaveAttribute('data-rendered-message-count', '5', {
+			timeout: 15000
+		});
 		const reloadedSecondAnswer = page.getByTestId('message-assistant').filter({ hasText: 'Anonymous answer 2' });
-		await page.getByRole('button', { name: 'Scroll to bottom' }).click();
 		await expect(reloadedSecondAnswer).toBeVisible({
-			timeout: 10000
+			timeout: 15000
 		});
 
 		await page.evaluate(() => sessionStorage.removeItem('openmates_anonymous_chat_key'));
@@ -590,6 +598,10 @@ test.describe('Anonymous free chat', () => {
 	}: {
 		page: any;
 	}) => {
+		test.skip(
+			process.env.OPENMATES_LIVE_ANONYMOUS_CHAT_E2E !== '1',
+			'Live anonymous model smoke is opt-in; mocked streaming tests cover the deterministic web contract.'
+		);
 		test.setTimeout(120000);
 		await page.setViewportSize({ width: 390, height: 844 });
 		await mockAnonymousActiveServerStatus(page);

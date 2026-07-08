@@ -4,7 +4,7 @@ import AppIntents
 import Foundation
 
 struct HomeSearchIntent: AppIntent {
-    static let title: LocalizedStringResource = "Search Homes"
+    static let title: LocalizedStringResource = "Home | Search"
     static let description: IntentDescription = "Search for homes and real estate listings."
     static let openAppWhenRun = false
 

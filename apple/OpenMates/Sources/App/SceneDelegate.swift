@@ -21,10 +21,14 @@ import UIKit
 extension AppQuickAction {
     init?(shortcutItem: UIApplicationShortcutItem) {
         switch shortcutItem.type {
-        case "org.openmates.newchat":
-            self = .newChat
-        case "org.openmates.search":
+        case AppQuickAction.askType, AppQuickAction.legacyNewChatType:
+            self = .ask
+        case AppQuickAction.askAboutPhotoType:
+            self = .askAboutPhoto
+        case AppQuickAction.searchType:
             self = .search
+        case AppQuickAction.incognitoAskType:
+            self = .incognitoAsk
         default:
             return nil
         }

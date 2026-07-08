@@ -2,6 +2,10 @@
   /**
    * DailyInspirationBanner.svelte
    *
+   * Native Swift counterparts:
+   * - apple/OpenMates/Sources/Features/Chat/Views/DailyInspirationView.swift
+   * - apple/OpenMates/Sources/App/MainAppView.swift
+   *
    * Displays up to 3 daily inspiration banners in a carousel at the top of the
    * new chat screen (welcome screen). Each banner shows:
    *   - A gradient background (category colour from getCategoryGradientColors)
@@ -108,6 +112,7 @@
   // unique inspiration is counted toward tomorrow's replacement quota even if
   // the user never clicks it (passive view tracking).
   let viewedIds = $state(new Set<string>());
+  let pendingViewedIds = $state(new Set<string>());
 
   // Whether the banner wrapper is currently intersecting the viewport. Default
   // to true so Safari/blocked IntersectionObserver does not stall the carousel.
@@ -266,10 +271,15 @@
     if (!current) return;
     const id = current.inspiration_id;
     if (viewedIds.has(id)) return;
+    if (pendingViewedIds.has(id)) return;
 
-    // Mark before sending to prevent duplicate sends if the effect re-runs quickly
-    viewedIds = new Set([...viewedIds, id]);
-    sendViewedEvent(id);
+    pendingViewedIds = new Set([...pendingViewedIds, id]);
+    void sendViewedEvent(id).then((sent) => {
+      pendingViewedIds = new Set([...pendingViewedIds].filter((pendingId) => pendingId !== id));
+      if (sent) {
+        viewedIds = new Set([...viewedIds, id]);
+      }
+    });
   });
 
   $effect(() => {
@@ -753,16 +763,22 @@
    * and there is nothing to track server-side for them.
    * Errors are logged but never swallowed silently.
    */
-  async function sendViewedEvent(inspirationId: string) {
-    if (!get(authStore).isAuthenticated) return;
+  async function sendViewedEvent(inspirationId: string): Promise<boolean> {
+    if (!get(authStore).isAuthenticated) return true;
     try {
       const { webSocketService } = await import('../services/websocketService');
+      if (!webSocketService.isConnected()) {
+        console.debug('[DailyInspirationBanner] Skipping inspiration_viewed while WebSocket is disconnected:', inspirationId);
+        return true;
+      }
       await webSocketService.sendMessage('inspiration_viewed', {
         inspiration_id: inspirationId,
       });
       console.debug('[DailyInspirationBanner] Sent inspiration_viewed:', inspirationId);
+      return true;
     } catch (err) {
       console.error('[DailyInspirationBanner] Failed to send inspiration_viewed:', err);
+      return true;
     }
   }
 </script>
@@ -874,7 +890,7 @@
                 {:else}
                   <span class="clickable-icon icon_create banner-cta-icon"></span>
                 {/if}
-                <span class="banner-cta-text">
+                <span class="banner-cta-text" data-testid="daily-inspiration-cta-text">
                   {isFeatureInspiration
                     ? (prefersTouchCta
                       ? $text('daily_inspiration.tap_to_open_settings')
@@ -987,7 +1003,28 @@
                 data-direct-video="true"
                 onclick={handleDirectVideoClick}
               >
-                {#if infoCardImage}
+                {#if directVideoTeaserUrl || directVideoTeaserMp4Url}
+                  <span class="banner-info-video-shell">
+                    <video
+                      class="banner-info-video"
+                      data-testid="daily-inspiration-direct-video"
+                      poster={directVideoPosterUrl || undefined}
+                      autoplay
+                      muted
+                      loop
+                      playsinline
+                      preload="metadata"
+                    >
+                      {#if directVideoTeaserUrl}
+                        <source src={directVideoTeaserUrl} type="video/webm" />
+                      {/if}
+                      {#if directVideoTeaserMp4Url}
+                        <source src={directVideoTeaserMp4Url} type="video/mp4" />
+                      {/if}
+                    </video>
+                    <span class="banner-info-play" aria-hidden="true"><span></span></span>
+                  </span>
+                {:else if infoCardImage}
                   <img class="banner-info-image" src={infoCardImage} alt={infoCardTitle} />
                 {:else if InfoCardIconComponent}
                   <div class="banner-info-icon" aria-hidden="true">
@@ -1160,7 +1197,7 @@
   }
 
   .guest-intro-variant .banner-inner {
-    width: min(calc(100% - 80px), clamp(960px, 72vw, 1080px));
+    width: min(calc(100% - 80px), clamp(960px, 72vw, 1480px));
     max-width: none;
     padding: 8px 40px;
     justify-content: center;
@@ -1229,7 +1266,7 @@
   .guest-intro-copy-line {
     display: block;
     max-width: 760px;
-    font-size: clamp(2rem, 2.6vw, 4.9rem);
+    font-size: clamp(2rem, 2vw, 2.7rem);
     line-height: 1.08;
     font-weight: 700;
     letter-spacing: -0.035em;
@@ -1550,6 +1587,51 @@
     transition: transform var(--duration-fast) var(--easing-default);
   }
 
+  .banner-info-video-shell {
+    position: relative;
+    display: block;
+    width: 176px;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: var(--radius-4);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(18, 18, 18, 0.72);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.26);
+  }
+
+  .banner-info-video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+  }
+
+  .banner-info-play {
+    position: absolute;
+    inset: auto var(--spacing-3) var(--spacing-3) auto;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: rgba(245, 105, 86, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.52);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.32);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .banner-info-play span {
+    display: block;
+    width: 0;
+    height: 0;
+    margin-left: 3px;
+    border-top: 7px solid transparent;
+    border-bottom: 7px solid transparent;
+    border-left: 11px solid rgba(255, 255, 255, 0.96);
+  }
+
   .banner-info-icon {
     width: 64px;
     height: 64px;
@@ -1807,7 +1889,7 @@
     }
 
     .guest-intro-copy-line {
-      font-size: clamp(1.35rem, 6.8vw, 2.15rem);
+      font-size: clamp(0.98rem, 4.8vw, 1.42rem);
       line-height: 1.06;
     }
 
@@ -1910,6 +1992,10 @@
     .banner-info-icon {
       width: 46px;
       height: 46px;
+    }
+
+    .banner-info-video-shell {
+      width: min(100%, 140px);
     }
 
     .banner-info-text p {

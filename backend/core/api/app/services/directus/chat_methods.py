@@ -516,7 +516,12 @@ class ChatMethods:
                 is_duplicate = False
                 if isinstance(result_data, dict):
                     error_text = result_data.get('text', '')
-                    if 'RECORD_NOT_UNIQUE' in error_text or 'duplicate key' in error_text.lower():
+                    error_text_lower = error_text.lower()
+                    if (
+                        'RECORD_NOT_UNIQUE' in error_text
+                        or 'duplicate key' in error_text_lower
+                        or 'has to be unique' in error_text_lower
+                    ):
                         is_duplicate = True
                 
                 if is_duplicate and chat_id_val:

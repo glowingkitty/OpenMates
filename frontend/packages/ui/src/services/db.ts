@@ -174,7 +174,7 @@ class ChatDatabase {
     "openmates_chats_db_schema_repair_backup";
   private initializationPromise: Promise<void> | null = null;
   private catastrophicSchemaRepairAttempted = false;
-  private partialSchemaRepairAttempted = false;
+  private partialSchemaRepairInProgress = false;
 
   // Flag to prevent new operations during database deletion
   private isDeleting: boolean = false;
@@ -477,7 +477,6 @@ class ChatDatabase {
   private async deleteDatabaseForSchemaRepair(): Promise<void> {
     this.isDeleting = true;
     this.db = null;
-    this.initializationPromise = null;
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -549,8 +548,8 @@ class ChatDatabase {
 
   private async recreateDatabaseFromSnapshot(
     snapshot: RawStoreSnapshot,
-  ): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
+  ): Promise<IDBDatabase> {
+    return await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(this.DB_NAME, this.VERSION);
 
       request.onerror = () => reject(request.error);
@@ -574,8 +573,7 @@ class ChatDatabase {
         const repairedDb = request.result;
         try {
           await this.restoreRawStoreSnapshot(repairedDb, snapshot);
-          repairedDb.close();
-          resolve();
+          resolve(repairedDb);
         } catch (error) {
           repairedDb.close();
           reject(error);
@@ -588,39 +586,42 @@ class ChatDatabase {
     missingStores: string[],
   ): Promise<boolean> {
     const invalidDb = this.db;
-    if (!invalidDb || this.partialSchemaRepairAttempted) return false;
+    if (!invalidDb || this.partialSchemaRepairInProgress) return false;
 
     const existingStores = this.getExistingDataBearingStores(invalidDb);
     if (existingStores.length === 0) return false;
 
-    this.partialSchemaRepairAttempted = true;
-    console.warn(
-      `[ChatDatabase] Partial schema detected; snapshotting ${existingStores.length} store(s), recreating ${this.DB_NAME}, and restoring raw records. Missing store(s): ${missingStores.join(", ")}`,
-    );
-
-    const snapshot = await this.captureRawStoreSnapshot(invalidDb, existingStores);
-    await this.writeSchemaRepairBackup(snapshot);
+    this.partialSchemaRepairInProgress = true;
     try {
-      invalidDb.close();
-    } catch (error) {
       console.warn(
-        "[ChatDatabase] Error closing partially invalid schema connection:",
-        error,
+        `[ChatDatabase] Partial schema detected; snapshotting ${existingStores.length} store(s), recreating ${this.DB_NAME}, and restoring raw records. Missing store(s): ${missingStores.join(", ")}`,
       );
-    }
 
-    this.db = null;
-    this.initializationPromise = null;
-    chatKeyManager.clearAll({ broadcast: false });
-    await this.deleteDatabaseForSchemaRepair();
-    await this.recreateDatabaseFromSnapshot(snapshot);
-    this.clearSchemaRepairBackupMarker();
-    try {
-      await this.deleteSchemaRepairBackup();
-    } catch (error) {
-      console.warn("[ChatDatabase] Failed to delete schema repair backup:", error);
+      const snapshot = await this.captureRawStoreSnapshot(invalidDb, existingStores);
+      await this.writeSchemaRepairBackup(snapshot);
+      try {
+        invalidDb.close();
+      } catch (error) {
+        console.warn(
+          "[ChatDatabase] Error closing partially invalid schema connection:",
+          error,
+        );
+      }
+
+      this.db = null;
+      chatKeyManager.clearAll({ broadcast: false });
+      await this.deleteDatabaseForSchemaRepair();
+      this.db = await this.recreateDatabaseFromSnapshot(snapshot);
+      this.clearSchemaRepairBackupMarker();
+      try {
+        await this.deleteSchemaRepairBackup();
+      } catch (error) {
+        console.warn("[ChatDatabase] Failed to delete schema repair backup:", error);
+      }
+      return true;
+    } finally {
+      this.partialSchemaRepairInProgress = false;
     }
-    return true;
   }
 
   private async repairCatastrophicMissingStoreSchema(
@@ -672,6 +673,13 @@ class ChatDatabase {
   async init(options: { skipOrphanDetection?: boolean } = {}): Promise<void> {
     const { skipOrphanDetection = false } = options;
 
+    // If an open/repair is already in progress, piggyback before inspecting this.db.
+    // Partial schema repair temporarily keeps an invalid handle while snapshotting it;
+    // concurrent callers must not close it or start a second repair attempt.
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
     // FAST PATH: If the database is already open and no deletion is pending,
     // skip all orphan detection, cleanup checks, and re-open logic.
     // This eliminates the "Skipping orphan detection" log spam that fires on
@@ -690,11 +698,6 @@ class ChatDatabase {
         missingStores,
         "Open database handle is missing required stores",
       );
-    }
-
-    // If an open is already in progress, piggyback on the existing promise.
-    if (this.initializationPromise) {
-      return this.initializationPromise;
     }
 
     // Make skipOrphanDetection persistent via sessionStorage - once set to true, it
@@ -938,7 +941,7 @@ class ChatDatabase {
         console.warn("[ChatDatabase] Database opened successfully");
         this.db = request.result;
 
-        const missingStores = this.getMissingRequiredStores(this.db);
+        let missingStores = this.getMissingRequiredStores(this.db);
         if (missingStores.length > 0) {
           let repaired = false;
           try {
@@ -954,25 +957,51 @@ class ChatDatabase {
             return;
           }
           if (repaired) {
-            try {
-              await this.init(options);
-              resolve();
-            } catch (error) {
-              reject(error);
+            if (this.db) {
+              missingStores = this.getMissingRequiredStores(this.db);
+              if (missingStores.length === 0) {
+                console.warn(
+                  "[ChatDatabase] Schema repair completed; continuing initialization",
+                );
+              } else {
+                this.closeInvalidSchemaConnection(
+                  missingStores,
+                  "Database schema repair completed but required stores are still missing",
+                );
+                reject(
+                  new Error(
+                    `IndexedDB schema invalid after repair: missing required store(s): ${missingStores.join(", ")}`,
+                  ),
+                );
+                return;
+              }
+            } else {
+              try {
+                // Catastrophic repair deletes the DB and needs a controlled re-open.
+                // Keep concurrent callers waiting until delete completes, then clear
+                // only for this internal init() call.
+                this.initializationPromise = null;
+                await this.init(options);
+                resolve();
+              } catch (error) {
+                reject(error);
+              }
+              return;
             }
-            return;
           }
 
-          this.closeInvalidSchemaConnection(
-            missingStores,
-            "Database opened without required stores after migration",
-          );
-          reject(
-            new Error(
-              `IndexedDB schema invalid: missing required store(s): ${missingStores.join(", ")}`,
-            ),
-          );
-          return;
+          if (!repaired) {
+            this.closeInvalidSchemaConnection(
+              missingStores,
+              "Database opened without required stores after migration",
+            );
+            reject(
+              new Error(
+                `IndexedDB schema invalid: missing required store(s): ${missingStores.join(", ")}`,
+              ),
+            );
+            return;
+          }
         }
 
         try {
@@ -987,7 +1016,6 @@ class ChatDatabase {
         }
 
         this.catastrophicSchemaRepairAttempted = false;
-        this.partialSchemaRepairAttempted = false;
 
         // Set marker in localStorage to indicate database has been initialized
         // This is used by orphaned database detection to know if cleanup is needed

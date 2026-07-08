@@ -37,7 +37,7 @@ jobs:
           ref: ${{ github.head_ref || github.ref_name || 'dev' }}
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
       - uses: pnpm/action-setup@v4
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

@@ -9,7 +9,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { platform, release } from "node:os";
+import { arch, platform, release } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import qrcode from "qrcode-terminal";
@@ -18,15 +18,18 @@ import {
   decryptBundle,
   decryptWithAesGcmCombined,
   decryptBytesWithAesGcm,
+  deriveEmbedKeyFromChatKey,
   deriveEmailEncryptionKeyB64,
   encryptWithAesGcmCombined,
   encryptBytesWithAesGcm,
   base64ToBytes,
   hashItemKey,
   createRecoveryKeyMaterial,
+  createApiKeyCryptoMaterial,
   createSignupCryptoMaterial,
   hashEmail,
   type RecoveryKeyMaterial,
+  type ApiKeyCryptoMaterial,
   type SignupCryptoMaterial,
 } from "./crypto.js";
 import { OpenMatesHttpClient } from "./http.js";
@@ -181,6 +184,287 @@ export interface LearningModeContext {
   enabled: boolean;
   ageGroup?: LearningModeAgeGroup | null;
   source?: "anonymous_session";
+}
+
+export type WorkflowNodeType =
+  | "schedule_trigger"
+  | "manual_trigger"
+  | "webhook_trigger"
+  | "app_skill_action"
+  | "decision"
+  | "repeat"
+  | "create_chat_report"
+  | "send_notification"
+  | "send_email_notification"
+  | "ask_user"
+  | "custom_code"
+  | "end";
+
+export interface WorkflowNode {
+  id: string;
+  type: WorkflowNodeType;
+  title?: string | null;
+  config?: Record<string, unknown>;
+  input_mapping?: Record<string, unknown>;
+  ui?: Record<string, unknown>;
+}
+
+export interface WorkflowEdge {
+  from: string;
+  to: string;
+  branch?: string | null;
+}
+
+export interface WorkflowGraph {
+  version: number;
+  trigger_node_id: string;
+  nodes: WorkflowNode[];
+  edges?: WorkflowEdge[];
+  variables?: Record<string, unknown>;
+  limits?: Record<string, unknown>;
+  ui_layout?: Record<string, unknown>;
+}
+
+export type WorkflowRunContentRetention = "last_5" | "none";
+export type WorkflowRunContentStorage = "durable" | "ephemeral" | "deleted";
+export type WorkflowLifecycle = "persisted" | "temporary";
+
+export interface WorkflowSummary {
+  id: string;
+  title: string;
+  status: "draft" | "active" | "disabled" | "error" | "deleted";
+  enabled: boolean;
+  lifecycle?: WorkflowLifecycle;
+  source?: string;
+  source_chat_id?: string | null;
+  created_by_assistant?: boolean;
+  auto_delete_at?: number | null;
+  kept_at?: number | null;
+  trigger_summary?: string | null;
+  next_run_at?: number | null;
+  last_run_status?: "queued" | "running" | "waiting" | "completed" | "failed" | "cancelled" | null;
+  run_content_retention?: WorkflowRunContentRetention;
+  current_version_id: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface WorkflowDetail extends WorkflowSummary {
+  graph: WorkflowGraph;
+}
+
+export interface WorkflowNodeRun {
+  id: string;
+  run_id: string;
+  workflow_id: string;
+  node_id: string;
+  node_type: WorkflowNodeType;
+  status: "queued" | "running" | "completed" | "skipped" | "failed";
+  started_at?: number | null;
+  finished_at?: number | null;
+  skipped_reason?: string | null;
+  error_code?: string | null;
+  error_summary?: string | null;
+  input_summary?: Record<string, unknown>;
+  output_summary?: Record<string, unknown>;
+  credit_cost?: number;
+}
+
+export type UserTaskStatus = "backlog" | "todo" | "in_progress" | "blocked" | "done";
+export type UserTaskAssigneeType = "ai" | "user";
+
+export type ProjectSourceType = "local_folder" | "local_git_repository" | "remote_folder" | "remote_git_repository";
+export type ProjectSourceCapability = "read" | "search" | "import" | "write_request";
+export type ProjectSourceStatus = "connected" | "offline" | "permission_required" | "revoked";
+
+export interface ProjectSourceRecord {
+  source_id: string;
+  source_type: ProjectSourceType;
+  encrypted_display_name: string;
+  encrypted_metadata: string;
+  capabilities?: ProjectSourceCapability[];
+  status?: ProjectSourceStatus;
+  created_at?: number;
+  updated_at?: number;
+  last_indexed_at?: number | null;
+  [key: string]: unknown;
+}
+
+export type ProjectSourceCreateInput = ProjectSourceRecord;
+
+export interface UserTaskRecord {
+  task_id: string;
+  encrypted_task_key?: string | null;
+  encrypted_title: string;
+  encrypted_description?: string | null;
+  encrypted_tags?: string | null;
+  encrypted_activity_summary?: string | null;
+  encrypted_latest_instruction?: string | null;
+  status: UserTaskStatus;
+  assignee_type: UserTaskAssigneeType;
+  assignee_hash?: string | null;
+  primary_chat_id?: string | null;
+  linked_project_ids?: string[] | null;
+  parent_task_id?: string | null;
+  due_at?: number | null;
+  priority?: number;
+  position?: number;
+  version?: number;
+  created_at?: number;
+  updated_at?: number;
+  started_at?: number | null;
+  completed_at?: number | null;
+  blocked_reason_code?: string | null;
+  ai_execution_state?: string | null;
+}
+
+export type UserTaskCreateInput = Omit<UserTaskRecord, "version" | "started_at" | "completed_at" | "blocked_reason_code" | "ai_execution_state"> & {
+  version?: number;
+};
+
+export type UserTaskUpdateInput = Partial<Omit<UserTaskRecord, "task_id" | "created_at">> & {
+  version?: number;
+};
+
+export type UserTaskStartAIInput = UserTaskUpdateInput & {
+  plaintext_title?: string;
+  plaintext_description?: string;
+  plaintext_latest_instruction?: string;
+  plaintext_chat_title?: string;
+};
+
+export type UserPlanStatus = "draft" | "awaiting_confirmation" | "active" | "executing" | "blocked" | "completed" | "archived";
+export type UserPlanCriterionStatus = "pending" | "satisfied" | "failed" | "waived";
+export type UserPlanVerificationStatus = "pending" | "passed" | "failed" | "passed_unexpectedly" | "skipped" | "waived";
+
+export interface UserPlanRecord {
+  plan_id: string;
+  encrypted_plan_key?: string | null;
+  encrypted_title: string;
+  encrypted_summary?: string | null;
+  encrypted_goal?: string | null;
+  encrypted_scope_in?: string | null;
+  encrypted_scope_out?: string | null;
+  encrypted_assumptions?: string | null;
+  encrypted_open_questions?: string | null;
+  encrypted_constraints?: string | null;
+  encrypted_decisions?: string | null;
+  encrypted_risks?: string | null;
+  status: UserPlanStatus;
+  primary_chat_id?: string | null;
+  linked_project_ids?: string[] | null;
+  current_phase_id?: string | null;
+  current_step_id?: string | null;
+  current_task_id?: string | null;
+  planner_focus_id?: string | null;
+  version?: number;
+  created_at?: number;
+  updated_at?: number;
+  completed_at?: number | null;
+}
+
+export type UserPlanCreateInput = Omit<UserPlanRecord, "version" | "completed_at"> & { version?: number };
+export type UserPlanUpdateInput = Partial<Omit<UserPlanRecord, "plan_id" | "created_at">> & { version?: number };
+
+export interface UserPlanCriterionRecord {
+  criterion_id: string;
+  encrypted_text: string;
+  type?: string;
+  status?: UserPlanCriterionStatus;
+  required?: boolean;
+  linked_step_ids?: string[];
+  linked_task_ids?: string[];
+  verification_ids?: string[];
+  created_at?: number;
+  updated_at?: number;
+}
+
+export interface UserPlanVerificationRecord {
+  verification_id: string;
+  kind: string;
+  phase?: string;
+  status?: UserPlanVerificationStatus;
+  required_for_done?: boolean;
+  covers?: string[];
+  threshold?: number | null;
+  score?: number | null;
+  confidence?: string | null;
+  linked_task_id?: string | null;
+  run_id?: string | null;
+  created_at?: number;
+  updated_at?: number;
+  encrypted_command?: string | null;
+  encrypted_evaluation_prompt?: string | null;
+  encrypted_expected_result?: string | null;
+  encrypted_result_summary?: string | null;
+  encrypted_required_fixes?: string | null;
+}
+
+export interface WorkflowRunDetail {
+  id: string;
+  workflow_id: string;
+  version_id: string;
+  trigger_type: string;
+  status: "queued" | "running" | "waiting" | "completed" | "failed" | "cancelled";
+  started_at?: number | null;
+  finished_at?: number | null;
+  error_summary?: string | null;
+  cost_summary?: Record<string, unknown>;
+  content_retention_mode?: WorkflowRunContentRetention;
+  content_available?: boolean;
+  content_storage?: WorkflowRunContentStorage | null;
+  content_expires_at?: number | null;
+  encrypted_content_ref?: string | null;
+  encrypted_content_checksum?: string | null;
+  node_runs?: WorkflowNodeRun[];
+  output_summary?: Record<string, unknown>;
+}
+
+export type WorkflowInputType = "text" | "audio";
+
+export interface WorkflowInputStartParams {
+  text?: string | null;
+  inputType?: WorkflowInputType;
+  audioRef?: Record<string, unknown> | null;
+  selectedWorkflowId?: string | null;
+  selectedProjectId?: string | null;
+}
+
+export interface WorkflowInputEvent {
+  id: string;
+  session_id: string;
+  event_id: number;
+  type: string;
+  status: string;
+  redacted_summary: string;
+  payload?: Record<string, unknown>;
+  created_at: number;
+}
+
+export interface WorkflowInputSessionResult {
+  session_id: string;
+  status: string;
+  event_cursor: number;
+  message?: string | null;
+  error?: string | null;
+  workflow?: WorkflowDetail | null;
+  project_item?: Record<string, unknown> | null;
+  undo_available: boolean;
+}
+
+export interface WorkflowInputSessionDetail extends WorkflowInputSessionResult {
+  events: WorkflowInputEvent[];
+  draft_graph?: Record<string, unknown> | null;
+  mutations?: Array<Record<string, unknown>>;
+}
+
+export interface WorkflowCapability {
+  type: "node" | "app_skill" | "workflow";
+  id: string;
+  title: string;
+  enabled: boolean;
+  reason?: string | null;
+  metadata?: Record<string, unknown>;
 }
 
 export type InterestTagId =
@@ -1120,6 +1404,9 @@ export interface InvoiceListItem {
   refund_status?: string | null;
   currency?: string | null;
   provider?: string | null;
+  bank_transfer_reference?: string | null;
+  transaction_status?: string | null;
+  document_status?: string | null;
 }
 
 export interface DownloadedDocument {
@@ -1156,6 +1443,20 @@ export interface BankTransferStatus {
 
 export interface GiftCardBankTransferStatus extends BankTransferStatus {
   gift_card_code?: string | null;
+}
+
+export interface ApiKeyCreateOptions {
+  name: string;
+  fullAccess?: boolean;
+  scopes?: Record<string, unknown>;
+  creditLimit?: Record<string, unknown> | null;
+  expiresAt?: string | null;
+}
+
+export interface CreatedApiKeyResult {
+  api_key: string;
+  key: unknown;
+  crypto: ApiKeyCryptoMaterial;
 }
 
 export interface AuthMethodsStatus {
@@ -3458,11 +3759,22 @@ export class OpenMatesClient {
     const masterKey = this.getMasterKeyBytes();
     const parentKeys = new Map<string, Uint8Array>();
     const processed = new Set<string>();
+    const cachedEmbeds = loadSyncCache();
 
-    const makeKey = () => {
-      const key = new Uint8Array(32);
-      globalThis.crypto.getRandomValues(key);
-      return key;
+    const resolveCachedParentKey = async (parentId: string): Promise<Uint8Array | undefined> => {
+      if (!cachedEmbeds) return undefined;
+      const cachedParent = cachedEmbeds?.embeds.find(
+        (entry) => String(entry.embed_id ?? entry.id ?? "") === parentId,
+      );
+      if (!cachedParent) return undefined;
+      const hashedParentId = computeSHA256(parentId);
+      return await this.resolveEmbedKey(
+        cachedEmbeds,
+        masterKey,
+        cachedParent,
+        parentId,
+        hashedParentId,
+      ) ?? undefined;
     };
 
     const persistOne = async (
@@ -3490,6 +3802,29 @@ export class OpenMatesClient {
       const encryptedTextPreview = embed.text_preview
         ? await encryptWithAesGcmCombined(embed.text_preview, embedKey)
         : undefined;
+      const keys: EmbedKeyWrapper[] = !isChild
+        ? [
+            {
+              hashed_embed_id: hashedEmbedId,
+              key_type: "master",
+              hashed_chat_id: null,
+              encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, masterKey),
+              hashed_user_id: hashedUserId,
+              created_at: now,
+            },
+            {
+              hashed_embed_id: hashedEmbedId,
+              key_type: "chat",
+              hashed_chat_id: hashedChatId,
+              encrypted_embed_key: await encryptBytesWithAesGcm(
+                embedKey,
+                params.chatKeyBytes,
+              ),
+              hashed_user_id: hashedUserId,
+              created_at: now,
+            },
+          ]
+        : [];
 
       await params.ws.sendAsync("store_embed", {
         embed_id: embed.embed_id,
@@ -3513,6 +3848,11 @@ export class OpenMatesClient {
         updated_at: updatedAt,
       });
 
+      if (keys.length > 0) {
+        await params.ws.sendAsync("store_embed_keys", { keys });
+        parentKeys.set(embed.embed_id, embedKey);
+      }
+
       if (Array.isArray(embed.version_history_rows)) {
         for (const row of embed.version_history_rows) {
           if (!row.embed_id || typeof row.version_number !== "number") continue;
@@ -3535,32 +3875,6 @@ export class OpenMatesClient {
           });
         }
       }
-
-      if (!isChild) {
-        const keys: EmbedKeyWrapper[] = [
-          {
-            hashed_embed_id: hashedEmbedId,
-            key_type: "master",
-            hashed_chat_id: null,
-            encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, masterKey),
-            hashed_user_id: hashedUserId,
-            created_at: now,
-          },
-          {
-            hashed_embed_id: hashedEmbedId,
-            key_type: "chat",
-            hashed_chat_id: hashedChatId,
-            encrypted_embed_key: await encryptBytesWithAesGcm(
-              embedKey,
-              params.chatKeyBytes,
-            ),
-            hashed_user_id: hashedUserId,
-            created_at: now,
-          },
-        ];
-        await params.ws.sendAsync("store_embed_keys", { keys });
-        parentKeys.set(embed.embed_id, embedKey);
-      }
     };
 
     let madeProgress = true;
@@ -3573,8 +3887,12 @@ export class OpenMatesClient {
           continue;
         }
 
-        const parentKey = parentId ? parentKeys.get(parentId) : undefined;
-        await persistOne(embed, parentKey ?? makeKey(), Boolean(parentKey));
+        const parentKey = parentId
+          ? parentKeys.get(parentId) ?? await resolveCachedParentKey(parentId)
+          : undefined;
+        if (parentId && !parentKey) continue;
+        const embedKey = parentKey ?? await deriveEmbedKeyFromChatKey(params.chatKeyBytes, embed.embed_id);
+        await persistOne(embed, embedKey, Boolean(parentId));
         processed.add(embed.embed_id);
         madeProgress = true;
       }
@@ -3582,7 +3900,15 @@ export class OpenMatesClient {
 
     for (const embed of finalized.values()) {
       if (processed.has(embed.embed_id)) continue;
-      await persistOne(embed, makeKey(), false);
+      const parentId = embed.parent_embed_id || null;
+      const parentKey = parentId
+        ? parentKeys.get(parentId) ?? await resolveCachedParentKey(parentId)
+        : undefined;
+      if (parentId && !parentKey) {
+        throw new Error(`Cannot persist child embed ${embed.embed_id}: parent embed key ${parentId} is unavailable.`);
+      }
+      const embedKey = parentKey ?? await deriveEmbedKeyFromChatKey(params.chatKeyBytes, embed.embed_id);
+      await persistOne(embed, embedKey, Boolean(parentId));
       processed.add(embed.embed_id);
     }
   }
@@ -4050,6 +4376,456 @@ export class OpenMatesClient {
   }
 
   // -------------------------------------------------------------------------
+  // Workflows
+  // -------------------------------------------------------------------------
+
+  async listWorkflows(): Promise<WorkflowSummary[]> {
+    this.requireSession();
+    const response = await this.http.get<{ workflows?: WorkflowSummary[] }>(
+      "/v1/workflows",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow list failed with HTTP ${response.status}`);
+    }
+    return response.data.workflows ?? [];
+  }
+
+  async listTemporaryWorkflows(): Promise<WorkflowSummary[]> {
+    this.requireSession();
+    const response = await this.http.get<{ workflows?: WorkflowSummary[] }>(
+      "/v1/workflows/temporary",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Temporary workflow list failed with HTTP ${response.status}`);
+    }
+    return response.data.workflows ?? [];
+  }
+
+  async createWorkflow(params: {
+    title: string;
+    graph: WorkflowGraph;
+    enabled?: boolean;
+    runContentRetention?: WorkflowRunContentRetention;
+    lifecycle?: WorkflowLifecycle;
+    source?: string;
+    sourceChatId?: string | null;
+    createdByAssistant?: boolean;
+    autoDeleteAt?: number | null;
+  }): Promise<WorkflowDetail> {
+    this.requireSession();
+    const response = await this.http.post<{ workflow?: WorkflowDetail }>(
+      "/v1/workflows",
+      {
+        title: params.title,
+        graph: params.graph,
+        enabled: params.enabled ?? false,
+        ...(params.runContentRetention ? { run_content_retention: params.runContentRetention } : {}),
+        ...(params.lifecycle ? { lifecycle: params.lifecycle } : {}),
+        ...(params.source ? { source: params.source } : {}),
+        ...(params.sourceChatId !== undefined ? { source_chat_id: params.sourceChatId } : {}),
+        ...(params.createdByAssistant !== undefined ? { created_by_assistant: params.createdByAssistant } : {}),
+        ...(params.autoDeleteAt !== undefined ? { auto_delete_at: params.autoDeleteAt } : {}),
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.workflow) {
+      throw new Error(`Workflow create failed with HTTP ${response.status}`);
+    }
+    return response.data.workflow;
+  }
+
+  async getWorkflow(workflowId: string): Promise<WorkflowDetail> {
+    this.requireSession();
+    const response = await this.http.get<{ workflow?: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.workflow) {
+      throw new Error(`Workflow get failed with HTTP ${response.status}`);
+    }
+    return response.data.workflow;
+  }
+
+  async updateWorkflow(
+    workflowId: string,
+    params: { title?: string; graph?: WorkflowGraph; enabled?: boolean; runContentRetention?: WorkflowRunContentRetention },
+  ): Promise<WorkflowDetail> {
+    this.requireSession();
+    const payload = {
+      ...params,
+      ...(params.runContentRetention ? { run_content_retention: params.runContentRetention } : {}),
+    };
+    delete payload.runContentRetention;
+    const response = await this.http.patch<{ workflow?: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}`,
+      payload,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.workflow) {
+      throw new Error(`Workflow update failed with HTTP ${response.status}`);
+    }
+    return response.data.workflow;
+  }
+
+  async deleteWorkflow(workflowId: string): Promise<{ deleted: boolean }> {
+    this.requireSession();
+    const response = await this.http.delete<{ deleted?: boolean }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}`,
+      undefined,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow delete failed with HTTP ${response.status}`);
+    }
+    return { deleted: response.data.deleted === true };
+  }
+
+  async keepWorkflow(workflowId: string): Promise<WorkflowDetail> {
+    this.requireSession();
+    const response = await this.http.post<{ workflow?: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/keep`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.workflow) {
+      throw new Error(`Workflow keep failed with HTTP ${response.status}`);
+    }
+    return response.data.workflow;
+  }
+
+  async enableWorkflow(workflowId: string): Promise<WorkflowDetail> {
+    return this.setWorkflowEnabled(workflowId, true);
+  }
+
+  async disableWorkflow(workflowId: string): Promise<WorkflowDetail> {
+    return this.setWorkflowEnabled(workflowId, false);
+  }
+
+  async runWorkflow(
+    workflowId: string,
+    params: { mode?: "manual" | "test"; input?: Record<string, unknown> } = {},
+  ): Promise<WorkflowRunDetail> {
+    this.requireSession();
+    const response = await this.http.post<{ run?: WorkflowRunDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/run`,
+      { mode: params.mode ?? "manual", input: params.input ?? {} },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.run) {
+      throw new Error(`Workflow run failed with HTTP ${response.status}`);
+    }
+    return response.data.run;
+  }
+
+  async listWorkflowRuns(workflowId: string): Promise<WorkflowRunDetail[]> {
+    this.requireSession();
+    const response = await this.http.get<{ runs?: WorkflowRunDetail[] }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/runs`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow runs list failed with HTTP ${response.status}`);
+    }
+    return response.data.runs ?? [];
+  }
+
+  async getWorkflowRun(workflowId: string, runId: string): Promise<WorkflowRunDetail> {
+    this.requireSession();
+    const response = await this.http.get<{ run?: WorkflowRunDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.run) {
+      throw new Error(`Workflow run get failed with HTTP ${response.status}`);
+    }
+    return response.data.run;
+  }
+
+  async listWorkflowCapabilities(): Promise<WorkflowCapability[]> {
+    this.requireSession();
+    const response = await this.http.get<{ capabilities?: WorkflowCapability[] }>(
+      "/v1/workflows/capabilities",
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow capabilities failed with HTTP ${response.status}`);
+    }
+    return response.data.capabilities ?? [];
+  }
+
+  async startWorkflowInput(params: WorkflowInputStartParams): Promise<WorkflowInputSessionResult> {
+    this.requireSession();
+    const response = await this.http.post<{ session?: WorkflowInputSessionResult }>(
+      "/v1/workflows/input",
+      {
+        ...(params.text !== undefined ? { text: params.text } : {}),
+        input_type: params.inputType ?? "text",
+        ...(params.audioRef !== undefined ? { audio_ref: params.audioRef } : {}),
+        ...(params.selectedWorkflowId !== undefined ? { selected_workflow_id: params.selectedWorkflowId } : {}),
+        ...(params.selectedProjectId !== undefined ? { selected_project_id: params.selectedProjectId } : {}),
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.session) {
+      throw new Error(`Workflow input start failed with HTTP ${response.status}`);
+    }
+    return response.data.session;
+  }
+
+  async getWorkflowInputSession(sessionId: string): Promise<WorkflowInputSessionDetail> {
+    this.requireSession();
+    const response = await this.http.get<{ session?: WorkflowInputSessionDetail }>(
+      `/v1/workflows/input/${encodeURIComponent(sessionId)}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.session) {
+      throw new Error(`Workflow input session get failed with HTTP ${response.status}`);
+    }
+    return response.data.session;
+  }
+
+  async listWorkflowInputEvents(sessionId: string, afterEventId = 0): Promise<WorkflowInputEvent[]> {
+    this.requireSession();
+    const response = await this.http.get<{ events?: WorkflowInputEvent[] }>(
+      `/v1/workflows/input/${encodeURIComponent(sessionId)}/events?after_event_id=${encodeURIComponent(String(afterEventId))}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Workflow input events failed with HTTP ${response.status}`);
+    }
+    return response.data.events ?? [];
+  }
+
+  async followUpWorkflowInput(sessionId: string, text: string): Promise<WorkflowInputSessionResult> {
+    this.requireSession();
+    const response = await this.http.post<{ session?: WorkflowInputSessionResult }>(
+      `/v1/workflows/input/${encodeURIComponent(sessionId)}/follow-up`,
+      { text },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.session) {
+      throw new Error(`Workflow input follow-up failed with HTTP ${response.status}`);
+    }
+    return response.data.session;
+  }
+
+  async stopWorkflowInput(sessionId: string): Promise<WorkflowInputSessionResult> {
+    this.requireSession();
+    const response = await this.http.post<{ session?: WorkflowInputSessionResult }>(
+      `/v1/workflows/input/${encodeURIComponent(sessionId)}/stop`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.session) {
+      throw new Error(`Workflow input stop failed with HTTP ${response.status}`);
+    }
+    return response.data.session;
+  }
+
+  async undoWorkflowInput(sessionId: string): Promise<WorkflowInputSessionResult> {
+    this.requireSession();
+    const response = await this.http.post<{ session?: WorkflowInputSessionResult }>(
+      `/v1/workflows/input/${encodeURIComponent(sessionId)}/undo`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.session) {
+      throw new Error(`Workflow input undo failed with HTTP ${response.status}`);
+    }
+    return response.data.session;
+  }
+
+  private async setWorkflowEnabled(workflowId: string, enabled: boolean): Promise<WorkflowDetail> {
+    this.requireSession();
+    const action = enabled ? "enable" : "disable";
+    const response = await this.http.post<{ workflow?: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/${action}`,
+      {},
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.workflow) {
+      throw new Error(`Workflow ${action} failed with HTTP ${response.status}`);
+    }
+    return response.data.workflow;
+  }
+
+  // -------------------------------------------------------------------------
+  // Project sources
+  // -------------------------------------------------------------------------
+
+  async listProjectSources(projectId: string): Promise<ProjectSourceRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ sources?: ProjectSourceRecord[] }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/sources`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`Project source list failed with HTTP ${response.status}`);
+    }
+    return response.data.sources ?? [];
+  }
+
+  async createProjectSource(projectId: string, input: ProjectSourceCreateInput): Promise<ProjectSourceRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ source?: ProjectSourceRecord }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/sources`,
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.source) {
+      throw new Error(`Project source create failed with HTTP ${response.status}`);
+    }
+    return response.data.source;
+  }
+
+  // -------------------------------------------------------------------------
+  // User tasks
+  // -------------------------------------------------------------------------
+
+  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string } = {}): Promise<UserTaskRecord[]> {
+    this.requireSession();
+    const params = new URLSearchParams();
+    if (filters.status) params.set("status", filters.status);
+    if (filters.chatId) params.set("chat_id", filters.chatId);
+    if (filters.projectId) params.set("project_id", filters.projectId);
+    const query = params.toString();
+    const response = await this.http.get<{ tasks?: UserTaskRecord[] }>(
+      `/v1/user-tasks${query ? `?${query}` : ""}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`User task list failed with HTTP ${response.status}`);
+    }
+    return response.data.tasks ?? [];
+  }
+
+  async createUserTask(input: UserTaskCreateInput): Promise<UserTaskRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ task?: UserTaskRecord }>(
+      "/v1/user-tasks",
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.task) {
+      throw new Error(`User task create failed with HTTP ${response.status}`);
+    }
+    return response.data.task;
+  }
+
+  async updateUserTask(taskId: string, input: UserTaskUpdateInput): Promise<UserTaskRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ task?: UserTaskRecord }>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}`,
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.task) {
+      throw new Error(`User task update failed with HTTP ${response.status}`);
+    }
+    return response.data.task;
+  }
+
+  async startUserTaskWithAI(taskId: string, input: UserTaskStartAIInput = {}): Promise<UserTaskRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ task?: UserTaskRecord }>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}/start-ai`,
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.task) {
+      throw new Error(`User task AI start failed with HTTP ${response.status}`);
+    }
+    return response.data.task;
+  }
+
+  // -------------------------------------------------------------------------
+  // User plans
+  // -------------------------------------------------------------------------
+
+  async listUserPlans(filters: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean } = {}): Promise<UserPlanRecord[]> {
+    this.requireSession();
+    const params = new URLSearchParams();
+    if (filters.status) params.set("status", filters.status);
+    if (filters.chatId) params.set("chat_id", filters.chatId);
+    if (filters.projectId) params.set("project_id", filters.projectId);
+    if (filters.activeOnly !== undefined) params.set("active_only", String(filters.activeOnly));
+    const query = params.toString();
+    const response = await this.http.get<{ plans?: UserPlanRecord[] }>(
+      `/v1/user-plans${query ? `?${query}` : ""}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      throw new Error(`User plan list failed with HTTP ${response.status}`);
+    }
+    return response.data.plans ?? [];
+  }
+
+  async createUserPlan(input: UserPlanCreateInput): Promise<UserPlanRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ plan?: UserPlanRecord }>("/v1/user-plans", input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.plan) {
+      throw new Error(`User plan create failed with HTTP ${response.status}`);
+    }
+    return response.data.plan;
+  }
+
+  async updateUserPlan(planId: string, input: UserPlanUpdateInput): Promise<UserPlanRecord> {
+    this.requireSession();
+    const response = await this.http.patch<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.plan) {
+      throw new Error(`User plan update failed with HTTP ${response.status}`);
+    }
+    return response.data.plan;
+  }
+
+  async activateUserPlan(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/activate`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.plan) {
+      throw new Error(`User plan activate failed with HTTP ${response.status}`);
+    }
+    return response.data.plan;
+  }
+
+  async completeUserPlan(planId: string, input: Record<string, unknown> = {}): Promise<UserPlanRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ plan?: UserPlanRecord; blocked_by?: unknown[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/complete`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.plan) {
+      throw new Error(`User plan complete failed with HTTP ${response.status}`);
+    }
+    return response.data.plan;
+  }
+
+  async createPlanCriterion(planId: string, input: UserPlanCriterionRecord): Promise<UserPlanCriterionRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ criterion?: UserPlanCriterionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/criteria`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.criterion) {
+      throw new Error(`User plan criterion create failed with HTTP ${response.status}`);
+    }
+    return response.data.criterion;
+  }
+
+  async createPlanVerification(planId: string, input: UserPlanVerificationRecord & Record<string, unknown>): Promise<UserPlanVerificationRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.verification) {
+      throw new Error(`User plan verification create failed with HTTP ${response.status}`);
+    }
+    return response.data.verification;
+  }
+
+  async addPlanVerificationEvidence(planId: string, verificationId: string, input: Partial<UserPlanVerificationRecord>): Promise<UserPlanVerificationRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ verification?: UserPlanVerificationRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/verification/${encodeURIComponent(verificationId)}/evidence`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.verification) {
+      throw new Error(`User plan verification evidence failed with HTTP ${response.status}`);
+    }
+    return response.data.verification;
+  }
+
+  // -------------------------------------------------------------------------
   // Settings (generic passthrough)
   // -------------------------------------------------------------------------
 
@@ -4071,6 +4847,39 @@ export class OpenMatesClient {
       throw new Error(`Settings GET failed with HTTP ${response.status}`);
     }
     return response.data;
+  }
+
+  async createApiKey(options: ApiKeyCreateOptions): Promise<CreatedApiKeyResult> {
+    const session = this.requireSession();
+    const name = options.name.trim();
+    if (!name) throw new Error("API key name is required");
+    const material = await createApiKeyCryptoMaterial(name, session.masterKeyExportedB64);
+    const response = await this.http.post(
+      "/v1/settings/api-keys",
+      {
+        encrypted_name: material.encryptedName,
+        api_key_hash: material.apiKeyHash,
+        encrypted_key_prefix: material.encryptedKeyPrefix,
+        encrypted_master_key: material.encryptedMasterKey,
+        salt: material.saltB64,
+        key_iv: material.keyIv,
+        full_access: options.fullAccess ?? true,
+        scopes: options.scopes ?? {},
+        credit_limit: options.creditLimit ?? null,
+        expires_at: options.expiresAt ?? null,
+      },
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) {
+      const detail = (response.data as { detail?: string; message?: string } | undefined)?.detail
+        ?? (response.data as { message?: string } | undefined)?.message;
+      throw new Error(detail ?? `API key creation failed with HTTP ${response.status}`);
+    }
+    return {
+      api_key: material.apiKey,
+      key: response.data,
+      crypto: material,
+    };
   }
 
   async settingsPost(
@@ -5900,6 +6709,8 @@ export class OpenMatesClient {
   private getCliRequestHeaders(): Record<string, string> {
     return {
       "User-Agent": this.getCliUserAgent(),
+      "X-OpenMates-SDK": "cli",
+      "X-OpenMates-Device-Identity": this.getCliApiKeyDeviceIdentity(),
       Origin: deriveAppUrl(this.apiUrl),
     };
   }
@@ -5910,6 +6721,10 @@ export class OpenMatesClient {
 
   private getLocalDeviceName(): string {
     return `${CLI_DEVICE_NAME_PREFIX} (${platform()} ${release()})`;
+  }
+
+  private getCliApiKeyDeviceIdentity(): string {
+    return `cli:${platform()}:${arch()}`;
   }
 
   // -------------------------------------------------------------------------

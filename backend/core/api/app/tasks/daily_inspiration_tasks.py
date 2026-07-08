@@ -83,6 +83,7 @@ async def generate_and_deliver_inspirations_for_user(
         True if generation and delivery succeeded, False on error
     """
     from backend.apps.ai.daily_inspiration.feature_suggestions import build_feature_inspirations
+    from backend.apps.ai.daily_inspiration.content_filter import check_daily_inspiration_entry
     from backend.apps.ai.daily_inspiration.generator import generate_inspirations
     from backend.apps.ai.daily_inspiration.wiki_generator import generate_wiki_inspirations
 
@@ -118,6 +119,32 @@ async def generate_and_deliver_inspirations_for_user(
     )
     feature_inspirations = build_feature_inspirations(DAILY_FEATURE_COUNT)
     inspirations = video_inspirations + wiki_inspirations + feature_inspirations
+
+    policy_checked_inspirations = []
+    for inspiration in inspirations:
+        policy_entry = {
+            "title": inspiration.title,
+            "phrase": inspiration.phrase,
+            "assistant_response": inspiration.assistant_response or "",
+            "category": inspiration.category,
+            "content_type": inspiration.content_type,
+            "video_title": inspiration.video.title if inspiration.video else None,
+            "video_channel_name": inspiration.video.channel_name if inspiration.video else None,
+            "wiki_metadata": inspiration.wiki.model_dump() if inspiration.wiki else None,
+            "feature_metadata": inspiration.feature.model_dump() if inspiration.feature else None,
+        }
+        policy_result = check_daily_inspiration_entry(policy_entry)
+        if policy_result["verdict"] == "REJECT":
+            logger.warning(
+                "[DailyInspiration][%s] Final content policy rejected %s inspiration %r: %s",
+                task_id,
+                inspiration.content_type,
+                inspiration.title,
+                policy_result.get("violations", {}),
+            )
+            continue
+        policy_checked_inspirations.append(inspiration)
+    inspirations = policy_checked_inspirations
 
     if not inspirations:
         logger.error(

@@ -24,6 +24,7 @@ banner_title:
   cs: Detekována citlivá data
   sv: Känsliga uppgifter hittades
   he: זוהו נתונים רגישים
+  verified_by_human: []
 banner_description:
   context: Description explaining what will happen to detected sensitive data. {summary} is replaced with a list like "2 emails, 1 API key"
   en: "Found {summary}. These will be replaced with placeholders before sending. Click on highlighted text to keep original."
@@ -47,6 +48,7 @@ banner_description:
   cs: "Nalezeno: {summary}. Před odesláním budou nahrazeny zástupnými symboly. Klikněte na zvýrazněný text pro zachování originálu."
   sv: "Hittade {summary}. Dessa ersätts med platshållare innan de skickas. Klicka på markerad text för att behålla originalet."
   he: "נמצאו {summary}. אלו יוחלפו בממלאי מקום לפני השליחה. לחץ על הטקסט המודגש כדי לשמור על המקור."
+  verified_by_human: []
 undo_all:
   context: Tooltip/title for the Undo All button
   en: Undo all replacements
@@ -70,6 +72,7 @@ undo_all:
   cs: Vrátit zpět všechny náhrady
   sv: Ångra alla ersättningar
   he: בטל את כל ההחלפות
+  verified_by_human: []
 undo_all_short:
   context: Short button label for Undo All
   en: Undo All
@@ -93,6 +96,7 @@ undo_all_short:
   cs: Vrátit vše zpět
   sv: Ångra allt
   he: בטל הכל
+  verified_by_human: []
 click_to_restore:
   context: Tooltip shown when hovering over highlighted PII text
   en: Click to keep original
@@ -118,6 +122,7 @@ click_to_restore:
   he: לחץ כדי לשמור על המקור
 
 # PII type labels (for summary)
+  verified_by_human: []
 type_email:
   context: Label for email address PII type
   en: email
@@ -141,6 +146,7 @@ type_email:
   cs: e-mail
   sv: e-post
   he: אימייל
+  verified_by_human: []
 type_phone:
   context: Label for phone number PII type
   en: phone number
@@ -164,6 +170,7 @@ type_phone:
   cs: telefonní číslo
   sv: telefonnummer
   he: מספר טלפון
+  verified_by_human: []
 type_api_key:
   context: Generic label for API key PII types
   en: API key
@@ -187,6 +194,7 @@ type_api_key:
   cs: klíč API
   sv: API-nyckel
   he: מפתח API
+  verified_by_human: []
 type_credit_card:
   context: Label for credit card number PII type
   en: credit card
@@ -210,6 +218,7 @@ type_credit_card:
   cs: kreditní karta
   sv: kreditkort
   he: כרטיס אשראי
+  verified_by_human: []
 type_ssn:
   context: Label for Social Security Number PII type
   en: SSN
@@ -233,6 +242,7 @@ type_ssn:
   cs: SSN
   sv: SSN
   he: SSN
+  verified_by_human: []
 type_ip_address:
   context: Label for IP address PII type
   en: IP address
@@ -256,6 +266,7 @@ type_ip_address:
   cs: IP adresa
   sv: IP-adress
   he: כתובת IP
+  verified_by_human: []
 type_private_key:
   context: Label for private key PII type
   en: private key
@@ -279,6 +290,7 @@ type_private_key:
   cs: soukromý klíč
   sv: privat nyckel
   he: מפתח פרטי
+  verified_by_human: []
 type_jwt:
   context: Label for JWT token PII type
   en: JWT token
@@ -302,6 +314,7 @@ type_jwt:
   cs: JWT token
   sv: JWT-token
   he: אסימון JWT
+  verified_by_human: []
 type_iban:
   context: Label for IBAN / bank account number PII type
   en: IBAN
@@ -325,6 +338,7 @@ type_iban:
   cs: IBAN
   sv: IBAN
   he: IBAN
+  verified_by_human: []
 type_home_folder:
   context: Label for home folder path PII type (leaks local username via /home/user/, /Users/user/, C:\Users\user\)
   en: home folder path
@@ -348,6 +362,7 @@ type_home_folder:
   cs: cesta k domovské složce
   sv: sökväg till hemkatalog
   he: נתיב תיקיית בית
+  verified_by_human: []
 type_user_at_hostname:
   context: Label for terminal prompt user@hostname PII type (leaks username and machine name, e.g. marco@Marcos-MacBook ~ %)
   en: user@hostname
@@ -371,6 +386,7 @@ type_user_at_hostname:
   cs: user@hostname
   sv: user@hostname
   he: user@hostname
+  verified_by_human: []
 type_mac_address:
   context: Label for MAC address PII type (network hardware identifier)
   en: MAC address
@@ -394,6 +410,7 @@ type_mac_address:
   cs: MAC adresa
   sv: MAC-adress
   he: כתובת MAC
+  verified_by_human: []
 type_passport:
   context: Label for passport number PII type
   en: passport number
@@ -417,6 +434,7 @@ type_passport:
   cs: číslo pasu
   sv: passnummer
   he: מספר דרכון
+  verified_by_human: []
 type_tax_id:
   context: Label for tax ID / VAT number PII type
   en: tax ID
@@ -440,6 +458,7 @@ type_tax_id:
   cs: daňové ID
   sv: skatte-ID
   he: מזהה מס
+  verified_by_human: []
 type_vehicle_plate:
   context: Label for vehicle license plate number PII type
   en: license plate
@@ -463,6 +482,7 @@ type_vehicle_plate:
   cs: registrační značka
   sv: registreringsskylt
   he: לוחית רישוי
+  verified_by_human: []
 type_crypto_wallet:
   context: Label for cryptocurrency wallet address PII type
   en: crypto wallet
@@ -486,3 +506,4 @@ type_crypto_wallet:
   cs: krypto peněženka
   sv: kryptoplånbok
   he: ארנק קריפטו
+  verified_by_human: []

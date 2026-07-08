@@ -7,8 +7,158 @@ import Foundation
 import SwiftUI
 import CryptoKit
 
+enum ChatStreamingLifecyclePhase: Equatable {
+    case idle
+    case sending
+    case processing
+    case typing
+    case thinking
+    case streaming
+    case queued
+    case cancelling
+    case completed
+    case error
+}
+
+struct ChatStreamingLifecycleState: Equatable {
+    var phase: ChatStreamingLifecyclePhase = .idle
+    var chatId: String?
+    var taskId: String?
+    var messageId: String?
+    var userMessageId: String?
+    var preprocessingStep: String?
+    var thinkingContent = ""
+    var isThinkingStreaming = false
+    var queuedMessageText: String?
+    var errorMessage: String?
+
+    var isActive: Bool {
+        switch phase {
+        case .idle, .completed, .error:
+            return false
+        case .sending, .processing, .typing, .thinking, .streaming, .queued, .cancelling:
+            return true
+        }
+    }
+
+    var shouldShowProcessingDetails: Bool {
+        phase == .processing && preprocessingStep != nil
+    }
+
+    var shouldShowThinkingDetails: Bool {
+        isThinkingStreaming || !thinkingContent.isEmpty
+    }
+
+    mutating func apply(_ event: StreamingClient.StreamEvent) {
+        switch event {
+        case .taskInitiated(let chatId, let taskId, let userMessageId):
+            self.chatId = chatId
+            self.taskId = taskId
+            self.userMessageId = userMessageId.isEmpty ? nil : userMessageId
+            phase = .sending
+            errorMessage = nil
+
+        case .preprocessingStep(let chatId, let step, _):
+            self.chatId = chatId
+            preprocessingStep = step
+            phase = .processing
+
+        case .typingStarted(let chatId, let messageId, let metadata):
+            self.chatId = chatId
+            self.messageId = messageId
+            if let userMessageId = metadata?.userMessageId, !userMessageId.isEmpty {
+                self.userMessageId = userMessageId
+            }
+            phase = .typing
+
+        case .thinkingChunk(let chatId, let messageId, let content):
+            self.chatId = chatId
+            self.messageId = messageId
+            thinkingContent = content
+            isThinkingStreaming = true
+            phase = .thinking
+
+        case .thinkingComplete(let chatId, let messageId):
+            self.chatId = chatId
+            self.messageId = messageId
+            isThinkingStreaming = false
+            if phase == .thinking {
+                phase = .typing
+            }
+
+        case .chunk(let chatId, let messageId, _, _, let isFinal, let userMessageId, _, _, _):
+            self.chatId = chatId
+            self.messageId = messageId
+            if let userMessageId, !userMessageId.isEmpty {
+                self.userMessageId = userMessageId
+            }
+            phase = isFinal ? .completed : .streaming
+            if isFinal {
+                isThinkingStreaming = false
+            }
+
+        case .messageReady(let chatId, let messageId):
+            self.chatId = chatId
+            self.messageId = messageId
+            phase = .completed
+            isThinkingStreaming = false
+            queuedMessageText = nil
+
+        case .typingEnded(let chatId, let messageId):
+            self.chatId = chatId
+            if let messageId { self.messageId = messageId }
+            if phase == .typing || phase == .thinking || phase == .processing {
+                phase = .completed
+            }
+            isThinkingStreaming = false
+            queuedMessageText = nil
+
+        case .messageQueued(let chatId, let taskId, let userMessageId, let message):
+            self.chatId = chatId
+            self.taskId = taskId ?? self.taskId
+            self.userMessageId = userMessageId ?? self.userMessageId
+            queuedMessageText = message
+            phase = .queued
+
+        case .cancelRequested(let chatId, let taskId):
+            self.chatId = chatId
+            self.taskId = taskId ?? self.taskId
+            phase = .cancelling
+            isThinkingStreaming = false
+            queuedMessageText = nil
+
+        case .postProcessingCompleted(let chatId, let taskId, _, _, _, _, _):
+            self.chatId = chatId
+            self.taskId = taskId
+            phase = .completed
+            queuedMessageText = nil
+
+        case .error(let message):
+            phase = .error
+            errorMessage = message
+            isThinkingStreaming = false
+            queuedMessageText = nil
+        }
+    }
+
+    mutating func reset() {
+        self = ChatStreamingLifecycleState()
+    }
+
+    mutating func completeFromAuthoritativeSync(messageId authoritativeMessageId: String) -> Bool {
+        guard messageId == authoritativeMessageId else { return false }
+        phase = .completed
+        isThinkingStreaming = false
+        queuedMessageText = nil
+        return true
+    }
+}
+
 @MainActor
 final class ChatViewModel: ObservableObject {
+    private static let encryptedUserStorageRetryLimit = 3
+    private static let encryptedUserStorageRetryDelayMilliseconds = 200
+
     struct ChatOpeningMetrics: Equatable {
         var initialMessagesReceived = 0
         var initialMessagesDecrypted = 0
@@ -24,6 +174,7 @@ final class ChatViewModel: ObservableObject {
     @Published var isStreaming = false
     @Published var streamingContent = ""
     @Published var streamingMessageId: String?
+    @Published private(set) var streamingLifecycle = ChatStreamingLifecycleState()
     @Published var followUpSuggestions: [String] = []
     @Published var error: String?
     @Published private(set) var openingMetrics = ChatOpeningMetrics()
@@ -49,6 +200,7 @@ final class ChatViewModel: ObservableObject {
     private let sendPipeline = ChatSendPipeline()
     private weak var wsManager: WebSocketManager?
     private weak var chatStore: ChatStore?
+    private var queuedMessageClearTask: Task<Void, Never>?
     private var streamTask: Task<Void, Never>?
     private var embedHydrationTask: Task<Void, Never>?
     private var loadGeneration = 0
@@ -188,9 +340,10 @@ final class ChatViewModel: ObservableObject {
         let referencedIds = Set(embedded.messages.flatMap { $0.embedRefs?.map(\.id) ?? [] })
         let directEmbedRefs = embedded.messages.flatMap { $0.embedRefs ?? [] }.count
         embedRecords = existingRecords.merging(embedded.records) { _, new in new }
-        followUpSuggestions = extractFollowUpSuggestions(from: embedded.messages)
+        let renderedMessages = mergeVisibleMessagesWithActiveStream(embedded.messages, chatId: loadedChat.id)
+        followUpSuggestions = extractFollowUpSuggestions(from: renderedMessages)
 
-        messages = embedded.messages
+        messages = renderedMessages
         hasOlderMessages = chatStore?.hasOlderMessages(for: loadedChat.id, before: embedded.messages.first?.id) ?? (visibleWindowStartIndex > 0)
 
         subscribeToStream(chatId: loadedChat.id)
@@ -531,12 +684,20 @@ final class ChatViewModel: ObservableObject {
         broadcastToSiblings: Bool = false
     ) async {
         guard let currentChat = chat else { return }
+        if IncognitoChatSession.isIncognitoChatId(currentChat.id) {
+            await sendIncognitoMessage(content, in: currentChat)
+            return
+        }
         if AnonymousFreeUsageService.shared.isAnonymousChat(currentChat.id) {
             await sendAnonymousMessage(content, in: currentChat)
             return
         }
         do {
             let composerEmbeds = pendingComposerEmbeds
+            let mergedPIIMappings = sendPipeline.combinedPIIMappings(
+                textMappings: piiMappings,
+                composerEmbeds: composerEmbeds
+            )
             let result = try await sendPipeline.sendUserMessage(
                 content: contentWithComposerEmbedReferences(content, embeds: composerEmbeds),
                 in: currentChat,
@@ -544,18 +705,46 @@ final class ChatViewModel: ObservableObject {
                 wsManager: wsManager,
                 chatStore: chatStore,
                 composerEmbeds: composerEmbeds,
-                piiMappings: piiMappings,
+                piiMappings: mergedPIIMappings,
                 broadcastToSiblings: broadcastToSiblings
             )
             chat = result.chat
             pendingUserMessagesById[result.message.id] = result.message
             appendOrReplaceLocalMessage(result.message)
             if broadcastToSiblings {
-                await broadcastMessageToSiblingSubChats(content, piiMappings: piiMappings)
+                await broadcastMessageToSiblingSubChats(content, piiMappings: mergedPIIMappings)
             }
             pendingComposerEmbeds.removeAll()
             isStreaming = true
             streamingContent = ""
+        } catch {
+            self.error = error.localizedDescription
+            isStreaming = false
+        }
+    }
+
+    private func sendIncognitoMessage(_ content: String, in currentChat: Chat) async {
+        guard !hasPendingComposerEmbeds else {
+            ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
+            return
+        }
+        do {
+            let result = sendPipeline.makeLocalIncognitoUserMessage(
+                content: content,
+                in: currentChat,
+                existingMessages: allMessages
+            )
+            chat = result.chat
+            pendingUserMessagesById[result.message.id] = result.message
+            appendOrReplaceTransientMessage(result.message)
+            isStreaming = true
+            streamingContent = ""
+            try await sendPipeline.sendIncognitoUserMessage(
+                message: result.message,
+                in: result.chat,
+                historyMessages: allMessages,
+                wsManager: wsManager
+            )
         } catch {
             self.error = error.localizedDescription
             isStreaming = false
@@ -730,10 +919,25 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Stop streaming
 
     func stopStreaming() {
+        let taskId = streamingLifecycle.taskId
+        let chatId = streamingLifecycle.chatId ?? chat?.id
+        if taskId != nil || chatId != nil {
+            streamingLifecycle.apply(.cancelRequested(chatId: chatId ?? "", taskId: taskId))
+            Task { @MainActor in
+                do {
+                    try await sendPipeline.sendCancelAITask(taskId: taskId, chatId: chatId, wsManager: wsManager)
+                } catch {
+                    print("[ChatViewModel] Failed to send AI cancellation for chat \((chatId ?? "unknown").prefix(8)): \(error)")
+                }
+            }
+        }
         streamTask?.cancel()
+        queuedMessageClearTask?.cancel()
+        queuedMessageClearTask = nil
         isStreaming = false
         streamingContent = ""
         streamingMessageId = nil
+        streamingLifecycle.reset()
     }
 
     // MARK: - Streaming subscription
@@ -750,6 +954,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func handleStreamEvent(_ event: StreamingClient.StreamEvent) {
+        streamingLifecycle.apply(event)
         switch event {
         case .taskInitiated(_, _, _):
             isStreaming = true
@@ -768,11 +973,13 @@ final class ChatViewModel: ObservableObject {
             }
             if let metadata {
                 Task { @MainActor in
-                    await sendEncryptedUserStorageIfPossible(
-                        chatId: chatId,
-                        assistantMessageId: messageId,
-                        metadata: metadata
-                    )
+                    if !IncognitoChatSession.isIncognitoChatId(chatId) {
+                        await sendEncryptedUserStorageIfPossible(
+                            chatId: chatId,
+                            assistantMessageId: messageId,
+                            metadata: metadata
+                        )
+                    }
                 }
             }
 
@@ -806,7 +1013,11 @@ final class ChatViewModel: ObservableObject {
                     embedRecords[id] = record
                 }
                 let assistantMessage = embedded.messages.first ?? rawAssistantMessage
-                appendOrReplaceLocalMessage(assistantMessage)
+                if IncognitoChatSession.isIncognitoChatId(chatId) {
+                    appendOrReplaceTransientMessage(assistantMessage)
+                } else {
+                    appendOrReplaceLocalMessage(assistantMessage)
+                }
                 followUpSuggestions = extractFollowUpSuggestions(from: allMessages)
                 isStreaming = false
                 streamingContent = ""
@@ -815,10 +1026,13 @@ final class ChatViewModel: ObservableObject {
                 assistantCategoryByMessageId.removeValue(forKey: messageId)
                 assistantModelNameByMessageId.removeValue(forKey: messageId)
                 Task { @MainActor in
-                    await persistCompletedAssistantMessage(
-                        assistantMessage,
-                        userMessageId: userMessageIdByAssistantMessageId[messageId]
-                    )
+                    if !IncognitoChatSession.isIncognitoChatId(chatId) {
+                        await persistCompletedAssistantMessage(
+                            assistantMessage,
+                            userMessageId: userMessageIdByAssistantMessageId[messageId],
+                            canonicalContent: content
+                        )
+                    }
                 }
             } else {
                 let partialAssistantMessage = Message(
@@ -832,17 +1046,31 @@ final class ChatViewModel: ObservableObject {
                 isStreaming = true
             }
 
-        case .thinkingChunk(_, _, _):
-            break
+        case .thinkingChunk(_, let messageId, _):
+            streamingMessageId = messageId
+            isStreaming = true
 
         case .thinkingComplete(_, _):
-            break
+            isStreaming = true
 
         case .messageReady(_, _):
             isStreaming = false
+            streamingLifecycle.queuedMessageText = nil
 
         case .preprocessingStep(_, _, _):
-            break
+            isStreaming = true
+
+        case .typingEnded(_, _):
+            isStreaming = false
+            streamingLifecycle.queuedMessageText = nil
+
+        case .messageQueued(_, _, _, let message):
+            isStreaming = true
+            showQueuedMessage(message)
+
+        case .cancelRequested(_, _):
+            isStreaming = false
+            streamingLifecycle.queuedMessageText = nil
 
         case .postProcessingCompleted(let chatId, _, let followUps, let newSuggestions, let summary, let tags, let updatedTitle):
             guard chat?.id == chatId else { return }
@@ -859,23 +1087,63 @@ final class ChatViewModel: ObservableObject {
                     chatStore: chatStore
                 )
             }
+            streamingLifecycle.queuedMessageText = nil
 
         case .error(let msg):
             error = msg
             isStreaming = false
+            streamingLifecycle.queuedMessageText = nil
+        }
+    }
+
+    private func showQueuedMessage(_ message: String?) {
+        let trimmed = message?.trimmingCharacters(in: .whitespacesAndNewlines)
+        streamingLifecycle.queuedMessageText = (trimmed?.isEmpty == false) ? trimmed : AppStrings.messageQueued
+        queuedMessageClearTask?.cancel()
+        queuedMessageClearTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(7))
+            guard !Task.isCancelled else { return }
+            streamingLifecycle.queuedMessageText = nil
+            queuedMessageClearTask = nil
         }
     }
 
     private func sendEncryptedUserStorageIfPossible(
         chatId: String,
         assistantMessageId: String,
-        metadata: StreamingClient.ChatMetadata
+        metadata: StreamingClient.ChatMetadata,
+        retryAttempt: Int = 0
     ) async {
-        guard chat?.id == chatId else { return }
+        guard !IncognitoChatSession.isIncognitoChatId(chatId) else { return }
+        guard chat?.id == chatId else {
+            await retryEncryptedUserStorageIfNeeded(
+                chatId: chatId,
+                assistantMessageId: assistantMessageId,
+                metadata: metadata,
+                retryAttempt: retryAttempt
+            )
+            return
+        }
         let userMessageId = metadata.userMessageId ?? userMessageIdByAssistantMessageId[assistantMessageId]
         guard let userMessageId,
-              let userMessage = pendingUserMessagesById[userMessageId] ?? allMessages.first(where: { $0.id == userMessageId }),
-              let currentChat = chat else { return }
+              let currentChat = chat else {
+            await retryEncryptedUserStorageIfNeeded(
+                chatId: chatId,
+                assistantMessageId: assistantMessageId,
+                metadata: metadata,
+                retryAttempt: retryAttempt
+            )
+            return
+        }
+        guard let userMessage = pendingUserMessagesById[userMessageId] ?? allMessages.first(where: { $0.id == userMessageId }) else {
+            await retryEncryptedUserStorageIfNeeded(
+                chatId: chatId,
+                assistantMessageId: assistantMessageId,
+                metadata: metadata,
+                retryAttempt: retryAttempt
+            )
+            return
+        }
         do {
             let updatedChat = try await sendPipeline.sendEncryptedUserStoragePackage(
                 chat: currentChat,
@@ -891,13 +1159,42 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    private func persistCompletedAssistantMessage(_ message: Message, userMessageId: String?) async {
+    private func retryEncryptedUserStorageIfNeeded(
+        chatId: String,
+        assistantMessageId: String,
+        metadata: StreamingClient.ChatMetadata,
+        retryAttempt: Int
+    ) async {
+        guard retryAttempt < Self.encryptedUserStorageRetryLimit else {
+            NativeDiagnostics.warning(
+                "Encrypted user storage retry exhausted for chat/message prefix",
+                category: "chat_sync"
+            )
+            return
+        }
+        try? await Task.sleep(for: .milliseconds(Self.encryptedUserStorageRetryDelayMilliseconds))
+        guard !Task.isCancelled else { return }
+        await sendEncryptedUserStorageIfPossible(
+            chatId: chatId,
+            assistantMessageId: assistantMessageId,
+            metadata: metadata,
+            retryAttempt: retryAttempt + 1
+        )
+    }
+
+    private func persistCompletedAssistantMessage(
+        _ message: Message,
+        userMessageId: String?,
+        canonicalContent: String? = nil
+    ) async {
+        guard !IncognitoChatSession.isIncognitoChatId(message.chatId) else { return }
         do {
             let persisted = try await sendPipeline.persistCompletedAssistantMessage(
                 message,
                 userMessageId: userMessageId,
                 wsManager: wsManager,
-                chatStore: chatStore
+                chatStore: chatStore,
+                canonicalContent: canonicalContent
             )
             appendOrReplaceLocalMessage(persisted)
         } catch {
@@ -1311,6 +1608,50 @@ final class ChatViewModel: ObservableObject {
         return Array(rawMessages.suffix(messagesPageSize))
     }
 
+    private func mergeVisibleMessagesWithActiveStream(_ syncedMessages: [Message], chatId: String) -> [Message] {
+        guard isStreaming,
+              let activeMessageId = streamingMessageId else {
+            return syncedMessages
+        }
+
+        if syncedMessages.contains(where: { $0.id == activeMessageId && $0.isStreaming != true }) {
+            clearStreamingStateAfterAuthoritativeSync(messageId: activeMessageId)
+            return syncedMessages
+        }
+
+        guard !syncedMessages.contains(where: { $0.id == activeMessageId }),
+              !streamingContent.isEmpty else {
+            return syncedMessages
+        }
+
+        var mergedMessages = syncedMessages
+        mergedMessages.append(Message(
+            id: activeMessageId,
+            chatId: chatId,
+            role: .assistant,
+            content: streamingContent,
+            encryptedContent: nil,
+            createdAt: createdAtForAssistantMessage(activeMessageId),
+            updatedAt: nil,
+            appId: assistantCategoryByMessageId[activeMessageId] ?? chat?.category ?? chat?.appId,
+            isStreaming: true,
+            embedRefs: nil,
+            modelName: assistantModelNameByMessageId[activeMessageId]
+        ))
+        return mergedMessages.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    private func clearStreamingStateAfterAuthoritativeSync(messageId: String) {
+        guard streamingLifecycle.completeFromAuthoritativeSync(messageId: messageId) else { return }
+        isStreaming = false
+        streamingContent = ""
+        streamingMessageId = nil
+        assistantMessageCreatedAtById.removeValue(forKey: messageId)
+        assistantCategoryByMessageId.removeValue(forKey: messageId)
+        assistantModelNameByMessageId.removeValue(forKey: messageId)
+        userMessageIdByAssistantMessageId.removeValue(forKey: messageId)
+    }
+
     private func relatedEmbeds(referencedIds: Set<String>, from embeds: [EmbedRecord]) -> [EmbedRecord] {
         EmbedRecord.relatedRecords(
             referencedIds: referencedIds,
@@ -1373,30 +1714,60 @@ final class ChatViewModel: ObservableObject {
             ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
             return nil
         }
-        let safeData = redactedUploadDataIfNeeded(data, filename: filename)
+        let safeUpload = redactedUploadContentIfNeeded(data, filename: filename)
+        if let textContent = safeUpload.redactedText ?? String(data: data, encoding: .utf8), isSupportedPIIRedactableTextFile(filename) {
+            registerPendingComposerEmbed(
+                .document(filename: filename, textContent: textContent, piiMappings: safeUpload.piiMappings)
+            )
+            return nil
+        }
         let uploadId = UUID().uuidString
         PendingUploadStore.shared.startUpload(id: uploadId, chatId: chatId, filename: filename)
 
         guard let upload = await uploadData(
-            safeData,
+            safeUpload.data,
             filename: filename,
             uploadId: uploadId,
-            contentType: "application/octet-stream",
+            contentType: Self.contentType(for: filename, fallback: "application/octet-stream"),
             markFinishedOnSuccess: false
         ) else { return nil }
-        registerPendingComposerEmbed(upload, localData: safeData, transcript: nil, duration: nil)
+        registerPendingComposerEmbed(
+            upload,
+            localData: safeUpload.data,
+            transcription: nil,
+            duration: nil,
+            piiMappings: safeUpload.piiMappings,
+            textContent: safeUpload.redactedText
+        )
         PendingUploadStore.shared.markFinished(id: uploadId)
         return upload
     }
 
-    private func redactedUploadDataIfNeeded(_ data: Data, filename: String) -> Data {
+    private struct RedactedUploadContent {
+        let data: Data
+        let piiMappings: [PIIMapping]
+        let redactedText: String?
+    }
+
+    private func redactedUploadContentIfNeeded(_ data: Data, filename: String) -> RedactedUploadContent {
         guard isSupportedPIIRedactableTextFile(filename),
-              let text = String(data: data, encoding: .utf8) else { return data }
-        let matches = PIIDetector.detect(in: text)
-        guard !matches.isEmpty else { return data }
-        let redacted = PIIDetector.redactedText(text, matches: matches, excludedIds: [])
-        print("[Chat] Redacted \(matches.count) PII item(s) before uploading supported text attachment")
-        return redacted.data(using: .utf8) ?? data
+              let text = String(data: data, encoding: .utf8) else {
+            return RedactedUploadContent(data: data, piiMappings: [], redactedText: nil)
+        }
+        let redaction = PIIDetector.redactionResult(
+            in: text,
+            options: PIIPrivacySettingsStore.shared.detectionOptions()
+        )
+        guard !redaction.mappings.isEmpty,
+              let redactedData = redaction.redactedText.data(using: .utf8) else {
+            return RedactedUploadContent(data: data, piiMappings: [], redactedText: nil)
+        }
+        print("[Chat] Redacted \(redaction.mappings.count) PII item(s) before uploading supported text attachment")
+        return RedactedUploadContent(
+            data: redactedData,
+            piiMappings: redaction.mappings,
+            redactedText: redaction.redactedText
+        )
     }
 
     private func isSupportedPIIRedactableTextFile(_ filename: String) -> Bool {
@@ -1461,10 +1832,17 @@ final class ChatViewModel: ObservableObject {
                 path: "apps/audio/skills/transcribe",
                 body: request
             )
-            let transcript = response.data.results.first?.results.first?.transcript
-            registerPendingComposerEmbed(upload, localData: data, transcript: transcript, duration: duration)
+            let transcription = response.data.results.first?.results.first
+            registerPendingComposerEmbed(
+                upload,
+                localData: data,
+                transcription: transcription,
+                duration: duration,
+                piiMappings: [],
+                textContent: nil
+            )
             PendingUploadStore.shared.markFinished(id: uploadId)
-            return transcript
+            return transcription?.displayTranscript
         } catch {
             print("[Chat] Recording transcription error: \(error)")
             PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.uploadProgressError)
@@ -1481,33 +1859,13 @@ final class ChatViewModel: ObservableObject {
     ) async -> UploadFileResponse? {
         guard let chatId = chat?.id else { return nil }
 
-        let boundary = UUID().uuidString
-        var body = Data()
-
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: \(contentType)\r\n\r\n".data(using: .utf8)!)
-        body.append(data)
-        body.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n".data(using: .utf8)!)
-        body.append(chatId.data(using: .utf8)!)
-        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-
         do {
-            let uploadURL = await APIClient.shared.uploadBaseURL
-                .appendingPathComponent("v1/upload/file")
-            var request = URLRequest(url: uploadURL)
-            request.httpMethod = "POST"
-            request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-            request.httpBody = body
-
-            let (responseData, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode) else {
-                print("[Chat] Upload failed")
-                PendingUploadStore.shared.markError(id: uploadId, message: AppStrings.error)
-                return nil
-            }
+            let responseData = try await APIClient.shared.uploadFile(
+                data: data,
+                filename: filename,
+                contentType: contentType,
+                chatId: chatId
+            )
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             let upload = try decoder.decode(UploadFileResponse.self, from: responseData)
@@ -1530,6 +1888,14 @@ final class ChatViewModel: ObservableObject {
         }
         guard let data = try? Data(contentsOf: url) else { return }
         await uploadAttachment(data: data, filename: url.lastPathComponent)
+    }
+
+    func uploadFile(data: Data, filename: String) async {
+        if let chatId = chat?.id, AnonymousFreeUsageService.shared.isAnonymousChat(chatId) {
+            ToastManager.shared.show(AppStrings.uploadSignupRequired, type: .info)
+            return
+        }
+        await uploadAttachment(data: data, filename: filename)
     }
 
     func removePendingComposerEmbed(id: String) {
@@ -1560,22 +1926,37 @@ final class ChatViewModel: ObservableObject {
             pageCount: nil,
             deduplicated: true
         )
-        registerPendingComposerEmbed(upload, localData: Data(repeating: 0, count: 128), transcript: nil, duration: nil)
+        registerPendingComposerEmbed(
+            upload,
+            localData: Data(repeating: 0, count: 128),
+            transcription: nil,
+            duration: nil,
+            piiMappings: [],
+            textContent: nil
+        )
     }
     #endif
 
     private func registerPendingComposerEmbed(
         _ upload: UploadFileResponse,
         localData: Data?,
-        transcript: String?,
-        duration: TimeInterval?
+        transcription: TranscriptionMetadata?,
+        duration: TimeInterval?,
+        piiMappings: [PIIMapping],
+        textContent: String?
     ) {
         let embed = ComposerPendingEmbed.from(
             upload: upload,
             localData: localData,
-            transcript: transcript,
-            duration: duration
+            transcription: transcription,
+            duration: duration,
+            piiMappings: piiMappings,
+            textContent: textContent
         )
+        registerPendingComposerEmbed(embed)
+    }
+
+    private func registerPendingComposerEmbed(_ embed: ComposerPendingEmbed) {
         pendingComposerEmbeds.removeAll { $0.id == embed.id }
         pendingComposerEmbeds.append(embed)
         embedRecords[embed.record.id] = embed.record
@@ -1589,6 +1970,26 @@ final class ChatViewModel: ObservableObject {
         let references = embeds.map(\.markdownReference).joined(separator: "\n")
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? references : "\(trimmed)\n\n\(references)"
+    }
+
+    private static func contentType(for filename: String, fallback: String) -> String {
+        switch URL(fileURLWithPath: filename).pathExtension.lowercased() {
+        case "jpg", "jpeg": return "image/jpeg"
+        case "png": return "image/png"
+        case "gif": return "image/gif"
+        case "webp": return "image/webp"
+        case "heic": return "image/heic"
+        case "heif": return "image/heif"
+        case "svg": return "image/svg+xml"
+        case "pdf": return "application/pdf"
+        case "m4a", "mp4": return "audio/mp4"
+        case "webm": return "audio/webm"
+        case "ogg": return "audio/ogg"
+        case "mp3": return "audio/mpeg"
+        case "wav": return "audio/wav"
+        case "aac": return "audio/aac"
+        default: return fallback
+        }
     }
 }
 
@@ -1614,6 +2015,38 @@ struct UploadedFileVariant: Decodable {
     let format: String?
 }
 
+struct TranscriptionMetadata: Decodable {
+    let transcript: String?
+    let transcriptOriginal: String?
+    let transcriptCorrected: String?
+    let useCorrected: Bool?
+    let model: String?
+    let correctionModel: String?
+
+    init(
+        transcript: String?,
+        transcriptOriginal: String? = nil,
+        transcriptCorrected: String? = nil,
+        useCorrected: Bool? = nil,
+        model: String? = nil,
+        correctionModel: String? = nil
+    ) {
+        self.transcript = transcript
+        self.transcriptOriginal = transcriptOriginal
+        self.transcriptCorrected = transcriptCorrected
+        self.useCorrected = useCorrected
+        self.model = model
+        self.correctionModel = correctionModel
+    }
+
+    var displayTranscript: String? {
+        if useCorrected == true, let transcriptCorrected, !transcriptCorrected.isEmpty {
+            return transcriptCorrected
+        }
+        return transcript
+    }
+}
+
 struct ComposerPendingEmbed: Identifiable {
     let id: String
     let type: String
@@ -1625,6 +2058,7 @@ struct ComposerPendingEmbed: Identifiable {
     let localData: Data?
     let filename: String
     let size: Int
+    let piiMappings: [PIIMapping]
 
     var markdownReference: String {
         "```json\n{\"type\": \"\(referenceType)\", \"embed_id\": \"\(id)\"}\n```"
@@ -1673,7 +2107,7 @@ struct ComposerPendingEmbed: Identifiable {
                 deduplicated: true
             ),
             localData: Data(repeating: 0, count: 128),
-            transcript: nil,
+            transcription: nil,
             duration: nil
         )
     }
@@ -1682,13 +2116,20 @@ struct ComposerPendingEmbed: Identifiable {
     static func from(
         upload: UploadFileResponse,
         localData: Data?,
-        transcript: String?,
-        duration: TimeInterval?
+        transcription: TranscriptionMetadata?,
+        duration: TimeInterval?,
+        piiMappings: [PIIMapping] = [],
+        textContent: String? = nil
     ) -> ComposerPendingEmbed {
         let classification = ComposerUploadClassification(upload: upload)
-        let contentObject = classification.contentObject(upload: upload, transcript: transcript, duration: duration)
+        let contentObject = classification.contentObject(
+            upload: upload,
+            transcription: transcription,
+            duration: duration,
+            textContent: textContent
+        )
         let content = classification.shouldSendContent ? jsonString(contentObject) : nil
-        let preview = transcript ?? upload.filename
+        let preview = transcription?.displayTranscript ?? upload.filename
         let record = EmbedRecord(
             id: upload.embedId,
             type: classification.embedType,
@@ -1710,7 +2151,47 @@ struct ComposerPendingEmbed: Identifiable {
             record: record,
             localData: localData,
             filename: upload.filename,
-            size: localData?.count ?? upload.files.values.compactMap(\.sizeBytes).max() ?? 0
+            size: localData?.count ?? upload.files.values.compactMap(\.sizeBytes).max() ?? 0,
+            piiMappings: piiMappings
+        )
+    }
+
+    static func document(filename: String, textContent: String, piiMappings: [PIIMapping]) -> ComposerPendingEmbed {
+        let embedId = UUID().uuidString.lowercased()
+        let now = String(Int(Date().timeIntervalSince1970))
+        let contentObject: [String: Any] = [
+            "app_id": "docs",
+            "type": "file",
+            "status": "finished",
+            "filename": filename,
+            "title": filename,
+            "content": textContent,
+            "word_count": textContent.split { $0.isWhitespace }.count
+        ]
+        let content = jsonString(contentObject)
+        let record = EmbedRecord(
+            id: embedId,
+            type: "docs-doc",
+            status: .finished,
+            data: .raw(contentObject.mapValues { AnyCodable($0) }),
+            parentEmbedId: nil,
+            appId: "docs",
+            skillId: nil,
+            embedIds: nil,
+            createdAt: now
+        )
+        return ComposerPendingEmbed(
+            id: embedId,
+            type: "docs-doc",
+            referenceType: "docs-doc",
+            status: "finished",
+            content: content,
+            textPreview: filename,
+            record: record,
+            localData: Data(textContent.utf8),
+            filename: filename,
+            size: textContent.utf8.count,
+            piiMappings: piiMappings
         )
     }
 
@@ -1755,7 +2236,7 @@ private struct ComposerUploadClassification {
             status = upload.deduplicated == true ? "finished" : "processing"
             appId = "pdf"
             skillId = nil
-            shouldSendContent = upload.deduplicated == true
+            shouldSendContent = true
         } else {
             embedType = "docs-doc"
             referenceType = "file"
@@ -1766,7 +2247,7 @@ private struct ComposerUploadClassification {
         }
     }
 
-    func contentObject(upload: UploadFileResponse, transcript: String?, duration: TimeInterval?) -> [String: Any] {
+    func contentObject(upload: UploadFileResponse, transcription: TranscriptionMetadata?, duration: TimeInterval?, textContent: String?) -> [String: Any] {
         var object: [String: Any] = [
             "app_id": appId,
             "type": referenceType,
@@ -1788,8 +2269,21 @@ private struct ComposerUploadClassification {
         if let skillId { object["skill_id"] = skillId }
         if let contentHash = upload.contentHash { object["content_hash"] = contentHash }
         if let pageCount = upload.pageCount { object["page_count"] = pageCount }
-        if let transcript { object["transcript"] = transcript }
+        if let transcription {
+            if let transcript = transcription.transcript { object["transcript"] = transcript }
+            if let displayTranscript = transcription.displayTranscript { object["transcription"] = displayTranscript }
+            if let transcriptOriginal = transcription.transcriptOriginal { object["transcript_original"] = transcriptOriginal }
+            if let transcriptCorrected = transcription.transcriptCorrected { object["transcript_corrected"] = transcriptCorrected }
+            if let useCorrected = transcription.useCorrected { object["use_corrected"] = useCorrected }
+            if let model = transcription.model { object["model"] = model }
+            if let correctionModel = transcription.correctionModel { object["correction_model"] = correctionModel }
+        }
         if let duration { object["duration"] = duration }
+        if let textContent, !textContent.isEmpty, appId == "docs" {
+            object["content"] = textContent
+            object["title"] = upload.filename
+            object["word_count"] = textContent.split { $0.isWhitespace }.count
+        }
         return object
     }
 }
@@ -1797,10 +2291,7 @@ private struct ComposerUploadClassification {
 private struct TranscribeSkillResponse: Decodable {
     struct ResponseData: Decodable {
         struct ResultGroup: Decodable {
-            struct Result: Decodable {
-                let transcript: String?
-            }
-            let results: [Result]
+            let results: [TranscriptionMetadata]
         }
         let results: [ResultGroup]
     }
@@ -1823,7 +2314,7 @@ private struct ChatEmbedsResponse: Decodable {
 }
 
 @MainActor
-fileprivate enum PublicChatContent {
+enum PublicChatContent {
     struct PublicChat {
         let chat: Chat
         let messages: [Message]
@@ -2595,6 +3086,117 @@ final class ChatSendPipeline {
         let message: Message
     }
 
+    func makeLocalIncognitoUserMessage(
+        content: String,
+        in chat: Chat,
+        existingMessages: [Message],
+        piiMappings: [PIIMapping] = []
+    ) -> SendResult {
+        let now = Date()
+        let createdAt = Self.isoString(from: now)
+        let messageId = "\(chat.id.suffix(10))-\(UUID().uuidString)"
+        let nextMessagesV = max(chat.messagesV ?? existingMessages.count, existingMessages.count) + 1
+        let updatedChat = copyChat(
+            chat,
+            title: chat.title ?? String(content.prefix(64)),
+            lastMessageAt: createdAt,
+            updatedAt: createdAt,
+            messagesV: nextMessagesV
+        )
+        let message = Message(
+            id: messageId,
+            chatId: chat.id,
+            role: .user,
+            content: content,
+            encryptedContent: nil,
+            createdAt: createdAt,
+            updatedAt: nil,
+            appId: nil,
+            isStreaming: false,
+            embedRefs: nil,
+            piiMappings: piiMappings.isEmpty ? nil : piiMappings
+        )
+        return SendResult(chat: updatedChat, message: message)
+    }
+
+    func sendIncognitoUserMessage(
+        message: Message,
+        in chat: Chat,
+        historyMessages: [Message],
+        wsManager: WebSocketManager?
+    ) async throws {
+        guard let wsManager else { throw ChatSendError.webSocketUnavailable }
+        try await sendSetActiveChat(chat.id, wsManager: wsManager)
+        try await wsManager.send(WSOutboundMessage(
+            type: "chat_message_added",
+            payload: incognitoUserMessagePayload(
+                chatId: chat.id,
+                message: message,
+                messageHistory: historyMessages
+            )
+        ))
+    }
+
+    func sendIncognitoUserMessage(
+        content: String,
+        in chat: Chat,
+        existingMessages: [Message],
+        wsManager: WebSocketManager?
+    ) async throws {
+        let result = makeLocalIncognitoUserMessage(content: content, in: chat, existingMessages: existingMessages)
+        try await sendIncognitoUserMessage(
+            message: result.message,
+            in: result.chat,
+            historyMessages: existingMessages + [result.message],
+            wsManager: wsManager
+        )
+    }
+
+    func incognitoUserMessagePayload(
+        chatId: String,
+        message: Message,
+        messageHistory: [Message]
+    ) -> [String: Any] {
+        let createdAtUnix = Self.unixSeconds(from: message.createdAt)
+        return [
+            "chat_id": chatId,
+            "is_incognito": true,
+            "message": [
+                "message_id": message.id,
+                "chat_id": chatId,
+                "role": message.role.rawValue,
+                "sender_name": "User",
+                "status": "sent",
+                "content": message.content ?? "",
+                "created_at": createdAtUnix,
+                "chat_has_title": false
+            ],
+            "message_history": incognitoMessageHistoryPayload(messageHistory, fallbackChatId: chatId)
+        ]
+    }
+
+    func combinedPIIMappings(
+        textMappings: [PIIMapping],
+        composerEmbeds: [ComposerPendingEmbed]
+    ) -> [PIIMapping] {
+        textMappings + composerEmbeds.flatMap(\.piiMappings)
+    }
+
+    private func incognitoMessageHistoryPayload(_ messages: [Message], fallbackChatId: String) -> [[String: Any]] {
+        messages.compactMap { message in
+            let content = (message.content ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !content.isEmpty, message.role != .system else { return nil }
+            return [
+                "message_id": message.id,
+                "chat_id": message.chatId.isEmpty ? fallbackChatId : message.chatId,
+                "role": message.role.rawValue,
+                "sender_name": message.role == .user ? "User" : "Assistant",
+                "content": content,
+                "created_at": Self.unixSeconds(from: message.createdAt)
+            ]
+        }
+    }
+
     func sendUserMessage(
         content: String,
         in chat: Chat,
@@ -2783,6 +3385,23 @@ final class ChatSendPipeline {
         return payload
     }
 
+    func sendCancelAITask(taskId: String?, chatId: String?, wsManager: WebSocketManager?) async throws {
+        guard let wsManager else { throw ChatSendError.webSocketUnavailable }
+        guard let taskId, !taskId.isEmpty else { return }
+        try await wsManager.send(WSOutboundMessage(
+            type: "cancel_ai_task",
+            payload: cancelAITaskPayload(taskId: taskId, chatId: chatId)
+        ))
+    }
+
+    func cancelAITaskPayload(taskId: String, chatId: String?) -> [String: Any] {
+        var payload: [String: Any] = ["task_id": taskId]
+        if let chatId, !chatId.isEmpty {
+            payload["chat_id"] = chatId
+        }
+        return payload
+    }
+
     func chatContextPayloadFields(
         for chat: Chat,
         broadcastToSiblings: Bool,
@@ -2894,17 +3513,22 @@ final class ChatSendPipeline {
         _ message: Message,
         userMessageId: String?,
         wsManager: WebSocketManager?,
-        chatStore: ChatStore?
+        chatStore: ChatStore?,
+        canonicalContent: String? = nil
     ) async throws -> Message {
         guard let wsManager else { throw ChatSendError.webSocketUnavailable }
-        guard completedAssistantStorageSent.insert(message.id).inserted else { return message }
+        guard !completedAssistantStorageSent.contains(message.id) else { return message }
         guard let chat = chatStore?.chat(for: message.chatId) else { return message }
         let keyMaterial = try await ensureChatKey(chatId: message.chatId, encryptedChatKey: chat.encryptedChatKey)
         let encryptedContent: String
         if let existing = message.encryptedContent {
             encryptedContent = existing
         } else {
-            encryptedContent = try await crypto.encryptContent(message.content ?? "", key: keyMaterial.key)
+            let contentForPersistence = Self.canonicalAssistantContentForPersistence(
+                displayContent: message.content,
+                canonicalStreamContent: canonicalContent
+            )
+            encryptedContent = try await crypto.encryptContent(contentForPersistence, key: keyMaterial.key)
         }
         let encryptedCategory = try await encryptOptional(message.appId, key: keyMaterial.key)
         let encryptedModelName = try await encryptOptional(message.modelName, key: keyMaterial.key)
@@ -2926,6 +3550,7 @@ final class ChatSendPipeline {
         )
 
         chatStore?.appendMessage(persisted, to: message.chatId)
+        let localMessageCountAfterAppend = chatStore?.messages(for: message.chatId).count ?? 1
 
         if message.role == .system {
             var systemMessage: [String: Any] = [
@@ -2936,38 +3561,127 @@ final class ChatSendPipeline {
                 "status": "waiting_for_user"
             ]
             if let userMessageId { systemMessage["user_message_id"] = userMessageId }
-            try await wsManager.send(WSOutboundMessage(
-                type: "chat_system_message_added",
-                payload: [
-                    "chat_id": message.chatId,
-                    "message": systemMessage
-                ]
-            ))
-        } else {
-            var messagePayload: [String: Any] = [
-                "message_id": message.id,
-                "chat_id": message.chatId,
-                "role": "assistant",
-                "created_at": createdAtUnix,
-                "status": "synced",
-                "encrypted_content": encryptedContent
-            ]
-            if let userMessageId { messagePayload["user_message_id"] = userMessageId }
-            if let encryptedCategory { messagePayload["encrypted_category"] = encryptedCategory }
-            if let encryptedModelName { messagePayload["encrypted_model_name"] = encryptedModelName }
-            try await wsManager.send(WSOutboundMessage(
-                type: "ai_response_completed",
-                payload: [
-                    "chat_id": message.chatId,
-                    "message": messagePayload,
-                    "versions": [
-                        "messages_v": chat.messagesV ?? chatStore?.messages(for: message.chatId).count ?? 1,
-                        "last_edited_overall_timestamp": createdAtUnix
+            do {
+                try await wsManager.send(WSOutboundMessage(
+                    type: "chat_system_message_added",
+                    payload: [
+                        "chat_id": message.chatId,
+                        "message": systemMessage
                     ]
-                ]
-            ))
+                ))
+                completedAssistantStorageSent.insert(message.id)
+            } catch {
+                throw error
+            }
+        } else {
+            let payload = assistantCompletionPayload(
+                for: persisted,
+                userMessageId: userMessageId,
+                encryptedContent: encryptedContent,
+                encryptedCategory: encryptedCategory,
+                encryptedModelName: encryptedModelName,
+                createdAtUnix: createdAtUnix,
+                currentMessagesV: chat.messagesV,
+                localMessageCountAfterAppendingAssistant: localMessageCountAfterAppend
+            )
+            do {
+                try await wsManager.send(WSOutboundMessage(
+                    type: "ai_response_completed",
+                    payload: payload
+                ))
+                completedAssistantStorageSent.insert(message.id)
+                PendingAssistantResponseQueue.shared.remove(messageId: message.id)
+            } catch {
+                PendingAssistantResponseQueue.shared.add(messageId: message.id, chatId: message.chatId)
+                throw error
+            }
         }
         return persisted
+    }
+
+    func flushPendingAssistantResponses(
+        wsManager: WebSocketManager?,
+        chatStore: ChatStore?,
+        queue: PendingAssistantResponseQueue = .shared
+    ) async {
+        guard let chatStore else { return }
+        for entry in queue.all() {
+            let messages = chatStore.messages(for: entry.chatId)
+            guard let message = messages.first(where: { $0.id == entry.messageId }) else { continue }
+            guard message.role == .assistant || message.role == .system else {
+                queue.remove(messageId: entry.messageId)
+                continue
+            }
+            do {
+                _ = try await persistCompletedAssistantMessage(
+                    message,
+                    userMessageId: inferredUserMessageId(before: message, in: messages),
+                    wsManager: wsManager,
+                    chatStore: chatStore
+                )
+            } catch {
+                print("[ChatSendPipeline] Pending assistant response retry failed for chat \(entry.chatId.prefix(8)) message \(entry.messageId.prefix(8)): \(error)")
+            }
+        }
+    }
+
+    func inferredUserMessageId(before message: Message, in messages: [Message]) -> String? {
+        let sortedMessages = messages.sorted { $0.createdAt < $1.createdAt }
+        guard let messageIndex = sortedMessages.firstIndex(where: { $0.id == message.id }) else { return nil }
+        return sortedMessages[..<messageIndex].last(where: { $0.role == .user })?.id
+    }
+
+    func completedAssistantMessagesVersion(
+        currentMessagesV: Int?,
+        localMessageCountAfterAppendingAssistant: Int
+    ) -> Int {
+        let localVersionBeforeAssistant = max(0, localMessageCountAfterAppendingAssistant - 1)
+        return max(currentMessagesV ?? 0, localVersionBeforeAssistant) + 1
+    }
+
+    func assistantCompletionPayload(
+        for message: Message,
+        userMessageId: String?,
+        encryptedContent: String,
+        encryptedCategory: String?,
+        encryptedModelName: String?,
+        createdAtUnix: Int,
+        currentMessagesV: Int?,
+        localMessageCountAfterAppendingAssistant: Int
+    ) -> [String: Any] {
+        var messagePayload: [String: Any] = [
+            "message_id": message.id,
+            "chat_id": message.chatId,
+            "role": "assistant",
+            "created_at": createdAtUnix,
+            "status": "synced",
+            "encrypted_content": encryptedContent
+        ]
+        if let userMessageId { messagePayload["user_message_id"] = userMessageId }
+        if let encryptedCategory { messagePayload["encrypted_category"] = encryptedCategory }
+        if let encryptedModelName { messagePayload["encrypted_model_name"] = encryptedModelName }
+        return [
+            "chat_id": message.chatId,
+            "message": messagePayload,
+            "versions": [
+                "messages_v": completedAssistantMessagesVersion(
+                    currentMessagesV: currentMessagesV,
+                    localMessageCountAfterAppendingAssistant: localMessageCountAfterAppendingAssistant
+                ),
+                "last_edited_overall_timestamp": createdAtUnix
+            ]
+        ]
+    }
+
+    static func canonicalAssistantContentForPersistence(
+        displayContent: String?,
+        canonicalStreamContent: String?
+    ) -> String {
+        let canonical = canonicalStreamContent?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if canonical?.isEmpty == false {
+            return canonicalStreamContent ?? ""
+        }
+        return displayContent ?? ""
     }
 
     func sendPostProcessingMetadata(
@@ -3044,12 +3758,15 @@ final class ChatSendPipeline {
         }
 
         if let key = ChatKeyManager.shared.key(for: chatId) {
-            let encrypted: String
-            if let encryptedChatKey {
-                encrypted = encryptedChatKey
-            } else {
-                encrypted = try await crypto.wrapChatKey(key, masterKey: masterKey)
+            if requiresCachedChatKeyValidation(cachedKeyExists: true, encryptedChatKey: encryptedChatKey),
+               let encryptedChatKey {
+                let wrappedKey = try await crypto.unwrapChatKey(encryptedChatKeyBase64: encryptedChatKey, masterKey: masterKey)
+                guard Self.symmetricKeysEqual(key, wrappedKey) else {
+                    throw ChatSendError.chatKeyMismatch
+                }
+                return (key, encryptedChatKey)
             }
+            let encrypted = try await crypto.wrapChatKey(key, masterKey: masterKey)
             return (key, encrypted)
         }
 
@@ -3062,6 +3779,18 @@ final class ChatSendPipeline {
         let key = await ChatKeyManager.shared.createKeyForNewChat(chatId)
         let encrypted = try await crypto.wrapChatKey(key, masterKey: masterKey)
         return (key, encrypted)
+    }
+
+    func requiresCachedChatKeyValidation(cachedKeyExists: Bool, encryptedChatKey: String?) -> Bool {
+        cachedKeyExists && encryptedChatKey?.isEmpty == false
+    }
+
+    private static func symmetricKeysEqual(_ lhs: SymmetricKey, _ rhs: SymmetricKey) -> Bool {
+        lhs.withUnsafeBytes { leftBytes in
+            rhs.withUnsafeBytes { rightBytes in
+                Data(leftBytes) == Data(rightBytes)
+            }
+        }
     }
 
     private func encryptedEmbeds(
@@ -3253,6 +3982,7 @@ final class ChatSendPipeline {
 private enum ChatSendError: LocalizedError {
     case missingMasterKey
     case webSocketUnavailable
+    case chatKeyMismatch
 
     var errorDescription: String? {
         switch self {
@@ -3260,6 +3990,8 @@ private enum ChatSendError: LocalizedError {
             return "Missing encryption key for this device. Please sign in again."
         case .webSocketUnavailable:
             return "Realtime connection is not ready. Please try again."
+        case .chatKeyMismatch:
+            return "Chat encryption keys are out of sync. Please reload this chat before sending."
         }
     }
 }

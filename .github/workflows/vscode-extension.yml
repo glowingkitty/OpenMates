@@ -1,0 +1,86 @@
+name: VS Code Extension
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "frontend/apps/vscode_extension/**"
+      - "frontend/apps/web_app/package.json"
+      - "frontend/apps/web_app/scripts/build-vscode.js"
+      - "frontend/apps/web_app/svelte.config.js"
+      - "frontend/packages/ui/index.ts"
+      - "frontend/packages/ui/src/components/Login.svelte"
+      - "frontend/packages/ui/src/platform/runtime.ts"
+      - "scripts/audit_vscode_extension_v1.py"
+      - ".github/workflows/vscode-extension.yml"
+      - "docs/specs/vscode-extension-v1/spec.yml"
+  push:
+    branches:
+      - dev
+    paths:
+      - "frontend/apps/vscode_extension/**"
+      - "frontend/apps/web_app/package.json"
+      - "frontend/apps/web_app/scripts/build-vscode.js"
+      - "frontend/apps/web_app/svelte.config.js"
+      - "frontend/packages/ui/index.ts"
+      - "frontend/packages/ui/src/components/Login.svelte"
+      - "frontend/packages/ui/src/platform/runtime.ts"
+      - "scripts/audit_vscode_extension_v1.py"
+      - ".github/workflows/vscode-extension.yml"
+      - "docs/specs/vscode-extension-v1/spec.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate VS Code extension spec
+        run: python3 scripts/spec_validate.py docs/specs/vscode-extension-v1/spec.yml
+
+      - name: Run no-mutation audit
+        run: python3 scripts/audit_vscode_extension_v1.py
+
+      - name: Run CLI remote-access contract tests
+        run: pnpm --filter openmates test:unit:remote-access
+
+      - name: Run extension unit tests
+        run: pnpm --filter openmates-vscode-extension test:unit
+
+      - name: Build extension
+        run: pnpm --filter openmates-vscode-extension build
+
+      - name: Build bundled web app for VS Code
+        run: pnpm --filter web_app build:vscode
+
+      - name: Run VS Code Extension Host smoke
+        run: xvfb-run -a pnpm --filter openmates-vscode-extension test:vscode
+
+      - name: Package internal VSIX
+        run: pnpm --filter openmates-vscode-extension package
+
+      - name: Install VSIX and run webview login smoke
+        env:
+          OPENMATES_VSCODE_API_BASE_URL: https://api.dev.openmates.org
+          OPENMATES_TEST_ACCOUNT_1_EMAIL: ${{ secrets.OPENMATES_TEST_ACCOUNT_1_EMAIL }}
+          OPENMATES_TEST_ACCOUNT_1_PASSWORD: ${{ secrets.OPENMATES_TEST_ACCOUNT_1_PASSWORD }}
+          OPENMATES_TEST_ACCOUNT_1_OTP_KEY: ${{ secrets.OPENMATES_TEST_ACCOUNT_1_OTP_KEY }}
+          OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: "1"
+          PLAYWRIGHT_WORKER_SLOT: "1"
+        run: xvfb-run -a pnpm --filter openmates-vscode-extension test:vscode:installed
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openmates-vscode-vsix
+          path: frontend/apps/vscode_extension/dist/*.vsix

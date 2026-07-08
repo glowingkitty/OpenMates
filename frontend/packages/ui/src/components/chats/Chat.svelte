@@ -37,6 +37,7 @@
   import { settingsMenuVisible } from '../Settings.svelte'; // For controlling Settings visibility
   import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
   import { activeChatStore } from '../../stores/activeChatStore'; // For setting active chat before share
+  import { activeChatFocusStore } from '../../stores/activeChatFocusStore';
   
   // Import Lucide icons dynamically
   import * as LucideIcons from '@lucide/svelte';
@@ -64,6 +65,10 @@
     /** Pre-highlighted HTML string for the chat title (used in search results to show <mark> tags). When provided, overrides the normal title rendering. */
     highlightedTitle?: string | null;
   } = $props();
+
+  function snapshotChatForStorage(): Chat {
+    return $state.snapshot(chat) as Chat;
+  }
   
   // Check if this chat is selected
   let isSelected = $derived(chat ? selectedChatIds.has(chat.chat_id) : false);
@@ -441,7 +446,8 @@
   // Active focus mode badge: derived from cachedMetadata.activeFocusId.
   // Shows a small circle in the bottom-right of the category circle when a focus mode is active.
   // Format of activeFocusId: "{app_id}-{focus_mode_id}" e.g. "jobs-career_insights"
-  let activeFocusId = $derived(cachedMetadata?.activeFocusId ?? null);
+  let liveActiveFocusId = $derived(chat ? ($activeChatFocusStore[chat.chat_id] ?? null) : null);
+  let activeFocusId = $derived(cachedMetadata?.activeFocusId ?? liveActiveFocusId);
   let activeFocusBadgeAppId = $derived(activeFocusId ? activeFocusId.split('-')[0] : null);
   
   // CRITICAL: Track if we're waiting for title (reactive variable for template)
@@ -1069,9 +1075,24 @@
   }
 
   let isActive = $derived(activeChatId === chat?.chat_id);
+  let isSharedByOthers = $derived(!!chat?.is_shared_by_others);
+  let isOwnerShared = $derived(!!chat?.is_shared && !isSharedByOthers);
   
   // Get unread count from store for this chat
   let unreadCount = $derived($unreadMessagesStore.unreadCounts.get(chat?.chat_id || '') || 0);
+  let pinnedOverride = $state<boolean | null>(null);
+  let pinnedOverrideChatId = $state<string | null>(null);
+
+  $effect(() => {
+    const currentChatId = chat?.chat_id ?? null;
+    if (currentChatId !== pinnedOverrideChatId) {
+      pinnedOverrideChatId = currentChatId;
+      pinnedOverride = null;
+    }
+  });
+
+  let isPinned = $derived(pinnedOverride ?? !!chat?.pinned);
+  let chatForContextMenu = $derived(chat ? { ...chat, pinned: isPinned, unread_count: unreadCount } : undefined);
   
   // Flag to temporarily suppress auto-clear when user manually marks as unread
   // This prevents the effect from immediately clearing the unread state
@@ -1650,11 +1671,10 @@
       console.debug('[Chat] Pinning chat:', chatIdToPin);
 
       // Update the chat in IndexedDB - pass full chat object with updated pinned status
-      const updatedChat = { ...chat, pinned: true };
+      const updatedChat = { ...snapshotChatForStorage(), pinned: true };
       await chatDB.updateChat(updatedChat);
 
-      // Note: We don't mutate the chat prop here - the parent component will update it
-      // when it receives the LOCAL_CHAT_LIST_CHANGED_EVENT and refreshes from the database
+      pinnedOverride = true;
 
       // Mark cache as dirty and refresh the list
       chatListCache.markDirty();
@@ -1698,11 +1718,10 @@
       console.debug('[Chat] Unpinning chat:', chatIdToUnpin);
 
       // Update the chat in IndexedDB - pass full chat object with updated pinned status
-      const updatedChat = { ...chat, pinned: false };
+      const updatedChat = { ...snapshotChatForStorage(), pinned: false };
       await chatDB.updateChat(updatedChat);
 
-      // Note: We don't mutate the chat prop here - the parent component will update it
-      // when it receives the LOCAL_CHAT_LIST_CHANGED_EVENT and refreshes from the database
+      pinnedOverride = false;
 
       // Mark cache as dirty and refresh the list
       chatListCache.markDirty();
@@ -1759,7 +1778,7 @@
       unreadMessagesStore.incrementUnread(chatIdToMarkUnread);
 
       // Update the chat in IndexedDB
-      const updatedChat = { ...chat, unread_count: newUnreadCount };
+      const updatedChat = { ...snapshotChatForStorage(), unread_count: newUnreadCount };
       await chatDB.updateChat(updatedChat);
 
       // Mark cache as dirty and refresh the list
@@ -1805,7 +1824,7 @@
       unreadMessagesStore.clearUnread(chatIdToMarkRead);
 
       // Update the chat in IndexedDB
-      const updatedChat = { ...chat, unread_count: newUnreadCount };
+      const updatedChat = { ...snapshotChatForStorage(), unread_count: newUnreadCount };
       await chatDB.updateChat(updatedChat);
 
       // Mark cache as dirty and refresh the list
@@ -1838,6 +1857,17 @@
     if (!chat) return;
 
     activeChatStore.setActiveChat(chat.chat_id);
+
+    const detailsEvent = new CustomEvent('openmates-open-chat-details', {
+      cancelable: true,
+      detail: { chatId: chat.chat_id, tab: 'share' },
+    });
+    window.dispatchEvent(detailsEvent);
+    if (detailsEvent.defaultPrevented) {
+      showContextMenu = false;
+      return;
+    }
+
     settingsMenuVisible.set(true);
     panelState.openSettings();
 
@@ -2096,17 +2126,36 @@
                       <IconComponent size={16} color="white" />
                     {/if}
                   </div>
-                    {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
-                      <div class="unread-badge" data-testid="unread-badge">
-                        {unreadCount > 9 ? '9+' : unreadCount}
-                      </div>
-                    {:else if chat.is_shared}
+                  {#if unreadCount > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
+                    <div class="unread-badge" data-testid="unread-badge">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </div>
+                  {:else if isSharedByOthers}
+                    <div
+                      class="share-badge public-share-badge"
+                      title={$text('chat.header.shared_chat')}
+                      data-testid="shared-chat-public-icon"
+                    >
+                      <LucideIcons.Globe size={10} color="white" />
+                    </div>
+                  {:else if isOwnerShared}
                     <!-- Share indicator badge: shown when chat is shared (has active share link) -->
                     <div class="share-badge" title="This chat is shared">
                       <LucideIcons.Share2 size={10} color="white" />
                     </div>
                   {/if}
                 </div>
+                {#if activeFocusBadgeAppId}
+                  <div
+                    class="focus-mode-badge"
+                    data-testid="focus-mode-badge"
+                    style="background: var(--color-app-{activeFocusBadgeAppId}, #5856d6);"
+                    title={activeFocusId ?? ''}
+                    aria-label="Focus mode active"
+                  >
+                    <span class="focus-mode-badge-icon"></span>
+                  </div>
+                {/if}
               </div>
             {:else}
               <!-- CRITICAL: NO FALLBACK ICONS - only render if category/icon are set by backend -->
@@ -2127,7 +2176,15 @@
                       <div class="unread-badge" data-testid="unread-badge">
                         {unreadCount > 9 ? '9+' : unreadCount}
                       </div>
-                    {:else if chat.is_shared}
+                    {:else if isSharedByOthers}
+                      <div
+                        class="share-badge public-share-badge"
+                        title={$text('chat.header.shared_chat')}
+                        data-testid="shared-chat-public-icon"
+                      >
+                        <LucideIcons.Globe size={10} color="white" />
+                      </div>
+                    {:else if isOwnerShared}
                       <!-- Share indicator badge: shown when chat is shared (has active share link) -->
                       <div class="share-badge" title="This chat is shared">
                         <LucideIcons.Share2 size={10} color="white" />
@@ -2163,13 +2220,32 @@
                       <div class="unread-badge" data-testid="unread-badge">
                         {unreadCount > 9 ? '9+' : unreadCount}
                       </div>
-                    {:else if chat.is_shared}
+                    {:else if isSharedByOthers}
+                      <div
+                        class="share-badge public-share-badge"
+                        title={$text('chat.header.shared_chat')}
+                        data-testid="shared-chat-public-icon"
+                      >
+                        <LucideIcons.Globe size={10} color="white" />
+                      </div>
+                    {:else if isOwnerShared}
                       <!-- Share indicator badge: shown when chat is shared (has active share link) -->
                       <div class="share-badge" title="This chat is shared">
                         <LucideIcons.Share2 size={10} color="white" />
                       </div>
                     {/if}
                   </div>
+                  {#if activeFocusBadgeAppId}
+                    <div
+                      class="focus-mode-badge"
+                      data-testid="focus-mode-badge"
+                      style="background: var(--color-app-{activeFocusBadgeAppId}, #5856d6);"
+                      title={activeFocusId ?? ''}
+                      aria-label="Focus mode active"
+                    >
+                      <span class="focus-mode-badge-icon"></span>
+                    </div>
+                  {/if}
                 </div>
               {/if}
             {/if}
@@ -2194,7 +2270,7 @@
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <span class="chat-title" data-testid="chat-title">{@html $text('common.untitled_chat')}</span>
               {/if}
-              {#if chat.pinned}
+              {#if isPinned}
                 <span class="pin-indicator" data-testid="pin-indicator">
                   <span class="clickable-icon icon_pin" title="Pinned"></span>
                 </span>
@@ -2247,7 +2323,7 @@
     x={contextMenuX}
     y={contextMenuY}
     show={showContextMenu}
-    chat={chat}
+    chat={chatForContextMenu}
     hideDelete={isDemoChat(chat.chat_id) && (!$authStore.isAuthenticated || $websocketStatus.status !== 'connected')}
     selectMode={selectMode}
     selectedChatIds={selectedChatIds}
@@ -2507,6 +2583,10 @@
     justify-content: center;
     border: 2px solid var(--color-background);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  }
+
+  .public-share-badge {
+    background: var(--color-button-primary);
   }
 
   /* Category circle styles */

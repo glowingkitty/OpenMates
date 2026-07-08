@@ -1,0 +1,77 @@
+# Publish the OpenMates Python SDK to PyPI when package code changes.
+# - main branch → stable PyPI release
+# - dev branch → PEP 440 alpha prerelease, e.g. 0.14.0a1
+#
+# Uses PyPI Trusted Publishing (OIDC) — no PYPI_API_TOKEN secret needed.
+# Configure at: PyPI → Account settings → Publishing → Add pending publisher.
+name: Publish Python SDK
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'packages/openmates-python/**'
+      - 'scripts/prepare_python_publish_version.py'
+      - 'scripts/tests/test_prepare_python_publish_version.py'
+      - 'shared/config/product_version.json'
+      - '.github/workflows/publish-python-sdk.yml'
+  workflow_dispatch: {}
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install package test dependencies
+        run: python -m pip install --upgrade pip pytest build cryptography requests
+
+      - name: Run Python SDK tests
+        run: python -m pytest packages/openmates-python/tests scripts/tests/test_prepare_python_publish_version.py
+
+      - name: Check product/Python package version alignment
+        run: python scripts/prepare_python_publish_version.py --channel=check
+
+      - name: Build Python SDK package
+        working-directory: packages/openmates-python
+        run: python -m build
+
+  publish:
+    needs: build-test
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build tools
+        run: python -m pip install --upgrade pip build
+
+      - name: Bump prerelease version (dev only)
+        if: github.ref == 'refs/heads/dev'
+        run: python scripts/prepare_python_publish_version.py --channel=dev
+
+      - name: Bump to stable version (main only)
+        if: github.ref == 'refs/heads/main'
+        run: python scripts/prepare_python_publish_version.py --channel=main
+
+      - name: Build Python SDK package
+        working-directory: packages/openmates-python
+        run: python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/openmates-python/dist/

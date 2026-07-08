@@ -5,7 +5,7 @@
 # Architecture — three-provider fallback chain:
 #
 #   1. Mistral OCR (primary)
-#      Uses the Mistral Document AI API (model: mistral-ocr-latest).
+#      Uses the Mistral Document AI API (model: mistral-ocr-2512 / OCR 3).
 #      Returns rich per-page JSON with markdown, images, tables, header/footer,
 #      and page dimensions.
 #
@@ -57,6 +57,11 @@ logger = logging.getLogger(__name__)
 # Gemini page-break sentinel — unique enough that Gemini is unlikely to emit it
 # as part of actual document content.
 _GEMINI_PAGE_BREAK = "---PAGE_BREAK---"
+
+# Pin OCR 3 instead of the floating latest alias. OCR 4 is materially more
+# expensive and its main advantage is layout blocks that this pipeline does not
+# consume yet.
+MISTRAL_OCR_MODEL = "mistral-ocr-2512"
 
 
 def sanitize_ocr_pages_for_ascii_smuggling(
@@ -134,7 +139,7 @@ async def _run_mistral_ocr(
     logger.info(f"{log_prefix} [Mistral] Submitting {len(pdf_bytes)} bytes to Mistral OCR")
 
     payload = {
-        "model": "mistral-ocr-latest",
+        "model": MISTRAL_OCR_MODEL,
         "document": {
             "type": "document_url",
             "document_url": document_url,

@@ -1,8 +1,13 @@
 {
-  "userFacing": "v0.13.0",
+  "userFacing": "v0.14.0",
   "cli": {
-    "stableBase": "0.13.0",
-    "prereleaseBase": "0.13.0-alpha",
-    "prereleaseSeed": "0.13.0-alpha.0"
+    "stableBase": "0.14.0",
+    "prereleaseBase": "0.14.0-alpha",
+    "prereleaseSeed": "0.14.0-alpha.0"
+  },
+  "python": {
+    "stableBase": "0.14.0",
+    "prereleaseBase": "0.14.0a",
+    "prereleaseSeed": "0.14.0a0"
   }
 }

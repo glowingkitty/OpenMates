@@ -185,48 +185,208 @@ view.ai_generated:
 view.authentic:
   context: Label shown on an uploaded image embed when the AI detection service reports a low AI-generated probability.
   en: Authentic
+  de: Authentisch
+  zh: 真实
+  es: Auténtica
+  fr: Authentique
+  pt: Autêntica
+  ru: Подлинное
+  ja: 本物
+  ko: 실제 이미지
+  it: Autentica
+  tr: Özgün
+  vi: Xác thực
+  id: Autentik
+  pl: Autentyczne
+  nl: Authentiek
+  ar: أصلية
+  hi: प्रामाणिक
+  th: ของจริง
+  cs: Autentické
+  sv: Autentisk
+  he: אותנטי
   verified_by_human:
     - en
 
 view.ai_generated_chance:
   context: Expanded uploaded-image authenticity badge text. {percentage} is the provider confidence that the image is AI-generated.
   en: "{percentage} chance it's AI generated"
+  de: "{percentage} Wahrscheinlichkeit, dass es KI-generiert ist"
+  zh: "有 {percentage} 的可能性为 AI 生成"
+  es: "{percentage} de probabilidad de que esté generada por IA"
+  fr: "{percentage} de probabilité qu'elle soit générée par IA"
+  pt: "{percentage} de chance de ser gerada por IA"
+  ru: "Вероятность {percentage}, что изображение создано ИИ"
+  ja: "AI生成である可能性 {percentage}"
+  ko: "AI 생성일 가능성 {percentage}"
+  it: "{percentage} di probabilità che sia generata da IA"
+  tr: "AI tarafından oluşturulmuş olma olasılığı {percentage}"
+  vi: "{percentage} khả năng do AI tạo"
+  id: "{percentage} kemungkinan dibuat oleh AI"
+  pl: "{percentage} szans, że obraz wygenerowała AI"
+  nl: "{percentage} kans dat het door AI is gegenereerd"
+  ar: "احتمال {percentage} أنها منشأة بالذكاء الاصطناعي"
+  hi: "{percentage} संभावना है कि यह AI से बनी है"
+  th: "มีโอกาส {percentage} ที่สร้างโดย AI"
+  cs: "Pravděpodobnost {percentage}, že je vygenerováno AI"
+  sv: "{percentage} sannolikhet att den är AI-genererad"
+  he: "סיכוי של {percentage} שזה נוצר על ידי AI"
   verified_by_human:
     - en
 
 view.via_provider_prefix:
   context: Short source prefix shown before a linked AI detection provider name in uploaded-image authenticity badges.
   en: via
+  de: über
+  zh: 通过
+  es: vía
+  fr: via
+  pt: via
+  ru: через
+  ja: 経由
+  ko: 제공
+  it: tramite
+  tr: üzerinden
+  vi: qua
+  id: melalui
+  pl: przez
+  nl: via
+  ar: عبر
+  hi: के ज़रिये
+  th: ผ่าน
+  cs: přes
+  sv: via
+  he: דרך
   verified_by_human:
     - en
 
 view.via_provider:
   context: Accessible provider attribution for uploaded-image AI detection badges. {provider} is the provider name, such as Sightengine.
   en: "via {provider}"
+  de: "über {provider}"
+  zh: "通过 {provider}"
+  es: "vía {provider}"
+  fr: "via {provider}"
+  pt: "via {provider}"
+  ru: "через {provider}"
+  ja: "{provider} 経由"
+  ko: "{provider} 제공"
+  it: "tramite {provider}"
+  tr: "{provider} üzerinden"
+  vi: "qua {provider}"
+  id: "melalui {provider}"
+  pl: "przez {provider}"
+  nl: "via {provider}"
+  ar: "عبر {provider}"
+  hi: "{provider} के ज़रिये"
+  th: "ผ่าน {provider}"
+  cs: "přes {provider}"
+  sv: "via {provider}"
+  he: "דרך {provider}"
   verified_by_human:
     - en
 
 view.detection_limitations:
   context: "Explanation shown when hovering, focusing, or clicking an uploaded-image authenticity badge. Based on Sightengine docs: pixel-based detection, robust to redistribution artifacts, but not a substitute for human judgment."
   en: "Pixel-based detection is useful for photos and art, including many compressed or re-shared images. It is not definitive; heavy degradation, UI-heavy screenshots, screen or print recaptures, and new generators may need human judgment."
+  de: "Pixelbasierte Erkennung ist nützlich für Fotos und Kunst, auch für viele komprimierte oder erneut geteilte Bilder. Sie ist nicht endgültig; starke Qualitätsverluste, UI-lastige Screenshots, Bildschirm- oder Druckabfotografien und neue Generatoren können menschliche Einschätzung erfordern."
+  zh: "基于像素的检测适用于照片和艺术作品，包括许多经过压缩或再次分享的图片。它并非最终结论；严重降质、以界面为主的截图、屏幕或打印件翻拍以及新的生成器可能需要人工判断。"
+  es: "La detección basada en píxeles es útil para fotos y arte, incluidas muchas imágenes comprimidas o compartidas de nuevo. No es definitiva; la degradación intensa, capturas con mucha interfaz, recapturas de pantalla o impresión y nuevos generadores pueden requerir juicio humano."
+  fr: "La détection basée sur les pixels est utile pour les photos et les œuvres, y compris de nombreuses images compressées ou repartagées. Elle n'est pas définitive ; une forte dégradation, des captures très orientées interface, des recaptures d'écran ou d'impression et de nouveaux générateurs peuvent nécessiter un jugement humain."
+  pt: "A detecção baseada em pixels é útil para fotos e arte, incluindo muitas imagens comprimidas ou recompartilhadas. Ela não é definitiva; degradação intensa, capturas com muita interface, recapturas de tela ou impressão e novos geradores podem exigir julgamento humano."
+  ru: "Пиксельное обнаружение полезно для фотографий и арта, включая многие сжатые или повторно опубликованные изображения. Оно не является окончательным: сильная деградация, скриншоты с большим количеством интерфейса, пересъёмка экрана или печати и новые генераторы могут требовать оценки человеком."
+  ja: "ピクセルベースの検出は、圧縮または再共有された多くの画像を含む写真やアートに有用です。ただし決定的ではありません。大きな劣化、UI要素の多いスクリーンショット、画面や印刷物の再撮影、新しい生成器では人間の判断が必要になる場合があります。"
+  ko: "픽셀 기반 감지는 사진과 예술 작품에 유용하며, 압축되었거나 다시 공유된 많은 이미지도 포함됩니다. 하지만 확정적이지는 않습니다. 심한 품질 저하, UI가 많은 스크린샷, 화면 또는 인쇄물 재촬영, 새로운 생성기는 사람의 판단이 필요할 수 있습니다."
+  it: "Il rilevamento basato sui pixel è utile per foto e opere d'arte, incluse molte immagini compresse o ricondivise. Non è definitivo: forte degrado, screenshot ricchi di interfaccia, ricatture da schermo o stampa e nuovi generatori possono richiedere il giudizio umano."
+  tr: "Piksel tabanlı tespit, birçok sıkıştırılmış veya yeniden paylaşılmış görsel dahil fotoğraflar ve sanat için kullanışlıdır. Kesin değildir; ağır bozulma, arayüz ağırlıklı ekran görüntüleri, ekran veya baskıdan yeniden çekimler ve yeni üreticiler insan değerlendirmesi gerektirebilir."
+  vi: "Phát hiện dựa trên pixel hữu ích cho ảnh và tác phẩm nghệ thuật, kể cả nhiều hình ảnh đã nén hoặc chia sẻ lại. Kết quả không tuyệt đối; ảnh suy giảm nặng, ảnh chụp màn hình nhiều giao diện, chụp lại màn hình hoặc bản in, và các trình tạo mới có thể cần con người đánh giá."
+  id: "Deteksi berbasis piksel berguna untuk foto dan karya seni, termasuk banyak gambar yang dikompresi atau dibagikan ulang. Ini tidak pasti; degradasi berat, tangkapan layar yang penuh UI, pengambilan ulang layar atau cetakan, dan generator baru mungkin memerlukan penilaian manusia."
+  pl: "Wykrywanie oparte na pikselach jest przydatne dla zdjęć i grafiki, także wielu obrazów skompresowanych lub udostępnionych ponownie. Nie jest rozstrzygające; silna degradacja, zrzuty z dużą ilością interfejsu, ponowne zdjęcia ekranu lub wydruku oraz nowe generatory mogą wymagać oceny człowieka."
+  nl: "Pixelgebaseerde detectie is nuttig voor foto's en kunst, ook voor veel gecomprimeerde of opnieuw gedeelde afbeeldingen. Het is niet definitief; zware kwaliteitsverlies, UI-zware screenshots, scherm- of printopnames en nieuwe generatoren kunnen menselijk oordeel vereisen."
+  ar: "الاكتشاف المعتمد على البكسلات مفيد للصور والفن، بما في ذلك كثير من الصور المضغوطة أو المعاد مشاركتها. لكنه ليس حاسمًا؛ فقد تتطلب الصور شديدة التدهور ولقطات الواجهة الكثيفة وإعادة تصوير الشاشة أو الطباعة والمولّدات الجديدة حكمًا بشريًا."
+  hi: "पिक्सेल-आधारित पहचान फ़ोटो और कला के लिए उपयोगी है, जिसमें कई संपीड़ित या दोबारा साझा की गई छवियां भी शामिल हैं। यह अंतिम नहीं है; भारी गुणवत्ता हानि, UI-भारी स्क्रीनशॉट, स्क्रीन या प्रिंट की दोबारा ली गई तस्वीरें और नए जेनरेटर मानवीय निर्णय मांग सकते हैं।"
+  th: "การตรวจจับจากพิกเซลมีประโยชน์สำหรับภาพถ่ายและงานศิลปะ รวมถึงภาพจำนวนมากที่ถูกบีบอัดหรือแชร์ต่อ แต่ไม่ใช่ข้อสรุปเด็ดขาด ภาพที่เสื่อมคุณภาพมาก ภาพหน้าจอที่มี UI เยอะ การถ่ายซ้ำจากหน้าจอหรือสิ่งพิมพ์ และตัวสร้างรุ่นใหม่อาจต้องใช้วิจารณญาณของมนุษย์"
+  cs: "Detekce založená na pixelech je užitečná pro fotografie a umění, včetně mnoha komprimovaných nebo znovu sdílených obrázků. Není definitivní; silná degradace, snímky obrazovky plné UI, znovu vyfocené obrazovky nebo tisky a nové generátory mohou vyžadovat lidský úsudek."
+  sv: "Pixelbaserad detektion är användbar för foton och konst, inklusive många komprimerade eller omdelade bilder. Den är inte definitiv; kraftig försämring, UI-tunga skärmbilder, återfotograferade skärmar eller utskrifter och nya generatorer kan kräva mänsklig bedömning."
+  he: "זיהוי מבוסס פיקסלים שימושי לתמונות ולאמנות, כולל תמונות דחוסות או ששותפו מחדש. הוא אינו חד-משמעי; ירידה חמורה באיכות, צילומי מסך עמוסי ממשק, צילום מחדש של מסך או הדפסה ומחוללים חדשים עשויים לדרוש שיקול דעת אנושי."
   verified_by_human:
     - en
 
 view.detection_failed_title:
   context: Accessible title for an uploaded-image authenticity badge when the AI detection provider did not return a usable result.
   en: AI detection unavailable
+  de: KI-Erkennung nicht verfügbar
+  zh: AI 检测不可用
+  es: Detección de IA no disponible
+  fr: Détection IA indisponible
+  pt: Detecção de IA indisponível
+  ru: AI-обнаружение недоступно
+  ja: AI検出を利用できません
+  ko: AI 감지를 사용할 수 없음
+  it: Rilevamento IA non disponibile
+  tr: AI tespiti kullanılamıyor
+  vi: Không có tính năng phát hiện AI
+  id: Deteksi AI tidak tersedia
+  pl: Wykrywanie AI niedostępne
+  nl: AI-detectie niet beschikbaar
+  ar: اكتشاف الذكاء الاصطناعي غير متاح
+  hi: AI पहचान उपलब्ध नहीं है
+  th: การตรวจจับ AI ไม่พร้อมใช้งาน
+  cs: Detekce AI není dostupná
+  sv: AI-detektering är inte tillgänglig
+  he: זיהוי AI לא זמין
   verified_by_human:
     - en
 
 view.detection_failed_retry:
   context: Expanded uploaded-image authenticity badge text when AI detection failed temporarily.
   en: "AI detection failed temporarily. Try again later."
+  de: "KI-Erkennung ist vorübergehend fehlgeschlagen. Versuche es später erneut."
+  zh: "AI 检测暂时失败。请稍后再试。"
+  es: "La detección de IA falló temporalmente. Inténtalo de nuevo más tarde."
+  fr: "La détection IA a échoué temporairement. Réessayez plus tard."
+  pt: "A detecção de IA falhou temporariamente. Tente novamente mais tarde."
+  ru: "AI-обнаружение временно не удалось. Попробуйте позже."
+  ja: "AI検出が一時的に失敗しました。後でもう一度お試しください。"
+  ko: "AI 감지가 일시적으로 실패했습니다. 나중에 다시 시도하세요."
+  it: "Il rilevamento IA è temporaneamente fallito. Riprova più tardi."
+  tr: "AI tespiti geçici olarak başarısız oldu. Daha sonra tekrar deneyin."
+  vi: "Phát hiện AI tạm thời thất bại. Hãy thử lại sau."
+  id: "Deteksi AI gagal sementara. Coba lagi nanti."
+  pl: "Wykrywanie AI tymczasowo się nie powiodło. Spróbuj ponownie później."
+  nl: "AI-detectie is tijdelijk mislukt. Probeer het later opnieuw."
+  ar: "فشل اكتشاف الذكاء الاصطناعي مؤقتًا. حاول مرة أخرى لاحقًا."
+  hi: "AI पहचान अस्थायी रूप से विफल हुई। बाद में फिर कोशिश करें।"
+  th: "การตรวจจับ AI ล้มเหลวชั่วคราว โปรดลองอีกครั้งภายหลัง"
+  cs: "Detekce AI dočasně selhala. Zkuste to znovu později."
+  sv: "AI-detektering misslyckades tillfälligt. Försök igen senare."
+  he: "זיהוי AI נכשל זמנית. נסה שוב מאוחר יותר."
   verified_by_human:
     - en
 
 view.detection_failed_description:
   context: Explanation shown when hovering, focusing, or clicking an uploaded-image authenticity badge when AI detection failed temporarily.
   en: "The image upload succeeded, but Sightengine did not return a usable AI-detection score for this attempt."
+  de: "Der Bildupload war erfolgreich, aber Sightengine hat für diesen Versuch keinen nutzbaren KI-Erkennungswert zurückgegeben."
+  zh: "图片上传成功，但 Sightengine 没有为这次尝试返回可用的 AI 检测分数。"
+  es: "La imagen se subió correctamente, pero Sightengine no devolvió una puntuación de detección de IA utilizable para este intento."
+  fr: "L'image a bien été téléversée, mais Sightengine n'a pas renvoyé de score de détection IA utilisable pour cette tentative."
+  pt: "O upload da imagem foi concluído, mas a Sightengine não retornou uma pontuação de detecção de IA utilizável nesta tentativa."
+  ru: "Изображение загружено, но Sightengine не вернул пригодную оценку AI-обнаружения для этой попытки."
+  ja: "画像のアップロードは成功しましたが、Sightengine はこの試行で利用可能なAI検出スコアを返しませんでした。"
+  ko: "이미지 업로드는 성공했지만 Sightengine이 이번 시도에서 사용할 수 있는 AI 감지 점수를 반환하지 않았습니다."
+  it: "Il caricamento dell'immagine è riuscito, ma Sightengine non ha restituito un punteggio di rilevamento IA utilizzabile per questo tentativo."
+  tr: "Görsel yükleme başarılı oldu, ancak Sightengine bu deneme için kullanılabilir bir AI tespit puanı döndürmedi."
+  vi: "Tải hình ảnh lên thành công, nhưng Sightengine không trả về điểm phát hiện AI có thể dùng cho lần thử này."
+  id: "Unggahan gambar berhasil, tetapi Sightengine tidak mengembalikan skor deteksi AI yang dapat digunakan untuk percobaan ini."
+  pl: "Obraz został przesłany, ale Sightengine nie zwrócił użytecznego wyniku wykrywania AI dla tej próby."
+  nl: "De afbeelding is geüpload, maar Sightengine gaf voor deze poging geen bruikbare AI-detectiescore terug."
+  ar: "تم رفع الصورة بنجاح، لكن Sightengine لم يُرجع درجة اكتشاف ذكاء اصطناعي قابلة للاستخدام لهذه المحاولة."
+  hi: "छवि अपलोड सफल रहा, लेकिन Sightengine ने इस प्रयास के लिए उपयोग योग्य AI-पहचान स्कोर वापस नहीं किया।"
+  th: "อัปโหลดรูปภาพสำเร็จแล้ว แต่ Sightengine ไม่ได้ส่งคะแนนการตรวจจับ AI ที่ใช้งานได้สำหรับครั้งนี้"
+  cs: "Nahrání obrázku se zdařilo, ale Sightengine pro tento pokus nevrátil použitelné skóre detekce AI."
+  sv: "Bilduppladdningen lyckades, men Sightengine returnerade ingen användbar AI-detektionspoäng för detta försök."
+  he: "העלאת התמונה הצליחה, אך Sightengine לא החזירה ציון זיהוי AI שמיש עבור הניסיון הזה."
   verified_by_human:
     - en
 

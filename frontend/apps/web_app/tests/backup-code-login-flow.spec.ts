@@ -316,11 +316,10 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await takeStepScreenshot(page, 'logged-out');
 	logCheckpoint('Logged out.');
 
-	// Wait for redirect to demo chat (logged out state)
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 30000
-	});
-	logCheckpoint('Redirected to demo chat after logout.');
+	// Logout now returns to the guest new-chat welcome screen and clears the active chat.
+	await expect(page.getByTestId('header-login-signup-btn')).toBeVisible({ timeout: 15000 });
+	expect(await page.evaluate(() => window.location.hash)).not.toContain('demo-for-everyone');
+	logCheckpoint('Returned to logged-out welcome screen after logout.');
 
 	// ========================================================================
 	// PHASE 5: Login with backup code
@@ -385,8 +384,10 @@ test('sets up backup codes in settings and logs in with a backup code', async ({
 	await loginSubmitButton.click();
 	logCheckpoint('Submitted login with backup code.');
 
-	// Wait for successful login - redirect to chat
-	await page.waitForURL(/chat|demo/, { timeout: 60000 });
+	// Wait for successful login. The app now lands on the authenticated new-chat
+	// welcome state, which does not require a chat/demo URL hash.
+	await expect(page.locator('[data-authenticated="true"]').first()).toBeVisible({ timeout: 60000 });
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
 	await takeStepScreenshot(page, 'login-success-backup-code');
 	logCheckpoint('Login successful with backup code! Test complete.');
 

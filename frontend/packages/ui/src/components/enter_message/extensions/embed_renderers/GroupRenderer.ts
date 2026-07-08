@@ -57,6 +57,15 @@ import SocialMediaGetPostsEmbedPreview from "../../../embeds/social_media/Social
 import SocialMediaPostEmbedPreview from "../../../embeds/social_media/SocialMediaPostEmbedPreview.svelte";
 import SocialMediaSearchEmbedPreview from "../../../embeds/social_media/SocialMediaSearchEmbedPreview.svelte";
 import EventsSearchEmbedPreview from "../../../embeds/events/EventsSearchEmbedPreview.svelte";
+import FitnessSearchEmbedPreview from "../../../embeds/fitness/FitnessSearchEmbedPreview.svelte";
+import FitnessResultEmbedPreview from "../../../embeds/fitness/FitnessResultEmbedPreview.svelte";
+import {
+  asText as fitnessAsText,
+  getFitnessResultAddress,
+  getFitnessResultTitle,
+  normalizeFitnessSearchContent,
+  normalizeFitnessSkillId,
+} from "../../../embeds/fitness/fitnessEmbedData";
 import HealthSearchEmbedPreview from "../../../embeds/health/HealthSearchEmbedPreview.svelte";
 import HealthAppointmentEmbedPreview from "../../../embeds/health/HealthAppointmentEmbedPreview.svelte";
 import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecastEmbedPreview.svelte";
@@ -316,6 +325,16 @@ export class GroupRenderer implements EmbedRenderer {
         "events-event",
         (item, embedData, decodedContent, content) =>
           this.renderEventComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "fitness-location",
+        (item, embedData, decodedContent, content) =>
+          this.renderFitnessResultComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "fitness-class",
+        (item, embedData, decodedContent, content) =>
+          this.renderFitnessResultComponent(item, embedData, decodedContent, content),
       ],
       [
         "maps-place",
@@ -713,6 +732,9 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderTravelStayItem(item, embedData, decodedContent);
       case "events-event":
         return this.renderEventItem(item, embedData, decodedContent);
+      case "fitness-location":
+      case "fitness-class":
+        return this.renderFitnessResultItem(item, embedData, decodedContent);
       case "maps-place":
         return this.renderMapsPlaceItem(item, embedData, decodedContent);
       case "images-image-result":
@@ -1384,6 +1406,29 @@ export class GroupRenderer implements EmbedRenderer {
             status,
             results,
             result_count: resultCount || childEmbedIds.length,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "fitness" && (skillId === "search_locations" || skillId === "search_classes")) {
+        const normalized = normalizeFitnessSearchContent(decodedContent, skillId);
+        const component = mount(FitnessSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            skillId: normalized.skillId,
+            query: query || normalized.query,
+            provider: normalized.provider || provider || "Urban Sports Club",
+            summary: normalized.summary,
+            filters: normalized.filters,
+            status,
+            results: normalized.results,
+            result_count: normalized.resultCount,
             taskId,
             isMobile: false,
             onFullscreen: handleFullscreen,
@@ -4599,6 +4644,90 @@ export class GroupRenderer implements EmbedRenderer {
       <div class="embed-text-content">
         <div class="embed-text-line">${title}</div>
         ${dateStart ? `<div class="embed-text-subline">${dateStart}${venue ? ` · ${venue}` : ""}</div>` : ""}
+      </div>
+    `;
+  }
+
+  // =========================================================================
+  // Fitness result embed rendering — individual Svelte component + HTML fallback
+  // =========================================================================
+
+  private async renderFitnessResultComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const skillId = normalizeFitnessSkillId(decodedContent?.skill_id, item.type === "fitness-location" ? "search_locations" : "search_classes");
+    const result = {
+      ...(decodedContent || {}),
+      embed_id: embedId,
+      skill_id: skillId,
+    };
+
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) {
+      try {
+        unmount(existingComponent);
+      } catch (e) {
+        console.warn("[GroupRenderer] Error unmounting existing component:", e);
+      }
+    }
+    content.innerHTML = "";
+
+    if (!content.isConnected) {
+      console.warn(
+        "[GroupRenderer] Skipping FitnessResultEmbedPreview mount — target detached from DOM",
+      );
+      return;
+    }
+
+    try {
+      const component = mount(FitnessResultEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          result,
+          skillId,
+          isMobile: false,
+          onFullscreen: () =>
+            this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error("[GroupRenderer] Error mounting FitnessResultEmbedPreview:", error);
+      if (content.isConnected) {
+        content.innerHTML = await this.renderFitnessResultItem(
+          item,
+          embedData,
+          decodedContent,
+        );
+      }
+    }
+  }
+
+  private async renderFitnessResultItem(
+    item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const skillId = normalizeFitnessSkillId(decodedContent?.skill_id, item.type === "fitness-location" ? "search_locations" : "search_classes");
+    const result = decodedContent || {};
+    const title = getFitnessResultTitle(result);
+    const subtitle = skillId === "search_classes"
+      ? [result.date, result.time_range, result.venue_name].map(fitnessAsText).filter(Boolean).join(" · ")
+      : getFitnessResultAddress(result);
+
+    return `
+      <div class="embed-app-icon fitness">
+        <span class="icon icon_fitness"></span>
+      </div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${title}</div>
+        ${subtitle ? `<div class="embed-text-subline">${subtitle}</div>` : ""}
       </div>
     `;
   }

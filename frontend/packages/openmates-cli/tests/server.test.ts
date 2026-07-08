@@ -56,6 +56,8 @@ import {
   resolveTemplateSource,
   findMissingRequiredSecrets,
   summarizeSecretPreflight,
+  appendSelectedServices,
+  shouldCheckWebHealth,
 } from "../src/serverPlanning.ts";
 
 // server.ts imports serverConfig.js which breaks with --experimental-strip-types.
@@ -548,6 +550,22 @@ describe("role-based server planning", () => {
     assert.deepEqual(resolveServiceSelection("core", { exclude: "webapp" }).includes("webapp"), false);
     assert.deepEqual(resolveServiceSelection("upload", { services: "app-uploads,admin-sidecar" }), ["app-uploads", "admin-sidecar"]);
     assert.throws(() => resolveServiceSelection("preview", { services: "app-uploads" }), /Invalid service/);
+  });
+
+  it("applies service filters to update commands and web health checks", () => {
+    const services = resolveServiceSelection("core", { exclude: "webapp" });
+
+    const buildArgs = appendSelectedServices(["docker", "compose", "build"], services, true);
+    const upArgs = appendSelectedServices(["docker", "compose", "up", "-d"], services, true);
+
+    assert.equal(buildArgs.includes("webapp"), false);
+    assert.equal(upArgs.includes("webapp"), false);
+    assert.ok(buildArgs.includes("api"));
+    assert.ok(upArgs.includes("api"));
+    assert.equal(shouldCheckWebHealth({ role: "core", selectedServices: services, filterRequested: true }), false);
+    assert.equal(shouldCheckWebHealth({ role: "core", selectedServices: ["api", "webapp"], filterRequested: true }), true);
+    assert.equal(shouldCheckWebHealth({ role: "core", filterRequested: false }), true);
+    assert.equal(shouldCheckWebHealth({ role: "upload", filterRequested: false }), false);
   });
 
   it("plans image updates with backup before pull/up and without git", () => {

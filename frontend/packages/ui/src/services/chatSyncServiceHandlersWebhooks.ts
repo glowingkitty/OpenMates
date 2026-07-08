@@ -51,6 +51,41 @@ interface WebhookChatPayload {
 }
 
 const DEFAULT_WEBHOOK_CHAT_TITLE = "Webhook";
+const WEBHOOK_CHAT_KEY_LOCK_TIMEOUT_MS = 10_000;
+
+async function withWebhookChatKeyLock<T>(
+  chatId: string,
+  callback: () => Promise<T>,
+): Promise<T> {
+  if (typeof navigator === "undefined" || !navigator.locks) {
+    return callback();
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    WEBHOOK_CHAT_KEY_LOCK_TIMEOUT_MS,
+  );
+
+  try {
+    return await navigator.locks.request(
+      `om-chatkey-${chatId}`,
+      { signal: controller.signal },
+      callback,
+    );
+  } catch (error) {
+    if ((error as Error).name !== "AbortError") {
+      throw error;
+    }
+
+    console.error(
+      `[ChatSyncService:Webhook] Web Lock timeout while creating webhook chat ${chatId}; falling back to unlocked path`,
+    );
+    return callback();
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 /**
  * Handles the "webhook_chat" WebSocket event when an external service triggers
@@ -81,155 +116,168 @@ export async function handleWebhookChatImpl(
   const { chat_id, message_id, content, status } = payload;
 
   try {
-    // Deduplicate: if the message already exists locally (e.g. user has two
-    // tabs open and both received the same broadcast) skip it.
-    const existingMessage = await chatDB.getMessage(message_id);
-    if (existingMessage) {
-      console.debug(
-        `[ChatSyncService:Webhook] Message ${message_id} already exists locally, skipping duplicate`,
-      );
-      return;
-    }
+    await withWebhookChatKeyLock(chat_id, async () => {
+      // Deduplicate inside the lock so simultaneous tabs share IndexedDB state
+      // before either tab can generate a new key for the same webhook chat.
+      const existingMessage = await chatDB.getMessage(message_id);
+      if (existingMessage) {
+        console.debug(
+          `[ChatSyncService:Webhook] Message ${message_id} already exists locally, skipping duplicate`,
+        );
+        return;
+      }
 
-    // Use fired_at from the backend payload for correct ordering — if the
-    // user was offline, fired_at predates the eventual delivery time and we
-    // want the system message to sit BEFORE any AI response that the server
-    // already produced.
-    const firedAt = payload.fired_at || Math.floor(Date.now() / 1000);
+      // Use fired_at from the backend payload for correct ordering — if the
+      // user was offline, fired_at predates the eventual delivery time and we
+      // want the system message to sit BEFORE any AI response that the server
+      // already produced.
+      const firedAt = payload.fired_at || Math.floor(Date.now() / 1000);
 
-    // Generate a chat key via the single source of truth (ChatKeyManager).
-    const chatKey = chatKeyManager.createKeyForNewChat(chat_id);
-    if (!chatKey) {
-      console.error(
-        "[ChatSyncService:Webhook] Failed to generate chat key for new webhook chat",
-      );
-      return;
-    }
+      const existingChat = await chatDB.getChat(chat_id);
+      let chatKey: Uint8Array | null = null;
+      let encryptedChatKey: string | null = null;
 
-    // Encrypt the title and content with the new chat key.
-    const titleText = DEFAULT_WEBHOOK_CHAT_TITLE;
-    const encryptedTitle = await encryptWithChatKey(titleText, chatKey);
-    const encryptedContent = await encryptWithChatKey(content, chatKey);
+      if (existingChat?.encrypted_chat_key) {
+        encryptedChatKey = existingChat.encrypted_chat_key;
+        chatKey = await chatKeyManager.getKey(chat_id);
+        if (!chatKey) {
+          console.error(
+            `[ChatSyncService:Webhook] Existing webhook chat ${chat_id} has encrypted_chat_key but it could not be decrypted; refusing to create a replacement key`,
+          );
+          return;
+        }
+      } else {
+        const createdKey = await chatKeyManager.createAndPersistKey(chat_id);
+        chatKey = createdKey.chatKey;
+        encryptedChatKey = createdKey.encryptedChatKey;
+      }
 
-    if (!encryptedContent) {
-      console.error(
-        "[ChatSyncService:Webhook] Failed to encrypt webhook content with chat key",
-      );
-      return;
-    }
+      // Encrypt the title and content with the new chat key.
+      const titleText = DEFAULT_WEBHOOK_CHAT_TITLE;
+      const encryptedTitle = await encryptWithChatKey(titleText, chatKey);
+      const encryptedContent = await encryptWithChatKey(content, chatKey);
 
-    const newChat = {
-      chat_id,
-      title: titleText,
-      encrypted_title: encryptedTitle,
-      created_at: firedAt,
-      updated_at: firedAt,
-      messages_v: 0,
-      title_v: 0,
-      last_edited_overall_timestamp: firedAt,
-      unread_count: 1,
-    };
+      if (!encryptedContent) {
+        console.error(
+          "[ChatSyncService:Webhook] Failed to encrypt webhook content with chat key",
+        );
+        return;
+      }
 
-    await chatDB.updateChat(newChat as import("../types/chat").Chat);
-    console.info(
-      `[ChatSyncService:Webhook] Created local chat ${chat_id} for incoming webhook`,
-    );
-
-    const systemMessage = {
-      message_id,
-      chat_id,
-      role: "system" as const,
-      content, // Plaintext for local rendering
-      created_at: firedAt,
-      status: "sending" as const,
-      encrypted_content: encryptedContent,
-    };
-
-    await chatDB.saveMessage(systemMessage);
-    console.debug(
-      `[ChatSyncService:Webhook] Saved webhook system message ${message_id} to IndexedDB`,
-    );
-
-    // Send the encrypted content to the server for persistence via the same
-    // path reminders use (`chat_system_message_added` → system_message_handler
-    // → persist_new_chat_message Celery task).
-    const { webSocketService } = await import("./websocketService");
-    const serverPayload = {
-      chat_id,
-      message: {
-        message_id,
-        role: "system",
-        encrypted_content: encryptedContent,
-        created_at: firedAt,
-      },
-    };
-
-    try {
-      await webSocketService.sendMessage(
-        "chat_system_message_added",
-        serverPayload,
-      );
-      const syncedMessage = { ...systemMessage, status: "synced" as const };
-      await chatDB.saveMessage(syncedMessage);
-      console.debug(
-        `[ChatSyncService:Webhook] Sent webhook system message ${message_id} to server for persistence`,
-      );
-    } catch (sendError) {
-      console.error(
-        "[ChatSyncService:Webhook] Error sending webhook message to server:",
-        sendError,
-      );
-      // Local copy is saved; will sync later via normal retry path.
-    }
-
-    // If the webhook key requires confirmation, park the chat in the pending
-    // store so WebhookPendingBanner.svelte renders a Process / Reject prompt
-    // when the user opens the chat. The backend has NOT dispatched the AI
-    // yet; clicking Process in the UI calls /v1/webhooks/pending/{id}/approve
-    // which triggers the dispatch.
-    if (status === "pending_confirmation") {
-      pendingWebhookChatsStore.add({
+      const newChat = {
         chat_id,
+        title: titleText,
+        encrypted_title: encryptedTitle,
+        created_at: firedAt,
+        updated_at: firedAt,
+        messages_v: 0,
+        title_v: 0,
+        last_edited_overall_timestamp: firedAt,
+        unread_count: 1,
+        encrypted_chat_key: encryptedChatKey,
+      };
+
+      await chatDB.updateChat(newChat as import("../types/chat").Chat);
+      console.info(
+        `[ChatSyncService:Webhook] Created local chat ${chat_id} for incoming webhook`,
+      );
+
+      const systemMessage = {
         message_id,
-        content,
-        webhook_id: payload.webhook_id,
-        fired_at: firedAt,
-      });
-    }
+        chat_id,
+        role: "system" as const,
+        content, // Plaintext for local rendering
+        created_at: firedAt,
+        status: "sending" as const,
+        encrypted_content: encryptedContent,
+      };
 
-    // Refresh the UI: surface the new chat in the sidebar and let the active
-    // chat view pick it up immediately.
-    serviceInstance.dispatchEvent(
-      new CustomEvent("chatUpdated", {
-        detail: {
-          chat_id,
-          type: "webhook_system_message_added",
-          newMessage: systemMessage,
-          messagesUpdated: true,
-          chat: newChat,
+      await chatDB.saveMessage(systemMessage);
+      console.debug(
+        `[ChatSyncService:Webhook] Saved webhook system message ${message_id} to IndexedDB`,
+      );
+
+      // Send the encrypted content to the server for persistence via the same
+      // path reminders use (`chat_system_message_added` → system_message_handler
+      // → persist_new_chat_message Celery task).
+      const { webSocketService } = await import("./websocketService");
+      const serverPayload = {
+        chat_id,
+        encrypted_chat_key: encryptedChatKey,
+        message: {
+          message_id,
+          role: "system",
+          encrypted_content: encryptedContent,
+          created_at: firedAt,
         },
-      }),
-    );
+      };
 
-    // Toast notification — same UX as a reminder firing.
-    const previewText = content.length > 100
-      ? `${content.substring(0, 100)}…`
-      : content;
-    const toastTitle =
-      status === "pending_confirmation"
-        ? "Webhook chat awaiting approval"
-        : "Webhook started a new chat";
-    notificationStore.chatMessage(
-      chat_id,
-      toastTitle,
-      previewText,
-      undefined,
-      undefined,
-    );
+      try {
+        await webSocketService.sendMessage(
+          "chat_system_message_added",
+          serverPayload,
+        );
+        const syncedMessage = { ...systemMessage, status: "synced" as const };
+        await chatDB.saveMessage(syncedMessage);
+        console.debug(
+          `[ChatSyncService:Webhook] Sent webhook system message ${message_id} to server for persistence`,
+        );
+      } catch (sendError) {
+        console.error(
+          "[ChatSyncService:Webhook] Error sending webhook message to server:",
+          sendError,
+        );
+        // Local copy is saved; will sync later via normal retry path.
+      }
 
-    console.info(
-      `[ChatSyncService:Webhook] Processed webhook chat ${chat_id} (status=${status})`,
-    );
+      // If the webhook key requires confirmation, park the chat in the pending
+      // store so WebhookPendingBanner.svelte renders a Process / Reject prompt
+      // when the user opens the chat. The backend has NOT dispatched the AI
+      // yet; clicking Process in the UI calls /v1/webhooks/pending/{id}/approve
+      // which triggers the dispatch.
+      if (status === "pending_confirmation") {
+        pendingWebhookChatsStore.add({
+          chat_id,
+          message_id,
+          content,
+          webhook_id: payload.webhook_id,
+          fired_at: firedAt,
+        });
+      }
+
+      // Refresh the UI: surface the new chat in the sidebar and let the active
+      // chat view pick it up immediately.
+      serviceInstance.dispatchEvent(
+        new CustomEvent("chatUpdated", {
+          detail: {
+            chat_id,
+            type: "webhook_system_message_added",
+            newMessage: systemMessage,
+            messagesUpdated: true,
+            chat: newChat,
+          },
+        }),
+      );
+
+      // Toast notification — same UX as a reminder firing.
+      const previewText =
+        content.length > 100 ? `${content.substring(0, 100)}…` : content;
+      const toastTitle =
+        status === "pending_confirmation"
+          ? "Webhook chat awaiting approval"
+          : "Webhook started a new chat";
+      notificationStore.chatMessage(
+        chat_id,
+        toastTitle,
+        previewText,
+        undefined,
+        undefined,
+      );
+
+      console.info(
+        `[ChatSyncService:Webhook] Processed webhook chat ${chat_id} (status=${status})`,
+      );
+    });
   } catch (error) {
     console.error(
       "[ChatSyncService:Webhook] Error handling webhook_chat:",

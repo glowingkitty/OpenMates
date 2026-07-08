@@ -42,13 +42,18 @@ test.describe('Account interests settings', () => {
 
 		const softwareOption = page.getByTestId('account-interests-list-option-software_development');
 		await expect(softwareOption).toBeVisible({ timeout: 10000 });
+		const initialSelected = await softwareOption.getAttribute('aria-selected');
 		await softwareOption.click();
+		await expect(softwareOption).not.toHaveAttribute('aria-selected', initialSelected ?? '', { timeout: 5000 });
+		const saveButton = page.getByTestId('account-interests-save');
+		await saveButton.scrollIntoViewIfNeeded();
+		await expect(saveButton).toBeEnabled({ timeout: 5000 });
 
 		const requestPromise = page.waitForRequest(
 			(req: any) => req.url().includes('/v1/settings/topic-preferences') && req.method() === 'POST',
 			{ timeout: 15000 }
 		);
-		await page.getByTestId('account-interests-save').click();
+		await saveButton.click();
 		const request = await requestPromise;
 
 		const body = JSON.parse(request.postData() || '{}');

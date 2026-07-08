@@ -50,6 +50,11 @@ def test_code_search_repos_has_cold_start_child_type_fallback():
     assert EmbedService._CHILD_EMBED_TYPE_FALLBACK[("code", "search_repos")] == "repo"
 
 
+def test_fitness_search_skills_have_cold_start_child_type_fallbacks():
+    assert EmbedService._CHILD_EMBED_TYPE_FALLBACK[("fitness", "search_locations")] == "location"
+    assert EmbedService._CHILD_EMBED_TYPE_FALLBACK[("fitness", "search_classes")] == "class"
+
+
 def test_get_child_embed_type_uses_code_search_repos_fallback_when_cache_empty():
     child_type = _run(EmbedService.get_child_embed_type(
         "code",
@@ -58,6 +63,22 @@ def test_get_child_embed_type_uses_code_search_repos_fallback_when_cache_empty()
     ))
 
     assert child_type == "repo"
+
+
+def test_get_child_embed_type_uses_fitness_fallbacks_when_cache_empty():
+    location_child_type = _run(EmbedService.get_child_embed_type(
+        "fitness",
+        "search_locations",
+        cache_service=_EmptyMetadataCache(),
+    ))
+    class_child_type = _run(EmbedService.get_child_embed_type(
+        "fitness",
+        "search_classes",
+        cache_service=_EmptyMetadataCache(),
+    ))
+
+    assert location_child_type == "location"
+    assert class_child_type == "class"
 
 
 def test_web_search_github_repo_result_uses_repo_child_type():

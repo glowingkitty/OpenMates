@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, createEventDispatcher, untrack } from 'svelte';
+    import { onMount, createEventDispatcher, tick, untrack } from 'svelte';
     import { fade } from 'svelte/transition';
     import { apiEndpoints, getApiEndpoint } from '../config/api';
     import { userProfile, updateProfile } from '../stores/userProfile';
@@ -45,7 +45,7 @@
         supportContribution?: boolean;
         supportEmail?: string | null;
         isRecurring?: boolean;
-        initialProviderOverride?: 'stripe' | null;
+        initialProviderOverride?: 'stripe' | 'managed' | null;
         isSignupFlow?: boolean;
     } = $props();
 
@@ -375,6 +375,14 @@
         if (embeddedCheckoutPage) { embeddedCheckoutPage.destroy(); embeddedCheckoutPage = null; }
 
         try {
+            await tick();
+            if (!useManagedPayments || modeOverride === 'stripe') {
+                console.debug('[Payment][ManagedPayments] Skipping stale Embedded Checkout mount after switching payment mode');
+                return;
+            }
+            if (!document.querySelector('#checkout')) {
+                throw new Error('Embedded Checkout mount point is not available.');
+            }
             const secret = clientSecret;
             embeddedCheckoutPage = await stripe.initEmbeddedCheckout({
                 fetchClientSecret: async () => secret,
@@ -407,6 +415,10 @@
             embeddedCheckoutPage.mount('#checkout');
             console.log('[Payment][ManagedPayments] Embedded Checkout mounted');
         } catch (err) {
+            if (!useManagedPayments || modeOverride === 'stripe') {
+                console.debug('[Payment][ManagedPayments] Ignoring stale Embedded Checkout mount failure after switching payment mode:', err);
+                return;
+            }
             errorMessage = `Failed to load payment form. ${err instanceof Error ? err.message : String(err)}`;
             console.error('[Payment][ManagedPayments] Failed to mount Embedded Checkout:', err);
         }

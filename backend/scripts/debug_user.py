@@ -44,7 +44,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from debug_utils import (
     configure_script_logging,
     format_timestamp,
-    get_api_key_from_vault,
+    get_admin_debug_api_key,
     get_base_url,
     hash_email_sha256,
     hash_user_id,
@@ -856,7 +856,7 @@ async def fetch_user_from_production_api(
     Raises:
         SystemExit: On auth failures, connection errors, or timeouts.
     """
-    api_key = await get_api_key_from_vault()
+    api_key = await get_admin_debug_api_key("dev" if use_dev else "prod")
     base_url = get_base_url(use_dev=use_dev)
     source_label = "dev" if use_dev else "production"
 

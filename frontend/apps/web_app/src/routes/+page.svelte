@@ -25,6 +25,9 @@
 		currentSignupStep, // Import currentSignupStep to set signup step from hash
 		getStepFromPath, // Import getStepFromPath to parse step from hash
 		isSignupPath, // Import isSignupPath helper
+		checkAuth,
+		anonymousChatStorage,
+		isAnonymousChatId,
 		// types
 		type Chat,
 		// services
@@ -73,8 +76,8 @@
 	import { pushNotificationService } from '@repo/ui';
 	import { settingsMenuVisible } from '@repo/ui/components/Settings.svelte';
 	import { rehydratePairSession, registerPairLogoutCallback, pendingPairToken } from '@repo/ui';
-	import { onMount, onDestroy, untrack } from 'svelte';
-	import { locale, waitLocale } from 'svelte-i18n';
+	import { onMount, onDestroy, tick, untrack } from 'svelte';
+	import { locale, waitLocale, _ as translationStore } from 'svelte-i18n';
 	import { get } from 'svelte/store';
 	import { browser } from '$app/environment';
 	import { replaceState } from '$app/navigation';
@@ -104,6 +107,37 @@
 	const EDGE_SWIPE_VERTICAL_CANCEL_PX = 48;
 	const AUTH_DEEP_LINK_LOCAL_FALLBACK_DELAY_MS = 12_000;
 	const PAIR_LOGIN_HASH_PATTERN = /^#pair=[A-Za-z0-9]{6}$/i;
+	const ANONYMOUS_RELOAD_CATEGORY = 'general_knowledge';
+	const ANONYMOUS_RELOAD_ICON = 'sparkles';
+
+	function createAnonymousReloadChat(chatId: string): Chat {
+		const now = Math.floor(Date.now() / 1000);
+		return {
+			chat_id: chatId,
+			encrypted_title: null,
+			messages_v: 0,
+			title_v: 0,
+			draft_v: 0,
+			encrypted_draft_md: null,
+			encrypted_draft_preview: null,
+			last_edited_overall_timestamp: now,
+			unread_count: 0,
+			created_at: now,
+			updated_at: now,
+			processing_metadata: false,
+			waiting_for_metadata: false,
+			is_anonymous: true,
+			category: ANONYMOUS_RELOAD_CATEGORY,
+			icon: ANONYMOUS_RELOAD_ICON
+		};
+	}
+
+	async function waitForLocaleTextStores(): Promise<void> {
+		await waitLocale();
+		await tick();
+		await tick();
+		get(translationStore);
+	}
 
 	type EdgeSwipeTarget = 'open-chats' | 'close-chats' | 'open-settings' | 'close-settings';
 
@@ -565,7 +599,8 @@
 
 			const loadPublicChat = async (retries = 20): Promise<void> => {
 				if (activeChat) {
-					// Translate and convert to Chat format
+					// Translate and convert to Chat format after the URL locale has reached derived text stores.
+					await waitForLocaleTextStores();
 					const translatedChat = translateDemoChat(publicChat);
 					const chat = convertDemoChatToChat(translatedChat);
 
@@ -614,6 +649,73 @@
 		// These are new chats that exist only in sessionStorage (not IndexedDB) - created when user types in a new chat
 		// Without this check, navigating to a draft chat would fail and fall back to the default chat
 		if (!$authStore.isAuthenticated) {
+			if (isAnonymousChatId(chatId)) {
+				const loadAnonymousChat = async (retries = 20): Promise<void> => {
+					const anonymousChat = await anonymousChatStorage.getChat(chatId);
+					if (!anonymousChat) {
+						if (retries > 0) {
+							const delay = retries > 15 ? 50 : retries > 10 ? 100 : 200;
+							console.debug(
+								`[+page.svelte] Anonymous chat ${chatId} not found yet, retrying in ${delay}ms (${retries} retries left)`
+							);
+							await new Promise((resolve) => setTimeout(resolve, delay));
+							return loadAnonymousChat(retries - 1);
+						}
+
+						console.warn(
+							`[+page.svelte] Anonymous chat ${chatId} not found after retries; loading session shell`
+						);
+						const anonymousShellChat = createAnonymousReloadChat(chatId);
+						if (activeChat) {
+							activeChat.loadChat(anonymousShellChat, { scrollToLatestResponse, messageId });
+							lastLoadedChatId = anonymousShellChat.chat_id;
+
+							const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
+								detail: { chat: anonymousShellChat },
+								bubbles: true,
+								composed: true
+							});
+							window.dispatchEvent(globalChatSelectedEvent);
+
+							if (embedId) {
+								await handleEmbedDeepLink(embedId, true);
+							}
+							return;
+						}
+
+						console.error(`[+page.svelte] activeChat component not ready for anonymous shell`);
+						return;
+					}
+
+					if (activeChat) {
+						console.debug(`[+page.svelte] Found anonymous chat for non-auth deep link:`, chatId);
+						activeChat.loadChat(anonymousChat, { scrollToLatestResponse, messageId });
+						lastLoadedChatId = anonymousChat.chat_id;
+
+						const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
+							detail: { chat: anonymousChat },
+							bubbles: true,
+							composed: true
+						});
+						window.dispatchEvent(globalChatSelectedEvent);
+
+						if (embedId) {
+							await handleEmbedDeepLink(embedId, true);
+						}
+						return;
+					} else if (retries > 0) {
+						const delay = retries > 10 ? 50 : 100;
+						await new Promise((resolve) => setTimeout(resolve, delay));
+						return loadAnonymousChat(retries - 1);
+					} else {
+						console.error(`[+page.svelte] activeChat component not ready for anonymous chat`);
+					}
+				};
+
+				await loadAnonymousChat();
+				return;
+			}
+
 			const sessionDraft = loadSessionStorageDraft(chatId);
 			if (sessionDraft) {
 				console.debug(`[+page.svelte] Found sessionStorage draft for non-auth user:`, chatId);
@@ -1726,6 +1828,7 @@
 					if (
 						hashChatId &&
 						!isPublicChat(hashChatId) &&
+						!isAnonymousChatId(hashChatId) &&
 						!isShareLinkHash &&
 						!isSharedChatRedirect
 					) {
@@ -1803,7 +1906,12 @@
 				// in IndexedDB (sharedChatKeyStorage), so the chat CAN be decrypted without master key.
 				// sharedChatRedirectId was read from sessionStorage at the start of onMount.
 				const isSharedRedirect = sharedChatRedirectId === originalHashChatId;
-				if (isForcedLogout && !isPublicChat(originalHashChatId) && !isSharedRedirect) {
+				if (
+					isForcedLogout &&
+					!isPublicChat(originalHashChatId) &&
+					!isSharedRedirect &&
+					!isAnonymousChatId(originalHashChatId)
+				) {
 					console.debug(
 						`[+page.svelte] Forced logout in progress - skipping encrypted chat hash ${originalHashChatId}, returning to new chat`
 					);
@@ -1885,13 +1993,14 @@
 					const language = getLanguageByCode(browserLang);
 					if (language) {
 						localStorage.setItem("language_suggestion_shown", "1");
-						notificationStore.addNotificationWithOptions("info", {
+						const notificationId = notificationStore.addNotificationWithOptions("info", {
 							title: "Language Detected",
 							message: `Your browser language is ${language.nativeName}.`,
 							duration: 0,
 							dismissible: true,
 							actionLabel: `Switch to ${language.nativeName}`,
 							onAction: async () => {
+								window.dispatchEvent(new CustomEvent('language-changed'));
 								locale.set(browserLang);
 								await waitLocale();
 								localStorage.setItem("preferredLanguage", browserLang);
@@ -1900,6 +2009,10 @@
 									"dir",
 									isRtlLanguage(browserLang) ? "rtl" : "ltr"
 								);
+								setTimeout(() => {
+									window.dispatchEvent(new CustomEvent('language-changed-complete'));
+									notificationStore.removeNotification(notificationId);
+								}, 50);
 							}
 						});
 					}
@@ -1994,11 +2107,11 @@
 				});
 		}
 
-		// Listen for WebSocket auth errors and trigger logout
-		// This handles cases where the session expires and WebSocket connection is rejected with 403
+		// Listen for WebSocket auth errors and trigger logout only after REST auth confirms expiry.
+		// WebSocket 1006 can also come from sleep, proxy restarts, or transient network loss.
 		handleWebSocketAuthError = async () => {
 			console.info(
-				'[+page.svelte] WebSocket auth error detected - session expired or invalid token. Logging out user.'
+				'[+page.svelte] WebSocket auth error detected. Verifying REST session before logout.'
 			);
 
 			if (isPairLoginPending()) {
@@ -2008,9 +2121,22 @@
 				return;
 			}
 
-			// The session endpoint intentionally uses an offline-first fallback for non-OK responses.
-			// A WebSocket auth error is already a definitive stale-token signal, so clear local auth
-			// state and browser credentials directly instead of re-checking the session endpoint.
+			try {
+				const isSessionStillValid = await checkAuth(undefined, true);
+				if (isSessionStillValid) {
+					console.info(
+						'[+page.svelte] REST session is still valid after WebSocket auth error. Retrying WebSocket instead of logging out.'
+					);
+					webSocketService.connect().catch((error) => {
+						console.warn('[+page.svelte] WebSocket retry after session verification failed:', error);
+					});
+					return;
+				}
+			} catch (error) {
+				console.warn('[+page.svelte] REST session verification after WebSocket auth error failed:', error);
+			}
+
+			console.info('[+page.svelte] REST session invalid after WebSocket auth error. Logging out user.');
 			const { logout } = await import('@repo/ui');
 			await logout({ skipServerLogout: true, isSessionExpiredLogout: true });
 		};
@@ -2852,8 +2978,11 @@
 				deepLinkProcessed = true;
 				console.debug('[+page.svelte] onMessage deep link:', { autoSend, length: messageText.length });
 				// Store message for MessageInput to pick up via custom event
-				// ActiveChat will be in new-chat mode (no hash = welcome screen)
-				activeChatStore.clearActiveChat();
+				// Docs links open a new-chat draft when no chat is active. In-chat
+				// fallback links keep the current chat and only prefill its composer.
+				if (!$activeChatStore) {
+					activeChatStore.clearActiveChat();
+				}
 				// Dispatch after a short delay to let ActiveChat mount and render MessageInput
 				setTimeout(() => {
 					window.dispatchEvent(new CustomEvent('docsMessagePrefill', {

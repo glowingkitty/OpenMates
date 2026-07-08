@@ -20,6 +20,14 @@ import { uploadFileToServer, type UploadFileResponse } from "../components/enter
 import { classifyMindMapUploadSource } from "../components/enter_message/services/mindMapUploadDetection";
 import { normalizeMindMapSource } from "../components/embeds/mindmaps/mindMapContent";
 import { generateDirectEmbedRef } from "../utils/embedFragmentUtils";
+import {
+  buildProjectSourceCreatePayload,
+  type ProjectSourceCapability,
+  type ProjectSourceCreatePayload,
+  type ProjectSourceStatus,
+  type ProjectSourceType,
+  type ProjectWriteMode,
+} from "./projectRemoteSources";
 
 export type ProjectItemType = "embed" | "chat" | "upload" | "workflow";
 
@@ -81,6 +89,52 @@ export interface ProjectItemViewModel {
   encrypted: ProjectItemRecord;
 }
 
+export interface ProjectSourceRecord extends ProjectSourceCreatePayload {
+  id?: string;
+}
+
+export interface ProjectSettingsRecord {
+  write_mode: ProjectWriteMode;
+  encrypted_settings?: string | null;
+  updated_at?: number | null;
+}
+
+export interface ProjectSettingsViewModel {
+  writeMode: ProjectWriteMode;
+  settings: Record<string, unknown>;
+  encrypted: ProjectSettingsRecord;
+}
+
+export interface ProjectSourceViewModel {
+  source_id: string;
+  source_type: ProjectSourceType;
+  displayName: string;
+  metadata: Record<string, unknown>;
+  capabilities: ProjectSourceCapability[];
+  status: ProjectSourceStatus;
+  encrypted: ProjectSourceRecord;
+}
+
+export interface ProjectSourceCreateInput {
+  sourceId?: string;
+  sourceType: ProjectSourceType;
+  displayName: string;
+  metadata?: Record<string, unknown>;
+  capabilities?: string[];
+  status?: ProjectSourceStatus;
+}
+
+export interface ProjectUploadMetadata {
+  source_id?: string;
+  remote_path?: string;
+  remote_base_hash?: string;
+  remote_content_hash?: string;
+  remote_mtime?: string;
+  remote_git_status?: string;
+  safety_flags?: string[];
+  imported_from_remote_source?: boolean;
+}
+
 export interface ProjectViewModel {
   project_id: string;
   name: string;
@@ -88,6 +142,52 @@ export interface ProjectViewModel {
   projectKey: Uint8Array;
   encrypted: EncryptedProjectRecord;
 }
+
+const REMOTE_CODE_UPLOAD_EXTENSIONS = new Set([
+  "c",
+  "cpp",
+  "css",
+  "go",
+  "h",
+  "html",
+  "java",
+  "js",
+  "json",
+  "jsx",
+  "md",
+  "py",
+  "rs",
+  "svelte",
+  "swift",
+  "ts",
+  "tsx",
+  "txt",
+  "yaml",
+  "yml",
+]);
+
+const REMOTE_CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
+  c: "c",
+  cpp: "cpp",
+  css: "css",
+  go: "go",
+  h: "c",
+  html: "html",
+  java: "java",
+  js: "javascript",
+  json: "json",
+  jsx: "javascript",
+  md: "markdown",
+  py: "python",
+  rs: "rust",
+  svelte: "svelte",
+  swift: "swift",
+  ts: "typescript",
+  tsx: "typescript",
+  txt: "text",
+  yaml: "yaml",
+  yml: "yaml",
+};
 
 function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
@@ -167,8 +267,86 @@ export async function createProject(name: string): Promise<ProjectViewModel> {
   };
 }
 
+export async function listProjectSources(project: ProjectViewModel): Promise<ProjectSourceViewModel[]> {
+  const data = await requestJson<{ sources: ProjectSourceRecord[] }>(`/v1/projects/${project.project_id}/sources`);
+  return Promise.all(data.sources.map((source) => decryptProjectSource(source, project.projectKey)));
+}
+
+export async function createProjectSource(
+  project: ProjectViewModel,
+  input: ProjectSourceCreateInput,
+): Promise<ProjectSourceViewModel> {
+  const timestamp = nowSeconds();
+  const metadata = JSON.stringify(input.metadata ?? {});
+  const payload = buildProjectSourceCreatePayload({
+    sourceId: input.sourceId ?? crypto.randomUUID(),
+    sourceType: input.sourceType,
+    encryptedDisplayName: await encryptWithEmbedKey(input.displayName, project.projectKey),
+    encryptedMetadata: await encryptWithEmbedKey(metadata, project.projectKey),
+    capabilities: input.capabilities,
+    status: input.status,
+    timestamp,
+  });
+  const data = await requestJson<{ source: ProjectSourceRecord }>(`/v1/projects/${project.project_id}/sources`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return decryptProjectSource(data.source, project.projectKey);
+}
+
+export async function getProjectSettings(project: ProjectViewModel): Promise<ProjectSettingsViewModel> {
+  const data = await requestJson<{ settings: ProjectSettingsRecord }>(`/v1/projects/${project.project_id}/settings`);
+  return decryptProjectSettings(data.settings, project.projectKey);
+}
+
+export async function updateProjectSettings(
+  project: ProjectViewModel,
+  writeMode: ProjectWriteMode,
+  settings: Record<string, unknown> = {},
+): Promise<ProjectSettingsViewModel> {
+  const data = await requestJson<{ settings: ProjectSettingsRecord }>(`/v1/projects/${project.project_id}/settings`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      write_mode: writeMode,
+      encrypted_settings: await encryptWithEmbedKey(JSON.stringify(settings), project.projectKey),
+      updated_at: nowSeconds(),
+    }),
+  });
+  return decryptProjectSettings(data.settings, project.projectKey);
+}
+
 export async function deleteProject(projectId: string): Promise<void> {
   await requestJson<{ deleted: boolean }>(`/v1/projects/${projectId}`, { method: "DELETE" });
+}
+
+async function decryptProjectSource(source: ProjectSourceRecord, projectKey: Uint8Array): Promise<ProjectSourceViewModel> {
+  const metadataText = await decryptOptional(source.encrypted_metadata, projectKey);
+  const metadata = parseProjectMetadata(metadataText, `source:${source.source_id}`);
+  return {
+    source_id: source.source_id,
+    source_type: source.source_type,
+    displayName: await decryptOptional(source.encrypted_display_name, projectKey),
+    metadata,
+    capabilities: source.capabilities ?? [],
+    status: source.status ?? "connected",
+    encrypted: source,
+  };
+}
+
+async function decryptProjectSettings(settings: ProjectSettingsRecord, projectKey: Uint8Array): Promise<ProjectSettingsViewModel> {
+  const settingsText = await decryptOptional(settings.encrypted_settings, projectKey);
+  return {
+    writeMode: normalizeProjectWriteMode(settings.write_mode),
+    settings: parseProjectMetadata(settingsText, "settings"),
+    encrypted: {
+      ...settings,
+      write_mode: normalizeProjectWriteMode(settings.write_mode),
+    },
+  };
+}
+
+function normalizeProjectWriteMode(writeMode: unknown): ProjectWriteMode {
+  return writeMode === "auto_approve_safe_writes" ? "auto_approve_safe_writes" : "always_ask";
 }
 
 export async function getProjectContents(project: ProjectViewModel): Promise<{
@@ -189,12 +367,7 @@ export async function getProjectContents(project: ProjectViewModel): Promise<{
   const items = await Promise.all(
     data.items.map(async (item) => {
       const metadataText = await decryptOptional(item.encrypted_metadata, project.projectKey);
-      let metadata: Record<string, unknown> = {};
-      try {
-        metadata = metadataText ? JSON.parse(metadataText) : {};
-      } catch {
-        metadata = {};
-      }
+      const metadata = parseProjectMetadata(metadataText, `item:${item.project_item_id}`);
       return {
         project_item_id: item.project_item_id,
         item_type: item.item_type,
@@ -206,6 +379,21 @@ export async function getProjectContents(project: ProjectViewModel): Promise<{
     }),
   );
   return { folders, items };
+}
+
+function parseProjectMetadata(metadataText: string, context: string): Record<string, unknown> {
+  if (!metadataText) return {};
+  try {
+    const parsed = JSON.parse(metadataText) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+    console.warn(`[ProjectService] Ignoring non-object Project metadata for ${context}`);
+    return {};
+  } catch (error) {
+    console.warn(`[ProjectService] Failed to parse Project metadata for ${context}:`, error);
+    return {};
+  }
 }
 
 export async function createFolder(project: ProjectViewModel, name: string, parentFolderId?: string): Promise<void> {
@@ -263,12 +451,34 @@ function embedTypeForUpload(upload: UploadFileResponse): string {
   return "file";
 }
 
+function getFilenameExtension(filename: string): string {
+  const basename = filename.toLowerCase().replace(/\\/g, "/").split("/").filter(Boolean).pop() ?? "";
+  const extensionIndex = basename.lastIndexOf(".");
+  return extensionIndex > 0 ? basename.slice(extensionIndex + 1) : "";
+}
+
+function shouldCreateRemoteCodeEmbed(file: File, metadata: ProjectUploadMetadata): boolean {
+  if (metadata.imported_from_remote_source !== true) return false;
+  const extension = getFilenameExtension(file.name);
+  return REMOTE_CODE_UPLOAD_EXTENSIONS.has(extension) || file.type.startsWith("text/");
+}
+
+function languageForCodeUpload(file: File): string {
+  const extension = getFilenameExtension(file.name);
+  return REMOTE_CODE_LANGUAGE_BY_EXTENSION[extension] ?? "text";
+}
+
 function isMindMapUploadFilename(filename: string): boolean {
   const lower = filename.toLowerCase();
   return lower.endsWith(".ommindmap") || lower.endsWith(".openmates-mindmap.json");
 }
 
-async function uploadMindMapToProject(project: ProjectViewModel, file: File, source: string): Promise<void> {
+async function uploadMindMapToProject(
+  project: ProjectViewModel,
+  file: File,
+  source: string,
+  metadata: ProjectUploadMetadata = {},
+): Promise<void> {
   const normalization = normalizeMindMapSource(source);
   if (normalization.status === "invalid_source" || !normalization.model) {
     throw new Error(normalization.parseError || "Invalid mind map JSON");
@@ -343,7 +553,7 @@ async function uploadMindMapToProject(project: ProjectViewModel, file: File, sou
         target_id_encrypted: await encryptWithEmbedKey(embedId, project.projectKey),
         encrypted_display_name: await encryptWithEmbedKey(normalization.title || file.name, project.projectKey),
         encrypted_note: await encryptWithEmbedKey("", project.projectKey),
-        encrypted_metadata: await encryptWithEmbedKey(JSON.stringify({ embed_type: embedType }), project.projectKey),
+        encrypted_metadata: await encryptWithEmbedKey(JSON.stringify({ ...metadata, embed_type: embedType }), project.projectKey),
         created_at: timestamp,
         updated_at: timestamp,
         position: timestamp,
@@ -367,14 +577,119 @@ async function uploadMindMapToProject(project: ProjectViewModel, file: File, sou
   embedStore.registerEmbedRef(embedRef, embedId, "mindmap");
 }
 
-export async function uploadFileToProject(project: ProjectViewModel, file: File): Promise<void> {
+async function uploadRemoteCodeFileToProject(
+  project: ProjectViewModel,
+  file: File,
+  metadata: ProjectUploadMetadata,
+): Promise<void> {
+  const source = await file.text();
+  const timestampMs = Date.now();
+  const timestamp = Math.floor(timestampMs / 1000);
+  const embedId = crypto.randomUUID();
+  const embedType = "code-code";
+  const embedKey = generateEmbedKey();
+  const embedRef = generateDirectEmbedRef("code", embedId, { filename: file.name });
+  const contentHash = await computeSHA256(source);
+  const embedContent = JSON.stringify({
+    type: "code",
+    app_id: "code",
+    skill_id: "code",
+    language: languageForCodeUpload(file),
+    code: source,
+    filename: file.name,
+    embed_ref: embedRef,
+    status: "finished",
+    line_count: source.split("\n").length,
+    content_hash: contentHash,
+  });
+  const hashedEmbedId = await computeSHA256(embedId);
+  const hashedProjectId = await computeSHA256(project.project_id);
+  const wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKey);
+  const wrappedProjectKey = await wrapEmbedKeyWithChatKey(embedKey, project.projectKey);
+  if (!wrappedMasterKey || !wrappedProjectKey) throw new Error("Could not wrap code embed keys");
+
+  await requestJson(`/v1/projects/${project.project_id}/upload-embed`, {
+    method: "POST",
+    body: JSON.stringify({
+      embed: {
+        embed_id: embedId,
+        encrypted_type: await encryptWithEmbedKey(embedType, embedKey),
+        status: "finished",
+        encrypted_content: await encryptWithEmbedKey(embedContent, embedKey),
+        encrypted_text_preview: await encryptWithEmbedKey(file.name, embedKey),
+        content_hash: contentHash,
+        created_at: timestamp,
+        updated_at: timestamp,
+        encryption_mode: "client",
+        is_private: true,
+        is_shared: false,
+      },
+      embed_keys: [
+        {
+          hashed_embed_id: hashedEmbedId,
+          key_type: "master",
+          encrypted_embed_key: wrappedMasterKey,
+          created_at: timestamp,
+        },
+        {
+          hashed_embed_id: hashedEmbedId,
+          key_type: "project",
+          hashed_project_id: hashedProjectId,
+          encrypted_embed_key: wrappedProjectKey,
+          created_at: timestamp,
+        },
+      ],
+      item: {
+        project_item_id: crypto.randomUUID(),
+        item_type: "embed",
+        target_id: embedId,
+        target_id_encrypted: await encryptWithEmbedKey(embedId, project.projectKey),
+        encrypted_display_name: await encryptWithEmbedKey(file.name, project.projectKey),
+        encrypted_note: await encryptWithEmbedKey("", project.projectKey),
+        encrypted_metadata: await encryptWithEmbedKey(
+          JSON.stringify({ ...metadata, embed_type: embedType }),
+          project.projectKey,
+        ),
+        created_at: timestamp,
+        updated_at: timestamp,
+        position: timestamp,
+      },
+    }),
+  });
+
+  await embedStore.put(
+    `embed:${embedId}`,
+    {
+      embed_id: embedId,
+      type: embedType as never,
+      status: "finished",
+      content: embedContent,
+      text_preview: file.name,
+      createdAt: timestampMs,
+      updatedAt: timestampMs,
+    },
+    embedType as never,
+  );
+  embedStore.registerEmbedRef(embedRef, embedId, "code");
+}
+
+export async function uploadFileToProject(
+  project: ProjectViewModel,
+  file: File,
+  metadata: ProjectUploadMetadata = {},
+): Promise<void> {
+  if (shouldCreateRemoteCodeEmbed(file, metadata)) {
+    await uploadRemoteCodeFileToProject(project, file, metadata);
+    return;
+  }
+
   if (isMindMapUploadFilename(file.name)) {
     const source = await file.text();
     const classification = classifyMindMapUploadSource(file.name, source, file.size);
-    if (!classification.accepted) {
+    if (classification.accepted === false) {
       throw new Error(`Could not import mind map: ${classification.reason.replace(/_/g, " ")}`);
     }
-    await uploadMindMapToProject(project, file, source);
+    await uploadMindMapToProject(project, file, source, metadata);
     return;
   }
 
@@ -444,7 +759,7 @@ export async function uploadFileToProject(project: ProjectViewModel, file: File)
         target_id_encrypted: await encryptWithEmbedKey(upload.embed_id, project.projectKey),
         encrypted_display_name: await encryptWithEmbedKey(upload.filename, project.projectKey),
         encrypted_note: await encryptWithEmbedKey("", project.projectKey),
-        encrypted_metadata: await encryptWithEmbedKey(JSON.stringify({ embed_type: embedType }), project.projectKey),
+        encrypted_metadata: await encryptWithEmbedKey(JSON.stringify({ ...metadata, embed_type: embedType }), project.projectKey),
         created_at: timestamp,
         updated_at: timestamp,
         position: timestamp,

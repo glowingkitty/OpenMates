@@ -1,9 +1,24 @@
-// In-app issue reporting — submit bug reports with title, description, and screenshots.
-// Mirrors the web app's report-issue-flow: form validation, screenshot attachment,
-// and submission to the backend issue tracker endpoint.
+// In-app issue reporting for the Apple app.
+// Mirrors the web SettingsReportIssue.svelte flow and the shared
+// /v1/settings/issues backend contract without using stock product UI chrome.
+// The form collects safe context only: no message plaintext, keys, credentials,
+// private paths, hostnames, or share fragments are included automatically.
 
-import SwiftUI
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte:  frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+// TS:      frontend/packages/ui/src/services/issueReportSubmission.ts
+// Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//          TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+
+import Foundation
 import PhotosUI
+import SwiftUI
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 struct ReportIssuePrefill: Equatable {
     let id = UUID()
@@ -20,184 +35,219 @@ struct ReportIssuePrefill: Equatable {
 }
 
 struct ReportIssueView: View {
-    @Environment(\.dismiss) var dismiss
     @State private var title = ""
-    @State private var description = ""
-    @State private var category = "bug"
+    @State private var userFlow = ""
+    @State private var expectedBehaviour = ""
+    @State private var actualBehaviour = ""
+    @State private var issueType: IssueReportPayloadBuilder.IssueType = .bugReport
     @State private var screenshotItem: PhotosPickerItem?
     @State private var screenshotData: Data?
     @State private var screenshotPreview: Image?
     @State private var isSubmitting = false
-    @State private var submitted = false
+    @State private var submittedIssueReference: String?
     @State private var error: String?
+    @State private var uiTestIssueLogPayloadText: String?
 
-    private let categories = [
-        ("bug", "Bug Report"),
-        ("feature", "Feature Request"),
-        ("account", "Account Issue"),
-        ("billing", "Billing Issue"),
-        ("other", "Other")
-    ]
+    private var titleValidationError: String? {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedTitle.isEmpty { return AppStrings.reportIssueTitleRequired }
+        if trimmedTitle.count < 3 { return AppStrings.reportIssueTitleTooShort }
+        return nil
+    }
 
     private var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !description.trimmingCharacters(in: .whitespaces).isEmpty
+        titleValidationError == nil
     }
 
     init(prefill: ReportIssuePrefill? = nil) {
         _title = State(initialValue: prefill?.title ?? "")
-        _category = State(initialValue: prefill?.category ?? "bug")
+        _issueType = State(initialValue: prefill?.category == "feature" ? .featureRequest : .bugReport)
     }
 
     var body: some View {
-        NavigationStack {
-            if submitted {
-                submittedView
+        OMSettingsPage(title: AppStrings.settingsReportIssue, subtitle: AppStrings.reportIssueDescription, showsHeader: false) {
+            Color.clear
+                .frame(height: 0)
+                .accessibilityIdentifier("settings-report-issue-form")
+
+            if let submittedIssueReference {
+                submittedView(reference: submittedIssueReference)
             } else {
                 formView
             }
+
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-report-issue-success"),
+               let uiTestIssueLogPayloadText {
+                Text(uiTestIssueLogPayloadText)
+                    .font(.omMicro)
+                    .foregroundStyle(Color.fontTertiary)
+                    .accessibilityIdentifier("report-issue-debug-log-payload")
+            }
+            #endif
         }
-    }
-
-    // MARK: - Form
-
-    private var formView: some View {
-        Form {
-            Section("Category") {
-                Picker("Category", selection: $category) {
-                    ForEach(categories, id: \.0) { id, name in
-                        Text(name).tag(id)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
-
-            Section("Details") {
-                TextField("Title", text: $title)
-                    .autocorrectionDisabled()
-                    .accessibleInput("Title", hint: LocalizationManager.shared.text("report.title_hint"))
-
-                TextEditor(text: $description)
-                    .frame(minHeight: 120)
-                    .font(.omP)
-                    .accessibilityLabel("Description")
-                    .accessibilityHint(LocalizationManager.shared.text("report.description_hint"))
-                    .overlay(alignment: .topLeading) {
-                        if description.isEmpty {
-                            Text(LocalizationManager.shared.text("report.describe_issue_placeholder"))
-                                .font(.omP)
-                                .foregroundStyle(Color.fontTertiary)
-                                .padding(.top, 8)
-                                .padding(.leading, 4)
-                                .allowsHitTesting(false)
-                                .accessibilityHidden(true)
-                        }
-                    }
-            }
-
-            Section("Screenshot (optional)") {
-                if let screenshotPreview {
-                    screenshotPreview
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 200)
-                        .clipShape(RoundedRectangle(cornerRadius: .radius3))
-                        .accessibilityLabel(LocalizationManager.shared.text("report.screenshot_attached"))
-                        .overlay(alignment: .topTrailing) {
-                            Button {
-                                self.screenshotData = nil
-                                self.screenshotPreview = nil
-                                self.screenshotItem = nil
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.white, Color.error)
-                            }
-                            .padding(.spacing2)
-                            .accessibleButton(LocalizationManager.shared.text("report.remove_screenshot"))
-                        }
-                } else {
-                    PhotosPicker(selection: $screenshotItem, matching: .screenshots) {
-                        Label("Attach Screenshot", systemImage: "camera")
-                    }
-                    .accessibilityLabel("Attach Screenshot")
-                }
-            }
-
-            if let error {
-                Section {
-                    Text(error)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.error)
-                }
-            }
-
-            Section {
-                Button {
-                    submitReport()
-                } label: {
-                    HStack {
-                        Spacer()
-                        if isSubmitting {
-                            ProgressView()
-                        } else {
-                            Text(LocalizationManager.shared.text("report.submit_report"))
-                                .fontWeight(.medium)
-                        }
-                        Spacer()
-                    }
-                }
-                .disabled(!isValid || isSubmitting)
-                .accessibleButton(LocalizationManager.shared.text("report.submit_report"))
-            }
-        }
-        .navigationTitle("Report an Issue")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { dismiss() }
-                    .accessibleButton(AppStrings.cancel)
-            }
+        .onAppear {
+            #if DEBUG
+            seedUITestReportIssueLogsIfNeeded()
+            #endif
         }
         .onChange(of: screenshotItem) { _, newItem in
             loadScreenshot(newItem)
         }
     }
 
-    // MARK: - Submitted confirmation
+    private var formView: some View {
+        VStack(alignment: .leading, spacing: .spacing8) {
+            OMSettingsSection(AppStrings.settingsReportIssue, icon: "report_issue") {
+                VStack(alignment: .leading, spacing: .spacing5) {
+                    ReportIssueTextArea(
+                        title: AppStrings.reportIssueTitleLabel,
+                        placeholder: AppStrings.reportIssueTitlePlaceholder,
+                        text: $title,
+                        minHeight: 92,
+                        accessibilityIdentifier: "report-issue-title"
+                    )
 
-    private var submittedView: some View {
-        VStack(spacing: .spacing6) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(.green)
-                .accessibilityHidden(true)
+                    if let titleValidationError {
+                        Text(titleValidationError)
+                            .font(.omXs)
+                            .foregroundStyle(Color.error)
+                            .accessibilityIdentifier("report-issue-title-error")
+                    }
 
-            Text(LocalizationManager.shared.text("report.report_submitted"))
-                .font(.omH3).fontWeight(.semibold)
+                    ReportIssueTextArea(
+                        title: AppStrings.reportIssueUserFlowLabel,
+                        placeholder: AppStrings.reportIssueUserFlowPlaceholder,
+                        hint: AppStrings.reportIssueUserFlowHint,
+                        text: $userFlow,
+                        accessibilityIdentifier: "report-issue-user-flow"
+                    )
 
-            Text(LocalizationManager.shared.text("report.thank_you_message"))
-                .font(.omP)
-                .foregroundStyle(Color.fontSecondary)
-                .multilineTextAlignment(.center)
+                    ReportIssueTextArea(
+                        title: AppStrings.reportIssueExpectedLabel,
+                        placeholder: AppStrings.reportIssueExpectedPlaceholder,
+                        hint: AppStrings.reportIssueExpectedHint,
+                        text: $expectedBehaviour,
+                        accessibilityIdentifier: "report-issue-expected"
+                    )
 
-            Button("Done") { dismiss() }
-                .buttonStyle(.borderedProminent)
-                .tint(Color.buttonPrimary)
-                .accessibleButton(AppStrings.done)
+                    ReportIssueTextArea(
+                        title: AppStrings.reportIssueActualLabel,
+                        placeholder: AppStrings.reportIssueActualPlaceholder,
+                        hint: AppStrings.reportIssueActualHint,
+                        text: $actualBehaviour,
+                        accessibilityIdentifier: "report-issue-actual"
+                    )
+                }
+                .padding(.horizontal, .spacing5)
+                .padding(.vertical, .spacing4)
+            }
+
+            screenshotSection
+
+            if let error {
+                Text(error)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.error)
+                    .padding(.horizontal, .spacing5)
+                    .accessibilityIdentifier("report-issue-error")
+            }
+
+            Button {
+                submitReport()
+            } label: {
+                if isSubmitting {
+                    ProgressView()
+                        .help(Text(AppStrings.reportIssueSubmitting))
+                        .accessibilityLabel(AppStrings.reportIssueSubmitting)
+                } else {
+                    Text(AppStrings.reportIssueSubmitButton)
+                }
+            }
+            .buttonStyle(OMPrimaryButtonStyle())
+            .disabled(!isValid || isSubmitting)
+            .help(Text(isSubmitting ? AppStrings.reportIssueSubmitting : AppStrings.reportIssueSubmitButton))
+            .accessibilityLabel(isSubmitting ? AppStrings.reportIssueSubmitting : AppStrings.reportIssueSubmitButton)
+            .accessibilityIdentifier("report-issue-submit")
         }
-        .padding(.spacing8)
-        .onAppear {
-            AccessibilityAnnouncement.announce(LocalizationManager.shared.text("report.report_submitted"))
-        }
-        .navigationTitle("Report an Issue")
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
     }
 
-    // MARK: - Actions
+    private var screenshotSection: some View {
+        OMSettingsSection(AppStrings.reportIssueScreenshotLabel, icon: "image") {
+            VStack(alignment: .leading, spacing: .spacing4) {
+                Text(AppStrings.reportIssueScreenshotHint)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+
+                if let screenshotPreview {
+                    screenshotPreview
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                        .accessibilityIdentifier("report-issue-screenshot-preview")
+
+                    Button {
+                        screenshotData = nil
+                        self.screenshotPreview = nil
+                        screenshotItem = nil
+                    } label: {
+                        Label {
+                            Text(AppStrings.reportIssueScreenshotRemove)
+                        } icon: {
+                            Icon("close", size: 16)
+                        }
+                    }
+                    .buttonStyle(OMSecondaryButtonStyle())
+                    .accessibilityIdentifier("report-issue-remove-screenshot")
+                } else {
+                    PhotosPicker(selection: $screenshotItem, matching: .images) {
+                        HStack(spacing: .spacing3) {
+                            Icon("image", size: 18)
+                            Text(AppStrings.reportIssueScreenshotUploadButton)
+                        }
+                    }
+                    .buttonStyle(OMSecondaryButtonStyle())
+                    .accessibilityIdentifier("report-issue-attach-screenshot")
+                }
+            }
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing4)
+        }
+    }
+
+    private func submittedView(reference: String) -> some View {
+        OMSettingsSection(AppStrings.reportIssueSuccess, icon: "check") {
+            VStack(alignment: .center, spacing: .spacing5) {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient.primary)
+                        .frame(width: 64, height: 64)
+                    Icon("check", size: 34)
+                        .foregroundStyle(Color.white)
+                }
+                .accessibilityHidden(true)
+
+                Text(AppStrings.reportIssueSuccess)
+                    .font(.omH3)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .multilineTextAlignment(.center)
+
+                Text("\(AppStrings.reportIssueIssueIdLabel): \(reference)")
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .textSelection(.enabled)
+                    .accessibilityIdentifier("report-issue-reference")
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing8)
+        }
+        .onAppear {
+            AccessibilityAnnouncement.announce(AppStrings.reportIssueSuccess)
+        }
+    }
 
     private func loadScreenshot(_ item: PhotosPickerItem?) {
         guard let item else { return }
@@ -218,31 +268,261 @@ struct ReportIssueView: View {
     }
 
     private func submitReport() {
+        guard isValid else { return }
         isSubmitting = true
         error = nil
+        NativeDiagnostics.info("Submitting native issue report", category: "report_issue")
 
         Task {
             do {
-                var body: [String: Any] = [
-                    "title": title,
-                    "description": description,
-                    "category": category,
-                    "platform": "apple_native"
-                ]
-
-                if let screenshotData {
-                    body["screenshot_base64"] = screenshotData.base64EncodedString()
-                }
-
-                let _: Data = try await APIClient.shared.request(
-                    .post, path: "/v1/issues/report", body: body
+                let context = NativeIssueContextProvider.shared.context()
+                let payload = IssueReportPayloadBuilder.makePayload(
+                    title: title,
+                    issueType: issueType,
+                    userFlow: userFlow,
+                    expectedBehaviour: expectedBehaviour,
+                    actualBehaviour: actualBehaviour,
+                    screenshotData: screenshotData,
+                    consoleLogs: context.consoleLogs,
+                    runtimeDebugState: context.runtimeDebugState,
+                    actionHistory: context.actionHistory
                 )
-                submitted = true
+                let payloadData = try JSONSerialization.data(withJSONObject: payload)
+
+                let response: IssueReportResponse = try await APIClient.shared.request(
+                    .post,
+                    path: "/v1/settings/issues",
+                    body: JSONRawBody(data: payloadData)
+                )
+
+                let reference = response.shortIssueId ?? response.issueId ?? ""
+                submittedIssueReference = reference.isEmpty ? AppStrings.done : reference
+                NativeDiagnostics.info("Native issue report submitted", category: "report_issue")
+                if let issueId = response.issueId {
+                    await NativeLogForwarder.shared.flushForIssueReport()
+                    await sendIssueLogs(issueId: issueId)
+                }
             } catch {
+                NativeDiagnostics.error(error.localizedDescription, category: "report_issue")
                 self.error = error.localizedDescription
                 AccessibilityAnnouncement.announce(error.localizedDescription)
             }
             isSubmitting = false
         }
+    }
+
+    private func sendIssueLogs(issueId: String) async {
+        let payload = NativeClientLogCollector.shared.issueLogPayload(
+            issueId: issueId,
+            pageURL: "apple://settings/report_issue"
+        )
+        #if DEBUG
+        uiTestIssueLogPayloadText = Self.uiTestIssueLogDebugText(payload)
+        #endif
+        let payloadData: Data
+        do {
+            payloadData = try JSONSerialization.data(withJSONObject: payload)
+        } catch {
+            NativeDiagnostics.error("Issue log serialization failed: \(error.localizedDescription)", category: "report_issue")
+            return
+        }
+
+        do {
+            let _: Data = try await APIClient.shared.request(
+                .post,
+                path: "/v1/settings/issue-logs",
+                body: JSONRawBody(data: payloadData)
+            )
+        } catch {
+            NativeDiagnostics.warning("Issue log upload failed: \(error.localizedDescription)", category: "report_issue")
+        }
+    }
+
+    #if DEBUG
+    private func seedUITestReportIssueLogsIfNeeded() {
+        guard ProcessInfo.processInfo.arguments.contains("--ui-test-seed-report-logs") else { return }
+        let environment = ProcessInfo.processInfo.environment
+        let simulatorName = environment["SIMULATOR_DEVICE_NAME"] ?? "unknown-simulator"
+        let simulatorModel = environment["SIMULATOR_MODEL_IDENTIFIER"] ?? "unknown-model"
+        NativeDiagnostics.record(
+            level: .warning,
+            category: "ui_test_simulator",
+            message: "Report issue simulator diagnostic from \(simulatorName) \(simulatorModel) for tester@example.org token=secret"
+        )
+    }
+
+    private static func uiTestIssueLogDebugText(_ payload: [String: Any]) -> String {
+        [
+            "issue_id=\(payload["issue_id"] as? String ?? "")",
+            "page_url=\(payload["page_url"] as? String ?? "")",
+            "user_agent=\(payload["user_agent"] as? String ?? "")",
+            "logs_text=\(payload["logs_text"] as? String ?? "")",
+        ].joined(separator: "\n")
+    }
+    #endif
+}
+
+private struct ReportIssueTextArea: View {
+    let title: String
+    let placeholder: String
+    var hint: String?
+    @Binding var text: String
+    var minHeight: CGFloat = 120
+    let accessibilityIdentifier: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing2) {
+            Text(title)
+                .font(.omSmall.weight(.semibold))
+                .foregroundStyle(Color.fontPrimary)
+
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $text)
+                    .font(.omP)
+                    .foregroundStyle(Color.fontPrimary)
+                    .scrollContentBackground(.hidden)
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing4)
+                    .frame(minHeight: minHeight)
+                    .background(Color.grey0)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius5))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: .radius5)
+                            .stroke(Color.grey30, lineWidth: 1)
+                    )
+                    .accessibilityIdentifier(accessibilityIdentifier)
+
+                if text.isEmpty {
+                    Text(placeholder)
+                        .font(.omP)
+                        .foregroundStyle(Color.fontTertiary)
+                        .padding(.horizontal, .spacing8)
+                        .padding(.vertical, .spacing6)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
+
+            if let hint {
+                Text(hint)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+            }
+        }
+    }
+}
+
+struct IssueReportResponse: Decodable {
+    let success: Bool
+    let message: String
+    let issueId: String?
+    let shortIssueId: String?
+    let screenshotUploaded: Bool
+}
+
+enum IssueReportPayloadBuilder {
+    enum IssueType: String {
+        case bugReport = "bug_report"
+        case featureRequest = "feature_request"
+    }
+
+    static func makePayload(
+        title: String,
+        issueType: IssueType,
+        userFlow: String,
+        expectedBehaviour: String,
+        actualBehaviour: String,
+        screenshotData: Data?,
+        consoleLogs: String,
+        runtimeDebugState: [String: Any],
+        actionHistory: String = NativeActionTracker.shared.actionsAsText(limit: 50),
+        language: String = Locale.current.language.languageCode?.identifier ?? "en"
+    ) -> [String: Any] {
+        var payload: [String: Any] = [
+            "title": sanitizedText(title),
+            "issue_type": issueType.rawValue,
+            "language": language,
+            "device_info": deviceInfo(),
+            "console_logs": NativeClientLogCollector.sanitize(consoleLogs),
+            "runtime_debug_state": runtimeDebugState,
+            "action_history": NativeClientLogCollector.sanitize(actionHistory.isEmpty ? "native:settings/report_issue" : actionHistory),
+            "trace_ids": [],
+            "add_to_linear": true,
+            "send_email_notification": true,
+        ]
+
+        let description = composedDescription(
+            userFlow: userFlow,
+            expectedBehaviour: expectedBehaviour,
+            actualBehaviour: actualBehaviour
+        )
+        if !description.isEmpty {
+            payload["description"] = description
+        }
+
+        if let screenshotData {
+            payload["screenshot_png_base64"] = screenshotData.base64EncodedString()
+        }
+
+        return payload
+    }
+
+    static func composedDescription(userFlow: String, expectedBehaviour: String, actualBehaviour: String) -> String {
+        [
+            ("What did you do?", userFlow),
+            ("Expected behaviour", expectedBehaviour),
+            ("Actual behaviour", actualBehaviour),
+        ]
+        .compactMap { heading, value in
+            let clean = sanitizedText(value)
+            return clean.isEmpty ? nil : "## \(heading)\n\(clean)"
+        }
+        .joined(separator: "\n\n")
+    }
+
+    @MainActor
+    static func runtimeDebugState() -> [String: Any] {
+        NativeRuntimeSnapshotProvider.snapshot()
+    }
+
+    static func deviceInfo() -> [String: Any] {
+        #if os(iOS)
+        let environment = ProcessInfo.processInfo.environment
+        var info: [String: Any] = [
+            "userAgent": "OpenMates-Apple/iOS",
+            "viewportWidth": 0,
+            "viewportHeight": 0,
+            "isTouchEnabled": true,
+            "systemVersion": ProcessInfo.processInfo.operatingSystemVersionString,
+        ]
+        if let simulatorName = environment["SIMULATOR_DEVICE_NAME"] {
+            info["simulatorDeviceName"] = NativeClientLogCollector.sanitize(simulatorName)
+        }
+        if let simulatorModel = environment["SIMULATOR_MODEL_IDENTIFIER"] {
+            info["simulatorModelIdentifier"] = NativeClientLogCollector.sanitize(simulatorModel)
+        }
+        if let simulatorRuntime = environment["SIMULATOR_RUNTIME_VERSION"] {
+            info["simulatorRuntimeVersion"] = NativeClientLogCollector.sanitize(simulatorRuntime)
+        }
+        info["isSimulator"] = environment["SIMULATOR_DEVICE_NAME"] != nil
+        return info
+        #elseif os(macOS)
+        let frame = NSScreen.main?.frame ?? .zero
+        return [
+            "userAgent": "OpenMates-Apple/macOS",
+            "viewportWidth": Int(frame.width),
+            "viewportHeight": Int(frame.height),
+            "isTouchEnabled": false,
+            "systemVersion": ProcessInfo.processInfo.operatingSystemVersionString,
+        ]
+        #else
+        return ["userAgent": "OpenMates-Apple", "isTouchEnabled": false]
+        #endif
+    }
+
+    static func sanitizedText(_ value: String) -> String {
+        NativeClientLogCollector.sanitize(value)
+            .replacingOccurrences(of: "<[^>]*>", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

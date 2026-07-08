@@ -2,6 +2,73 @@
 # Canonical editorial feature highlights for logged-out product inspiration cards.
 # These are concise public feature claims, not runtime feature availability flags.
 
+translations:
+  de:
+    pii-detection:
+      title: Ersatz persönlicher Daten
+      headline: Ersetze E-Mails, Telefonnummern, Namen und Adressen durch sichere Platzhalter, bevor KI sie sieht.
+      description: OpenMates kann sensible persönliche Details ersetzen, bevor eine Anfrage an einen KI-Anbieter gesendet wird.
+    relevant-memories:
+      title: Relevante Erinnerungen
+      headline: Nutze app-spezifische Erinnerungen nur mit Zustimmung und nur, wenn sie relevant sind.
+      description: OpenMates hält Erinnerungen auf Apps beschränkt und fügt sie nur ein, wenn sie bei der aktuellen Aufgabe helfen.
+    trusted-quotes:
+      title: Verlässliche Zitate
+      headline: Vertraue Zitaten, weil unbelegte oder falsche Zitate automatisch entfernt werden.
+      description: OpenMates entfernt Zitate, die nicht gegen das Quellmaterial verifiziert werden können.
+    events-search:
+      title: Events finden
+      headline: Suche Meetup, Luma, Google Events, Resident Advisor und mehr von einem Chat aus.
+      description: OpenMates kann mehrere Event-Quellen durchsuchen, damit du schneller passende Veranstaltungen findest.
+    learning-mode:
+      title: Lernmodus
+      headline: Lerne Schritt für Schritt mit einem Modus für Verständnis statt nur schnellen Antworten.
+      description: Der Lernmodus strukturiert Erklärungen, prüft Verständnis und hält den Chat aufs Lernen fokussiert.
+    incognito-mode:
+      title: Inkognito-Modus
+      headline: Starte temporäre Chats, wenn du sie nicht im Verlauf speichern möchtest.
+      description: Inkognito-Chats sind für Wegwerf-Unterhaltungen gedacht, die nicht in deiner Chatliste bleiben sollen.
+    audio-messages:
+      title: Audionachrichten
+      headline: Sende Audionachrichten und erhalte korrigierte Transkripte, bevor die KI antwortet.
+      description: OpenMates kann Sprachtranskripte bereinigen, damit die KI klareren Text erhält.
+    chat-file-downloads:
+      title: Chat- und Datei-Downloads
+      headline: Lade Chats und Dateien einfach über das Chat-Menü herunter.
+      description: Klicke mit der rechten Maustaste auf einen Chat, um nützliche Chat- und Dateidaten lokal zu exportieren.
+    provider-independent:
+      title: Anbieterunabhängig
+      headline: Nutze verschiedene KI-Modelle über Anbieter hinweg, ohne deine Arbeit an ein Unternehmen zu binden.
+      description: OpenMates lässt Fähigkeiten über mehrere Modellanbieter funktionieren, statt alles an einen einzelnen Chatbot-Stack zu koppeln.
+    image-upload:
+      title: Bild-Uploads
+      headline: Lade Bilder hoch und bitte OpenMates, sie zu prüfen, zu erklären oder damit zu arbeiten.
+      description: Bild-Uploads lassen Mates über Screenshots, Fotos, Designs und visuellen Kontext nachdenken.
+    document-upload:
+      title: Dokument-Uploads
+      headline: Lade PDFs und Dokumente hoch, damit OpenMates sie lesen, zusammenfassen und daraus zitieren kann.
+      description: Dokument-Uploads machen lange PDFs und Dateien direkt im Chat-Workflow verfügbar.
+    sandbox-code-execution:
+      title: Code-Ausführung in der Sandbox
+      headline: Führe generierten Code in einer Sandbox aus, um zu testen, ob er wirklich funktioniert.
+      description: Code-Ausführung hilft, generierte Snippets zu validieren, bevor du sie anderswo nutzt.
+    offline-search:
+      title: Offline-Suche
+      headline: Suche lokal in Chats und Embeds, auch wenn du offline bist.
+      description: Offline-Suche hilft dir, frühere Arbeit ohne Serveranfrage wiederzufinden.
+    cli-parity:
+      title: OpenMates CLI
+      headline: Nutze die OpenMates CLI mit denselben Chats und Fähigkeiten wie in der Web-App.
+      description: Die CLI kann auf dieselben Chats und Kernabläufe zugreifen, statt eine getrennte Spielzeugoberfläche zu sein.
+    rest-api:
+      title: REST API
+      headline: Automatisiere OpenMates-Workflows über eine REST API.
+      description: Die REST API lässt Entwickler OpenMates-Workflows in eigene Systeme integrieren.
+    webhooks:
+      title: Webhooks
+      headline: Verbinde OpenMates über Webhooks mit deinen eigenen Tools.
+      description: Webhooks lassen externe Systeme auf OpenMates-Ereignisse und Workflow-Updates reagieren.
+
 features:
   - id: pii-detection
     title: Personal Data Replacement
@@ -23,6 +90,13 @@ features:
     description: OpenMates removes quotes it cannot verify against the source material.
     icon: quote
     tags: [learning, writing, discuss_news, discuss_videos, software_development]
+
+  - id: events-search
+    title: Find Events
+    headline: Search Meetup, Luma, Google Events, Resident Advisor, and more from one chat.
+    description: OpenMates can search multiple event sources so you find relevant events faster.
+    icon: calendar-search
+    tags: [find_events, find_restaurant, learning]
 
   - id: learning-mode
     title: Learning Mode

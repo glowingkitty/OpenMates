@@ -31,6 +31,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     private var sessionId: String?
     private var authToken: String?
+    private var activeSyncState: SyncClientState = .empty
     private var shouldReconnect = false
     private var maxReconnectAttempts = 10
     private var reconnectDelay: TimeInterval = 1.0
@@ -65,6 +66,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
         self.sessionId = sessionId
         self.authToken = token
+        self.activeSyncState = syncState
         activeConnectionKey = nextKey
         shouldReconnect = true
         connectionState = .connecting
@@ -345,6 +347,39 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 )
             }
 
+        case "ai_typing_ended":
+            let chatId = msg.stringField("chat_id") ?? ""
+            let messageId = msg.stringField("message_id")
+            Task {
+                await StreamingClient.shared.dispatch(
+                    .typingEnded(chatId: chatId, messageId: messageId),
+                    for: chatId
+                )
+            }
+
+        case "message_queued":
+            let chatId = msg.stringField("chat_id") ?? ""
+            Task {
+                await StreamingClient.shared.dispatch(
+                    .messageQueued(
+                        chatId: chatId,
+                        taskId: msg.stringField("task_id"),
+                        userMessageId: msg.stringField("user_message_id"),
+                        message: msg.stringField("message")
+                    ),
+                    for: chatId
+                )
+            }
+
+        case "ai_task_cancel_requested":
+            let chatId = msg.stringField("chat_id") ?? ""
+            Task {
+                await StreamingClient.shared.dispatch(
+                    .cancelRequested(chatId: chatId, taskId: msg.stringField("task_id")),
+                    for: chatId
+                )
+            }
+
         case "post_processing_completed":
             let chatId = msg.stringField("chat_id") ?? ""
             let taskId = msg.stringField("task_id") ?? ""
@@ -378,9 +413,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
               "last_opened_updated", "key_delivery_confirmed", "system_message_confirmed",
               "new_system_message", "reminder_fired", "pending_ai_response",
               "ai_response_storage_confirmed", "ai_background_response_completed",
-              "ai_task_cancel_requested", "chat_compression_started", "chat_compression_completed",
+              "chat_compression_started", "chat_compression_completed",
               "encrypted_metadata_stored", "post_processing_metadata_stored",
-              "ai_typing_ended", "message_queued", "focus_mode_activated",
+              "focus_mode_activated",
               "spawn_sub_chats", "sub_chat_confirmation_required",
               "sub_chat_confirmation_resolved", "sub_chat_progress", "sub_chat_stopped":
             NotificationCenter.default.post(
@@ -411,6 +446,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         // Payment
         case "payment_completed":
             NotificationCenter.default.post(name: .paymentCompleted, object: nil)
+
+        case "native_client_lifecycle_ack":
+            break
 
         case "force_logout":
             let reason = msg.stringField("reason") ?? "session_revoked"
@@ -468,7 +506,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             try? await Task.sleep(for: .seconds(reconnectDelay))
             reconnectDelay = min(reconnectDelay * 2, 30)
             if let sessionId {
-                connect(sessionId: sessionId, token: authToken)
+                connect(sessionId: sessionId, token: authToken, syncState: activeSyncState)
             }
         }
     }

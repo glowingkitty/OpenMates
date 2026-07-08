@@ -31,13 +31,84 @@ struct SettingsAppsFullView: View {
         let name: String
         let description: String?
         var category: String?
+        let rawCategory: String?
         var isInstalled: Bool?
         let iconName: String?
-        let providers: [String]?
+        let providers: [ProviderRef]?
+        let providerDisplayOrder: [String]?
         let lastUpdated: String?
         let skills: [AppSkill]?
         var focusModes: [AppSkill]?
         var settingsAndMemories: [AppSkill]?
+
+        var providerDisplayNames: [String] {
+            let appProviders = providers?.map(\.displayName) ?? []
+            let skillProviders = (skills ?? []).flatMap { $0.providerDisplayNames }
+            let names = appProviders.isEmpty ? skillProviders : appProviders
+            guard let providerDisplayOrder, !providerDisplayOrder.isEmpty else {
+                return uniqueStrings(names)
+            }
+            let ordered = providerDisplayOrder.filter { names.contains($0) }
+            let remaining = names.filter { !providerDisplayOrder.contains($0) }
+            return uniqueStrings(ordered + remaining)
+        }
+    }
+
+    struct AppCategoryEntry: Identifiable {
+        let key: String
+        let apps: [AppInfo]
+
+        var id: String { key }
+    }
+
+    struct ProviderRef: Decodable, Hashable {
+        let name: String
+        let displayNameRaw: String?
+        let noApiKey: Bool?
+
+        var displayName: String { displayNameRaw?.isEmpty == false ? displayNameRaw! : name }
+
+        enum CodingKeys: String, CodingKey {
+            case name
+            case displayName
+            case noApiKey
+        }
+
+        enum SnakeCodingKeys: String, CodingKey {
+            case name
+            case displayName = "display_name"
+            case noApiKey = "no_api_key"
+        }
+
+        init(name: String, displayNameRaw: String? = nil, noApiKey: Bool? = nil) {
+            self.name = name
+            self.displayNameRaw = displayNameRaw
+            self.noApiKey = noApiKey
+        }
+
+        init(from decoder: Decoder) throws {
+            if let stringValue = try? decoder.singleValueContainer().decode(String.self) {
+                self.init(name: stringValue)
+                return
+            }
+
+            if let container = try? decoder.container(keyedBy: CodingKeys.self),
+               let name = try? container.decode(String.self, forKey: .name) {
+                self.init(
+                    name: name,
+                    displayNameRaw: try container.decodeIfPresent(String.self, forKey: .displayName),
+                    noApiKey: try container.decodeIfPresent(Bool.self, forKey: .noApiKey)
+                )
+                return
+            }
+
+            let container = try decoder.container(keyedBy: SnakeCodingKeys.self)
+            self.init(
+                name: try container.decode(String.self, forKey: .name),
+                displayNameRaw: try container.decodeIfPresent(String.self, forKey: .displayName),
+                noApiKey: try container.decodeIfPresent(Bool.self, forKey: .noApiKey)
+            )
+        }
     }
 
     struct AppSkill: Identifiable, Decodable {
@@ -45,7 +116,7 @@ struct SettingsAppsFullView: View {
         let name: String
         let description: String?
         let pricing: [String: AnyCodable]?
-        let providers: [String]?
+        let providers: [ProviderRef]?
         let howToUseExamples: [String]?
         let exampleTitles: [String]?
         let exampleChatIds: [String]?
@@ -53,18 +124,8 @@ struct SettingsAppsFullView: View {
         let systemPrompt: String?
         let modelNames: [String]?
 
-        enum CodingKeys: String, CodingKey {
-            case id
-            case name
-            case description
-            case pricing
-            case providers
-            case howToUseExamples = "how_to_use_examples"
-            case exampleTitles = "example_titles"
-            case exampleChatIds = "example_chat_ids"
-            case processBullets = "process_bullets"
-            case systemPrompt = "system_prompt"
-            case modelNames = "model_names"
+        var providerDisplayNames: [String] {
+            uniqueStrings((providers ?? []).map(\.displayName))
         }
 
         init(
@@ -72,7 +133,7 @@ struct SettingsAppsFullView: View {
             name: String,
             description: String?,
             pricing: [String: AnyCodable]? = nil,
-            providers: [String]? = nil,
+            providers: [ProviderRef]? = nil,
             howToUseExamples: [String]? = nil,
             exampleTitles: [String]? = nil,
             exampleChatIds: [String]? = nil,
@@ -111,7 +172,7 @@ struct SettingsAppsFullView: View {
         "skills",
     ]
 
-    static let allAppsSortKeys: [String] = ["newest", "name"]
+    static let allAppsSortKeys: [String] = ["newest", "name_asc", "name_desc"]
 
     private var filteredApps: [AppInfo] {
         guard !searchText.isEmpty else { return apps }
@@ -121,8 +182,8 @@ struct SettingsAppsFullView: View {
         }
     }
 
-    private var categories: [String] {
-        Array(Set(filteredApps.map { $0.category ?? "apps" })).sorted()
+    private var categoryEntries: [AppCategoryEntry] {
+        Self.categorizeApps(filteredApps).filter { !$0.apps.isEmpty }
     }
 
     var body: some View {
@@ -203,12 +264,11 @@ struct SettingsAppsFullView: View {
     }
 
     private var appStoreCategories: some View {
-        ForEach(categories, id: \.self) { category in
-            let categoryApps = filteredApps.filter { ($0.category ?? "top_picks") == category }
-            OMSettingsSection(categoryTitle(category), icon: categoryIcon(category)) {
+        ForEach(categoryEntries) { entry in
+            OMSettingsSection(categoryTitle(entry.key), icon: categoryIcon(entry.key)) {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: .spacing6) {
-                        ForEach(categoryApps) { app in
+                    HStack(spacing: 16) {
+                        ForEach(entry.apps) { app in
                             AppStoreCardNative(app: app) {
                                 withAnimation(.easeOut(duration: 0.2)) {
                                     selectedApp = app
@@ -217,9 +277,10 @@ struct SettingsAppsFullView: View {
                         }
                     }
                     .padding(.horizontal, .spacing5)
-                    .padding(.bottom, .spacing4)
+                    .padding(.bottom, .spacing3)
+                    .padding(.trailing, .spacing5)
                 }
-                .accessibilityIdentifier("settings-app-category-\(category)-scroll")
+                .accessibilityIdentifier("settings-app-category-\(entry.key)-scroll")
             }
         }
     }
@@ -233,23 +294,14 @@ struct SettingsAppsFullView: View {
         let name: String
         let description: String?
         let category: String?
-        let providers: [String]?
+        let iconImage: String?
+        let providers: [ProviderRef]?
+        let providerDisplayOrder: [String]?
         let lastUpdated: String?
         let skills: [AppSkill]
         let focusModes: [AppSkill]
         let settingsAndMemories: [AppSkill]
 
-        enum CodingKeys: String, CodingKey {
-            case id
-            case name
-            case description
-            case category
-            case providers
-            case lastUpdated = "last_updated"
-            case skills
-            case focusModes = "focus_modes"
-            case settingsAndMemories = "settings_and_memories"
-        }
     }
 
     static func appStoreCategory(for app: AppMetadataItem) -> String {
@@ -267,14 +319,56 @@ struct SettingsAppsFullView: View {
             name: app.name,
             description: app.description,
             category: Self.appStoreCategory(for: app),
+            rawCategory: app.category,
             isInstalled: nil,
-            iconName: nil,
+            iconName: normalizedIconName(app.iconImage) ?? AppIconView.iconName(forAppId: app.id),
             providers: app.providers,
+            providerDisplayOrder: app.providerDisplayOrder,
             lastUpdated: app.lastUpdated,
             skills: app.skills,
             focusModes: app.focusModes,
             settingsAndMemories: app.settingsAndMemories
         )
+    }
+
+    static func categorizeApps(_ apps: [AppInfo]) -> [AppCategoryEntry] {
+        let sortedByName = apps.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        var buckets = Dictionary(uniqueKeysWithValues: webAppStoreCategoryKeys.map { ($0, [AppInfo]()) })
+
+        func add(_ app: AppInfo, to key: String) {
+            guard buckets[key]?.contains(where: { $0.id == app.id }) == false,
+                  (buckets[key]?.count ?? 0) < 5 else {
+                return
+            }
+            buckets[key, default: []].append(app)
+        }
+
+        for app in sortedByName.prefix(5) { add(app, to: "top_picks") }
+
+        let newest = apps
+            .filter { $0.lastUpdated?.isEmpty == false }
+            .sorted { ($0.lastUpdated ?? "") > ($1.lastUpdated ?? "") }
+        for app in newest.prefix(5) { add(app, to: "new_apps") }
+
+        for app in sortedByName where app.rawCategory == "work" { add(app, to: "for_work") }
+        for app in sortedByName where app.rawCategory == "personal" { add(app, to: "for_everyday_life") }
+
+        return webAppStoreCategoryKeys.map { AppCategoryEntry(key: $0, apps: buckets[$0] ?? []) }
+    }
+
+    static func normalizedIconName(_ iconImage: String?) -> String? {
+        guard var iconName = iconImage?.trimmingCharacters(in: .whitespacesAndNewlines), !iconName.isEmpty else {
+            return nil
+        }
+        if iconName.hasSuffix(".svg") {
+            iconName = String(iconName.dropLast(4))
+        }
+        switch iconName {
+        case "email": return "mail"
+        case "coding": return "code"
+        case "heart": return "health"
+        default: return iconName
+        }
     }
 
     private static let uiTestApps: [AppInfo] = [
@@ -283,14 +377,16 @@ struct SettingsAppsFullView: View {
             name: "Weather",
             description: "Forecasts and weather alerts",
             category: "personal",
-            providers: ["OpenWeather"],
+            iconImage: "weather.svg",
+            providers: [ProviderRef(name: "OpenWeather")],
+            providerDisplayOrder: ["OpenWeather"],
             lastUpdated: "2026-05-01",
             skills: [AppSkill(
                 id: "forecast",
                 name: "Weather Forecast",
                 description: "Get a forecast",
                 pricing: ["fixed": AnyCodable(2)],
-                providers: ["OpenWeather"],
+                providers: [ProviderRef(name: "OpenWeather")],
                 howToUseExamples: ["Will it rain in Berlin tomorrow?"],
                 exampleTitles: ["Berlin forecast"],
                 exampleChatIds: ["example-flights-berlin-bangkok"],
@@ -313,7 +409,9 @@ struct SettingsAppsFullView: View {
             name: "Docs",
             description: "Document work",
             category: "work",
+            iconImage: "docs.svg",
             providers: [],
+            providerDisplayOrder: [],
             lastUpdated: "2026-03-01",
             skills: [AppSkill(id: "summarize", name: "Summarize", description: "Summarize documents")],
             focusModes: [],
@@ -413,29 +511,85 @@ struct AppStoreCardNative: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: .spacing5) {
-                AppIconView(appId: app.id, size: 44)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .center, spacing: 12) {
+                    ZStack(alignment: .top) {
+                        providerBadges
+                            .offset(x: -14, y: -20)
 
-                Text(app.name)
-                    .font(.omH4.weight(.bold))
-                    .foregroundStyle(Color.fontButton)
-                    .lineLimit(1)
+                        RoundedRectangle(cornerRadius: .radius3)
+                            .fill(AppIconView.gradient(forAppId: app.id))
+                            .frame(width: 38, height: 38)
+                            .overlay(
+                                Icon(app.iconName ?? AppIconView.iconName(forAppId: app.id), size: 19)
+                                    .foregroundStyle(Color.fontButton)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: .radius3)
+                                    .stroke(Color.grey0, lineWidth: 2)
+                            )
+                    }
+                    .frame(width: 38, height: 38)
+                    .accessibilityHidden(true)
 
-                if let description = app.description {
-                    Text(description)
-                        .font(.omSmall.weight(.semibold))
+                    Text(app.name)
+                        .font(.omP.weight(.semibold))
                         .foregroundStyle(Color.fontButton)
-                        .lineLimit(3)
-                        .multilineTextAlignment(.leading)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .padding(.top, .spacing3)
+                .padding(.bottom, .spacing3)
+
+                Text(app.description ?? "")
+                    .font(.omSmall.weight(.medium))
+                    .foregroundStyle(Color.fontButton.opacity(0.9))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.spacing8)
-            .frame(width: 210, height: 150, alignment: .topLeading)
+            .padding(.horizontal, .spacing5)
+            .padding(.bottom, .spacing5)
+            .frame(width: 223, height: 129, alignment: .topLeading)
             .background(AppIconView.gradient(forAppId: app.id))
-            .clipShape(RoundedRectangle(cornerRadius: .radius6))
+            .clipShape(RoundedRectangle(cornerRadius: .radius5))
+            .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 2)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("app-card-\(app.id)")
+    }
+
+    private var providerBadges: some View {
+        HStack(spacing: .spacing3) {
+            ForEach(Array(app.providerDisplayNames.prefix(5)), id: \.self) { provider in
+                ProviderBadge(name: provider)
+                    .opacity(0.4)
+            }
+        }
+    }
+}
+
+private struct ProviderBadge: View {
+    let name: String
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: .radius3)
+            .fill(Color.grey0)
+            .frame(width: 30, height: 30)
+            .overlay(
+                Text(initials)
+                    .font(.omMicro.weight(.bold))
+                    .foregroundStyle(Color.buttonPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            )
+            .accessibilityHidden(true)
+    }
+
+    private var initials: String {
+        let words = name.split(separator: " ")
+        let letters = words.prefix(2).compactMap { $0.first }.map(String.init).joined()
+        return letters.isEmpty ? String(name.prefix(2)).uppercased() : letters.uppercased()
     }
 }
 
@@ -483,19 +637,22 @@ private enum SettingsAllAppsFilter: String, CaseIterable, TitledChoice {
 @MainActor
 private enum SettingsAllAppsSortMode: String, CaseIterable, TitledChoice {
     case newest
-    case name
+    case nameAsc
+    case nameDesc
 
     var title: String {
         switch self {
         case .newest: return AppStrings.allAppsSortNewest
-        case .name: return AppStrings.allAppsSortName
+        case .nameAsc: return AppStrings.allAppsSortName
+        case .nameDesc: return AppStrings.allAppsSortNameDesc
         }
     }
 
     var accessibilityIdentifier: String {
         switch self {
         case .newest: return "settings-all-apps-sort-newest"
-        case .name: return "settings-all-apps-sort-name"
+        case .nameAsc: return "settings-all-apps-sort-name"
+        case .nameDesc: return "settings-all-apps-sort-name-desc"
         }
     }
 }
@@ -522,8 +679,10 @@ private struct SettingsAllAppsNativeView: View {
                 switch sortMode {
                 case .newest:
                     return (lhs.lastUpdated ?? "") > (rhs.lastUpdated ?? "")
-                case .name:
+                case .nameAsc:
                     return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+                case .nameDesc:
+                    return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedDescending
                 }
             }
     }
@@ -540,12 +699,13 @@ private struct SettingsAllAppsNativeView: View {
                 filterRow
                 sortRow
 
-                OMSettingsSection {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 223), spacing: 16)], spacing: 16) {
                     ForEach(displayedApps) { app in
-                        AppRow(app: app, onToggle: {}, onTap: { onSelect(app) })
+                        AppStoreCardNative(app: app) { onSelect(app) }
                             .accessibilityIdentifier("settings-all-app-row-\(app.id)")
                     }
                 }
+                .padding(.horizontal, .spacing5)
             }
         }
     }
@@ -566,16 +726,24 @@ private struct SettingsAllAppsNativeView: View {
     }
 
     private var searchField: some View {
-        TextField(AppStrings.searchApps, text: $query)
-            .textFieldStyle(.plain)
-            .font(.omP)
-            .foregroundStyle(Color.fontPrimary)
-            .padding(.horizontal, .spacing5)
-            .padding(.vertical, .spacing4)
+        HStack(spacing: .spacing4) {
+            HStack(spacing: .spacing3) {
+                Icon("search", size: 18)
+                    .foregroundStyle(Color.grey50)
+                TextField(AppStrings.searchApps, text: $query)
+                    .textFieldStyle(.plain)
+                    .font(.omP.weight(.medium))
+                    .foregroundStyle(Color.fontPrimary)
+                    .accessibilityIdentifier("settings-all-apps-search")
+            }
+            .padding(.leading, 14)
+            .padding(.trailing, .spacing5)
+            .padding(.vertical, 10)
             .background(Color.grey0)
-            .clipShape(RoundedRectangle(cornerRadius: .radius5))
-            .padding(.horizontal, .spacing5)
-            .accessibilityIdentifier("settings-all-apps-search")
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 4)
+        }
+        .padding(.horizontal, .spacing5)
     }
 
     private var filterRow: some View {
@@ -608,8 +776,11 @@ private struct SettingsAllAppsNativeView: View {
                             .foregroundStyle(option == selected ? Color.fontButton : Color.fontPrimary)
                             .padding(.horizontal, .spacing4)
                             .padding(.vertical, .spacing2)
-                            .background(option == selected ? Color.buttonPrimary : Color.grey0)
-                            .clipShape(RoundedRectangle(cornerRadius: .radiusFull))
+                            .background(
+                                RoundedRectangle(cornerRadius: .radiusFull)
+                                    .fill(option == selected ? AnyShapeStyle(LinearGradient.primary) : AnyShapeStyle(Color.grey0))
+                            )
+                            .shadow(color: .black.opacity(option == selected ? 0 : 0.1), radius: 4, x: 0, y: 4)
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier(option.accessibilityIdentifier)
@@ -796,9 +967,10 @@ private struct AppSkillDetailNativeView: View {
                 }
             }
 
-            if let providers = skill.providers, !providers.isEmpty {
+            let providerNames = skill.providerDisplayNames
+            if !providerNames.isEmpty {
                 OMSettingsSection(AppStrings.appStoreProviders, icon: "provider") {
-                    ForEach(providers, id: \.self) { provider in
+                    ForEach(providerNames, id: \.self) { provider in
                         providerRow(provider)
                     }
                 }
@@ -1030,6 +1202,10 @@ private func fallbackExampleChatIds(appId: String, itemId: String) -> [String]? 
     default:
         return nil
     }
+}
+
+private func uniqueStrings(_ values: [String]) -> [String] {
+    Array(NSOrderedSet(array: values)).compactMap { $0 as? String }
 }
 
 @MainActor

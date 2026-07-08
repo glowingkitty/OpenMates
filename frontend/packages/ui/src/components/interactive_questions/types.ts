@@ -25,6 +25,7 @@ export interface ChoiceQuestionData extends BaseQuestion {
     id: string;
     text: string;
     embed_id?: string;
+    embed_ids?: string[];
   }>;
 }
 
@@ -54,6 +55,7 @@ export interface SwipeCard {
   id: string;
   text: string;
   image_url?: string;
+  embed_ids?: string[];
 }
 
 export interface SwipeQuestionData extends BaseQuestion {
@@ -80,6 +82,7 @@ export interface ChoiceResponse {
   id: string;
   selection: string[];
   custom_answer?: string;
+  embed_ids?: string[];
 }
 
 export interface InputResponse {
@@ -95,6 +98,7 @@ export interface SliderResponse {
 export interface SwipeResponse {
   id: string;
   swipes: Record<string, 'like' | 'dislike'>;
+  embed_ids?: string[];
 }
 
 export interface RatingResponse {

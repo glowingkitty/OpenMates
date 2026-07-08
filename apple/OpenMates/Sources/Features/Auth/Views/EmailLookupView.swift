@@ -77,6 +77,7 @@ struct EmailLookupView: View {
             .disabled(!hasValidEmail || isLoading)
             .padding(.top, .spacing4)
             .accessibilityIdentifier("continue-button")
+            .help(Text(LocalizationManager.shared.text("common.continue")))
             .accessibilityLabel(LocalizationManager.shared.text("common.continue"))
             .accessibilityHint(LocalizationManager.shared.text("auth.lookup_login_methods"))
         }
@@ -142,6 +143,7 @@ struct EmailLookupView: View {
             .padding(.vertical, .spacing4)
         }
         .buttonStyle(.plain)
+        .help(Text(title))
         .accessibilityLabel(title)
     }
 

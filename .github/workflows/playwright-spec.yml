@@ -61,7 +61,7 @@ jobs:
           ref: dev
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
       - uses: pnpm/action-setup@v4
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -187,6 +187,17 @@ jobs:
             SECRET_NAME="OPENMATES_TEST_ACCOUNT_${ACCOUNT}_OTP_KEY"
             echo "Updating $SECRET_NAME after credential-mutating test..."
             gh secret set "$SECRET_NAME" --body "$NEW_KEY" && echo "✅ Updated $SECRET_NAME" || echo "⚠️ Failed to update $SECRET_NAME"
+          fi
+      - name: Update API key if changed by test
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+        run: |
+          API_KEY_FILE="frontend/apps/web_app/artifacts/api_key.txt"
+          if [ -f "$API_KEY_FILE" ]; then
+            NEW_API_KEY=$(cat "$API_KEY_FILE")
+            echo "Updating OPENMATES_TEST_ACCOUNT_API_KEY after credential-mutating test..."
+            gh secret set OPENMATES_TEST_ACCOUNT_API_KEY --body "$NEW_API_KEY" && echo "✅ Updated OPENMATES_TEST_ACCOUNT_API_KEY" || echo "⚠️ Failed to update OPENMATES_TEST_ACCOUNT_API_KEY"
           fi
       - name: Sanitize artifact name
         if: always()

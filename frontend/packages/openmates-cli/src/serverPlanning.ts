@@ -207,6 +207,20 @@ export function resolveServiceSelection(roleValue: ServerRole | string | undefin
   return base.filter((service) => !excluded.has(service));
 }
 
+export function appendSelectedServices(args: string[], selectedServices: string[], filterRequested: boolean): string[] {
+  return filterRequested ? [...args, ...selectedServices] : args;
+}
+
+export function shouldCheckWebHealth(input: {
+  role?: ServerRole | string;
+  selectedServices?: string[];
+  filterRequested?: boolean;
+}): boolean {
+  const role = parseServerRole(input.role);
+  if (role !== "core") return false;
+  return input.filterRequested !== true || (input.selectedServices ?? []).includes("webapp");
+}
+
 export function planUpdate(input: {
   role?: ServerRole | string;
   selectedServices?: string[];

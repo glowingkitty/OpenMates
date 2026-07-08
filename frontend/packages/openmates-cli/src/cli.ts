@@ -28,12 +28,20 @@ import {
   type BankTransferStatus,
   type GiftCardBankTransferStatus,
   type TopicPreferencesPayload,
+  type WorkflowCapability,
+  type WorkflowDetail,
+  type WorkflowGraph,
+  type WorkflowInputSessionResult,
+  type WorkflowRunDetail,
+  type WorkflowRunContentRetention,
+  type WorkflowSummary,
 } from "./client.js";
 import type { StreamEvent, SubChatEvent } from "./ws.js";
 import { createInterface } from "node:readline/promises";
 import { realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname } from "node:path";
+import { randomUUID } from "node:crypto";
 import WebSocket from "ws";
 
 import {
@@ -71,6 +79,14 @@ import {
 import { buildAssistantFeedbackDecision } from "./feedback.js";
 import { handleBenchmark, printBenchmarkHelp } from "./benchmark.js";
 import { defaultModeForStreams, printProgrammaticQuickstart, runTui } from "./tui.js";
+import {
+  listRemoteAccessSources,
+  runRgCommand,
+  searchStoredRemoteAccessSource,
+  startRemoteAccessSource,
+  type RemoteAccessSourceRecord,
+} from "./remoteAccess.js";
+import { buildSelfUpdatePlan, runSelfUpdate } from "./selfUpdate.js";
 
 type SignupRequiredResult = {
   status: "signup_required";
@@ -142,6 +158,10 @@ async function main(): Promise<void> {
       printSettingsHelp(client);
       return;
     }
+    if (command === "workflows") {
+      printWorkflowsHelp();
+      return;
+    }
     if (command === "connected-accounts") {
       printConnectedAccountsHelp();
       return;
@@ -178,6 +198,10 @@ async function main(): Promise<void> {
       printServerHelp();
       return;
     }
+    if (command === "update" || command === "upgrade") {
+      printSelfUpdateHelp();
+      return;
+    }
     if (command === "feedback") {
       printFeedbackHelp();
       return;
@@ -188,6 +212,10 @@ async function main(): Promise<void> {
     }
     if (command === "benchmark") {
       printBenchmarkHelp();
+      return;
+    }
+    if (command === "remote-access") {
+      printRemoteAccessHelp();
       return;
     }
     printHelp();
@@ -202,6 +230,11 @@ async function main(): Promise<void> {
 
   if (command === "docs") {
     await handleDocs(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "update" || command === "upgrade") {
+    handleSelfUpdate(command, parsed.flags);
     return;
   }
 
@@ -262,6 +295,11 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "workflows") {
+    await handleWorkflows(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
   if (command === "connected-accounts") {
     await handleConnectedAccounts(client, subcommand, parsed.flags);
     return;
@@ -292,7 +330,163 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "remote-access") {
+    await handleRemoteAccess(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
   throw new Error(`Unknown command '${command}'. Run 'openmates help'.`);
+}
+
+function handleSelfUpdate(command: string, flags: Record<string, string | boolean>): void {
+  const plan = buildSelfUpdatePlan(flags);
+  if (flags.json === true) {
+    if (!plan.dryRun) runSelfUpdate(plan);
+    printJson({
+      command,
+      status: plan.dryRun ? "planned" : "success",
+      current_version: plan.currentVersion,
+      package_manager: plan.packageManager,
+      package: plan.packageSpec,
+      run: [plan.command, ...plan.args],
+      dry_run: plan.dryRun,
+    });
+    return;
+  }
+  if (plan.dryRun) {
+    console.log(`Current OpenMates CLI version: ${plan.currentVersion}`);
+    console.log(`Would run: ${[plan.command, ...plan.args].join(" ")}`);
+    return;
+  }
+  console.log(`Updating OpenMates CLI from ${plan.currentVersion} with ${plan.packageManager}...`);
+  runSelfUpdate(plan);
+  console.log("OpenMates CLI update completed.");
+}
+
+async function handleRemoteAccess(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printRemoteAccessHelp();
+    return;
+  }
+
+  if (subcommand === "start") {
+    const rootPath = typeof flags.path === "string" ? flags.path : rest[0];
+    if (!rootPath) {
+      throw new Error("Missing source path. Usage: openmates remote-access start --path <folder>");
+    }
+    const sourceId = typeof flags["source-id"] === "string" ? flags["source-id"] : randomUUID();
+    const projectId = typeof flags.project === "string" ? flags.project : undefined;
+    validateRemoteSourceRegistrationFlags(projectId, flags);
+    const sourceType = parseRemoteAccessSourceType(flags.type);
+    const displayName = typeof flags.name === "string" ? flags.name : sourceId;
+    const source = startRemoteAccessSource({ sourceId, projectId, rootPath, sourceType, displayName });
+    await maybeRegisterRemoteSource(client, source, flags);
+    if (flags.json === true) {
+      printJson({ source });
+    } else {
+      console.log(`Remote source attached: ${source.sourceId}`);
+      console.log(`Root: ${source.rootPath}`);
+      console.log(`Cache: ${source.cachePath}`);
+    }
+    return;
+  }
+
+  if (subcommand === "status" || subcommand === "list") {
+    const sources = listRemoteAccessSources();
+    if (flags.json === true) {
+      printJson({ sources });
+    } else if (sources.length === 0) {
+      console.log("No remote sources attached.");
+    } else {
+      for (const source of sources) {
+        console.log(`${source.sourceId}\t${source.status}\t${source.rootPath}`);
+      }
+    }
+    return;
+  }
+
+  if (subcommand === "search") {
+    const sourceId = typeof flags.source === "string" ? flags.source : rest[0];
+    const query = typeof flags.source === "string" ? rest.join(" ").trim() : rest.slice(1).join(" ").trim();
+    if (!sourceId || !query) {
+      throw new Error("Missing source or query. Usage: openmates remote-access search --source <id> <query>");
+    }
+    const maxResults = parsePositiveIntegerFlag(flags.limit, "--limit");
+    const result = await searchStoredRemoteAccessSource({ sourceId, query, maxResults, runRg: runRgCommand });
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      for (const match of result.matches) {
+        console.log(`${match.path}:${match.line}: ${match.snippet.trim()}`);
+      }
+      if (result.excluded > 0 || result.omitted > 0) {
+        console.log(`Excluded ${result.excluded}, omitted ${result.omitted}.`);
+      }
+    }
+    return;
+  }
+
+  throw new Error(`Unknown remote-access command '${subcommand}'. Run 'openmates remote-access --help'.`);
+}
+
+function parsePositiveIntegerFlag(value: string | boolean | undefined, flagName: string): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") {
+    throw new Error(`${flagName} requires a positive integer value`);
+  }
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0 || String(parsed) !== value) {
+    throw new Error(`${flagName} must be a positive integer`);
+  }
+  return parsed;
+}
+
+function parseRemoteAccessSourceType(value: string | boolean | undefined): RemoteAccessSourceRecord["sourceType"] {
+  if (value === undefined) return "local_folder";
+  if (value === "local_folder" || value === "local_git_repository") {
+    return value;
+  }
+  throw new Error("--type must be one of local_folder or local_git_repository for the local remote-access bridge");
+}
+
+async function maybeRegisterRemoteSource(
+  client: OpenMatesClient,
+  source: RemoteAccessSourceRecord,
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!source.projectId || flags["local-only"] === true) return;
+  const encryptedDisplayName = flags["encrypted-display-name"];
+  const encryptedMetadata = flags["encrypted-metadata"];
+  if (typeof encryptedDisplayName !== "string" || typeof encryptedMetadata !== "string") {
+    throw new Error("Missing encrypted Project source metadata after registration validation");
+  }
+  const timestamp = Math.floor(Date.now() / 1000);
+  await client.createProjectSource(source.projectId, {
+    source_id: source.sourceId,
+    source_type: source.sourceType,
+    encrypted_display_name: encryptedDisplayName,
+    encrypted_metadata: encryptedMetadata,
+    capabilities: ["read", "search", "import"],
+    status: source.status,
+    created_at: timestamp,
+    updated_at: timestamp,
+  });
+}
+
+function validateRemoteSourceRegistrationFlags(
+  projectId: string | undefined,
+  flags: Record<string, string | boolean>,
+): void {
+  if (!projectId || flags["local-only"] === true) return;
+  if (typeof flags["encrypted-display-name"] === "string" && typeof flags["encrypted-metadata"] === "string") return;
+  throw new Error(
+    "remote-access start with --project requires --local-only or both --encrypted-display-name and --encrypted-metadata",
+  );
 }
 
 function shouldInitializeRedactor(
@@ -1135,6 +1329,285 @@ async function openUrl(url: string): Promise<void> {
       console.log(url);
     }
   });
+}
+
+// ---------------------------------------------------------------------------
+// Workflows
+// ---------------------------------------------------------------------------
+
+async function handleWorkflows(
+  client: OpenMatesClient,
+  subcommand: string | undefined,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!subcommand || subcommand === "help" || flags.help === true) {
+    printWorkflowsHelp();
+    return;
+  }
+
+  if (subcommand === "capabilities") {
+    const capabilities = await client.listWorkflowCapabilities();
+    if (flags.json === true) {
+      printJson(capabilities);
+    } else {
+      printWorkflowCapabilities(capabilities);
+    }
+    return;
+  }
+
+  if (subcommand === "list") {
+    const workflows = await client.listWorkflows();
+    if (flags.json === true) {
+      printJson(workflows);
+    } else {
+      printWorkflowList(workflows);
+    }
+    return;
+  }
+
+  if (subcommand === "create") {
+    const title = typeof flags.title === "string" ? flags.title.trim() : "";
+    const graphJson = typeof flags.graph === "string" ? flags.graph : "";
+    if (!title) throw new Error("Missing --title for workflow create.");
+    if (!graphJson) throw new Error("Missing --graph JSON for workflow create.");
+    const workflow = await client.createWorkflow({
+      title,
+      graph: parseJsonFlag<WorkflowGraph>(graphJson, "--graph"),
+      enabled: flags.enabled === true,
+      runContentRetention: parseWorkflowRunContentRetention(flags["run-content-retention"]),
+    });
+    if (flags.json === true) {
+      printJson(workflow);
+    } else {
+      printWorkflowDetail(workflow);
+    }
+    return;
+  }
+
+  if (subcommand === "input") {
+    const text = typeof flags.text === "string" ? flags.text : rest.join(" ").trim();
+    if (!text) throw new Error("Missing workflow input text. Example: openmates workflows input \"alert me if it rains\"");
+    const session = await client.startWorkflowInput({
+      text,
+      selectedWorkflowId: typeof flags["workflow-id"] === "string" ? flags["workflow-id"] : undefined,
+      selectedProjectId: typeof flags["project-id"] === "string" ? flags["project-id"] : undefined,
+    });
+    if (flags.json === true) {
+      printJson(session);
+    } else {
+      printWorkflowInputSession(session);
+    }
+    return;
+  }
+
+  if (subcommand === "input-show") {
+    const sessionId = rest[0];
+    if (!sessionId) throw new Error("Missing session ID. Example: openmates workflows input-show <session-id>");
+    const session = await client.getWorkflowInputSession(sessionId);
+    if (flags.json === true) {
+      printJson(session);
+    } else {
+      printWorkflowInputSession(session);
+      if (session.events.length > 0) {
+        console.log("\nEvents:");
+        for (const event of session.events) {
+          kv(String(event.event_id), `${event.type} · ${event.status}`, 6);
+        }
+      }
+    }
+    return;
+  }
+
+  if (subcommand === "input-events") {
+    const sessionId = rest[0];
+    if (!sessionId) throw new Error("Missing session ID. Example: openmates workflows input-events <session-id>");
+    const afterEventId = typeof flags.after === "string" ? Number.parseInt(flags.after, 10) : 0;
+    const events = await client.listWorkflowInputEvents(sessionId, Number.isFinite(afterEventId) ? afterEventId : 0);
+    if (flags.json === true) {
+      printJson(events);
+    } else {
+      for (const event of events) {
+        kv(String(event.event_id), `${event.type} · ${event.status}`, 6);
+      }
+    }
+    return;
+  }
+
+  if (subcommand === "input-follow-up") {
+    const sessionId = rest[0];
+    const text = typeof flags.text === "string" ? flags.text : rest.slice(1).join(" ").trim();
+    if (!sessionId || !text) throw new Error("Missing session ID or text. Example: openmates workflows input-follow-up <session-id> \"make it weekdays only\"");
+    const session = await client.followUpWorkflowInput(sessionId, text);
+    if (flags.json === true) {
+      printJson(session);
+    } else {
+      printWorkflowInputSession(session);
+    }
+    return;
+  }
+
+  if (subcommand === "input-stop" || subcommand === "input-undo") {
+    const sessionId = rest[0];
+    if (!sessionId) throw new Error(`Missing session ID. Example: openmates workflows ${subcommand} <session-id>`);
+    const session = subcommand === "input-stop"
+      ? await client.stopWorkflowInput(sessionId)
+      : await client.undoWorkflowInput(sessionId);
+    if (flags.json === true) {
+      printJson(session);
+    } else {
+      printWorkflowInputSession(session);
+    }
+    return;
+  }
+
+  if (subcommand === "show") {
+    const workflowId = rest[0];
+    if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows show <id>");
+    const workflow = await client.getWorkflow(workflowId);
+    if (flags.json === true) {
+      printJson(workflow);
+    } else {
+      printWorkflowDetail(workflow);
+    }
+    return;
+  }
+
+  if (subcommand === "enable" || subcommand === "disable") {
+    const workflowId = rest[0];
+    if (!workflowId) throw new Error(`Missing workflow ID. Example: openmates workflows ${subcommand} <id>`);
+    const workflow = subcommand === "enable"
+      ? await client.enableWorkflow(workflowId)
+      : await client.disableWorkflow(workflowId);
+    if (flags.json === true) {
+      printJson(workflow);
+    } else {
+      printWorkflowDetail(workflow);
+    }
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const workflowId = rest[0];
+    if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows delete <id> --yes");
+    if (flags.yes !== true) throw new Error("Refusing to delete workflow without --yes.");
+    const result = await client.deleteWorkflow(workflowId);
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      console.log("Workflow deleted.");
+    }
+    return;
+  }
+
+  if (subcommand === "run") {
+    const workflowId = rest[0];
+    if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows run <id>");
+    const mode = flags.mode === "test" ? "test" : "manual";
+    const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
+    const run = await client.runWorkflow(workflowId, { mode, input });
+    if (flags.json === true) {
+      printJson(run);
+    } else {
+      printWorkflowRun(run);
+    }
+    return;
+  }
+
+  if (subcommand === "runs") {
+    const workflowId = rest[0];
+    if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows runs <id>");
+    const runs = await client.listWorkflowRuns(workflowId);
+    if (flags.json === true) {
+      printJson(runs);
+    } else {
+      printWorkflowRuns(runs);
+    }
+    return;
+  }
+
+  if (subcommand === "run-show") {
+    const workflowId = rest[0];
+    const runId = rest[1];
+    if (!workflowId || !runId) throw new Error("Missing workflow/run ID. Example: openmates workflows run-show <workflow-id> <run-id>");
+    const run = await client.getWorkflowRun(workflowId, runId);
+    if (flags.json === true) {
+      printJson(run);
+    } else {
+      printWorkflowRun(run);
+    }
+    return;
+  }
+
+  throw new Error(`Unknown workflows command '${subcommand}'. Run 'openmates workflows --help'.`);
+}
+
+function printWorkflowList(workflows: WorkflowSummary[]): void {
+  if (workflows.length === 0) {
+    console.log("No workflows yet.");
+    console.log("Create one: openmates workflows create --title \"Morning brief\" --graph '<json>'");
+    return;
+  }
+  header(`Workflows  \x1b[2m(${workflows.length})\x1b[0m\n`);
+  for (const workflow of workflows) {
+    kv(workflow.id.slice(0, 8), `${workflow.title} · ${workflow.status}${workflow.trigger_summary ? ` · ${workflow.trigger_summary}` : ""}`, 10);
+  }
+}
+
+function printWorkflowDetail(workflow: WorkflowDetail): void {
+  header(`${workflow.title}\n`);
+  kv("ID", workflow.id);
+  kv("Status", workflow.status);
+  kv("Enabled", String(workflow.enabled));
+  kv("Run content", workflow.run_content_retention ?? "last_5");
+  if (workflow.trigger_summary) kv("Trigger", workflow.trigger_summary);
+  kv("Nodes", String(workflow.graph.nodes.length));
+  console.log(`\n\x1b[2mRun: openmates workflows run ${workflow.id}\x1b[0m`);
+}
+
+function printWorkflowInputSession(session: WorkflowInputSessionResult): void {
+  header(`Workflow Input ${session.session_id}\n`);
+  kv("Status", session.status);
+  kv("Events", String(session.event_cursor));
+  kv("Undo", session.undo_available ? "available" : "unavailable");
+  if (session.message) kv("Message", session.message);
+  if (session.error) kv("Error", session.error);
+  if (session.workflow) kv("Workflow", `${session.workflow.title} (${session.workflow.id})`);
+}
+
+function printWorkflowRun(run: WorkflowRunDetail): void {
+  header(`Workflow Run ${run.id}\n`);
+  kv("Status", run.status);
+  kv("Trigger", run.trigger_type);
+  kv("Content", run.content_available === false ? "unavailable" : `${run.content_storage ?? "unknown"} (${run.content_retention_mode ?? "last_5"})`);
+  if (run.content_expires_at) kv("Content expires", new Date(run.content_expires_at * 1000).toISOString());
+  kv("Nodes", String(run.node_runs?.length ?? 0));
+  if (run.error_summary) kv("Error", run.error_summary);
+}
+
+function parseWorkflowRunContentRetention(value: string | boolean | undefined): WorkflowRunContentRetention | undefined {
+  if (value === undefined || value === false) return undefined;
+  if (value === "last_5" || value === "none") return value;
+  throw new Error("Invalid --run-content-retention. Expected last_5 or none.");
+}
+
+function printWorkflowRuns(runs: WorkflowRunDetail[]): void {
+  if (runs.length === 0) {
+    console.log("No workflow runs yet.");
+    return;
+  }
+  header(`Workflow Runs  \x1b[2m(${runs.length})\x1b[0m\n`);
+  for (const run of runs) {
+    kv(run.id.slice(0, 8), `${run.status} · ${run.trigger_type}`, 10);
+  }
+}
+
+function printWorkflowCapabilities(capabilities: WorkflowCapability[]): void {
+  header("Workflow Capabilities\n");
+  for (const capability of capabilities) {
+    const state = capability.enabled ? "enabled" : `disabled${capability.reason ? `: ${capability.reason}` : ""}`;
+    kv(capability.id, `${capability.title} · ${state}`, 24);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1981,6 +2454,7 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["reminders", "update"], description: "Update a reminder", examples: ["openmates settings reminders update <id> --enabled false"] },
   { path: ["reminders", "delete"], description: "Delete a reminder", examples: ["openmates settings reminders delete <id> --yes"] },
   { path: ["developers", "api-keys", "list"], description: "List API keys", examples: ["openmates settings developers api-keys list"] },
+  { path: ["developers", "api-keys", "create"], description: "Create an API key and reveal it once", examples: ["openmates settings developers api-keys create sdk-test --yes"] },
   { path: ["developers", "api-keys", "revoke"], description: "Revoke an API key", examples: ["openmates settings developers api-keys revoke <key-id> --yes"] },
   { path: ["report-issue", "create"], description: "Report an issue", examples: ["openmates settings report-issue create --title \"Bug\" --body \"What happened\""] },
   { path: ["report-issue", "status"], description: "Show issue status", examples: ["openmates settings report-issue status <issue-id>"] },
@@ -2008,7 +2482,6 @@ const SETTINGS_INFO_COMMANDS: SettingsInfoCommand[] = [
   { path: ["billing", "auto-topup", "monthly"], description: "Monthly auto top-up is web-only for now", webPath: "billing/auto-topup/monthly", reason: "Recurring payment setup needs a payment-flow audit before CLI support.", examples: ["openmates settings billing auto-topup monthly"] },
   { path: ["privacy", "personal-data"], description: "Personal data management is not CLI-ready yet", webPath: "privacy/hide-personal-data", reason: "The CLI needs a dedicated encrypted personal-data UX before exposing writes.", examples: ["openmates settings privacy personal-data"] },
   { path: ["shared", "tip"], description: "Tips are web-only", webPath: "shared/tip", reason: "Payment checkout must use the browser/payment provider UI.", examples: ["openmates settings shared tip"] },
-  { path: ["developers", "api-keys", "create"], description: "API key creation is web-only", webPath: "developers/api-keys", reason: "API key secrets are shown once and need the browser approval flow.", examples: ["openmates settings developers api-keys create"] },
   { path: ["developers", "devices"], description: "Developer devices are web-only", webPath: "developers/devices", reason: "Device approvals and revocations are sensitive.", examples: ["openmates settings developers devices"] },
   { path: ["developers", "webhooks"], description: "Developer webhooks are not CLI-ready yet", webPath: "developers/webhooks", reason: "Webhook CRUD needs a backend/API audit before CLI support.", examples: ["openmates settings developers webhooks"] },
   { path: ["support"], description: "Support payments are web-only", webPath: "support", reason: "Payment flows must use the browser/payment provider UI.", examples: ["openmates settings support"] },
@@ -3170,6 +3643,27 @@ async function handleSettings(
 
   if (matches(tokens, ["developers", "api-keys", "list"])) {
     await printSettingsResult(client.settingsGet("api-keys"), flags);
+    return;
+  }
+
+  if (matches(tokens, ["developers", "api-keys", "create"])) {
+    const name = rest[2] ?? (typeof flags.name === "string" ? flags.name : "CLI API key");
+    if (flags.yes !== true) {
+      await confirmOrExit(
+        "Create a full-access API key with unlimited credits and no expiration? The key is shown once. [y/N] ",
+      );
+    }
+    const result = await client.createApiKey({ name });
+    if (flags.json === true) {
+      printJson(result);
+    } else {
+      console.log("\x1b[33m!\x1b[0m Full access enabled");
+      console.log("\x1b[33m!\x1b[0m Credit limit: unlimited");
+      console.log("\x1b[33m!\x1b[0m Expiration: never");
+      console.log("\nAPI key (shown once):");
+      console.log(result.api_key);
+      console.log("\nStore this securely. OpenMates cannot show it again.");
+    }
     return;
   }
 
@@ -5210,6 +5704,39 @@ function printSkillResultItem(
     return;
   }
 
+  // ── Fitness result (Urban Sports Club locations/classes) ────────────────
+  if (str(item.provider) === "Urban Sports Club" && (item.venue_id || item.appointment_id)) {
+    const name = str(item.name) ?? "Unknown fitness result";
+    const isClass = typeof item.appointment_id === "string";
+    const plans = Array.isArray(item.plans_required)
+      ? (item.plans_required as unknown[]).map((value) => String(value)).join(", ")
+      : null;
+    const distance = typeof item.distance_km === "number" ? `${item.distance_km} km` : null;
+    const rating = item.rating ? `★ ${item.rating}` : null;
+    const spots = str(item.spots_display);
+    const mode = str(item.attendance_mode);
+    const summary = [isClass ? str(item.category) : null, mode, distance, rating, spots, plans ? `plans: ${plans}` : null]
+      .filter(Boolean)
+      .join(" · ");
+
+    console.log(`${numLabel}\x1b[1m${name}\x1b[0m${summary ? `  ${summary}` : ""}`);
+    const date = str(item.date);
+    const timeRange = str(item.time_range);
+    if (date || timeRange) console.log(`  ${[date, timeRange].filter(Boolean).join("  ")}`);
+    const venueName = str(item.venue_name);
+    const venueAddress = str(item.venue_address) ?? str(item.address);
+    if (venueName) kv("venue", venueName, 14);
+    if (venueAddress) kv("address", venueAddress, 14);
+    const disciplines = Array.isArray(item.disciplines)
+      ? (item.disciplines as unknown[]).map((value) => String(value)).slice(0, 6)
+      : [];
+    if (disciplines.length > 0) kv("disciplines", disciplines.join(", "), 14);
+    const url = str(item.detail_url) ?? str(item.url) ?? str(item.venue_url);
+    if (url) kv("url", url, 14);
+    console.log("");
+    return;
+  }
+
   // ── Generic item — just number + printGenericObject for all fields ─────
   // Works for web/news search results, events, shopping, health, etc.
   const title = str(item.title) ?? str(item.name) ?? str(item.headline);
@@ -5314,6 +5841,11 @@ function printGenericObject(value: unknown, indent = 0): void {
       return;
     }
 
+    if (Array.isArray(obj.invoices)) {
+      printInvoicesResponse(obj.invoices as Array<Record<string, unknown>>);
+      return;
+    }
+
     for (const [k, v] of Object.entries(obj)) {
       if (v === null || v === undefined) continue;
       if (Array.isArray(v)) {
@@ -5367,23 +5899,7 @@ function printBillingResponse(obj: Record<string, unknown>): void {
 
   // Invoices
   const invoices = obj.invoices as Array<Record<string, unknown>> | undefined;
-  if (Array.isArray(invoices) && invoices.length > 0) {
-    process.stdout.write(
-      `\n  \x1b[1mInvoices\x1b[0m  \x1b[2m(${invoices.length})\x1b[0m\n\n`,
-    );
-    for (const inv of invoices) {
-      const date = str(inv.date) ?? "—";
-      const amt = str(inv.amount) ?? "—";
-      const creditsP = inv.credits_purchased ?? "—";
-      const refund = str(inv.refund_status);
-      const refundTag =
-        refund && refund !== "none" ? `  \x1b[33m[${refund}]\x1b[0m` : "";
-      const giftTag = inv.is_gift_card ? "  \x1b[35m[gift card]\x1b[0m" : "";
-      process.stdout.write(
-        `    ${date}  \x1b[2m€${amt}\x1b[0m  ${creditsP} credits${refundTag}${giftTag}\n`,
-      );
-    }
-  }
+  if (Array.isArray(invoices) && invoices.length > 0) printInvoicesResponse(invoices);
 
   // Print remaining unknown keys
   const shown = new Set([
@@ -5399,6 +5915,35 @@ function printBillingResponse(obj: Record<string, unknown>): void {
   for (const [k, v] of Object.entries(obj)) {
     if (!shown.has(k) && v !== null && v !== undefined) {
       kv(k, typeof v === "object" ? JSON.stringify(v) : String(v));
+    }
+  }
+}
+
+function printInvoicesResponse(invoices: Array<Record<string, unknown>>): void {
+  if (invoices.length === 0) {
+    process.stdout.write("\n  \x1b[1mInvoices\x1b[0m  \x1b[2m(0)\x1b[0m\n");
+    return;
+  }
+
+  process.stdout.write(
+    `\n  \x1b[1mInvoices\x1b[0m  \x1b[2m(${invoices.length})\x1b[0m\n\n`,
+  );
+  for (const inv of invoices) {
+    const date = str(inv.date) ?? "—";
+    const amt = str(inv.amount) ?? "—";
+    const creditsP = inv.credits_purchased ?? "—";
+    const refund = str(inv.refund_status);
+    const refundTag =
+      refund && refund !== "none" ? `  \x1b[33m[${refund}]\x1b[0m` : "";
+    const giftTag = inv.is_gift_card ? "  \x1b[35m[gift card]\x1b[0m" : "";
+    const transferStatus = str(inv.transaction_status);
+    const transferTag = transferStatus ? `  \x1b[36m[${transferStatus}]\x1b[0m` : "";
+    process.stdout.write(
+      `    ${date}  \x1b[2m€${amt}\x1b[0m  ${creditsP} credits${refundTag}${giftTag}${transferTag}\n`,
+    );
+    const bankTransferReference = str(inv.bank_transfer_reference);
+    if (bankTransferReference) {
+      kv("      Bank transfer reference", bankTransferReference, 30);
     }
   }
 }
@@ -5925,6 +6470,7 @@ Commands:
   openmates whoami [--json]                  Show account info
   openmates chats [--help]                   Chat commands (list, search, show, ...)
   openmates apps [--help]                    App skill commands (list, run, ...)
+  openmates workflows [--help]               Server-side workflow commands
   openmates mentions [--help]                List available @mentions
   openmates embeds [--help]                  Embed commands (show)
   openmates settings [--help]                Predefined settings commands
@@ -5934,6 +6480,9 @@ Commands:
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
   openmates feedback [--help]                Assistant response feedback helpers
   openmates benchmark [--help]               Run real model benchmarks with usage tagged as benchmark spend
+  openmates remote-access [--help]           Attach and search local Project sources
+  openmates update                           Update the installed OpenMates CLI package
+  openmates upgrade                          Alias for openmates update
   openmates server [--help]                   Server management (install, start, stop, ...)
   openmates docs [--help]                     Browse, search, and download documentation
   openmates e2e provision-auth-accounts       Provision local E2E auth-account artifacts
@@ -5943,6 +6492,36 @@ Flags:
   --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
   --api-key <key> Optional API key override (or set OPENMATES_API_KEY)
   --help          Show contextual help for any command`);
+}
+
+function printSelfUpdateHelp(): void {
+  console.log(`OpenMates CLI update commands:
+  openmates update [--version <version|tag>] [--package-manager <name>] [--dry-run] [--json]
+  openmates upgrade [--version <version|tag>] [--package-manager <name>] [--dry-run] [--json]
+
+Updates the globally installed openmates package. The default target is latest.
+
+Options:
+  --version <version|tag>       Install a specific npm version or dist-tag (default: latest)
+  --package-manager <name>      npm, pnpm, yarn, or bun (default: detect, then npm)
+  --dry-run                     Print the package-manager command without running it
+  --json                        Output the update plan/result as JSON`);
+}
+
+function printRemoteAccessHelp(): void {
+  console.log(`Remote access commands:
+  openmates remote-access start --path <folder> [--source-id <id>] [--project <id>] [--type <type>] [--local-only] [--json]
+  openmates remote-access status [--json]
+  openmates remote-access search --source <id> <query> [--limit <n>] [--json]
+
+Source types:
+  local_folder, local_git_repository
+
+Security:
+  Source metadata is stored locally under ~/.openmates/remote-sources.json.
+  Preview cache defaults to ~/.openmates/remote-cache/<source-id>.
+  Search is read-only, runs rg inside the approved source root, and excludes
+  high-risk, binary, and out-of-root paths by default.`);
 }
 
 function printConnectedAccountsHelp(): void {
@@ -6163,6 +6742,36 @@ Examples:
   openmates apps travel search_connections --input '{"requests":[{"legs":[{"origin":"BER","destination":"LHR","date":"2026-04-15"}]}]}'
   openmates apps travel booking-link --token "<booking_token from search result>"
   openmates apps skill-info web search`);
+}
+
+function printWorkflowsHelp(): void {
+  console.log(`Workflows commands:
+  openmates workflows list [--json]
+  openmates workflows capabilities [--json]
+  openmates workflows create --title <title> --graph '<json>' [--enabled] [--run-content-retention last_5|none] [--json]
+  openmates workflows input <text> [--workflow-id <id>] [--project-id <id>] [--json]
+  openmates workflows input-show <session-id> [--json]
+  openmates workflows input-events <session-id> [--after <event-id>] [--json]
+  openmates workflows input-follow-up <session-id> <text> [--json]
+  openmates workflows input-stop <session-id> [--json]
+  openmates workflows input-undo <session-id> [--json]
+  openmates workflows show <workflow-id> [--json]
+  openmates workflows enable <workflow-id> [--json]
+  openmates workflows disable <workflow-id> [--json]
+  openmates workflows run <workflow-id> [--mode manual|test] [--input '<json>'] [--json]
+  openmates workflows runs <workflow-id> [--json]
+  openmates workflows run-show <workflow-id> <run-id> [--json]
+  openmates workflows delete <workflow-id> --yes [--json]
+
+Workflows run on the OpenMates server, not in this terminal process. The CLI
+uses your paired session and shows the same workflow/run records as web, SDKs,
+and Apple clients.
+
+Examples:
+  openmates workflows list
+  openmates workflows capabilities --json
+  openmates workflows input "alert me if it rains tomorrow"
+  openmates workflows run wf_123 --mode test --json`);
 }
 
 function printEmbedsHelp(): void {

@@ -100,6 +100,12 @@ Prefer:
 
 Performance matters. Avoid expensive work in SwiftUI `body`, including markdown parsing, JSON parsing, image decoding, sorting/filtering large arrays, embed payload normalization, and repeated formatter construction. Cache parsed render data with stable IDs, and keep state scoped narrowly so message-level updates do not invalidate entire screens.
 
+## Native Diagnostics And Logging
+
+Use `NativeDiagnostics` for Apple product diagnostics instead of adding new ad-hoc `print` calls or isolated `Logger` calls. Use `NativeSyncPerfLog` for sync/chat-opening/embed-hydration phase timings so those entries continue to reach unified logging and issue/debug buffers.
+
+Diagnostics must remain privacy-safe: never log message plaintext, encryption keys, auth/session tokens, cookies, push tokens, full share URL fragments, request/response bodies, private file paths, or raw typed text. For performance instrumentation, use the approved diagnostics helpers (`NativePerformanceMonitor`, MetricKit summaries, or signpost-style phase logs) and keep payloads to counts, durations, sanitized categories, and hashed/prefixed identifiers only.
+
 ## Remote Mac Verification
 
 When the active OpenCode session runs on a Linux/dev server, attempt Apple
@@ -150,6 +156,17 @@ Remote verification flow:
     class, scheme, simulator family, result, and sanitized failure classes such as
     `ssh_failed`, `project_not_found`, or `xcode_build_failed`. Keep private
     connection details in local shell history or operator notes, not repo files.
+
+For cross-client work, prefer the parity wrapper from the repo root so Apple
+verification is sequenced after CLI/SDK and web evidence:
+
+```bash
+python3 scripts/verify_parity.py --run --web-spec <name>.spec.ts --apple build
+```
+
+Use `--apple test --only-testing "OpenMatesUITests/<testName>"` when a targeted
+native test exists. Use `--apple skip --skip-apple "Apple not affected"` only
+when the changed surface has no Apple counterpart.
 
 Validated 2026-06-08 from the Linux dev server: a configured SSH alias reached
 a Tailscale Mac, `xcodebuild -version` responded, sanitized project lookup found

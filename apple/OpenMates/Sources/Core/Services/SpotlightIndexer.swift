@@ -24,29 +24,15 @@ final class SpotlightIndexer {
     private init() {}
 
     /// Index a batch of chats. Called after initial load and on WebSocket updates.
+    /// This indexes metadata only; message-body indexing is intentionally not part
+    /// of startup so encrypted histories are not decrypted before a chat is opened.
     func indexChats(_ chats: [Chat]) {
         guard CSSearchableIndex.isIndexingAvailable() else {
             print("[Spotlight] Indexing unavailable on this device")
             return
         }
 
-        let items = chats.compactMap { chat -> CSSearchableItem? in
-            guard let title = chat.title, !title.isEmpty else { return nil }
-
-            let attributes = CSSearchableItemAttributeSet(contentType: .text)
-            attributes.title = title
-            attributes.displayName = title
-            attributes.contentDescription = "OpenMates chat"
-            attributes.lastUsedDate = chat.lastMessageDate
-            attributes.keywords = spotlightKeywords(for: chat)
-
-            // Use the app icon as the thumbnail
-            #if os(iOS)
-            attributes.thumbnailData = UIImage(named: "AppIcon")?.pngData()
-            #endif
-
-            return searchableItem(for: chat, attributes: attributes)
-        }
+        let items = chats.compactMap(metadataOnlySearchableItem(for:))
 
         guard !items.isEmpty else { return }
         Task { [weak self] in
@@ -56,7 +42,11 @@ final class SpotlightIndexer {
 
     /// Debounced indexing for synced user chats. This keeps login and sync fast while
     /// still making the latest 100 chats searchable shortly after the app settles.
-    func scheduleIndexChats(_ chats: [Chat], reason: String) {
+    func scheduleIndexChats(
+        _ chats: [Chat],
+        reason: String,
+        metadataProvider: (@MainActor (Chat) async -> Chat)? = nil
+    ) {
         guard CSSearchableIndex.isIndexingAvailable() else {
             print("[Spotlight] Indexing unavailable on this device")
             return
@@ -70,70 +60,37 @@ final class SpotlightIndexer {
             try? await Task.sleep(nanoseconds: delay)
             guard !Task.isCancelled, let self else { return }
             let start = NativeSyncPerfLog.now()
-            await self.indexChatsWithStoredMessages(snapshot)
+            await self.indexMetadataOnlyChats(snapshot, metadataProvider: metadataProvider)
             NativeSyncPerfLog.info(
-                "phase=spotlightIndex reason=\(reason) chats=\(snapshot.count) indexMs=\(NativeSyncPerfLog.ms(since: start))"
+                "phase=spotlightIndex reason=\(reason) mode=metadataOnly chats=\(snapshot.count) indexMs=\(NativeSyncPerfLog.ms(since: start))"
             )
         }
     }
 
-    private func indexChatsWithStoredMessages(_ chats: [Chat]) async {
+    private func indexMetadataOnlyChats(
+        _ chats: [Chat],
+        metadataProvider: (@MainActor (Chat) async -> Chat)? = nil
+    ) async {
         var items: [CSSearchableItem] = []
         items.reserveCapacity(chats.count)
 
         for chat in chats {
             if Task.isCancelled { return }
-            guard let title = chat.title, !title.isEmpty else { continue }
-            let messages = OfflineStore.shared.loadMessages(chatId: chat.id)
-            let messageText = await searchableText(from: messages, chatId: chat.id)
-            let attributes = CSSearchableItemAttributeSet(contentType: .text)
-            attributes.title = title
-            attributes.displayName = title
-            attributes.contentDescription = [
-                chat.category,
-                chat.chatSummary,
-                messageText
-            ]
-            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .joined(separator: "\n\n")
-            attributes.lastUsedDate = chat.lastMessageDate
-            attributes.keywords = spotlightKeywords(for: chat)
-
-            #if os(iOS)
-            attributes.thumbnailData = UIImage(named: "AppIcon")?.pngData()
-            #endif
-
-            items.append(searchableItem(for: chat, attributes: attributes))
+            let searchableChat: Chat
+            if let metadataProvider {
+                searchableChat = await metadataProvider(chat)
+            } else {
+                searchableChat = chat
+            }
+            if let item = metadataOnlySearchableItem(for: searchableChat) {
+                items.append(item)
+            }
             await Task.yield()
             try? await Task.sleep(nanoseconds: perChatPauseNs)
         }
 
         guard !items.isEmpty else { return }
         await submitItems(items)
-    }
-
-    private func searchableText(from messages: [Message], chatId: String) async -> String {
-        var snippets: [String] = []
-        snippets.reserveCapacity(min(messages.count, 80))
-
-        for message in messages.suffix(80) {
-            if Task.isCancelled { break }
-            if let content = message.content, !content.isEmpty {
-                snippets.append(content)
-            } else if let encryptedContent = message.encryptedContent,
-                      let decrypted = await ChatKeyManager.shared.decryptMessageContent(
-                          chatId: chatId,
-                          encryptedContent: encryptedContent
-                      ),
-                      !decrypted.isEmpty {
-                snippets.append(decrypted)
-            }
-            if snippets.count >= 80 { break }
-            await Task.yield()
-        }
-
-        return snippets.joined(separator: "\n")
     }
 
     /// Remove a single chat from the Spotlight index (called on delete).
@@ -183,5 +140,40 @@ final class SpotlightIndexer {
             keywords.append(category)
         }
         return keywords
+    }
+
+    private func metadataOnlySearchableItem(for chat: Chat) -> CSSearchableItem? {
+        guard Self.isEligibleForSpotlight(chat) else { return nil }
+        guard let title = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty else { return nil }
+
+        let attributes = CSSearchableItemAttributeSet(contentType: .text)
+        attributes.title = title
+        attributes.displayName = title
+        attributes.contentDescription = [chat.category, chat.chatSummary]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n\n")
+        attributes.lastUsedDate = chat.lastMessageDate
+        attributes.keywords = spotlightKeywords(for: chat)
+
+        #if os(iOS)
+        attributes.thumbnailData = UIImage(named: "AppIcon")?.pngData()
+        #endif
+
+        return searchableItem(for: chat, attributes: attributes)
+    }
+
+    static func isEligibleForSpotlight(_ chat: Chat) -> Bool {
+        guard chat.isArchived != true else { return false }
+        guard !chat.isHiddenFromNormalSurfaces else { return false }
+        guard !isPublicChat(chat.id) else { return false }
+        return true
+    }
+
+    private static func isPublicChat(_ chatId: String) -> Bool {
+        chatId.hasPrefix("demo-") ||
+        chatId.hasPrefix("legal-") ||
+        chatId.hasPrefix("example-") ||
+        chatId.hasPrefix("announcements-")
     }
 }

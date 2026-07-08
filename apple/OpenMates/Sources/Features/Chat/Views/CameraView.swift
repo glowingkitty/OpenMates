@@ -11,8 +11,12 @@ struct CameraCaptureView: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
-        picker.sourceType = .camera
-        picker.cameraCaptureMode = .photo
+        if UIImagePickerController.isSourceTypeAvailable(.camera) {
+            picker.sourceType = .camera
+            picker.cameraCaptureMode = .photo
+        } else {
+            picker.sourceType = .photoLibrary
+        }
         picker.delegate = context.coordinator
         return picker
     }
@@ -60,6 +64,7 @@ struct CameraButton: View {
             Icon("camera", size: 20)
                 .foregroundStyle(Color.fontSecondary)
         }
+        .help(Text("Take photo"))
         .accessibilityLabel("Take photo")
         .accessibilityHint("Opens camera to capture a photo for this chat")
         #if os(iOS)

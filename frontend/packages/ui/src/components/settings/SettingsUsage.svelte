@@ -1419,6 +1419,27 @@ Usage Settings - View usage statistics and export usage data
             };
         }
 
+        if (summary.api_key_hash?.startsWith('apple-ios:')) {
+            return {
+                title: $text('settings.usage.apple_ios_device') || 'Apple iOS',
+                subtitle: summary.api_key_hash.slice('apple-ios:'.length, 'apple-ios:'.length + 8) + '…'
+            };
+        }
+
+        if (summary.api_key_hash?.startsWith('apple-macos:')) {
+            return {
+                title: $text('settings.usage.apple_macos_device') || 'Apple macOS',
+                subtitle: summary.api_key_hash.slice('apple-macos:'.length, 'apple-macos:'.length + 8) + '…'
+            };
+        }
+
+        if (summary.api_key_hash?.startsWith('apple:')) {
+            return {
+                title: $text('settings.usage.apple_device') || 'Apple',
+                subtitle: summary.api_key_hash.slice('apple:'.length, 'apple:'.length + 8) + '…'
+            };
+        }
+
         let name = '';
         let prefix = '';
         let _prefixFromBackend = false; // Track if prefix came from backend encrypted field
@@ -2197,21 +2218,22 @@ Usage Settings - View usage statistics and export usage data
             {#if selectedApiKeyHash && selectedApiKeyMonth}
                 {@const labelKey = `${selectedApiKeyHash}:${selectedApiKeyMonth}`}
                 {@const apiKeyLabel = apiKeyLabels.get(labelKey) || { title: $text('settings.usage.api_key_details'), subtitle: '' }}
-                {@const isCliEntry = selectedApiKeyHash?.startsWith('cli:')}
+                {@const isSyntheticDeviceEntry = selectedApiKeyHash?.startsWith('cli:') || selectedApiKeyHash?.startsWith('apple-') || selectedApiKeyHash?.startsWith('apple:')}
+                {@const detailIcon = selectedApiKeyHash?.startsWith('cli:') ? 'coding' : selectedApiKeyHash?.startsWith('apple') ? 'phone' : 'code'}
                 
                 <div class="detail-header">
                     <div class="detail-icon-wrapper">
                         <Icon 
-                            name={isCliEntry ? 'coding' : 'code'}
+                            name={detailIcon}
                             type="default"
                             size="40px"
                         />
                     </div>
                     <div class="detail-info">
                         <h3>{apiKeyLabel.title}</h3>
-                        {#if apiKeyLabel.subtitle && !isCliEntry}
+                        {#if apiKeyLabel.subtitle && !isSyntheticDeviceEntry}
                             <p>{apiKeyLabel.subtitle}</p>
-                        {:else if !isCliEntry}
+                        {:else if !isSyntheticDeviceEntry}
                             <p>{$text('settings.usage.api_key_details')}</p>
                         {/if}
                     </div>
@@ -2434,14 +2456,15 @@ Usage Settings - View usage statistics and export usage data
                 {#each summaries as summary}
                     {@const labelKey = `${summary.api_key_hash}:${summary.month}`}
                     {@const apiKeyLabel = apiKeyLabels.get(labelKey) || { title: $text('settings.usage.api_key_details'), subtitle: '' }}
-                    {@const apiIcon = summary.api_key_hash?.startsWith('cli:') ? 'coding' : 'security_key'}
+                    {@const isSyntheticDeviceEntry = summary.api_key_hash?.startsWith('cli:') || summary.api_key_hash?.startsWith('apple-') || summary.api_key_hash?.startsWith('apple:')}
+                    {@const apiIcon = summary.api_key_hash?.startsWith('cli:') ? 'coding' : summary.api_key_hash?.startsWith('apple') ? 'phone' : 'security_key'}
 
                     <SettingsItem
                         type="submenu"
                         icon={apiIcon}
                         iconBackground="none"
                         title={apiKeyLabel.title}
-                        subtitleBottom={apiKeyLabel.subtitle && !summary.api_key_hash?.startsWith('cli:') ? apiKeyLabel.subtitle : undefined}
+                        subtitleBottom={apiKeyLabel.subtitle && !isSyntheticDeviceEntry ? apiKeyLabel.subtitle : undefined}
                         creditsDisplay={formatCredits(summary.totalCredits)}
                         onClick={async () => {
                             selectedApiKeyHash = summary.api_key_hash;

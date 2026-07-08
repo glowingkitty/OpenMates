@@ -5,8 +5,9 @@ export {};
  * API Keys Flow Tests
  *
  * Tests the developer API key management in Settings > Developers > API Keys:
- * - Create an API key, verify the format, copy it, confirm done, verify it
- *   appears in the list, then delete it.
+ * - Create an API key from the create sub-settings page, verify the format,
+ *   confirm done, verify it appears in the list, open its detail sub-settings
+ *   page, then revoke it.
  * - Verify the create button is disabled and a warning appears at 5-key limit.
  * - Verify the create button is disabled when no name is entered.
  *
@@ -40,7 +41,7 @@ const path = require('path');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getIsolatedTestAccount(
 	'api-keys-flow.spec.ts'
 );
-const E2E_KEY_NAME_PATTERN = /^(E2E-Test-Key|E2E-RestAPI|E2E-Limit-Key)/i;
+const E2E_KEY_NAME_PATTERN = /(E2E-Test-Key|E2E-RestAPI|E2E-Limit-Key)/i;
 
 test.describe.configure({ mode: 'serial' });
 
@@ -50,7 +51,7 @@ test.describe.configure({ mode: 'serial' });
 
 /**
  * Navigate to Settings > Developers > API Keys.
- * Returns when the API Keys container is visible (data-testid="api-keys-container").
+ * Returns when the API Keys settings route is active.
  */
 async function ensureSettingsMenuOpen(page: any, logCheckpoint: (msg: string) => void): Promise<any> {
 	const settingsMenu = page.getByTestId('settings-menu');
@@ -107,8 +108,10 @@ async function navigateToApiKeys(page: any, logCheckpoint: (msg: string) => void
 	await targetItem.click();
 	logCheckpoint('Navigated to API Keys.');
 
-	const apiKeysContainer = page.getByTestId('api-keys-container');
-	await expect(apiKeysContainer).toBeVisible({ timeout: 15000 });
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'developers/api-keys', {
+		timeout: 15000
+	});
+	await expect(page.getByTestId('api-key-create-button')).toBeVisible({ timeout: 15000 });
 	logCheckpoint('API Keys page loaded.');
 }
 
@@ -178,45 +181,74 @@ async function completeDefaultApiKeyGuidedFlow(
 	logCheckpoint: (msg: string) => void
 ): Promise<void> {
 	const createConfirmButton = page.getByTestId('api-key-create-confirm');
-	await expect(page.getByTestId('api-key-full-access-warning')).toBeVisible({ timeout: 3000 });
+	await expect(page.getByTestId('api-key-full-access-toggle')).toBeVisible({ timeout: 3000 });
+	await expect(page.getByText(/full access can read encrypted account metadata/i)).toBeVisible({
+		timeout: 3000
+	});
 	await expect(createConfirmButton).toBeEnabled({ timeout: 3000 });
 	await createConfirmButton.click();
-	logCheckpoint('Continued past scope warning.');
+	logCheckpoint('Clicked Create API Key confirm from create sub-settings page.');
+}
 
-	await expect(page.getByTestId('api-key-credit-step')).toBeVisible({ timeout: 5000 });
-	await expect(page.getByTestId('api-key-credit-warning')).toBeVisible({ timeout: 3000 });
-	await createConfirmButton.click();
-	logCheckpoint('Continued past credit warning.');
+async function openApiKeyDetailsByName(
+	page: any,
+	keyName: string | RegExp,
+	log: (msg: string) => void
+): Promise<any> {
+	const keyRow = page.getByTestId('api-key-item').filter({ hasText: keyName }).first();
+	await expect(keyRow, `Expected API key row ${keyName.toString()} to exist.`).toBeVisible({
+		timeout: 10000
+	});
+	await keyRow.click();
+	await expect(page.getByTestId('settings-menu')).toHaveAttribute(
+		'data-active-view',
+		/developers\/api-keys\/.+/,
+		{ timeout: 10000 }
+	);
+	log(`Opened API key details for ${keyName.toString()}.`);
+	return keyRow;
+}
 
-	await expect(page.getByTestId('api-key-expiration-step')).toBeVisible({ timeout: 5000 });
-	await expect(page.getByTestId('api-key-expiration-warning')).toBeVisible({ timeout: 3000 });
-	await createConfirmButton.click();
-	logCheckpoint('Clicked Create API Key confirm after guided warnings.');
+async function revokeCurrentApiKeyFromDetails(page: any, log: (msg: string) => void): Promise<void> {
+	const revokeButton = page.getByTestId('api-key-delete-button');
+	await expect(revokeButton).toBeVisible({ timeout: 5000 });
+	await revokeButton.click();
+
+	const confirmToggle = page.getByText(/i understand this key will stop working/i).first();
+	await expect(confirmToggle).toBeVisible({ timeout: 5000 });
+	await confirmToggle.click();
+	await expect(revokeButton).toBeEnabled({ timeout: 3000 });
+	await revokeButton.click();
+	await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'developers/api-keys', {
+		timeout: 10000
+	});
+	log('Revoked API key from detail page.');
 }
 
 async function deleteFirstE2EOwnedApiKey(page: any, log: (msg: string) => void): Promise<boolean> {
 	const e2eKey = page
 		.getByTestId('api-key-item')
-		.filter({ has: page.getByTestId('api-key-name').filter({ hasText: E2E_KEY_NAME_PATTERN }) })
+		.filter({ hasText: E2E_KEY_NAME_PATTERN })
 		.first();
 
 	if (!(await e2eKey.isVisible({ timeout: 2000 }).catch(() => false))) {
 		return false;
 	}
 
-	const keyName = await e2eKey.getByTestId('api-key-name').textContent().catch(() => 'E2E-owned key');
-	const deleteBtn = e2eKey.getByTestId('api-key-delete-button');
-	await expect(deleteBtn).toBeVisible({ timeout: 3000 });
-	page.once('dialog', (dialog: any) => dialog.accept());
-	await deleteBtn.click();
-	await page.waitForTimeout(1500);
+	const keyName = await e2eKey.textContent().catch(() => 'E2E-owned key');
+	await e2eKey.click();
+	await revokeCurrentApiKeyFromDetails(page, log);
+	await page.waitForTimeout(1000);
 	log(`Deleted E2E-owned API key: ${keyName?.trim() || 'unknown'}`);
 	return true;
 }
 
 async function freeApiKeySlotIfLimitReached(page: any, log: (msg: string) => void): Promise<void> {
-	const limitWarning = page.getByTestId('api-key-limit-warning');
-	const isAtLimit = await limitWarning.isVisible({ timeout: 2000 }).catch(() => false);
+	const limitWarning = page.getByText(/maximum number of API keys/i);
+	const createButton = page.getByTestId('api-key-create-button');
+	const isAtLimit =
+		(await limitWarning.isVisible({ timeout: 2000 }).catch(() => false)) ||
+		(await createButton.isDisabled({ timeout: 1000 }).catch(() => false));
 	if (!isAtLimit) {
 		return;
 	}
@@ -227,7 +259,9 @@ async function freeApiKeySlotIfLimitReached(page: any, log: (msg: string) => voi
 			break;
 		}
 
-		const stillAtLimit = await limitWarning.isVisible({ timeout: 2000 }).catch(() => false);
+		const stillAtLimit =
+			(await limitWarning.isVisible({ timeout: 2000 }).catch(() => false)) ||
+			(await createButton.isDisabled({ timeout: 1000 }).catch(() => false));
 		if (!stillAtLimit) {
 			return;
 		}
@@ -263,13 +297,18 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 
 	await freeApiKeySlotIfLimitReached(page, log);
 
-	// Click "Create New API Key" button
+	// Open the create sub-settings page.
 	const createButton = page.getByTestId('api-key-create-button');
 	await expect(createButton).toBeVisible({ timeout: 5000 });
 	await expect(createButton).toBeEnabled();
 	await createButton.click();
 	log('Clicked Create New API Key.');
-	await screenshot(page, 'create-modal-open');
+	await expect(page.getByTestId('settings-menu')).toHaveAttribute(
+		'data-active-view',
+		'developers/api-keys/create',
+		{ timeout: 10000 }
+	);
+	await screenshot(page, 'create-subsettings-open');
 
 	// Fill in the key name
 	const keyName = `E2E-Test-Key-${Date.now()}`;
@@ -279,15 +318,15 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	log(`Entered key name: "${keyName}"`);
 	await screenshot(page, 'key-name-entered');
 
-	// Guided flow: Scope -> Credit limit -> Expiration -> Reveal
+	// Create with default full-access, unlimited-credit, never-expiring settings.
 	await completeDefaultApiKeyGuidedFlow(page, log);
 
-	// Wait for "API Key Created" modal with the actual key value
+	// Wait for the one-time key reveal on the create sub-settings page.
 	const createdKeyEl = page.getByTestId('api-key-created-value');
 	await expect(createdKeyEl).toBeVisible({ timeout: 15000 });
 	await screenshot(page, 'key-created');
 
-	const createdKeyValue = await createdKeyEl.textContent();
+	const createdKeyValue = (await createdKeyEl.textContent())?.trim() ?? '';
 	log(`Created key: "${createdKeyValue}"`);
 
 	// Verify the key format: sk-api-{alphanumeric}
@@ -295,15 +334,18 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	log('Key format validated: starts with sk-api-');
 
 	// Click the Copy button
-	const copyButton = page.getByTestId('api-key-copy-button');
+	const copyButton = page.getByRole('button', { name: /copy to clipboard/i }).first();
 	await expect(copyButton).toBeVisible({ timeout: 3000 });
 	await copyButton.click();
 	log('Clicked Copy button.');
 
-	// Click "I've copied the key" to close the key-reveal modal
+	// Click "I've copied the key" to return to the API keys list.
 	const doneButton = page.getByTestId('api-key-done-button');
 	await expect(doneButton).toBeVisible({ timeout: 3000 });
 	await doneButton.click();
+	await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'developers/api-keys', {
+		timeout: 10000
+	});
 	log('Clicked done button.');
 
 	// Verify the new key appears in the API keys list
@@ -315,7 +357,7 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 		expect(count).toBeGreaterThan(0);
 	}).toPass({ timeout: 20000 });
 
-	const keyByName = page.getByTestId('api-key-name').filter({ hasText: keyName });
+	const keyByName = page.getByTestId('api-key-item').filter({ hasText: keyName }).first();
 	const nameFound = await keyByName.isVisible({ timeout: 5000 }).catch(() => false);
 	log(`Key found by name "${keyName}": ${nameFound}. Total key items: ${await keyItems.count()}`);
 
@@ -323,23 +365,11 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	log('Key items visible in list after creation.');
 
 	// Delete the key we just created
-	const createdKeyRow = page
-		.getByTestId('api-key-item')
-		.filter({ has: page.getByTestId('api-key-name').filter({ hasText: keyName }) });
-	await expect(createdKeyRow, `Expected created API key row ${keyName} to exist before deletion.`).toBeVisible({ timeout: 5000 });
-
-	const deleteButton = createdKeyRow.getByTestId('api-key-delete-button');
-	await expect(deleteButton).toBeVisible({ timeout: 5000 });
-
-	log('Setting up dialog handler and clicking Delete...');
-	page.once('dialog', (dialog: any) => {
-		log(`Dialog appeared: "${dialog.message()}" — accepting.`);
-		dialog.accept();
-	});
-	await deleteButton.click();
+	await openApiKeyDetailsByName(page, keyName, log);
+	await revokeCurrentApiKeyFromDetails(page, log);
 
 	await expect(async () => {
-		const keyByName2 = page.getByTestId('api-key-name').filter({ hasText: keyName });
+		const keyByName2 = page.getByTestId('api-key-item').filter({ hasText: keyName }).first();
 		await expect(keyByName2).not.toBeVisible();
 	}).toPass({ timeout: 10000 });
 
@@ -370,10 +400,15 @@ test('create button is disabled when API key name is empty', async ({ page }: { 
 
 	await freeApiKeySlotIfLimitReached(page, log);
 
-	// Open the create modal
+	// Open the create sub-settings page.
 	const createButton = page.getByTestId('api-key-create-button');
 	await expect(createButton).toBeEnabled({ timeout: 8000 });
 	await createButton.click();
+	await expect(page.getByTestId('settings-menu')).toHaveAttribute(
+		'data-active-view',
+		'developers/api-keys/create',
+		{ timeout: 10000 }
+	);
 
 	const nameInput = page.getByTestId('api-key-name-input');
 	await expect(nameInput).toBeVisible({ timeout: 5000 });
@@ -384,10 +419,13 @@ test('create button is disabled when API key name is empty', async ({ page }: { 
 	log('Confirmed: Create API Key button is disabled when name is empty.');
 	await screenshot(page, 'empty-name-button-disabled');
 
-	// Close the modal by clicking Cancel
+	// Return to the API keys list by clicking Cancel.
 	const cancelButton = page.getByTestId('api-key-cancel-button');
 	await expect(cancelButton).toBeVisible({ timeout: 3000 });
 	await cancelButton.click();
+	await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'developers/api-keys', {
+		timeout: 10000
+	});
 
 	log('Test complete.');
 });
@@ -461,19 +499,14 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	for (let i = 0; i < 5; i++) {
 		const staleKey = page
 			.getByTestId('api-key-item')
-			.filter({ has: page.getByTestId('api-key-name').filter({ hasText: /E2E-RestAPI/i }) })
+			.filter({ hasText: /E2E-RestAPI/i })
 			.first();
 		const staleVisible = await staleKey.isVisible({ timeout: 1500 }).catch(() => false);
 		if (!staleVisible) break;
-		const staleDeleteBtn = staleKey.getByTestId('api-key-delete-button');
-		if (await staleDeleteBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
-			page.once('dialog', (dialog: any) => dialog.accept());
-			await staleDeleteBtn.click();
-			await page.waitForTimeout(1500);
-			log('Deleted stale E2E-RestAPI key.');
-		} else {
-			break;
-		}
+		await staleKey.click();
+		await revokeCurrentApiKeyFromDetails(page, log);
+		await page.waitForTimeout(1000);
+		log('Deleted stale E2E-RestAPI key.');
 	}
 
 	await freeApiKeySlotIfLimitReached(page, log);
@@ -502,11 +535,14 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	expect(rawApiKey).toMatch(/^sk-api-[A-Za-z0-9]+$/);
 	log(`Captured API key: "${rawApiKey.slice(0, 12)}..."`);
 
-	// Dismiss the key-reveal modal
+	// Leave the one-time key reveal and return to the list.
 	const doneButton = page.getByTestId('api-key-done-button');
 	await expect(doneButton).toBeVisible({ timeout: 3000 });
 	await doneButton.click();
-	log('Dismissed key modal.');
+	await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'developers/api-keys', {
+		timeout: 10000
+	});
+	log('Dismissed key reveal.');
 	await page.waitForTimeout(1000);
 
 	// ── Phase 3: Make API-key-authenticated SDK call — expect device-pending block ─
@@ -577,6 +613,50 @@ test('creates API key, verifies device approval flow, and saves working key', as
 	expect(approvedData).toHaveProperty('chats');
 	log('Confirmed: REST API call succeeded after device approval!');
 
+	// ── Phase 5b: Register and approve the stable CLI API-key device ───────────
+	const cliDeviceHeaders = {
+		Authorization: `Bearer ${rawApiKey}`,
+		'User-Agent': `OpenMates CLI/0.1 (${os.platform()} ${os.release()})`,
+		'X-OpenMates-SDK': 'cli',
+		'X-OpenMates-Device-Identity': `cli:${os.platform()}:${os.arch()}`
+	};
+	log('Making CLI-style SDK API call with new key; expecting pending-device block...');
+	const cliBlockedResponse = await request.get(sdkChatsUrl, { headers: cliDeviceHeaders });
+	log(`CLI-style SDK API response (before device approval): ${cliBlockedResponse.status()}`);
+	expect(
+		cliBlockedResponse.status() === 403,
+		`Expected 403 for CLI device before approval, got ${cliBlockedResponse.status()}`
+	).toBe(true);
+
+	await page.reload();
+	await page.waitForLoadState('domcontentloaded');
+	await navigateToDevices(page, log);
+	await expect(devicesContainer).toBeVisible({ timeout: 8000 });
+	await page.waitForTimeout(2000);
+
+	let cliPendingCard = page.locator('[data-testid="device-card"].pending').first();
+	if (!(await cliPendingCard.isVisible({ timeout: 15000 }).catch(() => false))) {
+		log('CLI pending device card not visible yet; reloading and reopening Devices.');
+		await page.reload();
+		await page.waitForLoadState('domcontentloaded');
+		await navigateToDevices(page, log);
+		cliPendingCard = page.locator('[data-testid="device-card"].pending').first();
+		await expect(cliPendingCard).toBeVisible({ timeout: 30000 });
+	}
+	await screenshot(page, 'cli-pending-device');
+	const cliApproveButton = cliPendingCard.getByTestId('device-approve-button');
+	await expect(cliApproveButton).toBeVisible({ timeout: 5000 });
+	await cliApproveButton.click();
+	await expect(cliPendingCard).not.toBeVisible({ timeout: 10000 });
+	await screenshot(page, 'cli-device-approved');
+
+	const cliApprovedResponse = await request.get(sdkChatsUrl, { headers: cliDeviceHeaders });
+	log(`CLI-style SDK API response (after device approval): ${cliApprovedResponse.status()}`);
+	expect(cliApprovedResponse.status()).toBe(200);
+	const cliApprovedData = await cliApprovedResponse.json();
+	expect(cliApprovedData).toHaveProperty('chats');
+	log('Confirmed: CLI-style API key call succeeded after device approval!');
+
 	// ── Phase 6: Save the working API key to artifacts ───────────────────────
 	const keyFilePath = path.join(ARTIFACTS_DIR, 'api_key.txt');
 	fs.writeFileSync(keyFilePath, rawApiKey, 'utf8');
@@ -625,7 +705,7 @@ test('shows limit warning and disabled create button when 5 API keys exist', asy
 	const createdKeyNames: string[] = [];
 	for (let i = existingCount; i < 5; i++) {
 		const isLimitReached = await page
-			.getByTestId('api-key-limit-warning')
+			.getByText(/maximum number of API keys/i)
 			.isVisible({ timeout: 1000 })
 			.catch(() => false);
 		if (isLimitReached) break;
@@ -634,6 +714,11 @@ test('shows limit warning and disabled create button when 5 API keys exist', asy
 		if (await createButton.isDisabled({ timeout: 1000 }).catch(() => false)) break;
 
 		await createButton.click();
+		await expect(page.getByTestId('settings-menu')).toHaveAttribute(
+			'data-active-view',
+			'developers/api-keys/create',
+			{ timeout: 10000 }
+		);
 
 		const nameInput = page.getByTestId('api-key-name-input');
 		await expect(nameInput).toBeVisible({ timeout: 5000 });
@@ -647,6 +732,9 @@ test('shows limit warning and disabled create button when 5 API keys exist', asy
 		const doneButton = page.getByTestId('api-key-done-button');
 		await expect(doneButton).toBeVisible({ timeout: 15000 });
 		await doneButton.click();
+		await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'developers/api-keys', {
+			timeout: 10000
+		});
 
 		log(`Created key ${i + 1}/5: "${keyName}"`);
 		await page.waitForTimeout(1000);
@@ -655,7 +743,7 @@ test('shows limit warning and disabled create button when 5 API keys exist', asy
 	await screenshot(page, 'at-5-keys');
 
 	// Verify the limit warning and disabled button
-	await expect(page.getByTestId('api-key-limit-warning')).toBeVisible({ timeout: 5000 });
+	await expect(page.getByText(/maximum number of API keys/i)).toBeVisible({ timeout: 5000 });
 	log('Limit warning is visible.');
 
 	await expect(page.getByTestId('api-key-create-button')).toBeDisabled({ timeout: 3000 });
@@ -666,13 +754,10 @@ test('shows limit warning and disabled create button when 5 API keys exist', asy
 	// Clean up: delete all keys we created
 	log('Cleaning up: deleting created test keys...');
 	for (const keyName of createdKeyNames) {
-		const keyRow = page
-			.getByTestId('api-key-item')
-			.filter({ has: page.getByTestId('api-key-name').filter({ hasText: keyName }) });
-		const deleteBtn = keyRow.getByTestId('api-key-delete-button');
-		if (await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-			page.once('dialog', (dialog: any) => dialog.accept());
-			await deleteBtn.click();
+		const keyRow = page.getByTestId('api-key-item').filter({ hasText: keyName }).first();
+		if (await keyRow.isVisible({ timeout: 3000 }).catch(() => false)) {
+			await openApiKeyDetailsByName(page, keyName, log);
+			await revokeCurrentApiKeyFromDetails(page, log);
 			await page.waitForTimeout(1000);
 			log(`Deleted: "${keyName}"`);
 		}

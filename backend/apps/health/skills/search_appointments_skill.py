@@ -38,6 +38,7 @@ import json
 import logging
 import re
 import time
+import unicodedata
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import urlencode
@@ -379,7 +380,7 @@ VISIT_MOTIVE_CATEGORIES: Dict[str, List[str]] = {
         r"erstuntersuchung",
         r"neupatient",
         r"akut",
-        r"sprechstunde",
+        r"(?:^|\b)(?:allgemeine\s+)?sprechstunde\b",
         r"allgemein",
         r"beratung",
         r"konsultation",
@@ -387,16 +388,15 @@ VISIT_MOTIVE_CATEGORIES: Dict[str, List[str]] = {
         r"(?:^|\s)termin(?:vereinbarung)?$",
         r"hausärztlich",
         r"hausarzt",
-        r"schmerz",              # Schmerztermin (dentist pain appointment)
         r"beschwerden",          # Akute Beschwerden (already covered by akut, but explicit)
         r"notfall",              # Notfall / Notfallsprechstunde
         r"untersuchung",         # General examination
-        r"behandlung(?!\s+bot)", # Behandlung but NOT "Behandlung Botox..."
     ],
     # Preventive checkups and screenings
     "checkup": [
         r"vorsorge",
         r"check[\s-]?up",
+        r"kontroll",
         r"gesundheitsuntersuchung",
         r"früherkennung",
         r"screening",
@@ -440,13 +440,159 @@ NOISE_MOTIVE_PATTERNS: List[str] = [
     r"botox",
     r"hyaluron",
     r"filler",
+    r"eigenfett",
+    r"ketamin",
     r"lasik",
+    r"augenlasern",
+    r"\bsmile\b",
+    r"\bicl\b",
+    r"\bipcl\b",
+    r"clearlens",
+    r"multifokal",
+    r"trifokal",
     r"brillenfrei",
+    r"augen\s*-?\s*op",
+    r"katarakt",
+    r"grauer\s+star",
     r"ästhetik",
     r"kosmetisch",
     r"bleaching",
+    r"\bcmd\b",
+    r"kiefergelenk",
+    r"dentcoat",
+    r"veneers?",
+    r"zahnextraktion",
+    r"weisheitszahn",
     r"professionelle\s+zahnreinigung",  # PZR — dental cleaning, not a medical visit
+    r"knie\s*-?\s*op",
+    r"\bop\s*-?\s*beratung\b",
+    r"\bop\s*-?\s*planung\b",
+    r"eingewachsene[rr]?\s+zehennagel",
+    r"nagelbettentzündung",
+    r"nackentransparenz",
+    r"erst\s*-?\s*trimester",
+    r"ersttrimester",
+    r"feindiagnostik",
+    r"schwangerschaft",
 ]
+
+NEGATION_TERMS_PATTERN = re.compile(r"\b(?:nicht|kein|keine|ohne|not|no)\b")
+
+EXISTING_PATIENT_MOTIVE_PATTERN = re.compile(
+    r"\b(?:bestandspatient(?:in)?|bekannter\s+patient|bekannte\s+patientin|"
+    r"wiedervorstellung\w*|nachsorge\w*)\b"
+)
+
+CONTROL_VISIT_MOTIVE_PATTERN = re.compile(
+    r"\bkontroll\w*\b"
+)
+
+PRIVATE_PRACTICE_NAME_PATTERN = re.compile(
+    r"\b(?:privatpraxis|privat\s*-?\s*praxis)\b"
+)
+
+PAID_SERVICE_TEXT_PATTERN = re.compile(
+    r"(?:kostenpflichtig|selbstzahler|selbstzahlerleistung|privatleistung|"
+    r"privatsprechstunde|fotofinder|berufsgenossenschaft|arbeitsunfall|d\s*-?\s*arzt|"
+    r"durchgangsarzt|zusätzlich|\bigel\b|\b[0-9]+(?:[,.][0-9]{2})?\s*(?:€|eur))",
+    re.IGNORECASE,
+)
+
+PROCEDURE_INTENT_ALIASES: Dict[str, str] = {
+    "mrt": "mrt",
+    "mri": "mrt",
+    "magnetresonanztomographie": "mrt",
+    "magnetresonanz": "mrt",
+    "kernspintomographie": "mrt",
+    "kernspin": "mrt",
+    "ct": "ct",
+    "computertomographie": "ct",
+    "computertomografie": "ct",
+    "röntgen": "xray",
+    "rontgen": "xray",
+    "roentgen": "xray",
+    "x-ray": "xray",
+    "xray": "xray",
+    "ultraschall": "ultrasound",
+    "ultrasound": "ultrasound",
+    "sonographie": "ultrasound",
+    "sonografie": "ultrasound",
+    "mammographie": "mammography",
+    "mammografie": "mammography",
+    "mammogram": "mammography",
+}
+
+PROCEDURE_INTENT_PATTERNS: Dict[str, List[str]] = {
+    "mrt": [r"\bmrt\b", r"magnetresonan", r"kernspin", r"\bmri\b"],
+    "ct": [r"\bct\b", r"computertom"],
+    "xray": [r"röntgen", r"roentgen", r"rontgen", r"x[\s-]?ray"],
+    "ultrasound": [r"ultraschall", r"sonograph", r"sonograf", r"ultrasound"],
+    "mammography": [r"mammograph", r"mammograf", r"mammogram"],
+}
+
+SPECIALITY_INTENT_ALIASES: Dict[str, str] = {
+    "allgemeinmedizin": "general_practitioner",
+    "allgemeinmediziner": "general_practitioner",
+    "allgemeinarzt": "general_practitioner",
+    "hausarzt": "general_practitioner",
+    "general_practitioner": "general_practitioner",
+    "zahnarzt": "dentist",
+    "dentist": "dentist",
+    "zahnmedizin": "dentist",
+    "hautarzt": "dermatology",
+    "dermatologie": "dermatology",
+    "dermatologist": "dermatology",
+    "frauenarzt": "gynecology",
+    "gynäkologie": "gynecology",
+    "gynaekologie": "gynecology",
+    "gynakologie": "gynecology",
+    "gynecologist": "gynecology",
+    "hno": "ent",
+    "hno-arzt": "ent",
+    "ent": "ent",
+    "kinderarzt": "pediatrics",
+    "kinderheilkunde": "pediatrics",
+    "pediatrician": "pediatrics",
+    "kardiologie": "cardiology",
+    "kardiologe": "cardiology",
+    "cardiologist": "cardiology",
+    "orthopädie": "orthopedics",
+    "orthopade": "orthopedics",
+    "orthopedist": "orthopedics",
+    "neurologie": "neurology",
+    "neurologe": "neurology",
+    "neurologist": "neurology",
+    "urologie": "urology",
+    "urologe": "urology",
+    "urologist": "urology",
+    "physiotherapie": "physiotherapy",
+    "physiotherapeut": "physiotherapy",
+    "physiotherapist": "physiotherapy",
+    "psychotherapie": "psychotherapy",
+    "psychotherapist": "psychotherapy",
+    "radiologe": "radiology",
+    "radiologin": "radiology",
+    "radiologist": "radiology",
+    "radiologie": "radiology",
+    "radiology": "radiology",
+    **{alias: "radiology" for alias in PROCEDURE_INTENT_ALIASES},
+}
+
+SPECIALITY_INTENT_PATTERNS: Dict[str, List[str]] = {
+    "general_practitioner": [r"hausarzt", r"allgemeinmed", r"allgemeinarzt", r"praktische[rr]?\s+arzt"],
+    "dentist": [r"zahn", r"dent"],
+    "dermatology": [r"haut", r"dermatolog"],
+    "gynecology": [r"frauen", r"gyn"],
+    "ent": [r"hals", r"nasen", r"ohren", r"\bhno\b", r"ent"],
+    "pediatrics": [r"kinder", r"jugend"],
+    "cardiology": [r"kardiolog", r"cardiolog"],
+    "orthopedics": [r"orthop"],
+    "neurology": [r"neurolog"],
+    "urology": [r"urolog"],
+    "physiotherapy": [r"physio"],
+    "psychotherapy": [r"psych"],
+    "radiology": [r"radiolog", r"mrt", r"ct", r"röntgen", r"roentgen"],
+}
 
 
 def _matches_motive_category(motive_name: str, category: str) -> bool:
@@ -461,11 +607,22 @@ def _matches_motive_category(motive_name: str, category: str) -> bool:
 
     name_lower = motive_name.lower()
 
+    if category != "followup" and EXISTING_PATIENT_MOTIVE_PATTERN.search(name_lower):
+        return False
+    if category == "general" and CONTROL_VISIT_MOTIVE_PATTERN.search(name_lower):
+        return False
+
     # Check if it matches the requested category
-    category_match = any(
-        re.search(pattern, name_lower)
-        for pattern in VISIT_MOTIVE_CATEGORIES[category]
-    )
+    category_match = False
+    for pattern in VISIT_MOTIVE_CATEGORIES[category]:
+        match = re.search(pattern, name_lower)
+        if not match:
+            continue
+        context_before = name_lower[max(0, match.start() - 30):match.start()]
+        if NEGATION_TERMS_PATTERN.search(context_before):
+            return False
+        category_match = True
+        break
     if not category_match:
         return False
 
@@ -477,6 +634,180 @@ def _matches_motive_category(motive_name: str, category: str) -> bool:
     return not is_noise
 
 
+def _procedure_intent_for_speciality(speciality_raw: str) -> Optional[str]:
+    """Return exact procedure intent for request terms like MRT or CT."""
+    normalized = str(speciality_raw or "").lower().strip().replace(" ", "-")
+    return PROCEDURE_INTENT_ALIASES.get(normalized)
+
+
+def _matches_procedure_intent(speciality_raw: str, motive_name: str) -> bool:
+    """Check whether a motive/service matches an exact requested procedure."""
+    procedure = _procedure_intent_for_speciality(speciality_raw)
+    if not procedure:
+        return True
+    name_lower = str(motive_name or "").lower()
+    if not name_lower:
+        return False
+    return any(re.search(pattern, name_lower) for pattern in PROCEDURE_INTENT_PATTERNS[procedure])
+
+
+def _matches_speciality_intent(
+    speciality_raw: str,
+    provider_speciality: str,
+    provider_name: str,
+    visit_motive: str = "",
+) -> bool:
+    """Reject obvious cross-speciality results after provider search."""
+    normalized = str(speciality_raw or "").lower().strip().replace(" ", "-")
+    speciality_group = SPECIALITY_INTENT_ALIASES.get(normalized)
+    if not speciality_group:
+        return True
+
+    haystack = " ".join(
+        str(value or "")
+        for value in (provider_speciality, provider_name, visit_motive)
+    ).lower()
+    return any(
+        re.search(pattern, haystack)
+        for pattern in SPECIALITY_INTENT_PATTERNS[speciality_group]
+    )
+
+
+def _jameda_service_name(service: Dict[str, Any]) -> str:
+    """Return a display name for both Jameda services endpoint shapes."""
+    return str(service.get("itemServiceName") or service.get("name") or "")
+
+
+def _jameda_service_id(service: Dict[str, Any]) -> Optional[int]:
+    """Return the address-service ID required for service-specific slot calls."""
+    raw_id = service.get("addressServiceId") or service.get("id")
+    try:
+        return int(raw_id)
+    except (TypeError, ValueError):
+        return None
+
+
+def _jameda_insurance_from_service(service: Dict[str, Any]) -> str:
+    """Map Jameda insuranceProviderId to our public/private/unknown contract."""
+    provider_id = service.get("insuranceProviderId")
+    if provider_id == 1:
+        return "public"
+    if provider_id == 2:
+        return "private"
+    return "unknown"
+
+
+def _jameda_service_matches_requested_insurance(
+    service: Dict[str, Any],
+    insurance_sector: Optional[str],
+) -> bool:
+    if insurance_sector not in ("public", "private"):
+        return True
+    if insurance_sector == "public":
+        return (
+            service.get("insuranceProviderId") == 1
+            and not _jameda_service_requires_payment(service)
+        )
+    return service.get("insuranceProviderId") == 2
+
+
+def _jameda_service_requires_payment(service: Dict[str, Any]) -> bool:
+    if bool(service.get("selfpayer")) or bool(service.get("private")):
+        return True
+    if service.get("price") not in (None, "", 0, 0.0):
+        return True
+    service_text = " ".join(
+        str(service.get(key) or "")
+        for key in ("itemServiceName", "name", "description")
+    )
+    return bool(PAID_SERVICE_TEXT_PATTERN.search(service_text))
+
+
+def _is_private_practice_name(name: str) -> bool:
+    return bool(PRIVATE_PRACTICE_NAME_PATTERN.search(str(name or "").lower()))
+
+
+def _doctolib_motive_allows_new_patients(visit_motive: Dict[str, Any]) -> bool:
+    return bool(visit_motive.get("allowNewPatients", True))
+
+
+def _doctolib_motive_matches_requested_insurance(
+    visit_motive: Dict[str, Any],
+    insurance_sector: Optional[str],
+) -> bool:
+    if insurance_sector != "public":
+        return True
+    return not bool(PAID_SERVICE_TEXT_PATTERN.search(str(visit_motive.get("name") or "")))
+
+
+def _doctolib_provider_matches_requested_insurance(
+    provider: Dict[str, Any],
+    insurance_sector: Optional[str],
+) -> bool:
+    if insurance_sector != "public":
+        return True
+    if not _doctolib_motive_matches_requested_insurance(
+        provider.get("matchedVisitMotive") or {},
+        insurance_sector,
+    ):
+        return False
+
+    link = str(provider.get("link") or "").lower()
+    online_booking = provider.get("onlineBooking") or {}
+    if (
+        "/telemedizinische-praxis/" in link
+        and bool(online_booking.get("telehealth"))
+        and not provider.get("regulationSector")
+    ):
+        return False
+    return True
+
+
+def _select_jameda_services_for_request(
+    services: List[Dict[str, Any]],
+    speciality_raw: str,
+    visit_motive_category: Optional[str],
+    insurance_sector: Optional[str],
+) -> List[Dict[str, Any]]:
+    """Select Jameda calendar services that can produce relevant slots."""
+    eligible = [
+        svc for svc in services
+        if _jameda_service_id(svc) is not None
+        and _jameda_service_matches_requested_insurance(svc, insurance_sector)
+    ]
+    if not eligible:
+        return []
+
+    if _procedure_intent_for_speciality(speciality_raw):
+        selected = [
+            svc for svc in eligible
+            if _matches_procedure_intent(speciality_raw, _jameda_service_name(svc))
+        ]
+    elif visit_motive_category:
+        selected = [
+            svc for svc in eligible
+            if _matches_motive_category(_jameda_service_name(svc), visit_motive_category)
+        ]
+    else:
+        selected = [
+            svc for svc in eligible
+            if _matches_motive_category(_jameda_service_name(svc), "general")
+        ]
+        if not selected:
+            selected = [svc for svc in eligible if not _is_noise_motive(_jameda_service_name(svc))]
+
+    deduped: List[Dict[str, Any]] = []
+    seen_ids = set()
+    for svc in selected:
+        service_id = _jameda_service_id(svc)
+        if service_id in seen_ids:
+            continue
+        seen_ids.add(service_id)
+        deduped.append(svc)
+
+    return deduped[:3]
+
+
 def _is_noise_motive(motive_name: str) -> bool:
     """Check if a visit motive name is known noise (irrelevant for most users)."""
     if not motive_name:
@@ -485,6 +816,33 @@ def _is_noise_motive(motive_name: str) -> bool:
     return any(
         re.search(pattern, name_lower)
         for pattern in NOISE_MOTIVE_PATTERNS
+    )
+
+
+def _normalize_city_for_comparison(city: str) -> str:
+    """Normalize German display names and URL slugs to one comparable form."""
+    if not city:
+        return ""
+
+    raw = str(city).strip().lower()
+    for source, replacement in (
+        ("ä", "ae"),
+        ("ö", "oe"),
+        ("ü", "ue"),
+        ("ß", "ss"),
+    ):
+        raw = raw.replace(source, replacement)
+
+    normalized = unicodedata.normalize("NFKD", raw)
+    ascii_only = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z0-9]+", "", ascii_only)
+
+
+def _cities_match(address_city: str, requested_city_slug: str) -> bool:
+    """Return True when a provider display city matches a request city slug."""
+    return bool(address_city and requested_city_slug) and (
+        _normalize_city_for_comparison(address_city)
+        == _normalize_city_for_comparison(requested_city_slug)
     )
 
 # ---------------------------------------------------------------------------
@@ -1079,26 +1437,41 @@ async def _process_single_doctolib_request(
         if not providers:
             return request_id, [], None
 
-        # Step 2b: Filter by visit motive category (if requested)
-        # This is a client-side filter on the matchedVisitMotive.name returned
-        # by Doctolib for each provider. No extra API calls needed.
-        if visit_motive_category:
-            pre_filter_count = len(providers)
-            providers = [
-                p for p in providers
-                if _matches_motive_category(
-                    p.get("matchedVisitMotive", {}).get("name", ""),
+        # Step 2b: Apply deterministic quality filters before fetching slots.
+        pre_filter_count = len(providers)
+        providers = [
+            p for p in providers
+            if _matches_speciality_intent(
+                speciality_raw,
+                (p.get("speciality") or {}).get("name", ""),
+                _doctor_name(p),
+                (p.get("matchedVisitMotive") or {}).get("name", ""),
+            )
+            and _matches_procedure_intent(
+                speciality_raw,
+                (p.get("matchedVisitMotive") or {}).get("name", ""),
+            )
+            and (
+                not visit_motive_category
+                or _matches_motive_category(
+                    (p.get("matchedVisitMotive") or {}).get("name", ""),
                     visit_motive_category,
                 )
-            ]
+            )
+            and _doctolib_motive_allows_new_patients(p.get("matchedVisitMotive") or {})
+            and _doctolib_provider_matches_requested_insurance(
+                p,
+                insurance_sector,
+            )
+        ]
+        if len(providers) != pre_filter_count:
             logger.info(
-                "[health:search_appointments] Motive filter '%s': %d/%d providers passed",
-                visit_motive_category,
+                "[health:search_appointments] Quality filters: %d/%d providers passed",
                 len(providers),
                 pre_filter_count,
             )
-            if not providers:
-                return request_id, [], None
+        if not providers:
+            return request_id, [], None
 
         # Cap filtered providers at max_doctors for availability fetching
         providers = providers[:max_doctors]
@@ -1108,9 +1481,9 @@ async def _process_single_doctolib_request(
         valid_providers = []
 
         for provider in providers:
-            visit_motive = provider.get("matchedVisitMotive", {})
-            online_booking = provider.get("onlineBooking", {})
-            references = provider.get("references", {})
+            visit_motive = provider.get("matchedVisitMotive") or {}
+            online_booking = provider.get("onlineBooking") or {}
+            references = provider.get("references") or {}
 
             visit_motive_id = visit_motive.get("visitMotiveId")
             agenda_ids = online_booking.get("agendaIds", [])
@@ -1160,9 +1533,9 @@ async def _process_single_doctolib_request(
                 avail = {"availabilities": [], "total": 0, "next_slot": None}
 
             doctors_checked += 1
-            visit_motive = provider.get("matchedVisitMotive", {})
-            online_booking = provider.get("onlineBooking", {})
-            references = provider.get("references", {})
+            visit_motive = provider.get("matchedVisitMotive") or {}
+            online_booking = provider.get("onlineBooking") or {}
+            references = provider.get("references") or {}
 
             visit_motive_id = visit_motive.get("visitMotiveId")
             agenda_ids = online_booking.get("agendaIds", [])
@@ -1403,6 +1776,8 @@ async def _jameda_fetch_slots(
     doctor_id: str,
     address_id: str,
     days_ahead: int,
+    service_id: Optional[int] = None,
+    insurance_provider_id: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     """GET /api/v3/doctors/{id}/addresses/{id}/slots — available appointment slots.
 
@@ -1413,9 +1788,25 @@ async def _jameda_fetch_slots(
     start_iso = f"{start_dt.isoformat()}T00:00:00+01:00"
     end_iso = f"{end_dt.isoformat()}T23:59:59+01:00"
 
+    params: Dict[str, Any] = {
+        "start": start_iso,
+        "end": end_iso,
+    }
+    if service_id is not None:
+        params.update({
+            "address_service_id": service_id,
+            "including_saas_only_calendar": "true",
+            "filters[address_service_id]": service_id,
+            "filters[is_new_patient]": 1,
+            "includingSaasOnlyCalendar": "true",
+            "with[]": "address.nearest_slot_after_end",
+        })
+        if insurance_provider_id is not None:
+            params["filters[insurance_provider_id]"] = insurance_provider_id
+
     url = (
         f"{JAMEDA_BASE_URL}/api/v3/doctors/{doctor_id}/addresses/{address_id}/slots"
-        f"?start={start_iso}&end={end_iso}"
+        f"?{urlencode(params)}"
     )
     try:
         resp = await client.get(url, headers=_jameda_api_headers(token))
@@ -1430,25 +1821,22 @@ async def _jameda_fetch_slots(
         return []
 
 
-async def _jameda_fetch_services(
+async def _jameda_fetch_calendar_services(
     client: httpx.AsyncClient,
     token: str,
     doctor_id: str,
     address_id: str,
 ) -> List[Dict[str, Any]]:
-    """GET /api/v3/doctors/{id}/addresses/{id}/services — service list with prices.
-
-    Returns list of service dicts with 'id', 'name', 'price', 'is_default'.
-    """
-    url = f"{JAMEDA_BASE_URL}/api/v3/doctors/{doctor_id}/addresses/{address_id}/services"
+    """GET /services/calendar — services usable for service-specific slots."""
+    url = f"{JAMEDA_BASE_URL}/api/v3/doctors/{doctor_id}/addresses/{address_id}/services/calendar"
     try:
         resp = await client.get(url, headers=_jameda_api_headers(token))
         resp.raise_for_status()
         data = resp.json()
-        return data.get("_items", [])
+        return data if isinstance(data, list) else []
     except Exception as exc:
         logger.warning(
-            "[health:jameda] Service fetch error for doctor %s address %s: %s",
+            "[health:jameda] Calendar service fetch error for doctor %s address %s: %s",
             doctor_id, address_id, exc,
         )
         return []
@@ -1463,9 +1851,9 @@ async def _process_single_jameda_request(
     Flow:
     1. Get anonymous token (cached 23h)
     2. Scrape search page for doctor IDs
-    3. For each doctor: fetch addresses → filter has_slots → fetch slots + services
-    4. Apply visit_motive_category filtering on service names
-    5. Build unified result items, sort by slot_datetime, cap at DEFAULT_MAX_SLOTS
+    3. For each doctor: fetch addresses → filter has_slots
+    4. Fetch calendar services, select relevant address_service_id(s)
+    5. Fetch service-specific slots and build unified result items
 
     Returns: (request_id, result_items, error_str_or_None)
     """
@@ -1503,6 +1891,18 @@ async def _process_single_jameda_request(
         # Step 2: Search doctors via Algolia (no HTML scraping needed)
         search_max = max(max_doctors, FILTERED_SEARCH_MAX_DOCTORS) if visit_motive_category else max_doctors
         doctor_infos = await _jameda_search_doctors_algolia(client, speciality_slug, city_slug, search_max)
+        doctor_infos = [
+            doc for doc in doctor_infos
+            if _matches_speciality_intent(
+                speciality_raw,
+                " ".join(str(spec) for spec in doc.get("specializations", [])),
+                doc.get("name", ""),
+            )
+            and not (
+                request.get("insurance_sector") == "public"
+                and _is_private_practice_name(doc.get("name", ""))
+            )
+        ]
         if not doctor_infos:
             return request_id, [], None
 
@@ -1531,7 +1931,7 @@ async def _process_single_jameda_request(
             matched_addr: Optional[Dict[str, Any]] = None
             for addr in addrs:
                 addr_city = str(addr.get("city_name", "")).lower().strip()
-                if addr_city and addr_city == city_slug_lc:
+                if _cities_match(addr_city, city_slug_lc):
                     matched_addr = addr
                     break
             if matched_addr is not None:
@@ -1548,66 +1948,79 @@ async def _process_single_jameda_request(
         if not doctor_address_pairs:
             return request_id, [], None
 
-        # Step 4: Fetch slots and services in parallel for all doctor-address pairs
-        slot_tasks = []
+        # Step 4: Fetch calendar services first. Jameda's generic slots endpoint
+        # is not tied to a visit motive; booking uses address_service_id-specific
+        # slots after insurance/new-patient choices, so we must select service IDs
+        # before fetching availability.
         service_tasks = []
         for doc_info, addr in doctor_address_pairs:
             did = doc_info["doctor_id"]
             aid = str(addr.get("id", ""))
-            slot_tasks.append(_jameda_fetch_slots(client, token, did, aid, days_ahead))
-            service_tasks.append(_jameda_fetch_services(client, token, did, aid))
+            service_tasks.append(_jameda_fetch_calendar_services(client, token, did, aid))
 
-        all_slots, all_services = await asyncio.gather(
-            asyncio.gather(*slot_tasks, return_exceptions=True),
-            asyncio.gather(*service_tasks, return_exceptions=True),
-        )
+        all_services = await asyncio.gather(*service_tasks, return_exceptions=True)
+
+        slot_tasks = []
+        slot_contexts: List[Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]] = []
+        for (doc_info, addr), services in zip(doctor_address_pairs, all_services):
+            if isinstance(services, Exception):
+                logger.warning("[health:jameda] Calendar service error for doctor %s: %s", doc_info["doctor_id"], services)
+                services = []
+            selected_services = _select_jameda_services_for_request(
+                services,
+                speciality_raw=speciality_raw,
+                visit_motive_category=visit_motive_category,
+                insurance_sector=request.get("insurance_sector"),
+            )
+            for service in selected_services:
+                service_name = _jameda_service_name(service)
+                specs_for_filter = doc_info.get("specializations", [])
+                spec_display_for_filter = str(specs_for_filter[0]) if specs_for_filter else speciality_slug
+                if not _matches_speciality_intent(
+                    speciality_raw,
+                    spec_display_for_filter,
+                    doc_info.get("name", ""),
+                    service_name,
+                ):
+                    continue
+                did = doc_info["doctor_id"]
+                aid = str(addr.get("id", ""))
+                service_id = _jameda_service_id(service)
+                slot_contexts.append((doc_info, addr, service))
+                slot_tasks.append(
+                    _jameda_fetch_slots(
+                        client,
+                        token,
+                        did,
+                        aid,
+                        days_ahead,
+                        service_id=service_id,
+                        insurance_provider_id=service.get("insuranceProviderId"),
+                    )
+                )
+
+        if not slot_tasks:
+            return request_id, [], None
+
+        all_slots = await asyncio.gather(*slot_tasks, return_exceptions=True)
 
         # Step 5: Build result items
         all_slot_items: List[Dict[str, Any]] = []
-        doctors_checked = 0
         doctors_with_slots = 0
 
-        for (doc_info, addr), slots, services in zip(doctor_address_pairs, all_slots, all_services):
+        doctors_checked = len(doctor_address_pairs)
+        for (doc_info, addr, service), slots in zip(slot_contexts, all_slots):
             if isinstance(slots, Exception):
                 logger.warning("[health:jameda] Slot error for doctor %s: %s", doc_info["doctor_id"], slots)
                 slots = []
-            if isinstance(services, Exception):
-                services = []
 
-            doctors_checked += 1
             if not slots:
                 continue
 
-            # Pick default/first service for metadata
-            default_service = None
-            for svc in services:
-                if svc.get("is_default"):
-                    default_service = svc
-                    break
-            if not default_service and services:
-                default_service = services[0]
-
-            service_name = default_service.get("name", "") if default_service else ""
-            service_price = default_service.get("price") if default_service else None
-
-            # Apply visit_motive_category filtering on service names
-            if visit_motive_category:
-                # Check if ANY service matches the category
-                has_matching_service = any(
-                    _matches_motive_category(svc.get("name", ""), visit_motive_category)
-                    for svc in services
-                ) if services else False
-                # Also check the default service name
-                if not has_matching_service and service_name:
-                    has_matching_service = _matches_motive_category(service_name, visit_motive_category)
-                if not has_matching_service:
-                    continue
-                # Use the matching service for display
-                for svc in services:
-                    if _matches_motive_category(svc.get("name", ""), visit_motive_category):
-                        service_name = svc.get("name", "")
-                        service_price = svc.get("price")
-                        break
+            service_name = _jameda_service_name(service)
+            service_price = service.get("price")
+            service_id = _jameda_service_id(service)
+            service_insurance = _jameda_insurance_from_service(service)
 
             doctors_with_slots += 1
             did = doc_info["doctor_id"]
@@ -1641,15 +2054,10 @@ async def _process_single_jameda_request(
                 "languages": [],
                 "telehealth": False,
                 "visit_motive": service_name,
-                # Jameda's public API does not expose per-doctor insurance
-                # sector info (neither addresses nor services endpoint return
-                # it — verified by reverse-engineering the v3 API). We mark
-                # the sector as "unknown" so the LLM (and UI) can warn the
-                # user that Jameda results may include both public and
-                # private practices. When the user requires a specific
-                # insurance sector, the orchestrator skips Jameda entirely
-                # and relies only on Doctolib, which has a real filter.
-                "insurance": "unknown",
+                # Jameda exposes insurance on calendar services, not doctors.
+                # Keep it service-scoped so public/private filtering reflects
+                # the appointment type the booking URL actually selects.
+                "insurance": service_insurance,
                 "allows_new_patients": True,
                 "practice_url": f"{JAMEDA_BASE_URL}/{speciality_slug}/{city_slug}",
                 "provider_platform": "Jameda",
@@ -1661,7 +2069,7 @@ async def _process_single_jameda_request(
                 "price": service_price,
                 "service_name": service_name,
                 # Internal IDs (excluded from LLM)
-                "visit_motive_id": None,
+                "visit_motive_id": service_id,
                 "agenda_id": None,
                 "practice_id": int(aid) if aid.isdigit() else None,
             }
@@ -1669,9 +2077,11 @@ async def _process_single_jameda_request(
             for slot in slots:
                 slot_dt = slot.get("start", "")
                 booking_url = slot.get("booking_url", "")
+                if booking_url and service_id and not booking_url.rstrip("/").endswith(f"/{service_id}"):
+                    booking_url = f"{booking_url.rstrip('/')}/{service_id}"
                 slot_item: Dict[str, Any] = {
                     "type": "appointment",
-                    "hash": _result_hash(int(aid) if aid.isdigit() else 0, 0, slot_dt),
+                    "hash": _result_hash(int(aid) if aid.isdigit() else 0, service_id or 0, slot_dt),
                     "slot_datetime": slot_dt,
                     **doctor_metadata,
                     "booking_url": booking_url,

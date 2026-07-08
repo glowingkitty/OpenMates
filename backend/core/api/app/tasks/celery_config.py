@@ -166,6 +166,8 @@ TASK_CONFIG = [
     {'name': 'push',        'module': 'backend.core.api.app.tasks.push_notification_task'},  # Browser Web Push notifications
     {'name': 'email',       'module': 'backend.core.api.app.tasks.linear_issue_task'},  # Auto-create Linear issues from user reports (routed to email queue)
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.ephemeral_log_promotion_tasks'},  # Promote ephemeral client logs on error to long-retention stream
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.workflow_tasks'},  # Workflows V1 run/event/cleanup tasks
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.user_task_scheduler'},  # Tasks V1 due AI task scheduler
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.daily_issue_digest_task'},  # Daily top issue digest
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks.newsletter_campaign_task'},  # Scheduled newsletter campaign sender
  ]
@@ -1261,6 +1263,11 @@ app.conf.beat_schedule = {
         'schedule': timedelta(seconds=60),  # Every 60 seconds
         'options': {'queue': 'reminder'},  # Route to reminder queue
     },
+    'process-due-ai-user-tasks': {
+        'task': 'user_tasks.process_due_ai_tasks',
+        'schedule': timedelta(seconds=60),
+        'options': {'queue': 'persistence'},
+    },
     'password-security-reminders-daily': {
         'task': 'app.tasks.email_tasks.password_security_reminder_email_task.process_password_security_reminders',
         'schedule': crontab(hour=8, minute=0),  # Daily at 08:00 UTC
@@ -1325,6 +1332,13 @@ app.conf.beat_schedule = {
     'process-pending-embeds': {
         'task': 'app.tasks.persistence_tasks.process_pending_embeds',
         'schedule': timedelta(seconds=300),  # Every 5 minutes
+        'options': {'queue': 'persistence'},
+    },
+    # Temporary workflows are retained for seven days after chat creation unless
+    # the user keeps them as reusable workflows.
+    'cleanup-expired-temporary-workflows': {
+        'task': 'workflows.cleanup_expired_temporary',
+        'schedule': timedelta(seconds=3600),  # Every hour
         'options': {'queue': 'persistence'},
     },
     # Weekly storage billing - charges 3 credits/GB/week for storage above 1 GB free tier.

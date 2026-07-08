@@ -36,7 +36,7 @@ struct AskOpenMatesIntent: AppIntent {
             return "Open OpenMates and sign in before using this shortcut."
         }
 
-        let chatId = UUID().uuidString
+        let chatId = UUID().uuidString.lowercased()
         let now = ChatSendPipeline.isoString(from: Date())
         let chatStore = ChatStore()
         let wsManager = WebSocketManager()

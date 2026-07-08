@@ -19,7 +19,12 @@ import { userProfile, defaultProfile, updateProfile } from "./userProfile";
 import { locale } from "svelte-i18n";
 import * as cryptoService from "../services/cryptoService";
 import { deleteSessionId } from "../utils/sessionId"; // Import deleteSessionId
-import { logout, deleteAllCookies, bumpLoginSessionGeneration } from "./authLoginLogoutActions"; // Import logout function, deleteAllCookies, and bumpLoginSessionGeneration
+import {
+  logout,
+  deleteAllCookies,
+  bumpLoginSessionGeneration,
+  resetLocalLogoutState,
+} from "./authLoginLogoutActions"; // Import logout helpers
 import { setWebSocketToken, clearWebSocketToken } from "../utils/cookies"; // Import WebSocket token utilities
 import { notificationStore } from "./notificationStore"; // Import notification store for logout notifications
 import { loadUserProfileFromDB } from "./userProfile"; // Import to load user profile from IndexedDB
@@ -38,6 +43,7 @@ import { text } from "../i18n/translations"; // Import text store for translatio
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
 import { chatMetadataCache } from "../services/chatMetadataCache"; // Import chatMetadataCache to clear stale decrypted title/metadata cache on logout
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
+import { workflowWorkspaceStore } from "./workflowWorkspaceStore";
 import { isValidLocale } from "../i18n/types"; // Import to validate localStorage language values (OPE-39)
 import { clientLogForwarder } from "../services/clientLogForwarder"; // Admin live log streaming to OpenObserve
 import { appSettingsMemoriesStore } from "./appSettingsMemoriesStore"; // Import to pre-load entries for @ mention dropdown
@@ -812,43 +818,22 @@ export async function checkAuth(
           "[AuthSessionActions] Set isLoggingOut to true for session expiration logout",
         );
 
-        // CRITICAL: Dispatch logout event IMMEDIATELY to clear UI state (chats, etc.)
-        // This must happen before database deletion to ensure UI updates right away
+        // CRITICAL: Run the same synchronous local cleanup as manual logout.
+        // Auto session expiry can happen while Chats.svelte is unmounted (sidebar
+        // closed) or while ActiveChat still has a private chat in memory. Keeping
+        // this shared prevents future drift between manual and auto logout paths.
+        resetLocalLogoutState();
+
+        // CRITICAL: Dispatch logout event IMMEDIATELY to clear component-local UI
+        // state (currentMessages, fullscreen embeds, input draft, etc.). This must
+        // happen before database deletion to ensure UI updates right away.
         console.debug(
           "[AuthSessionActions] Dispatching userLoggingOut event to clear UI state immediately",
         );
         window.dispatchEvent(new CustomEvent("userLoggingOut"));
 
-        // CRITICAL: Clear in-memory chat caches IMMEDIATELY on session expiry
-        // The chatListCache singleton persists across component mounts/unmounts, so if Chats.svelte
-        // is destroyed (sidebar closed on mobile) when session expires, its authStore subscriber
-        // won't fire to clear the cache. Clearing here ensures stale chats never appear.
-        chatListCache.clear();
-        chatDB.clearAllChatKeys();
-        // CRITICAL: Clear the decrypted metadata cache (title, category, icon, etc.) to prevent
-        // stale entries (especially those with title: null from failed decryption during logout
-        // transition) from being served after re-login, causing "Untitled chat" in the sidebar.
-        chatMetadataCache.clearAll();
         console.debug(
-          "[AuthSessionActions] Cleared chatListCache, chatMetadataCache, and chatDB.chatKeys on session expiry",
-        );
-
-        // CRITICAL: Set isAuthenticated=false IMMEDIATELY to close the auth gate.
-        // Without this, WebSocket sync events that are still in-flight (phase_2, phase_3,
-        // phasedSyncComplete) fire after userLoggingOut clears allChatsFromDB, see
-        // isAuthenticated=true in updateChatListFromDBInternal, take the full authenticated
-        // path, call chatDB.getAllChats() on the not-yet-deleted database, and repopulate
-        // allChatsFromDB with all encrypted user chats — causing the "Untitled chats" sidebar
-        // pollution visible in the screenshot after a forced logout.
-        // Setting this here (before the async cleanup) ensures all subsequent DB read calls
-        // take the non-authenticated path (shared chats only → empty set).
-        authStore.update((state) => ({
-          ...state,
-          isAuthenticated: false,
-          isInitialized: true,
-        }));
-        console.debug(
-          "[AuthSessionActions] Set isAuthenticated=false immediately to prevent sync events from repopulating chat list",
+          "[AuthSessionActions] Completed shared local logout cleanup on session expiry",
         );
 
         // Clear shared chat keys in the background (async, non-blocking)
@@ -912,28 +897,6 @@ export async function checkAuth(
 
           // Close the login interface; ActiveChat returns to the new-chat screen.
           window.dispatchEvent(new CustomEvent("closeLoginInterface"));
-        }
-
-        // CRITICAL: Clear active chat to hide the previously open chat.
-        // This ensures the previous chat is not visible after logout.
-        // Small delay to ensure auth state changes are processed first
-        // OG image mode (?og=1): skip demo-for-everyone redirect so the welcome screen stays visible
-        const isOgImageModeLogout =
-          typeof window !== "undefined" &&
-          new URLSearchParams(window.location.search).get("og") === "1";
-        if (!isOgImageModeLogout) {
-          setTimeout(() => {
-            if (typeof window !== "undefined") {
-              activeChatStore.clearActiveChat();
-              console.debug(
-                "[AuthSessionActions] Cleared active chat after logout notification",
-              );
-            }
-          }, 50);
-        } else {
-          console.debug(
-            "[AuthSessionActions] Skipping demo-for-everyone redirect after logout — og=1 mode",
-          );
         }
 
         // Clear master key and all email data from storage
@@ -1044,6 +1007,7 @@ export async function checkAuth(
 
         // CRITICAL: Clear in-memory chat caches during orphaned database cleanup
         chatListCache.clear();
+        workflowWorkspaceStore.reset();
         chatDB.clearAllChatKeys();
         chatMetadataCache.clearAll();
         clearAllSharedChatKeys().catch(() => {});

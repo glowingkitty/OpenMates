@@ -14,7 +14,9 @@ import pytest
 from backend.shared.providers.brave.brave_search import (
     _get_brave_api_key_candidates,
     _request_with_429_retry,
+    search_web,
 )
+from backend.shared.testing.mock_context import activate_mock_mode, deactivate_mock_mode
 
 
 class _FakeSecretsManager:
@@ -120,3 +122,27 @@ async def test_candidate_order_uses_one_default_then_explicit_paid(monkeypatch: 
         ("vault:brave:default", "free-vault-key"),
         ("vault:brave:paid", "paid-vault-key"),
     ]
+
+
+@pytest.mark.asyncio
+async def test_live_mock_zero_result_group_forces_empty_web_results(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+    monkeypatch.setenv("MOCK_EXTERNAL_APIS", "true")
+    activate_mock_mode("mock", "web_search_zero_results")
+    secrets_manager = _FakeSecretsManager({})
+
+    try:
+        result = await search_web(
+            "xyznonexistentproduct123456 lokale API MQTT",
+            secrets_manager=secrets_manager,
+        )
+    finally:
+        deactivate_mock_mode()
+
+    assert result == {
+        "query": "xyznonexistentproduct123456 lokale API MQTT",
+        "results": [],
+        "web": {"total_results": 0, "count": 0},
+        "error": None,
+        "sanitize_output": True,
+    }

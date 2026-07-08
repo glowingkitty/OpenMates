@@ -10,6 +10,7 @@
 
 <script lang="ts">
   import type { ChoiceQuestionData, ChoiceResponse } from '../types';
+  import InteractiveQuestionEmbeds from '../InteractiveQuestionEmbeds.svelte';
 
   let {
     data,
@@ -106,6 +107,15 @@
     updateSelection(nextSelectedIds, nextCustomAnswer);
   }
 
+  function isEmbedPreviewEvent(event: Event): boolean {
+    return event.target instanceof HTMLElement && !!event.target.closest('.interactive-question-embeds');
+  }
+
+  function handleOptionClick(event: MouseEvent, optionId: string) {
+    if (isEmbedPreviewEvent(event)) return;
+    handleSelect(optionId);
+  }
+
   function handleCustomInput(val: string) {
     if (disabled) return;
     updateSelection(selectedIds, val);
@@ -113,11 +123,15 @@
 
   // Handle keyboard interaction for accessibility
   function handleKeyDown(event: KeyboardEvent, optionId: string) {
-    if (disabled) return;
+    if (disabled || isEmbedPreviewEvent(event)) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       handleSelect(optionId);
     }
+  }
+
+  function optionEmbedIds(option: ChoiceQuestionData['options'][number]): string[] {
+    return option.embed_ids ?? (option.embed_id ? [option.embed_id] : []);
   }
 </script>
 
@@ -132,7 +146,7 @@
         data-testid={`interactive-question-option-${option.id}`}
         role="button"
         tabindex="0"
-        onclick={() => handleSelect(option.id)}
+        onclick={(event) => handleOptionClick(event, option.id)}
         onkeydown={(e) => handleKeyDown(e, option.id)}
       >
         <div class="indicator-wrapper">
@@ -152,7 +166,10 @@
             </div>
           {/if}
         </div>
-        <div class="option-text">{option.text}</div>
+        <div class="option-content">
+          <div class="option-text">{option.text}</div>
+          <InteractiveQuestionEmbeds embedIds={optionEmbedIds(option)} />
+        </div>
       </div>
       {#if isSelected && isCustomOption(option)}
         <input
@@ -259,6 +276,13 @@
     font-size: var(--font-size-p, 15px);
     line-height: 1.4;
     color: var(--color-font-primary, #212529);
+  }
+
+  .option-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
   }
 
   .custom-answer-input {

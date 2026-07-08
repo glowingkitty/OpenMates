@@ -70,6 +70,7 @@ const {
 
 const { loginToTestAccount, deleteActiveChat } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
+const { captureComposerEmbedContract } = require('./helpers/apple-ui-contract-helpers');
 
 // ─── Log buckets ─────────────────────────────────────────────────────────────
 // All console messages captured for failure diagnostics.
@@ -264,6 +265,11 @@ test('attaches a PNG image, shows embed preview in editor, and appears in chat a
 	}).toPass({ timeout: 20000 });
 
 	log('Image embed (embed-full-width-wrapper) appeared in editor.');
+	await captureComposerEmbedContract(page, {
+		id: 'composer-pending-image-upload',
+		embedType: 'image',
+		screenshot: true
+	});
 	await screenshot(page, 'embed-in-editor');
 
 	// Add some text. Use keyboard.press('End') to position cursor without clicking
@@ -370,6 +376,11 @@ test('attaches a Python code file, renders a code embed, and sends without JSON 
 		'[data-testid="embed-full-width-wrapper"][data-embed-type="code-code"]'
 	);
 	await expect(codeEmbedInEditor).toBeVisible({ timeout: 20000 });
+	await captureComposerEmbedContract(page, {
+		id: 'composer-pending-code-upload',
+		embedType: 'code-code',
+		screenshot: true
+	});
 	await expect(editor).not.toContainText('```json');
 	await expect(editor).not.toContainText('"embed_id"');
 

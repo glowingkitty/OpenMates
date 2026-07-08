@@ -5,7 +5,7 @@ last_verified: 2026-06-22
 
 # OpenMates SDKs
 
-OpenMates provides JavaScript and Python SDKs for API-key access to app skills and encrypted chat workflows.
+OpenMates provides JavaScript and Python SDKs for API-key access to app skills, encrypted chat workflows, and CLI-parity account/product operations.
 
 ## API Keys
 
@@ -32,7 +32,7 @@ import { OpenMates } from "openmates";
 
 const om = new OpenMates({ apiKey: process.env.OPENMATES_API_KEY });
 
-const search = await om.apps.run("web", "search", {
+const search = await om.apps.web.search({
   requests: [{ query: "OpenMates SDK examples" }],
 });
 ```
@@ -49,16 +49,25 @@ const allChats = await om.chats.list({ limit: 0 });
 Create a non-persistent chat. This is the default and does not save the transcript to your OpenMates account:
 
 ```ts
-const chat = await om.chats.create();
-const response = await chat.send("Summarize this release note draft.");
+const response = await om.chats.send("Summarize this release note draft.");
 ```
 
 Create a saved account chat explicitly:
 
 ```ts
-const chat = await om.chats.create({ saveToAccount: true });
-await chat.send("Create a project kickoff checklist.");
+await om.chats.send("Create a project kickoff checklist.", { saveToAccount: true });
 ```
+
+Use named namespaces for CLI-parity operations:
+
+```ts
+await om.account.info();
+await om.billing.overview();
+await om.billing.invoices();
+await om.docs.search("api keys");
+```
+
+SDK chat deletion/sharing, billing exports/downloads, connected-account import, encrypted memories, assistant feedback, and benchmarks are available through named SDK methods. Debug-log sharing remains CLI-only and returns a typed unavailable error in SDKs.
 
 ## Python
 
@@ -73,7 +82,7 @@ from openmates import OpenMates
 
 om = OpenMates()  # reads OPENMATES_API_KEY
 
-result = om.apps.run("web", "search", {
+result = om.apps.web.search({
     "requests": [{"query": "OpenMates SDK examples"}],
 })
 ```
@@ -88,16 +97,25 @@ all_chats = om.chats.list(limit=0)
 Create a non-persistent chat:
 
 ```python
-chat = om.chats.create()
-response = chat.send("Summarize this release note draft.")
+response = om.chats.send("Summarize this release note draft.")
 ```
 
 Create a saved account chat explicitly:
 
 ```python
-chat = om.chats.create(save_to_account=True)
-chat.send("Create a project kickoff checklist.")
+om.chats.send("Create a project kickoff checklist.", save_to_account=True)
 ```
+
+Use named namespaces for CLI-parity operations:
+
+```python
+om.account.info()
+om.billing.overview()
+om.billing.invoices()
+om.docs.search("api keys")
+```
+
+SDK chat deletion/sharing, billing exports/downloads, connected-account import, encrypted memories, assistant feedback, and benchmarks are available through named SDK methods. Debug-log sharing remains CLI-only and returns a typed unavailable error in SDKs.
 
 ## Scopes
 
@@ -110,7 +128,7 @@ Chat scopes are enforced server-side:
 - `chat:delete` allows deleting chats.
 - `chat:share` allows creating share links.
 
-App-skill scopes can allow all apps, specific apps, or specific skills such as `web:search`.
+App-skill scopes can allow all apps, specific apps, or specific skills such as `web:search`. SDK app skills are exposed as generated native methods such as `om.apps.web.search(...)` and `om.apps.images.generate(...)`; public docs do not promote a generic `apps.run(...)` escape hatch.
 
 Memory access requires `memory:read`. SDK callers must explicitly load and select memory IDs; the backend does not pause SDK requests to ask the user for memory-selection confirmation.
 

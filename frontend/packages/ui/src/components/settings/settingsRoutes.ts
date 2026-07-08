@@ -90,6 +90,9 @@ import SettingsAllApps from "./SettingsAllApps.svelte";
 import AppDetailsWrapper from "./AppDetailsWrapper.svelte";
 import SettingsMemoriesHub from "./SettingsMemoriesHub.svelte";
 
+// Projects
+import SettingsProjects from "./SettingsProjects.svelte";
+
 // Shared / Social
 import SettingsShared from "./SettingsShared.svelte";
 import SettingsShare from "./share/SettingsShare.svelte";
@@ -158,6 +161,8 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   "privacy/auto-deletion/chats": SettingsAutoDeletion,
   "privacy/auto-deletion/files": SettingsAutoDeletion,
   "privacy/share-debug-logs": SettingsShareDebugLogs,
+  // Projects — Project-specific remote source permissions and status
+  projects: SettingsProjects,
   // Mates
   mates: SettingsMates,
   // Billing & Usage
@@ -227,6 +232,7 @@ export const baseSettingsViews: Record<string, Component<any>> = {
   // Developers
   developers: SettingsDevelopers,
   "developers/api-keys": SettingsApiKeys,
+  "developers/api-keys/create": SettingsApiKeys,
   "developers/devices": SettingsDevices,
   "developers/webhooks": SettingsWebhooks,
   // Newsletter
@@ -259,6 +265,9 @@ export const baseSettingsViews: Record<string, Component<any>> = {
  * (apps/{app_id} and nested skill/focus/memory routes).
  */
 export { AppDetailsWrapper };
+
+/** Re-export Projects settings for dynamic projects/{projectId} routes. */
+export { SettingsProjects };
 
 /**
  * Re-export MateDetailsWrapper for use in the dynamic route builder

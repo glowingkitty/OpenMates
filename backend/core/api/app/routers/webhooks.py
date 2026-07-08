@@ -105,9 +105,14 @@ class WebhookCreateRequest(BaseModel):
 
 
 class WebhookResponse(BaseModel):
-    """Response for a single webhook record (encrypted fields excluded —
-    client decrypts via master key)."""
+    """Response for a single webhook record.
+
+    Display fields stay encrypted at rest and in transit; clients decrypt them
+    locally with the user's master key.
+    """
     id: str
+    encrypted_name: Optional[str] = None
+    encrypted_key_prefix: Optional[str] = None
     direction: str = "incoming"
     permissions: List[str] = []
     require_confirmation: bool = False
@@ -279,6 +284,8 @@ async def create_webhook(
 
     return WebhookResponse(
         id=created.get("id", ""),
+        encrypted_name=payload.encrypted_name,
+        encrypted_key_prefix=payload.encrypted_key_prefix,
         direction=payload.direction,
         permissions=payload.permissions,
         require_confirmation=payload.require_confirmation,
@@ -306,6 +313,8 @@ async def list_webhooks(
     for item in items:
         webhooks.append(WebhookResponse(
             id=item.get("id", ""),
+            encrypted_name=item.get("encrypted_name"),
+            encrypted_key_prefix=item.get("encrypted_key_prefix"),
             direction=item.get("direction", "incoming"),
             permissions=item.get("permissions") or [],
             require_confirmation=bool(item.get("require_confirmation", False)),
@@ -376,6 +385,8 @@ async def update_webhook(
     # Return updated record
     return WebhookResponse(
         id=webhook_id,
+        encrypted_name=(payload.encrypted_name if payload.encrypted_name is not None else target.get("encrypted_name")),
+        encrypted_key_prefix=target.get("encrypted_key_prefix"),
         direction=target.get("direction", "incoming"),
         permissions=target.get("permissions") or [],
         require_confirmation=payload.require_confirmation if payload.require_confirmation is not None else target.get("require_confirmation", False),

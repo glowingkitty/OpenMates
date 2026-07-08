@@ -183,16 +183,17 @@ test('daily inspiration chat: creates chat and allows follow-up message without 
 
 	// Feature inspirations open settings, and already-opened inspirations resume an
 	// existing chat. This regression needs a fresh inspiration chat creation path.
-	const startChatCta = page.getByText('Click to start chat').first();
+	const ctaText = page.getByTestId('daily-inspiration-cta-text').first();
 	for (let attempt = 0; attempt < 10; attempt += 1) {
-		if (await startChatCta.isVisible().catch(() => false)) break;
+		const text = ((await ctaText.textContent().catch(() => '')) || '').toLowerCase();
+		if (text.includes('start chat')) break;
 		await page.getByTestId('daily-inspiration-next').click();
 		await page.waitForTimeout(300);
 	}
-	await expect(startChatCta).toBeVisible({ timeout: 5000 });
+	await expect(ctaText).toContainText(/start chat/i, { timeout: 5000 });
 
 	// ── 9. Click the banner to create an inspiration chat ────────────────────
-	await startChatCta.click();
+	await ctaText.click();
 	log('Clicked the daily inspiration banner to start a chat.');
 
 	// The chat ID should appear in the URL within a few seconds

@@ -216,12 +216,12 @@ async def check_log_access() -> Tuple[bool, bool]:
     # ── 2. Production server (Admin Debug API) ────────────────────────────────
     prod_ok = False
     try:
-        from debug_utils import get_api_key_from_vault  # local import to avoid circular deps
-        api_key = await get_api_key_from_vault()
+        from debug_utils import get_admin_debug_api_key  # local import to avoid circular deps
+        api_key = await get_admin_debug_api_key("prod")
     except SystemExit:
-        # get_api_key_from_vault() calls sys.exit(1) if the key is missing
+        # get_admin_debug_api_key() calls sys.exit(1) if the key is missing
         print(_err("  Production logs — Admin API key not found in Vault"))
-        print(_c(DIM, "    See: SECRET__ADMIN__DEBUG_CLI__API_KEY setup in debugging-ref.md"))
+        print(_c(DIM, "    See: SECRET__ADMIN_DEBUG_CLI__PROD_API_KEY setup in .env.example"))
         api_key = None
     except Exception as exc:
         print(_err(f"  Production logs — Vault unreachable: {exc}"))
@@ -253,7 +253,7 @@ async def check_log_access() -> Tuple[bool, bool]:
                     print(_c(DIM, "    Fix: log in to production → Settings → Developers → Devices → approve the pending device."))
                 else:
                     print(_err(f"  Production logs — API key rejected (HTTP {resp.status_code})"))
-                    print(_c(DIM, "    Regenerate the key: admin user → API Keys → create new, update SECRET__ADMIN__DEBUG_CLI__API_KEY"))
+                    print(_c(DIM, "    Regenerate the key: prod admin user → API Keys → create new, update SECRET__ADMIN_DEBUG_CLI__PROD_API_KEY"))
             else:
                 print(_err(f"  Production logs — unexpected HTTP {resp.status_code} from {probe_url}"))
         except Exception as exc:
@@ -574,9 +574,9 @@ async def _fetch_prod_error_data(top: int = 5) -> dict:
     """
     result = {"api_reachable": False, "logs_working": False, "fingerprints": [], "error": ""}
     try:
-        from debug_utils import get_api_key_from_vault, PROD_API_URL
+        from debug_utils import get_admin_debug_api_key, PROD_API_URL
         try:
-            api_key = await get_api_key_from_vault()
+            api_key = await get_admin_debug_api_key("prod")
         except SystemExit:
             result["error"] = "Admin API key not found in Vault"
             return result
@@ -729,6 +729,7 @@ async def check_chat_health(
         from backend.core.api.app.services.directus.directus import DirectusService
         from backend.core.api.app.services.cache import CacheService
         from backend.core.api.app.utils.secrets_manager import SecretsManager
+        from backend.shared.python_utils.chat_version_integrity import assess_chat_version_integrity
 
         secrets = SecretsManager()
         await secrets.initialize()
@@ -755,8 +756,15 @@ async def check_chat_health(
         msg_count = len(msgs) if msgs else 0
         stored_v = chat.get('messages_v', 0)
         print(f"\n  Messages: {msg_count} (messages_v={stored_v})")
-        if msg_count != stored_v:
-            issues.append(f"messages_v mismatch: stored={stored_v}, actual={msg_count}")
+        version_integrity = assess_chat_version_integrity(
+            chat_id=chat_id,
+            stored_messages_v=stored_v,
+            durable_message_count=msg_count,
+        )
+        if version_integrity.is_mismatch:
+            issues.append(
+                f"messages_v mismatch: stored={stored_v}, actual={msg_count}, reason={version_integrity.reason}"
+            )
 
         # Embeds
         embeds = await directus.get_items("embeds", filters={"chat": {"_eq": chat_id}}, fields=["id", "status", "app_id", "skill_id"])
@@ -962,13 +970,14 @@ async def check_user_health(email: str) -> None:
 async def _remote_entity_health(entity_type: str, entity_id: str, dev: bool = False) -> None:
     """Fetch a quick health summary for an entity via the Admin Debug API."""
     try:
-        from backend.core.api.app.utils.secrets_manager import SecretsManager
-        secrets = SecretsManager()
-        await secrets.initialize()
+        from debug_utils import get_admin_debug_api_key
+        target = "dev" if dev else "prod"
         try:
-            api_key = await secrets.get_secret("kv/data/providers/admin", "debug_cli__api_key")
-        finally:
-            await secrets.aclose()
+            api_key = await get_admin_debug_api_key(target)
+        except SystemExit:
+            print(_err(f"  {target} Admin Debug API key not found in Vault"))
+            print()
+            return
 
         base_url = "https://api.dev.openmates.org/v1/admin/debug" if dev else "https://api.openmates.org/v1/admin/debug"
         url = f"{base_url}/{entity_type}/{entity_id}"

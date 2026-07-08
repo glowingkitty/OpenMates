@@ -1,6 +1,9 @@
 <!--
   GuestInterestTags.svelte — logged-out interest selector for smart welcome ranking.
 
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/App/MainAppView.swift
+
   This component persists guest selections only through topicPreferencesStore,
   which writes to sessionStorage. It emits every selection change so the parent
   can rerank inspirations and suggestion cards without sending interests to the
@@ -196,7 +199,6 @@
     flex-direction: column;
     gap: var(--spacing-2, 8px);
     width: 100%;
-    max-width: 1040px;
     margin: 10px auto 0;
     align-items: center;
     pointer-events: auto;
@@ -215,7 +217,7 @@
     scroll-behavior: smooth;
     overscroll-behavior-x: contain;
     touch-action: pan-x;
-    padding: 4px 12px 8px max(6px, calc(50% - var(--guest-interest-center-offset, 75px)));
+    padding: 8px max(6px, calc(50% - var(--guest-interest-center-offset, 75px))) 12px;
     box-sizing: border-box;
     justify-content: flex-start;
     scrollbar-width: none;
@@ -243,7 +245,7 @@
     width: auto;
     min-width: max-content;
     padding: 8px 11px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 3px 9px rgba(0, 0, 0, 0.12);
     opacity: 0.78;
     cursor: pointer;
     pointer-events: auto;
@@ -255,7 +257,7 @@
   .guest-interest-tag.active {
     opacity: 1;
     transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
   }
 
   .guest-interest-tag.active {
@@ -308,11 +310,7 @@
     font-weight: 650;
     cursor: pointer;
     text-decoration: none;
-  }
-
-  @media (max-width: 700px) {
-    .guest-interest-rail {
-      padding-right: max(6px, calc(50% - var(--guest-interest-center-offset, 75px)));
-    }
+    box-shadow: none;
+    filter: none;
   }
 </style>

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
 
@@ -8,7 +7,7 @@ export {};
  * Validates that the welcome screen UI elements update correctly when switching
  * languages via Settings → Interface → Language:
  *
- * 1. Suggestion cards (translate to the new locale, CJK languages visible)
+ * 1. Guest interest tags (translate to the new locale, CJK languages visible)
  * 2. Welcome description text (translates with locale)
  * 3. No missing translation keys after each switch
  *
@@ -45,7 +44,8 @@ const SELECTORS = {
 	englishMenuItem: '[role="menuitem"]:has-text("English")',
 
 	// Welcome screen elements
-	suggestionsWrapper: '[data-testid="suggestions-wrapper"]',
+	guestInterestTags: '[data-testid="guest-interest-tags"]',
+	guestInterestRail: '[data-testid="guest-interest-rail"]',
 	dailyInspirationLabel: '[data-testid="daily-inspiration-label"]',
 };
 
@@ -118,10 +118,10 @@ async function switchLanguage(
 }
 
 /**
- * Get all visible suggestion card text content.
+ * Get visible guest interest tag text content.
  */
-async function getSuggestionsText(page: any): Promise<string> {
-	const container = page.locator(SELECTORS.suggestionsWrapper);
+async function getInterestTagsText(page: any): Promise<string> {
+	const container = page.locator(SELECTORS.guestInterestRail);
 	const isVisible = await container.isVisible().catch(() => false);
 	if (!isVisible) return '';
 	return container.innerText();
@@ -202,16 +202,18 @@ test('welcome screen elements update when switching languages (EN → DE → JA 
 	// Step 2 — Verify English baseline
 	// ─────────────────────────────────────────────────────────────────────────
 
-	const enSuggestions = await getSuggestionsText(page);
-	log(`EN suggestions text (first 200): "${enSuggestions.slice(0, 200)}"`);
+	const enInterestTags = await getInterestTagsText(page);
+	log(`EN interest tags text (first 200): "${enInterestTags.slice(0, 200)}"`);
 
-	// Suggestions should be visible with English text
-	expect(enSuggestions.length).toBeGreaterThan(10);
-	log('✓ Suggestion cards visible with English text');
+	// Interest tags should be visible with English text
+	expect(enInterestTags.length).toBeGreaterThan(10);
+	expect(enInterestTags).toContain('privacy');
+	expect(enInterestTags).toContain('learning');
+	log('✓ Interest tags visible with English text');
 
 	// Verify English content somewhere on the page
 	const enPage = await getWelcomePageText(page);
-	expect(enPage).toContain('Digital team mates');
+	expect(enPage).toContain('What are your interests?');
 	log('✓ Welcome page contains English description');
 
 	await assertNoMissingTranslations(page);
@@ -227,19 +229,20 @@ test('welcome screen elements update when switching languages (EN → DE → JA 
 	await page.waitForTimeout(1500);
 	await takeScreenshot(page, '02-welcome-german');
 
-	const deSuggestions = await getSuggestionsText(page);
-	log(`DE suggestions text (first 200): "${deSuggestions.slice(0, 200)}"`);
+	const deInterestTags = await getInterestTagsText(page);
+	log(`DE interest tags text (first 200): "${deInterestTags.slice(0, 200)}"`);
 
-	// Suggestions should now be in German
-	expect(deSuggestions.length).toBeGreaterThan(10);
+	// Interest tags should now be in German
+	expect(deInterestTags.length).toBeGreaterThan(10);
 	// Verify at least some German text replaced English
-	expect(deSuggestions).not.toContain('What do you want to explore');
-	log('✓ Suggestion cards updated to German');
+	expect(deInterestTags).toContain('Lernen');
+	expect(deInterestTags).toContain('Softwareentwicklung');
+	log('✓ Interest tags updated to German');
 
 	// Page description should be in German
 	const dePage = await getWelcomePageText(page);
-	expect(dePage).toContain('Digitale Team-Mates');
-	expect(dePage).not.toContain('Digital team mates');
+	expect(dePage).toContain('Was sind deine Interessen?');
+	expect(dePage).not.toContain('What are your interests?');
 	log('✓ Welcome page description updated to German');
 
 	// Daily inspiration label (if visible)
@@ -264,20 +267,21 @@ test('welcome screen elements update when switching languages (EN → DE → JA 
 	await page.waitForTimeout(1500);
 	await takeScreenshot(page, '03-welcome-japanese');
 
-	// CRITICAL: Japanese suggestions must be visible (tests the CJK word count fix)
-	const jaSuggestions = await getSuggestionsText(page);
-	log(`JA suggestions text (first 200): "${jaSuggestions.slice(0, 200)}"`);
+	// CRITICAL: Japanese interest tags must be visible (tests the CJK word count fix)
+	const jaInterestTags = await getInterestTagsText(page);
+	log(`JA interest tags text (first 200): "${jaInterestTags.slice(0, 200)}"`);
 
-	expect(jaSuggestions.length).toBeGreaterThan(10);
+	expect(jaInterestTags.length).toBeGreaterThan(10);
 	// Verify it's not still showing German or English
-	expect(jaSuggestions).not.toContain('What do you want to explore');
-	expect(jaSuggestions).not.toContain('Was möchtest du');
-	log('✓ Suggestion cards visible with Japanese text (CJK word count fix works)');
+	expect(jaInterestTags).toContain('ソフトウェア開発');
+	expect(jaInterestTags).not.toContain('Softwareentwicklung');
+	log('✓ Interest tags visible with Japanese text (CJK word count fix works)');
 
 	// Page should contain Japanese text
 	const jaPage = await getWelcomePageText(page);
-	expect(jaPage).not.toContain('Digital team mates');
-	expect(jaPage).not.toContain('Digitale Team-Mates');
+	expect(jaPage).toContain('興味のあることは何ですか？');
+	expect(jaPage).not.toContain('What are your interests?');
+	expect(jaPage).not.toContain('Was sind deine Interessen?');
 	log('✓ Welcome page description updated to Japanese');
 
 	await assertNoMissingTranslations(page);
@@ -292,12 +296,13 @@ test('welcome screen elements update when switching languages (EN → DE → JA 
 	await page.waitForTimeout(1500);
 	await takeScreenshot(page, '04-welcome-english-reset');
 
-	const enResetSuggestions = await getSuggestionsText(page);
-	expect(enResetSuggestions.length).toBeGreaterThan(10);
-	log('✓ Suggestions reset to English');
+	const enResetInterestTags = await getInterestTagsText(page);
+	expect(enResetInterestTags.length).toBeGreaterThan(10);
+	expect(enResetInterestTags).toContain('privacy');
+	log('✓ Interest tags reset to English');
 
 	const enResetPage = await getWelcomePageText(page);
-	expect(enResetPage).toContain('Digital team mates');
+	expect(enResetPage).toContain('What are your interests?');
 	log('✓ Welcome page reset to English');
 
 	await assertNoMissingTranslations(page);

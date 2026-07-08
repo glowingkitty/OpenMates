@@ -19,7 +19,15 @@ from spec_validate import REPO_ROOT, SpecError, validate_spec
 
 
 PASS_STATUSES = {"passed", "passed_after_deploy"}
-FAIL_STATUSES = {"failed", "failed_as_expected"}
+RED_EVIDENCE_STATUSES = {
+    "failed",
+    "failed_as_expected",
+    "passed_unexpectedly",
+    "missing_test",
+    "skipped_with_reason",
+    "not_applicable",
+}
+FINAL_ACCEPTED_STATUSES = {"passed", "passed_after_deploy", "user_confirmed", "waived", "blocked"}
 
 
 def _phase_evidence(test: dict[str, Any], phase: str) -> dict[str, Any] | None:
@@ -37,9 +45,34 @@ def _evidence_status(evidence: dict[str, Any] | None) -> str | None:
     return status if isinstance(status, str) else None
 
 
+def _record_status(record: dict[str, Any]) -> str | None:
+    evidence = record.get("evidence")
+    if isinstance(evidence, dict):
+        status = _evidence_status(evidence)
+        if status:
+            return status
+    status = record.get("status")
+    return status if isinstance(status, str) else None
+
+
 def verify_spec(path: Path, *, require_red: bool, require_green: bool) -> list[str]:
     data = validate_spec(path)
     failures: list[str] = []
+
+    if require_green:
+        for criterion in data.get("acceptance_criteria", []) or []:
+            if criterion.get("required") is False:
+                continue
+            coverage_status = criterion.get("coverage_status")
+            if coverage_status in {"uncovered", "ambiguous"}:
+                failures.append(f"{criterion['id']}: coverage_status is {coverage_status}")
+
+        for assumption in data.get("assumptions", []) or []:
+            if assumption.get("required_before", "never") == "never":
+                continue
+            status = assumption.get("status")
+            if status in {"unchecked", "checking", "contradicted"}:
+                failures.append(f"{assumption['id']}: unresolved required assumption ({status})")
 
     for test in data.get("tests", []):
         test_id = test["id"]
@@ -48,13 +81,24 @@ def verify_spec(path: Path, *, require_red: bool, require_green: bool) -> list[s
 
         if require_red and red_phase.get("required"):
             red_status = _evidence_status(_phase_evidence(test, "red_phase"))
-            if red_status not in FAIL_STATUSES:
-                failures.append(f"{test_id}: missing red-phase failure evidence")
+            if red_status not in RED_EVIDENCE_STATUSES:
+                failures.append(f"{test_id}: missing red-phase evidence")
 
         if require_green and green_phase.get("required"):
             green_status = _evidence_status(_phase_evidence(test, "green_phase"))
             if green_status not in PASS_STATUSES:
                 failures.append(f"{test_id}: missing green-phase passing evidence")
+
+    for verification in data.get("verifications", []) or []:
+        verification_id = verification["id"]
+        if not verification.get("required_for_done"):
+            continue
+        phase = verification.get("phase", "final")
+        status = _record_status(verification)
+        if require_red and phase == "red" and status not in RED_EVIDENCE_STATUSES:
+            failures.append(f"{verification_id}: missing red-phase evidence")
+        if require_green and phase in {"green", "final"} and status not in FINAL_ACCEPTED_STATUSES:
+            failures.append(f"{verification_id}: missing required final evidence")
 
     return failures
 

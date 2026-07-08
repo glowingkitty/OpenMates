@@ -22,6 +22,7 @@
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../../utils/imageProxy';
   import { text } from '@repo/ui';
+  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   /**
    * Normalize a raw status value to one of the valid embed status strings.
@@ -109,7 +110,7 @@
     if (!storeResolved) {
       _localQuery = typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : '';
       localProvider = typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : 'Google';
-      localResults = Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : [];
+      localResults = extractSearchResultsFromContent(data.decodedContent);
       localStatus = normalizeStatus(data.embedData?.status ?? data.decodedContent?.status);
       localErrorMessage = typeof data.decodedContent?.error === 'string' ? data.decodedContent.error as string : '';
     }

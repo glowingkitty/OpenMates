@@ -136,4 +136,22 @@ test.describe('Demo chat embed rendering', () => {
 		);
 		await expect(authenticityBadge).toContainText('human judgment');
 	});
+
+	test('Urban Sports inline location link opens Fitness result fullscreen', async ({ page }) => {
+		test.setTimeout(90000);
+
+		await page.goto(getE2EDebugUrl('/#chat-id=example-urban-sports-fitness-studios'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+
+		const assistantMessage = page.getByTestId('message-assistant').first();
+		await expect(assistantMessage).toBeVisible({ timeout: 30000 });
+
+		const fenrizInlineLink = assistantMessage.getByRole('link', { name: 'Fenriz Gym' }).first();
+		await expect(fenrizInlineLink).toBeVisible({ timeout: 30000 });
+		await fenrizInlineLink.click();
+
+		const fitnessFullscreen = page.getByTestId('fitness-result-fullscreen');
+		await expect(fitnessFullscreen).toBeVisible({ timeout: 10000 });
+		await expect(fitnessFullscreen.getByText('Fenriz Gym', { exact: true })).toBeVisible({ timeout: 10000 });
+	});
 });

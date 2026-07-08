@@ -350,6 +350,7 @@ ai_ask_settings.follow_up_suggestions_enabled:
   cs: Návrhy doplňujících dotazů zapnuty.
   sv: Uppföljningsförslag aktiverade.
   he: הצעות להמשך הופעלו.
+  verified_by_human: []
 ai_ask_settings.follow_up_suggestions_disabled:
   context: Success toast when follow-up suggestions are disabled
   en: Follow-up suggestions disabled.
@@ -374,6 +375,7 @@ ai_ask_settings.follow_up_suggestions_disabled:
   cs: Návrhy doplňujících dotazů vypnuty.
   sv: Uppföljningsförslag inaktiverade.
   he: הצעות להמשך הושבתו.
+  verified_by_human: []
 ai_ask_settings.follow_up_suggestions_save_error:
   context: Error toast when follow-up suggestions preference cannot be saved
   en: Could not save follow-up suggestions setting.
@@ -398,6 +400,7 @@ ai_ask_settings.follow_up_suggestions_save_error:
   cs: Nepodařilo se uložit nastavení návrhů doplňujících dotazů.
   sv: Kunde inte spara inställningen för uppföljningsförslag.
   he: לא ניתן היה לשמור את הגדרת ההצעות להמשך.
+  verified_by_human: []
 ai_ask_settings.quick_tips:
   context: Label for quick tips toggle
   en: Quick tips
@@ -422,6 +425,7 @@ ai_ask_settings.quick_tips:
   cs: Rychlé tipy
   sv: Snabbtips
   he: טיפים מהירים
+  verified_by_human: []
 ai_ask_settings.quick_tips_description:
   context: Description for quick tips toggle
   en: Shows occasional product tips after assistant replies. Turn this off if you do not want OpenMates to generate quick tip cards.
@@ -446,6 +450,7 @@ ai_ask_settings.quick_tips_description:
   cs: Po odpovědích asistenta občas zobrazí tipy k produktu. Vypni tuto možnost, pokud nechceš, aby OpenMates generoval karty s rychlými tipy.
   sv: Visar tillfälliga produkttips efter assistentens svar. Stäng av detta om du inte vill att OpenMates ska generera snabbtipskort.
   he: מציג מדי פעם טיפים על המוצר לאחר תשובות העוזר. כבה אפשרות זו אם אינך רוצה ש-OpenMates יפיק כרטיסי טיפים מהירים.
+  verified_by_human: []
 ai_ask_settings.quick_tips_enabled:
   context: Success toast when quick tips are enabled
   en: Quick tips enabled.
@@ -470,6 +475,7 @@ ai_ask_settings.quick_tips_enabled:
   cs: Rychlé tipy zapnuty.
   sv: Snabbtips aktiverade.
   he: הטיפים המהירים הופעלו.
+  verified_by_human: []
 ai_ask_settings.quick_tips_disabled:
   context: Success toast when quick tips are disabled
   en: Quick tips disabled.
@@ -494,6 +500,7 @@ ai_ask_settings.quick_tips_disabled:
   cs: Rychlé tipy vypnuty.
   sv: Snabbtips inaktiverade.
   he: הטיפים המהירים הושבתו.
+  verified_by_human: []
 ai_ask_settings.quick_tips_save_error:
   context: Error toast when quick tips preference cannot be saved
   en: Could not save quick tips setting.
@@ -518,6 +525,7 @@ ai_ask_settings.quick_tips_save_error:
   cs: Nepodařilo se uložit nastavení rychlých tipů.
   sv: Kunde inte spara inställningen för snabbtips.
   he: לא ניתן היה לשמור את הגדרת הטיפים המהירים.
+  verified_by_human: []
 ai_ask_settings.manual_select_note:
   context: Note about manual model selection via @ mention
   en: You can always manually select a model using @mention in the chat.

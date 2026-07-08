@@ -10,12 +10,16 @@ export {};
 
 const path = require('path');
 const { test, expect } = require('./helpers/cookie-audit');
-const { getE2EDebugUrl } = require('./signup-flow-helpers');
+const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
+const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+const { skipWithoutCredentials } = require('./helpers/env-guard');
 const {
 	captureContractState,
 	createContract,
 	writeContractArtifact
 } = require('./helpers/apple-ui-contract-helpers');
+
+const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
 test.use({
 	viewport: { width: 390, height: 844 },
@@ -38,9 +42,9 @@ const DEFAULT_ELEMENTS = [
 async function openUsableComposer(page: any): Promise<void> {
 	await page.goto(getE2EDebugUrl('/'));
 	await page.waitForLoadState('load');
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 15000
-	});
+	// Logged-out users now land on the guest welcome composer instead of an
+	// auto-opened demo chat hash. Public demo chats still expose the full-width
+	// CTA, so click it only when that state is present.
 	const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
 	if (await newChatButton.isVisible({ timeout: 10000 }).catch(() => false)) {
 		await newChatButton.click();
@@ -65,6 +69,8 @@ async function attachFiles(page: any, filePaths: string[]): Promise<void> {
 
 test('captures message input web UI contract for Apple parity', async ({ page }) => {
 	test.setTimeout(120000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	await loginToTestAccount(page);
 
 	await openUsableComposer(page);
 

@@ -18,18 +18,20 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from typing import Optional
-import json
 
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_directus_service, get_cache_service
 from backend.core.api.app.models.user import User
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.push_subscription_targets import (
+    merge_push_subscription_target,
+    remove_push_subscription_targets,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/push", tags=["Push Notifications"])
 notifications_router = APIRouter(prefix="/v1/notifications", tags=["Push Notifications"])
-
 
 # ---------------------------------------------------------------------------
 # Request / response models
@@ -58,6 +60,29 @@ class NativeDeviceRegisterRequest(BaseModel):
     environment: Optional[str] = None
     notification_public_key: Optional[str] = None
     encryption_version: Optional[str] = None
+
+
+async def _get_existing_subscription_json(
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    user_id: str,
+) -> Optional[str]:
+    cached_user = await cache_service.get_user_by_id(user_id)
+    subscription = cached_user.get("push_notification_subscription") if isinstance(cached_user, dict) else None
+    if isinstance(subscription, str):
+        return subscription
+
+    directus_user = await directus_service.get_user_fields_direct(
+        user_id,
+        ["push_notification_subscription"],
+    )
+    if directus_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not load existing push subscriptions",
+        )
+    subscription = directus_user.get("push_notification_subscription") if isinstance(directus_user, dict) else None
+    return subscription if isinstance(subscription, str) else None
 
 
 # ---------------------------------------------------------------------------
@@ -92,13 +117,16 @@ async def subscribe_push(
     Enables push notifications and stores the subscription endpoint + keys.
     """
     user_id = str(current_user.id)
-    subscription_json = json.dumps({
+    target = {
+        "type": "web",
         "endpoint": body.endpoint,
         "keys": body.keys,
         "expirationTime": body.expirationTime,
-    })
+    }
 
     try:
+        existing_subscription_json = await _get_existing_subscription_json(cache_service, directus_service, user_id)
+        subscription_json = merge_push_subscription_target(existing_subscription_json, target)
         updated = await directus_service.update_user(user_id, {
             "push_notification_enabled": True,
             "push_notification_subscription": subscription_json,
@@ -130,9 +158,11 @@ async def unsubscribe_push(
     user_id = str(current_user.id)
 
     try:
+        existing_subscription_json = await _get_existing_subscription_json(cache_service, directus_service, user_id)
+        subscription_json, push_enabled = remove_push_subscription_targets(existing_subscription_json, "web")
         updated = await directus_service.update_user(user_id, {
-            "push_notification_enabled": False,
-            "push_notification_subscription": None,
+            "push_notification_enabled": push_enabled,
+            "push_notification_subscription": subscription_json,
         })
         if not updated:
             raise HTTPException(status_code=500, detail="Failed to remove subscription")
@@ -170,16 +200,18 @@ async def register_native_device(
     if platform not in {"apns", "ios", "macos"}:
         raise HTTPException(status_code=400, detail="Unsupported native push platform")
 
-    subscription_json = json.dumps({
+    target = {
         "type": "apns",
         "token": token,
         "platform": platform,
         "environment": body.environment,
         "notification_public_key": body.notification_public_key,
         "encryption_version": body.encryption_version,
-    })
+    }
 
     try:
+        existing_subscription_json = await _get_existing_subscription_json(cache_service, directus_service, user_id)
+        subscription_json = merge_push_subscription_target(existing_subscription_json, target)
         updated = await directus_service.update_user(user_id, {
             "push_notification_enabled": True,
             "push_notification_subscription": subscription_json,

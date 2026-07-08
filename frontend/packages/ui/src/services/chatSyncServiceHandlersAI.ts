@@ -2071,6 +2071,19 @@ export async function handlePostProcessingCompletedImpl(
     top_recommended_apps_for_user?: string[]; // Optional: Top 5 recommended app IDs
     quick_tip_slugs?: string[]; // Optional: Product quick tip slugs selected during post-processing
     updated_chat_title?: string; // OPE-265: New title if conversation drifted from original topic
+    task_proposals?: Array<{
+      title: string;
+      description?: string | null;
+      status?: "backlog" | "todo" | "in_progress" | "blocked" | "done";
+      assignee_type?: "user" | "ai";
+    }>;
+    task_update_proposals?: Array<{
+      task_id: string;
+      title?: string | null;
+      description?: string | null;
+      status?: "backlog" | "todo" | "in_progress" | "blocked" | "done" | null;
+      assignee_type?: "user" | "ai" | null;
+    }>;
   },
 ): Promise<void> {
   console.info(
@@ -2325,6 +2338,8 @@ export async function handlePostProcessingCompletedImpl(
         taskId: payload.task_id,
         followUpSuggestions: payload.follow_up_request_suggestions,
         quickTipSlugs: payload.quick_tip_slugs || [],
+        taskProposals: payload.task_proposals || [],
+        taskUpdateProposals: payload.task_update_proposals || [],
         harmfulResponse: payload.harmful_response,
       },
     });

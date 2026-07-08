@@ -29,7 +29,7 @@ struct EmbedFullscreenView: View {
     @State private var restoreConfirmVersion: Int?
 
     private var embedType: EmbedType? {
-        EmbedType(rawValue: embed.type)
+        EmbedType.normalized(rawValue: embed.type)
     }
 
     var body: some View {

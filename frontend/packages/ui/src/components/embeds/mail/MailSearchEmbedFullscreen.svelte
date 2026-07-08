@@ -11,6 +11,7 @@
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
   import { sanitizeMailHtmlForRender, buildMailBodyPreviewText } from './mailSearchContent';
+  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   interface MailSearchResult {
     uid?: string;
@@ -55,7 +56,7 @@
   // Extract fields from data prop
   let query = $derived(typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : 'Recent emails');
   let provider = $derived(typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : '');
-  let results = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as MailSearchResult[] : []);
+  let results = $derived(extractSearchResultsFromContent(data.decodedContent) as MailSearchResult[]);
 
   let selectedIndex = $state(0);
   let selectedResult = $derived(results[selectedIndex] || null);

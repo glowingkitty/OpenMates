@@ -7,6 +7,9 @@ goal: >
   assistant follow-ups. Backend streaming must never persist malformed question
   blocks, and web, CLI, and Apple must render, answer, lock, and recover from
   interactive questions consistently without exposing protocol JSON to users.
+  Choice and swipe questions may include existing or newly generated content
+  embeds by stable `embed_id` reference, and clients must render those embeds
+  without duplicating embed content inside response protocol JSON.
 
 scope:
   in:
@@ -18,10 +21,15 @@ scope:
     - Web malformed-question fallback using translated `Failed to display question.` copy.
     - Apple native rendering and submission parity for choice, input, slider, swipe, and rating questions.
     - Apple routing for backend `awaiting_user_input` events and hidden rendering of `interactive_response` protocol fences.
+    - Choice option and swipe card `embed_ids` references for existing or newly generated content embeds.
+    - Web rendering of referenced embeds inside choice and swipe question controls using the normal embed preview/fullscreen behavior.
+    - CLI and Apple safe parity for choice/swipe embed references through structured payload parsing and ID-preserving responses.
   out:
     - Repairing existing malformed messages in storage.
     - Changing the encrypted message format or chat key design.
     - Adding new interactive question types beyond choice, input, slider, swipe, and rating.
+    - Embeds inside input fields, slider labels, or rating prompts in this slice.
+    - Persisting full code, document, sheet, or image bodies directly inside `interactive_question` or `interactive_response` JSON.
     - Replacing the general markdown renderer or chat transcript architecture.
     - Shipping Apple visual redesign unrelated to interactive question cards.
 
@@ -82,6 +90,8 @@ clarification:
       answer: Render a translated clear fallback, `Failed to display question.`, without storage repair.
     - question: "What implementation and verification order should be followed?"
       answer: Implement and test CLI/backend first, then web and its Playwright spec, then Apple last.
+    - question: "How should assistants include code, document, sheet, image, or other content embeds inside interactive questions?"
+      answer: Use `embed_id` references only. Existing embeds are referenced directly; newly generated content must first become a normal OpenMates embed and then be referenced by its resulting `embed_id`. For v1, embed references are supported on choice options and swipe cards only, and referenced embeds must render when present.
   vision_summary: >
     Interactive questions are a shared protocol, not web-only UI. Backend and CLI
     must be proven first because they define durable data and automation behavior;
@@ -152,6 +162,19 @@ scenarios:
       - Answered cards remain locked after reload.
       - Malformed payloads show translated `Failed to display question.`.
 
+  - id: S-6
+    title: Choice and swipe questions render referenced embeds
+    given:
+      - The assistant has an existing or newly generated content embed available by `embed_id`.
+      - Alice receives a choice or swipe interactive question whose option/card includes that `embed_id` in `embed_ids`.
+    when:
+      - Alice views the question, opens any embedded preview, answers, and reloads the chat.
+    then:
+      - The referenced embed renders with the normal OpenMates embed preview behavior inside the option/card.
+      - The user can still select the option or swipe the card without preview click targets corrupting the answer.
+      - The hidden `interactive_response` references selected option/card IDs and associated embed IDs, but does not duplicate embed content.
+      - Reloaded answered/locked cards still render their referenced embeds.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -186,12 +209,27 @@ acceptance_criteria:
   - id: AC-11
     scenario: S-5
     text: Apple routes `awaiting_user_input`, preserves answered state after reload, and shows translated malformed-question fallback.
+  - id: AC-12
+    scenario: S-6
+    text: Choice options and swipe cards accept `embed_ids` arrays of stable embed IDs while preserving text-only payload compatibility.
+  - id: AC-13
+    scenario: S-6
+    text: Web renders every referenced option/card embed with normal embed preview/fullscreen behavior and keeps choice/swipe selection controls usable.
+  - id: AC-14
+    scenario: S-6
+    text: Interactive responses for embed-backed choice/swipe questions include selected option/card IDs plus referenced embed IDs, never duplicated embed content.
+  - id: AC-15
+    scenario: S-6
+    text: CLI and Apple parse choice/swipe `embed_ids` and preserve them in structured waiting/response state with safe text fallback when native embed previews are unavailable.
 
 contracts:
   protocol:
     - name: interactive_question
       fence: "```interactive_question"
       payload: "{ type: choice|input|slider|swipe|rating, id: string, question: string, ...typeSpecificFields }"
+      choice_embed_refs: "choice.options[].embed_ids?: string[]"
+      swipe_embed_refs: "swipe.cards[].embed_ids?: string[]"
+      embed_ref_behavior: Existing or newly generated embeds are referenced only by stable `embed_id`; full embed content must remain in the normal embed store/pipeline.
       persistence: Must be closed and valid JSON to remain protocol content.
       malformed_behavior: Render translated fallback in clients; backend must not create new malformed persisted protocol content.
     - name: interactive_response
@@ -220,6 +258,8 @@ contracts:
   privacy_security:
     - Protocol JSON can remain encrypted in message content but must not be exposed as user-facing UI text.
     - CLI and Apple must use existing encrypted send/persistence paths; no plaintext answer cache outside existing chat storage.
+    - Interactive responses may reference selected embed IDs but must not copy embed content into response JSON.
+    - Clients must not render embed IDs that fail normal chat/user authorization or key resolution; missing embeds use the existing embed preview error state.
 
 tests:
   - id: T-BACKEND-001
@@ -229,10 +269,12 @@ tests:
     covers:
       - AC-1
       - AC-2
+      - AC-12
     assertions:
       - Valid interactive question content remains unchanged.
       - Unclosed or invalid interactive question content is downgraded before persistence.
       - Code/embed JSON after an open malformed interactive question is not converted into a visible trailing protocol leak.
+      - Choice and swipe `embed_ids` arrays are preserved when structurally valid and rejected when malformed.
     red_phase:
       required: true
       expected: fail
@@ -256,10 +298,13 @@ tests:
       - AC-3
       - AC-4
       - AC-5
+      - AC-14
+      - AC-15
     assertions:
       - TTY prompt formatting for all supported question types produces hidden protocol response plus answer-only display text.
       - JSON/non-TTY mode returns structured waiting-for-user output.
       - "`awaiting_user_input` with child chat_id and parent_id is routed to the active parent collector."
+      - Choice answers include selected option embed IDs in hidden protocol JSON without duplicating embed content.
     red_phase:
       required: true
       expected: fail
@@ -283,10 +328,13 @@ tests:
       - AC-6
       - AC-7
       - AC-8
+      - AC-12
+      - AC-14
     assertions:
       - "Response display text omits `Selected:` and hides the protocol fence."
       - Matching uses message order and does not let older answers lock newer reused ids.
       - Malformed payloads resolve to translated fallback state.
+      - Choice answers include selected option embed IDs in hidden protocol JSON without duplicating embed content.
     red_phase:
       required: true
       expected: fail
@@ -311,11 +359,13 @@ tests:
       - AC-6
       - AC-7
       - AC-8
+      - AC-13
     assertions:
       - Live chat question can be answered.
       - User bubble contains answer text only.
       - Reload preserves answered/locked state.
       - Malformed question preview renders translated fallback.
+      - Choice and swipe preview variants render referenced embed preview wrappers and remain selectable.
     red_phase:
       required: true
       expected: fail
@@ -339,11 +389,13 @@ tests:
       - AC-9
       - AC-10
       - AC-11
+      - AC-15
     assertions:
       - Markdown parser identifies interactive_question and hides interactive_response.
       - Response formatter produces answer-only display text plus hidden protocol content.
       - Answered-state detection survives reload from persisted messages.
       - WebSocket awaiting_user_input routes to app state.
+      - Choice option `embed_ids` decode into native structured payloads for native rendering or safe fallback.
     red_phase:
       required: true
       expected: fail

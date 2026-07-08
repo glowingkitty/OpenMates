@@ -143,11 +143,11 @@ async def _query_prod_audit(include_defaults: bool, as_json: bool) -> None:
     import aiohttp
 
     sys.path.insert(0, "/app/backend/scripts")
-    from debug_utils import get_api_key_from_vault
+    from debug_utils import get_admin_debug_api_key
 
     PROD_API_BASE = "https://api.openmates.org/v1/admin/debug"
 
-    api_key = await get_api_key_from_vault()
+    api_key = await get_admin_debug_api_key("prod")
     if not api_key:
         print("Cannot query production: no admin API key in Vault", file=sys.stderr)
         sys.exit(1)

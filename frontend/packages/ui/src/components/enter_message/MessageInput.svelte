@@ -78,10 +78,13 @@
     import { handleSend } from './handlers/sendHandlers';
     import MentionDropdown from './MentionDropdown.svelte';
     import {
+        buildProjectMentionSyntax,
         extractMentionQuery,
         type AnyMentionResult,
-        type MateMentionResult
+        type MateMentionResult,
+        type ProjectMentionResult
     } from './services/mentionSearchService';
+    import type { GenericMentionType, ProjectMentionAccessMode } from './extensions/GenericMentionNode';
     import {
         handleDrop as handleFileDrop,
         handleDragOver as handleFileDragOver,
@@ -108,7 +111,7 @@
         handleRecordMouseLeave as handleRecordMouseLeaveLogic,
         handleRecordTouchStart as handleRecordTouchStartLogic,
         handleRecordTouchEnd as handleRecordTouchEndLogic,
-        handleStopRecordingCleanup
+        handleStopRecordingCleanup as cleanupRecordingState
     } from './handlers/recordingHandlers';
     
     // PII Detection
@@ -228,6 +231,7 @@
     let scrollableContent: HTMLElement;
     let messageInputWrapper: HTMLElement;
     let recordAudioComponent = $state<RecordAudio>();
+    let recordAudioStartedFromKeyboard = $state(false);
 
     // --- Local UI State ---
     let showCamera = $state(false);
@@ -2246,6 +2250,10 @@
         }
     }
 
+    function isProjectMentionType(type: string): type is ProjectMentionResult['type'] {
+        return type === 'project' || type === 'project_folder' || type === 'project_file';
+    }
+
     /**
      * Handle selection of a mention result from the dropdown.
      * Replaces the @query with a styled mention node (for models) or mention syntax (for others).
@@ -2343,17 +2351,22 @@
             // Use generic mention node for skills, focus modes, and settings/memories
             // Shows @Code-Get-Docs, @Web-Research, @Code-Projects but serializes to backend syntax
             // Extract color gradient for the app-specific styling
-            const genericResult = result as import('./services/mentionSearchService').SkillMentionResult | import('./services/mentionSearchService').FocusModeMentionResult | import('./services/mentionSearchService').SettingsMemoryMentionResult | import('./services/mentionSearchService').SettingsMemoryEntryMentionResult;
+            const genericResult = result as import('./services/mentionSearchService').SkillMentionResult | import('./services/mentionSearchService').FocusModeMentionResult | import('./services/mentionSearchService').SettingsMemoryMentionResult | import('./services/mentionSearchService').SettingsMemoryEntryMentionResult | ProjectMentionResult;
+            const projectResult = isProjectMentionType(result.type) ? result as ProjectMentionResult : null;
             editor
                 .chain()
                 .focus()
                 .deleteRange({ from: atDocPosition, to: from })
                 .setGenericMention({
-                    mentionType: result.type as 'skill' | 'focus_mode' | 'settings_memory' | 'settings_memory_entry',
+                    mentionType: result.type as GenericMentionType,
                     displayName: result.mentionDisplayName,
                     mentionSyntax: result.mentionSyntax,
-                    colorStart: genericResult.colorStart,
-                    colorEnd: genericResult.colorEnd
+                    mentionId: crypto.randomUUID(),
+                    projectId: projectResult?.projectId,
+                    projectPath: projectResult?.projectPath,
+                    projectAccessMode: projectResult?.projectAccessMode,
+                    colorStart: 'colorStart' in genericResult ? genericResult.colorStart : undefined,
+                    colorEnd: 'colorEnd' in genericResult ? genericResult.colorEnd : undefined
                 })
                 .insertContent(' ')
                 .run();
@@ -3534,6 +3547,70 @@
         triggerSaveDraft(currentChatId);
     }
 
+    function findProjectMentionById(mentionId: string): { node: ProseMirrorNode; pos: number } | null {
+        if (!editor || editor.isDestroyed) return null;
+        let found: { node: ProseMirrorNode; pos: number } | null = null;
+        editor.state.doc.descendants((node: ProseMirrorNode, pos: number) => {
+            if (found || node.type.name !== 'genericMention') return false;
+            if (node.attrs?.mentionId === mentionId && isProjectMentionType(node.attrs?.mentionType)) {
+                found = { node, pos };
+                return false;
+            }
+            return true;
+        });
+        return found;
+    }
+
+    function toggleProjectMentionAccess(chip: HTMLElement) {
+        if (!editor || editor.isDestroyed) return;
+        const mentionElement = chip.closest('[data-type="generic-mention"]') as HTMLElement | null;
+        const mentionId = mentionElement?.getAttribute('data-mention-id');
+        if (!mentionId) return;
+
+        const found = findProjectMentionById(mentionId);
+        if (!found) return;
+
+        const currentMode: ProjectMentionAccessMode = found.node.attrs.projectAccessMode === 'read_write' ? 'read_write' : 'read';
+        const nextMode: ProjectMentionAccessMode = currentMode === 'read_write' ? 'read' : 'read_write';
+        const mentionType = found.node.attrs.mentionType as ProjectMentionResult['type'];
+        const mentionSyntax = buildProjectMentionSyntax(
+            mentionType,
+            String(found.node.attrs.projectId),
+            nextMode,
+            typeof found.node.attrs.projectPath === 'string' ? found.node.attrs.projectPath : undefined,
+        );
+
+        editor.view.dispatch(
+            editor.state.tr.setNodeMarkup(found.pos, undefined, {
+                ...found.node.attrs,
+                projectAccessMode: nextMode,
+                mentionSyntax,
+            }),
+        );
+        updateOriginalMarkdown(editor);
+        hasContent = !isContentEmptyExceptMention(editor);
+        lastEditorUpdateText = editor.getText();
+        triggerSaveDraft(currentChatId);
+        editor.commands.focus('end');
+    }
+
+    function handleMessageWrapperClick(event: MouseEvent) {
+        const chip = (event.target as HTMLElement).closest('[data-testid="project-access-chip"]') as HTMLElement | null;
+        if (!chip) return;
+        event.preventDefault();
+        event.stopPropagation();
+        toggleProjectMentionAccess(chip);
+    }
+
+    function handleMessageWrapperKeyDown(event: KeyboardEvent) {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        const chip = (event.target as HTMLElement).closest('[data-testid="project-access-chip"]') as HTMLElement | null;
+        if (!chip) return;
+        event.preventDefault();
+        event.stopPropagation();
+        toggleProjectMentionAccess(chip);
+    }
+
     /**
      * Prevent blur when clicking on UI elements within the message input wrapper
      * This allows users to click on action buttons and other controls without losing focus
@@ -4406,7 +4483,7 @@
         }
     }
 
-    type RecordingShortcutEvent = CustomEvent<{ action: 'start' | 'stop' | 'cancel' }>;
+    type RecordingShortcutEvent = CustomEvent<{ action: 'start' | 'stop' | 'cancel'; source?: 'keyboard' }>;
 
     function getKeyboardRecordStartPosition(): { x: number; y: number } {
         const recordButton = messageInputWrapper?.querySelector('[data-testid="record-audio-button"]') as HTMLElement | null;
@@ -4429,6 +4506,7 @@
         const action = event.detail.action;
         if (action === 'start') {
             if ($recordingState.isRecordButtonPressed || $recordingState.showRecordAudioUI) return;
+            recordAudioStartedFromKeyboard = event.detail.source === 'keyboard';
             const position = getKeyboardRecordStartPosition();
             const syntheticMouseDown = new MouseEvent('mousedown', {
                 button: 0,
@@ -4440,6 +4518,7 @@
         }
 
         await tick();
+        recordAudioStartedFromKeyboard = false;
         if (action === 'stop') {
             handleRecordMouseUpLogic(recordAudioComponent);
         } else {
@@ -4491,9 +4570,15 @@
         tick().then(updateHeight);
     }
 
+    function handleStopRecordingCleanup() {
+        recordAudioStartedFromKeyboard = false;
+        cleanupRecordingState();
+    }
+
     // --- Handlers to bridge ActionButtons events to recordingHandlers ---
     // These now extract the original event from the detail payload
     function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+        recordAudioStartedFromKeyboard = false;
         handleRecordMouseDownLogic(event.detail.originalEvent);
     }
     async function onRecordMouseUp(_event: CustomEvent<{ originalEvent: MouseEvent }>) {
@@ -4515,6 +4600,7 @@
         handleRecordMouseLeaveLogic(recordAudioComponent);
     }
     function onRecordTouchStart(event: CustomEvent<{ originalEvent: TouchEvent }>) {
+        recordAudioStartedFromKeyboard = false;
         handleRecordTouchStartLogic(event.detail.originalEvent);
     }
     async function onRecordTouchEnd(_event: CustomEvent<{ originalEvent: TouchEvent }>) {
@@ -5000,6 +5086,8 @@
     class:start-new-chat-only={startNewChatOnClick}
     role="none"
     onmousedown={handleMessageWrapperMouseDown}
+    onclick={handleMessageWrapperClick}
+    onkeydown={handleMessageWrapperKeyDown}
     data-action="message-input"
     data-current-chat-id={currentChatId ?? 'new-chat'}
 >
@@ -5306,6 +5394,7 @@
             <RecordAudio
                 bind:this={recordAudioComponent}
                 initialPosition={$recordingState.recordStartPosition}
+                startedFromKeyboard={recordAudioStartedFromKeyboard}
                 on:audiorecorded={handleAudioRecorded}
                 on:close={handleStopRecordingCleanup}
                 on:cancel={handleStopRecordingCleanup}

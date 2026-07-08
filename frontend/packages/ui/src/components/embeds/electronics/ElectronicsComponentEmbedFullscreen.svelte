@@ -8,6 +8,7 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
 
   interface ElectronicsComponentResult {
@@ -38,7 +39,8 @@
   }
 
   interface Props {
-    component: ElectronicsComponentResult;
+    component?: ElectronicsComponentResult;
+    data?: EmbedFullscreenRawData;
     embedId?: string;
     onClose: () => void;
     hasPreviousEmbed?: boolean;
@@ -49,6 +51,7 @@
 
   let {
     component,
+    data,
     embedId,
     onClose,
     hasPreviousEmbed = false,
@@ -56,6 +59,67 @@
     onNavigatePrevious,
     onNavigateNext,
   }: Props = $props();
+
+  function asString(value: unknown): string | undefined {
+    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+  }
+
+  function asNumber(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return null;
+  }
+
+  function asBoolean(value: unknown): boolean | null {
+    if (typeof value === 'boolean') return value;
+    if (value === 'true' || value === '1' || value === 1) return true;
+    if (value === 'false' || value === '0' || value === 0) return false;
+    return null;
+  }
+
+  function componentFromData(
+    rawData: EmbedFullscreenRawData | undefined,
+    fallbackEmbedId: string | undefined,
+  ): ElectronicsComponentResult {
+    const content = rawData?.decodedContent ?? {};
+    const embedData = rawData?.embedData ?? {};
+    const attrs = rawData?.attrs ?? {};
+
+    return {
+      embed_id:
+        asString(content.embed_id) ||
+        asString(embedData.embed_id) ||
+        asString(attrs.id) ||
+        fallbackEmbedId ||
+        'electronics-component',
+      title: asString(content.title),
+      part_number: asString(content.part_number),
+      base_part_number: asString(content.base_part_number),
+      provider: asString(content.provider) || 'TI WEBENCH',
+      topology: asString(content.topology) || null,
+      package: asString(content.package) || null,
+      regulator_type: asString(content.regulator_type) || null,
+      control_mode: asString(content.control_mode) || null,
+      product_url: asString(content.product_url),
+      datasheet_url: asString(content.datasheet_url),
+      description: asString(content.description) || null,
+      bom_cost_usd: asNumber(content.bom_cost_usd),
+      bom_count: asNumber(content.bom_count),
+      efficiency_percent: asNumber(content.efficiency_percent),
+      footprint_mm2: asNumber(content.footprint_mm2),
+      frequency_hz: asNumber(content.frequency_hz),
+      max_output_current_a: asNumber(content.max_output_current_a),
+      output_ripple_vpp: asNumber(content.output_ripple_vpp),
+      input_voltage_min_v: asNumber(content.input_voltage_min_v),
+      input_voltage_max_v: asNumber(content.input_voltage_max_v),
+      output_voltage_min_v: asNumber(content.output_voltage_min_v),
+      output_voltage_max_v: asNumber(content.output_voltage_max_v),
+      isolated: asBoolean(content.isolated),
+    };
+  }
 
   function formatNumber(value: number | null | undefined, suffix = ''): string {
     if (value == null || !Number.isFinite(value)) return '';
@@ -67,25 +131,35 @@
     return { label, value };
   }
 
-  let title = $derived(component.part_number || component.base_part_number || component.title || 'Component');
-  let subtitle = $derived([component.topology, component.package, component.provider || 'TI WEBENCH'].filter(Boolean).join(' / '));
+  let componentData = $derived(component ?? componentFromData(data, embedId));
+  let title = $derived(componentData.part_number || componentData.base_part_number || componentData.title || 'Component');
+  let subtitle = $derived([componentData.topology, componentData.package, componentData.provider || 'TI WEBENCH'].filter(Boolean).join(' / '));
   let performanceDetails = $derived([
-    detail($text('embeds.electronics.efficiency'), formatNumber(component.efficiency_percent, '%')),
-    detail($text('embeds.electronics.bom_cost'), formatNumber(component.bom_cost_usd, ' USD')),
-    detail($text('embeds.electronics.bom_count'), component.bom_count == null ? '' : String(component.bom_count)),
-    detail($text('embeds.electronics.footprint'), formatNumber(component.footprint_mm2, ' mm2')),
-    detail($text('embeds.electronics.frequency'), formatNumber(component.frequency_hz, ' Hz')),
-    detail($text('embeds.electronics.output_current'), formatNumber(component.max_output_current_a, ' A')),
-    detail($text('embeds.electronics.output_ripple'), formatNumber(component.output_ripple_vpp, ' Vpp')),
+    detail($text('embeds.electronics.efficiency'), formatNumber(componentData.efficiency_percent, '%')),
+    detail($text('embeds.electronics.bom_cost'), formatNumber(componentData.bom_cost_usd, ' USD')),
+    detail($text('embeds.electronics.bom_count'), componentData.bom_count == null ? '' : String(componentData.bom_count)),
+    detail($text('embeds.electronics.footprint'), formatNumber(componentData.footprint_mm2, ' mm2')),
+    detail($text('embeds.electronics.frequency'), formatNumber(componentData.frequency_hz, ' Hz')),
+    detail($text('embeds.electronics.output_current'), formatNumber(componentData.max_output_current_a, ' A')),
+    detail($text('embeds.electronics.output_ripple'), formatNumber(componentData.output_ripple_vpp, ' Vpp')),
   ].filter((item): item is { label: string; value: string } => item != null));
 
   let electricalDetails = $derived([
-    detail($text('embeds.electronics.input_voltage'), `${formatNumber(component.input_voltage_min_v, ' V')} - ${formatNumber(component.input_voltage_max_v, ' V')}`.trim()),
-    detail($text('embeds.electronics.output_voltage'), `${formatNumber(component.output_voltage_min_v, ' V')} - ${formatNumber(component.output_voltage_max_v, ' V')}`.trim()),
-    detail($text('embeds.electronics.topology'), component.topology || ''),
-    detail($text('embeds.electronics.regulator_type'), component.regulator_type || ''),
-    detail($text('embeds.electronics.control_mode'), component.control_mode || ''),
-    detail($text('embeds.electronics.isolated'), component.isolated == null ? '' : (component.isolated ? $text('embeds.electronics.yes') : $text('embeds.electronics.no'))),
+    detail(
+      $text('embeds.electronics.input_voltage'),
+      `${formatNumber(componentData.input_voltage_min_v, ' V')} - ${formatNumber(componentData.input_voltage_max_v, ' V')}`.trim(),
+    ),
+    detail(
+      $text('embeds.electronics.output_voltage'),
+      `${formatNumber(componentData.output_voltage_min_v, ' V')} - ${formatNumber(componentData.output_voltage_max_v, ' V')}`.trim(),
+    ),
+    detail($text('embeds.electronics.topology'), componentData.topology || ''),
+    detail($text('embeds.electronics.regulator_type'), componentData.regulator_type || ''),
+    detail($text('embeds.electronics.control_mode'), componentData.control_mode || ''),
+    detail(
+      $text('embeds.electronics.isolated'),
+      componentData.isolated == null ? '' : (componentData.isolated ? $text('embeds.electronics.yes') : $text('embeds.electronics.no')),
+    ),
   ].filter((item): item is { label: string; value: string } => item != null && item.value !== ' -'));
 </script>
 
@@ -104,25 +178,28 @@
   {onNavigateNext}
 >
   {#snippet embedHeaderCta()}
-    {#if component.product_url}
-      <EmbedHeaderCtaButton label={$text('embeds.open_on_provider').replace('{provider}', component.provider || 'TI')} href={component.product_url} />
+    {#if componentData.product_url}
+      <EmbedHeaderCtaButton
+        label={$text('embeds.open_on_provider').replace('{provider}', componentData.provider || 'TI')}
+        href={componentData.product_url}
+      />
     {/if}
   {/snippet}
 
   {#snippet content()}
     <div class="component-fullscreen">
       <section class="hero-card">
-        <div class="eyebrow">{component.provider || 'TI WEBENCH'}</div>
+        <div class="eyebrow">{componentData.provider || 'TI WEBENCH'}</div>
         <h2>{title}</h2>
-        {#if component.description}
-          <p>{component.description}</p>
+        {#if componentData.description}
+          <p>{componentData.description}</p>
         {/if}
         <div class="link-row">
-          {#if component.product_url}
-            <a href={component.product_url} target="_blank" rel="noopener noreferrer">{$text('embeds.electronics.product_page')}</a>
+          {#if componentData.product_url}
+            <a href={componentData.product_url} target="_blank" rel="noopener noreferrer">{$text('embeds.electronics.product_page')}</a>
           {/if}
-          {#if component.datasheet_url}
-            <a href={component.datasheet_url} target="_blank" rel="noopener noreferrer">{$text('embeds.electronics.datasheet')}</a>
+          {#if componentData.datasheet_url}
+            <a href={componentData.datasheet_url} target="_blank" rel="noopener noreferrer">{$text('embeds.electronics.datasheet')}</a>
           {/if}
         </div>
       </section>

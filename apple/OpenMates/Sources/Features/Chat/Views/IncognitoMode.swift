@@ -8,6 +8,14 @@ final class IncognitoManager: ObservableObject {
     @Published var isEnabled = false
     @Published var sessionMessages: [Message] = []
 
+    static func isIncognitoChatId(_ chatId: String) -> Bool {
+        IncognitoChatSession.isIncognitoChatId(chatId)
+    }
+
+    static func makeChatId() -> String {
+        IncognitoChatSession.makeChatId()
+    }
+
     func toggle() {
         isEnabled.toggle()
         if !isEnabled {

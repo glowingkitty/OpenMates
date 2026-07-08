@@ -63,6 +63,9 @@ const QUEUE_STORE_NAME = "pending_entries";
 /** Bumped 1→2: force onupgradeneeded on clients with broken schema-less v1 DB */
 const QUEUE_DB_VERSION = 2;
 
+/** SessionStorage key for preserving E2E log forwarding across page reloads. */
+const E2E_SESSION_KEY = "openmates_e2e_log_forwarding";
+
 // ---------------------------------------------------------------------------
 
 /** Unique tab ID generated once per page load — disambiguates multiple open tabs. */
@@ -175,6 +178,7 @@ class ClientLogForwarderService {
    * Safe to call multiple times — idempotent.
    */
   start(): void {
+    if (this.e2eMode || this.restoreE2EFromSession()) return;
     if (this.running) return;
     this.debugSessionId = null;
     this.running = true;
@@ -190,6 +194,7 @@ class ClientLogForwarderService {
    * @param debuggingId — The debug session ID (e.g. 'dbg-a3f2c8')
    */
   startDebugSession(debuggingId: string): void {
+    if (this.e2eMode || this.restoreE2EFromSession()) return;
     if (this.running) return;
     this.debugSessionId = debuggingId;
     this.running = true;
@@ -214,6 +219,7 @@ class ClientLogForwarderService {
   startE2E(runId: string, token: string): void {
     if (this.e2eMode?.runId === runId) return; // idempotent
     this.e2eMode = { runId, token };
+    this.persistE2EToSession(runId, token);
     // Start the flush loop if not already running for another mode.
     // If already running for admin/debug mode, the E2E mode piggybacks on the
     // existing flush loop — flush() checks e2eMode independently.
@@ -234,6 +240,7 @@ class ClientLogForwarderService {
    * Safe to call multiple times — idempotent.
    */
   startEphemeral(): void {
+    if (this.e2eMode || this.restoreE2EFromSession()) return;
     if (this.ephemeralMode) return; // idempotent
 
     // Generate a per-session UUID. Use sessionStorage so it dies on tab close.
@@ -346,6 +353,31 @@ class ClientLogForwarderService {
 
     if (this.running || this.e2eMode) {
       void this.flush();
+    }
+  }
+
+  private persistE2EToSession(runId: string, token: string): void {
+    try {
+      sessionStorage.setItem(E2E_SESSION_KEY, JSON.stringify({ runId, token }));
+    } catch {
+      // Session persistence is best-effort; the current page still forwards logs.
+    }
+  }
+
+  private restoreE2EFromSession(): boolean {
+    if (this.e2eMode) return true;
+    try {
+      const raw = sessionStorage.getItem(E2E_SESSION_KEY);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw) as { runId?: unknown; token?: unknown };
+      if (typeof parsed.runId !== "string" || typeof parsed.token !== "string") {
+        sessionStorage.removeItem(E2E_SESSION_KEY);
+        return false;
+      }
+      this.startE2E(parsed.runId, parsed.token);
+      return true;
+    } catch {
+      return false;
     }
   }
 

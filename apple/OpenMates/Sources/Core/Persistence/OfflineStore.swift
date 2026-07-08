@@ -55,7 +55,7 @@ final class PersistedChat {
         self.appId = chat.appId
         self.isPinned = chat.isPinned ?? false
         self.isArchived = chat.isArchived ?? false
-        self.isPrivate = true
+        self.isPrivate = chat.isPrivate ?? true
         self.lastMessageAt = chat.lastMessageAt
         self.lastVisibleMessageId = chat.lastVisibleMessageId
         self.messagesV = chat.messagesV
@@ -93,7 +93,8 @@ final class PersistedChat {
             budgetLimit: budgetLimit,
             budgetSpent: budgetSpent,
             encryptedActiveFocusId: encryptedActiveFocusId,
-            activeFocusId: activeFocusId
+            activeFocusId: activeFocusId,
+            isPrivate: isPrivate
         )
     }
 }
@@ -364,6 +365,7 @@ final class OfflineStore: ObservableObject {
                 existing.budgetSpent = chat.budgetSpent
                 existing.encryptedActiveFocusId = chat.encryptedActiveFocusId
                 existing.activeFocusId = chat.activeFocusId
+                existing.isPrivate = chat.isPrivate ?? existing.isPrivate
             } else {
                 context.insert(PersistedChat(from: chat))
             }
@@ -480,6 +482,33 @@ final class OfflineStore: ObservableObject {
             sortBy: [SortDescriptor(\.lastMessageAt, order: .reverse)]
         )
         return (try? context.fetch(descriptor))?.map { $0.toChat() } ?? []
+    }
+
+    func loadStartupChats(lastOpenedChatId: String?, limit: Int) -> [Chat] {
+        guard let context = modelContext else { return [] }
+        var descriptor = FetchDescriptor<PersistedChat>(
+            sortBy: [SortDescriptor(\.lastMessageAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = limit
+        var chats = (try? context.fetch(descriptor))?.map { $0.toChat() } ?? []
+
+        if let lastOpenedChatId,
+           !lastOpenedChatId.isEmpty,
+           lastOpenedChatId != "/chat/new",
+           !chats.contains(where: { $0.id == lastOpenedChatId }) {
+            let targetId = lastOpenedChatId
+            let lastOpenedDescriptor = FetchDescriptor<PersistedChat>(
+                predicate: #Predicate { $0.id == targetId }
+            )
+            if let lastOpenedChat = (try? context.fetch(lastOpenedDescriptor).first)?.toChat() {
+                chats.append(lastOpenedChat)
+            }
+        }
+
+        return chats.sorted {
+            ($0.lastMessageAt ?? $0.updatedAt ?? $0.createdAt) >
+            ($1.lastMessageAt ?? $1.updatedAt ?? $1.createdAt)
+        }
     }
 
     func loadMessages(chatId: String) -> [Message] {

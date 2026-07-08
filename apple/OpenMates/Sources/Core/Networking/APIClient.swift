@@ -5,7 +5,7 @@
 import Foundation
 
 /// Wrapper for sending pre-serialized JSON data without re-encoding through JSONEncoder.
-struct JSONRawBody: Encodable {
+struct JSONRawBody: Encodable, Sendable {
     let data: Data
     func encode(to encoder: any Encoder) throws {
         var container = encoder.singleValueContainer()
@@ -58,6 +58,35 @@ actor APIClient {
         ServerConfiguration.current.uploadBaseURL
     }
 
+    func uploadFile(
+        data: Data,
+        filename: String,
+        contentType: String,
+        chatId: String
+    ) async throws -> Data {
+        let boundary = UUID().uuidString
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(contentType)\r\n\r\n".data(using: .utf8)!)
+        body.append(data)
+        body.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n".data(using: .utf8)!)
+        body.append(chatId.data(using: .utf8)!)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+
+        let uploadURL = uploadBaseURL.appendingPathComponent("v1/upload/file")
+        var request = URLRequest(url: uploadURL)
+        request.httpMethod = HTTPMethod.post.rawValue
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue(webAppURL.absoluteString, forHTTPHeaderField: "Origin")
+        Self.nativeClientHeaders.forEach { key, value in
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        request.httpBody = body
+        return try await execute(request)
+    }
+
     // MARK: - Encodable body
 
     func request(
@@ -79,6 +108,32 @@ actor APIClient {
         return try await execute(urlRequest)
     }
 
+    func request(
+        _ method: HTTPMethod,
+        path: String,
+        serverProfile: ServerProfile,
+        body: (any Encodable)? = nil,
+        headers: [String: String]? = nil
+    ) async throws -> Data {
+        var urlRequest = buildRequest(
+            method,
+            path: path,
+            headers: headers,
+            baseURL: serverProfile.apiBaseURL,
+            webAppURL: serverProfile.webBaseURL
+        )
+
+        if let body {
+            if let rawBody = body as? JSONRawBody {
+                urlRequest.httpBody = rawBody.data
+            } else {
+                urlRequest.httpBody = try encoder.encode(body)
+            }
+        }
+
+        return try await execute(urlRequest)
+    }
+
     func request<T: Decodable>(
         _ method: HTTPMethod,
         path: String,
@@ -86,6 +141,17 @@ actor APIClient {
         headers: [String: String]? = nil
     ) async throws -> T {
         let data = try await request(method, path: path, body: body, headers: headers)
+        return try decoder.decode(T.self, from: data)
+    }
+
+    func request<T: Decodable>(
+        _ method: HTTPMethod,
+        path: String,
+        serverProfile: ServerProfile,
+        body: (any Encodable)? = nil,
+        headers: [String: String]? = nil
+    ) async throws -> T {
+        let data = try await request(method, path: path, serverProfile: serverProfile, body: body, headers: headers)
         return try decoder.decode(T.self, from: data)
     }
 
@@ -118,6 +184,16 @@ actor APIClient {
         _ method: HTTPMethod,
         path: String,
         headers: [String: String]?
+    ) -> URLRequest {
+        buildRequest(method, path: path, headers: headers, baseURL: baseURL, webAppURL: webAppURL)
+    }
+
+    private func buildRequest(
+        _ method: HTTPMethod,
+        path: String,
+        headers: [String: String]?,
+        baseURL: URL,
+        webAppURL: URL
     ) -> URLRequest {
         let normalizedPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
         let pathAndQuery = normalizedPath.split(separator: "?", maxSplits: 1).map(String.init)
@@ -152,7 +228,9 @@ actor APIClient {
     }
 
     private static var platformClientIdentifier: String {
-        #if os(iOS)
+        #if os(watchOS)
+        return "watchos"
+        #elseif os(iOS)
         return "ios"
         #elseif os(macOS)
         return "macos"
@@ -162,6 +240,12 @@ actor APIClient {
     }
 
     private func execute(_ request: URLRequest) async throws -> Data {
+        #if DEBUG
+        if let stubbedData = Self.uiTestIssueReportResponse(for: request) {
+            return stubbedData
+        }
+        #endif
+
         let (data, response) = try await session.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -178,6 +262,28 @@ actor APIClient {
 
         return data
     }
+
+    #if DEBUG
+    private static func uiTestIssueReportResponse(for request: URLRequest) -> Data? {
+        guard ProcessInfo.processInfo.arguments.contains("--ui-test-report-issue-success") else {
+            return nil
+        }
+        guard request.httpMethod == HTTPMethod.post.rawValue,
+              let path = request.url?.path else {
+            return nil
+        }
+
+        if path.hasSuffix("/v1/settings/issues") {
+            return Data(
+                #"{"success":true,"message":"UI test issue created","issue_id":"issue-ios-ui-test","short_issue_id":"OPE-IOS-UI-TEST","screenshot_uploaded":false}"#.utf8
+            )
+        }
+        if path.hasSuffix("/v1/settings/issue-logs") {
+            return Data(#"{"success":true}"#.utf8)
+        }
+        return nil
+    }
+    #endif
 }
 
 // MARK: - Supporting types

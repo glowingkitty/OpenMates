@@ -25,7 +25,7 @@ struct ImageGenerateEmbedRenderer: View {
         case .preview:
             if let s3BaseUrl, let aesKey {
                 EncryptedImageView(
-                    s3Url: s3BaseUrl, aesKey: aesKey, aesNonce: aesNonce,
+                    s3Url: s3BaseUrl, s3Key: nil, aesKey: aesKey, aesNonce: aesNonce,
                     contentMode: .fill
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -61,7 +61,7 @@ struct ImageGenerateEmbedRenderer: View {
             HStack(alignment: .center, spacing: 0) {
                 if let s3BaseUrl, let aesKey {
                     EncryptedImageView(
-                        s3Url: s3BaseUrl, aesKey: aesKey, aesNonce: aesNonce,
+                        s3Url: s3BaseUrl, s3Key: nil, aesKey: aesKey, aesNonce: aesNonce,
                         contentMode: .fit
                     )
                     .clipShape(RoundedRectangle(cornerRadius: .radius4))
@@ -127,4 +127,3 @@ struct ImageGenerateEmbedRenderer: View {
         }
     }
 }
-

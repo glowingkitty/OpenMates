@@ -451,8 +451,7 @@ const _URBAN_FARMS_TEXT: Record<string, InspirationText> = {
  * Falls back to English for any unsupported locale.
  */
 export function getHardcodedInspirations(locale: string): DailyInspiration[] {
-  void locale;
-  return getGuestProductInspirations();
+  return getGuestProductInspirations(locale);
 }
 
 function getWorkspaceInspirations(surface: Exclude<DailyInspirationSurface, "chats">): DailyInspiration[] {
@@ -513,6 +512,54 @@ function getWorkspaceInspirations(surface: Exclude<DailyInspirationSurface, "cha
           icon: "archive",
           title: "Project organization",
           description: "Keep evidence and outputs side by side.",
+          settings_path: null,
+        },
+      },
+    ];
+  }
+
+  if (surface === "tasks") {
+    return [
+      {
+        inspiration_id: "hardcoded-task-next-action",
+        phrase: "Turn one messy goal into a next action you can finish today.",
+        title: "Find the Next Action",
+        category: "productivity",
+        content_type: "feature",
+        video: null,
+        generated_at: now,
+        surface,
+        assistant_response: "Tasks work best when each item starts with a verb, has one owner, and can be checked off without rereading the whole project. Pick one goal, name the next physical action, and park the rest as follow-ups.",
+        follow_up_suggestions: ["Break down this goal", "Prioritize today's tasks", "Create a review checklist"],
+        feature: {
+          feature_id: "task-next-action",
+          icon: "check-square",
+          title: "Task planning tip",
+          description: "Make every task small enough to finish.",
+          settings_path: null,
+        },
+      },
+    ];
+  }
+
+  if (surface === "plans") {
+    return [
+      {
+        inspiration_id: "hardcoded-plan-timeline",
+        phrase: "Start a plan with the deadline, the decision points, and the first reversible step.",
+        title: "Sketch a Lightweight Plan",
+        category: "productivity",
+        content_type: "feature",
+        video: null,
+        generated_at: now,
+        surface,
+        assistant_response: "A good plan separates commitments from guesses. Put the fixed deadline first, list the assumptions that need checking, and choose the smallest first step that still teaches you something useful.",
+        follow_up_suggestions: ["Draft a timeline", "List risky assumptions", "Choose the first step"],
+        feature: {
+          feature_id: "plan-timeline",
+          icon: "calendar-clock",
+          title: "Planning tip",
+          description: "Keep plans anchored to decisions and dates.",
           settings_path: null,
         },
       },

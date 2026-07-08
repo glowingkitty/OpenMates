@@ -7,7 +7,7 @@
 #   has been uploaded and stored in S3. This task:
 #
 #   1. Downloads and decrypts the PDF from S3.
-#   2. Runs Mistral OCR (mistral-ocr-latest) to extract per-page markdown + images.
+#   2. Runs Mistral OCR 3 (mistral-ocr-2512) to extract per-page markdown + images.
 #   3. Renders page screenshots at 150 DPI using pymupdf.
 #   4. Detects TOC (Groq gpt-oss-20b, batches of 3, up to 12 pages).
 #   5. Detects legend (Groq gpt-oss-20b, last 5 pages).

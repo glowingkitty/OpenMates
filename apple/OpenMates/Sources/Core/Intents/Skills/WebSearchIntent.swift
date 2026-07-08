@@ -5,7 +5,7 @@ import AppIntents
 import Foundation
 
 struct WebSearchIntent: AppIntent {
-    static let title: LocalizedStringResource = "Search the Web"
+    static let title: LocalizedStringResource = "Web | Search"
     static let description: IntentDescription = "Search the web using OpenMates and get results."
     static let openAppWhenRun = false
 
@@ -36,7 +36,7 @@ struct WebSearchIntent: AppIntent {
 }
 
 struct WebReadIntent: AppIntent {
-    static let title: LocalizedStringResource = "Read a Web Page"
+    static let title: LocalizedStringResource = "Web | Read"
     static let description: IntentDescription = "Read and extract content from a web page URL."
     static let openAppWhenRun = false
 

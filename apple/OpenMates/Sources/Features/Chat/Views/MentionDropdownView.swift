@@ -40,6 +40,7 @@ struct MentionDropdownView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityElement(children: .combine)
+                        .help(Text("\(item.name), \(item.type.label)"))
                         .accessibilityLabel("\(item.name), \(item.type.label)")
                         .accessibilityIdentifier("mention-result")
                     }
@@ -80,6 +81,7 @@ struct MentionDropdownView: View {
                     .clipShape(RoundedRectangle(cornerRadius: .radius3))
             }
             .buttonStyle(.plain)
+            .help(Text(AppStrings.close))
             .accessibilityLabel(AppStrings.close)
         }
         .padding(.horizontal, .spacing8)

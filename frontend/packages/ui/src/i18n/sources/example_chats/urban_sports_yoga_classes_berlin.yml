@@ -1,0 +1,1005 @@
+title:
+  context: "Title of example chat: Urban Sports yoga classes near Kottbusser Tor"
+  en: "Urban Sports yoga classes near Kottbusser Tor"
+  de: "Urban Sports Yogakurse nahe Kottbusser Tor"
+  zh: "Urban Sports yoga classes near Kottbusser Tor"
+  es: "Urban Sports yoga classes near Kottbusser Tor"
+  fr: "Urban Sports yoga classes near Kottbusser Tor"
+  pt: "Urban Sports yoga classes near Kottbusser Tor"
+  ru: "Urban Sports yoga classes near Kottbusser Tor"
+  ja: "Urban Sports yoga classes near Kottbusser Tor"
+  ko: "Urban Sports yoga classes near Kottbusser Tor"
+  it: "Urban Sports yoga classes near Kottbusser Tor"
+  tr: "Urban Sports yoga classes near Kottbusser Tor"
+  vi: "Urban Sports yoga classes near Kottbusser Tor"
+  id: "Urban Sports yoga classes near Kottbusser Tor"
+  pl: "Urban Sports yoga classes near Kottbusser Tor"
+  nl: "Urban Sports yoga classes near Kottbusser Tor"
+  ar: "Urban Sports yoga classes near Kottbusser Tor"
+  hi: "Urban Sports yoga classes near Kottbusser Tor"
+  th: "Urban Sports yoga classes near Kottbusser Tor"
+  cs: "Urban Sports yoga classes near Kottbusser Tor"
+  sv: "Urban Sports yoga classes near Kottbusser Tor"
+  he: "Urban Sports yoga classes near Kottbusser Tor"
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Urban Sports yoga classes near Kottbusser Tor"
+  en: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  de: "Finde Yoga- und Workout-Kurse bei Urban Sports Club nahe Kottbusser Tor in Berlin."
+  zh: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  es: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  fr: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  pt: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  ru: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  ja: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  ko: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  it: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  tr: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  vi: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  id: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  pl: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  nl: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  ar: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  hi: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  th: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  cs: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  sv: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  he: "Find yoga and workout classes on Urban Sports Club near Kottbusser Tor in Berlin."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Urban Sports yoga classes near Kottbusser Tor. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  de: "Kannst du diese Woche bei Urban Sports Club nach Yoga- oder Workout-Kursen nahe Kottbusser Tor in Berlin suchen?"
+  zh: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  es: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  fr: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  pt: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  ru: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  ja: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  ko: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  it: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  tr: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  vi: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  id: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  pl: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  nl: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  ar: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  hi: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  th: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  cs: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  sv: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  he: "Can you check Urban Sports Club for yoga or workout classes near Kottbusser Tor in Berlin this week?"
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Urban Sports yoga classes near Kottbusser Tor. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  de: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Ja, diese Woche gibt es mehrere Urban-Sports-Club-Kurse nahe Kottbusser Tor (7. bis 12. Juli 2026).
+    
+    Hier sind einige der naechstgelegenen Yoga- und Workout-Optionen in Laufnaehe:
+    
+    ### **Yogakurse**
+    *   **Lunch Break Vinyasa** bei [Green Yoga](embed:lunch-break-vinyasa-BHB): Ein passender Mittagsflow, nur etwa 0,5 km entfernt in der Oranienstrasse 163.
+    *   **Abhyasa** bei [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Fokus auf regelmaessige Praxis, nur 0,27 km entfernt.
+    *   **1:1 Yoga PT** bei [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individuelle Sessions die ganze Woche ueber, z. B. am [7. Juli](embed:1-1-yoga-k2o), [8. Juli](embed:1-1-yoga-Zda) und [9. Juli](embed:1-1-yoga-BuL).
+    *   **AcroYoga Freies Training** bei [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): Fuer alle, die Partnerakrobatik ausprobieren moechten, etwa 2,1 km entfernt am Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** bei [Vea Studio](embed:eldoa-athletic-stretching-p31): Eine spezialisierte Einheit fuer Wirbelsaeulengesundheit und sportliche Regeneration, 0,4 km entfernt in der Naunynstrasse.
+    
+    **Kurzuebersicht der Optionen:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Karte der Standorte**
+    Die Studios liegen gebuendelt im Bereich [Kreuzberg](wiki:Kreuzberg), vor allem entlang der Oranienstrasse und Naunynstrasse.
+    
+    Soll ich bestimmte Zeiten am Wochenende pruefen, oder suchst du eher ein intensiveres [HIIT](wiki:High-intensity_interval_training)-Workout?
+    
+    **Was kommt als Naechstes?**
+    - Soll ich fuer einen dieser Kurse ein bestimmtes Zeitfenster morgens oder abends finden?
+    - Ich kann auch nach anderen Aktivitaeten in der Naehe wie [Bouldern](wiki:Bouldering) oder [Pilates](wiki:Pilates) suchen.
+    ---
+    *Hinweis: Das ist nur allgemeine Information und keine medizinische Beratung. Bitte konsultiere fuer medizinische Entscheidungen deine Aerztin oder deinen Arzt.*
+  zh: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  es: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  fr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  pt: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ru: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ja: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ko: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  it: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  tr: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  vi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  id: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  pl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  nl: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  ar: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  hi: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  th: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  cs: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  sv: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  he: |
+    ```json
+    {"type": "app_skill_use", "embed_id": "b68e7f6e-3c02-48c8-8eb9-56cacc890f14", "app_id": "fitness", "skill_id": "search_classes", "query": "yoga", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    ```json
+    {"type": "app_skill_use", "embed_id": "17ac7b6b-733b-4bd7-8379-21ef3c3edc9d", "app_id": "fitness", "skill_id": "search_classes", "query": "workout", "provider": "Urban Sports Club", "start_date": "2026-07-07", "location": "Kottbusser Tor, Berlin"}
+    ```
+    
+    Yes, there are several Urban Sports Club classes available near Kottbusser Tor this week (July 7–12, 2026).
+    
+    Here are some of the closest yoga and workout options within walking distance:
+    
+    ### **Yoga Classes**
+    *   **Lunch Break Vinyasa** at [Green Yoga](embed:lunch-break-vinyasa-BHB): A perfect midday flow located just 0.5km away on Oranienstraße 163.
+    *   **Abhyasa** at [Ayurveda Yoga & Healing Arts Berlin](embed:abhyasa-OEx): Focused on consistent practice, located only 0.27km away.
+    *   **1:1 Yoga PT** at [Ayurveda Yoga & Healing Arts Berlin](embed:1-1-yoga-k2o): Individualized sessions available throughout the week (e.g., [July 7](embed:1-1-yoga-k2o), [July 8](embed:1-1-yoga-Zda), and [July 9](embed:1-1-yoga-BuL)).
+    *   **AcroYoga Freies Training** at [Yogarebel.de](embed:acroyoga-akroyoga-freies-CfZ): For those interested in partner acrobatics, located about 2.1km away at Schleusenufer.
+    
+    ### **Workout & Fitness**
+    *   **ELDOA athletic stretching** at [Vea Studio](embed:eldoa-athletic-stretching-p31): A specialized session for spinal health and athletic recovery, located 0.4km away on Naunynstraße.
+    
+    **Summary of Options:**
+    [!](embed:lunch-break-vinyasa-BHB)
+    [!](embed:eldoa-athletic-stretching-p31)
+    [!](embed:abhyasa-OEx)
+    
+    ### **Location Map**
+    The studios are concentrated around the [Kreuzberg](wiki:Kreuzberg) area, particularly along Oranienstraße and Naunynstraße.
+    
+    Would you like me to check for specific times on the weekend, or are you looking for a more high-intensity [HIIT](wiki:High-intensity_interval_training) workout?
+    
+    **What's next?**
+    - Would you like me to find a specific time slot (morning/evening) for one of these?
+    - I can also search for other nearby activities like [Bouldering](wiki:Bouldering) or [Pilates](wiki:Pilates) if you prefer.
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for available slots in the Lunch Break Vinyasa class"
+  de: "Suche freie Plaetze im Lunch Break Vinyasa Kurs"
+  zh: "Search for available slots in the Lunch Break Vinyasa class"
+  es: "Search for available slots in the Lunch Break Vinyasa class"
+  fr: "Search for available slots in the Lunch Break Vinyasa class"
+  pt: "Search for available slots in the Lunch Break Vinyasa class"
+  ru: "Search for available slots in the Lunch Break Vinyasa class"
+  ja: "Search for available slots in the Lunch Break Vinyasa class"
+  ko: "Search for available slots in the Lunch Break Vinyasa class"
+  it: "Search for available slots in the Lunch Break Vinyasa class"
+  tr: "Search for available slots in the Lunch Break Vinyasa class"
+  vi: "Search for available slots in the Lunch Break Vinyasa class"
+  id: "Search for available slots in the Lunch Break Vinyasa class"
+  pl: "Search for available slots in the Lunch Break Vinyasa class"
+  nl: "Search for available slots in the Lunch Break Vinyasa class"
+  ar: "Search for available slots in the Lunch Break Vinyasa class"
+  hi: "Search for available slots in the Lunch Break Vinyasa class"
+  th: "Search for available slots in the Lunch Break Vinyasa class"
+  cs: "Search for available slots in the Lunch Break Vinyasa class"
+  sv: "Search for available slots in the Lunch Break Vinyasa class"
+  he: "Search for available slots in the Lunch Break Vinyasa class"
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain the benefits of Vinyasa yoga"
+  de: "Erklaere die Vorteile von Vinyasa Yoga"
+  zh: "Explain the benefits of Vinyasa yoga"
+  es: "Explain the benefits of Vinyasa yoga"
+  fr: "Explain the benefits of Vinyasa yoga"
+  pt: "Explain the benefits of Vinyasa yoga"
+  ru: "Explain the benefits of Vinyasa yoga"
+  ja: "Explain the benefits of Vinyasa yoga"
+  ko: "Explain the benefits of Vinyasa yoga"
+  it: "Explain the benefits of Vinyasa yoga"
+  tr: "Explain the benefits of Vinyasa yoga"
+  vi: "Explain the benefits of Vinyasa yoga"
+  id: "Explain the benefits of Vinyasa yoga"
+  pl: "Explain the benefits of Vinyasa yoga"
+  nl: "Explain the benefits of Vinyasa yoga"
+  ar: "Explain the benefits of Vinyasa yoga"
+  hi: "Explain the benefits of Vinyasa yoga"
+  th: "Explain the benefits of Vinyasa yoga"
+  cs: "Explain the benefits of Vinyasa yoga"
+  sv: "Explain the benefits of Vinyasa yoga"
+  he: "Explain the benefits of Vinyasa yoga"
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Find nearby bouldering gyms in Berlin"
+  de: "Finde Boulderhallen in der Naehe in Berlin"
+  zh: "Find nearby bouldering gyms in Berlin"
+  es: "Find nearby bouldering gyms in Berlin"
+  fr: "Find nearby bouldering gyms in Berlin"
+  pt: "Find nearby bouldering gyms in Berlin"
+  ru: "Find nearby bouldering gyms in Berlin"
+  ja: "Find nearby bouldering gyms in Berlin"
+  ko: "Find nearby bouldering gyms in Berlin"
+  it: "Find nearby bouldering gyms in Berlin"
+  tr: "Find nearby bouldering gyms in Berlin"
+  vi: "Find nearby bouldering gyms in Berlin"
+  id: "Find nearby bouldering gyms in Berlin"
+  pl: "Find nearby bouldering gyms in Berlin"
+  nl: "Find nearby bouldering gyms in Berlin"
+  ar: "Find nearby bouldering gyms in Berlin"
+  hi: "Find nearby bouldering gyms in Berlin"
+  th: "Find nearby bouldering gyms in Berlin"
+  cs: "Find nearby bouldering gyms in Berlin"
+  sv: "Find nearby bouldering gyms in Berlin"
+  he: "Find nearby bouldering gyms in Berlin"
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "List some beginner tips for AcroYoga"
+  de: "Liste Einsteiger-Tipps fuer AcroYoga auf"
+  zh: "List some beginner tips for AcroYoga"
+  es: "List some beginner tips for AcroYoga"
+  fr: "List some beginner tips for AcroYoga"
+  pt: "List some beginner tips for AcroYoga"
+  ru: "List some beginner tips for AcroYoga"
+  ja: "List some beginner tips for AcroYoga"
+  ko: "List some beginner tips for AcroYoga"
+  it: "List some beginner tips for AcroYoga"
+  tr: "List some beginner tips for AcroYoga"
+  vi: "List some beginner tips for AcroYoga"
+  id: "List some beginner tips for AcroYoga"
+  pl: "List some beginner tips for AcroYoga"
+  nl: "List some beginner tips for AcroYoga"
+  ar: "List some beginner tips for AcroYoga"
+  hi: "List some beginner tips for AcroYoga"
+  th: "List some beginner tips for AcroYoga"
+  cs: "List some beginner tips for AcroYoga"
+  sv: "List some beginner tips for AcroYoga"
+  he: "List some beginner tips for AcroYoga"
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Show me the weather forecast for Berlin this week"
+  de: "Zeig mir die Wettervorhersage fuer Berlin diese Woche"
+  zh: "Show me the weather forecast for Berlin this week"
+  es: "Show me the weather forecast for Berlin this week"
+  fr: "Show me the weather forecast for Berlin this week"
+  pt: "Show me the weather forecast for Berlin this week"
+  ru: "Show me the weather forecast for Berlin this week"
+  ja: "Show me the weather forecast for Berlin this week"
+  ko: "Show me the weather forecast for Berlin this week"
+  it: "Show me the weather forecast for Berlin this week"
+  tr: "Show me the weather forecast for Berlin this week"
+  vi: "Show me the weather forecast for Berlin this week"
+  id: "Show me the weather forecast for Berlin this week"
+  pl: "Show me the weather forecast for Berlin this week"
+  nl: "Show me the weather forecast for Berlin this week"
+  ar: "Show me the weather forecast for Berlin this week"
+  hi: "Show me the weather forecast for Berlin this week"
+  th: "Show me the weather forecast for Berlin this week"
+  cs: "Show me the weather forecast for Berlin this week"
+  sv: "Show me the weather forecast for Berlin this week"
+  he: "Show me the weather forecast for Berlin this week"
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Help me understand ELDOA stretching techniques"
+  de: "Hilf mir, ELDOA-Stretching-Techniken zu verstehen"
+  zh: "Help me understand ELDOA stretching techniques"
+  es: "Help me understand ELDOA stretching techniques"
+  fr: "Help me understand ELDOA stretching techniques"
+  pt: "Help me understand ELDOA stretching techniques"
+  ru: "Help me understand ELDOA stretching techniques"
+  ja: "Help me understand ELDOA stretching techniques"
+  ko: "Help me understand ELDOA stretching techniques"
+  it: "Help me understand ELDOA stretching techniques"
+  tr: "Help me understand ELDOA stretching techniques"
+  vi: "Help me understand ELDOA stretching techniques"
+  id: "Help me understand ELDOA stretching techniques"
+  pl: "Help me understand ELDOA stretching techniques"
+  nl: "Help me understand ELDOA stretching techniques"
+  ar: "Help me understand ELDOA stretching techniques"
+  hi: "Help me understand ELDOA stretching techniques"
+  th: "Help me understand ELDOA stretching techniques"
+  cs: "Help me understand ELDOA stretching techniques"
+  sv: "Help me understand ELDOA stretching techniques"
+  he: "Help me understand ELDOA stretching techniques"
+  verified_by_human: []

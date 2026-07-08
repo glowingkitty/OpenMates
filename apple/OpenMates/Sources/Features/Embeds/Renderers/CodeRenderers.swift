@@ -232,6 +232,7 @@ private struct CodeRunTerminalView: View {
             }
         }
         .buttonStyle(.plain)
+        .help(Text(AppStrings.codeRunViewCode))
         .accessibilityLabel(AppStrings.codeRunViewCode)
     }
 
@@ -266,6 +267,7 @@ private struct CodeRunTerminalView: View {
         }
         .buttonStyle(.plain)
         .disabled(disabled)
+        .help(Text(title))
         .accessibilityLabel(title)
     }
 

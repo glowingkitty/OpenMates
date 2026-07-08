@@ -27,6 +27,7 @@ import {
   type CaddyAction,
   type CoreProfile,
   type ServerRole,
+  appendSelectedServices,
   parseServerRole,
   planBackup,
   planCaddyCommand,
@@ -36,6 +37,7 @@ import {
   planUpdate as planServerUpdate,
   parseSecretEnvKey,
   resolveServiceSelection,
+  shouldCheckWebHealth,
   summarizeSecretPreflight,
   type SecretPreflightSummary,
   type VaultSecretPresence,
@@ -75,8 +77,10 @@ const IMAGE_RUNTIME_CONFIG_FILE = join("config", "backend_config.yml");
 const LOCAL_AI_MODELS_FILE = "local-ai-models.yml";
 const OFF_BY_DEFAULT_FEATURES = new Map<string, string>([
   ["embed:code:application", "Application previews are still unstable"],
+  ["app:workflows", "Workflow app is not ready by default"],
   ["platform:projects", "Projects workspace is not ready by default"],
-  ["platform:workflows", "Workflows workspace is not implemented yet"],
+  ["platform:plans", "Plans workspace is not ready by default"],
+  ["platform:workflows", "Workflows workspace is off by default"],
   ["platform:tasks", "Tasks workspace is not implemented yet"],
 ]);
 const LOCAL_MODEL_RUNTIME_DEFAULTS = {
@@ -561,7 +565,11 @@ async function checkUrl(url: string): Promise<boolean> {
   }
 }
 
-async function waitForServerHealth(installPath: string, role: ServerRole = "core"): Promise<void> {
+async function waitForServerHealth(
+  installPath: string,
+  role: ServerRole = "core",
+  options: { checkWebApp?: boolean } = {},
+): Promise<void> {
   if (role === "upload" || role === "preview") {
     const healthUrl = role === "upload" ? "http://localhost:8000/health" : "http://localhost:8080/health";
     const deadline = Date.now() + UPDATE_HEALTH_TIMEOUT_MS;
@@ -577,17 +585,22 @@ async function waitForServerHealth(installPath: string, role: ServerRole = "core
   const urls = deriveSelfHostCliUrls(envContent);
   const apiHealthUrl = `${trailingSlashTrimmed(urls.apiUrl)}/health`;
   const appUrl = trailingSlashTrimmed(urls.appUrl);
+  const checkWebApp = options.checkWebApp !== false;
   const deadline = Date.now() + UPDATE_HEALTH_TIMEOUT_MS;
 
   while (Date.now() < deadline) {
-    const [apiOk, appOk] = await Promise.all([checkUrl(apiHealthUrl), checkUrl(appUrl)]);
+    const [apiOk, appOk] = await Promise.all([
+      checkUrl(apiHealthUrl),
+      checkWebApp ? checkUrl(appUrl) : Promise.resolve(true),
+    ]);
     if (apiOk && appOk) return;
     await sleep(UPDATE_HEALTH_INTERVAL_MS);
   }
 
+  const tried = checkWebApp ? `${apiHealthUrl} and ${appUrl}` : apiHealthUrl;
   throw new Error(
     "Updated containers started, but health checks did not pass in time. " +
-    `Check 'openmates server status' and 'openmates server logs --tail 200'. Tried ${apiHealthUrl} and ${appUrl}.`,
+    `Check 'openmates server status' and 'openmates server logs --tail 200'. Tried ${tried}.`,
   );
 }
 
@@ -1644,8 +1657,11 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     console.error(`Refreshing self-host runtime files from ${templateRef}...`);
     await writeImageModeRuntimeFiles(installPath, target.tag, role);
 
-    const pullArgs = [...composeArgs(installPath, withOverrides, installMode, role), "pull"];
-    if (filterRequested) pullArgs.push(...selectedServices);
+    const pullArgs = appendSelectedServices(
+      [...composeArgs(installPath, withOverrides, installMode, role), "pull"],
+      selectedServices,
+      filterRequested,
+    );
     let code = 0;
     if (shouldPullImages()) {
       writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, step: "pull" });
@@ -1657,15 +1673,20 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
     }
 
     writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, step: "up" });
-    const upArgs = [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"];
-    if (filterRequested) upArgs.push(...selectedServices);
+    const upArgs = appendSelectedServices(
+      [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"],
+      selectedServices,
+      filterRequested,
+    );
     code = await runInteractive("docker", upArgs, installPath);
     if (code !== 0) process.exit(code);
 
     console.error("Waiting for role health checks...");
     try {
       writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, step: "health-check" });
-      await waitForServerHealth(installPath, role);
+      await waitForServerHealth(installPath, role, {
+        checkWebApp: shouldCheckWebHealth({ role, selectedServices, filterRequested }),
+      });
     } catch (error) {
       await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode, role), "ps"], installPath);
       throw error;
@@ -1686,11 +1707,21 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
 
   if (dryRun) {
     if (flags.json === true) {
-      printJson({ command: "update", status: "planned", path: installPath, mode: "source", dryRun: true });
+      printJson({
+        command: "update",
+        status: "planned",
+        path: installPath,
+        mode: "source",
+        selectedServices: filterRequested ? selectedServices : "all",
+        checkWebApp: shouldCheckWebHealth({ role, selectedServices, filterRequested }),
+        dryRun: true,
+      });
     } else {
       console.log("Update plan:");
-      console.log("  Mode:     source");
-      console.log("  Commands: git pull --ff-only, docker compose build, docker compose up -d, health checks");
+      console.log("  Mode:          source");
+      console.log(`  Services:      ${filterRequested ? selectedServices.join(", ") : "all"}`);
+      console.log(`  Web health:    ${shouldCheckWebHealth({ role, selectedServices, filterRequested }) ? "enabled" : "skipped"}`);
+      console.log("  Commands:      git pull --ff-only, docker compose build, docker compose up -d, health checks");
     }
     return;
   }
@@ -1722,18 +1753,27 @@ async function serverUpdate(rest: string[], flags: Record<string, string | boole
   }
 
   // Rebuild and restart
-  const buildArgs = [...composeArgs(installPath, withOverrides, installMode, role), "build"];
+  const buildArgs = appendSelectedServices(
+    [...composeArgs(installPath, withOverrides, installMode, role), "build"],
+    selectedServices,
+    filterRequested,
+  );
   console.error("Rebuilding containers...");
   let code = await runInteractive("docker", buildArgs, installPath);
   if (code !== 0) process.exit(code);
 
-  const upArgs = [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"];
+  const upArgs = appendSelectedServices(
+    [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"],
+    selectedServices,
+    filterRequested,
+  );
   code = await runInteractive("docker", upArgs, installPath);
   if (code !== 0) process.exit(code);
 
-  console.error("Waiting for API and web health checks...");
+  const checkWebApp = shouldCheckWebHealth({ role, selectedServices, filterRequested });
+  console.error(checkWebApp ? "Waiting for API and web health checks..." : "Waiting for API health checks...");
   try {
-    await waitForServerHealth(installPath, role);
+    await waitForServerHealth(installPath, role, { checkWebApp });
   } catch (error) {
     await runInteractive("docker", [...composeArgs(installPath, withOverrides, installMode, role), "ps"], installPath);
     throw error;
@@ -2513,7 +2553,7 @@ Examples:
   openmates server features enable embed:code:application
   openmates server update
   openmates server update --dry-run
-  openmates server update --image-tag v0.13.0
+  openmates server update --image-tag v0.14.0
   openmates server update --channel dev
   openmates server restart --rebuild
 `.trim());

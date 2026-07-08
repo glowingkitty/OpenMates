@@ -4,7 +4,7 @@ import AppIntents
 import Foundation
 
 struct VideoSearchIntent: AppIntent {
-    static let title: LocalizedStringResource = "Search Videos"
+    static let title: LocalizedStringResource = "Videos | Search"
     static let description: IntentDescription = "Search for videos on a topic."
     static let openAppWhenRun = false
 
@@ -35,7 +35,7 @@ struct VideoSearchIntent: AppIntent {
 }
 
 struct VideoTranscriptIntent: AppIntent {
-    static let title: LocalizedStringResource = "Get Video Transcript"
+    static let title: LocalizedStringResource = "Videos | Transcript"
     static let description: IntentDescription = "Get the transcript of a YouTube video."
     static let openAppWhenRun = false
 

@@ -1,25 +1,125 @@
 prepare_discussion:
   context: Focus mode name for prepare_discussion
   en: Prepare a political discussion
+  de: Politische Diskussion vorbereiten
+  zh: 准备政治讨论
+  es: Preparar una discusión política
+  fr: Préparer une discussion politique
+  pt: Preparar uma discussão política
+  ru: Подготовить политическое обсуждение
+  ja: 政治的な議論を準備
+  ko: 정치 토론 준비
+  it: Preparare una discussione politica
+  tr: Siyasi tartışmaya hazırlan
+  vi: Chuẩn bị một cuộc thảo luận chính trị
+  id: Persiapkan diskusi politik
+  pl: Przygotuj dyskusję polityczną
+  nl: Politiek gesprek voorbereiden
+  ar: التحضير لنقاش سياسي
+  hi: राजनीतिक चर्चा की तैयारी करें
+  th: เตรียมการสนทนาทางการเมือง
+  cs: Připravit politickou diskusi
+  sv: Förbered en politisk diskussion
+  he: הכנה לדיון פוליטי
   verified_by_human:
     - en
 prepare_discussion.description:
   context: Description for prepare_discussion focus mode
   en: Plan questions, check facts, and understand opposing arguments before a political conversation.
+  de: Plane Fragen, prüfe Fakten und verstehe Gegenargumente vor einem politischen Gespräch.
+  zh: 在政治对话前规划问题、核查事实并理解相反论点。
+  es: Planifica preguntas, verifica datos y entiende argumentos opuestos antes de una conversación política.
+  fr: Planifiez des questions, vérifiez les faits et comprenez les arguments opposés avant une conversation politique.
+  pt: Planeje perguntas, verifique fatos e entenda argumentos opostos antes de uma conversa política.
+  ru: Спланируйте вопросы, проверьте факты и разберитесь в противоположных аргументах перед политическим разговором.
+  ja: 政治的な会話の前に、質問を計画し、事実を確認し、反対意見を理解します。
+  ko: 정치 대화를 하기 전에 질문을 계획하고, 사실을 확인하고, 반대 주장을 이해하세요.
+  it: Pianifica domande, verifica i fatti e comprendi le argomentazioni opposte prima di una conversazione politica.
+  tr: Siyasi bir konuşmadan önce soruları planlayın, gerçekleri kontrol edin ve karşıt argümanları anlayın.
+  vi: Lên kế hoạch câu hỏi, kiểm tra dữ kiện và hiểu các lập luận đối lập trước một cuộc trò chuyện chính trị.
+  id: Rencanakan pertanyaan, periksa fakta, dan pahami argumen lawan sebelum percakapan politik.
+  pl: Zaplanuj pytania, sprawdź fakty i zrozum argumenty przeciwnej strony przed rozmową polityczną.
+  nl: Plan vragen, controleer feiten en begrijp tegengestelde argumenten vóór een politiek gesprek.
+  ar: خطط للأسئلة وتحقق من الحقائق وافهم الحجج المعارضة قبل محادثة سياسية.
+  hi: राजनीतिक बातचीत से पहले सवालों की योजना बनाएं, तथ्य जांचें और विरोधी तर्कों को समझें।
+  th: วางแผนคำถาม ตรวจสอบข้อเท็จจริง และเข้าใจข้อโต้แย้งฝ่ายตรงข้ามก่อนการสนทนาทางการเมือง
+  cs: Před politickým rozhovorem si naplánujte otázky, ověřte fakta a pochopte opačné argumenty.
+  sv: Planera frågor, faktakolla och förstå motargument innan ett politiskt samtal.
+  he: תכנון שאלות, בדיקת עובדות והבנת טיעוני נגד לפני שיחה פוליטית.
   verified_by_human:
     - en
 prepare_discussion.how_to_use.1:
   context: "How-to-use example 1 for the Politics Prepare Discussion focus mode. Use **word** to highlight key trigger words."
   en: "Help me prepare for a **family discussion** about immigration policy without turning it into a fight"
+  de: "Hilf mir, mich auf eine **Familiendiskussion** über Einwanderungspolitik vorzubereiten, ohne dass daraus ein Streit wird"
+  zh: "帮我准备一次关于移民政策的**家庭讨论**，不要让它变成争吵"
+  es: "Ayúdame a prepararme para una **discusión familiar** sobre política migratoria sin convertirla en una pelea"
+  fr: "Aide-moi à préparer une **discussion familiale** sur la politique d'immigration sans que cela tourne au conflit"
+  pt: "Ajude-me a me preparar para uma **discussão em família** sobre política de imigração sem virar briga"
+  ru: "Помоги мне подготовиться к **семейному обсуждению** иммиграционной политики, чтобы оно не превратилось в ссору"
+  ja: "移民政策についての**家族での話し合い**が口論にならないよう準備を手伝って"
+  ko: "이민 정책에 대한 **가족 토론**이 싸움으로 번지지 않도록 준비를 도와줘"
+  it: "Aiutami a prepararmi per una **discussione in famiglia** sulla politica migratoria senza trasformarla in un litigio"
+  tr: "Göç politikası hakkında bir **aile tartışmasına** kavga çıkmadan hazırlanmama yardım et"
+  vi: "Giúp tôi chuẩn bị cho một **cuộc thảo luận gia đình** về chính sách nhập cư mà không biến nó thành tranh cãi"
+  id: "Bantu saya mempersiapkan **diskusi keluarga** tentang kebijakan imigrasi tanpa berubah menjadi pertengkaran"
+  pl: "Pomóż mi przygotować się do **rodzinnej dyskusji** o polityce imigracyjnej tak, aby nie przerodziła się w kłótnię"
+  nl: "Help me me voor te bereiden op een **familiegesprek** over immigratiebeleid zonder dat het ruzie wordt"
+  ar: "ساعدني في الاستعداد لـ **نقاش عائلي** حول سياسة الهجرة دون أن يتحول إلى شجار"
+  hi: "इमिग्रेशन नीति पर **पारिवारिक चर्चा** की तैयारी में मेरी मदद करें ताकि यह झगड़े में न बदले"
+  th: "ช่วยฉันเตรียมตัวสำหรับ**การสนทนาในครอบครัว**เรื่องนโยบายการย้ายถิ่นฐานโดยไม่ให้กลายเป็นการทะเลาะ"
+  cs: "Pomoz mi připravit se na **rodinnou diskusi** o imigrační politice tak, aby se nezměnila v hádku"
+  sv: "Hjälp mig förbereda en **familjediskussion** om migrationspolitik utan att den blir ett bråk"
+  he: "עזור לי להתכונן ל**דיון משפחתי** על מדיניות הגירה בלי שזה יהפוך לריב"
   verified_by_human:
     - en
 prepare_discussion.how_to_use.2:
   context: "How-to-use example 2 for the Politics Prepare Discussion focus mode. Use **word** to highlight key trigger words."
   en: "Plan questions for a **local election debate** about housing, transport, and taxes"
+  de: "Plane Fragen für eine **Kommunalwahl-Debatte** über Wohnen, Verkehr und Steuern"
+  zh: "为一场关于住房、交通和税收的**地方选举辩论**规划问题"
+  es: "Planifica preguntas para un **debate electoral local** sobre vivienda, transporte e impuestos"
+  fr: "Prépare des questions pour un **débat électoral local** sur le logement, les transports et les impôts"
+  pt: "Planeje perguntas para um **debate eleitoral local** sobre moradia, transporte e impostos"
+  ru: "Подготовь вопросы для **дебатов на местных выборах** о жилье, транспорте и налогах"
+  ja: "住宅、交通、税金についての**地方選挙討論会**の質問を計画して"
+  ko: "주거, 교통, 세금에 관한 **지방 선거 토론** 질문을 계획해줘"
+  it: "Pianifica domande per un **dibattito elettorale locale** su casa, trasporti e tasse"
+  tr: "Konut, ulaşım ve vergiler hakkında bir **yerel seçim tartışması** için sorular planla"
+  vi: "Lên kế hoạch câu hỏi cho một **cuộc tranh luận bầu cử địa phương** về nhà ở, giao thông và thuế"
+  id: "Rencanakan pertanyaan untuk **debat pemilu lokal** tentang perumahan, transportasi, dan pajak"
+  pl: "Zaplanuj pytania na **lokalną debatę wyborczą** o mieszkalnictwie, transporcie i podatkach"
+  nl: "Plan vragen voor een **lokaal verkiezingsdebat** over wonen, vervoer en belastingen"
+  ar: "خطط لأسئلة من أجل **مناظرة انتخابية محلية** حول الإسكان والنقل والضرائب"
+  hi: "आवास, परिवहन और करों पर **स्थानीय चुनाव बहस** के लिए सवाल तैयार करें"
+  th: "วางแผนคำถามสำหรับ**การดีเบตเลือกตั้งท้องถิ่น**เรื่องที่อยู่อาศัย การคมนาคม และภาษี"
+  cs: "Naplánuj otázky pro **debatu k místním volbám** o bydlení, dopravě a daních"
+  sv: "Planera frågor för en **lokal valdebatt** om bostäder, transporter och skatter"
+  he: "תכנן שאלות ל**עימות בחירות מקומיות** על דיור, תחבורה ומסים"
   verified_by_human:
     - en
 prepare_discussion.how_to_use.3:
   context: "How-to-use example 3 for the Politics Prepare Discussion focus mode. Use **word** to highlight key trigger words."
   en: "Research the facts and counterarguments before I discuss this **climate policy** with a skeptical friend"
+  de: "Recherchiere Fakten und Gegenargumente, bevor ich diese **Klimapolitik** mit einem skeptischen Freund bespreche"
+  zh: "在我和一位持怀疑态度的朋友讨论这项**气候政策**之前，研究事实和反方观点"
+  es: "Investiga los datos y contraargumentos antes de que hable de esta **política climática** con un amigo escéptico"
+  fr: "Recherche les faits et les contre-arguments avant que je parle de cette **politique climatique** avec un ami sceptique"
+  pt: "Pesquise os fatos e contra-argumentos antes de eu discutir esta **política climática** com um amigo cético"
+  ru: "Изучи факты и контраргументы, прежде чем я обсужу эту **климатическую политику** со скептически настроенным другом"
+  ja: "懐疑的な友人とこの**気候政策**について話す前に、事実と反論を調べて"
+  ko: "회의적인 친구와 이 **기후 정책**을 논의하기 전에 사실과 반론을 조사해줘"
+  it: "Ricerca i fatti e le controargomentazioni prima che discuta questa **politica climatica** con un amico scettico"
+  tr: "Bu **iklim politikasını** şüpheci bir arkadaşımla tartışmadan önce gerçekleri ve karşı argümanları araştır"
+  vi: "Nghiên cứu dữ kiện và phản biện trước khi tôi thảo luận **chính sách khí hậu** này với một người bạn hoài nghi"
+  id: "Teliti fakta dan argumen tandingan sebelum saya membahas **kebijakan iklim** ini dengan teman yang skeptis"
+  pl: "Zbadaj fakty i kontrargumenty, zanim omówię tę **politykę klimatyczną** ze sceptycznym znajomym"
+  nl: "Onderzoek de feiten en tegenargumenten voordat ik dit **klimaatbeleid** bespreek met een sceptische vriend"
+  ar: "ابحث في الحقائق والحجج المضادة قبل أن أناقش **سياسة المناخ** هذه مع صديق متشكك"
+  hi: "एक संदेहवादी दोस्त से इस **जलवायु नीति** पर चर्चा करने से पहले तथ्य और प्रतितर्क खोजें"
+  th: "ค้นคว้าข้อเท็จจริงและข้อโต้แย้งก่อนที่ฉันจะคุยเรื่อง**นโยบายภูมิอากาศ**นี้กับเพื่อนที่ไม่ค่อยเชื่อ"
+  cs: "Prozkoumej fakta a protiargumenty, než budu tuto **klimatickou politiku** probírat se skeptickým přítelem"
+  sv: "Undersök fakta och motargument innan jag diskuterar denna **klimatpolitik** med en skeptisk vän"
+  he: "חקור את העובדות וטיעוני הנגד לפני שאדון ב**מדיניות האקלים** הזו עם חבר ספקן"
   verified_by_human:
     - en

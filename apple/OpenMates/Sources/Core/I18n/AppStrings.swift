@@ -25,6 +25,9 @@ enum AppStrings {
     static var next: String { L("common.next") }
     static var skip: String { L("common.skip") }
     static var search: String { L("activity.search") }
+    static var quickActionAsk: String { L("activity.quick_action_ask") }
+    static var quickActionAskAboutPhoto: String { L("activity.quick_action_ask_about_photo") }
+    static var quickActionIncognitoAsk: String { L("activity.quick_action_incognito_ask") }
     static var retry: String { L("common.retry") }
     static var confirm: String { L("common.confirm") }
     static var edit: String { L("common.edit") }
@@ -42,6 +45,21 @@ enum AppStrings {
     static var openMatesName: String { L("apps.openmates") }
     static var guest: String { L("settings.guest") }
     static var newWindow: String { L("common.new_window") }
+    static var chat: String { L("common.chat") }
+    static var projects: String { L("navigation.projects") }
+    static var plans: String { L("navigation.plans") }
+    static var workflows: String { L("navigation.workflows") }
+    static var tasks: String { L("navigation.tasks") }
+    static var workspacePreviewEyebrow: String { L("navigation.workspace_preview.eyebrow") }
+    static var workspacePreviewReturnToChats: String { L("navigation.workspace_preview.return_to_chats") }
+
+    static func workspacePreviewTitle(_ workspace: String) -> String {
+        LocalizationManager.shared.text("navigation.workspace_preview.title", replacements: ["workspace": workspace])
+    }
+
+    static func workspacePreviewBody(_ workspace: String) -> String {
+        LocalizationManager.shared.text("navigation.workspace_preview.body", replacements: ["workspace": workspace])
+    }
 
     // MARK: - Chat
     static var newChat: String { L("chat.new_chat") }
@@ -62,6 +80,7 @@ enum AppStrings {
     static var startTyping: String { L("chat.start_typing") }
     static var aiResponding: String { L("chat.ai_responding") }
     static var stopResponse: String { L("chat.stop_response") }
+    static var messageQueued: String { L("enter_message.message_queued") }
     static var loadEarlierMessages: String { L("chat.load_earlier") }
     static var selectChatOrNew: String { L("chat.select_or_new") }
     static var whatToHelpWith: String { L("chat.what_to_help_with") }
@@ -76,13 +95,24 @@ enum AppStrings {
     static var hiddenChats: String { L("chat.hidden_chats") }
     static var noHiddenChats: String { L("chat.no_hidden_chats") }
     static var unhide: String { L("chat.unhide") }
+    static var piiHide: String { L("chat.pii_hide") }
+    static var piiShow: String { L("chat.pii_show") }
     static var renameChat: String { L("chat.rename") }
     static var chatTitle: String { L("chat.title") }
     static var conversationForked: String { L("chat.forked") }
     static var setReminder: String { L("chat.set_reminder") }
     static var chats: String { L("common.chats") }
+    static var summary: String { L("common.summary") }
     static var explore: String { L("common.explore") }
     static var openChat: String { L("chat.open_chat") }
+    static var searchNoResults: String { L("chats.search.no_results") }
+    static var searchResultsLabel: String { L("chats.search.results_label") }
+    static var searchGoToMessage: String { L("chats.search.go_to_message") }
+    static var searchTagMatch: String { L("chats.search.tag_match") }
+    static var today: String { L("activity.today") }
+    static var yesterday: String { L("activity.yesterday") }
+    static var previous7Days: String { L("activity.previous_7_days") }
+    static var previous30Days: String { L("activity.previous_30_days") }
     static var scrollToTop: String { L("chats.scroll_to_top") }
     static var scrollToBottom: String { L("chats.scroll_to_bottom") }
     static var interactiveQuestionFailed: String { L("chat.interactive_question_failed") }
@@ -137,6 +167,7 @@ enum AppStrings {
     static var interestsActiveTitle: String { L("chat.interests.active_title") }
     static var interestsExploreTitle: String { L("chat.interests.title") }
     static var interestsContinue: String { L("chat.interests.continue") }
+    static var interestsSkip: String { L("chat.interests.skip") }
     static var interestsSelect: String { L("chat.interests.select_interests") }
     static var profilePicture: String { L("settings.account.profile_picture") }
     static var usage: String { L("settings.usage") }
@@ -180,6 +211,7 @@ enum AppStrings {
     static var allAppsFilterSkills: String { L("settings.app_store.all_apps.filter_skills") }
     static var allAppsSortNewest: String { L("settings.app_store.all_apps.sort_by_newest") }
     static var allAppsSortName: String { L("settings.app_store.all_apps.sort_by_name_asc") }
+    static var allAppsSortNameDesc: String { L("settings.app_store.all_apps.sort_by_name_desc") }
     static var appStoreSkills: String { L("settings.app_store.skills.title") }
     static var appStoreFocusModes: String { L("settings.app_store.focus_modes.title") }
     static var appStoreMemories: String { L("settings.app_store.settings_memories.title") }
@@ -205,6 +237,49 @@ enum AppStrings {
 
     // MARK: - Settings - Privacy
     static var hidePersonalData: String { L("settings.hide_personal_data") }
+    static var privacyHidePersonalData: String { L("settings.privacy.hide_personal_data") }
+    static var privacyHidePersonalDataChats: String { L("settings.privacy.hide_personal_data.chats") }
+    static var privacyHidePersonalDataDescription: String { L("settings.privacy.hide_personal_data.description") }
+    static var privacyContacts: String { L("settings.privacy.contacts") }
+    static var privacyAddName: String { L("settings.privacy.add_name") }
+    static var privacyAddAddress: String { L("settings.privacy.add_address") }
+    static var privacyAddBirthday: String { L("settings.privacy.add_birthday") }
+    static var privacyForEveryone: String { L("settings.privacy.for_everyone") }
+    static var privacyEmailAddresses: String { L("settings.privacy.email_addresses") }
+    static var privacyPhoneNumbers: String { L("settings.privacy.phone_numbers") }
+    static var privacyCreditCardNumbers: String { L("settings.privacy.credit_card_numbers") }
+    static var privacyIbanBankAccount: String { L("settings.privacy.iban_bank_account") }
+    static var privacyTaxIdVat: String { L("settings.privacy.tax_id_vat") }
+    static var privacyCryptoWallets: String { L("settings.privacy.crypto_wallets") }
+    static var privacySocialSecurityNumbers: String { L("settings.privacy.social_security_numbers") }
+    static var privacyPassportNumbers: String { L("settings.privacy.passport_numbers") }
+    static var privacyForDevelopers: String { L("settings.privacy.for_developers") }
+    static var privacyApiKeys: String { L("settings.privacy.api_keys") }
+    static var privacyJwtTokens: String { L("settings.privacy.jwt_tokens") }
+    static var privacyPrivateKeys: String { L("settings.privacy.private_keys") }
+    static var privacyGenericSecrets: String { L("settings.privacy.generic_secrets") }
+    static var privacyIpAddresses: String { L("settings.privacy.ip_addresses") }
+    static var privacyMacAddresses: String { L("settings.privacy.mac_addresses") }
+    static var privacyUserAtHostname: String { L("settings.privacy.user_at_hostname") }
+    static var privacyHomeFolder: String { L("settings.privacy.home_folder") }
+    static var privacyCustom: String { L("settings.privacy.custom") }
+    static var privacyAddCustomEntry: String { L("settings.privacy.add_custom_entry") }
+    static var privacyFormTitle: String { L("settings.privacy.form.title") }
+    static var privacyFormTextToHide: String { L("settings.privacy.form.text_to_hide") }
+    static var privacyFormReplaceWith: String { L("settings.privacy.form.replace_with") }
+    static var privacyEncryptionNote: String { L("settings.privacy.encryption_note") }
+    static var enhancedPIIModelTitle: String { L("settings.privacy.enhanced_pii_model.title") }
+    static var enhancedPIIModelDescription: String { L("settings.privacy.enhanced_pii_model.description") }
+    static var enhancedPIIModelDownload: String { L("settings.privacy.enhanced_pii_model.download") }
+    static var enhancedPIIModelDownloading: String { L("settings.privacy.enhanced_pii_model.downloading") }
+    static var enhancedPIIModelReady: String { L("settings.privacy.enhanced_pii_model.ready") }
+    static var enhancedPIIModelUpdateAvailable: String { L("settings.privacy.enhanced_pii_model.update_available") }
+    static var enhancedPIIModelFailed: String { L("settings.privacy.enhanced_pii_model.failed") }
+    static var enhancedPIIModelRemove: String { L("settings.privacy.enhanced_pii_model.remove") }
+    static var enhancedPIIModelStatusNotDownloaded: String { L("settings.privacy.enhanced_pii_model.status_not_downloaded") }
+    static var enhancedPIIModelStatusLocalReady: String { L("settings.privacy.enhanced_pii_model.status_local_ready") }
+    static var enhancedPIIModelComposerSuggestionTitle: String { L("settings.privacy.enhanced_pii_model.composer_suggestion_title") }
+    static var enhancedPIIModelComposerSuggestionDescription: String { L("settings.privacy.enhanced_pii_model.composer_suggestion_description") }
     static var autoDeleteChats: String { L("settings.privacy.auto_deletion") }
     static var shareDebugLogs: String { L("settings.privacy.debug_logging_title") }
     static var never: String { L("common.never") }
@@ -216,6 +291,57 @@ enum AppStrings {
     static var purchaseHistory: String { L("settings.billing.purchase_history") }
     static var invoices: String { L("settings.invoices") }
     static var giftCards: String { L("settings.gift_cards") }
+    static var getFreeCredits: String { L("settings.billing.get_free_credits") }
+    static var referralCode: String { L("settings.billing.referral_code") }
+    static var referralQrLabel: String { L("settings.billing.referral_qr_label") }
+
+    static func referralIntro(referrerCredits: String, referredCredits: String) -> String {
+        LocalizationManager.shared.text(
+            "settings.billing.referral_intro",
+            replacements: [
+                "referrerCredits": referrerCredits,
+                "referredCredits": referredCredits,
+            ]
+        )
+    }
+
+    static func referralProgress(count: String, max: String) -> String {
+        LocalizationManager.shared.text(
+            "settings.billing.referral_progress",
+            replacements: ["count": count, "max": max]
+        )
+    }
+
+    static var referralConditions: String { L("settings.billing.referral_conditions") }
+
+    // MARK: - Settings - Report issue
+    static var reportIssueDescription: String { L("settings.report_issue.description") }
+    static var reportIssueTitleLabel: String { L("settings.report_issue.title_label") }
+    static var reportIssueTitlePlaceholder: String { L("settings.report_issue.title_placeholder") }
+    static var reportIssueTitleRequired: String { L("settings.report_issue.title_required") }
+    static var reportIssueTitleTooShort: String { L("settings.report_issue.title_too_short") }
+    static var reportIssueUserFlowLabel: String { L("settings.report_issue.user_flow_label") }
+    static var reportIssueUserFlowPlaceholder: String { L("settings.report_issue.user_flow_placeholder") }
+    static var reportIssueUserFlowHint: String { L("settings.report_issue.user_flow_hint") }
+    static var reportIssueExpectedLabel: String { L("settings.report_issue.expected_behaviour_label") }
+    static var reportIssueExpectedPlaceholder: String { L("settings.report_issue.expected_behaviour_placeholder") }
+    static var reportIssueExpectedHint: String { L("settings.report_issue.expected_behaviour_hint") }
+    static var reportIssueActualLabel: String { L("settings.report_issue.actual_behaviour_label") }
+    static var reportIssueActualPlaceholder: String { L("settings.report_issue.actual_behaviour_placeholder") }
+    static var reportIssueActualHint: String { L("settings.report_issue.actual_behaviour_hint") }
+    static var reportIssueScreenshotLabel: String { L("settings.report_issue.screenshot_label") }
+    static var reportIssueScreenshotHint: String { L("settings.report_issue.screenshot_hint") }
+    static var reportIssueScreenshotUploadButton: String { L("settings.report_issue.screenshot_upload_button") }
+    static var reportIssueScreenshotRemove: String { L("settings.report_issue.screenshot_remove") }
+    static var reportIssueSubmitButton: String { L("settings.report_issue.submit_button") }
+    static var reportIssueSubmitting: String { L("settings.report_issue.submitting") }
+    static var reportIssueSuccess: String { L("settings.report_issue_success") }
+    static var reportIssueIssueIdLabel: String { L("settings.report_issue.issue_id_label") }
+    static var reportIssueError: String { L("settings.report_issue_error") }
+
+    // MARK: - Connection banners
+    static var offlineBanner: String { L("notifications.connection.offline_banner") }
+    static var reconnectingBanner: String { L("notifications.connection.reconnecting") }
 
     // MARK: - Settings - Notifications
     static var pushNotifications: String { L("settings.notifications.push") }
@@ -255,7 +381,7 @@ enum AppStrings {
     // MARK: - Auth
     static var login: String { L("login.login") }
     static var signup: String { L("signup.sign_up") }
-    static var loginSignup: String { "\(login) / \(signup)" }
+    static var loginSignup: String { L("header.login_signup") }
     static var signupVersionTitle: String { L("signup.version_title") }
     static var logout: String { L("settings.logout") }
     static var logOut: String { L("settings.logout") }
@@ -298,6 +424,16 @@ enum AppStrings {
     static var pairCopyLink: String { L("settings.sessions.pair_copy_link") }
     static var pairCopied: String { L("settings.sessions.pair_copied") }
     static var pairUrlLabel: String { L("settings.sessions.pair_url_label") }
+    static var pairConnectAppleWatchTitle: String { L("settings.sessions.pair_connect_apple_watch_title") }
+    static var pairConnectAppleWatchDescription: String { L("settings.sessions.pair_connect_apple_watch_description") }
+    static func pairWatchLoginServerMismatch(watchServer: String, phoneServer: String) -> String {
+        LocalizationManager.shared.text(
+            "settings.sessions.pair_watch_login_server_mismatch",
+            replacements: ["watch_server": watchServer, "phone_server": phoneServer]
+        )
+    }
+    static var pairApproveWatchLogin: String { L("settings.sessions.pair_approve_watch_login") }
+    static var pairWatchLoginApproved: String { L("settings.sessions.pair_watch_login_approved") }
     // Web currently renders this label as literal copy in SettingsSessionsPairInitiate.svelte.
     static var pairScanCode: String { "Scan code:" }
     static var pairEnterPinTitle: String { L("settings.sessions.pair_enter_pin_title") }
@@ -315,10 +451,13 @@ enum AppStrings {
     static var shareLocation: String { L("enter_message.attachments.share_location") }
     static var sketchAction: String { L("enter_message.attachments.sketch") }
     static var takePhoto: String { L("enter_message.attachments.take_photo") }
+    static var enterFullscreen: String { L("enter_message.fullscreen.enter_fullscreen") }
+    static var exitFullscreen: String { L("enter_message.fullscreen.exit_fullscreen") }
     static var recordAudio: String { L("enter_message.attachments.record_audio") }
     static var pressAndHoldToRecord: String { L("enter_message.record_audio.press_and_hold_reminder") }
     static var releaseToFinishRecording: String { L("enter_message.record_audio.release_to_finish") }
     static var slideLeftToCancelRecording: String { L("enter_message.record_audio.slide_left_to_cancel") }
+    static var pressEscToCancelRecording: String { L("enter_message.record_audio.press_esc_to_cancel") }
     static var microphoneBlocked: String { L("enter_message.record_audio.microphone_blocked") }
     static var allowMicrophoneAccess: String { L("enter_message.record_audio.allow_microphone_access") }
     static var getLocation: String { L("enter_message.location.get_location") }
@@ -377,6 +516,8 @@ enum AppStrings {
     static var codeRunHideOutput: String { L("app_skills.code.run.hide_output") }
     static var codeRunRequiredFile: String { L("app_skills.code.run.required_file") }
     static var reportBadAnswer: String { L("chat.report_bad_answer.button_text") }
+    static var fitnessSearchLocations: String { L("app_skills.fitness.search_locations") }
+    static var fitnessSearchClasses: String { L("app_skills.fitness.search_classes") }
 
     static func openOnProvider(_ provider: String) -> String {
         LocalizationManager.shared.text("embeds.open_on_provider", replacements: ["provider": provider])

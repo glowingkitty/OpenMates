@@ -19,6 +19,7 @@
     transformToSocialPostResult,
   } from './socialMediaEmbedUtils';
   import { text } from '@repo/ui';
+  import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   interface Props {
     data: EmbedFullscreenRawData;
@@ -49,7 +50,7 @@
   let query = $derived(typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : 'Social media search');
   let provider = $derived(socialProviderLabel(data.decodedContent?.provider));
   let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
-  let resultsProp = $derived(Array.isArray(data.decodedContent?.results) ? data.decodedContent.results as unknown[] : []);
+  let resultsProp = $derived(extractSearchResultsFromContent(data.decodedContent));
   let initialChildEmbedId = $derived(data.focusChildEmbedId ?? undefined);
   let viaProvider = $derived(`${$text('embeds.via')} ${provider}`);
 </script>

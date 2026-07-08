@@ -199,6 +199,38 @@ async function waitForLoginSuccessAfterSubmit(page: any, authSignal: any): Promi
 	return waitForAuthenticatedUi(page, authSignal, 20000);
 }
 
+async function waitForLoginSuccessAfterSubmitWithDiagnostics(
+	page: any,
+	authSignal: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+): Promise<boolean> {
+	const timeoutMs = 30_000;
+	let timeoutId: ReturnType<typeof setTimeout> | undefined;
+	try {
+		return await Promise.race([
+			waitForLoginSuccessAfterSubmit(page, authSignal),
+			new Promise<boolean>((resolve) => {
+				timeoutId = setTimeout(() => resolve(false), timeoutMs);
+			})
+		]);
+	} finally {
+		if (timeoutId) clearTimeout(timeoutId);
+		const diagnostics = await Promise.race([
+			page.evaluate(() => ({
+				url: window.location.href,
+				isAuthenticated: document.querySelector('[data-authenticated="true"]') !== null,
+				hasOtpInput: document.querySelector('#login-otp-input') !== null,
+				hasErrorMessage: document.querySelector('[data-testid="error-message"]')?.textContent?.trim() || null,
+				modalText: document.querySelector('[data-testid="signup-modal"], [data-testid="login-modal"]')?.textContent?.slice(0, 300) || null,
+			})),
+			new Promise((resolve) => {
+				setTimeout(() => resolve({ error: 'login diagnostics timed out after 2000ms' }), 2000);
+			})
+		]).catch((error: Error) => ({ error: error.message }));
+		logCheckpoint('Post-login-submit diagnostics.', diagnostics);
+	}
+}
+
 async function hasStoredEmailSalt(page: any): Promise<boolean> {
 	return page.evaluate(() => {
 		return Boolean(
@@ -419,7 +451,7 @@ async function loginToTestAccount(
 			}
 
 			await expect(submitLoginButton).toBeVisible();
-			const loginSuccessPromise = waitForLoginSuccessAfterSubmit(page, authSignal);
+			const loginSuccessPromise = waitForLoginSuccessAfterSubmitWithDiagnostics(page, authSignal, logCheckpoint);
 			await submitLoginButton.click();
 			logCheckpoint('Submitted login form.');
 
@@ -559,8 +591,10 @@ async function startNewChat(
 	await page.locator('body').click({ position: { x: 1, y: 1 }, timeout: 1000 }).catch(() => undefined);
 	await page.waitForTimeout(300);
 
-	// Try stable selectors in priority order
-	const newChatButton = page.getByTestId('new-chat-button');
+	// Try stable selectors in priority order. Use locator(...).last() instead of
+	// getByTestId() so duplicate mobile/desktop/new-chat CTAs don't trigger strict
+	// mode once one visible instance exists.
+	const newChatButton = page.locator('[data-testid="new-chat-button"]').last();
 	let clicked = false;
 
 	if (await newChatButton.isVisible({ timeout: 3000 }).catch(() => false)) {

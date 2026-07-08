@@ -25,42 +25,6 @@ const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-helpers');
 const { closeFullscreen, openFullscreen } = require('./helpers/embed-test-helpers');
 
-const CYCLING_INSPIRATIONS = [
-	{
-		inspiration_id: 'cycling-inspiration-1',
-		phrase: 'Cycling inspiration one',
-		title: 'Cycling One',
-		category: 'science',
-		content_type: 'text',
-		video: null,
-		generated_at: 1760000000,
-		assistant_response: 'First cycling inspiration response.',
-		follow_up_suggestions: ['Explore the first idea']
-	},
-	{
-		inspiration_id: 'cycling-inspiration-2',
-		phrase: 'Cycling inspiration two',
-		title: 'Cycling Two',
-		category: 'biology',
-		content_type: 'text',
-		video: null,
-		generated_at: 1760000001,
-		assistant_response: 'Second cycling inspiration response.',
-		follow_up_suggestions: ['Explore the second idea']
-	},
-	{
-		inspiration_id: 'cycling-inspiration-3',
-		phrase: 'Cycling inspiration three',
-		title: 'Cycling Three',
-		category: 'technology',
-		content_type: 'text',
-		video: null,
-		generated_at: 1760000002,
-		assistant_response: 'Third cycling inspiration response.',
-		follow_up_suggestions: ['Explore the third idea']
-	}
-];
-
 function expectNoFullscreenChunkErrors(consoleErrors: string[]) {
 	const chunkErrors = consoleErrors.filter((error) =>
 		/dynamically imported module|chunk loading error|corrupted_content|fullscreen component/i.test(error)
@@ -73,6 +37,55 @@ function expectNoWelcomeCarouselRuntimeErrors(consoleErrors: string[]) {
 		/Cannot set properties of undefined \(setting 'el'\)|Cannot read properties of null \(reading 'querySelector'\)|messageHighlights] DB not initialized/i.test(error)
 	);
 	expect(runtimeErrors, `Unexpected welcome carousel runtime error(s): ${runtimeErrors.join('\n')}`).toEqual([]);
+}
+
+async function openForEveryoneIntroChat(page: any) {
+	const newChatCta = page.getByTestId('new-chat-cta-fullwidth');
+	const skipInterests = page.getByTestId('guest-interest-skip');
+	const forEveryoneCard = page
+		.locator('[data-testid="resume-chat-large-card"][data-chat-id="demo-for-everyone"], [data-testid="resume-chat-card"][data-chat-id="demo-for-everyone"]')
+		.first();
+
+	if (await skipInterests.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await skipInterests.click();
+		await expect(skipInterests).not.toBeVisible({ timeout: 10000 });
+	}
+
+	if (await forEveryoneCard.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await forEveryoneCard.click();
+	} else if (!(await newChatCta.isVisible({ timeout: 1000 }).catch(() => false))) {
+		await expect(forEveryoneCard).toBeVisible({ timeout: 10000 });
+		await forEveryoneCard.click();
+	}
+
+	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+		timeout: 15000
+	});
+	await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
+	await expect(newChatCta).toBeVisible({ timeout: 15000 });
+}
+
+async function readDailyInspirationPhrase(page: any): Promise<string> {
+	const phrase = page.getByTestId('daily-inspiration-phrase');
+	for (let attempt = 0; attempt < 5; attempt += 1) {
+		if (await phrase.isVisible({ timeout: 1000 }).catch(() => false)) break;
+
+		const nextButton = page.getByTestId('daily-inspiration-next');
+		if (!(await nextButton.isVisible({ timeout: 1000 }).catch(() => false))) break;
+		await nextButton.click();
+	}
+	await expect(phrase).toBeVisible({ timeout: 15000 });
+	const text = (await phrase.textContent())?.trim() ?? '';
+	expect(text.length, 'Daily inspiration phrase should be non-empty').toBeGreaterThan(0);
+	return text;
+}
+
+async function expectDailyInspirationPhraseToChange(page: any, previousPhrase: string): Promise<string> {
+	const phrase = page.getByTestId('daily-inspiration-phrase');
+	await expect
+		.poll(async () => (await phrase.textContent())?.trim() ?? '', { timeout: 3000 })
+		.not.toBe(previousPhrase);
+	return readDailyInspirationPhrase(page);
 }
 
 test.describe('Unauthenticated app load', () => {
@@ -129,14 +142,10 @@ test.describe('Unauthenticated app load', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		// ─── 2. Verify the for-everyone demo chat opens automatically ───────
-		// The app auto-navigates to the for-everyone intro chat for new visitors.
-		// The chat ID appears in the URL hash.
-		await page.waitForFunction(
-			() => window.location.hash.includes('demo-for-everyone'),
-			null,
-			{ timeout: 15000 }
-		);
+		// ─── 2. Verify the for-everyone demo chat is reachable after guest onboarding ───────
+		// New visitors now see the interest selector first; skipping it should reveal
+		// the for-everyone intro card, which opens the public chat URL hash.
+		await openForEveryoneIntroChat(page);
 		console.log('[unauthenticated-load] for-everyone demo chat opened in URL hash');
 
 		// Verify the active chat container is visible
@@ -195,16 +204,20 @@ test.describe('Unauthenticated app load', () => {
 		expect(page.url(), 'Swipe navigation should not start a chat').not.toContain('chat-id=');
 		console.log('[unauthenticated-load] Mobile swipe navigation changed the banner phrase');
 
-		// Verify the /v1/default-inspirations endpoint was called and succeeded
-		const inspirationApiCalled = networkRequests.some(
-			(r) => r.includes('/v1/default-inspirations') && r.startsWith('200')
+		// Guests intentionally keep hardcoded product explainer defaults. If the
+		// endpoint is called anyway, it must succeed rather than leaving the banner blank.
+		const inspirationApiResponses = networkRequests.filter((r) =>
+			r.includes('/v1/default-inspirations')
 		);
-		expect(
-			inspirationApiCalled,
-			'Expected /v1/default-inspirations API call to succeed (200). ' +
-				`Requests seen: ${networkRequests.filter((r) => r.includes('inspiration')).join(', ') || 'none'}`
-		).toBe(true);
-		console.log('[unauthenticated-load] /v1/default-inspirations returned 200');
+		if (inspirationApiResponses.length > 0) {
+			expect(
+				inspirationApiResponses.some((r) => r.startsWith('200')),
+				`Expected /v1/default-inspirations API call to succeed (200). Requests seen: ${inspirationApiResponses.join(', ')}`
+			).toBe(true);
+			console.log('[unauthenticated-load] /v1/default-inspirations returned 200');
+		} else {
+			console.log('[unauthenticated-load] Daily inspiration banner used hardcoded guest defaults');
+		}
 
 		// ─── 5. No missing translations ─────────────────────────────────────
 		await assertNoMissingTranslations(page);
@@ -229,11 +242,7 @@ test.describe('Unauthenticated app load', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		await page.waitForFunction(
-			() => window.location.hash.includes('demo-for-everyone'),
-			null,
-			{ timeout: 15000 }
-		);
+		await openForEveryoneIntroChat(page);
 
 		const followUpSuggestion = page.getByTestId('follow-up-suggestion-item').first();
 		await expect(followUpSuggestion).toBeVisible({ timeout: 10000 });
@@ -252,56 +261,28 @@ test.describe('Unauthenticated app load', () => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
 
-		await page.addInitScript((inspirations: typeof CYCLING_INSPIRATIONS) => {
-			(window as any).__defaultInspirationsFetchCount = 0;
-			const originalFetch = window.fetch.bind(window);
-			window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-				const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-				if (url.includes('/v1/default-inspirations')) {
-					(window as any).__defaultInspirationsFetchCount += 1;
-					return new Response(JSON.stringify({ inspirations }), {
-						status: 200,
-						headers: { 'Content-Type': 'application/json' }
-					});
-				}
-				return originalFetch(input, init);
-			};
-		}, CYCLING_INSPIRATIONS);
-
 		async function openNewChatAndReadPhrase() {
 			await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 			await page.waitForLoadState('networkidle');
-			await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-				timeout: 15000
-			});
+			await openForEveryoneIntroChat(page);
 
 			const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
 			await expect(newChatButton).toBeVisible({ timeout: 10000 });
 			await newChatButton.click();
 
-			const phrase = page.getByTestId('daily-inspiration-phrase');
-			await expect(phrase).toHaveText(/Cycling inspiration (one|two|three)/, { timeout: 15000 });
-			return (await phrase.textContent())?.trim();
+			return readDailyInspirationPhrase(page);
 		}
 
 		const firstPhrase = await openNewChatAndReadPhrase();
 		const secondPhrase = await openNewChatAndReadPhrase();
-		const fetchCountBeforeLanguageReload = await page.evaluate(
-			() => (window as any).__defaultInspirationsFetchCount
-		);
 		await page.evaluate(() => window.dispatchEvent(new Event('language-changed-complete')));
-		await page.waitForFunction(
-			(previousCount) => (window as any).__defaultInspirationsFetchCount > previousCount,
-			fetchCountBeforeLanguageReload
-		);
-		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText('Cycling inspiration one', {
-			timeout: 3000
-		});
+		await page.waitForTimeout(250);
+		const phraseAfterLanguageReload = await readDailyInspirationPhrase(page);
 		const thirdPhrase = await openNewChatAndReadPhrase();
 
-		expect(firstPhrase).toBe('Cycling inspiration one');
-		expect(secondPhrase).toBe('Cycling inspiration one');
-		expect(thirdPhrase).toBe('Cycling inspiration one');
+		expect(secondPhrase).toBe(firstPhrase);
+		expect(phraseAfterLanguageReload).toBe(firstPhrase);
+		expect(thirdPhrase).toBe(firstPhrase);
 	});
 
 	test('daily inspiration banner navigates with arrows and touch swipes on mobile', async ({
@@ -312,40 +293,23 @@ test.describe('Unauthenticated app load', () => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
 
-		await page.addInitScript((inspirations: typeof CYCLING_INSPIRATIONS) => {
-			const originalFetch = window.fetch.bind(window);
-			window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-				const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-				if (url.includes('/v1/default-inspirations')) {
-					return new Response(JSON.stringify({ inspirations }), {
-						status: 200,
-						headers: { 'Content-Type': 'application/json' }
-					});
-				}
-				return originalFetch(input, init);
-			};
-		}, CYCLING_INSPIRATIONS);
-
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 15000
-		});
+		await openForEveryoneIntroChat(page);
 
 		await page.getByTestId('new-chat-cta-fullwidth').click();
 
 		const banner = page.getByTestId('daily-inspiration-banner').first();
-		const phrase = page.getByTestId('daily-inspiration-phrase');
-		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 15000 });
+		const firstPhrase = await readDailyInspirationPhrase(page);
 
 		const bannerBox = await banner.boundingBox();
 		expect(bannerBox, 'Daily inspiration banner must have bounds for gesture tests').toBeTruthy();
 
 		await page.getByTestId('daily-inspiration-next').click();
-		await expect(phrase).toHaveText('Cycling inspiration two', { timeout: 3000 });
+		const secondPhrase = await expectDailyInspirationPhraseToChange(page, firstPhrase);
 
 		await page.getByTestId('daily-inspiration-previous').click();
-		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 3000 });
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(firstPhrase, { timeout: 3000 });
 
 		const centerY = bannerBox!.y + bannerBox!.height / 2;
 		await banner.dispatchEvent('touchstart', {
@@ -360,7 +324,7 @@ test.describe('Unauthenticated app load', () => {
 			touches: [],
 			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }]
 		});
-		await expect(phrase).toHaveText('Cycling inspiration two', { timeout: 3000 });
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(secondPhrase, { timeout: 3000 });
 
 		await banner.dispatchEvent('touchstart', {
 			touches: [{ identifier: 0, clientX: bannerBox!.x + 48, clientY: centerY }],
@@ -374,7 +338,7 @@ test.describe('Unauthenticated app load', () => {
 			touches: [],
 			changedTouches: [{ identifier: 0, clientX: bannerBox!.x + bannerBox!.width - 48, clientY: centerY }]
 		});
-		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 3000 });
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(firstPhrase, { timeout: 3000 });
 		expect(page.url(), 'Carousel navigation should not start a chat').not.toContain('chat-id=');
 	});
 
@@ -386,32 +350,15 @@ test.describe('Unauthenticated app load', () => {
 		test.setTimeout(90000);
 		await page.setViewportSize({ width: 390, height: 844 });
 
-		await page.addInitScript((inspirations: typeof CYCLING_INSPIRATIONS) => {
-			const originalFetch = window.fetch.bind(window);
-			window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-				const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-				if (url.includes('/v1/default-inspirations')) {
-					return new Response(JSON.stringify({ inspirations }), {
-						status: 200,
-						headers: { 'Content-Type': 'application/json' }
-					});
-				}
-				return originalFetch(input, init);
-			};
-		}, CYCLING_INSPIRATIONS);
-
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 15000
-		});
+		await openForEveryoneIntroChat(page);
 
 		const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
 		await expect(newChatButton).toBeVisible({ timeout: 10000 });
 		await newChatButton.click();
 
-		const phrase = page.getByTestId('daily-inspiration-phrase');
-		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 15000 });
+		const firstPhrase = await readDailyInspirationPhrase(page);
 
 		// Speed up the actual progress animation so this test verifies the
 		// animationend-driven carousel path without waiting for the 20s production duration.
@@ -419,24 +366,24 @@ test.describe('Unauthenticated app load', () => {
 			el.style.setProperty('--carousel-progress-duration', '250ms');
 		});
 
-		await expect(phrase).toHaveText('Cycling inspiration two', { timeout: 3000 });
+		const secondPhrase = await expectDailyInspirationPhraseToChange(page, firstPhrase);
 
 		await page.getByTestId('daily-inspiration-next').click();
-		await expect(phrase).toHaveText('Cycling inspiration three', { timeout: 3000 });
+		const manuallyAdvancedPhrase = await expectDailyInspirationPhraseToChange(page, secondPhrase);
+		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveText(manuallyAdvancedPhrase);
 		await page.getByTestId('daily-inspiration-carousel-progress').evaluate((el: HTMLElement) => {
 			el.style.setProperty('--carousel-progress-duration', '250ms');
 		});
-		await page.waitForTimeout(500);
-		await expect(phrase).toHaveText('Cycling inspiration three');
-		await expect(phrase).toHaveText('Cycling inspiration one', { timeout: 3000 });
+		const nextAutoPhrase = await expectDailyInspirationPhraseToChange(page, manuallyAdvancedPhrase);
 
 		await page.getByTestId('daily-inspiration-carousel-progress').evaluate((el: HTMLElement) => {
 			el.style.setProperty('--carousel-progress-duration', '250ms');
 		});
 		await page.getByTestId('daily-inspiration-banner').click();
 		await page.waitForTimeout(500);
+		const phrase = page.getByTestId('daily-inspiration-phrase');
 		if (await phrase.isVisible().catch(() => false)) {
-			await expect(phrase).toHaveText('Cycling inspiration one');
+			await expect(phrase).toHaveText(nextAutoPhrase);
 		} else {
 			await expect(page.getByTestId('login-wrapper')).toBeVisible({ timeout: 5000 });
 		}
@@ -458,9 +405,7 @@ test.describe('Unauthenticated app load', () => {
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-		await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-			timeout: 15000
-		});
+		await openForEveryoneIntroChat(page);
 
 		const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
 		await expect(newChatButton).toBeVisible({ timeout: 10000 });
@@ -500,11 +445,7 @@ test.describe('Unauthenticated app load', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Wait for the for-everyone intro chat to load (default for new visitors)
-		await page.waitForFunction(
-			() => window.location.hash.includes('demo-for-everyone'),
-			null,
-			{ timeout: 15000 }
-		);
+		await openForEveryoneIntroChat(page);
 		console.log('[unauthenticated-load] Intro chat loaded');
 
 		// ─── 2. Find and click the Artemis II example chat card ─────────
@@ -660,11 +601,7 @@ test.describe('Unauthenticated app load', () => {
 		await page.waitForLoadState('networkidle');
 
 		// Wait for the for-everyone demo chat to load
-		await page.waitForFunction(
-			() => window.location.hash.includes('demo-for-everyone'),
-			null,
-			{ timeout: 15000 }
-		);
+		await openForEveryoneIntroChat(page);
 
 		// ─── 2. Find and click an AI model card ────────────────────────
 		// Scroll until we find a model card (they're in the ai_models_group)
@@ -824,11 +761,7 @@ test.describe('Unauthenticated app load', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		await page.waitForFunction(
-			() => window.location.hash.includes('demo-for-everyone'),
-			null,
-			{ timeout: 15000 }
-		);
+		await openForEveryoneIntroChat(page);
 		console.log('[unauthenticated-load] for-everyone intro chat loaded');
 
 		// ─── 2. Play button must be visible in the chat header ───────────
@@ -868,11 +801,7 @@ test.describe('Unauthenticated app load', () => {
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 
-		await page.waitForFunction(
-			() => window.location.hash.includes('demo-for-everyone'),
-			null,
-			{ timeout: 15000 }
-		);
+		await openForEveryoneIntroChat(page);
 		console.log('[unauthenticated-load] Intro chat loaded');
 
 		// ─── 2. Open sidebar and find the announcements group ──────────

@@ -21,6 +21,8 @@ struct DevChatOpeningPreviewView: View {
     @StateObject private var chatStore = ChatStore()
     @StateObject private var uiTestRecorder = VoiceRecorder()
     @State private var seeded = false
+    @State private var reportIssuePrefill: ReportIssuePrefill?
+    @State private var performanceMetricsTick = 0
 
     init(forceRecordingOverlay: Bool = false) {
         self.forceRecordingOverlay = forceRecordingOverlay
@@ -31,6 +33,24 @@ struct DevChatOpeningPreviewView: View {
     }
 
     var body: some View {
+        Group {
+            if isUITestPIIComposerBannerFixtureEnabled {
+                DevPIIComposerBannerFixtureView()
+            } else if isUITestPIIVisibilityFixtureEnabled {
+                DevPIIVisibilityFixtureView()
+            } else {
+                chatOpeningPreview
+            }
+        }
+        .background(Color.grey0.ignoresSafeArea())
+        .accessibilityIdentifier("dev-chat-opening-preview")
+        .onAppear(perform: seedIfNeeded)
+        .task {
+            await updatePerformanceMetricsForUITest()
+        }
+    }
+
+    private var chatOpeningPreview: some View {
         ZStack(alignment: .bottom) {
             VStack(spacing: 0) {
                 if !isUITestVisualSnapshotEnabled {
@@ -48,10 +68,12 @@ struct DevChatOpeningPreviewView: View {
                 if seeded {
                     ChatView(
                         chatId: fixture.chat.id,
+                        bannerState: reportFormBannerState,
                         initialChat: fixture.chat,
                         initialMessages: initialWindow,
                         initialEmbeds: [],
-                        chatStore: chatStore
+                        chatStore: chatStore,
+                        onReportIssue: { reportIssuePrefill = $0 }
                     )
                 } else {
                     ProgressView()
@@ -65,6 +87,7 @@ struct DevChatOpeningPreviewView: View {
                 ComposerRecordingOverlay(
                     recorder: uiTestRecorder,
                     dragOffsetX: 0,
+                    startedFromKeyboard: isUITestKeyboardRecordingOverlayForced,
                     onStop: { _ in },
                     onCancel: {}
                 )
@@ -73,10 +96,27 @@ struct DevChatOpeningPreviewView: View {
                 .padding(.horizontal, .spacing4)
                 .padding(.bottom, .spacing3)
             }
+
+            if let reportIssuePrefill {
+                ReportIssueView(prefill: reportIssuePrefill)
+                    .frame(maxWidth: 360)
+                    .frame(maxHeight: .infinity)
+                    .background(Color.grey20)
+                    .clipShape(RoundedRectangle(cornerRadius: .radius7))
+                    .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 0)
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing8)
+                    .accessibilityIdentifier("dev-report-issue-overlay")
+            }
+
+            if isUITestPerformanceMetricsEnabled && !isUITestVisualSnapshotEnabled {
+                VStack(spacing: 0) {
+                    performanceMetricsProbe
+                    Spacer(minLength: 0)
+                }
+                .allowsHitTesting(false)
+            }
         }
-        .background(Color.grey0.ignoresSafeArea())
-        .accessibilityIdentifier("dev-chat-opening-preview")
-        .onAppear(perform: seedIfNeeded)
     }
 
     private var header: some View {
@@ -86,10 +126,11 @@ struct DevChatOpeningPreviewView: View {
                     .font(.omH4)
                     .fontWeight(.bold)
                     .foregroundStyle(Color.fontPrimary)
-                Text("initial-window-count=\(initialWindow.count); total-message-count=\(fixture.messages.count)")
+                Text(initialWindowMetricsLabel)
                     .font(.omSmall)
                     .foregroundStyle(Color.fontSecondary)
                     .accessibilityIdentifier("chat-opening-initial-window-count")
+                    .accessibilityLabel(initialWindowMetricsLabel)
             }
             Spacer(minLength: 0)
         }
@@ -127,6 +168,71 @@ struct DevChatOpeningPreviewView: View {
             .accessibilityLabel(contract)
     }
 
+    private var performanceMetricsProbe: some View {
+        let metrics = performanceMetricsLabel
+        return Text(metrics)
+            .font(.omMicro)
+            .foregroundStyle(Color.fontTertiary)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing1)
+            .background(Color.grey0.opacity(0.86))
+            .accessibilityElement(children: .ignore)
+            .accessibilityIdentifier("chat-opening-performance-metrics")
+            .accessibilityLabel(metrics)
+    }
+
+    private var performanceMetricsLabel: String {
+        _ = performanceMetricsTick
+        let frameSummary = NativePerformanceMonitor.shared.summary()
+        let syncSummary = NativeSyncDiagnosticsStore.shared.summary()
+        let sampleCount = intMetric("sample_count", in: frameSummary)
+        let averageFPS = doubleMetric("average_fps", in: frameSummary)
+        let worstFrameMS = intMetric("worst_frame_ms", in: frameSummary)
+        let jankCount = intMetric("jank_count", in: frameSummary)
+        let slowestSyncMS = intMetric("slowest_elapsed_ms", in: syncSummary)
+        let phaseCount = intMetric("phase_count", in: syncSummary)
+        return [
+            "performance-metrics=chat-opening",
+            "initial-window=\(initialWindow.count)",
+            "total-messages=\(fixture.messages.count)",
+            "frame-samples=\(sampleCount)",
+            String(format: "average-fps=%.1f", averageFPS),
+            "worst-frame-ms=\(worstFrameMS)",
+            "jank-count=\(jankCount)",
+            "sync-slowest-ms=\(slowestSyncMS)",
+            "sync-phase-count=\(phaseCount)"
+        ].joined(separator: "; ")
+    }
+
+    private var initialWindowMetricsLabel: String {
+        let base = "initial-window-count=\(initialWindow.count); total-message-count=\(fixture.messages.count)"
+        guard isUITestPerformanceMetricsEnabled else { return base }
+        return "\(base); \(performanceMetricsLabel)"
+    }
+
+    @MainActor
+    private func updatePerformanceMetricsForUITest() async {
+        guard isUITestPerformanceMetricsEnabled else { return }
+        while !Task.isCancelled {
+            performanceMetricsTick += 1
+            try? await Task.sleep(nanoseconds: 250_000_000)
+        }
+    }
+
+    private func intMetric(_ key: String, in summary: [String: Any]) -> Int {
+        if let value = summary[key] as? Int { return value }
+        if let value = summary[key] as? NSNumber { return value.intValue }
+        return 0
+    }
+
+    private func doubleMetric(_ key: String, in summary: [String: Any]) -> Double {
+        if let value = summary[key] as? Double { return value }
+        if let value = summary[key] as? NSNumber { return value.doubleValue }
+        return 0
+    }
+
     private func seedIfNeeded() {
         guard !seeded else { return }
         chatStore.performWithoutPersistence {
@@ -139,7 +245,14 @@ struct DevChatOpeningPreviewView: View {
     private var isUITestRecordingOverlayForced: Bool {
         forceRecordingOverlay
             || ProcessInfo.processInfo.arguments.contains("--ui-test-force-recording-overlay")
+            || ProcessInfo.processInfo.arguments.contains("--ui-test-force-keyboard-recording-overlay")
             || ProcessInfo.processInfo.environment["UI_TEST_FORCE_RECORDING_OVERLAY"] == "1"
+            || ProcessInfo.processInfo.environment["UI_TEST_FORCE_KEYBOARD_RECORDING_OVERLAY"] == "1"
+    }
+
+    private var isUITestKeyboardRecordingOverlayForced: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-force-keyboard-recording-overlay")
+            || ProcessInfo.processInfo.environment["UI_TEST_FORCE_KEYBOARD_RECORDING_OVERLAY"] == "1"
     }
 
     private var isUITestResponsiveMetricsEnabled: Bool {
@@ -157,6 +270,35 @@ struct DevChatOpeningPreviewView: View {
             || ProcessInfo.processInfo.environment["UI_TEST_VISUAL_SNAPSHOT"] == "1"
     }
 
+    private var isUITestPerformanceMetricsEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-performance-metrics")
+            || ProcessInfo.processInfo.environment["UI_TEST_PERFORMANCE_METRICS"] == "1"
+    }
+
+    private var isUITestPIIComposerBannerFixtureEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-pii-composer-banner-fixture")
+            || ProcessInfo.processInfo.environment["UI_TEST_PII_COMPOSER_BANNER_FIXTURE"] == "1"
+    }
+
+    private var isUITestPIIVisibilityFixtureEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-pii-visibility-fixture")
+            || ProcessInfo.processInfo.environment["UI_TEST_PII_VISIBILITY_FIXTURE"] == "1"
+    }
+
+    private var isUITestChatReportFormEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("--ui-test-chat-report-form")
+            || ProcessInfo.processInfo.environment["UI_TEST_CHAT_REPORT_FORM"] == "1"
+    }
+
+    private var reportFormBannerState: ChatBannerState? {
+        guard isUITestChatReportFormEnabled else { return nil }
+        return .loaded(
+            title: fixture.chat.displayTitle,
+            appId: fixture.chat.category ?? "ai",
+            summary: fixture.chat.chatSummary
+        )
+    }
+
     private func responsiveMetricsLabel(width: CGFloat) -> String {
         let assistantStackedBreakpoint: CGFloat = 500
         let inlineNewChatCompactBreakpoint: CGFloat = 550
@@ -168,11 +310,120 @@ struct DevChatOpeningPreviewView: View {
     }
 }
 
+private struct DevPIIComposerBannerFixtureView: View {
+    @State private var matches: [PIIMatch] = [
+        PIIMatch(
+            id: "EMAIL:alice@example.com",
+            type: .email,
+            value: "alice@example.com",
+            range: NSRange(location: 6, length: 17),
+            placeholder: "[EMAIL_1_com]"
+        ),
+        PIIMatch(
+            id: "PHONE:+49 170 1234567",
+            type: .phone,
+            value: "+49 170 1234567",
+            range: NSRange(location: 33, length: 16),
+            placeholder: "[PHONE_1_567]"
+        )
+    ]
+
+    var body: some View {
+        VStack(spacing: .spacing4) {
+            Text("Native Chat Opening Preview")
+                .font(.omSmall.weight(.semibold))
+                .foregroundStyle(Color.fontPrimary)
+
+            Text("PII Composer Banner Fixture")
+                .font(.omMicro)
+                .foregroundStyle(Color.fontSecondary)
+                .accessibilityIdentifier("pii-composer-banner-fixture")
+
+            PIIWarningBanner(matches: matches) {
+                matches = []
+            }
+
+            PIIHighlightStrip(matches: matches) { match in
+                matches.removeAll { $0.id == match.id }
+            }
+
+            Spacer()
+        }
+        .padding(.spacing6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color.grey20)
+    }
+}
+
+private struct DevPIIVisibilityFixtureView: View {
+    private let hiddenContent = "Please email [EMAIL_1_com] the update."
+    private let mappings = [
+        PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL")
+    ]
+    @State private var isRevealed = false
+
+    private var displayedContent: String {
+        guard isRevealed else { return hiddenContent }
+        return PIIDetector.restorePII(in: hiddenContent, mappings: mappings)
+    }
+
+    private var toggleLabel: String {
+        isRevealed ? AppStrings.piiHide : AppStrings.piiShow
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing4) {
+            HStack(spacing: .spacing3) {
+                Text("Native Chat Opening Preview")
+                    .font(.omSmall.weight(.semibold))
+                    .foregroundStyle(Color.fontPrimary)
+
+                Spacer(minLength: 0)
+
+                Button {
+                    isRevealed.toggle()
+                } label: {
+                    HStack(spacing: .spacing2) {
+                        Icon(isRevealed ? "hidden" : "visible", size: 18)
+                            .foregroundStyle(LinearGradient.primary)
+                        Text(toggleLabel)
+                            .font(.omXs.weight(.semibold))
+                            .foregroundStyle(Color.fontPrimary)
+                    }
+                    .padding(.horizontal, .spacing3)
+                    .frame(height: 44)
+                    .background(Color.grey0.opacity(0.92))
+                    .clipShape(Capsule())
+                    .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(toggleLabel)
+                .accessibilityIdentifier("chat-pii-toggle")
+                .accessibilityAddTraits(.isButton)
+            }
+
+            Text(displayedContent)
+                .font(.omP)
+                .foregroundStyle(Color.fontPrimary)
+                .accessibilityIdentifier("pii-visibility-fixture-message")
+
+            Spacer()
+        }
+        .padding(.spacing6)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.grey20)
+    }
+}
+
 private struct DevChatOpeningFixture {
     let chat: Chat
     let messages: [Message]
 
-    static func make(messageCount: Int = 250) -> DevChatOpeningFixture {
+    static func make(messageCount: Int = Self.messageCountForUITest()) -> DevChatOpeningFixture {
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-pii-visibility-fixture") {
+            return piiVisibilityFixture()
+        }
+
         let chatId = "dev-chat-opening-large"
         let messages = (1...messageCount).map { index in
             let id = "seeded-message-\(index)"
@@ -214,10 +465,71 @@ private struct DevChatOpeningFixture {
         return DevChatOpeningFixture(chat: chat, messages: messages)
     }
 
+    private static func piiVisibilityFixture() -> DevChatOpeningFixture {
+        let chatId = "dev-chat-pii-visibility"
+        let mappings = [
+            PIIMapping(placeholder: "[EMAIL_1_com]", original: "alice@example.com", type: "EMAIL")
+        ]
+        let messages = [
+            Message(
+                id: "pii-user-1",
+                chatId: chatId,
+                role: .user,
+                content: "Please email [EMAIL_1_com] the update.",
+                encryptedContent: nil,
+                createdAt: timestamp(for: 1),
+                updatedAt: nil,
+                appId: nil,
+                isStreaming: false,
+                embedRefs: nil,
+                piiMappings: mappings,
+                encryptedPIIMappings: "encrypted-test-mappings"
+            ),
+            Message(
+                id: "pii-assistant-1",
+                chatId: chatId,
+                role: .assistant,
+                content: "I will draft a note for [EMAIL_1_com].",
+                encryptedContent: nil,
+                createdAt: timestamp(for: 2),
+                updatedAt: nil,
+                appId: "ai",
+                isStreaming: false,
+                embedRefs: nil
+            )
+        ]
+
+        let chat = Chat(
+            id: chatId,
+            title: "Seeded PII Chat",
+            lastMessageAt: timestamp(for: 2),
+            createdAt: timestamp(for: 1),
+            updatedAt: timestamp(for: 2),
+            isArchived: false,
+            isPinned: false,
+            appId: nil,
+            category: "ai",
+            icon: "ai",
+            chatSummary: "Deterministic PII reveal fixture for native UI tests.",
+            encryptedTitle: nil,
+            encryptedChatKey: nil,
+            messagesV: messages.count,
+            lastVisibleMessageId: messages.last?.id
+        )
+        return DevChatOpeningFixture(chat: chat, messages: messages)
+    }
+
     private static func timestamp(for index: Int) -> String {
         let minute = index / 60
         let second = index % 60
         return String(format: "2026-01-01T00:%02d:%02dZ", minute, second)
+    }
+
+    private static func messageCountForUITest() -> Int {
+        let environment = ProcessInfo.processInfo.environment
+        let rawValue = environment["UI_TEST_CHAT_MESSAGE_COUNT"]
+        let parsed = rawValue.flatMap(Int.init) ?? 250
+        return min(max(parsed, 1), 2_000)
     }
 }
 #endif

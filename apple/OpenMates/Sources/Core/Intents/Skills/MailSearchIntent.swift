@@ -4,7 +4,7 @@ import AppIntents
 import Foundation
 
 struct MailSearchIntent: AppIntent {
-    static let title: LocalizedStringResource = "Search Mail"
+    static let title: LocalizedStringResource = "Mail | Search"
     static let description: IntentDescription = "Search for email services and providers."
     static let openAppWhenRun = false
 

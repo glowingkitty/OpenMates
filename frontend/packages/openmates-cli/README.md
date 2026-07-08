@@ -31,6 +31,7 @@ openmates settings account export data --json
 openmates learning-mode status --json
 openmates settings memories list --json
 openmates docs list
+openmates remote-access start --path ./my-repo --source-id repo-1 --local-only
 openmates benchmark model google/gemini-3.5-flash --dry-run --json
 openmates server install
 ```
@@ -54,6 +55,8 @@ After `openmates server install`, fresh CLI commands default to that self-hosted
 
 Predefined settings commands are supported; raw `settings get/post/patch/delete` passthrough is intentionally unavailable. High-risk or browser-only flows such as passkey management, password changes, API key creation, device approvals, and card checkout stay in the web app. The code-level guard is `BLOCKED_SETTINGS_MUTATE_PATHS` in `src/client.ts`.
 
+`openmates remote-access` is a local Project source bridge. It stores source metadata under `~/.openmates/remote-sources.json`, searches with `rg` inside the approved source root, and does not upload repository files by default.
+
 ## SDK
 
 The package also exports a lazy API-key SDK. Create an API key in OpenMates under Settings > Developers > API Keys, then set `OPENMATES_API_KEY` or pass `apiKey` explicitly. New SDK devices must be approved in Settings > Developers > Devices before API-key calls are allowed.
@@ -63,7 +66,7 @@ import { OpenMates } from "openmates";
 
 const om = new OpenMates({ apiKey: process.env.OPENMATES_API_KEY });
 
-const search = await om.apps.run("web", "search", {
+const search = await om.apps.web.search({
   requests: [{ query: "OpenMates SDK examples" }],
 });
 ```
@@ -74,11 +77,13 @@ SDK methods authenticate lazily; there is no `connect()` call.
 const latestChats = await om.chats.list(); // defaults to 10
 const allChats = await om.chats.list({ limit: 0 });
 
-const privateChat = await om.chats.create();
-await privateChat.send("Summarize this release note draft.");
+await om.chats.send("Summarize this release note draft.");
 
-const savedChat = await om.chats.create({ saveToAccount: true });
-await savedChat.send("Create a project kickoff checklist.");
+await om.chats.send("Create a project kickoff checklist.", { saveToAccount: true });
+
+await om.billing.overview();
+await om.billing.invoices();
+await om.docs.search("api keys");
 ```
 
 New SDK chats are non-persistent by default. Use `saveToAccount: true` only when you intentionally want the chat saved to the OpenMates account.

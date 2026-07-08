@@ -1,0 +1,648 @@
+id: fitness-urban-sports-search
+title: Fitness Urban Sports Search Skills
+status: verified
+
+goal: >
+  Let users search Urban Sports Club fitness locations and available classes from
+  OpenMates through two separate Fitness app skills, with reliable radius/date/plan
+  filtering, CLI and SDK parity, and event-style embed previews and fullscreen
+  result grids.
+
+scope:
+  in:
+    - "Replace the existing placeholder Fitness metadata skill with two separate skills: `search_locations` and `search_classes`."
+    - Use public Urban Sports Club web endpoints and HTML/JSON-LD parsing only; no partner credentials or booking API access.
+    - Support city, address, radius, postal-code-like text, discipline/category query, plan filters, on-site/online/all mode, date windows, and minimum available spots.
+    - Add a shared Urban Sports provider module with deterministic parsing fixtures and no cross-skill imports.
+    - Add CLI, npm SDK, and pip SDK generated/contract coverage for both skills before web Playwright verification.
+    - Add Fitness search location/class embed preview and fullscreen components modeled on the Events search embed UX.
+    - Update app metadata, i18n sources, provider metadata/privacy docs, and app-store examples needed for a shipped public provider skill.
+  out:
+    - Booking classes, cancelling bookings, checking in, reading member-specific eligibility, or exposing partner/private APIs.
+    - Storing Urban Sports Club account credentials or member data.
+    - Guaranteeing complete global Urban Sports coverage beyond fields visible on public logged-out web pages.
+    - Replacing the existing Maps app or depending on another app skill from Fitness.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me returned 401 bad credentials. Fallback `gh issue list --repo glowingkitty/OpenMates --search \"fitness Urban Sports search classes locations\" --state all --limit 10 --json number,title,state,labels,url` returned no matching issue."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/apps/app-skills.md
+    - docs/specs/app-skill-processing-quality/spec.yml
+    - docs/user-guide/apps/events.md
+  code_patterns:
+    - backend/apps/fitness/app.yml currently declares one placeholder `search_locations_and_courses` skill, but no `backend/apps/fitness/skills` implementation exists.
+    - backend/apps/events/skills/search_skill.py shows multi-request app-skill schema, provider normalization, result grouping, and follow-up suggestion patterns.
+    - backend/apps/maps/skills/search_skill.py shows direct async app-skill execution for quick I/O-bound searches.
+    - backend/shared/python_utils/geo_utils.py provides `geocode_address` with Nominatim throttling and local city fallback.
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte and EventsSearchEmbedFullscreen.svelte provide the requested event-style search card/grid reference.
+    - frontend/packages/openmates-cli/src/cli.ts and sdk clients already support `openmates apps <app> <skill>` app-skill execution.
+  tests:
+    - backend/tests/test_app_skill_processing_quality.py
+    - backend/tests/test_health_search_appointments_skill.py
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/embedRenderers.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+  parity_expectations:
+    - Apple renders native Fitness search previews and fullscreen result cards for `search_locations` and `search_classes` instead of falling back to raw generic app-skill JSON.
+    - Native Fitness cards preserve provider, summary, filters, top results, location/class metadata, plans, and provider links from the same parent app-skill payload used by web.
+  verification:
+    - Run `python3 scripts/apple_remote.py status` and `python3 scripts/apple_remote.py build-ios`, or record a sanitized failure class.
+  intentional_native_differences:
+    - Apple keeps the Fitness native renderer inside the existing app-skill renderer file so remote pre-commit verification can build tracked-file edits without a new Xcode project source entry.
+
+clarification:
+  rounds:
+    - question: Should Fitness ship one combined skill or two separate skills?
+      answer: "Two separate skills: one for search locations and one for search classes."
+    - question: Should the default plan filter be one specific Urban Sports plan?
+      answer: No. Default to all plans unless the user explicitly requests a plan; every result must show the required plans so BEAT81-style Classic/Premium/Max results are not silently missed.
+    - question: Should CLI and SDK integration be included in the first spec?
+      answer: Yes. Test CLI and SDK first before web, and include embed preview and fullscreen types that look similar to Events embeds.
+  vision_summary: >
+    Fitness should expose Urban Sports Club as a useful discovery provider, not a
+    brittle demo scraper. Users should be able to ask for locations or available
+    classes near an address/radius and get results that preserve plan, distance,
+    date, availability, and online/on-site caveats. The first implementation
+    should prove contracts through CLI, npm SDK, pip SDK, and web embeds before
+    final verification.
+  approved_by_user: false
+
+scenarios:
+  - id: S-1
+    title: Search nearby Fitness locations by address and radius
+    given:
+      - Alice asks for Urban Sports locations within 1 km of Sorauer Str. 12, 10997 Berlin.
+      - The request does not specify a plan.
+    when:
+      - The Fitness `search_locations` skill resolves the address and searches Urban Sports public venue pages.
+    then:
+      - Results include venues whose public detail-page coordinates are within 1 km of the resolved address.
+      - Each result includes name, URL, address, postal code, coordinates when available, distance, disciplines, and required plans.
+      - No venue is hidden only because it is unavailable on the Essential plan.
+
+  - id: S-2
+    title: Search available classes near an address without silently dropping higher-plan classes
+    given:
+      - Alice asks for available classes near Sorauer Str. 12 on 2026-07-07 within 1 km.
+      - BEAT81 nearby classes require Classic, Premium, or Max plans.
+    when:
+      - The Fitness `search_classes` skill searches the public activity pages and post-filters by venue coordinates.
+    then:
+      - BEAT81 results are included when no plan filter is provided.
+      - Each class includes date, time range, class name, category, venue, address, distance, spots left, required plans, detail URL, and provider.
+      - The response clearly labels the plan requirements instead of implying every result is available to every membership.
+
+  - id: S-3
+    title: Plan filters narrow results intentionally
+    given:
+      - Alice asks for only Essential-plan classes near Sorauer Str. 12 on 2026-07-07.
+    when:
+      - The Fitness `search_classes` skill applies `plan=essential`.
+    then:
+      - Classes whose cards do not include Essential are excluded.
+      - The result summary says the search was filtered to Essential.
+      - A no-result or reduced-result explanation suggests removing the plan filter when appropriate.
+
+  - id: S-4
+    title: On-site and online modes are explicit
+    given:
+      - Alice asks for classes within 1 km of an address.
+      - The public activity page includes online classes associated with nearby studios.
+    when:
+      - The request omits an online/on-site preference.
+    then:
+      - Radius/address searches default to on-site classes because online class distance is not meaningful.
+      - Users can explicitly request online or all modes.
+      - The result summary includes the mode used and the count before/after radius filtering.
+
+  - id: S-5
+    title: CLI, npm SDK, and pip SDK can run both skills
+    given:
+      - Alice has an API key or authenticated SDK client.
+    when:
+      - She runs the Fitness location and class searches from the CLI, npm SDK, and pip SDK.
+    then:
+      - Each client sends the same canonical request fields and receives the same canonical response shape.
+      - Default CLI output is concise, while JSON output preserves full result details.
+      - Generated SDK facades expose both skill IDs after metadata generation.
+
+  - id: S-6
+    title: Web chat renders event-style Fitness embeds
+    given:
+      - Alice asks in web chat for available Fitness classes near Sorauer Str. 12.
+    when:
+      - The AI triggers `fitness.search_classes` and the embed finishes.
+    then:
+      - The preview card shows the query/location/radius/date range, provider, result count, and mode summary.
+      - Fullscreen opens a grid/list similar to Events search, with result cards for classes or locations and enough details to choose a result.
+      - Processing, finished, empty, error, and cancelled states use UnifiedEmbed primitives and stable data-testid attributes.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: "`search_locations` returns radius-filtered public Urban Sports venues with address, geo, distance, disciplines, URLs, and plan requirements."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-PROVIDER, T-PYTEST-SKILLS]
+  - id: AC-2
+    scenario: S-2
+    text: "`search_classes` defaults to all plans and includes higher-plan classes such as BEAT81 unless a plan filter is explicitly set."
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-PROVIDER, T-PYTEST-SKILLS]
+  - id: AC-3
+    scenario: S-3
+    text: Explicit plan filters narrow class/location results and produce a clear filtered-summary or no-result explanation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-SKILLS]
+  - id: AC-4
+    scenario: S-4
+    text: Address/radius class searches default to on-site mode, while explicit `online` and `all` modes are supported and summarized.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-SKILLS]
+  - id: AC-5
+    scenario: S-5
+    text: CLI, npm SDK, and pip SDK can execute both Fitness skills using canonical schemas and concise/default plus JSON/full outputs.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-FITNESS, T-NPM-SDK-FITNESS, T-PIP-SDK-FITNESS]
+  - id: AC-6
+    scenario: S-6
+    text: Web embeds for Fitness locations/classes render preview and fullscreen states using event-style search UX and stable test IDs.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PLAYWRIGHT-FITNESS]
+  - id: AC-7
+    scenario: S-6
+    text: Provider metadata, privacy policy entries, i18n source keys, and app-store examples are updated for Urban Sports Club and the two Fitness skills.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-METADATA-AUDIT]
+  - id: AC-8
+    scenario: S-6
+    text: Apple native app-skill rendering/build remains compatible with the new Fitness metadata and renders Fitness search payloads without the generic JSON fallback.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [T-APPLE-BUILD]
+
+assumptions:
+  - id: A-1
+    text: Urban Sports Club public web pages may be used for logged-out discovery, but no booking/member/partner APIs are available without credentials.
+    category: provider
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs.urbansportsclub.io/documentation/introduction
+        summary: Official partner API documentation requires contract and sandbox credentials.
+      - source: live public endpoint probes
+        summary: "`/en/venues`, `/en/activities`, `/en/class-details/{id}`, and `/en/venues/{slug}` returned logged-out public data."
+  - id: A-2
+    text: Address/radius filtering requires post-fetching venue detail pages because activity result cards do not contain coordinates.
+    category: data_quality
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: scripts/urban_sports_search.py research probe
+        summary: Search cards included venue URLs and detail pages exposed schema.org LocalBusiness geo coordinates.
+  - id: A-3
+    text: Existing shared geocoding in `backend/shared/python_utils/geo_utils.py` is acceptable for resolving address/radius searches.
+    category: architecture
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/shared/python_utils/geo_utils.py
+        summary: Provides `geocode_address` with Nominatim throttling and city fallback.
+  - id: A-4
+    text: Urban Sports Club privacy policy URL must be verified before adding it to committed privacy-policy metadata.
+    category: privacy
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: https://urbansportsclub.com/en/privacy-policy
+        summary: Firecrawl scrape returned HTTP 200 and title `Urban Sports Club Privacy Policy`; provider identity is Urban Sports GmbH.
+
+contracts:
+  provider:
+    - name: Urban Sports Club public web provider
+      module: backend/shared/providers/urban_sports
+      endpoints:
+        - GET https://urbansportsclub.com/{language}/venues
+        - GET https://urbansportsclub.com/{language}/activities
+        - GET https://urbansportsclub.com/{language}/class-details/{appointment_id}
+        - GET https://urbansportsclub.com/{language}/venues/{slug}
+      privacy:
+        - Proxy requests through backend only; never call Urban Sports Club directly from the browser.
+        - Do not send logged-in user identifiers to Urban Sports Club; query data may include address/location intent.
+        - Cache public venue detail metadata with TTL to reduce repeated third-party requests.
+  skills:
+    - id: fitness.search_locations
+      request: >
+        { requests: [{ id?, query?, city?, address?, lat?, lon?, radius_km?, plan?, category?, limit?, language? }] }
+      response: >
+        { results: [{ id, query, provider, result_count, filters, results: [FitnessLocationResult], warnings?, relaxed? }], ignore_fields_for_inference? }
+    - id: fitness.search_classes
+      request: >
+        { requests: [{ id?, query?, city?, address?, lat?, lon?, radius_km?, start_date?, end_date?, days?, plan?, attendance_mode?, min_spots?, category?, venue_id?, limit?, language? }] }
+      response: >
+        { results: [{ id, query, provider, result_count, filters, results: [FitnessClassResult], warnings?, relaxed? }], ignore_fields_for_inference? }
+  data:
+    - FitnessLocationResult includes provider, venue_id/address_id when available, name, url, address, postal_code, city, country, lat, lon, distance_km, disciplines, plans_required, image_url, rating/count if available, visit_limits/opening_times when available.
+    - FitnessClassResult includes provider, appointment_id, name, category, class_type, date, time_range, attendance_mode, spots_left, spots_display, venue name/url/address/geo/distance, plans_required, detail_url, image_url, important_info/description when detail enrichment is enabled.
+  ui_states:
+    - Processing preview with query/location/date/radius/provider.
+    - Finished preview with result count, mode, date/radius summary, and top result snippets.
+    - Empty state with constraints and relaxation suggestions.
+    - Error state with public-provider failure reason.
+    - Fullscreen grid/list with class/location cards and sortable/filter-readable metadata.
+  privacy_security:
+    - No Urban Sports member credentials or booking attempts.
+    - No private user profile data sent to Urban Sports Club.
+    - User-entered addresses are transient request data; logs must use sanitized/truncated location text and coordinates rounded where needed.
+
+tests:
+  - id: T-PYTEST-PROVIDER
+    type: pytest
+    file: backend/tests/test_urban_sports_provider.py
+    command: python3 -m pytest backend/tests/test_urban_sports_provider.py
+    covers: [AC-1, AC-2]
+    assertions:
+      - parses venue cards, activity cards, class-detail modal HTML, and venue JSON-LD fixtures
+      - computes Sorauer Str. radius distances from fixture coordinates
+      - treats BEAT81 as included when plan is omitted and excluded when filtering to Essential
+      - deduplicates class results by appointment_id plus date
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: "continuation-session"
+        timestamp: "2026-07-07T01:10:18Z"
+        summary: "Red phase was not captured before implementation was continued in this session. Provider fixture tests now cover the intended regression surface."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 -m pytest backend/tests/test_urban_sports_provider.py (4 passed)"
+        timestamp: "2026-07-07T01:10:18Z"
+  - id: T-PYTEST-SKILLS
+    type: pytest
+    file: backend/tests/test_fitness_urban_sports_skills.py
+    command: python3 -m pytest backend/tests/test_fitness_urban_sports_skills.py
+    covers: [AC-1, AC-2, AC-3, AC-4]
+    assertions:
+      - search_locations accepts address/radius and returns canonical grouped results
+      - search_classes defaults to all plans and on-site mode for address/radius searches
+      - explicit plan and attendance_mode filters are applied and summarized
+      - provider failures return visible error/warning fields instead of silent empty success
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: "continuation-session"
+        timestamp: "2026-07-07T01:10:18Z"
+        summary: "Red phase was not captured before implementation was continued in this session. Skill tests now cover request defaults, explicit filters, grouped results, and visible errors."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 -m pytest backend/tests/test_fitness_urban_sports_skills.py (5 passed)"
+        timestamp: "2026-07-07T03:49:00Z"
+  - id: T-CLI-FITNESS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: node --test tests/cli.test.ts
+    covers: [AC-5]
+    assertions:
+      - CLI can run `openmates apps fitness search_locations --input ...`
+      - CLI can run `openmates apps fitness search_classes --input ...`
+      - default output is concise and JSON output preserves full result fields
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: "continuation-session"
+        timestamp: "2026-07-07T01:10:18Z"
+        summary: "Fitness CLI coverage was added after implementation had already started; no pre-fix red run exists."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "node --test tests/cli.test.ts (131 passed)"
+        timestamp: "2026-07-07T01:10:18Z"
+  - id: T-NPM-SDK-FITNESS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    command: node --test --experimental-strip-types tests/sdkGenerator.test.ts
+    covers: [AC-5]
+    assertions:
+      - generated npm SDK app-skill facade includes fitness.search_locations
+      - generated npm SDK app-skill facade includes fitness.search_classes
+      - request/response types include plan, attendance_mode, radius, distance, and spots fields
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: "continuation-session"
+        timestamp: "2026-07-07T01:10:18Z"
+        summary: "Generator coverage was added after implementation had already started; no pre-fix red run exists."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "node --test --experimental-strip-types tests/sdkGenerator.test.ts (2 passed)"
+        timestamp: "2026-07-07T01:10:18Z"
+  - id: T-PIP-SDK-FITNESS
+    type: pytest
+    file: packages/openmates-python/tests/test_sdk_generator.py
+    command: python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py
+    covers: [AC-5]
+    assertions:
+      - generated pip SDK app-skill facade includes fitness.search_locations
+      - generated pip SDK app-skill facade includes fitness.search_classes
+      - request/response schemas preserve the same canonical fields as the backend
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: "continuation-session"
+        timestamp: "2026-07-07T01:10:18Z"
+        summary: "Generator coverage was added after implementation had already started; no pre-fix red run exists."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 -m pytest packages/openmates-python/tests/test_sdk_generator.py (2 passed)"
+        timestamp: "2026-07-07T01:10:18Z"
+  - id: T-METADATA-AUDIT
+    type: lint
+    file: scripts/audit_app_provider_contracts.py
+    command: python3 scripts/audit_app_provider_contracts.py
+    covers: [AC-7]
+    assertions:
+      - Fitness app metadata resolves two skills and matching embed types
+      - Urban Sports Club provider is declared as no-api-key or equivalent public provider metadata
+      - i18n source keys and app-store examples exist for both skills
+      - privacy policy metadata updates are present after URL verification
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: "continuation-session"
+        timestamp: "2026-07-07T01:10:18Z"
+        summary: "Metadata audit was introduced/used after implementation had already started; no pre-fix red run exists."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/audit_app_provider_contracts.py (exit_code=0)"
+        timestamp: "2026-07-07T01:10:18Z"
+  - id: T-PLAYWRIGHT-FITNESS
+    type: playwright
+    file: frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
+    command: python3 scripts/tests.py run --spec skill-fitness-urban-sports.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-6]
+    assertions:
+      - web chat triggers Fitness search classes and renders a processing preview
+      - finished preview displays provider, date/radius/mode summary, and result count
+      - fullscreen opens the Fitness class result surface with either real results or an empty state
+      - empty/error states do not leak raw app-skill JSON
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        run_id: "frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts added during continuation"
+        timestamp: "2026-07-07T01:10:18Z"
+        summary: "No Fitness Playwright spec existed before this continuation, so the red-phase state was an absent regression test."
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "2026-07-07T04:05:40Z / GitHub Actions 28840786030 / commit 8f1ff1e21"
+        timestamp: "2026-07-07T04:10:08Z"
+        summary: "OPENMATES_SKIP_VERCEL_WAIT=true python3 scripts/tests.py run -- --spec skill-fitness-urban-sports.spec.ts passed. Web app was the manually aliased Ready dev build; backend worker was restarted after commit aba6bab so Fitness skill classes loaded the flat-runtime-args fix."
+  - id: T-APPLE-BUILD
+    type: build
+    file: apple/OpenMates.xcodeproj
+    command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+    covers: [AC-8]
+    assertions:
+      - Apple project still builds after Fitness metadata and native app-skill payload additions
+      - Apple routes `fitness.search_locations` and `fitness.search_classes` to native Fitness preview/fullscreen rendering
+      - Any skipped Apple evidence records a sanitized failure class
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "apple_remote build-ios exit_code=0"
+        timestamp: "2026-07-07"
+
+verifications:
+  - id: V-SPEC-VALIDATE
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8]
+    status: passed
+    evidence:
+      status: passed
+      summary: "`python3 scripts/spec_validate.py docs/specs/fitness-urban-sports-search/spec.yml` and `python3 scripts/spec_verify.py docs/specs/fitness-urban-sports-search/spec.yml` passed after green Playwright evidence was recorded."
+      timestamp: "2026-07-07T04:11:00Z"
+
+implementation_plan:
+  existing_patterns:
+    - backend/apps/events/skills/search_skill.py for grouped multi-request skill response shape and provider labels.
+    - backend/apps/maps/skills/search_skill.py for direct async I/O-bound app-skill execution.
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte for search preview layout.
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedFullscreen.svelte for fullscreen search grid UX.
+    - backend/shared/python_utils/geo_utils.py for address geocoding.
+  architecture: >
+    Add a shared Urban Sports public-web provider that parses logged-out venue,
+    activity, class-detail, and venue-detail pages. Fitness skills call that
+    provider directly, normalize results into canonical location/class schemas,
+    and return grouped app-skill outputs for embeds, CLI, and SDKs. Radius
+    filtering geocodes the user address and enriches candidate venues with
+    cached detail-page coordinates before applying haversine distance.
+  data_flow:
+    - User or SDK calls `fitness.search_locations` or `fitness.search_classes` with one or more requests.
+    - Skill resolves city/address/radius/plan/mode filters and calls shared Urban Sports provider.
+    - Provider fetches public search pages and only fetches detail pages needed for address/radius enrichment.
+    - Skill deduplicates, filters, sorts by distance/date/time/relevance, and returns canonical grouped results plus warnings.
+    - Embed preview receives parent result count and summary; fullscreen renders result cards using inline parent data or child embed extraction pattern.
+  affected_files:
+    - path: backend/shared/providers/urban_sports/__init__.py
+      reason: Public Urban Sports provider package.
+    - path: backend/shared/providers/urban_sports/client.py
+      reason: HTTP client, endpoint builders, pagination, and rate/caching boundaries.
+    - path: backend/shared/providers/urban_sports/parsers.py
+      reason: HTML and JSON-LD parser functions with fixtures.
+    - path: backend/apps/fitness/skills/search_locations.py
+      reason: Location skill implementation.
+    - path: backend/apps/fitness/skills/search_classes.py
+      reason: Class availability skill implementation.
+    - path: backend/apps/fitness/app.yml
+      reason: Replace placeholder combined skill with two skills and two embed types.
+    - path: frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedPreview.svelte
+      reason: Shared location/class search preview component.
+    - path: frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedFullscreen.svelte
+      reason: Shared location/class search fullscreen component.
+    - path: apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+      reason: Native Fitness app-skill preview/fullscreen routing and card renderer.
+    - path: apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+      reason: Typed native accessors for Fitness skill labels.
+    - path: frontend/packages/ui/src/i18n/sources/app_skills/fitness.yml
+      reason: New skill names, descriptions, and examples.
+    - path: frontend/packages/ui/src/i18n/sources/embeds.yml
+      reason: Embed labels for Fitness search components if required by registry.
+    - path: frontend/packages/openmates-cli/tests/cli.test.ts
+      reason: CLI direct skill execution contract tests.
+    - path: frontend/packages/openmates-cli/tests/sdk.test.ts
+      reason: npm SDK generated facade tests.
+    - path: packages/openmates-python/tests/test_sdk.py
+      reason: pip SDK generated facade tests.
+    - path: shared/docs/privacy_policy.yml
+      reason: Add Urban Sports Club provider after verifying privacy URL.
+  verification_strategy:
+    - Validate spec before implementation.
+    - Write provider and skill tests first and capture red phase.
+    - Add CLI/npm SDK/pip SDK tests before frontend Playwright.
+    - Deploy before Playwright green because specs target app.dev.openmates.org.
+    - Run Apple remote build after native Fitness routing changes or record sanitized unavailable evidence.
+  verification_order:
+    - Provider/skill pytest fixture tests.
+    - CLI direct app-skill test.
+    - npm SDK generated app-skill facade test.
+    - pip SDK generated app-skill facade test.
+    - Metadata/privacy/i18n audits.
+    - Web Playwright spec after deploy.
+    - Apple remote build compatibility.
+
+tasks:
+  - id: TASK-1
+    title: Write provider fixtures and parser tests
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]
+    expected_files:
+      - backend/tests/fixtures/urban_sports/*.html
+      - backend/tests/test_urban_sports_provider.py
+    verification: [T-PYTEST-PROVIDER]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-2
+    title: Implement shared Urban Sports provider and two Fitness skills
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4]
+    expected_files:
+      - backend/shared/providers/urban_sports/client.py
+      - backend/shared/providers/urban_sports/parsers.py
+      - backend/apps/fitness/skills/search_locations.py
+      - backend/apps/fitness/skills/search_classes.py
+      - backend/apps/fitness/app.yml
+      - backend/tests/test_fitness_urban_sports_skills.py
+    verification: [T-PYTEST-PROVIDER, T-PYTEST-SKILLS]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-3
+    title: Add CLI and SDK parity for Fitness skills
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-5]
+      acceptance_criteria: [AC-5]
+    expected_files:
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+      - frontend/packages/openmates-cli/tests/sdk.test.ts
+      - packages/openmates-python/tests/test_sdk.py
+      - generated SDK app-skill artifacts if generator output changes
+    verification: [T-CLI-FITNESS, T-NPM-SDK-FITNESS, T-PIP-SDK-FITNESS]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Add event-style Fitness embed preview and fullscreen components
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-6]
+      acceptance_criteria: [AC-6]
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/fitness/FitnessSearchEmbedFullscreen.svelte
+      - frontend/apps/web_app/tests/skill-fitness-urban-sports.spec.ts
+    verification: [T-PLAYWRIGHT-FITNESS]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-5
+    title: Update metadata, i18n, privacy, examples, and Apple compatibility evidence
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-5, S-6]
+      acceptance_criteria: [AC-7, AC-8]
+    expected_files:
+      - frontend/packages/ui/src/i18n/sources/app_skills/fitness.yml
+      - shared/docs/privacy_policy.yml
+      - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/AppSkillUseRenderer.swift
+      - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    verification: [T-METADATA-AUDIT, T-APPLE-BUILD]
+    blockers:
+      - Verify Urban Sports Club privacy policy URL before editing privacy metadata.
+    follow_up_tasks: []
+    independently_deployable: true

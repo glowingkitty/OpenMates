@@ -36,10 +36,12 @@ const {
 } = require('./signup-flow-helpers');
 
 const {
+	sendMessage,
 	waitForAssistantMessage,
 	openSignupInterface,
 	submitPasswordAndHandleOtp,
-	waitForChatReady
+	waitForChatReady,
+	deleteActiveChat
 } = require('./helpers/chat-test-helpers');
 
 /**
@@ -130,17 +132,13 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 
 	// ── 8. Send first message ────────────────────────────────────────────────
 	// Short, deterministic prompt so the response is predictable and quick.
-	const messageEditor = page.getByTestId('message-editor');
-	await expect(messageEditor).toBeVisible();
-	await messageEditor.click();
-	await page.keyboard.type(withMockMarker('Reply with the single word: alpha', 'fork_conversation_turn1'));
-	log('Typed first message.');
-	await screenshot(page, 'first-message-typed');
-
-	const sendButton = page.locator('[data-action="send-message"]');
-	await expect(sendButton).toBeEnabled();
-	await sendButton.click();
-	log('Sent first message.');
+	await sendMessage(
+		page,
+		withMockMarker('Reply with the single word: alpha', 'fork_conversation_turn1'),
+		log,
+		screenshot,
+		'first-message'
+	);
 
 	// Wait for chat ID in URL (assigned after first message)
 	await expect(page).toHaveURL(/chat-id=[a-zA-Z0-9-]+/, { timeout: 15000 });
@@ -156,21 +154,25 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 		contains: 'alpha',
 		logCheckpoint: log
 	});
-	const assistantMessages = page.getByTestId('message-assistant');
 	log('First response confirmed: contains "alpha".');
 	await screenshot(page, 'first-response');
 
 	// ── 10. Send second message ──────────────────────────────────────────────
-	await messageEditor.click();
-	await page.keyboard.insertText(withMockMarker('Reply with the single word: beta', 'fork_conversation_turn2'));
-	log('Typed second message.');
-
-	await sendButton.click();
-	log('Sent second message.');
+	await sendMessage(
+		page,
+		withMockMarker('Reply with the single word: beta', 'fork_conversation_turn2'),
+		log,
+		screenshot,
+		'second-message'
+	);
 
 	// ── 11. Wait for second AI response containing "beta" ───────────────────
 	log('Waiting for second AI response...');
-	await expect(assistantMessages.last()).toContainText('beta', { timeout: 45000 });
+	await waitForAssistantMessage(page, {
+		which: 'last',
+		contains: 'beta',
+		logCheckpoint: log
+	});
 	log('Second response confirmed: contains "beta".');
 
 	// Wait for the AI to FINISH streaming before attempting the right-click.
@@ -191,31 +193,39 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	log('AI response fully settled.');
 	await screenshot(page, 'second-response');
 
-	// ── 12. Right-click first user message to open context menu ─────────────
-	// The fork context menu is triggered by right-clicking .user-message-content.
-	// We want to fork AFTER the first user message (the "alpha" one), so we
-	// grab the first user-message-content element.
+	// ── 12. Right-click first assistant response to open context menu ────────
+	// We want the fork to include the first assistant answer ("alpha") but not
+	// the second answer ("beta"), so fork from the first assistant bubble.
 	//
 	// IMPORTANT: After 2 AI responses the page is scrolled to the bottom.
-	// We must scroll the first user message into view before right-clicking,
+	// We must scroll the first assistant response into view before right-clicking,
 	// otherwise Playwright cannot interact with an off-screen element.
 	// We also wait briefly after scrolling so Svelte can re-render any
 	// lazy-loaded content (e.g. decrypted message data) before the click.
-	log('Scrolling first user message into view for right-click...');
-	const userMessageContents = page.getByTestId('user-message-content');
-	const firstUserMessage = userMessageContents.first();
-	await expect(firstUserMessage).toBeVisible({ timeout: 10000 });
-	await firstUserMessage.scrollIntoViewIfNeeded();
+	log('Scrolling first assistant response into view for right-click...');
+	const firstAssistantResponse = page.getByTestId('mate-message-content').filter({ hasText: 'alpha' }).first();
+	await expect(firstAssistantResponse).toBeVisible({ timeout: 10000 });
+	await firstAssistantResponse.scrollIntoViewIfNeeded();
 	await page.waitForTimeout(1000); // Allow decrypt/render after scroll
 
-	log('Right-clicking the first user message to open context menu...');
-	await firstUserMessage.click({ button: 'right' });
+	log('Right-clicking the first assistant response to open context menu...');
+	await firstAssistantResponse.click({ button: 'right' });
+	const forkMenuItem = page.getByTestId('chat-context-fork');
+	if (!(await forkMenuItem.isVisible({ timeout: 2000 }).catch(() => false))) {
+		const box = await firstAssistantResponse.boundingBox();
+		await firstAssistantResponse.dispatchEvent('contextmenu', {
+			button: 2,
+			buttons: 2,
+			clientX: box ? box.x + box.width / 2 : 0,
+			clientY: box ? box.y + box.height / 2 : 0
+		});
+		log('Dispatched contextmenu event after right-click did not open the menu.');
+	}
 	await screenshot(page, 'context-menu-open');
 
 	// ── 13. Click "Fork Conversation" in context menu ────────────────────────
 	// The menu is rendered at document.body level (portal pattern).
 	// It is marked .menu-container.show once visible.
-	const forkMenuItem = page.getByTestId('chat-context-fork');
 	await expect(forkMenuItem).toBeVisible({ timeout: 8000 });
 	log('Fork menu item visible, clicking...');
 	await forkMenuItem.click();
@@ -241,35 +251,25 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	log('Fork button clicked.');
 	await screenshot(page, 'fork-started');
 
-	// ── 16. Wait for the forked chat to appear in the sidebar ────────────────
-	// After forking, the new chat should appear at the top of the chat list.
-	// We capture the sidebar count BEFORE the fork panel closes, then wait
-	// for it to grow by 1. This is robust even with an account that already
-	// has many existing chats.
-	//
-	// Note: the fork panel closes after clicking Fork, the settings panel
-	// dismisses, and then the new chat appears at the top of the sidebar.
-	log('Waiting for forked chat to appear in sidebar...');
-	const chatItems = page.getByTestId('chat-item-wrapper');
-	const countBefore = await chatItems.count();
-	log(`Sidebar chat count before fork completion: ${countBefore}`);
+	// ── 16. Open the completed fork from the notification ─────────────────────
+	// Fork completion is intentionally non-disruptive: it shows a notification
+	// whose action opens the forked chat. The default E2E viewport keeps the
+	// sidebar closed, so use that product action instead of sidebar assertions.
+	log('Waiting for fork completion notification...');
+	await expect(forkContainer).not.toBeVisible({ timeout: 30000 });
+	const notificationAction = page.getByTestId('notification-action');
+	await expect(notificationAction).toBeVisible({ timeout: 30000 });
+	await notificationAction.click();
+	log('Clicked fork completion notification action.');
 
-	// Wait up to 30s for the sidebar to have one more chat than before
+	log('Waiting for active chat to switch to the fork...');
 	await expect(async () => {
-		const countNow = await chatItems.count();
-		expect(countNow).toBeGreaterThan(countBefore);
+		const currentUrl = page.url();
+		expect(currentUrl).toContain('chat-id=');
+		expect(currentUrl).not.toBe(originalChatUrl);
 	}).toPass({ timeout: 30000, intervals: [1000] });
 
-	const countAfter = await chatItems.count();
-	log(`Sidebar chat count after fork: ${countAfter} (grew by ${countAfter - countBefore}).`);
-	await screenshot(page, 'fork-complete-sidebar');
-
-	// ── 17. Open the forked chat (first item = most recent = the fork) ───────
-	const firstChatItem = chatItems.first();
-	await expect(firstChatItem).toBeVisible();
-	await firstChatItem.click();
-	log('Opened the forked chat.');
-	await page.waitForTimeout(2000);
+	log(`Forked chat is active: ${page.url()}`);
 	await screenshot(page, 'forked-chat-opened');
 
 	// Capture the forked chat URL for cleanup
@@ -277,14 +277,10 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	log(`Forked chat URL: ${forkedChatUrl}`);
 
 	// ── 18. Verify forked chat contains "alpha" but NOT "beta" ───────────────
-	// The fork was created after the first user message ("alpha"), so:
+	// The fork was created after the first assistant response ("alpha"), so:
 	// - The forked chat should contain "alpha" in an assistant response
 	// - The forked chat should NOT contain "beta" (that was message 2 in original)
 	log('Verifying forked chat message content...');
-	const allMessages = page.getByTestId('message-wrapper');
-	await expect(allMessages.first()).toBeVisible({ timeout: 10000 });
-
-	// Check that "alpha" appears somewhere in the chat (from assistant response)
 	const chatContent = page.getByTestId('mate-message-content');
 	await expect(chatContent.first()).toContainText('alpha', { timeout: 15000 });
 	log('Confirmed "alpha" is present in forked chat.');
@@ -303,37 +299,15 @@ test('forks a conversation after the first message', async ({ page }: { page: an
 	log('No missing translations detected.');
 
 	// ── 20. Clean up: delete forked chat ────────────────────────────────────
-	// The forked chat is currently active. Right-click the active item.
 	log('Cleaning up: deleting forked chat...');
-	const activeForkItem = page.locator('[data-testid="chat-item-wrapper"].active');
-	await expect(activeForkItem).toBeVisible();
-	await activeForkItem.scrollIntoViewIfNeeded();
-	await activeForkItem.click({ button: 'right' });
-	const deleteBtn = page.getByTestId('chat-context-delete');
-	await expect(deleteBtn).toBeVisible({ timeout: 5000 });
-	await deleteBtn.click(); // First click: show confirm state
-	await expect(deleteBtn).toContainText(/confirm/i, { timeout: 3000 });
-	await deleteBtn.click(); // Second click: confirm deletion
-	await expect(activeForkItem).not.toBeVisible({ timeout: 10000 });
-	log('Forked chat deleted.');
+	await deleteActiveChat(page, log, screenshot, 'forked-chat-cleanup');
 
 	// ── 21. Clean up: delete original chat ──────────────────────────────────
 	// Navigate back to the original chat URL and delete it.
 	log('Cleaning up: navigating back to original chat...');
 	await page.goto(originalChatUrl);
 	await page.waitForTimeout(2000);
-
-	const activeOriginalItem = page.locator('[data-testid="chat-item-wrapper"].active');
-	await expect(activeOriginalItem).toBeVisible({ timeout: 10000 });
-	await activeOriginalItem.scrollIntoViewIfNeeded();
-	await activeOriginalItem.click({ button: 'right' });
-	const deleteBtnOriginal = page.getByTestId('chat-context-delete');
-	await expect(deleteBtnOriginal).toBeVisible({ timeout: 5000 });
-	await deleteBtnOriginal.click(); // First click: show confirm state
-	await expect(deleteBtnOriginal).toContainText(/confirm/i, { timeout: 3000 });
-	await deleteBtnOriginal.click(); // Second click: confirm deletion
-	await expect(activeOriginalItem).not.toBeVisible({ timeout: 10000 });
-	log('Original chat deleted.');
+	await deleteActiveChat(page, log, screenshot, 'original-chat-cleanup');
 	await screenshot(page, 'cleanup-complete');
 
 	log('Fork conversation test passed successfully.');

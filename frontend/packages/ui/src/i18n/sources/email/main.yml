@@ -21,6 +21,7 @@ account_created:
   cs: Účet byl vytvořen
   sv: Konto skapat
   he: החשבון נוצר
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 account_created_second_login_title:
   context: Section title in account created email recommending another login method
   en: Add a second login method
@@ -73,62 +74,290 @@ existing_account.subject:
   context: Subject for signup attempt using an email that already has an account
   en: An OpenMates account already exists for this email
   de: Für diese E-Mail-Adresse existiert bereits ein OpenMates-Konto
-  verified_by_human: []
+  zh: 此邮箱已有 OpenMates 账户
+  es: Ya existe una cuenta de OpenMates para este correo electrónico
+  fr: Un compte OpenMates existe déjà pour cette adresse e-mail
+  pt: Já existe uma conta OpenMates para este e-mail
+  ru: Для этого адреса электронной почты уже существует аккаунт OpenMates
+  ja: このメールアドレスにはすでに OpenMates アカウントがあります
+  ko: 이 이메일에는 이미 OpenMates 계정이 있습니다
+  it: Esiste già un account OpenMates per questa email
+  tr: Bu e-posta için zaten bir OpenMates hesabı var
+  vi: Đã có tài khoản OpenMates cho email này
+  id: Akun OpenMates sudah ada untuk email ini
+  pl: Dla tego adresu e-mail istnieje już konto OpenMates
+  nl: Er bestaat al een OpenMates-account voor dit e-mailadres
+  ar: يوجد حساب OpenMates بالفعل لهذا البريد الإلكتروني
+  hi: इस ईमेल के लिए OpenMates खाता पहले से मौजूद है
+  th: มีบัญชี OpenMates สำหรับอีเมลนี้อยู่แล้ว
+  cs: Pro tento e-mail již existuje účet OpenMates
+  sv: Det finns redan ett OpenMates-konto för den här e-postadressen
+  he: כבר קיים חשבון OpenMates עבור האימייל הזה
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 existing_account.title:
   context: Header for signup attempt using an email that already has an account
   en: An account with your email already exists
   de: Mit deiner E-Mail-Adresse existiert bereits ein Konto
-  verified_by_human: []
+  zh: 你的邮箱已有关联账户
+  es: Ya existe una cuenta con tu correo electrónico
+  fr: Un compte avec votre adresse e-mail existe déjà
+  pt: Já existe uma conta com seu e-mail
+  ru: Аккаунт с вашей электронной почтой уже существует
+  ja: あなたのメールアドレスのアカウントはすでに存在します
+  ko: 내 이메일로 된 계정이 이미 있습니다
+  it: Esiste già un account con la tua email
+  tr: E-postanızla ilişkili bir hesap zaten var
+  vi: Đã có tài khoản dùng email của bạn
+  id: Akun dengan email Anda sudah ada
+  pl: Konto z Twoim adresem e-mail już istnieje
+  nl: Er bestaat al een account met je e-mailadres
+  ar: يوجد بالفعل حساب مرتبط ببريدك الإلكتروني
+  hi: आपके ईमेल वाला खाता पहले से मौजूद है
+  th: มีบัญชีที่ใช้อีเมลของคุณอยู่แล้ว
+  cs: Účet s vaším e-mailem již existuje
+  sv: Ett konto med din e-postadress finns redan
+  he: כבר קיים חשבון עם כתובת האימייל שלך
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 existing_account.intro:
   context: Intro text for existing-account signup email
   en: Someone tried to create a new OpenMates account with this email address, but this email is already connected to an existing account.
   de: Jemand hat versucht, mit dieser E-Mail-Adresse ein neues OpenMates-Konto zu erstellen. Diese E-Mail-Adresse ist aber bereits mit einem bestehenden Konto verbunden.
-  verified_by_human: []
+  zh: 有人尝试用此邮箱地址创建新的 OpenMates 账户，但此邮箱已连接到现有账户。
+  es: Alguien intentó crear una nueva cuenta de OpenMates con esta dirección de correo electrónico, pero este correo ya está conectado a una cuenta existente.
+  fr: Quelqu'un a essayé de créer un nouveau compte OpenMates avec cette adresse e-mail, mais cette adresse est déjà liée à un compte existant.
+  pt: Alguém tentou criar uma nova conta OpenMates com este endereço de e-mail, mas este e-mail já está conectado a uma conta existente.
+  ru: Кто-то попытался создать новый аккаунт OpenMates с этим адресом электронной почты, но этот адрес уже привязан к существующему аккаунту.
+  ja: このメールアドレスで新しい OpenMates アカウントを作成しようとしましたが、このメールはすでに既存のアカウントに接続されています。
+  ko: 누군가 이 이메일 주소로 새 OpenMates 계정을 만들려고 했지만, 이 이메일은 이미 기존 계정에 연결되어 있습니다.
+  it: Qualcuno ha provato a creare un nuovo account OpenMates con questo indirizzo email, ma questa email è già collegata a un account esistente.
+  tr: Birisi bu e-posta adresiyle yeni bir OpenMates hesabı oluşturmaya çalıştı, ancak bu e-posta zaten mevcut bir hesaba bağlı.
+  vi: Ai đó đã cố tạo tài khoản OpenMates mới bằng địa chỉ email này, nhưng email này đã được liên kết với một tài khoản hiện có.
+  id: Seseorang mencoba membuat akun OpenMates baru dengan alamat email ini, tetapi email ini sudah terhubung ke akun yang ada.
+  pl: Ktoś próbował utworzyć nowe konto OpenMates z tym adresem e-mail, ale ten adres jest już połączony z istniejącym kontem.
+  nl: Iemand heeft geprobeerd een nieuw OpenMates-account met dit e-mailadres te maken, maar dit e-mailadres is al gekoppeld aan een bestaand account.
+  ar: حاول شخص ما إنشاء حساب OpenMates جديد باستخدام عنوان البريد الإلكتروني هذا، لكن هذا البريد الإلكتروني مرتبط بالفعل بحساب موجود.
+  hi: किसी ने इस ईमेल पते से नया OpenMates खाता बनाने की कोशिश की, लेकिन यह ईमेल पहले से ही किसी मौजूदा खाते से जुड़ा है।
+  th: มีคนพยายามสร้างบัญชี OpenMates ใหม่ด้วยที่อยู่อีเมลนี้ แต่อีเมลนี้เชื่อมต่อกับบัญชีที่มีอยู่แล้ว
+  cs: Někdo se pokusil vytvořit nový účet OpenMates s touto e-mailovou adresou, ale tento e-mail je již připojen k existujícímu účtu.
+  sv: Någon försökte skapa ett nytt OpenMates-konto med den här e-postadressen, men e-postadressen är redan kopplad till ett befintligt konto.
+  he: מישהו ניסה ליצור חשבון OpenMates חדש עם כתובת האימייל הזו, אבל האימייל הזה כבר מחובר לחשבון קיים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 existing_account.saved_logins_title:
   context: Section title reminding users to check saved credentials
   en: Check your saved logins
   de: Prüfe deine gespeicherten Logins
-  verified_by_human: []
+  zh: 检查已保存的登录信息
+  es: Revisa tus inicios de sesión guardados
+  fr: Vérifiez vos identifiants enregistrés
+  pt: Verifique seus logins salvos
+  ru: Проверьте сохранённые данные входа
+  ja: 保存済みのログイン情報を確認
+  ko: 저장된 로그인 확인
+  it: Controlla i tuoi accessi salvati
+  tr: Kayıtlı girişlerinizi kontrol edin
+  vi: Kiểm tra thông tin đăng nhập đã lưu
+  id: Periksa login tersimpan Anda
+  pl: Sprawdź zapisane dane logowania
+  nl: Controleer je opgeslagen logins
+  ar: تحقق من عمليات تسجيل الدخول المحفوظة
+  hi: अपने सहेजे गए लॉगिन जाँचें
+  th: ตรวจสอบข้อมูลเข้าสู่ระบบที่บันทึกไว้
+  cs: Zkontrolujte uložená přihlášení
+  sv: Kontrollera dina sparade inloggningar
+  he: בדוק את פרטי ההתחברות השמורים שלך
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 existing_account.saved_logins_body:
   context: Body text reminding users to check browser/password manager credentials
   en: Your browser, password manager, or device may already have the login saved. Look for OpenMates in saved passwords or passkeys before creating a new account.
   de: Dein Browser, Passwortmanager oder Gerät hat den Login möglicherweise bereits gespeichert. Suche nach OpenMates in gespeicherten Passwörtern oder Passkeys, bevor du ein neues Konto erstellst.
-  verified_by_human: []
+  zh: 你的浏览器、密码管理器或设备可能已经保存了登录信息。创建新账户前，请在已保存的密码或通行密钥中查找 OpenMates。
+  es: Es posible que tu navegador, gestor de contraseñas o dispositivo ya tenga el inicio de sesión guardado. Busca OpenMates en contraseñas o claves de acceso guardadas antes de crear una cuenta nueva.
+  fr: Votre navigateur, gestionnaire de mots de passe ou appareil a peut-être déjà enregistré la connexion. Recherchez OpenMates dans les mots de passe ou clés d'accès enregistrés avant de créer un nouveau compte.
+  pt: Seu navegador, gerenciador de senhas ou dispositivo talvez já tenha o login salvo. Procure OpenMates nas senhas ou chaves de acesso salvas antes de criar uma nova conta.
+  ru: Ваш браузер, менеджер паролей или устройство уже могли сохранить данные входа. Перед созданием нового аккаунта найдите OpenMates в сохранённых паролях или ключах доступа.
+  ja: ブラウザ、パスワードマネージャー、またはデバイスにログイン情報がすでに保存されている可能性があります。新しいアカウントを作成する前に、保存済みパスワードやパスキーで OpenMates を探してください。
+  ko: 브라우저, 비밀번호 관리자 또는 기기에 이미 로그인 정보가 저장되어 있을 수 있습니다. 새 계정을 만들기 전에 저장된 비밀번호나 패스키에서 OpenMates를 찾아보세요.
+  it: Il tuo browser, gestore di password o dispositivo potrebbe avere già salvato l'accesso. Cerca OpenMates tra password o passkey salvate prima di creare un nuovo account.
+  tr: Tarayıcınız, parola yöneticiniz veya cihazınız giriş bilgisini zaten kaydetmiş olabilir. Yeni hesap oluşturmadan önce kayıtlı parolalarda veya geçiş anahtarlarında OpenMates'i arayın.
+  vi: Trình duyệt, trình quản lý mật khẩu hoặc thiết bị của bạn có thể đã lưu thông tin đăng nhập. Hãy tìm OpenMates trong mật khẩu hoặc khóa truy cập đã lưu trước khi tạo tài khoản mới.
+  id: Browser, pengelola kata sandi, atau perangkat Anda mungkin sudah menyimpan login. Cari OpenMates di kata sandi atau kunci sandi tersimpan sebelum membuat akun baru.
+  pl: Twoja przeglądarka, menedżer haseł lub urządzenie mogą już mieć zapisane dane logowania. Przed utworzeniem nowego konta poszukaj OpenMates w zapisanych hasłach lub kluczach dostępu.
+  nl: Je browser, wachtwoordmanager of apparaat heeft de login mogelijk al opgeslagen. Zoek naar OpenMates in opgeslagen wachtwoorden of passkeys voordat je een nieuw account maakt.
+  ar: قد يكون متصفحك أو مدير كلمات المرور أو جهازك قد حفظ بيانات تسجيل الدخول بالفعل. ابحث عن OpenMates في كلمات المرور أو مفاتيح المرور المحفوظة قبل إنشاء حساب جديد.
+  hi: आपके ब्राउज़र, पासवर्ड मैनेजर या डिवाइस में लॉगिन पहले से सहेजा हो सकता है। नया खाता बनाने से पहले सहेजे गए पासवर्ड या पासकी में OpenMates खोजें।
+  th: เบราว์เซอร์ ตัวจัดการรหัสผ่าน หรืออุปกรณ์ของคุณอาจบันทึกข้อมูลเข้าสู่ระบบไว้แล้ว ค้นหา OpenMates ในรหัสผ่านหรือพาสคีย์ที่บันทึกไว้ก่อนสร้างบัญชีใหม่
+  cs: Váš prohlížeč, správce hesel nebo zařízení již mohou mít přihlášení uložené. Než vytvoříte nový účet, vyhledejte OpenMates v uložených heslech nebo přístupových klíčích.
+  sv: Din webbläsare, lösenordshanterare eller enhet kan redan ha sparat inloggningen. Leta efter OpenMates bland sparade lösenord eller nyckelkoder innan du skapar ett nytt konto.
+  he: ייתכן שהדפדפן, מנהל הסיסמאות או המכשיר שלך כבר שמרו את פרטי ההתחברות. לפני יצירת חשבון חדש, חפש את OpenMates בסיסמאות או במפתחות גישה שמורים.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 existing_account.login_methods_title:
   context: Section title listing normal login methods
   en: Try your login methods
   de: Versuche deine Login-Methoden
-  verified_by_human: []
+  zh: 尝试你的登录方式
+  es: Prueba tus métodos de inicio de sesión
+  fr: Essayez vos méthodes de connexion
+  pt: Tente seus métodos de login
+  ru: Попробуйте свои способы входа
+  ja: ログイン方法を試す
+  ko: 로그인 방법 시도
+  it: Prova i tuoi metodi di accesso
+  tr: Giriş yöntemlerinizi deneyin
+  vi: Thử các phương thức đăng nhập của bạn
+  id: Coba metode login Anda
+  pl: Wypróbuj swoje metody logowania
+  nl: Probeer je inlogmethoden
+  ar: جرّب طرق تسجيل الدخول الخاصة بك
+  hi: अपनी लॉगिन विधियाँ आज़माएँ
+  th: ลองวิธีเข้าสู่ระบบของคุณ
+  cs: Vyzkoušejte své způsoby přihlášení
+  sv: Prova dina inloggningsmetoder
+  he: נסה את שיטות ההתחברות שלך
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 existing_account.login_methods_body:
   context: Body text listing password, passkey, and 2FA login methods
   en: You can log in with a passkey, or with your password plus 2FA. If you set up backup codes, keep them ready for the 2FA step.
   de: Du kannst dich mit einem Passkey anmelden oder mit deinem Passwort plus 2FA. Wenn du Backup-Codes eingerichtet hast, halte sie für den 2FA-Schritt bereit.
-  verified_by_human: []
+  zh: 你可以使用通行密钥登录，或使用密码加 2FA 登录。如果你设置了备用代码，请在 2FA 步骤中准备好。
+  es: Puedes iniciar sesión con una clave de acceso, o con tu contraseña más 2FA. Si configuraste códigos de respaldo, tenlos listos para el paso de 2FA.
+  fr: Vous pouvez vous connecter avec une clé d'accès, ou avec votre mot de passe et la 2FA. Si vous avez configuré des codes de secours, gardez-les à portée de main pour l'étape 2FA.
+  pt: Você pode entrar com uma chave de acesso ou com sua senha mais 2FA. Se configurou códigos de backup, mantenha-os à mão para a etapa de 2FA.
+  ru: Вы можете войти с помощью ключа доступа или пароля и 2FA. Если вы настроили резервные коды, подготовьте их для шага 2FA.
+  ja: パスキー、またはパスワードと 2FA でログインできます。バックアップコードを設定している場合は、2FA の手順で使えるよう準備してください。
+  ko: 패스키로 로그인하거나 비밀번호와 2FA로 로그인할 수 있습니다. 백업 코드를 설정했다면 2FA 단계에서 사용할 수 있도록 준비해 두세요.
+  it: Puoi accedere con una passkey oppure con password e 2FA. Se hai configurato codici di backup, tienili pronti per il passaggio 2FA.
+  tr: Geçiş anahtarıyla veya parolanız ve 2FA ile giriş yapabilirsiniz. Yedek kodlar oluşturduysanız, 2FA adımı için hazır bulundurun.
+  vi: Bạn có thể đăng nhập bằng khóa truy cập hoặc bằng mật khẩu kèm 2FA. Nếu đã thiết lập mã dự phòng, hãy chuẩn bị chúng cho bước 2FA.
+  id: Anda dapat login dengan kunci sandi, atau dengan kata sandi plus 2FA. Jika Anda menyiapkan kode cadangan, siapkan kode tersebut untuk langkah 2FA.
+  pl: Możesz zalogować się kluczem dostępu albo hasłem z 2FA. Jeśli masz skonfigurowane kody zapasowe, przygotuj je na krok 2FA.
+  nl: Je kunt inloggen met een passkey, of met je wachtwoord plus 2FA. Als je back-upcodes hebt ingesteld, houd ze dan klaar voor de 2FA-stap.
+  ar: يمكنك تسجيل الدخول باستخدام مفتاح مرور، أو باستخدام كلمة المرور مع 2FA. إذا أعددت رموزًا احتياطية، فاجعلها جاهزة لخطوة 2FA.
+  hi: आप पासकी से, या अपने पासवर्ड और 2FA से लॉग इन कर सकते हैं। यदि आपने बैकअप कोड सेट किए हैं, तो उन्हें 2FA चरण के लिए तैयार रखें।
+  th: คุณสามารถเข้าสู่ระบบด้วยพาสคีย์ หรือด้วยรหัสผ่านพร้อม 2FA หากคุณตั้งค่ารหัสสำรองไว้ ให้เตรียมไว้สำหรับขั้นตอน 2FA
+  cs: Můžete se přihlásit pomocí přístupového klíče nebo heslem a 2FA. Pokud jste nastavili záložní kódy, mějte je připravené pro krok 2FA.
+  sv: Du kan logga in med en nyckelkod, eller med ditt lösenord plus 2FA. Om du har ställt in reservkoder, ha dem redo för 2FA-steget.
+  he: אפשר להתחבר עם מפתח גישה, או עם הסיסמה שלך ו-2FA. אם הגדרת קודי גיבוי, שמור אותם מוכנים לשלב ה-2FA.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 existing_account.login_button:
   context: Button label to open OpenMates login
   en: Log in to OpenMates
   de: Bei OpenMates einloggen
-  verified_by_human: []
+  zh: 登录 OpenMates
+  es: Iniciar sesión en OpenMates
+  fr: Se connecter à OpenMates
+  pt: Entrar no OpenMates
+  ru: Войти в OpenMates
+  ja: OpenMates にログイン
+  ko: OpenMates에 로그인
+  it: Accedi a OpenMates
+  tr: OpenMates'e giriş yap
+  vi: Đăng nhập vào OpenMates
+  id: Login ke OpenMates
+  pl: Zaloguj się do OpenMates
+  nl: Inloggen bij OpenMates
+  ar: تسجيل الدخول إلى OpenMates
+  hi: OpenMates में लॉग इन करें
+  th: เข้าสู่ระบบ OpenMates
+  cs: Přihlásit se do OpenMates
+  sv: Logga in på OpenMates
+  he: התחבר ל-OpenMates
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 existing_account.recovery_key_title:
   context: Section title for recovery key login guidance
   en: Have your recovery key?
   de: Hast du deinen Wiederherstellungsschlüssel?
-  verified_by_human: []
+  zh: 有恢复密钥吗？
+  es: ¿Tienes tu clave de recuperación?
+  fr: Vous avez votre clé de récupération ?
+  pt: Tem sua chave de recuperação?
+  ru: У вас есть ключ восстановления?
+  ja: リカバリーキーをお持ちですか？
+  ko: 복구 키가 있나요?
+  it: Hai la tua chiave di recupero?
+  tr: Kurtarma anahtarınız var mı?
+  vi: Bạn có khóa khôi phục không?
+  id: Punya kunci pemulihan?
+  pl: Masz klucz odzyskiwania?
+  nl: Heb je je herstelsleutel?
+  ar: هل لديك مفتاح الاسترداد؟
+  hi: क्या आपके पास रिकवरी की है?
+  th: มีคีย์กู้คืนของคุณไหม?
+  cs: Máte svůj klíč pro obnovení?
+  sv: Har du din återställningsnyckel?
+  he: יש לך מפתח שחזור?
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 existing_account.recovery_key_body:
   context: Body text explaining recovery key login preserves data
   en: If you do not remember your password or passkey but still have your recovery key, use recovery key login. It preserves your encrypted chats and account data.
   de: Wenn du dich nicht an dein Passwort oder deinen Passkey erinnerst, aber deinen Wiederherstellungsschlüssel noch hast, nutze den Login mit Wiederherstellungsschlüssel. Dadurch bleiben deine verschlüsselten Chats und Kontodaten erhalten.
-  verified_by_human: []
+  zh: 如果你不记得密码或通行密钥，但仍有恢复密钥，请使用恢复密钥登录。它会保留你的加密聊天和账户数据。
+  es: Si no recuerdas tu contraseña o clave de acceso pero aún tienes tu clave de recuperación, usa el inicio de sesión con clave de recuperación. Conserva tus chats cifrados y los datos de tu cuenta.
+  fr: Si vous ne vous souvenez pas de votre mot de passe ou de votre clé d'accès, mais que vous avez encore votre clé de récupération, utilisez la connexion par clé de récupération. Elle préserve vos discussions chiffrées et les données de votre compte.
+  pt: Se não lembra sua senha ou chave de acesso, mas ainda tem sua chave de recuperação, use o login com chave de recuperação. Ele preserva seus chats criptografados e dados da conta.
+  ru: Если вы не помните пароль или ключ доступа, но у вас всё ещё есть ключ восстановления, используйте вход с ключом восстановления. Он сохранит ваши зашифрованные чаты и данные аккаунта.
+  ja: パスワードやパスキーを覚えていない場合でもリカバリーキーがあるなら、リカバリーキーでログインしてください。暗号化されたチャットとアカウントデータは保持されます。
+  ko: 비밀번호나 패스키가 기억나지 않지만 복구 키가 있다면 복구 키 로그인을 사용하세요. 암호화된 채팅과 계정 데이터가 보존됩니다.
+  it: Se non ricordi la password o la passkey ma hai ancora la chiave di recupero, usa l'accesso con chiave di recupero. Conserva le tue chat crittografate e i dati dell'account.
+  tr: Parolanızı veya geçiş anahtarınızı hatırlamıyor ama kurtarma anahtarınız hâlâ varsa, kurtarma anahtarıyla giriş yapın. Bu, şifrelenmiş sohbetlerinizi ve hesap verilerinizi korur.
+  vi: Nếu bạn không nhớ mật khẩu hoặc khóa truy cập nhưng vẫn còn khóa khôi phục, hãy dùng đăng nhập bằng khóa khôi phục. Cách này giữ lại các cuộc trò chuyện đã mã hóa và dữ liệu tài khoản của bạn.
+  id: Jika Anda tidak ingat kata sandi atau kunci sandi tetapi masih memiliki kunci pemulihan, gunakan login dengan kunci pemulihan. Ini mempertahankan chat terenkripsi dan data akun Anda.
+  pl: Jeśli nie pamiętasz hasła ani klucza dostępu, ale nadal masz klucz odzyskiwania, użyj logowania kluczem odzyskiwania. Zachowa ono Twoje zaszyfrowane czaty i dane konta.
+  nl: Als je je wachtwoord of passkey niet meer weet maar je herstelsleutel nog hebt, gebruik dan inloggen met herstelsleutel. Daarmee blijven je versleutelde chats en accountgegevens behouden.
+  ar: إذا كنت لا تتذكر كلمة المرور أو مفتاح المرور، لكن لا يزال لديك مفتاح الاسترداد، فاستخدم تسجيل الدخول بمفتاح الاسترداد. سيحافظ ذلك على محادثاتك المشفرة وبيانات حسابك.
+  hi: यदि आपको अपना पासवर्ड या पासकी याद नहीं है लेकिन आपकी रिकवरी की अभी भी है, तो रिकवरी की लॉगिन का उपयोग करें। यह आपकी एन्क्रिप्टेड चैट और खाते का डेटा सुरक्षित रखता है।
+  th: หากคุณจำรหัสผ่านหรือพาสคีย์ไม่ได้ แต่ยังมีคีย์กู้คืนอยู่ ให้เข้าสู่ระบบด้วยคีย์กู้คืน วิธีนี้จะรักษาแชทที่เข้ารหัสและข้อมูลบัญชีของคุณไว้
+  cs: Pokud si nepamatujete heslo nebo přístupový klíč, ale stále máte klíč pro obnovení, použijte přihlášení klíčem pro obnovení. Zachová vaše šifrované chaty a data účtu.
+  sv: Om du inte minns ditt lösenord eller din nyckelkod men fortfarande har din återställningsnyckel, använd inloggning med återställningsnyckel. Det bevarar dina krypterade chattar och kontodata.
+  he: אם אינך זוכר את הסיסמה או את מפתח הגישה שלך אך עדיין יש לך מפתח שחזור, השתמש בכניסה עם מפתח שחזור. כך הצ'אטים המוצפנים ונתוני החשבון שלך יישמרו.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 existing_account.recovery_button:
   context: Button label to open login for recovery key use
   en: Open login and use recovery key
   de: Login öffnen und Wiederherstellungsschlüssel nutzen
-  verified_by_human: []
+  zh: 打开登录并使用恢复密钥
+  es: Abrir inicio de sesión y usar clave de recuperación
+  fr: Ouvrir la connexion et utiliser la clé de récupération
+  pt: Abrir login e usar chave de recuperação
+  ru: Открыть вход и использовать ключ восстановления
+  ja: ログインを開いてリカバリーキーを使用
+  ko: 로그인 열고 복구 키 사용
+  it: Apri accesso e usa chiave di recupero
+  tr: Girişi aç ve kurtarma anahtarını kullan
+  vi: Mở đăng nhập và dùng khóa khôi phục
+  id: Buka login dan gunakan kunci pemulihan
+  pl: Otwórz logowanie i użyj klucza odzyskiwania
+  nl: Open login en gebruik herstelsleutel
+  ar: افتح تسجيل الدخول واستخدم مفتاح الاسترداد
+  hi: लॉगिन खोलें और रिकवरी की उपयोग करें
+  th: เปิดหน้าเข้าสู่ระบบและใช้คีย์กู้คืน
+  cs: Otevřít přihlášení a použít klíč pro obnovení
+  sv: Öppna inloggning och använd återställningsnyckel
+  he: פתח התחברות והשתמש במפתח שחזור
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 existing_account.reset_warning:
   context: Warning that full account reset is a last resort and may delete encrypted data
   en: If you lost every login method and your recovery key, account reset is the last resort. Because OpenMates encrypts your data, resetting the account can permanently delete encrypted chats, memories, app settings, embeds, passkeys, and API keys.
   de: Wenn du alle Login-Methoden und deinen Wiederherstellungsschlüssel verloren hast, ist ein Konto-Reset der letzte Ausweg. Da OpenMates deine Daten verschlüsselt, kann ein Reset verschlüsselte Chats, Erinnerungen, App-Einstellungen, Embeds, Passkeys und API-Schlüssel dauerhaft löschen.
-  verified_by_human: []
+  zh: 如果你丢失了所有登录方式和恢复密钥，账户重置就是最后手段。由于 OpenMates 会加密你的数据，重置账户可能会永久删除加密聊天、记忆、应用设置、嵌入内容、通行密钥和 API 密钥。
+  es: Si perdiste todos los métodos de inicio de sesión y tu clave de recuperación, el restablecimiento de cuenta es el último recurso. Como OpenMates cifra tus datos, restablecer la cuenta puede eliminar permanentemente chats cifrados, memorias, ajustes de apps, embeds, claves de acceso y claves API.
+  fr: Si vous avez perdu toutes vos méthodes de connexion et votre clé de récupération, la réinitialisation du compte est le dernier recours. Comme OpenMates chiffre vos données, la réinitialisation du compte peut supprimer définitivement les discussions chiffrées, les mémoires, les paramètres d'apps, les embeds, les clés d'accès et les clés API.
+  pt: Se você perdeu todos os métodos de login e sua chave de recuperação, a redefinição da conta é o último recurso. Como o OpenMates criptografa seus dados, redefinir a conta pode excluir permanentemente chats criptografados, memórias, configurações de apps, embeds, chaves de acesso e chaves de API.
+  ru: Если вы потеряли все способы входа и ключ восстановления, сброс аккаунта — последняя мера. Поскольку OpenMates шифрует ваши данные, сброс аккаунта может навсегда удалить зашифрованные чаты, память, настройки приложений, embeds, ключи доступа и API-ключи.
+  ja: すべてのログイン方法とリカバリーキーを失った場合、アカウントのリセットは最後の手段です。OpenMates はデータを暗号化するため、アカウントをリセットすると、暗号化されたチャット、メモリ、アプリ設定、埋め込み、パスキー、API キーが永久に削除される可能性があります。
+  ko: 모든 로그인 방법과 복구 키를 잃어버린 경우 계정 재설정이 마지막 수단입니다. OpenMates는 데이터를 암호화하므로 계정을 재설정하면 암호화된 채팅, 메모리, 앱 설정, 임베드, 패스키, API 키가 영구적으로 삭제될 수 있습니다.
+  it: Se hai perso ogni metodo di accesso e la chiave di recupero, il ripristino dell'account è l'ultima risorsa. Poiché OpenMates crittografa i tuoi dati, il ripristino dell'account può eliminare definitivamente chat crittografate, memorie, impostazioni delle app, embed, passkey e chiavi API.
+  tr: Tüm giriş yöntemlerinizi ve kurtarma anahtarınızı kaybettiyseniz, hesap sıfırlama son çaredir. OpenMates verilerinizi şifrelediği için hesabı sıfırlamak şifrelenmiş sohbetleri, hafızaları, uygulama ayarlarını, embed'leri, geçiş anahtarlarını ve API anahtarlarını kalıcı olarak silebilir.
+  vi: Nếu bạn mất mọi phương thức đăng nhập và khóa khôi phục, đặt lại tài khoản là phương án cuối cùng. Vì OpenMates mã hóa dữ liệu của bạn, việc đặt lại tài khoản có thể xóa vĩnh viễn các cuộc trò chuyện đã mã hóa, bộ nhớ, cài đặt ứng dụng, embed, khóa truy cập và khóa API.
+  id: Jika Anda kehilangan semua metode login dan kunci pemulihan, reset akun adalah pilihan terakhir. Karena OpenMates mengenkripsi data Anda, mereset akun dapat menghapus secara permanen chat terenkripsi, memori, pengaturan app, embed, kunci sandi, dan kunci API.
+  pl: Jeśli utracisz wszystkie metody logowania i klucz odzyskiwania, reset konta jest ostatecznością. Ponieważ OpenMates szyfruje Twoje dane, reset konta może trwale usunąć zaszyfrowane czaty, pamięci, ustawienia aplikacji, embedy, klucze dostępu i klucze API.
+  nl: Als je al je inlogmethoden en je herstelsleutel kwijt bent, is accountreset de laatste optie. Omdat OpenMates je gegevens versleutelt, kan het resetten van je account versleutelde chats, herinneringen, appinstellingen, embeds, passkeys en API-sleutels permanent verwijderen.
+  ar: إذا فقدت كل طرق تسجيل الدخول ومفتاح الاسترداد، فإن إعادة تعيين الحساب هي الملاذ الأخير. لأن OpenMates يشفّر بياناتك، فقد تؤدي إعادة تعيين الحساب إلى حذف المحادثات المشفرة والذكريات وإعدادات التطبيقات والتضمينات ومفاتيح المرور ومفاتيح API نهائيًا.
+  hi: यदि आपने हर लॉगिन विधि और अपनी रिकवरी की खो दी है, तो खाता रीसेट अंतिम विकल्प है। क्योंकि OpenMates आपके डेटा को एन्क्रिप्ट करता है, खाता रीसेट करने से एन्क्रिप्टेड चैट, मेमोरी, ऐप सेटिंग्स, एम्बेड, पासकी और API कुंजियाँ स्थायी रूप से हट सकती हैं।
+  th: หากคุณสูญเสียวิธีเข้าสู่ระบบทั้งหมดและคีย์กู้คืน การรีเซ็ตบัญชีคือทางเลือกสุดท้าย เนื่องจาก OpenMates เข้ารหัสข้อมูลของคุณ การรีเซ็ตบัญชีอาจลบแชทที่เข้ารหัส ความทรงจำ การตั้งค่าแอป embed พาสคีย์ และคีย์ API อย่างถาวร
+  cs: Pokud jste ztratili všechny způsoby přihlášení i klíč pro obnovení, reset účtu je poslední možnost. Protože OpenMates šifruje vaše data, reset účtu může trvale smazat šifrované chaty, paměti, nastavení aplikací, embedy, přístupové klíče a API klíče.
+  sv: Om du har förlorat alla inloggningsmetoder och din återställningsnyckel är kontåterställning sista utvägen. Eftersom OpenMates krypterar dina data kan en kontåterställning permanent radera krypterade chattar, minnen, appinställningar, embeds, nyckelkoder och API-nycklar.
+  he: אם איבדת את כל שיטות ההתחברות ואת מפתח השחזור שלך, איפוס החשבון הוא המוצא האחרון. מכיוון ש-OpenMates מצפין את הנתונים שלך, איפוס החשבון עלול למחוק לצמיתות צ'אטים מוצפנים, זיכרונות, הגדרות אפליקציות, הטמעות, מפתחות גישה ומפתחות API.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 password_security_reminder.subject:
   context: Subject line for recurring security reminders when password login is enabled without 2FA
   en: Action needed to secure your OpenMates account
@@ -1870,6 +2099,7 @@ welcome_to_openmates:
   cs: Vítejte v OpenMates!
   sv: Välkommen till OpenMates!
   he: "ברוכים הבאים ל-OpenMates!"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 complete_signup_info:
   context: Email body for account created confirmation
   en: Your account is ready. Here are a few helpful next steps to protect your access and keep a copy of your data.
@@ -1893,6 +2123,7 @@ complete_signup_info:
   cs: Váš účet je připraven. Zde je několik užitečných dalších kroků, jak chránit přístup a uchovat si kopii svých dat.
   sv: Ditt konto är klart. Här är några hjälpsamma nästa steg för att skydda din åtkomst och behålla en kopia av dina data.
   he: החשבון שלך מוכן. הנה כמה צעדים מועילים להגנה על הגישה שלך ולשמירת עותק של הנתונים שלך.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 want_to_delete_account:
   context: Email body link text for account deletion
   en: Want to delete your account?
@@ -1916,6 +2147,7 @@ want_to_delete_account:
   cs: Chcete smazat svůj účet?
   sv: Vill du radera ditt konto?
   he: "רוצה למחוק את החשבון שלך?"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 click_here:
   context: Email body link text
   en: Click here
@@ -1939,6 +2171,7 @@ click_here:
   cs: Klikněte zde
   sv: Klicka här
   he: לחץ כאן
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 confirm_your_email_address:
   context: Email subject & header for email address confirmation
   en: Confirm your email address
@@ -3736,6 +3969,7 @@ cron_session_notification.title:
   cs: "Cron úloha — {{job_display}} ({{status}})"
   sv: "Cron-jobbsession — {{job_display}} ({{status}})"
   he: "סשן של משימת cron — {{job_display}} ({{status}})"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 cron_session_notification.header:
   context: Header text in cron session notification email (admin only)
@@ -3760,6 +3994,7 @@ cron_session_notification.header:
   cs: "Cron úloha"
   sv: "Cron-jobbsession"
   he: "סשן של משימת cron"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 cron_session_notification.job_type_label:
   context: Label for job type in cron session email (admin only)
@@ -3784,6 +4019,7 @@ cron_session_notification.job_type_label:
   cs: "Typ úlohy"
   sv: "Jobbtyp"
   he: "סוג המשימה"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 cron_session_notification.session_label:
   context: Label for session name in cron session email (admin only)
@@ -3808,6 +4044,7 @@ cron_session_notification.session_label:
   cs: "Relace"
   sv: "Session"
   he: "סשן"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 cron_session_notification.duration_label:
   context: Label for duration in cron session email (admin only)
@@ -3832,6 +4069,7 @@ cron_session_notification.duration_label:
   cs: "Délka"
   sv: "Längd"
   he: "משך זמן"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 cron_session_notification.exit_code_label:
   context: Label for exit code in cron session email (admin only)
@@ -3856,6 +4094,7 @@ cron_session_notification.exit_code_label:
   cs: "Kód ukončení"
   sv: "Slutkod"
   he: "קוד יציאה"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 cron_session_notification.session_id_label:
   context: Label for session ID in cron session email (admin only)
@@ -3880,6 +4119,7 @@ cron_session_notification.session_id_label:
   cs: "ID relace"
   sv: "Sessions-ID"
   he: "מזהה סשן"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 cron_session_notification.resume_hint:
   context: Hint text for resuming a session in cron session email (admin only)
@@ -3904,6 +4144,7 @@ cron_session_notification.resume_hint:
   cs: "Obnovit tuto relaci"
   sv: "Fortsätt den här sessionen"
   he: "חדש סשן זה"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 cron_session_notification.summary_label:
   context: Label for context summary in cron session email (admin only)
@@ -3928,6 +4169,7 @@ cron_session_notification.summary_label:
   cs: "Souhrn"
   sv: "Sammanfattning"
   he: "סיכום"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 cron_session_notification.footer_note:
   context: Footer note in cron session notification email (admin only)
@@ -3952,6 +4194,7 @@ cron_session_notification.footer_note:
   cs: "Toto oznámení bylo zasláno automatizovanou cron úlohou Claude Code."
   sv: "Detta meddelande skickades av ett automatiserat Claude Code cron-jobb."
   he: "הודעה זו נשלחה על ידי משימת cron אוטומטית של Claude Code."
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 
 github:
   context: GitHub link in email footer
@@ -8847,6 +9090,7 @@ community_share_notification.subject:
   cs: "Nový chat navržený pro komunitu: {chat_title}"
   sv: "Ny chatt föreslagen för communityn: {chat_title}"
   he: "הצעה לצ'אט חדש לקהילה: {chat_title}"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 community_share_notification.header:
   context: Header text in community share notification email body
   en: New chat suggested for community
@@ -8870,6 +9114,7 @@ community_share_notification.header:
   cs: Nový chat navržený pro komunitu
   sv: Ny chatt föreslagen för communityn
   he: "הצעה לצ'אט חדש לקהילה"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 community_share_notification.description:
   context: Description text in community share notification email body
   en: A user has shared a chat with the community. The chat might be selected to be shown to other users on the platform, as well as on social media and at events.
@@ -8893,6 +9138,7 @@ community_share_notification.description:
   cs: Uživatel sdílel chat s komunitou. Chat může být vybrán k zobrazení ostatním uživatelům na platformě, stejně jako na sociálních sítích a na akcích.
   sv: En användare har delat en chatt med communityn. Chatten kan väljas ut för att visas för andra användare på plattformen, liksom på sociala medier och vid evenemang.
   he: "משתמש שיתף צ'אט עם הקהילה. ייתכן שהצ'אט ייבחר להצגה למשתמשים אחרים בפלטפורמה, וכן ברשתות חברתיות ובאירועים."
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 community_share_notification.chat_title_label:
   context: Label for chat title in email
   en: Chat Title
@@ -8916,6 +9162,7 @@ community_share_notification.chat_title_label:
   cs: Název chatu
   sv: Chat-titel
   he: "כותרת הצ'אט"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 community_share_notification.summary_label:
   context: Label for chat summary in email
   en: Summary
@@ -8939,6 +9186,7 @@ community_share_notification.summary_label:
   cs: Souhrn
   sv: Sammanfattning
   he: סיכום
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 community_share_notification.link_label:
   context: Label for share link in email
   en: Share Link
@@ -8962,6 +9210,7 @@ community_share_notification.link_label:
   cs: Odkaz pro sdílení
   sv: Delningslänk
   he: קישור לשיתוף
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 community_share_notification.demo_button_text:
   context: Text for the button to create demo chat
   en: Make this a Demo Chat
@@ -8985,6 +9234,7 @@ community_share_notification.demo_button_text:
   cs: Udělejte z tohoto demo chat
   sv: Gör detta till en demo-chatt
   he: "הפיכת הצ'אט לצ'אט דמו"
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 community_share_notification.demo_button_description:
   context: Description text explaining what the demo button does
   en: This will make the chat available to non-authenticated users as an example of OpenMates capabilities.
@@ -9008,6 +9258,7 @@ community_share_notification.demo_button_description:
   cs: Díky tomu bude chat dostupný neověřeným uživatelům jako příklad schopností OpenMates.
   sv: Detta kommer att göra chatten tillgänglig för icke-autentiserade användare som ett exempel på OpenMates kapacitet.
   he: "פעולה זו תהפוך את הצ'אט לזמין למשתמשים לא רשומים כדוגמה ליכולות של OpenMates."
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
 account_recovery_title:
   context: Email subject & header for account recovery
   en: Account Reset

@@ -18,6 +18,8 @@
 import { test, expect } from './helpers/cookie-audit';
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
+const { loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
+const { captureComposerEmbedContract } = require('./helpers/apple-ui-contract-helpers');
 
 // Configure the browser to use a fake audio device and grant mic permission
 test.use({
@@ -56,13 +58,12 @@ test.afterEach(async ({}, testInfo) => {
 async function setupAndFocusMessageField(page: any) {
 	await page.goto(getE2EDebugUrl('/'));
 
-	// Wait for the page to fully load — demo chats need time to initialize
+	// Wait for the page to fully load. Logged-out users now land on the guest
+	// welcome composer instead of an auto-opened demo chat hash.
 	await page.waitForTimeout(3000);
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
-		timeout: 15000
-	});
 
-	// Public demo chats show a CTA instead of the editable composer.
+	// Public demo chats show a CTA instead of the editable composer; the current
+	// guest welcome screen can be opened by clicking the message field directly.
 	const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
 	if (await newChatButton.isVisible({ timeout: 10000 }).catch(() => false)) {
 		await newChatButton.click();
@@ -76,15 +77,12 @@ async function setupAndFocusMessageField(page: any) {
 	// and makes ActionButtons visible via shouldShowActionButtons.
 	// Use `.editor-content.prose` to target the main message input field specifically,
 	// since demo chat messages also have `.editor-content` elements on the page.
+	await messageField.click();
 	const editorContent = page.getByTestId('message-editor');
-	if (await editorContent.isVisible()) {
-		await editorContent.click();
-		await page.keyboard.type(' ');
-		await page.keyboard.press('Backspace');
-	} else {
-		// Fallback: click the message field itself
-		await messageField.click();
-	}
+	await expect(editorContent).toBeVisible({ timeout: 10000 });
+	await editorContent.click();
+	await page.keyboard.type(' ');
+	await page.keyboard.press('Backspace');
 
 	// Give time for focus state to propagate and action buttons to render
 	await page.waitForTimeout(1000);
@@ -97,7 +95,7 @@ async function setupAndFocusMessageField(page: any) {
  * Falls back to class selector if aria-label not found.
  */
 function getMicButton(page: any) {
-	return page.getByTestId('record-audio-button');
+	return page.locator('[data-testid="message-field"]').last().getByTestId('record-audio-button');
 }
 
 /**
@@ -107,14 +105,15 @@ async function waitForMicButton(page: any) {
 	const micButton = getMicButton(page);
 
 	// Check if action buttons wrapper exists at all
-	const actionButtonsWrapper = page.getByTestId('action-buttons');
+	const actionButtonsWrapper = page.locator('[data-testid="action-buttons"]').last();
 	const actionButtonsVisible = await actionButtonsWrapper.isVisible().catch(() => false);
 	if (!actionButtonsVisible) {
 		// Take screenshot for debugging
 		await page.screenshot({ path: '/tmp/pw-results/debug-no-action-buttons.png' });
 		console.log('[DEBUG] action-buttons not visible. Dumping relevant DOM...');
 		const html = await page
-			.getByTestId('message-field')
+			.locator('[data-testid="message-field"]')
+			.last()
 			.innerHTML()
 			.catch(() => 'NOT FOUND');
 		console.log('[DEBUG] message-field innerHTML (first 500 chars):', html.substring(0, 500));
@@ -123,6 +122,37 @@ async function waitForMicButton(page: any) {
 	const micVisible = await micButton.isVisible({ timeout: 20000 }).catch(() => false);
 	test.skip(!micVisible, 'Audio recording controls are not available in the current composer UI.');
 	return micButton;
+}
+
+async function holdAndReleaseMicButton(page: any, micButton: any, holdMs = 1500) {
+	const micBox = await micButton.boundingBox();
+	if (!micBox) throw new Error('Mic button bounding box not found');
+	const micCenterX = micBox.x + micBox.width / 2;
+	const micCenterY = micBox.y + micBox.height / 2;
+
+	await page.mouse.move(micCenterX, micCenterY);
+	await page.mouse.down();
+
+	const overlay = page.getByTestId('record-overlay');
+	await expect(overlay).toBeVisible({ timeout: 5000 });
+	await page.waitForTimeout(holdMs);
+	await page.mouse.up();
+	await expect(overlay).not.toBeVisible({ timeout: 10000 });
+}
+
+async function dispatchHoldAndReleaseMicButton(page: any, micButton: any, holdMs = 2000) {
+	await micButton.dispatchEvent('mousedown', { button: 0 });
+	const overlay = page.getByTestId('record-overlay');
+	await expect(overlay).toBeVisible({ timeout: 5000 });
+	await page.waitForTimeout(holdMs);
+	await page.dispatchEvent('body', 'mouseup');
+	await expect(overlay).not.toBeVisible({ timeout: 10000 });
+}
+
+async function getEditorPlainText(page: any): Promise<string> {
+	return page.getByTestId('message-editor').evaluate((element: HTMLElement) =>
+		(element.textContent ?? '').replace(/\u00a0/g, ' ')
+	);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -157,7 +187,7 @@ test('single tap on mic button does not start recording', async ({ page }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 1b: Hold Space from chat surface starts recording without focusing input
 // ─────────────────────────────────────────────────────────────────────────────
-test('spacebar hold starts audio recording from chat surface', async ({ page }) => {
+test('spacebar hold shows ESC cancel hint and escape cancels without inserting spaces', async ({ page }) => {
 	test.setTimeout(60000);
 
 	await setupAndFocusMessageField(page);
@@ -168,16 +198,25 @@ test('spacebar hold starts audio recording from chat surface', async ({ page }) 
 		const activeElement = document.activeElement as HTMLElement | null;
 		activeElement?.blur();
 	});
+	expect(await getEditorPlainText(page)).toBe('');
+	const embedCountBefore = await page.getByTestId('recording-preview').count();
 
 	await page.keyboard.down('Space');
 
 	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 5000 });
+	await expect(overlay.getByTestId('cancel-hint')).toContainText('Press ESC to cancel');
+	await expect(overlay.getByTestId('cancel-hint')).not.toContainText('Slide left to cancel');
 
+	await page.waitForTimeout(500);
+	await page.keyboard.press('Escape');
+	await expect(overlay).not.toBeVisible({ timeout: 5000 });
 	await page.keyboard.up('Space');
-	await expect(overlay).not.toBeVisible({ timeout: 10000 });
 
-	console.log('[TEST] Spacebar hold: recording shortcut works from chat surface');
+	expect(await getEditorPlainText(page)).toBe('');
+	expect(await page.getByTestId('recording-preview').count()).toBe(embedCountBefore);
+
+	console.log('[TEST] Spacebar hold: ESC hint visible and cancel leaves editor empty');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -232,28 +271,7 @@ test('press hold and release creates audio embed', async ({ page }) => {
 	// Count existing recording embeds before
 	const embedCountBefore = await page.getByTestId('recording-preview').count();
 
-	// Press and hold using page.mouse so that both mousedown AND mouseup are OS-level events
-	// that properly trigger all event listeners (including document-level ones in RecordAudio).
-	const micBox = await micButton.boundingBox();
-	if (!micBox) throw new Error('Mic button bounding box not found');
-	const micCenterX = micBox.x + micBox.width / 2;
-	const micCenterY = micBox.y + micBox.height / 2;
-
-	await page.mouse.move(micCenterX, micCenterY);
-	await page.mouse.down();
-
-	// Wait for overlay to appear and recorder to start
-	const overlay = page.getByTestId('record-overlay');
-	await expect(overlay).toBeVisible({ timeout: 5000 });
-
-	// Hold for a bit so some audio data is captured by the fake device
-	await page.waitForTimeout(1500);
-
-	// Release — OS-level mouseup triggers all document mouseup listeners (RecordAudio.stop)
-	await page.mouse.up();
-
-	// Overlay should disappear after release (give extra time for async cleanup)
-	await expect(overlay).not.toBeVisible({ timeout: 10000 });
+	await holdAndReleaseMicButton(page, micButton);
 
 	// A recording embed should now be inserted in the editor.
 	// Give it a moment for the embed insertion to complete.
@@ -261,8 +279,58 @@ test('press hold and release creates audio embed', async ({ page }) => {
 
 	const embedCountAfter = await page.getByTestId('recording-preview').count();
 	expect(embedCountAfter).toBeGreaterThan(embedCountBefore);
+	await captureComposerEmbedContract(page, {
+		id: 'composer-pending-audio-recording',
+		embedType: 'audio-recording',
+		screenshot: true
+	});
 
 	console.log('[TEST] Press hold release: audio embed inserted');
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 3b: Authenticated recording uploads and reaches transcription endpoint
+// ─────────────────────────────────────────────────────────────────────────────
+test('authenticated press hold release uploads and transcribes audio embed', async ({ page }) => {
+	test.setTimeout(180000);
+
+	const log = (message: string, metadata?: Record<string, unknown>) => {
+		console.log(`[TEST][audio-transcription] ${message}`, metadata ?? '');
+	};
+
+	await loginToTestAccount(page, log, async () => undefined);
+	await startNewChat(page, log);
+
+	const editorContent = page.getByTestId('message-editor');
+	await expect(editorContent).toBeVisible({ timeout: 20000 });
+	await editorContent.click();
+	await page.keyboard.type(' ');
+	await page.keyboard.press('Backspace');
+
+	const micButton = await waitForMicButton(page);
+	const transcribeResponsePromise = page.waitForResponse(
+		(response: any) =>
+			response.url().includes('/v1/apps/audio/skills/transcribe') &&
+			response.request().method() === 'POST',
+		{ timeout: 120000 }
+	);
+
+	await dispatchHoldAndReleaseMicButton(page, micButton);
+
+	const transcribeResponse = await transcribeResponsePromise;
+	const transcribeBody = await transcribeResponse.text().catch(() => '<unreadable response body>');
+	expect(
+		transcribeResponse.ok(),
+		`Transcription POST returned ${transcribeResponse.status()}: ${transcribeBody.slice(0, 800)}`
+	).toBeTruthy();
+
+	const audioEmbed = page
+		.locator('[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="transcribe"]')
+		.last();
+	await expect(audioEmbed).toHaveAttribute('data-status', 'finished', { timeout: 60000 });
+	await expect(page.getByTestId('recording-preview').last()).toBeVisible({ timeout: 10000 });
+
+	console.log('[TEST] Authenticated recording: upload + transcription completed');
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

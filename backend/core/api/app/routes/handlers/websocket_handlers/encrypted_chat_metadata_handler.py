@@ -149,6 +149,33 @@ async def handle_encrypted_chat_metadata(
                 is_existing_chat = chat_has_title_from_client
                 logger.debug(f"Chat {chat_id} not found in DB, using client flag chat_has_title: {chat_has_title_from_client}")
 
+            is_initial_titled_chat_metadata = bool(encrypted_title) and not is_existing_chat
+            if is_initial_titled_chat_metadata and (not encrypted_icon or not encrypted_chat_category):
+                logger.warning(
+                    "Rejecting incomplete initial encrypted chat metadata for chat %s: "
+                    "has_title=%s, has_icon=%s, has_category=%s, messages_v=%s, title_v=%s",
+                    chat_id,
+                    bool(encrypted_title),
+                    bool(encrypted_icon),
+                    bool(encrypted_chat_category),
+                    versions.get("messages_v"),
+                    versions.get("title_v"),
+                )
+                await manager.send_personal_message(
+                    {
+                        "type": "incomplete_chat_metadata",
+                        "payload": {
+                            "chat_id": chat_id,
+                            "message_id": message_id,
+                            "code": "incomplete_chat_metadata",
+                            "message": "Initial encrypted chat metadata must include title, icon, and category.",
+                        },
+                    },
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+
             # ---------------------------------------------------------------------
             # Chat key conflict detection (server-side guardrail)
             # ---------------------------------------------------------------------

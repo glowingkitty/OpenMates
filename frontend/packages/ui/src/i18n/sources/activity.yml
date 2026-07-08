@@ -310,6 +310,78 @@ incognito:
   sv: INKOGNITO
   he: גלישה בסתר
   verified_by_human: []
+quick_action_ask:
+  context: iOS home screen quick action title that opens a new chat with the message input focused
+  en: Ask
+  de: Fragen
+  zh: 提问
+  es: Preguntar
+  fr: Demander
+  pt: Perguntar
+  ru: Спросить
+  ja: 質問する
+  ko: 질문하기
+  it: Chiedi
+  tr: Sor
+  vi: Hỏi
+  id: Tanya
+  pl: Zapytaj
+  nl: Vragen
+  ar: اسأل
+  hi: पूछें
+  th: ถาม
+  cs: Zeptat se
+  sv: Fråga
+  he: שאל
+  verified_by_human: []
+quick_action_ask_about_photo:
+  context: iOS home screen quick action title that opens a new chat and launches the camera capture flow
+  en: Ask About Photo
+  de: Nach Foto fragen
+  zh: 询问照片
+  es: Preguntar sobre foto
+  fr: Poser une question sur la photo
+  pt: Perguntar sobre foto
+  ru: Спросить о фото
+  ja: 写真について質問
+  ko: 사진에 대해 질문하기
+  it: Chiedi sulla foto
+  tr: Fotoğraf hakkında sor
+  vi: Hỏi về ảnh
+  id: Tanya tentang foto
+  pl: Zapytaj o zdjęcie
+  nl: Vraag over foto
+  ar: اسأل عن الصورة
+  hi: फ़ोटो के बारे में पूछें
+  th: ถามเกี่ยวกับรูปภาพ
+  cs: Zeptat se na fotku
+  sv: Fråga om foto
+  he: שאל על תמונה
+  verified_by_human: []
+quick_action_incognito_ask:
+  context: iOS home screen quick action title that starts a new incognito chat with the message input focused
+  en: Incognito Ask
+  de: Inkognito fragen
+  zh: 隐身提问
+  es: Pregunta de incógnito
+  fr: Demande incognito
+  pt: Pergunta anônima
+  ru: Спросить инкогнито
+  ja: シークレットで質問
+  ko: 시크릿 질문
+  it: Chiedi in incognito
+  tr: Gizli sor
+  vi: Hỏi ẩn danh
+  id: Tanya incognito
+  pl: Zapytaj incognito
+  nl: Incognito vragen
+  ar: اسأل بتصفح متخفٍ
+  hi: गुप्त रूप से पूछें
+  th: ถามแบบไม่ระบุตัวตน
+  cs: Zeptat se inkognito
+  sv: Fråga inkognito
+  he: שאל בגלישה בסתר
+  verified_by_human: []
 intro:
   context: Group title for intro chats
   en: INTRO

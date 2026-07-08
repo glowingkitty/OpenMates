@@ -24,6 +24,16 @@ struct PendingComposerEmbedPreview: View {
 
     var body: some View {
         HStack(spacing: 0) {
+            embedContainer
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
+        .accessibilityIdentifier("embed-full-width-wrapper")
+        .accessibilityElement(children: .contain)
+    }
+
+    private var embedContainer: some View {
+        HStack(spacing: 0) {
             iconContent
                 .frame(width: 60, height: 60)
                 .clipShape(Circle())
@@ -54,6 +64,7 @@ struct PendingComposerEmbedPreview: View {
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
+            .help(Text(AppStrings.delete))
             .accessibilityLabel(AppStrings.delete)
             .accessibilityIdentifier("pending-composer-embed-remove")
             .padding(.trailing, .spacing4)
@@ -62,8 +73,7 @@ struct PendingComposerEmbedPreview: View {
         .background(Color.grey10)
         .clipShape(RoundedRectangle(cornerRadius: 30))
         .shadow(color: .black.opacity(0.10), radius: 8, x: 0, y: 4)
-        .accessibilityIdentifier("embed-full-width-wrapper")
-        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("embed-unified-container")
     }
 
     @ViewBuilder
@@ -143,17 +153,14 @@ struct PendingComposerEmbedsList: View {
 
     var body: some View {
         if !embeds.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: .spacing3) {
-                    ForEach(embeds) { embed in
-                        PendingComposerEmbedPreview(embed: embed) {
-                            onRemove(embed)
-                        }
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(embeds) { embed in
+                    PendingComposerEmbedPreview(embed: embed) {
+                        onRemove(embed)
                     }
                 }
-                .padding(.horizontal, .spacing4)
             }
-            .padding(.vertical, .spacing2)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("pending-composer-embed")
         }
     }

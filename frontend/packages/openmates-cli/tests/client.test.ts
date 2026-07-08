@@ -68,7 +68,11 @@ const {
   buildTurnTokenRefsRequestPayload,
   getClientMessagesVersionForSync,
 } = await import("../src/client.ts");
-const { decryptBytesWithAesGcm, decryptWithAesGcmCombined, encryptBytesWithAesGcm } = await import("../src/crypto.ts");
+const {
+  decryptBytesWithAesGcm,
+  decryptWithAesGcmCombined,
+  encryptBytesWithAesGcm,
+} = await import("../src/crypto.ts");
 
 after(() => {
   if (originalHome === undefined) {
@@ -173,6 +177,81 @@ describe("OpenMatesClient session API URL", () => {
       assert.deepEqual(JSON.parse(requestBody), { session_id: "test-session-id" });
       const saved = JSON.parse(readFileSync(sessionPath, "utf-8"));
       assert.strictEqual(saved.wsToken, "fresh-ws-token");
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("creates API keys through the audited typed path while generic settings POST stays blocked", async () => {
+    let seenBody: Record<string, unknown> | null = null;
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      assert.strictEqual(request.url, "/v1/settings/api-keys");
+      assert.strictEqual(request.method, "POST");
+      let raw = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk) => {
+        raw += chunk;
+      });
+      request.on("end", () => {
+        seenBody = JSON.parse(raw) as Record<string, unknown>;
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ id: "key-1", full_access: true, scopes: {} }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await assert.rejects(
+        () => client.settingsPost("api-keys", {}),
+        /Blocked operation: \/v1\/settings\/api-keys/,
+      );
+      const result = await client.createApiKey({ name: "SDK live test" });
+
+      assert.match(result.api_key, /^sk-api-[A-Za-z0-9]{32}$/);
+      assert.deepEqual(result.key, { id: "key-1", full_access: true, scopes: {} });
+      assert.ok(seenBody);
+      assert.equal(seenBody.encrypted_name, result.crypto.encryptedName);
+      assert.equal(seenBody.api_key_hash, result.crypto.apiKeyHash);
+      assert.equal(seenBody.encrypted_key_prefix, result.crypto.encryptedKeyPrefix);
+      assert.equal(seenBody.encrypted_master_key, result.crypto.encryptedMasterKey);
+      assert.equal(seenBody.full_access, true);
+      assert.deepEqual(seenBody.scopes, {});
+      assert.equal(seenBody.credit_limit, null);
+      assert.equal(seenBody.expires_at, null);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("sends stable CLI API-key device headers for app-skill execution", async () => {
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      assert.strictEqual(request.url, "/v1/apps/code/skills/get_docs");
+      assert.strictEqual(request.method, "POST");
+      assert.strictEqual(request.headers.authorization, "Bearer sk-api-test-key");
+      assert.strictEqual(request.headers["x-openmates-sdk"], "cli");
+      assert.match(String(request.headers["x-openmates-device-identity"]), /^cli:.+:.+$/);
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ success: true, data: { ok: true } }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const result = await client.runSkill({
+        app: "code",
+        skill: "get_docs",
+        inputData: { library: "React", question: "useState" },
+        apiKey: "sk-api-test-key",
+      });
+
+      assert.deepEqual(result, { success: true, data: { ok: true } });
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
@@ -302,6 +381,75 @@ describe("memory type registry", () => {
       "web/bookmarks",
       "web/read_later",
     ]);
+  });
+});
+
+describe("CLI streamed embed persistence", () => {
+  it("uses the same deterministic parent embed key across version updates", async () => {
+    writeLegacySession();
+    const client = OpenMatesClient.load();
+    const masterKey = new Uint8Array(32);
+    const chatKey = new Uint8Array(32).fill(7);
+    const frames: { type: string; payload: Record<string, any> }[] = [];
+    const ws = {
+      sendAsync: async (type: string, payload: Record<string, any>) => {
+        frames.push({ type, payload });
+      },
+    };
+
+    const persist = async (content: string, version: number) => {
+      await (client as any).persistStreamedEmbeds({
+        ws,
+        embeds: [{
+          embed_id: "embed-123",
+          type: "code-code",
+          content,
+          status: "finished",
+          version_number: version,
+          version_history_rows: [{
+            embed_id: "embed-123",
+            version_number: version,
+            snapshot: content,
+            created_at: 1780000000 + version,
+          }],
+        }],
+        chatId: "chat-123",
+        chatKeyBytes: chatKey,
+        fallbackMessageId: "message-123",
+      });
+    };
+
+    await persist("version one", 1);
+    await persist("version two", 2);
+
+    const keyFrames = frames.filter((frame) => frame.type === "store_embed_keys");
+    const diffFrames = frames.filter((frame) => frame.type === "store_embed_diff");
+    assert.equal(keyFrames.length, 2);
+    assert.equal(diffFrames.length, 2);
+    assert.ok(
+      frames.findIndex((frame) => frame.type === "store_embed_keys") <
+        frames.findIndex((frame) => frame.type === "store_embed_diff"),
+    );
+
+    const firstMasterWrapper = keyFrames[0].payload.keys.find(
+      (entry: Record<string, unknown>) => entry.key_type === "master",
+    );
+    const secondMasterWrapper = keyFrames[1].payload.keys.find(
+      (entry: Record<string, unknown>) => entry.key_type === "master",
+    );
+    const firstKey = await decryptBytesWithAesGcm(firstMasterWrapper.encrypted_embed_key, masterKey);
+    const secondKey = await decryptBytesWithAesGcm(secondMasterWrapper.encrypted_embed_key, masterKey);
+    assert.ok(firstKey);
+    assert.ok(secondKey);
+    assert.deepEqual(secondKey, firstKey);
+    assert.equal(
+      await decryptWithAesGcmCombined(diffFrames[0].payload.encrypted_snapshot, firstKey),
+      "version one",
+    );
+    assert.equal(
+      await decryptWithAesGcmCombined(diffFrames[1].payload.encrypted_snapshot, secondKey),
+      "version two",
+    );
   });
 });
 

@@ -50,6 +50,29 @@ final class SettingsBillingParityUITests: XCTestCase {
         attachScreenshot(name: "Public settings identifiers")
     }
 
+    func testHeaderReferralCTAOpensReferralSettingsSubpage() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-authenticated-header",
+            "--ui-test-show-workspace-tabs"
+        ]
+        app.launch()
+
+        let referralCTA = app.buttons["referral-cta"]
+        XCTAssertTrue(referralCTA.waitForExistence(timeout: 15), "Expected header referral CTA")
+        referralCTA.tap()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["settings-billing-referral-code-page"].waitForExistence(timeout: 10),
+            "Expected referral code subpage after referral CTA. Visible UI: \(visibleStateLabels(in: app))"
+        )
+        XCTAssertEqual(app.state, .runningForeground, "Referral CTA must not crash the app")
+        XCTAssertFalse(app.tables.firstMatch.exists, "Referral settings must not render default List/table chrome")
+
+        attachScreenshot(name: "Header referral CTA opens referral settings")
+    }
+
     private func attachScreenshot(name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name

@@ -22,6 +22,7 @@ from typing import Dict, Any, List, Optional, Sequence, Tuple
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.shared.testing.caching_http_transport import create_http_client
+from backend.shared.testing.mock_context import get_mock_group, is_mock_active
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +40,21 @@ BRAVE_API_BASE_URL = "https://api.search.brave.com/res/v1"
 # Retry configuration for 429 rate limit responses
 MAX_429_RETRIES = 6  # Maximum number of retries on 429
 DEFAULT_429_RETRY_DELAY = 1.1  # Default delay in seconds when Retry-After header is missing
+LIVE_MOCK_ZERO_RESULTS_GROUP = "web_search_zero_results"
+LIVE_MOCK_ZERO_RESULTS_QUERY_TOKEN = "xyznonexistentproduct123456"
 
 BraveKeyCandidate = Tuple[str, str]
+
+
+def _live_mock_forces_zero_web_results(query: str) -> bool:
+    """Return True for the dedicated E2E zero-result search mock only."""
+    return (
+        os.getenv("SERVER_ENVIRONMENT", "production") != "production"
+        and os.getenv("MOCK_EXTERNAL_APIS") == "true"
+        and is_mock_active()
+        and get_mock_group() == LIVE_MOCK_ZERO_RESULTS_GROUP
+        and LIVE_MOCK_ZERO_RESULTS_QUERY_TOKEN in query
+    )
 
 
 def _parse_retry_after_seconds(response: httpx.Response) -> float:
@@ -451,6 +465,16 @@ async def search_web(
         ValueError: If API key is not available
         httpx.HTTPStatusError: If the API request fails
     """
+    if _live_mock_forces_zero_web_results(query):
+        logger.info("[LiveMock] Forced zero Brave web results for group=%s", LIVE_MOCK_ZERO_RESULTS_GROUP)
+        return {
+            "query": query,
+            "results": [],
+            "web": {"total_results": 0, "count": 0},
+            "error": None,
+            "sanitize_output": sanitize_output,
+        }
+
     api_key_candidates = await _get_brave_api_key_candidates(secrets_manager)
     if not api_key_candidates:
         raise ValueError("Brave Search API key not available. Please configure it in Vault or set SECRET__BRAVE__API_KEY environment variable.")

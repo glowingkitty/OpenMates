@@ -6,6 +6,8 @@ alert fields must not expose chat titles or assistant response content.
 """
 
 import json
+import sys
+from types import SimpleNamespace
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -28,6 +30,10 @@ from backend.core.api.app.services.push_notification_service import (
     PushNotificationService,
     _decode_base64url,
     _encode_base64url,
+)
+from backend.core.api.app.services.push_subscription_targets import (
+    merge_push_subscription_target,
+    normalize_push_subscription_targets,
 )
 
 
@@ -169,3 +175,67 @@ def test_apns_chat_payload_uses_safe_alert_and_encrypted_preview(monkeypatch):
     )
 
     assert json.loads(plaintext) == {"preview": "secret assistant response first line"}
+
+
+def test_push_subscription_targets_preserve_browser_and_native_devices():
+    browser_target = {
+        "type": "web",
+        "endpoint": "https://push.example/browser-1",
+        "keys": {"p256dh": "pub", "auth": "auth"},
+        "expirationTime": None,
+    }
+    native_target = {
+        "type": "apns",
+        "token": "token-1",
+        "platform": "apns",
+        "environment": "sandbox",
+    }
+
+    stored = merge_push_subscription_target(None, browser_target)
+    stored = merge_push_subscription_target(stored, native_target)
+    targets = normalize_push_subscription_targets(stored)
+
+    assert [target["type"] for target in targets] == ["web", "apns"]
+    assert targets[0]["endpoint"] == browser_target["endpoint"]
+    assert targets[1]["token"] == native_target["token"]
+
+
+def test_multi_target_push_dispatches_to_web_and_apns(monkeypatch):
+    calls = []
+
+    def fake_webpush(**kwargs):
+        calls.append(("web", kwargs["subscription_info"]["endpoint"]))
+
+    service = PushNotificationService()
+    service._initialized = True
+    service._vapid_private_key = "private"
+    service._vapid_public_key = "public"
+    monkeypatch.setitem(sys.modules, "pywebpush", SimpleNamespace(webpush=fake_webpush))
+    monkeypatch.setattr(
+        service,
+        "_send_apns_notification",
+        lambda subscription_info, **kwargs: calls.append(("apns", subscription_info["token"])) or True,
+    )
+
+    subscription_json = json.dumps(
+        {
+            "type": "multi",
+            "targets": [
+                {
+                    "type": "web",
+                    "endpoint": "https://push.example/browser-1",
+                    "keys": {"p256dh": "pub", "auth": "auth"},
+                },
+                {"type": "apns", "token": "token-1", "platform": "apns"},
+            ],
+        }
+    )
+
+    assert service.send_push_notification(
+        subscription_json=subscription_json,
+        title="OpenMates",
+        body="New message received",
+        chat_id="chat-1",
+    )
+
+    assert calls == [("web", "https://push.example/browser-1"), ("apns", "token-1")]

@@ -300,7 +300,7 @@ test('AI responds in the same language as the user message (OPE-8)', async ({
 	const turn1Index = Math.max((await assistantMessages.count()) - 1, 0);
 	log(`Turn 1 assistant message at index ${turn1Index}.`);
 
-	await page.waitForTimeout(3000); // Let content fully render
+	await waitForAssistantTurnSettled(page, log);
 	await screenshot(page, 'turn1-response');
 
 	// Extract prose text and verify it's in German
@@ -324,7 +324,6 @@ test('AI responds in the same language as the user message (OPE-8)', async ({
 	).toBe('de');
 
 	log('Turn 1 verified: AI responded in German.');
-	await waitForAssistantTurnSettled(page, log);
 
 	// ══════════════════════════════════════════════════════════════════════
 	// STEP 3: Send a follow-up in English → expect English response
@@ -351,7 +350,7 @@ test('AI responds in the same language as the user message (OPE-8)', async ({
 	// state captured in CI artifacts.
 	await waitForAssistantMessage(page, { which: 'last', logCheckpoint: log });
 	const turn2Index = Math.max((await assistantMessages.count()) - 1, 0);
-	await page.waitForTimeout(3000);
+	await waitForAssistantTurnSettled(page, log);
 	await screenshot(page, 'turn2-response');
 
 	// Extract prose text and verify it's in English

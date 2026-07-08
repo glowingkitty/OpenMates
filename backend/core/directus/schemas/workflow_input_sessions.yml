@@ -1,0 +1,41 @@
+# backend/core/directus/schemas/workflow_input_sessions.yml
+# Durable workflow-input sessions. User-authored text stays inside sanitized,
+# server-owned records and event payloads; list queries are always owner-hashed.
+workflow_input_sessions:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Primary Key - session id."
+    session_id:
+      type: string
+      note: "[Indexed, Unique] Public workflow input session id."
+      options:
+        unique: true
+    hashed_user_id:
+      type: string
+      note: "[Indexed] SHA256(user_id) of the owner."
+    status:
+      type: string
+      note: "running, needs_clarification, draft, executed, stopped, undone, or failed."
+    selected_workflow_id:
+      type: string
+      note: "Nullable workflow id selected when the session started."
+    selected_project_id:
+      type: string
+      note: "Nullable project id selected when the session started."
+    event_cursor:
+      type: integer
+      note: "Latest append-only event id for reconnect polling."
+    record_json:
+      type: json
+      note: "Server-owned normalized session snapshot, including sanitized metadata only."
+    created_at:
+      type: integer
+      note: "Unix timestamp."
+    updated_at:
+      type: integer
+      note: "Unix timestamp."
+    expires_at:
+      type: integer
+      note: "Unix timestamp for abandoned draft cleanup."

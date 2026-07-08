@@ -76,6 +76,10 @@
    * - Children are available in content snippet via context parameter
    */
   interface Props {
+    /** Optional root data-testid override for app-specific fullscreen assertions. */
+    testId?: string;
+    /** Optional top-bar close button data-testid override. */
+    closeTestId?: string;
     /** App identifier (e.g., 'web', 'videos', 'code') - used for gradient background */
     appId: string;
     /** Skill identifier (e.g., 'search', 'get_transcript') */
@@ -314,6 +318,8 @@
   }
   
   let {
+    testId = 'embed-fullscreen-overlay',
+    closeTestId = 'embed-minimize',
     appId,
     skillId,
     onClose,
@@ -1291,7 +1297,7 @@
 <div
   class="unified-embed-fullscreen-overlay"
   class:animating-in={isAnimatingIn}
-  data-testid="embed-fullscreen-overlay"
+  data-testid={testId}
 >
   <div class="fullscreen-container">
 
@@ -1370,6 +1376,7 @@
       {piiRevealed}
       {showPIIIncludeOriginal}
       onClose={handleClose}
+      {closeTestId}
       onShare={handleShare}
       onCopy={handleCopy}
       onDownload={handleDownload}

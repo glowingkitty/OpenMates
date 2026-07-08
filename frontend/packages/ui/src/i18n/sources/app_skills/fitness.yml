@@ -1,3 +1,153 @@
+search_locations:
+  context: Skill name for fitness location search
+  en: Search locations
+  de: Fitness-Standorte suchen
+  zh: 搜索健身地点
+  es: Buscar centros de fitness
+  fr: Rechercher des lieux de fitness
+  pt: Buscar locais de fitness
+  ru: Искать фитнес-локации
+  ja: フィットネス施設を検索
+  ko: 피트니스 장소 검색
+  it: Cerca luoghi fitness
+  tr: Fitness konumları ara
+  vi: Tìm địa điểm thể dục
+  id: Cari lokasi fitness
+  pl: Szukaj lokalizacji fitness
+  nl: Fitnesslocaties zoeken
+  ar: البحث عن مواقع اللياقة البدنية
+  hi: फिटनेस स्थान खोजें
+  th: ค้นหาสถานที่ออกกำลังกาย
+  cs: Hledat fitness místa
+  sv: Sök fitnessplatser
+  he: חיפוש מקומות כושר
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+search_locations.description:
+  context: Description for fitness location search skill
+  en: Find Urban Sports Club fitness locations by city, address, radius, activity, and plan.
+  de: Finde Urban Sports Club Fitness-Standorte nach Stadt, Adresse, Umkreis, Aktivität und Tarif.
+  zh: 按城市、地址、半径、活动和会员方案查找 Urban Sports Club 健身地点。
+  es: Encuentra centros de fitness de Urban Sports Club por ciudad, dirección, radio, actividad y plan.
+  fr: Trouvez des lieux de fitness Urban Sports Club par ville, adresse, rayon, activité et abonnement.
+  pt: Encontre locais de fitness da Urban Sports Club por cidade, endereço, raio, atividade e plano.
+  ru: Находите фитнес-локации Urban Sports Club по городу, адресу, радиусу, активности и тарифу.
+  ja: 都市、住所、半径、アクティビティ、プランで Urban Sports Club のフィットネス施設を探します。
+  ko: 도시, 주소, 반경, 활동, 플랜별로 Urban Sports Club 피트니스 장소를 찾습니다.
+  it: Trova luoghi fitness Urban Sports Club per città, indirizzo, raggio, attività e piano.
+  tr: Urban Sports Club fitness konumlarını şehir, adres, yarıçap, aktivite ve plana göre bulun.
+  vi: Tìm địa điểm thể dục Urban Sports Club theo thành phố, địa chỉ, bán kính, hoạt động và gói.
+  id: Temukan lokasi fitness Urban Sports Club berdasarkan kota, alamat, radius, aktivitas, dan paket.
+  pl: Znajdź lokalizacje fitness Urban Sports Club według miasta, adresu, promienia, aktywności i planu.
+  nl: Vind Urban Sports Club-fitnesslocaties op stad, adres, straal, activiteit en abonnement.
+  ar: اعثر على مواقع اللياقة البدنية في Urban Sports Club حسب المدينة أو العنوان أو نصف القطر أو النشاط أو الخطة.
+  hi: शहर, पते, दायरे, गतिविधि और प्लान के आधार पर Urban Sports Club फिटनेस स्थान खोजें।
+  th: ค้นหาสถานที่ออกกำลังกายของ Urban Sports Club ตามเมือง ที่อยู่ รัศมี กิจกรรม และแพ็กเกจ
+  cs: Najděte fitness místa Urban Sports Club podle města, adresy, okruhu, aktivity a plánu.
+  sv: Hitta Urban Sports Club-fitnessplatser efter stad, adress, radie, aktivitet och plan.
+  he: מצאו מקומות כושר של Urban Sports Club לפי עיר, כתובת, רדיוס, פעילות ותוכנית.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+search_locations.how_to_use.1:
+  context: Example instruction for fitness location search skill
+  en: Find Urban Sports locations within 1 km of Sorauer Str. 12 in Berlin
+  de: Finde Urban Sports Standorte im Umkreis von 1 km um die Sorauer Str. 12 in Berlin
+  zh: 查找柏林 Sorauer Str. 12 周围 1 公里内的 Urban Sports 地点
+  es: Busca ubicaciones de Urban Sports a menos de 1 km de Sorauer Str. 12 en Berlín
+  fr: Trouve des lieux Urban Sports à moins de 1 km de la Sorauer Str. 12 à Berlin
+  pt: Encontre locais da Urban Sports num raio de 1 km da Sorauer Str. 12 em Berlim
+  ru: Найди локации Urban Sports в радиусе 1 км от Sorauer Str. 12 в Берлине
+  ja: ベルリンの Sorauer Str. 12 から 1 km 以内の Urban Sports 施設を探して
+  ko: 베를린 Sorauer Str. 12에서 1km 이내의 Urban Sports 장소를 찾아줘
+  it: Trova luoghi Urban Sports entro 1 km da Sorauer Str. 12 a Berlino
+  tr: Berlin'de Sorauer Str. 12'ye 1 km mesafedeki Urban Sports konumlarını bul
+  vi: Tìm các địa điểm Urban Sports trong phạm vi 1 km từ Sorauer Str. 12 ở Berlin
+  id: Temukan lokasi Urban Sports dalam radius 1 km dari Sorauer Str. 12 di Berlin
+  pl: Znajdź lokalizacje Urban Sports w promieniu 1 km od Sorauer Str. 12 w Berlinie
+  nl: Vind Urban Sports-locaties binnen 1 km van Sorauer Str. 12 in Berlijn
+  ar: ابحث عن مواقع Urban Sports ضمن كيلومتر واحد من Sorauer Str. 12 في برلين
+  hi: बर्लिन में Sorauer Str. 12 से 1 किमी के भीतर Urban Sports स्थान खोजें
+  th: ค้นหาสถานที่ Urban Sports ภายใน 1 กม. จาก Sorauer Str. 12 ในเบอร์ลิน
+  cs: Najdi místa Urban Sports do 1 km od Sorauer Str. 12 v Berlíně
+  sv: Hitta Urban Sports-platser inom 1 km från Sorauer Str. 12 i Berlin
+  he: מצא מקומות Urban Sports במרחק של עד ק״מ אחד מ-Sorauer Str. 12 בברלין
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+search_classes:
+  context: Skill name for fitness class search
+  en: Search classes
+  de: Fitness-Kurse suchen
+  zh: 搜索健身课程
+  es: Buscar clases de fitness
+  fr: Rechercher des cours de fitness
+  pt: Buscar aulas de fitness
+  ru: Искать фитнес-занятия
+  ja: フィットネスクラスを検索
+  ko: 피트니스 수업 검색
+  it: Cerca corsi fitness
+  tr: Fitness dersleri ara
+  vi: Tìm lớp thể dục
+  id: Cari kelas fitness
+  pl: Szukaj zajęć fitness
+  nl: Fitnesslessen zoeken
+  ar: البحث عن حصص اللياقة البدنية
+  hi: फिटनेस क्लास खोजें
+  th: ค้นหาคลาสออกกำลังกาย
+  cs: Hledat fitness lekce
+  sv: Sök fitnesspass
+  he: חיפוש שיעורי כושר
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+search_classes.description:
+  context: Description for fitness class search skill
+  en: Find available Urban Sports Club classes by date, address, radius, activity, attendance mode, spots, and plan.
+  de: Finde verfügbare Urban Sports Club Kurse nach Datum, Adresse, Umkreis, Aktivität, Teilnahmeart, freien Plätzen und Tarif.
+  zh: 按日期、地址、半径、活动、参加方式、名额和会员方案查找可预约的 Urban Sports Club 课程。
+  es: Encuentra clases disponibles de Urban Sports Club por fecha, dirección, radio, actividad, modalidad de asistencia, plazas y plan.
+  fr: Trouvez des cours Urban Sports Club disponibles par date, adresse, rayon, activité, mode de participation, places et abonnement.
+  pt: Encontre aulas disponíveis da Urban Sports Club por data, endereço, raio, atividade, modo de participação, vagas e plano.
+  ru: Находите доступные занятия Urban Sports Club по дате, адресу, радиусу, активности, формату участия, местам и тарифу.
+  ja: 日付、住所、半径、アクティビティ、参加形式、空き枠、プランで予約可能な Urban Sports Club クラスを探します。
+  ko: 날짜, 주소, 반경, 활동, 참석 방식, 자리, 플랜별로 예약 가능한 Urban Sports Club 수업을 찾습니다.
+  it: Trova corsi Urban Sports Club disponibili per data, indirizzo, raggio, attività, modalità di partecipazione, posti e piano.
+  tr: Uygun Urban Sports Club derslerini tarih, adres, yarıçap, aktivite, katılım modu, kontenjan ve plana göre bulun.
+  vi: Tìm các lớp Urban Sports Club còn chỗ theo ngày, địa chỉ, bán kính, hoạt động, hình thức tham gia, số chỗ và gói.
+  id: Temukan kelas Urban Sports Club yang tersedia berdasarkan tanggal, alamat, radius, aktivitas, mode kehadiran, tempat, dan paket.
+  pl: Znajdź dostępne zajęcia Urban Sports Club według daty, adresu, promienia, aktywności, trybu uczestnictwa, miejsc i planu.
+  nl: Vind beschikbare Urban Sports Club-lessen op datum, adres, straal, activiteit, deelnamevorm, plekken en abonnement.
+  ar: اعثر على حصص Urban Sports Club المتاحة حسب التاريخ أو العنوان أو نصف القطر أو النشاط أو طريقة الحضور أو المقاعد أو الخطة.
+  hi: तारीख, पते, दायरे, गतिविधि, उपस्थिति मोड, उपलब्ध स्थानों और प्लान के आधार पर Urban Sports Club की उपलब्ध क्लास खोजें।
+  th: ค้นหาคลาส Urban Sports Club ที่ว่างตามวันที่ ที่อยู่ รัศมี กิจกรรม รูปแบบการเข้าร่วม จำนวนที่ว่าง และแพ็กเกจ
+  cs: Najděte dostupné lekce Urban Sports Club podle data, adresy, okruhu, aktivity, způsobu účasti, volných míst a plánu.
+  sv: Hitta tillgängliga Urban Sports Club-pass efter datum, adress, radie, aktivitet, deltagandeform, platser och plan.
+  he: מצאו שיעורי Urban Sports Club זמינים לפי תאריך, כתובת, רדיוס, פעילות, אופן השתתפות, מקומות פנויים ותוכנית.
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
+search_classes.how_to_use.1:
+  context: Example instruction for fitness class search skill
+  en: Find available HIIT classes near Sorauer Str. 12 tomorrow evening
+  de: Finde verfügbare HIIT-Kurse morgen Abend in der Nähe der Sorauer Str. 12
+  zh: 查找明晚 Sorauer Str. 12 附近可预约的 HIIT 课程
+  es: Busca clases de HIIT disponibles cerca de Sorauer Str. 12 mañana por la tarde
+  fr: Trouve des cours de HIIT disponibles près de la Sorauer Str. 12 demain soir
+  pt: Encontre aulas de HIIT disponíveis perto da Sorauer Str. 12 amanhã à noite
+  ru: Найди доступные занятия HIIT рядом с Sorauer Str. 12 завтра вечером
+  ja: 明日の夕方、Sorauer Str. 12 付近で予約可能な HIIT クラスを探して
+  ko: 내일 저녁 Sorauer Str. 12 근처에서 예약 가능한 HIIT 수업을 찾아줘
+  it: Trova corsi HIIT disponibili vicino a Sorauer Str. 12 domani sera
+  tr: Yarın akşam Sorauer Str. 12 yakınlarında uygun HIIT dersleri bul
+  vi: Tìm các lớp HIIT còn chỗ gần Sorauer Str. 12 vào tối mai
+  id: Temukan kelas HIIT yang tersedia di dekat Sorauer Str. 12 besok malam
+  pl: Znajdź dostępne zajęcia HIIT w pobliżu Sorauer Str. 12 jutro wieczorem
+  nl: Vind beschikbare HIIT-lessen bij Sorauer Str. 12 morgenavond
+  ar: ابحث عن حصص HIIT متاحة بالقرب من Sorauer Str. 12 مساء الغد
+  hi: कल शाम Sorauer Str. 12 के पास उपलब्ध HIIT क्लास खोजें
+  th: ค้นหาคลาส HIIT ที่ว่างใกล้ Sorauer Str. 12 เย็นพรุ่งนี้
+  cs: Najdi dostupné lekce HIIT poblíž Sorauer Str. 12 zítra večer
+  sv: Hitta tillgängliga HIIT-pass nära Sorauer Str. 12 imorgon kväll
+  he: מצא שיעורי HIIT זמינים ליד Sorauer Str. 12 מחר בערב
+  verified_by_human: [en, de, zh, es, fr, pt, ru, ja, ko, it, tr, vi, id, pl, nl, ar, hi, th, cs, sv, he]
+
 search_locations_and_courses:
   context: Skill name for search locations and courses
   en: Search locations and courses

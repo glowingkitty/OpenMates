@@ -10,6 +10,7 @@
 
 <script lang="ts">
   import type { SwipeQuestionData } from '../types';
+  import InteractiveQuestionEmbeds from '../InteractiveQuestionEmbeds.svelte';
 
   let {
     data,
@@ -28,6 +29,7 @@
   // Internal swipe state records: { [cardId]: 'like' | 'dislike' }
   let swipesRecord = $state<Record<string, 'like' | 'dislike'>>({});
   let activeCardIndex = $state(0);
+  let hasEmbedCards = $derived(data.cards.some((card) => (card.embed_ids?.length ?? 0) > 0));
 
   // Sync if locked/answered
   $effect(() => {
@@ -72,7 +74,7 @@
 </script>
 
 <div class="swipe-question" class:disabled>
-  <div class="cards-stack">
+  <div class="cards-stack" class:has-embed-cards={hasEmbedCards}>
     {#if activeCardIndex < data.cards.length}
       {#each data.cards as card, idx (card.id)}
         {#if idx >= activeCardIndex}
@@ -86,6 +88,7 @@
             {/if}
             <div class="card-content">
               <p class="card-text">{card.text}</p>
+              <InteractiveQuestionEmbeds embedIds={card.embed_ids ?? []} />
             </div>
           </div>
         {/if}
@@ -105,14 +108,14 @@
 
   {#if activeCardIndex < data.cards.length && !disabled}
     <div class="action-buttons">
-      <button class="btn-action btn-dislike" onclick={() => handleDecision('dislike')}>
+      <button class="btn-action btn-dislike" data-testid="interactive-question-swipe-dislike" onclick={() => handleDecision('dislike')}>
         <svg viewBox="0 0 24 24" class="action-icon">
           <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
         </svg>
         <span>Dislike</span>
       </button>
 
-      <button class="btn-action btn-like" onclick={() => handleDecision('like')}>
+      <button class="btn-action btn-like" data-testid="interactive-question-swipe-like" onclick={() => handleDecision('like')}>
         <svg viewBox="0 0 24 24" class="action-icon">
           <path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
         </svg>
@@ -128,6 +131,10 @@
     height: 200px;
     width: 100%;
     margin-bottom: var(--spacing-20, 20px);
+  }
+
+  .cards-stack.has-embed-cards {
+    height: 430px;
   }
 
   .swipe-card {
@@ -163,7 +170,9 @@
     flex-grow: 1;
     overflow-y: auto;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--spacing-8, 8px);
   }
 
   .card-text {

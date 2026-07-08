@@ -14,6 +14,8 @@ try:
         handle_postprocessing,
         combine_suggestion_halves,
         sanitize_plain_suggestions,
+        sanitize_task_proposals,
+        sanitize_task_update_proposals,
     )
     from backend.apps.ai.processing.quick_tips import (
         sanitize_quick_tip_slug,
@@ -199,6 +201,56 @@ class TestPlainSuggestions:
             "Find upcoming drawing workshops in Berlin",
             "Explain why microphones may fail",
         ]
+
+
+class TestTaskProposalSanitization:
+    def test_task_proposals_are_bounded_and_sanitized(self):
+        result = sanitize_task_proposals(
+            [
+                {
+                    "title": "  Draft launch checklist  ",
+                    "description": "  Include docs and owner review  ",
+                    "status": "blocked",
+                    "assignee_type": "ai",
+                },
+                {"title": "Second task", "status": "not-a-status", "assignee_type": "unknown"},
+                {"title": "Third task"},
+                {"title": "Fourth task should be ignored"},
+            ],
+            "test",
+        )
+
+        assert [proposal.title for proposal in result] == [
+            "Draft launch checklist",
+            "Second task",
+            "Third task",
+        ]
+        assert result[0].description == "Include docs and owner review"
+        assert result[0].status == "blocked"
+        assert result[0].assignee_type == "ai"
+        assert result[1].status == "todo"
+        assert result[1].assignee_type == "user"
+
+    def test_invalid_task_proposals_are_dropped(self):
+        assert sanitize_task_proposals(
+            [None, "not a dict", {"title": "   "}, {"description": "missing title"}],
+            "test",
+        ) == []
+
+    def test_task_update_proposals_require_visible_task_id_and_a_change(self):
+        result = sanitize_task_update_proposals(
+            [
+                {"task_id": "task-1", "status": "done"},
+                {"task_id": "task-2", "status": "invalid"},
+                {"task_id": "   "},
+                {"title": "missing id"},
+            ],
+            "test",
+        )
+
+        assert len(result) == 1
+        assert result[0].task_id == "task-1"
+        assert result[0].status == "done"
 
 
 class TestQuickTips:

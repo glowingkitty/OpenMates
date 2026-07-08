@@ -365,7 +365,11 @@ async def get_current_user_or_api_key(
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         try:
-            from backend.core.api.app.utils.api_key_auth import get_api_key_auth_service
+            from backend.core.api.app.utils.api_key_auth import (
+                ApiKeyNotFoundError,
+                DeviceNotApprovedError,
+                get_api_key_auth_service,
+            )
             api_key_auth_service = get_api_key_auth_service(request)
             api_key = auth_header[7:]  # Remove "Bearer " prefix
             
@@ -417,9 +421,12 @@ async def get_current_user_or_api_key(
                         auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),
                         encrypted_auto_topup_last_triggered=user_data.get("encrypted_auto_topup_last_triggered")
                     )
-        except HTTPException:
-            # API key auth failed, will raise below
+        except DeviceNotApprovedError as e:
+            raise HTTPException(status_code=403, detail=str(e))
+        except ApiKeyNotFoundError:
             pass
+        except HTTPException:
+            raise
         except Exception as e:
             logger.debug(f"API key authentication error: {e}")
             # Continue to raise 401 below

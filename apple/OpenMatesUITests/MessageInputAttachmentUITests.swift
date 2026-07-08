@@ -12,14 +12,12 @@ final class MessageInputAttachmentUITests: XCTestCase {
     }
 
     func testSeededPendingAttachmentMatchesMessageInputContractStructure() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-seed-pending-composer-embed"]
-        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
-        app.launch()
+        let app = launchChatOpeningPreview(arguments: ["--ui-test-seed-pending-composer-embed"])
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
         let pendingEmbed = element(in: app, identifiers: ["pending-composer-embed", "embed-full-width-wrapper"])
         XCTAssertTrue(pendingEmbed.waitForExistence(timeout: 10))
+        assertElement(pendingEmbed, isVisuallyInside: element(in: app, identifier: "message-field"))
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
 
         focusComposerInput(in: app)
@@ -31,6 +29,117 @@ final class MessageInputAttachmentUITests: XCTestCase {
         attachment.name = "Message input pending attachment contract state"
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    func testComposerWarningHighlightsAndExclusions() throws {
+        let app = launchChatOpeningPreview(arguments: ["--ui-test-pii-composer-banner-fixture"])
+        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+        XCTAssertTrue(app.staticTexts["PII Composer Banner Fixture"].waitForExistence(timeout: 5))
+
+        let banner = app.staticTexts["Sensitive data detected"]
+        XCTAssertTrue(banner.waitForExistence(timeout: 8))
+
+        let emailHighlight = app.buttons["alice@example.com"]
+        let phoneHighlight = app.buttons["+49 170 1234567"]
+        XCTAssertTrue(emailHighlight.waitForExistence(timeout: 5))
+        XCTAssertTrue(phoneHighlight.waitForExistence(timeout: 5))
+
+        emailHighlight.tap()
+        XCTAssertTrue(waitForAbsence(app.buttons["alice@example.com"]))
+        XCTAssertTrue(phoneHighlight.waitForExistence(timeout: 5))
+
+        app.buttons["Undo all replacements"].tap()
+        XCTAssertTrue(waitForAbsence(app.staticTexts["Sensitive data detected"]))
+        XCTAssertTrue(waitForAbsence(app.buttons["+49 170 1234567"]))
+    }
+
+    func testPIIVisibilityToggleRevealHideAndReload() throws {
+        let app = launchChatOpeningPreview(arguments: ["--ui-test-pii-visibility-fixture"])
+        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+
+        XCTAssertTrue(textContaining("[EMAIL_1_com]", in: app).waitForExistence(timeout: 8))
+        XCTAssertFalse(textContaining("alice@example.com", in: app).exists)
+
+        let toggle = app.buttons["Show sensitive data"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        toggle.tap()
+
+        XCTAssertTrue(textContaining("alice@example.com", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForAbsence(textContaining("[EMAIL_1_com]", in: app)))
+
+        app.buttons["Hide sensitive data"].tap()
+        XCTAssertTrue(textContaining("[EMAIL_1_com]", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(textContaining("alice@example.com", in: app).exists)
+
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+        XCTAssertTrue(textContaining("[EMAIL_1_com]", in: app).waitForExistence(timeout: 8))
+        XCTAssertFalse(textContaining("alice@example.com", in: app).exists)
+    }
+
+    func testWelcomeComposerShowsPIIWarningHighlights() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"]
+        app.launch()
+
+        let skipInterests = app.buttons["guest-interest-skip"]
+        if skipInterests.waitForExistence(timeout: 8) {
+            skipInterests.tap()
+        }
+
+        let messageEditor = app.textFields["message-editor"]
+        XCTAssertTrue(messageEditor.waitForExistence(timeout: 5))
+        messageEditor.tap()
+        messageEditor.typeText("Email alice@example.com")
+
+        XCTAssertTrue(app.staticTexts["Sensitive data detected"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["alice@example.com"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["chat.pii_banner.title"].exists)
+        XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
+    }
+
+    func testWelcomeComposerSeededPendingAttachmentsEnableSendWithoutRawJson() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "--ui-test-disable-auth-cache",
+            "--ui-test-start-new-chat",
+            "--ui-test-welcome-seed-pending-content"
+        ]
+        app.launch()
+
+        let skipInterests = app.buttons["guest-interest-skip"]
+        if skipInterests.waitForExistence(timeout: 8) {
+            skipInterests.tap()
+        }
+
+        let messageEditor = waitForMessageEditor(in: app)
+        messageEditor.tap()
+
+        let pendingEmbedStrip = element(in: app, identifier: "pending-composer-embed")
+        XCTAssertTrue(pendingEmbedStrip.waitForExistence(timeout: 5))
+        assertElement(element(in: app, identifier: "embed-full-width-wrapper"), isVisuallyInside: element(in: app, identifier: "message-field"))
+        assertPendingLabel("welcome-file.pdf", in: app, scrollContainer: pendingEmbedStrip)
+        assertPendingLabel("welcome-sketch.png", in: app, scrollContainer: pendingEmbedStrip)
+        assertPendingLabel("welcome-recording.m4a", in: app, scrollContainer: pendingEmbedStrip)
+        XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "embed_id")).firstMatch.exists)
+        XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "/private/")).firstMatch.exists)
+    }
+
+    private func launchChatOpeningPreview(arguments: [String] = []) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "chat-opening"] + arguments
+        app.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        if arguments.contains("--ui-test-pii-composer-banner-fixture") {
+            app.launchEnvironment["UI_TEST_PII_COMPOSER_BANNER_FIXTURE"] = "1"
+        }
+        if arguments.contains("--ui-test-pii-visibility-fixture") {
+            app.launchEnvironment["UI_TEST_PII_VISIBILITY_FIXTURE"] = "1"
+        }
+        app.launch()
+        return app
     }
 
     private func element(in app: XCUIApplication, identifier: String) -> XCUIElement {
@@ -45,14 +154,82 @@ final class MessageInputAttachmentUITests: XCTestCase {
             .firstMatch
     }
 
-    private func focusComposerInput(in app: XCUIApplication) {
+    private func textContaining(_ text: String, in app: XCUIApplication) -> XCUIElement {
+        app.staticTexts
+            .matching(NSPredicate(format: "label CONTAINS %@", text))
+            .firstMatch
+    }
+
+    private func waitForAbsence(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let predicate = NSPredicate(format: "exists == false")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    private func assertPendingLabel(
+        _ label: String,
+        in app: XCUIApplication,
+        scrollContainer: XCUIElement,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let element = app.staticTexts[label]
+        if element.waitForExistence(timeout: 2) { return }
+
+        for _ in 0..<4 {
+            scrollContainer.swipeLeft()
+            if element.waitForExistence(timeout: 2) { return }
+        }
+
+        XCTFail("Expected pending composer embed named \(label)", file: file, line: line)
+    }
+
+    @discardableResult
+    private func focusComposerInput(in app: XCUIApplication) -> XCUIElement {
         let textView = app.textViews.firstMatch
         let textField = app.textFields.firstMatch
         XCTAssertTrue(textView.exists || textField.exists)
         if textView.exists {
             textView.tap()
+            return textView
         } else {
             textField.tap()
+            return textField
         }
+    }
+
+    private func waitForMessageEditor(in app: XCUIApplication) -> XCUIElement {
+        let candidates = [
+            app.textFields.matching(identifier: "message-editor").firstMatch,
+            app.textViews.matching(identifier: "message-editor").firstMatch,
+            element(in: app, identifier: "message-editor"),
+            element(in: app, identifier: "message-field"),
+        ]
+
+        for candidate in candidates where candidate.waitForExistence(timeout: 5) {
+            return candidate
+        }
+
+        XCTFail("Expected welcome message editor to exist. Visible UI: \(app.debugDescription)")
+        return candidates[0]
+    }
+
+    private func assertElement(
+        _ child: XCUIElement,
+        isVisuallyInside parent: XCUIElement,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertTrue(parent.waitForExistence(timeout: 5), "Expected parent element to exist", file: file, line: line)
+        XCTAssertTrue(child.waitForExistence(timeout: 5), "Expected child element to exist", file: file, line: line)
+
+        let parentFrame = parent.frame.insetBy(dx: -1, dy: -1)
+        let childCenter = CGPoint(x: child.frame.midX, y: child.frame.midY)
+        XCTAssertTrue(
+            parentFrame.contains(childCenter),
+            "Expected \(child.identifier) to render inside \(parent.identifier); child=\(child.frame), parent=\(parent.frame)",
+            file: file,
+            line: line
+        )
     }
 }

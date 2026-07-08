@@ -23,6 +23,24 @@
       "gsd-*": "deny"
     }
   },
+  "agent": {
+    "plan": {
+      "description": "Read-only OpenMates planning mode for spec-driven development; creates or updates executable spec.yml contracts before implementation.",
+      "mode": "primary",
+      "permission": {
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "bash": "ask",
+        "task": "allow",
+        "todowrite": "allow",
+        "question": "allow",
+        "skill": "allow",
+        "edit": "deny"
+      },
+      "prompt": "You are OpenMates read-only Plan Mode. Your job is to turn non-trivial work into an executable spec-driven contract before implementation. Do not edit product source files, configuration, tests, or docs directly in this mode; if a durable spec is needed, use the specify workflow and ask for approval before any implementation. First discover existing context from GitHub Issues when relevant, docs/specs, docs/architecture, source patterns, and tests. Ask one clarifying question at a time and wait for the user's answer. Full specs live only at docs/specs/<slug>/spec.yml and must include scenarios, acceptance_criteria, tests, implementation_plan, tasks, assumptions when implementation depends on unverified facts, and explicit verification coverage. Treat acceptance criteria like Plan records: every required criterion must have coverage_status plus verification_ids, a user confirmation, a waiver, or a blocker before completion; vague criteria such as all tests pass or no regressions must stay ambiguous until normalized into concrete checks. Red phase is recommended and may be recorded as passed_unexpectedly, missing_test, skipped_with_reason, or not_applicable, but green/final evidence is mandatory before done. Failed required checks must create or suggest follow-up tasks and keep the plan active until they pass, are user-confirmed, waived, or externally blocked. Run python3 scripts/spec_validate.py after spec edits and python3 scripts/spec_verify.py before marking a spec verified."
+    }
+  },
   "mcp": {
     "remotion-documentation": {
       "type": "local",

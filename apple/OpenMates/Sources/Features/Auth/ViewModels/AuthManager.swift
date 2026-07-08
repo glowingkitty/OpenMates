@@ -530,21 +530,3 @@ final class AuthManager: ObservableObject {
             || normalized.contains("banned")
     }
 }
-
-enum AuthError: LocalizedError {
-    case tfaRequired
-    case invalidCredentials
-    case deviceVerificationRequired
-    case missingAuthData
-    case invalidTwoFactorCode
-
-    var errorDescription: String? {
-        switch self {
-        case .tfaRequired: return "Two-factor authentication required"
-        case .invalidCredentials: return "Invalid email or password"
-        case .deviceVerificationRequired: return "Device verification required"
-        case .missingAuthData: return "Authentication data not found. Please try logging in again."
-        case .invalidTwoFactorCode: return "The two-factor code is wrong or expired"
-        }
-    }
-}
