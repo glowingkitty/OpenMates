@@ -10,8 +10,10 @@
 //     - Intro chat SEO pages (/intro/{slug})
 //     - Public event pages (/events/{slug})
 //
-//   Documentation pages are intentionally excluded for now. Add /docs back to
-//   the sitemap once the docs web UI and content are cleaned up for public SEO.
+//   Documentation pages are mostly excluded for now. Add /docs back to the
+//   sitemap once the docs web UI and content are cleaned up for public SEO.
+//   The SDK docs page is included because it is the canonical OpenMates-owned
+//   landing URL for the npm and PyPI packages.
 //
 //   Example chats are hardcoded in the frontend — no backend API calls needed.
 //
@@ -88,6 +90,12 @@ export const GET: RequestHandler = async ({ url }) => {
     <lastmod>${BUILD_DATE}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
+  </url>`,
+		`  <url>
+    <loc>${siteOrigin}/docs/user-guide/developers/sdk</loc>
+    <lastmod>${BUILD_DATE}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>`
 	];
 

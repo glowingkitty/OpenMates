@@ -15,6 +15,7 @@ import { pathToFileURL } from 'node:url';
 const PAGES_DIR = '.svelte-kit/output/prerendered/pages';
 const SITEMAP_SERVER_ENTRY = '.svelte-kit/output/server/entries/endpoints/sitemap.xml/_server.ts.js';
 const MIN_TRANSCRIPT_WORDS = 120;
+const ALLOWED_DOCS_SITEMAP_PATHS = new Set(['/docs/user-guide/developers/sdk']);
 
 function walkHtmlFiles(dir) {
 	const files = [];
@@ -143,8 +144,13 @@ async function auditSitemap(exampleFiles) {
 		}
 	}
 
-	if (sitemapXml.includes('<loc>https://openmates.org/docs')) {
-		errors.push('/docs URLs should stay excluded from sitemap until docs are SEO-ready');
+	const docsLocs = [...sitemapXml.matchAll(/<loc>https:\/\/openmates\.org(\/docs[^<]*)<\/loc>/g)].map(
+		(match) => match[1]
+	);
+	for (const docsPath of docsLocs) {
+		if (!ALLOWED_DOCS_SITEMAP_PATHS.has(docsPath)) {
+			errors.push(`${docsPath} should stay excluded from sitemap until docs are SEO-ready`);
+		}
 	}
 
 	return errors;

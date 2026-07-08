@@ -3237,6 +3237,54 @@ github:
   sv: GitHub
   he: GitHub
   verified_by_human: []
+npm_package:
+  context: npm package link in settings footer
+  en: npm
+  de: npm
+  zh: npm
+  es: npm
+  fr: npm
+  pt: npm
+  ru: npm
+  ja: npm
+  ko: npm
+  it: npm
+  tr: npm
+  vi: npm
+  id: npm
+  pl: npm
+  nl: npm
+  ar: npm
+  hi: npm
+  th: npm
+  cs: npm
+  sv: npm
+  he: npm
+  verified_by_human: []
+pypi_package:
+  context: PyPI package link in settings footer
+  en: PyPI
+  de: PyPI
+  zh: PyPI
+  es: PyPI
+  fr: PyPI
+  pt: PyPI
+  ru: PyPI
+  ja: PyPI
+  ko: PyPI
+  it: PyPI
+  tr: PyPI
+  vi: PyPI
+  id: PyPI
+  pl: PyPI
+  nl: PyPI
+  ar: PyPI
+  hi: PyPI
+  th: PyPI
+  cs: PyPI
+  sv: PyPI
+  he: PyPI
+  verified_by_human: []
 instagram:
   context: Instagram contact link
   en: Instagram
