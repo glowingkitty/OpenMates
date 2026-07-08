@@ -173,6 +173,10 @@
     const GUEST_DEFAULT_INTRO_INSPIRATION_ID = 'openmates-intro';
     const CANCELLED_NEW_CHAT_DRAFT_RESTORE_ATTEMPTS = 5;
     const CANCELLED_NEW_CHAT_DRAFT_RESTORE_DELAY_MS = 50;
+    // Temporary rollout gate: the current chat details/settings panel does not
+    // match product requirements. Keep code in place for the redesign, but make
+    // all entry points inaccessible until this is intentionally re-enabled.
+    const CHAT_DETAILS_SETTINGS_ENABLED = false;
 
     function loadWikipediaFullscreenComponent() {
         return import('./embeds/wiki/WikipediaFullscreen.svelte').catch((error) => {
@@ -7296,6 +7300,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     function openChatDetailsSettings(tab: ChatDetailsTab = 'tasks') {
+        if (!CHAT_DETAILS_SETTINGS_ENABLED) return;
         if (!currentChat?.chat_id) return;
         activeChatStore.setActiveChat(currentChat.chat_id);
         chatDetailsInitialTab = tab;
@@ -7303,14 +7308,21 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     function handleOpenChatDetailsSettingsEvent(event: Event) {
-        const detail = (event as CustomEvent<{ chatId?: string | null; tab?: ChatDetailsTab }>).detail;
+        const chatDetailsEvent = event as CustomEvent<{ chatId?: string | null; tab?: ChatDetailsTab }>;
+        if (!CHAT_DETAILS_SETTINGS_ENABLED) {
+            chatDetailsEvent.preventDefault();
+            return;
+        }
+
+        const detail = chatDetailsEvent.detail;
         if (detail?.chatId && currentChat?.chat_id !== detail.chatId) return;
-        (event as CustomEvent).preventDefault();
+        chatDetailsEvent.preventDefault();
         openChatDetailsSettings(detail?.tab ?? 'tasks');
     }
 
     /** Open the unified chat details panel directly on the Share tab. */
     function handleShareChat() {
+        if (!CHAT_DETAILS_SETTINGS_ENABLED) return;
         console.debug("[ActiveChat] Share chat button clicked, opening chat details share tab");
         openChatDetailsSettings('share');
     }
@@ -10953,7 +10965,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     >
                         <!-- Left side buttons -->
                         <div class="left-buttons">
-                            {#if !showWelcome && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
+                            {#if CHAT_DETAILS_SETTINGS_ENABLED && !showWelcome && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
                                 <!-- Share button - opens settings menu with share submenu -->
                                 <!-- Hidden for intro, example, and legal chats (public/static chats the user doesn't own) -->
                                 <div class="new-chat-button-wrapper">
@@ -11012,16 +11024,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <!-- Right side buttons -->
                         <div class="right-buttons">
                             {#if !showWelcome && $authStore.isAuthenticated && currentChat?.chat_id && !isPublicChat(currentChat.chat_id)}
-                                <div class="new-chat-button-wrapper">
-                                    <button
-                                        class="clickable-icon icon_settings top-button"
-                                        data-testid="chat-details-button"
-                                        aria-label="Chat details"
-                                        onclick={() => openChatDetailsSettings('tasks')}
-                                        use:tooltip
-                                    >
-                                    </button>
-                                </div>
+                                {#if CHAT_DETAILS_SETTINGS_ENABLED}
+                                    <div class="new-chat-button-wrapper">
+                                        <button
+                                            class="clickable-icon icon_settings top-button"
+                                            data-testid="chat-details-button"
+                                            aria-label="Chat details"
+                                            onclick={() => openChatDetailsSettings('tasks')}
+                                            use:tooltip
+                                        >
+                                        </button>
+                                    </div>
+                                {/if}
                                 <div class="new-chat-button-wrapper">
                                     <button
                                         class="clickable-icon icon_reminder top-button"
@@ -11626,10 +11640,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {/if}
 
                     {#if !showWelcome && $authStore.isAuthenticated && currentChat?.chat_id && !isPublicChat(currentChat.chat_id)}
+                        {#if CHAT_DETAILS_SETTINGS_ENABLED}
                         <ActiveChatTaskPreview
                             chatId={currentChat.chat_id}
                             onOpenDetails={openChatDetailsSettings}
                         />
+                        {/if}
                         <TaskProposalReview
                             chatId={currentChat.chat_id}
                             proposals={pendingTaskProposals}
@@ -12195,7 +12211,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 {/await}
             {/if}
 
-            {#if showChatDetailsSettings && currentChat}
+            {#if CHAT_DETAILS_SETTINGS_ENABLED && showChatDetailsSettings && currentChat}
                 <ChatDetailsSettingsPage
                     chat={currentChat}
                     messages={currentMessages}

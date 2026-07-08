@@ -14,10 +14,10 @@ redis==5.2.1
 slowapi==0.1.9
 python-json-logger==3.3.0
 pyyaml==6.0.3
-aiohttp==3.14.0
+aiohttp==3.14.1
 boto3==1.42.56
-python-multipart==0.0.27
-cryptography==46.0.7
+python-multipart==0.0.31
+cryptography==48.0.1
 toon-format @ git+https://github.com/toon-format/toon-python.git
 
 # --- Uploads-specific ---

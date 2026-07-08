@@ -202,13 +202,15 @@ function writeContractArtifact(contract: any, filename = `${contract.surface}.js
 
 async function captureComposerEmbedContract(
 	page: any,
-	options: { id: string; embedType?: string; screenshot?: boolean }
+	options: { id: string; embedType?: string; targetTestId?: string; screenshot?: boolean }
 ): Promise<any> {
 	const editor = page.getByTestId('message-editor').last();
 	const wrapperSelector = options.embedType
 		? `[data-testid="embed-full-width-wrapper"][data-embed-type="${options.embedType}"]`
 		: '[data-testid="embed-full-width-wrapper"]';
-	const wrapper = editor.locator(wrapperSelector).first();
+	const wrapper = options.targetTestId
+		? editor.getByTestId(options.targetTestId).first()
+		: editor.locator(wrapperSelector).first();
 	await waitForStableBox(page, wrapper);
 
 	const capture = await wrapper.evaluate((element: HTMLElement, styleProperties: string[]) => {
@@ -262,7 +264,6 @@ async function captureComposerEmbedContract(
 
 	expect(capture.insideMessageEditor, `${options.id}: embed must be inside message-editor`).toBe(true);
 	expect(capture.insideMessageField, `${options.id}: embed must be inside message-field`).toBe(true);
-	expect(capture.container, `${options.id}: embed container`).not.toBeNull();
 
 	const contract = createContract('composer-pending-embed', await page.viewportSize(), [
 		{

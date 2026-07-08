@@ -248,6 +248,199 @@ for line in (install.stdout + install.stderr).replace(device_id, "<device-id>").
 '''
 
 
+WATCH_STARTUP_SCRIPT = r'''
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+
+simulator = sys.argv[1]
+duration = int(sys.argv[2])
+bundle_id = "org.openmates.app.watch"
+scheme = "OpenMatesWatch"
+project = "apple/OpenMates.xcodeproj"
+
+
+def print_tail(label, text, limit=120):
+    print(f"{label}=failed")
+    for line in text.splitlines()[-limit:]:
+        sanitized = line.replace(derived, "<derived-data>") if "derived" in globals() else line
+        sanitized = sanitized.replace(artifact_dir, "<watch-startup-artifacts>") if "artifact_dir" in globals() else sanitized
+        print(sanitized)
+
+
+def run(label, cmd, *, timeout):
+    print(f"{label}=started")
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    if result.returncode != 0:
+        print_tail(label, result.stdout + result.stderr)
+        sys.exit(result.returncode)
+    print(f"{label}=passed")
+    return result
+
+
+if duration < 5 or duration > 300:
+    print("startup_status=invalid_duration")
+    print("duration must be between 5 and 300 seconds")
+    sys.exit(2)
+
+derived = tempfile.mkdtemp(prefix="openmates-watch-startup-derived-")
+artifact_dir = tempfile.mkdtemp(prefix="openmates-watch-startup-artifacts-")
+print("artifact_dir=<watch-startup-artifacts>")
+
+crash_dir = pathlib.Path.home() / "Library" / "Logs" / "DiagnosticReports"
+started_at = time.time()
+
+try:
+    run(
+        "settings_status",
+        [
+            "xcodebuild",
+            "-showBuildSettings",
+            "-project",
+            project,
+            "-scheme",
+            scheme,
+            "-destination",
+            f"platform=watchOS Simulator,name={simulator}",
+            "-derivedDataPath",
+            derived,
+        ],
+        timeout=180,
+    )
+    run(
+        "build_status",
+        [
+            "xcodebuild",
+            "-project",
+            project,
+            "-scheme",
+            scheme,
+            "-destination",
+            f"platform=watchOS Simulator,name={simulator}",
+            "-derivedDataPath",
+            derived,
+            "build",
+        ],
+        timeout=1800,
+    )
+
+    products = pathlib.Path(derived) / "Build" / "Products" / "Debug-watchsimulator"
+    apps = sorted(products.glob("OpenMatesWatch.app"))
+    if not apps:
+        apps = sorted(products.glob("*.app"))
+    if not apps:
+        print("install_status=no_app_bundle")
+        sys.exit(5)
+    app_path = str(apps[0])
+
+    subprocess.run(["xcrun", "simctl", "boot", simulator], capture_output=True, text=True, timeout=120)
+    run("boot_status", ["xcrun", "simctl", "bootstatus", simulator, "-b"], timeout=180)
+    subprocess.run(["xcrun", "simctl", "uninstall", simulator, bundle_id], capture_output=True, text=True, timeout=120)
+    print("uninstall_status=attempted")
+    run("install_status", ["xcrun", "simctl", "install", simulator, app_path], timeout=180)
+    launch = run("launch_status", ["xcrun", "simctl", "launch", simulator, bundle_id], timeout=120)
+
+    pid = None
+    for token in launch.stdout.split():
+        if token.isdigit():
+            pid = token
+    if pid:
+        print(f"launch_pid={pid}")
+
+    screenshot_points = {5: "screenshot_5s", 30: "screenshot_30s"}
+    deadline = time.monotonic() + duration
+    captured = set()
+    status = "passed"
+    while time.monotonic() < deadline:
+        elapsed = int(duration - max(0, deadline - time.monotonic()))
+        for point, label in screenshot_points.items():
+            if elapsed >= point and point not in captured:
+                screenshot_path = pathlib.Path(artifact_dir) / f"{label}.png"
+                shot = subprocess.run(
+                    ["xcrun", "simctl", "io", simulator, "screenshot", str(screenshot_path)],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+                print(f"{label}={'passed' if shot.returncode == 0 else 'failed'}")
+                captured.add(point)
+
+        launchctl = subprocess.run(
+            ["xcrun", "simctl", "spawn", simulator, "launchctl", "print", f"system/{bundle_id}"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        pgrep = subprocess.run(
+            ["xcrun", "simctl", "spawn", simulator, "pgrep", "-f", bundle_id],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if launchctl.returncode != 0 and pgrep.returncode != 0:
+            status = "process_exited"
+            break
+
+        recent_crashes = []
+        if crash_dir.exists():
+            for path in crash_dir.glob("*OpenMatesWatch*"):
+                try:
+                    if path.stat().st_mtime >= started_at:
+                        recent_crashes.append(path)
+                except OSError:
+                    pass
+        if recent_crashes:
+            print("crash_report_status=found")
+            print("crash_report_count=" + str(len(recent_crashes)))
+            status = "crash_report_found"
+            break
+
+        time.sleep(2)
+
+    for point, label in screenshot_points.items():
+        if point <= duration and point not in captured:
+            screenshot_path = pathlib.Path(artifact_dir) / f"{label}.png"
+            shot = subprocess.run(
+                ["xcrun", "simctl", "io", simulator, "screenshot", str(screenshot_path)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            print(f"{label}={'passed' if shot.returncode == 0 else 'failed'}")
+
+    logs = subprocess.run(
+        [
+            "xcrun",
+            "simctl",
+            "spawn",
+            simulator,
+            "log",
+            "show",
+            "--last",
+            f"{max(duration, 30)}s",
+            "--predicate",
+            f"process == '{scheme}' OR eventMessage CONTAINS '{bundle_id}'",
+            "--style",
+            "compact",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    log_path = pathlib.Path(artifact_dir) / "watch-startup.log"
+    log_path.write_text(logs.stdout + logs.stderr, encoding="utf-8")
+    print("log_capture_status=passed" if logs.returncode == 0 else "log_capture_status=partial")
+    print(f"startup_status={status}")
+    sys.exit(0 if status == "passed" else 6)
+finally:
+    shutil.rmtree(derived, ignore_errors=True)
+'''
+
+
 TESTFLIGHT_IOS_SCRIPT = r'''
 import base64
 import json
@@ -2387,6 +2580,12 @@ def test_watch_command(simulator: str, only_testing: str | None) -> str:
     return shell_join(parts)
 
 
+def verify_watch_startup_command(simulator: str, duration: int) -> str:
+    if duration < 5 or duration > 300:
+        raise AppleRemoteError("verify-watch-startup duration must be between 5 and 300 seconds")
+    return shell_join(["python3", "-c", WATCH_STARTUP_SCRIPT, simulator, str(duration)])
+
+
 def device_status_command() -> str:
     return shell_join(["python3", "-c", DEVICE_STATUS_SCRIPT])
 
@@ -2685,6 +2884,13 @@ def build_parser() -> argparse.ArgumentParser:
     test_watch_parser.add_argument("--simulator", default="Apple Watch Series 11 (46mm)")
     test_watch_parser.add_argument("--only-testing")
 
+    verify_watch_parser = subparsers.add_parser(
+        "verify-watch-startup",
+        help="Build, install, launch, and poll OpenMatesWatch for startup crashes",
+    )
+    verify_watch_parser.add_argument("--simulator", default="Apple Watch Series 11 (46mm)")
+    verify_watch_parser.add_argument("--duration", type=int, default=60)
+
     device_parser = subparsers.add_parser("device-status", help="Show sanitized physical iOS device readiness")
     device_parser.set_defaults(_uses_repo=True)
 
@@ -2856,6 +3062,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return run_remote(config, repo_command(config, ["bash", "-lc", build_watch_command(args.simulator)]))
         if args.command == "test-watch":
             return run_remote(config, repo_command(config, ["bash", "-lc", test_watch_command(args.simulator, args.only_testing)]))
+        if args.command == "verify-watch-startup":
+            return run_remote(config, repo_command(config, ["bash", "-lc", verify_watch_startup_command(args.simulator, args.duration)]))
         if args.command == "device-status":
             return run_remote(config, repo_command(config, ["bash", "-lc", device_status_command()]))
         if args.command == "install-ios-device":

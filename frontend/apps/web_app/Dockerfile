@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for SvelteKit webapp
 # Stage 1: Build the application using pnpm
-FROM node:20-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
 
 # Build arguments for self-hosted deployments
 # VITE_API_URL: The full URL to your API server (e.g., http://192.168.1.100:8000)
@@ -28,6 +28,7 @@ ENV BUILD_COMMIT_MESSAGE=${BUILD_COMMIT_MESSAGE}
 ENV BUILD_BRANCH=${BUILD_BRANCH}
 ENV BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
 ENV BUILD_VERSION_TAG=${BUILD_VERSION_TAG}
+ENV NODE_OPTIONS=--max-old-space-size=6144
 
 # Install pnpm globally
 RUN corepack enable && corepack prepare pnpm@10.23.0 --activate
@@ -71,7 +72,7 @@ RUN pnpm build
 
 # Stage 2: Serve the built application with a simple HTTP server
 # Using serve package for lightweight static file serving
-FROM node:20-alpine
+FROM node:24-alpine
 
 # Install wget for health checks and serve for static file serving
 RUN apk add --no-cache wget && \

@@ -31,6 +31,17 @@ You are a code reviewer for the OpenMates project. Review the given code changes
 - [ ] Required callback props are typed as required, not optional (frontend)
 - [ ] Settings pages use canonical `settings/elements/` components
 
+### Deterministic Guards
+- [ ] Identify whether a small deterministic script, audit, hook, or shared test helper would have prevented the bug or regression
+- [ ] For repeated E2E waits/selectors, prefer a shared readiness helper and an audit update over a one-off spec patch
+- [ ] For Apple changes, separately review signing/project/build graph risk in addition to Swift logic
+- [ ] For UI changes, verify there is rendered-state proof: screenshot evidence, UI test, or explicit skip reason
+
+### Apple High-Risk Review Modes
+- [ ] Packaging/signing: check `apple/project.yml`, `.pbxproj`, entitlements, bundle IDs, Watch embedding, and `scripts/apple_remote.py`
+- [ ] Visual parity: check rendered visibility/clickability and source-of-truth web mapping, not just compiled Swift
+- [ ] E2E flake: check whether `stabilize-e2e-pattern` should be used before accepting a spec-local workaround
+
 ### Refactoring Safety
 - [ ] All call sites updated in same commit when moving functions between modules
 - [ ] No intermediate states that break imports
@@ -52,4 +63,7 @@ Report findings as:
 
 ### Info
 1. [file:line] Suggestion
+
+### Missing Deterministic Guard
+1. [script/hook/helper recommendation or "None found"]
 ```

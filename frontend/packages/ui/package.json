@@ -36,6 +36,10 @@
       "types": "./src/config/api.ts",
       "default": "./src/config/api.ts"
     },
+    "./config/workspaceFeatureGates": {
+      "types": "./src/config/workspaceFeatureGates.ts",
+      "default": "./src/config/workspaceFeatureGates.ts"
+    },
     "./services/clientLogForwarder": {
       "types": "./src/services/clientLogForwarder.ts",
       "default": "./src/services/clientLogForwarder.ts"
@@ -130,7 +134,7 @@
     "svelte-i18n": "^4.0.1",
     "tweetnacl": "^1.0.3",
     "uuid": "^13.0.1",
-    "vite": "^7.3.2",
+    "vite": "^7.3.6",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

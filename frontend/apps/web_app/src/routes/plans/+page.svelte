@@ -20,9 +20,10 @@
     notificationStore,
     panelState,
   } from '@repo/ui';
+  import { isWorkspaceFeatureAvailable } from '@repo/ui/config/workspaceFeatureGates';
 
   let featureAvailabilityLoaded = $derived($featureAvailabilityStore.initialized);
-  let plansEnabled = $derived($featureAvailabilityStore.disabledById?.['platform:plans'] !== true && $featureAvailabilityStore.disabledById !== null);
+  let plansEnabled = $derived(isWorkspaceFeatureAvailable('platform:plans', $featureAvailabilityStore.disabledById));
 
   onMount(() => {
     initialize().catch((error) => {

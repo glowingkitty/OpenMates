@@ -7,8 +7,12 @@ on:
         description: Optional image tag override, e.g. v0.14.0
         required: false
         type: string
+      notify_pr:
+        description: Optional pull request number to comment when publishing completes
+        required: false
+        type: string
   push:
-    branches: [main, dev]
+    branches: [main]
     paths:
       - 'backend/**'
       - 'frontend/apps/web_app/**'
@@ -21,17 +25,26 @@ on:
       - 'shared/config/product_version.json'
       - 'scripts/prepare_cli_publish_version.mjs'
 
+concurrency:
+  group: publish-selfhost-images-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   packages: write
+  issues: write
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAMESPACE: glowingkitty
 
 jobs:
-  build-publish:
+  prepare:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      image_tag: ${{ steps.version.outputs.image_tag }}
+      build_timestamp: ${{ steps.version.outputs.build_timestamp }}
     steps:
       - uses: actions/checkout@v4
 
@@ -54,6 +67,13 @@ jobs:
           echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
           echo "build_timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
+  build-api:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -71,19 +91,39 @@ jobs:
           file: backend/core/api/Dockerfile.selfhost
           platforms: linux/amd64,linux/arm64
           push: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:buildcache,mode=max
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:${{ steps.version.outputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:${{ needs.prepare.outputs.image_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:sha-${{ github.sha }}
           build-args: |
             BUILD_COMMIT_SHA=${{ github.sha }}
             BUILD_COMMIT_MESSAGE=${{ github.event.head_commit.message || github.event_name }}
             BUILD_BRANCH=${{ github.ref_name }}
-            BUILD_TIMESTAMP=${{ steps.version.outputs.build_timestamp }}
-            BUILD_VERSION_TAG=${{ steps.version.outputs.image_tag }}
+            BUILD_TIMESTAMP=${{ needs.prepare.outputs.build_timestamp }}
+            BUILD_VERSION_TAG=${{ needs.prepare.outputs.image_tag }}
           labels: |
             org.opencontainers.image.source=https://github.com/glowingkitty/OpenMates
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ steps.version.outputs.image_tag }}
+            org.opencontainers.image.version=${{ needs.prepare.outputs.image_tag }}
+
+  build-docs-worker:
+    needs: [prepare, build-api]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push docs worker image
         uses: docker/build-push-action@v6
@@ -92,42 +132,136 @@ jobs:
           file: backend/core/api/Dockerfile.docs.selfhost
           platforms: linux/amd64,linux/arm64
           push: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:buildcache,mode=max
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:${{ steps.version.outputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:${{ needs.prepare.outputs.image_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:sha-${{ github.sha }}
           build-args: |
-            OPENMATES_IMAGE_TAG=${{ steps.version.outputs.image_tag }}
+            OPENMATES_IMAGE_TAG=${{ needs.prepare.outputs.image_tag }}
 
-      - name: Build and push setup and frontend images
+  build-image:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: openmates-cms-setup
+            file: backend/core/directus/Dockerfile.setup.selfhost
+            context: backend/core/directus
+          - image: openmates-vault-setup
+            file: backend/core/vault/setup/Dockerfile
+            context: backend/core/vault/setup
+          - image: openmates-admin-sidecar
+            file: backend/admin_sidecar/Dockerfile
+            context: .
+          - image: openmates-uploads
+            file: backend/upload/Dockerfile
+            context: .
+          - image: openmates-upload-vault-setup
+            file: backend/upload/vault/Dockerfile
+            context: .
+          - image: openmates-preview
+            file: backend/preview/Dockerfile
+            context: .
+          - image: openmates-webapp
+            file: frontend/apps/web_app/Dockerfile
+            context: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.image }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:buildcache,mode=max
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ needs.prepare.outputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:sha-${{ github.sha }}
+          build-args: |
+            BUILD_COMMIT_SHA=${{ github.sha }}
+            BUILD_COMMIT_MESSAGE=${{ github.event.head_commit.message || github.event_name }}
+            BUILD_BRANCH=${{ github.ref_name }}
+            BUILD_TIMESTAMP=${{ needs.prepare.outputs.build_timestamp }}
+            BUILD_VERSION_TAG=${{ needs.prepare.outputs.image_tag }}
+            VITE_API_URL=http://localhost:8000
+            VITE_ENV=self_hosted
+          labels: |
+            org.opencontainers.image.source=https://github.com/glowingkitty/OpenMates
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.prepare.outputs.image_tag }}
+
+  notify:
+    if: always()
+    needs: [prepare, build-api, build-docs-worker, build-image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Summarize and notify merged PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          API_RESULT: ${{ needs.build-api.result }}
+          DOCS_RESULT: ${{ needs.build-docs-worker.result }}
+          IMAGE_RESULT: ${{ needs.build-image.result }}
+          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message || '' }}
+          IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
+          NOTIFY_PR: ${{ inputs.notify_pr }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          images=(
-            "openmates-cms-setup backend/core/directus/Dockerfile.setup.selfhost backend/core/directus"
-            "openmates-vault-setup backend/core/vault/setup/Dockerfile backend/core/vault/setup"
-            "openmates-admin-sidecar backend/admin_sidecar/Dockerfile ."
-            "openmates-uploads backend/upload/Dockerfile ."
-            "openmates-upload-vault-setup backend/upload/vault/Dockerfile ."
-            "openmates-preview backend/preview/Dockerfile ."
-            "openmates-webapp frontend/apps/web_app/Dockerfile ."
-          )
-          for item in "${images[@]}"; do
-            set -- $item
-            name="$1"
-            file="$2"
-            context="$3"
-            docker buildx build \
-              --platform linux/amd64,linux/arm64 \
-              --push \
-              --build-arg BUILD_COMMIT_SHA="${GITHUB_SHA}" \
-              --build-arg BUILD_COMMIT_MESSAGE="${{ github.event.head_commit.message || github.event_name }}" \
-              --build-arg BUILD_BRANCH="${GITHUB_REF_NAME}" \
-              --build-arg BUILD_TIMESTAMP="${{ steps.version.outputs.build_timestamp }}" \
-              --build-arg BUILD_VERSION_TAG="${{ steps.version.outputs.image_tag }}" \
-              --build-arg VITE_API_URL="http://localhost:8000" \
-              --build-arg VITE_ENV="self_hosted" \
-              --label org.opencontainers.image.source="https://github.com/glowingkitty/OpenMates" \
-              --label org.opencontainers.image.revision="${GITHUB_SHA}" \
-              --label org.opencontainers.image.version="${{ steps.version.outputs.image_tag }}" \
-              -t "${REGISTRY}/${IMAGE_NAMESPACE}/${name}:${{ steps.version.outputs.image_tag }}" \
-              -t "${REGISTRY}/${IMAGE_NAMESPACE}/${name}:${GITHUB_REF_NAME}" \
-              -f "$file" "$context"
-          done
+          status="success"
+          if [ "$API_RESULT" != "success" ] || [ "$DOCS_RESULT" != "success" ] || [ "$IMAGE_RESULT" != "success" ]; then
+            status="failure"
+          fi
+
+          {
+            echo "### Self-host image publish ${status}"
+            echo
+            echo "Image tag: \`${IMAGE_TAG}\`"
+            echo "Run: ${RUN_URL}"
+            echo
+            echo "| Job | Result |"
+            echo "| --- | --- |"
+            echo "| API | ${API_RESULT} |"
+            echo "| Docs worker | ${DOCS_RESULT} |"
+            echo "| Other images | ${IMAGE_RESULT} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          pr_number="$NOTIFY_PR"
+          if [ -z "$pr_number" ] && [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            if [[ "$HEAD_COMMIT_MESSAGE" =~ Merge\ pull\ request\ \#([0-9]+) ]]; then
+              pr_number="${BASH_REMATCH[1]}"
+            fi
+          fi
+
+          if [ -z "$pr_number" ]; then
+            exit 0
+          fi
+
+          body_file="$(mktemp)"
+          {
+            echo "Self-host Docker image publish **${status}**."
+            echo
+            echo "Image tag: \`${IMAGE_TAG}\`"
+            echo "Workflow run: ${RUN_URL}"
+            echo
+            echo "Results: API=${API_RESULT}, docs-worker=${DOCS_RESULT}, other-images=${IMAGE_RESULT}."
+          } > "$body_file"
+          gh pr comment "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$body_file"
