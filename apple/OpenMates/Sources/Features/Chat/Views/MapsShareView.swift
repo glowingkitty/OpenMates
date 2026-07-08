@@ -104,7 +104,8 @@ struct ComposerLocationOverlay: View {
 
     private var isUITestLocationPreselected: Bool {
         #if DEBUG
-        ProcessInfo.processInfo.arguments.contains("--ui-test-location-preselected")
+        ProcessInfo.processInfo.arguments.contains("--ui-test-location-preselected") ||
+        ProcessInfo.processInfo.environment["UI_TEST_LOCATION_PRESELECTED"] == "1"
         #else
         false
         #endif

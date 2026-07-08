@@ -72,7 +72,7 @@ final class ComposerVisualParityUITests: XCTestCase {
     }
 
     func testFocusedWelcomeLocationSelectionInsertsSendableContent() throws {
-        let app = launchFocusedWelcomeComposer(extraArguments: ["--ui-test-location-preselected"])
+        let app = launchFocusedWelcomeComposer(environment: ["UI_TEST_LOCATION_PRESELECTED": "1"])
         let locationButton = app.buttons["share-location-button"]
         XCTAssertTrue(locationButton.waitForExistence(timeout: 5))
         locationButton.tap()
@@ -150,9 +150,15 @@ final class ComposerVisualParityUITests: XCTestCase {
         return candidates[0]
     }
 
-    private func launchFocusedWelcomeComposer(extraArguments: [String] = []) -> XCUIApplication {
+    private func launchFocusedWelcomeComposer(
+        extraArguments: [String] = [],
+        environment: [String: String] = [:]
+    ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-start-new-chat"] + extraArguments
+        for (key, value) in environment {
+            app.launchEnvironment[key] = value
+        }
         app.launch()
 
         let skip = app.buttons["guest-interest-skip"]
