@@ -65,7 +65,7 @@
 		0651B4D9F35E780990F06473 /* DataExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A6630F3C041702710BABA2 /* DataExtensions.swift */; };
 		D1A6D1A6D1A6D1A6D1A60002 /* NativeDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A6D1A6D1A6D1A6D1A60001 /* NativeDiagnostics.swift */; };
 		D1A6D1A6D1A6D1A6D1A60003 /* NativeDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A6D1A6D1A6D1A6D1A60001 /* NativeDiagnostics.swift */; };
-		D1A6D1A6D1A6D1A6D1A60004 /* NativeDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A6D1A6D1A6D1A6D1A60001 /* NativeDiagnostics.swift */; };
+		D1A6D1A6D1A6D1A6D1A60005 /* NativeDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A6D1A6D1A6D1A6D1A60001 /* NativeDiagnostics.swift */; };
 		071B258A4BB470C00DA4502B /* PublicChatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 935C9D4E81C29D59F6578DAA /* PublicChatModels.swift */; };
 		07676E979606FF0FAD918D77 /* LucideIcons in Frameworks */ = {isa = PBXBuildFile; productRef = 47F26F17E3084624A8B0C927 /* LucideIcons */; };
 		0799383785A4BA6A304DEC02 /* SettingsEmailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F10CE71C0E5C9493D016824 /* SettingsEmailView.swift */; };
@@ -2127,7 +2127,7 @@
 				C0FFEE000000000000049014 /* WatchEmbedViews.swift in Sources */,
 				C0FFEE000000000000048014 /* WatchPairLoginView.swift in Sources */,
 				C0FFEE000000000000047004 /* WatchRootView.swift in Sources */,
-				D1A6D1A6D1A6D1A6D1A60004 /* NativeDiagnostics.swift in Sources */,
+				D1A6D1A6D1A6D1A6D1A60005 /* NativeDiagnostics.swift in Sources */,
 				C0FFEE000000000000047006 /* DataExtensions.swift in Sources */,
 				C0FFEE000000000000048021 /* OpenMatesSharedEnvironment.swift in Sources */,
 				C0FFEE000000000000047008 /* ColorTokens.generated.swift in Sources */,
