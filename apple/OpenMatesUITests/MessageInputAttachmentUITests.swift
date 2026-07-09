@@ -15,12 +15,12 @@ final class MessageInputAttachmentUITests: XCTestCase {
         let app = launchChatOpeningPreview(arguments: ["--ui-test-seed-pending-composer-embed"])
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
-        let pendingEmbed = element(in: app, identifiers: ["pending-composer-embed", "embed-full-width-wrapper"])
-        XCTAssertTrue(pendingEmbed.waitForExistence(timeout: 10))
-        assertElement(pendingEmbed, isVisuallyInside: element(in: app, identifier: "message-field"))
+        let editor = waitForMessageEditor(in: app)
+        XCTAssertTrue(waitForEditorOwnedEmbedDiagnostics(editor, expectedCount: 1), "Expected editor-owned embed diagnostics after seeded attachment")
+        XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists, "Editor-owned embeds must replace the native pending strip")
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
 
-        XCTAssertTrue(waitForMessageEditor(in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(editor.waitForExistence(timeout: 5))
         XCTAssertTrue(element(in: app, identifier: "message-field").exists)
 
         let screenshot = XCUIScreen.main.screenshot()
@@ -105,12 +105,11 @@ final class MessageInputAttachmentUITests: XCTestCase {
         let messageEditor = waitForMessageEditor(in: app)
         messageEditor.tap()
 
-        let pendingEmbedStrip = element(in: app, identifier: "pending-composer-embed")
-        XCTAssertTrue(pendingEmbedStrip.waitForExistence(timeout: 5))
-        assertElement(element(in: app, identifier: "embed-full-width-wrapper"), isVisuallyInside: element(in: app, identifier: "message-field"))
-        assertPendingLabel("welcome-file.pdf", in: app, scrollContainer: pendingEmbedStrip)
-        assertPendingLabel("welcome-sketch.png", in: app, scrollContainer: pendingEmbedStrip)
-        assertPendingLabel("welcome-recording.m4a", in: app, scrollContainer: pendingEmbedStrip)
+        XCTAssertTrue(waitForEditorOwnedEmbedDiagnostics(messageEditor, expectedCount: 3), "Expected welcome seeded content to become editor-owned embeds")
+        XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists, "Welcome composer must not use native pending strips for seeded embeds")
+        XCTAssertTrue(textContaining("welcome-file.pdf", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(textContaining("welcome-sketch.png", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(textContaining("welcome-recording.m4a", in: app).waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "embed_id")).firstMatch.exists)
@@ -182,6 +181,18 @@ final class MessageInputAttachmentUITests: XCTestCase {
 
         XCTFail("Expected welcome message editor to exist. Visible UI: \(app.debugDescription)")
         return candidates[0]
+    }
+
+    private func waitForEditorOwnedEmbedDiagnostics(_ editor: XCUIElement, expectedCount: Int, timeout: TimeInterval = 8) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if let value = editor.value as? String,
+               value.contains("embedCount=\(expectedCount)") {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        return false
     }
 
     private func assertElement(

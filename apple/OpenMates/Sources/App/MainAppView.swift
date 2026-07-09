@@ -4718,8 +4718,15 @@ struct NewChatWelcomeView: View {
     }
 
     private func addPendingComposerEmbed(filename: String, kind: WelcomeComposerPendingKind, data: Data? = nil, duration: TimeInterval? = nil) {
-        pendingComposerEmbeds.append(makePendingComposerEmbed(filename: filename, kind: kind, data: data, duration: duration))
+        let embed = makePendingComposerEmbed(filename: filename, kind: kind, data: data, duration: duration)
+        appendComposerEmbedReference(embed)
         anonymousAttachmentPending = false
+    }
+
+    private func appendComposerEmbedReference(_ embed: ComposerPendingEmbed) {
+        guard !messageText.contains("\"embed_id\": \"\(embed.id)\"") else { return }
+        let trimmed = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        messageText = trimmed.isEmpty ? embed.markdownReference : "\(trimmed)\n\n\(embed.markdownReference)"
     }
 
     private func removePendingComposerEmbed(_ embed: ComposerPendingEmbed) {
@@ -4989,11 +4996,12 @@ struct NewChatWelcomeView: View {
             micPermissionState = .granted
         }
         if arguments.contains("--ui-test-welcome-seed-pending-content"), pendingComposerEmbeds.isEmpty {
-            pendingComposerEmbeds = [
+            let seededEmbeds = [
                 makePendingComposerEmbed(filename: "welcome-file.pdf", kind: .file),
                 makePendingComposerEmbed(filename: "welcome-sketch.png", kind: .image, data: Data(repeating: 0, count: 128)),
                 makePendingComposerEmbed(filename: "welcome-recording.m4a", kind: .audio, duration: 1)
             ]
+            seededEmbeds.forEach(appendComposerEmbedReference)
             isComposerActivated = true
             isFocused = true
         }
@@ -5889,9 +5897,7 @@ private struct WelcomeComposer: View {
                 maxWidth: MessageComposerMetric.mainAppMaxWidth,
                 accessibilityHint: AppStrings.typeMessage,
                 onSubmit: { canSubmit ? onSend() : onOpenAuth() },
-                inlineFieldContent: hasPendingComposerEmbeds
-                    ? AnyView(PendingComposerEmbedsList(embeds: pendingComposerEmbeds, onRemove: onRemovePendingEmbed))
-                    : nil,
+                inlineFieldContent: nil,
                 preFieldContent: { EmptyView() },
                 overlayContent: {
                     if let overlayContent {

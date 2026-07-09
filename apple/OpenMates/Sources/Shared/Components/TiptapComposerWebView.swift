@@ -42,6 +42,37 @@ struct TiptapComposerTheme: Equatable {
     }
 }
 
+struct TiptapComposerEmbedCommand: Equatable {
+    var id: String
+    var type: String
+    var status: String = "finished"
+    var contentRef: String? = nil
+    var uploadEmbedId: String? = nil
+    var filename: String? = nil
+    var duration: String? = nil
+    var transcript: String? = nil
+    var mimeType: String? = nil
+    var uploadError: String? = nil
+    var referenceType: String? = nil
+
+    var dictionary: [String: Any] {
+        var attrs: [String: Any] = [
+            "id": id,
+            "type": type,
+            "status": status
+        ]
+        if let contentRef { attrs["contentRef"] = contentRef }
+        if let uploadEmbedId { attrs["uploadEmbedId"] = uploadEmbedId }
+        if let filename { attrs["filename"] = filename }
+        if let duration { attrs["duration"] = duration }
+        if let transcript { attrs["transcript"] = transcript }
+        if let mimeType { attrs["mimeType"] = mimeType }
+        if let uploadError { attrs["uploadError"] = uploadError }
+        if let referenceType { attrs["referenceType"] = referenceType }
+        return attrs
+    }
+}
+
 enum TiptapComposerCommand: Equatable {
     case focus
     case blur
@@ -51,6 +82,11 @@ enum TiptapComposerCommand: Equatable {
     case setTheme(TiptapComposerTheme)
     case setCompact(Bool)
     case setDisabled(Bool)
+    case insertEmbed(TiptapComposerEmbedCommand)
+    case updateEmbed(id: String, attrs: TiptapComposerEmbedCommand)
+    case removeEmbed(String)
+    case serializeMarkdown
+    case getDiagnostics
 
     var payload: [String: Any] {
         switch self {
@@ -70,6 +106,16 @@ enum TiptapComposerCommand: Equatable {
             return ["type": "setCompact", "compact": compact]
         case .setDisabled(let disabled):
             return ["type": "setDisabled", "disabled": disabled]
+        case .insertEmbed(let embed):
+            return ["type": "insertEmbed", "attrs": embed.dictionary]
+        case .updateEmbed(let id, let attrs):
+            return ["type": "updateEmbed", "id": id, "attrs": attrs.dictionary]
+        case .removeEmbed(let id):
+            return ["type": "removeEmbed", "id": id]
+        case .serializeMarkdown:
+            return ["type": "serializeMarkdown"]
+        case .getDiagnostics:
+            return ["type": "getDiagnostics"]
         }
     }
 
@@ -88,6 +134,13 @@ struct TiptapComposerBridgeMessage: Decodable, Equatable {
     let text: String?
     let height: Double?
     let message: String?
+    let embedCount: Int?
+    let blockingEmbedCount: Int?
+    let embedId: String?
+    let embedType: String?
+    let embedStatus: String?
+    let extensions: [String]?
+    let embedCommandNames: [String]?
 
     static func decode(_ body: Any) -> TiptapComposerBridgeMessage? {
         guard JSONSerialization.isValidJSONObject(body),
@@ -253,9 +306,9 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
                     parent.text = text
                 }
                 #if os(iOS)
-                webView?.accessibilityValue = text
+                webView?.accessibilityValue = accessibilityValue(text: text, embedCount: bridgeMessage.embedCount)
                 #elseif os(macOS)
-                webView?.setAccessibilityValue(text)
+                webView?.setAccessibilityValue(accessibilityValue(text: text, embedCount: bridgeMessage.embedCount))
                 #endif
             case "submit":
                 parent.onSubmit()
@@ -273,9 +326,22 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
                 }
             case "error":
                 NativeDiagnostics.warning("Tiptap composer bridge error", category: "apple_composer")
+            case "diagnostics", "serializedMarkdown", "embedInserted", "embedUpdated", "embedRemoved", "blockingEmbedsChanged":
+                if let text = bridgeMessage.text {
+                    #if os(iOS)
+                    webView?.accessibilityValue = accessibilityValue(text: text, embedCount: bridgeMessage.embedCount)
+                    #elseif os(macOS)
+                    webView?.setAccessibilityValue(accessibilityValue(text: text, embedCount: bridgeMessage.embedCount))
+                    #endif
+                }
             default:
                 break
             }
+        }
+
+        private func accessibilityValue(text: String, embedCount: Int?) -> String {
+            guard let embedCount else { return text }
+            return "\(text)\nembedCount=\(embedCount)"
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

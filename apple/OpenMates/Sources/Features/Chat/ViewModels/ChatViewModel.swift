@@ -1966,10 +1966,15 @@ final class ChatViewModel: ObservableObject {
     }
 
     private func contentWithComposerEmbedReferences(_ content: String, embeds: [ComposerPendingEmbed]) -> String {
-        guard !embeds.isEmpty else { return content }
-        let references = embeds.map(\.markdownReference).joined(separator: "\n")
+        let missingEmbeds = embeds.filter { !containsExistingComposerEmbedReferences(content, embedId: $0.id) }
+        guard !missingEmbeds.isEmpty else { return content }
+        let references = missingEmbeds.map(\.markdownReference).joined(separator: "\n")
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? references : "\(trimmed)\n\n\(references)"
+    }
+
+    private func containsExistingComposerEmbedReferences(_ content: String, embedId: String) -> Bool {
+        content.contains("\"embed_id\": \"\(embedId)\"") || content.contains("\"embed_id\":\"\(embedId)\"")
     }
 
     private static func contentType(for filename: String, fallback: String) -> String {

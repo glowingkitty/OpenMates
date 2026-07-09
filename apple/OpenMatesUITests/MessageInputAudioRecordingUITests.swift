@@ -34,7 +34,9 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         XCTAssertTrue(recordButton.waitForExistence(timeout: 5))
         recordButton.press(forDuration: 0.45)
 
-        XCTAssertTrue(element(in: app, identifier: "pending-composer-embed").waitForExistence(timeout: 5))
+        let editor = waitForMessageEditor(in: app)
+        XCTAssertTrue(waitForEditorOwnedEmbedDiagnostics(editor, expectedCount: 1), "Expected editor-owned recording embed diagnostics")
+        XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists, "Recording must render as an editor-owned embed, not a native pending strip")
         XCTAssertTrue(textContaining("recording", in: app).waitForExistence(timeout: 5))
         XCTAssertFalse(textContaining("```json", in: app).exists)
         XCTAssertTrue(app.buttons["send-button"].waitForExistence(timeout: 5))
@@ -161,5 +163,17 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
 
         XCTFail("Expected welcome message editor to exist. Visible UI: \(app.debugDescription)")
         return candidates[0]
+    }
+
+    private func waitForEditorOwnedEmbedDiagnostics(_ editor: XCUIElement, expectedCount: Int, timeout: TimeInterval = 8) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if let value = editor.value as? String,
+               value.contains("embedCount=\(expectedCount)") {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+        return false
     }
 }
