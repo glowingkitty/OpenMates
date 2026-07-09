@@ -406,9 +406,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/apple_composer_audit.py --require-web-embed-parity"
+        timestamp: "2026-07-09T15:21:01Z"
+        summary: "Passed after adding editor-owned embed bridge commands, embed label diagnostics, editor-rendering refs with filenames, and regression checks for attachment/audio UI tests."
 
   - id: T-APPLE-BRIDGE-UNIT
     type: unit
@@ -433,9 +434,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/TiptapComposerBridgeTests"
+        timestamp: "2026-07-09T15:21:01Z"
+        summary: "Remote Mac iPhone 17 run passed 5 TiptapComposerBridgeTests, including embedLabels diagnostics decoding."
 
   - id: T-APPLE-SERIALIZATION-UNIT
     type: unit
@@ -459,9 +461,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/TiptapComposerBridgeTests"
+        timestamp: "2026-07-09T15:21:01Z"
+        summary: "Remote bridge unit run passed; embed command serialization and canonical markdown bridge requests remain covered by TiptapComposerBridgeTests."
 
   - id: T-APPLE-ATTACHMENT-UI
     type: unit
@@ -487,9 +490,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesUITests/MessageInputAttachmentUITests"
+        timestamp: "2026-07-09T15:21:01Z"
+        summary: "Remote Mac iPhone 17 run passed 5 attachment UI tests. Seeded attachments and welcome seeded content now assert editor-owned embed diagnostics and labels; native pending strip remains absent."
 
   - id: T-APPLE-AUDIO-UI
     type: unit
@@ -515,9 +519,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests"
+        timestamp: "2026-07-09T15:21:01Z"
+        summary: "Remote Mac iPhone 17 run passed 5 audio recording UI tests, including editor-owned recording embed diagnostics and no native pending strip."
 
   - id: T-APPLE-BUILD
     type: build
@@ -538,9 +543,10 @@ tests:
       required: true
       expected: pass
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: passed
+        run_id: "python3 scripts/apple_remote.py build-ios --simulator \"iPhone 17\""
+        timestamp: "2026-07-09T15:21:01Z"
+        summary: "Remote Mac iPhone 17 OpenMates_iOS build succeeded on commit 98649a2."
 
 verifications:
   - id: V-TESTFLIGHT-001
