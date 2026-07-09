@@ -154,6 +154,7 @@ struct ComposerRecordingOverlay: View {
                 }
                 .buttonStyle(.plain)
                 .opacity(max(0.3, 1 + Double(dragOffsetX / 80)))
+                .accessibilityLabel(startedFromKeyboard ? AppStrings.pressEscToCancelRecording : AppStrings.slideLeftToCancelRecording)
                 .accessibilityIdentifier("cancel-hint")
 
                 Button {
