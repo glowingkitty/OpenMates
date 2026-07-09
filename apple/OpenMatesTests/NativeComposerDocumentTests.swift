@@ -36,6 +36,21 @@ final class NativeComposerDocumentTests: XCTestCase {
         }
     }
 
+    func testInvalidSharedDocumentsFailWithoutPartialSerialization() throws {
+        for invalidCase in try loadFixture().invalidDocuments {
+            XCTAssertThrowsError(
+                try ComposerMarkdownAdapter.serialize(invalidCase.document),
+                invalidCase.id
+            ) { error in
+                XCTAssertEqual(
+                    (error as? ComposerDocumentError)?.code,
+                    invalidCase.expectedError,
+                    invalidCase.id
+                )
+            }
+        }
+    }
+
     private func loadFixture() throws -> ComposerFixture {
         let repositoryRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -50,10 +65,24 @@ final class NativeComposerDocumentTests: XCTestCase {
 private struct ComposerFixture: Decodable {
     let schemaVersion: Int
     let cases: [ComposerFixtureCase]
+    let invalidDocuments: [InvalidDocumentFixture]
 
     enum CodingKeys: String, CodingKey {
         case schemaVersion = "schema_version"
         case cases
+        case invalidDocuments = "invalid_documents"
+    }
+}
+
+private struct InvalidDocumentFixture: Decodable {
+    let id: String
+    let expectedError: String
+    let document: ComposerDocumentV1
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case expectedError = "expected_error"
+        case document
     }
 }
 

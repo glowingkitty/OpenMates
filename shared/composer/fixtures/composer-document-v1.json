@@ -9,12 +9,12 @@
         "nodes": [
           {
             "kind": "text",
-            "id": "text-0",
+            "id": "composer:text:0",
             "source": "Before image\n\n"
           },
           {
             "kind": "embed",
-            "id": "fixture-image-1",
+            "id": "composer:embed:0",
             "embedType": "image",
             "status": "finished",
             "contentRef": "embed:fixture-image-1",
@@ -27,7 +27,7 @@
           },
           {
             "kind": "text",
-            "id": "text-1",
+            "id": "composer:text:1",
             "source": "\n\nAfter image"
           }
         ]
@@ -48,12 +48,12 @@
         "nodes": [
           {
             "kind": "text",
-            "id": "text-0",
+            "id": "composer:text:0",
             "source": "Hello "
           },
           {
             "kind": "mention",
-            "id": "mention-0",
+            "id": "composer:mention:0",
             "mentionKind": "mate",
             "targetId": "sophia",
             "canonicalSyntax": "@mate:sophia",
@@ -61,7 +61,7 @@
           },
           {
             "kind": "text",
-            "id": "text-1",
+            "id": "composer:text:1",
             "source": " \ud83d\udc4b\n\u0645\u0631\u062d\u0628\u0627 e\u0301"
           }
         ]
@@ -87,12 +87,135 @@
         "nodes": [
           {
             "kind": "text",
-            "id": "text-0",
+            "id": "composer:text:0",
             "source": ":::future-directive\nvalue = 1\n:::"
           }
         ]
       },
+      "selection_fixtures": [
+        {
+          "label": "cjk-multiline",
+          "source": "\u6f22\u5b57\n\u30c6\u30b9\u30c8",
+          "utf16_offset": 6
+        }
+      ]
+    },
+    {
+      "id": "grouped-embed",
+      "canonical_markdown": "```json\n{\n  \"type\": \"web-website-group\",\n  \"embed_id\": \"group-1\",\n  \"embed_ids\": [\"site-1\", \"site-2\"]\n}\n```",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "embed",
+            "id": "composer:embed:0",
+            "embedType": "web-website-group",
+            "status": "finished",
+            "contentRef": "embed:group-1",
+            "referenceOnly": false,
+            "canonicalSource": "```json\n{\n  \"type\": \"web-website-group\",\n  \"embed_id\": \"group-1\",\n  \"embed_ids\": [\"site-1\", \"site-2\"]\n}\n```",
+            "display": {
+              "title": "Web Website Group",
+              "mediaKind": "web-website-group"
+            }
+          }
+        ]
+      },
       "selection_fixtures": []
+    },
+    {
+      "id": "unknown-embed-type",
+      "canonical_markdown": "```json\n{\n  \"type\": \"future-widget\",\n  \"embed_id\": \"future-1\"\n}\n```",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "embed",
+            "id": "composer:embed:0",
+            "embedType": "future-widget",
+            "status": "finished",
+            "contentRef": "embed:future-1",
+            "referenceOnly": false,
+            "canonicalSource": "```json\n{\n  \"type\": \"future-widget\",\n  \"embed_id\": \"future-1\"\n}\n```",
+            "display": {
+              "title": "Future Widget",
+              "mediaKind": "future-widget"
+            }
+          }
+        ]
+      },
+      "selection_fixtures": []
+    },
+    {
+      "id": "legacy-website-embed",
+      "canonical_markdown": "```json_embed\n{\"type\":\"website\",\"url\":\"https://example.com\",\"title\":\"Example\"}\n```",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "embed",
+            "id": "composer:embed:0",
+            "embedType": "web-website",
+            "status": "finished",
+            "referenceOnly": false,
+            "canonicalSource": "```json_embed\n{\"type\":\"website\",\"url\":\"https://example.com\",\"title\":\"Example\"}\n```",
+            "display": {
+              "title": "Example",
+              "mediaKind": "web-website"
+            }
+          }
+        ]
+      },
+      "selection_fixtures": []
+    },
+    {
+      "id": "invalid-embed-fence-lossless",
+      "canonical_markdown": "```json\n{\"type\":\"image\"}\n```",
+      "document": {
+        "version": 1,
+        "nodes": [
+          {
+            "kind": "text",
+            "id": "composer:text:0",
+            "source": "```json\n{\"type\":\"image\"}\n```"
+          }
+        ]
+      },
+      "selection_fixtures": []
+    }
+  ],
+  "invalid_documents": [
+    {
+      "id": "unsupported-version",
+      "expected_error": "unsupported-version",
+      "document": { "version": 2, "nodes": [] }
+    },
+    {
+      "id": "missing-text-source",
+      "expected_error": "invalid-node",
+      "document": {
+        "version": 1,
+        "nodes": [{ "kind": "text", "id": "composer:text:0" }]
+      }
+    },
+    {
+      "id": "unknown-node-kind",
+      "expected_error": "unsupported-node",
+      "document": {
+        "version": 1,
+        "nodes": [{ "kind": "future", "id": "composer:future:0" }]
+      }
+    },
+    {
+      "id": "duplicate-node-id",
+      "expected_error": "duplicate-node-id",
+      "document": {
+        "version": 1,
+        "nodes": [
+          { "kind": "text", "id": "composer:text:0", "source": "A" },
+          { "kind": "text", "id": "composer:text:0", "source": "B" }
+        ]
+      }
     }
   ]
 }

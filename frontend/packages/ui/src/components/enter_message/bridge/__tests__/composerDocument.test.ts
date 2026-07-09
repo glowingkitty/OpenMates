@@ -7,8 +7,10 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  ComposerDocumentError,
   parseCanonicalMarkdownToComposerDocument,
   serializeComposerDocumentToCanonicalMarkdown,
+  type ComposerDocumentV1,
   utf16Length,
 } from "../composerDocument";
 
@@ -25,6 +27,12 @@ interface ComposerFixtureCase {
   selection_fixtures: SelectionFixture[];
 }
 
+interface InvalidDocumentFixture {
+  id: string;
+  expected_error: string;
+  document: Record<string, unknown>;
+}
+
 const fixture = JSON.parse(
   readFileSync(
     new URL(
@@ -33,7 +41,11 @@ const fixture = JSON.parse(
     ),
     "utf8",
   ),
-) as { schema_version: number; cases: ComposerFixtureCase[] };
+) as {
+  schema_version: number;
+  cases: ComposerFixtureCase[];
+  invalid_documents: InvalidDocumentFixture[];
+};
 
 describe("ComposerDocumentV1 cross-client contract", () => {
   it("uses the supported schema version", () => {
@@ -57,5 +69,21 @@ describe("ComposerDocumentV1 cross-client contract", () => {
         expect(utf16Length(selection.source)).toBe(selection.utf16_offset);
       });
     }
+  }
+
+  for (const invalidCase of fixture.invalid_documents) {
+    it(`rejects ${invalidCase.id} without partial serialization`, () => {
+      try {
+        serializeComposerDocumentToCanonicalMarkdown(
+          invalidCase.document as unknown as ComposerDocumentV1,
+        );
+        expect.fail("Expected ComposerDocument serialization to fail");
+      } catch (error) {
+        expect(error).toBeInstanceOf(ComposerDocumentError);
+        expect((error as ComposerDocumentError).code).toBe(
+          invalidCase.expected_error,
+        );
+      }
+    });
   }
 });

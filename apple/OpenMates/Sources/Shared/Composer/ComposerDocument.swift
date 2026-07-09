@@ -2,6 +2,7 @@
 // Canonical markdown remains durable; TextKit and Tiptap are transient adapters.
 // Parsing and serialization are deterministic across native Apple and web.
 // Encryption material and platform editor objects must never enter this model.
+// Invalid runtime documents fail explicitly rather than losing partial content.
 
 import Foundation
 
@@ -51,21 +52,22 @@ struct ComposerNodeV1: Codable, Equatable {
         embedType: String,
         canonicalSource: String,
         referenceOnly: Bool,
-        display: ComposerEmbedDisplayV1
+        display: ComposerEmbedDisplayV1,
+        contentRef: String? = nil
     ) -> Self {
         Self(
             kind: "embed",
             id: id,
             embedType: embedType,
             status: "finished",
-            contentRef: "embed:\(id)",
+            contentRef: contentRef,
             referenceOnly: referenceOnly,
             canonicalSource: canonicalSource,
             display: display
         )
     }
 
-    private init(
+    init(
         kind: String,
         id: String,
         source: String? = nil,
@@ -103,6 +105,18 @@ struct ComposerEmbedDisplayV1: Codable, Equatable {
 
 enum ComposerDocumentError: Error, Equatable {
     case unsupportedVersion(Int)
+    case unsupportedNode(String)
+    case invalidNode(kind: String, id: String, missingField: String)
+    case duplicateNodeID(String)
+
+    var code: String {
+        switch self {
+        case .unsupportedVersion: "unsupported-version"
+        case .unsupportedNode: "unsupported-node"
+        case .invalidNode: "invalid-node"
+        case .duplicateNodeID: "duplicate-node-id"
+        }
+    }
 }
 
 enum ComposerMarkdownAdapter {
@@ -110,7 +124,7 @@ enum ComposerMarkdownAdapter {
         let source = markdown
             .replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
-        let embedPattern = #"```(?:json_embed|json)\n([\s\S]*?)\n```"#
+        let embedPattern = #"```(json_embed|json)\n([\s\S]*?)\n```"#
         let embedRegex = try NSRegularExpression(pattern: embedPattern)
         let fullRange = NSRange(source.startIndex..<source.endIndex, in: source)
         var nodes: [ComposerNodeV1] = []
@@ -120,10 +134,13 @@ enum ComposerMarkdownAdapter {
         for match in embedRegex.matches(in: source, range: fullRange) {
             guard
                 let matchRange = Range(match.range, in: source),
-                let jsonRange = Range(match.range(at: 1), in: source),
+                let fenceRange = Range(match.range(at: 1), in: source),
+                let jsonRange = Range(match.range(at: 2), in: source),
                 let embed = embedNode(
                     canonicalSource: String(source[matchRange]),
-                    jsonSource: String(source[jsonRange])
+                    fence: String(source[fenceRange]),
+                    jsonSource: String(source[jsonRange]),
+                    nodeId: "composer:embed:\(counters.embed)"
                 )
             else { continue }
 
@@ -133,6 +150,7 @@ enum ComposerMarkdownAdapter {
                 counters: &counters
             )
             nodes.append(embed)
+            counters.embed += 1
             cursor = matchRange.upperBound
         }
 
@@ -145,18 +163,51 @@ enum ComposerMarkdownAdapter {
             throw ComposerDocumentError.unsupportedVersion(document.version)
         }
 
-        return document.nodes.map { node in
+        var seenNodeIds = Set<String>()
+        return try document.nodes.map { node in
+            guard !node.id.isEmpty else {
+                throw ComposerDocumentError.invalidNode(
+                    kind: node.kind,
+                    id: node.id,
+                    missingField: "id"
+                )
+            }
+            guard seenNodeIds.insert(node.id).inserted else {
+                throw ComposerDocumentError.duplicateNodeID(node.id)
+            }
+
             switch node.kind {
             case "text":
-                return node.source ?? ""
+                guard let source = node.source else {
+                    throw ComposerDocumentError.invalidNode(
+                        kind: node.kind,
+                        id: node.id,
+                        missingField: "source"
+                    )
+                }
+                return source
             case "hardBreak":
                 return "\n"
             case "mention":
-                return node.canonicalSyntax ?? ""
+                guard let canonicalSyntax = node.canonicalSyntax else {
+                    throw ComposerDocumentError.invalidNode(
+                        kind: node.kind,
+                        id: node.id,
+                        missingField: "canonicalSyntax"
+                    )
+                }
+                return canonicalSyntax
             case "embed":
-                return node.canonicalSource ?? ""
+                guard let canonicalSource = node.canonicalSource else {
+                    throw ComposerDocumentError.invalidNode(
+                        kind: node.kind,
+                        id: node.id,
+                        missingField: "canonicalSource"
+                    )
+                }
+                return canonicalSource
             default:
-                return ""
+                throw ComposerDocumentError.unsupportedNode(node.kind)
             }
         }.joined()
     }
@@ -185,7 +236,7 @@ enum ComposerMarkdownAdapter {
             let rawKind = String(source[typeRange])
             let targetId = String(source[targetRange])
             nodes.append(.mention(
-                id: "mention-\(counters.mention)",
+                id: "composer:mention:\(counters.mention)",
                 mentionKind: mentionKind(rawKind),
                 targetId: targetId,
                 canonicalSyntax: String(source[matchRange]),
@@ -203,32 +254,57 @@ enum ComposerMarkdownAdapter {
         counters: inout NodeCounters
     ) {
         guard !source.isEmpty else { return }
-        nodes.append(.text(id: "text-\(counters.text)", source: source))
+        nodes.append(.text(id: "composer:text:\(counters.text)", source: source))
         counters.text += 1
     }
 
     private static func embedNode(
         canonicalSource: String,
-        jsonSource: String
+        fence: String,
+        jsonSource: String,
+        nodeId: String
     ) -> ComposerNodeV1? {
         guard
             let data = jsonSource.data(using: .utf8),
             let object = try? JSONSerialization.jsonObject(with: data),
-            let value = object as? [String: Any],
-            let embedId = value["embed_id"] as? String,
-            let embedType = value["type"] as? String
+            let value = object as? [String: Any]
         else { return nil }
 
-        return .embed(
-            id: embedId,
-            embedType: embedType,
-            canonicalSource: canonicalSource,
-            referenceOnly: value["reference_only"] as? Bool == true,
-            display: ComposerEmbedDisplayV1(
-                title: value["title"] as? String ?? displayName(embedType),
-                mediaKind: embedType
+        if
+            let embedId = value["embed_id"] as? String,
+            let embedType = value["type"] as? String
+        {
+            return .embed(
+                id: nodeId,
+                embedType: embedType,
+                canonicalSource: canonicalSource,
+                referenceOnly: value["reference_only"] as? Bool == true,
+                display: ComposerEmbedDisplayV1(
+                    title: value["title"] as? String ?? displayName(embedType),
+                    mediaKind: embedType
+                ),
+                contentRef: "embed:\(embedId)"
             )
-        )
+        }
+
+        if
+            fence == "json_embed",
+            value["type"] as? String == "website",
+            value["url"] is String
+        {
+            return .embed(
+                id: nodeId,
+                embedType: "web-website",
+                canonicalSource: canonicalSource,
+                referenceOnly: false,
+                display: ComposerEmbedDisplayV1(
+                    title: value["title"] as? String ?? "Website",
+                    mediaKind: "web-website"
+                )
+            )
+        }
+
+        return nil
     }
 
     private static func mentionKind(_ value: String) -> String {
@@ -253,6 +329,7 @@ enum ComposerMarkdownAdapter {
 private struct NodeCounters {
     var text = 0
     var mention = 0
+    var embed = 0
 }
 
 enum ComposerPositionMap {

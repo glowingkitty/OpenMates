@@ -2,6 +2,7 @@
 // Canonical markdown remains the durable format; this model is editor-session state.
 // Parsing and serialization are deterministic across web and native Apple.
 // Never add encryption material, raw files, or platform editor objects here.
+// Invalid runtime documents fail explicitly rather than serializing partial content.
 
 export interface ComposerDocumentV1 {
   version: 1;
@@ -64,13 +65,30 @@ export type ComposerNodeV1 =
   | MentionNodeV1
   | EmbedNodeV1;
 
-const EMBED_FENCE_PATTERN = /```(?:json_embed|json)\n([\s\S]*?)\n```/g;
+export type ComposerDocumentErrorCode =
+  | "unsupported-version"
+  | "unsupported-node"
+  | "invalid-node"
+  | "duplicate-node-id";
+
+export class ComposerDocumentError extends Error {
+  constructor(
+    readonly code: ComposerDocumentErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ComposerDocumentError";
+  }
+}
+
+const EMBED_FENCE_PATTERN = /```(json_embed|json)\n([\s\S]*?)\n```/g;
 const MENTION_PATTERN =
   /@(best-model|ai-model|mate|skill|focus|project|memory):([a-zA-Z0-9_.-]+(?::[a-zA-Z0-9_.-]+)*)/g;
 
 interface NodeCounters {
   text: number;
   mention: number;
+  embed: number;
 }
 
 export function parseCanonicalMarkdownToComposerDocument(
@@ -78,7 +96,7 @@ export function parseCanonicalMarkdownToComposerDocument(
 ): ComposerDocumentV1 {
   const source = markdown.replace(/\r\n?/g, "\n");
   const nodes: ComposerNodeV1[] = [];
-  const counters: NodeCounters = { text: 0, mention: 0 };
+  const counters: NodeCounters = { text: 0, mention: 0, embed: 0 };
   let cursor = 0;
 
   EMBED_FENCE_PATTERN.lastIndex = 0;
@@ -86,11 +104,17 @@ export function parseCanonicalMarkdownToComposerDocument(
   while ((match = EMBED_FENCE_PATTERN.exec(source)) !== null) {
     const index = match.index;
 
-    const embed = parseEmbedNode(match[0], match[1]);
+    const embed = parseEmbedNode(
+      match[0],
+      match[1],
+      match[2],
+      `composer:embed:${counters.embed}`,
+    );
     if (!embed) continue;
 
     appendTextAndMentions(source.slice(cursor, index), nodes, counters);
     nodes.push(embed);
+    counters.embed += 1;
     cursor = index + match[0].length;
   }
 
@@ -102,20 +126,52 @@ export function serializeComposerDocumentToCanonicalMarkdown(
   document: ComposerDocumentV1,
 ): string {
   if (document.version !== 1) {
-    throw new Error(`Unsupported ComposerDocument version: ${document.version}`);
+    throw new ComposerDocumentError(
+      "unsupported-version",
+      `Unsupported ComposerDocument version: ${document.version}`,
+    );
   }
 
+  const seenNodeIds = new Set<string>();
   return document.nodes
-    .map((node) => {
+    .map((node: ComposerNodeV1) => {
+      if (typeof node.id !== "string" || !node.id) {
+        throw new ComposerDocumentError(
+          "invalid-node",
+          "ComposerDocument node is missing an id",
+        );
+      }
+      if (seenNodeIds.has(node.id)) {
+        throw new ComposerDocumentError(
+          "duplicate-node-id",
+          `Duplicate ComposerDocument node id: ${node.id}`,
+        );
+      }
+      seenNodeIds.add(node.id);
+
       switch (node.kind) {
         case "text":
+          if (typeof node.source !== "string") {
+            throw invalidNode(node.kind, node.id, "source");
+          }
           return node.source;
         case "hardBreak":
           return "\n";
         case "mention":
+          if (typeof node.canonicalSyntax !== "string") {
+            throw invalidNode(node.kind, node.id, "canonicalSyntax");
+          }
           return node.canonicalSyntax;
         case "embed":
+          if (typeof node.canonicalSource !== "string") {
+            throw invalidNode(node.kind, node.id, "canonicalSource");
+          }
           return node.canonicalSource;
+        default:
+          throw new ComposerDocumentError(
+            "unsupported-node",
+            `Unsupported ComposerDocument node kind: ${String((node as { kind?: unknown }).kind)}`,
+          );
       }
     })
     .join("");
@@ -141,7 +197,7 @@ function appendTextAndMentions(
     const targetId = match[2];
     nodes.push({
       kind: "mention",
-      id: `mention-${counters.mention++}`,
+      id: `composer:mention:${counters.mention++}`,
       mentionKind: mentionKind(match[1]),
       targetId,
       canonicalSyntax: match[0],
@@ -159,36 +215,64 @@ function appendTextNode(
   counters: NodeCounters,
 ): void {
   if (!source) return;
-  nodes.push({ kind: "text", id: `text-${counters.text++}`, source });
+  nodes.push({
+    kind: "text",
+    id: `composer:text:${counters.text++}`,
+    source,
+  });
 }
 
 function parseEmbedNode(
   canonicalSource: string,
+  fence: string,
   jsonSource: string,
+  nodeId: string,
 ): EmbedNodeV1 | null {
   try {
     const value = JSON.parse(jsonSource) as Record<string, unknown>;
-    if (typeof value.embed_id !== "string" || typeof value.type !== "string") {
-      return null;
+    if (
+      typeof value.embed_id === "string" &&
+      typeof value.type === "string"
+    ) {
+      const embedType = value.type;
+      return {
+        kind: "embed",
+        id: nodeId,
+        embedType,
+        status: "finished",
+        contentRef: `embed:${value.embed_id}`,
+        referenceOnly: value.reference_only === true,
+        canonicalSource,
+        display: {
+          title:
+            typeof value.title === "string"
+              ? value.title
+              : displayName(embedType),
+          mediaKind: embedType,
+        },
+      };
     }
 
-    const embedType = value.type;
-    return {
-      kind: "embed",
-      id: value.embed_id,
-      embedType,
-      status: "finished",
-      contentRef: `embed:${value.embed_id}`,
-      referenceOnly: value.reference_only === true,
-      canonicalSource,
-      display: {
-        title:
-          typeof value.title === "string"
-            ? value.title
-            : displayName(embedType),
-        mediaKind: embedType,
-      },
-    };
+    if (
+      fence === "json_embed" &&
+      value.type === "website" &&
+      typeof value.url === "string"
+    ) {
+      return {
+        kind: "embed",
+        id: nodeId,
+        embedType: "web-website",
+        status: "finished",
+        referenceOnly: false,
+        canonicalSource,
+        display: {
+          title: typeof value.title === "string" ? value.title : "Website",
+          mediaKind: "web-website",
+        },
+      };
+    }
+
+    return null;
   } catch {
     return null;
   }
@@ -207,4 +291,15 @@ function displayName(value: string): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function invalidNode(
+  kind: string,
+  id: string,
+  missingField: string,
+): ComposerDocumentError {
+  return new ComposerDocumentError(
+    "invalid-node",
+    `ComposerDocument ${kind} node ${id} is missing ${missingField}`,
+  );
 }
