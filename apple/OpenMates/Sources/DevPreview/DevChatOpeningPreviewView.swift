@@ -21,6 +21,7 @@ struct DevChatOpeningPreviewView: View {
     @StateObject private var chatStore = ChatStore()
     @StateObject private var uiTestRecorder = VoiceRecorder()
     @State private var seeded = false
+    @State private var forcedRecordingOverlayDismissed = false
     @State private var reportIssuePrefill: ReportIssuePrefill?
     @State private var performanceMetricsTick = 0
 
@@ -83,13 +84,13 @@ struct DevChatOpeningPreviewView: View {
                 }
             }
 
-            if isUITestRecordingOverlayForced {
+            if isUITestRecordingOverlayForced && !forcedRecordingOverlayDismissed {
                 ComposerRecordingOverlay(
                     recorder: uiTestRecorder,
                     dragOffsetX: 0,
                     startedFromKeyboard: isUITestKeyboardRecordingOverlayForced,
-                    onStop: { _ in },
-                    onCancel: {}
+                    onStop: { _ in forcedRecordingOverlayDismissed = true },
+                    onCancel: { forcedRecordingOverlayDismissed = true }
                 )
                 .frame(maxWidth: 1000)
                 .frame(height: 400)

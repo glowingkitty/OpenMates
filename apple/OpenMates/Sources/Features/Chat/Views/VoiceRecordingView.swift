@@ -132,27 +132,28 @@ struct ComposerRecordingOverlay: View {
                     .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     .accessibilityIdentifier("timer-pill")
 
-                Group {
-                    if startedFromKeyboard {
-                        Text(AppStrings.pressEscToCancelRecording)
-                            .font(.omXs)
-                            .foregroundStyle(Color.white.opacity(0.7))
-                    } else {
-                        HStack(spacing: .spacing2) {
-                            Text("‹")
-                                .font(.omH3)
-                                .foregroundStyle(Color.white.opacity(0.5))
-                            Text(AppStrings.slideLeftToCancelRecording)
+                Button(action: onCancel) {
+                    Group {
+                        if startedFromKeyboard {
+                            Text(AppStrings.pressEscToCancelRecording)
                                 .font(.omXs)
                                 .foregroundStyle(Color.white.opacity(0.7))
+                        } else {
+                            HStack(spacing: .spacing2) {
+                                Text("‹")
+                                    .font(.omH3)
+                                    .foregroundStyle(Color.white.opacity(0.5))
+                                Text(AppStrings.slideLeftToCancelRecording)
+                                    .font(.omXs)
+                                    .foregroundStyle(Color.white.opacity(0.7))
+                            }
                         }
                     }
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
                 .opacity(max(0.3, 1 + Double(dragOffsetX / 80)))
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-                .onTapGesture(perform: onCancel)
-                .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("cancel-hint")
 
                 Button {
