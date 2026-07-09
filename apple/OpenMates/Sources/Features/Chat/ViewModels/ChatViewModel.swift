@@ -2069,6 +2069,15 @@ struct ComposerPendingEmbed: Identifiable {
         "```json\n{\"type\": \"\(referenceType)\", \"embed_id\": \"\(id)\"}\n```"
     }
 
+    var editorMarkdownReference: String {
+        "```json\n{\"type\": \"\(referenceType)\", \"embed_id\": \"\(id)\", \"filename\": \(Self.jsonString(filename))}\n```"
+    }
+
+    private static func jsonString(_ value: String) -> String {
+        let data = try! JSONEncoder().encode(value)
+        return String(data: data, encoding: .utf8)!
+    }
+
     var serverPayload: [String: Any]? {
         guard let content else { return nil }
         var payload: [String: Any] = [

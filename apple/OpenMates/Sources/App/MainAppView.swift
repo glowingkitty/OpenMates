@@ -4726,7 +4726,7 @@ struct NewChatWelcomeView: View {
     private func appendComposerEmbedReference(_ embed: ComposerPendingEmbed) {
         guard !messageText.contains("\"embed_id\": \"\(embed.id)\"") else { return }
         let trimmed = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        messageText = trimmed.isEmpty ? embed.markdownReference : "\(trimmed)\n\n\(embed.markdownReference)"
+        messageText = trimmed.isEmpty ? embed.editorMarkdownReference : "\(trimmed)\n\n\(embed.editorMarkdownReference)"
     }
 
     private func removePendingComposerEmbed(_ embed: ComposerPendingEmbed) {
