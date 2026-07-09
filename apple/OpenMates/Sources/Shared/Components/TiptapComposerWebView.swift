@@ -14,6 +14,9 @@
 
 import SwiftUI
 import WebKit
+#if os(iOS)
+import UIKit
+#endif
 
 enum TiptapComposerResource {
     static let subdirectory = "TiptapComposer"
@@ -188,6 +191,9 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
         webView.accessibilityLabel = AppStrings.chatMessageInput
         webView.accessibilityHint = accessibilityHint
         webView.accessibilityValue = text
+        let tapRecognizer = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleWebViewTap))
+        tapRecognizer.cancelsTouchesInView = false
+        webView.addGestureRecognizer(tapRecognizer)
         #elseif os(macOS)
         webView.setValue(false, forKey: "drawsBackground")
         webView.setAccessibilityIdentifier("message-editor")
@@ -276,6 +282,17 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
             ready = true
             sync(webView: webView)
         }
+
+        #if os(iOS)
+        @objc func handleWebViewTap() {
+            if !parent.isFocused.wrappedValue {
+                parent.isFocused.wrappedValue = true
+            }
+            if let webView {
+                send(.focus, to: webView)
+            }
+        }
+        #endif
 
         func webView(
             _ webView: WKWebView,
