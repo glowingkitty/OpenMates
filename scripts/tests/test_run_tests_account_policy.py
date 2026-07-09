@@ -134,6 +134,52 @@ def test_dispatch_run_matching_uses_unique_token():
     assert run_tests._matching_dispatched_run_id(runs, "rt-missing") is None
 
 
+def test_dispatch_passes_gated_vercel_url_to_workflow(monkeypatch):
+    run_tests = load_run_tests_module()
+    commands: list[list[str]] = []
+
+    monkeypatch.setattr(run_tests.GitHubActionsClient, "_check_gh", lambda _self: None)
+    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
+
+    def fake_run(command, **_kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    client = run_tests.GitHubActionsClient(
+        playwright_base_url="https://immutable-deployment.example.test",
+        git_sha="abc123",
+    )
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        client,
+        "_recent_runs",
+        lambda limit=50: [{
+            "databaseId": 123,
+            "displayTitle": next(
+                item.removeprefix("dispatch_token=")
+                for item in commands[0]
+                if item.startswith("dispatch_token=")
+            ),
+        }],
+    )
+
+    assert client.dispatch_spec("chat-flow.spec.ts", account=1) == 123
+    assert "playwright_base_url=https://immutable-deployment.example.test" in commands[0]
+    assert "checkout_ref=abc123" in commands[0]
+
+
+def test_playwright_workflow_uses_immutable_base_url_input_for_all_test_steps():
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "playwright-spec.yml").read_text(
+        encoding="utf-8"
+    )
+
+    expected = (
+        "PLAYWRIGHT_TEST_BASE_URL: "
+        "${{ github.event.inputs.playwright_base_url || secrets.E2E_DEV_TEST_BASE_URL }}"
+    )
+    assert workflow.count(expected) == 2
+
+
 def test_preflight_account_payload_deduplicates_emails():
     run_tests = load_run_tests_module()
 
