@@ -80,6 +80,7 @@ final class NativeComposerControllerTests: XCTestCase {
         XCTAssertTrue(controller.canSubmit)
     }
 
+    @MainActor
     func testTextKit2SurfaceContainsOneAttachmentAtom() throws {
         let controller = try makeEmbeddedController()
 

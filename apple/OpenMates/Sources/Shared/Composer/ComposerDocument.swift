@@ -67,6 +67,24 @@ struct ComposerNodeV1: Codable, Equatable {
         )
     }
 
+    func updatingStatus(_ status: String) -> Self {
+        Self(
+            kind: kind,
+            id: id,
+            source: source,
+            mentionKind: mentionKind,
+            targetId: targetId,
+            canonicalSyntax: canonicalSyntax,
+            displayLabel: displayLabel,
+            embedType: embedType,
+            status: status,
+            contentRef: contentRef,
+            referenceOnly: referenceOnly,
+            canonicalSource: canonicalSource,
+            display: display
+        )
+    }
+
     init(
         kind: String,
         id: String,

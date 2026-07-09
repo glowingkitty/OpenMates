@@ -692,7 +692,11 @@ tests:
     red_phase:
       required: true
       expected: fail
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: failed_as_expected
+        run_id: "apple-remote-2a0e1b5"
+        timestamp: "2026-07-09T23:33:00Z"
+        summary: NativeComposerControllerTests were included and failed to compile because the controller and attachment types did not exist.
     green_phase:
       required: true
       expected: pass
