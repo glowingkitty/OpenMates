@@ -14,9 +14,10 @@ import UIKit
 import AppKit
 #endif
 
+@MainActor
 final class NativeComposerControllerTests: XCTestCase {
     func testInsertEmbedPreservesDocumentOrderAndSelection() throws {
-        let controller = NativeComposerController(
+        let controller = try NativeComposerController(
             document: try ComposerMarkdownAdapter.parse("BeforeAfter"),
             selection: NSRange(location: 6, length: 0)
         )
@@ -68,19 +69,18 @@ final class NativeComposerControllerTests: XCTestCase {
     }
 
     func testMarkedTextBlocksSubmitUntilCompositionCommits() throws {
-        let controller = NativeComposerController(
+        let controller = try NativeComposerController(
             document: try ComposerMarkdownAdapter.parse("Composing"),
             selection: NSRange(location: 9, length: 0)
         )
 
-        controller.setMarkedTextRange(NSRange(location: 4, length: 5))
+        try controller.setMarkedTextRange(NSRange(location: 4, length: 5))
         XCTAssertFalse(controller.canSubmit)
 
-        controller.setMarkedTextRange(nil)
+        try controller.setMarkedTextRange(nil)
         XCTAssertTrue(controller.canSubmit)
     }
 
-    @MainActor
     func testTextKit2SurfaceContainsOneAttachmentAtom() throws {
         let controller = try makeEmbeddedController()
 
@@ -126,8 +126,58 @@ final class NativeComposerControllerTests: XCTestCase {
         #endif
     }
 
+    func testBoundaryInsertionPreservesOriginalTextNodeID() throws {
+        let document = try ComposerMarkdownAdapter.parse("Before")
+        let embed = fixtureEmbed(id: "composer:embed:boundary")
+
+        let atStart = try NativeComposerController(
+            document: document,
+            selection: NSRange(location: 0, length: 0)
+        )
+        try atStart.insertEmbed(embed)
+        XCTAssertEqual(atStart.document.nodes.map(\.id), [
+            "composer:embed:boundary",
+            "composer:text:0",
+        ])
+
+        let atEnd = try NativeComposerController(
+            document: document,
+            selection: NSRange(location: 6, length: 0)
+        )
+        try atEnd.insertEmbed(embed)
+        XCTAssertEqual(atEnd.document.nodes.map(\.id), [
+            "composer:text:0",
+            "composer:embed:boundary",
+        ])
+    }
+
+    func testGeneratedTextIDDoesNotCollideWithInsertedEmbedID() throws {
+        let controller = try NativeComposerController(
+            document: ComposerMarkdownAdapter.parse("BeforeAfter"),
+            selection: NSRange(location: 6, length: 0)
+        )
+
+        try controller.insertEmbed(fixtureEmbed(id: "composer:text:1"))
+
+        XCTAssertEqual(Set(controller.document.nodes.map(\.id)).count, 3)
+        XCTAssertEqual(controller.document.nodes.last?.id, "composer:text:2")
+    }
+
+    func testInvalidAndSurrogateSplittingSelectionsAreRejected() throws {
+        let document = try ComposerMarkdownAdapter.parse("A\u{1F44D}B")
+
+        XCTAssertThrowsError(try NativeComposerController(
+            document: document,
+            selection: NSRange(location: 2, length: 0)
+        ))
+        XCTAssertThrowsError(try NativeComposerController(
+            document: document,
+            selection: NSRange(location: 5, length: 0)
+        ))
+    }
+
     private func makeEmbeddedController() throws -> NativeComposerController {
-        let controller = NativeComposerController(
+        let controller = try NativeComposerController(
             document: try ComposerMarkdownAdapter.parse("BeforeAfter"),
             selection: NSRange(location: 6, length: 0)
         )
@@ -140,5 +190,16 @@ final class NativeComposerControllerTests: XCTestCase {
             contentRef: "embed:fixture-1"
         ))
         return controller
+    }
+
+    private func fixtureEmbed(id: String) -> ComposerNodeV1 {
+        ComposerNodeV1.embed(
+            id: id,
+            embedType: "image",
+            canonicalSource: "```json\n{\"type\":\"image\",\"embed_id\":\"fixture-1\"}\n```",
+            referenceOnly: false,
+            display: ComposerEmbedDisplayV1(title: "Image", mediaKind: "image"),
+            contentRef: "embed:fixture-1"
+        )
     }
 }

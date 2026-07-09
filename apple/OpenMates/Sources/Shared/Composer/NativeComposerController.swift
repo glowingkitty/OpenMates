@@ -19,7 +19,7 @@ enum NativeComposerControllerError: Error, Equatable {
     case expectedEmbed(String)
 }
 
-final class ComposerTextAttachment: NSTextAttachment, @unchecked Sendable {
+final class ComposerTextAttachment: NSTextAttachment {
     let nodeID: String
 
     init(nodeID: String) {
@@ -160,6 +160,7 @@ final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
 }
 #endif
 
+@MainActor
 final class NativeComposerController {
     private(set) var document: ComposerDocumentV1
     private(set) var selection: NSRange
@@ -172,13 +173,19 @@ final class NativeComposerController {
         markedTextRange == nil && !attributedString.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    init(document: ComposerDocumentV1, selection: NSRange) {
+    init(document: ComposerDocumentV1, selection: NSRange) throws {
         self.document = document
         self.selection = selection
+        guard isValid(range: selection) else {
+            throw NativeComposerControllerError.invalidSelection(selection)
+        }
         rebuildAttributedString()
     }
 
-    func setMarkedTextRange(_ range: NSRange?) {
+    func setMarkedTextRange(_ range: NSRange?) throws {
+        if let range, !isValid(range: range) {
+            throw NativeComposerControllerError.invalidSelection(range)
+        }
         markedTextRange = range
     }
 
@@ -230,17 +237,23 @@ final class NativeComposerController {
             if !inserted, offset >= cursor, offset <= cursor + length {
                 if node.kind == "text", let source = node.source {
                     let localOffset = offset - cursor
-                    guard let splitIndex = stringIndex(in: source, utf16Offset: localOffset) else {
-                        throw NativeComposerControllerError.invalidSelection(selection)
-                    }
-                    let left = String(source[..<splitIndex])
-                    let right = String(source[splitIndex...])
-                    if !left.isEmpty {
+                    if localOffset == 0 {
+                        result.append(embed)
+                        result.append(node)
+                    } else if localOffset == length {
+                        result.append(node)
+                        result.append(embed)
+                    } else if let splitIndex = stringIndex(in: source, utf16Offset: localOffset) {
+                        let left = String(source[..<splitIndex])
+                        let right = String(source[splitIndex...])
                         result.append(.text(id: node.id, source: left))
-                    }
-                    result.append(embed)
-                    if !right.isEmpty {
-                        result.append(.text(id: nextTextNodeID(), source: right))
+                        result.append(embed)
+                        result.append(.text(
+                            id: nextTextNodeID(reserving: [embed.id]),
+                            source: right
+                        ))
+                    } else {
+                        throw NativeComposerControllerError.invalidSelection(selection)
                     }
                 } else if offset == cursor {
                     result.append(embed)
@@ -286,9 +299,34 @@ final class NativeComposerController {
         return String.Index(index, within: source)
     }
 
-    private func nextTextNodeID() -> String {
+    private func isValid(range: NSRange) -> Bool {
+        guard
+            range.location >= 0,
+            range.length >= 0,
+            range.location <= semanticLength,
+            range.location + range.length <= semanticLength
+        else { return false }
+        return isValid(position: range.location) && isValid(position: range.location + range.length)
+    }
+
+    private func isValid(position: Int) -> Bool {
+        var cursor = 0
+        for node in document.nodes {
+            let length = semanticLength(of: node)
+            if position >= cursor, position <= cursor + length {
+                if node.kind == "text", let source = node.source {
+                    return stringIndex(in: source, utf16Offset: position - cursor) != nil
+                }
+                return position == cursor || position == cursor + length
+            }
+            cursor += length
+        }
+        return position == cursor
+    }
+
+    private func nextTextNodeID(reserving reservedIDs: Set<String> = []) -> String {
         var index = 0
-        let ids = Set(document.nodes.map(\.id))
+        let ids = Set(document.nodes.map(\.id)).union(reservedIDs)
         while ids.contains("composer:text:\(index)") { index += 1 }
         return "composer:text:\(index)"
     }
