@@ -138,6 +138,8 @@ def main() -> int:
         for token in WEB_EMBED_BRIDGE_TOKENS:
             if token not in bridge_text:
                 failures.append(f"Tiptap bridge component must support embed bridge token {token!r}")
+        if "embedLabels" not in bridge_text:
+            failures.append("Tiptap bridge component must expose editor-owned embed labels through diagnostics")
 
     composer_resource = REPO_ROOT / "apple/OpenMates/Resources/TiptapComposer/composer.js"
     composer_index = REPO_ROOT / "apple/OpenMates/Resources/TiptapComposer/index.html"
@@ -155,6 +157,8 @@ def main() -> int:
                     failures.append(f"Tiptap composer script must expose editor-owned embed bridge token {token!r}")
             if "data-embed-type" not in composer_text or "embed-full-width-wrapper" not in composer_text:
                 failures.append("Tiptap composer script must render editor-owned embed diagnostics in the WebView document")
+            if "embedLabels" not in composer_text:
+                failures.append("Tiptap composer script must report editor-owned embed labels for accessibility diagnostics")
     if not composer_index.exists():
         failures.append("Missing local Tiptap composer index: apple/OpenMates/Resources/TiptapComposer/index.html")
     elif "type=\"importmap\"" not in composer_index.read_text(encoding="utf-8"):
@@ -188,6 +192,8 @@ def main() -> int:
                 failures.append(
                     "ChatViewModel send path must guard against appending Swift pending embed references when editor markdown already owns embeds"
                 )
+            if "editorMarkdownReference" not in chat_vm_text or "filename" not in chat_vm_text:
+                failures.append("ComposerPendingEmbed must provide editor markdown references with filenames for WebView rendering")
         else:
             failures.append("Missing ChatViewModel.swift for composer send-path audit")
 

@@ -63,6 +63,7 @@ final class TiptapComposerBridgeTests: XCTestCase {
             "text": "```json\n{\"type\":\"image\",\"embed_id\":\"embed-1\"}\n```",
             "embedCount": 1,
             "blockingEmbedCount": 1,
+            "embedLabels": ["photo.png"],
             "extensions": ["StarterKit", "Placeholder", "Embed"],
             "embedCommandNames": ["insertEmbed", "updateEmbed", "removeEmbed", "serializeMarkdown", "getDiagnostics"],
         ]))
@@ -70,6 +71,7 @@ final class TiptapComposerBridgeTests: XCTestCase {
         XCTAssertEqual(message.type, "diagnostics")
         XCTAssertEqual(message.embedCount, 1)
         XCTAssertEqual(message.blockingEmbedCount, 1)
+        XCTAssertEqual(message.embedLabels, ["photo.png"])
         XCTAssertTrue(message.extensions?.contains("Embed") == true)
         XCTAssertTrue(message.embedCommandNames?.contains("insertEmbed") == true)
     }

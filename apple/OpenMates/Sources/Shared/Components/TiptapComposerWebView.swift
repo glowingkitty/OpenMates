@@ -139,6 +139,7 @@ struct TiptapComposerBridgeMessage: Decodable, Equatable {
     let embedId: String?
     let embedType: String?
     let embedStatus: String?
+    let embedLabels: [String]?
     let extensions: [String]?
     let embedCommandNames: [String]?
 
@@ -162,6 +163,7 @@ struct TiptapComposerWebView: View {
 
     @State private var measuredHeight: CGFloat = 40
     @State private var diagnosticEmbedCount: Int?
+    @State private var diagnosticEmbedLabels: [String] = []
 
     private var editorHeight: CGFloat {
         compact ? minHeight : max(minHeight, measuredHeight)
@@ -176,6 +178,7 @@ struct TiptapComposerWebView: View {
                 placeholder: placeholder,
                 accessibilityHint: accessibilityHint,
                 embedCount: $diagnosticEmbedCount,
+                embedLabels: $diagnosticEmbedLabels,
                 measuredHeight: $measuredHeight,
                 onSubmit: onSubmit
             )
@@ -184,7 +187,7 @@ struct TiptapComposerWebView: View {
                 Color.clear
                     .frame(width: 1, height: 1)
                     .accessibilityIdentifier("message-editor-diagnostics")
-                    .accessibilityLabel("embedCount=\(effectiveEmbedCount)")
+                    .accessibilityLabel(diagnosticsAccessibilityLabel)
             }
         }
         .frame(maxWidth: .infinity, minHeight: editorHeight, maxHeight: compact ? minHeight : nil)
@@ -201,7 +204,13 @@ struct TiptapComposerWebView: View {
 
     private var accessibilityValue: String {
         guard effectiveEmbedCount > 0 else { return text }
-        return "\(text)\nembedCount=\(effectiveEmbedCount)"
+        return "\(text)\n\(diagnosticsAccessibilityLabel)"
+    }
+
+    private var diagnosticsAccessibilityLabel: String {
+        let labels = diagnosticEmbedLabels.filter { !$0.isEmpty }.joined(separator: ", ")
+        guard !labels.isEmpty else { return "embedCount=\(effectiveEmbedCount)" }
+        return "embedCount=\(effectiveEmbedCount); embedLabels=\(labels)"
     }
 
     private var effectiveEmbedCount: Int {
@@ -224,6 +233,7 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
     var placeholder: String
     var accessibilityHint: String
     @Binding var embedCount: Int?
+    @Binding var embedLabels: [String]
     @Binding var measuredHeight: CGFloat
     var onSubmit: () -> Void
 
@@ -309,6 +319,7 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
         private var lastSentCompact: Bool?
         private var lastFocusRequest: Bool?
         private var lastEmbedCount: Int?
+        private var lastEmbedLabels: [String] = []
 
         init(parent: PlatformTiptapComposerWebView) {
             self.parent = parent
@@ -327,7 +338,7 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
                 if parent.text != text {
                     parent.text = text
                 }
-                updateAccessibilityValue(text: text, embedCount: bridgeMessage.embedCount)
+                updateAccessibilityValue(text: text, embedCount: bridgeMessage.embedCount, embedLabels: bridgeMessage.embedLabels)
             case "submit":
                 parent.onSubmit()
             case "heightChanged":
@@ -346,19 +357,23 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
                 NativeDiagnostics.warning("Tiptap composer bridge error", category: "apple_composer")
             case "diagnostics", "serializedMarkdown", "embedInserted", "embedUpdated", "embedRemoved", "blockingEmbedsChanged":
                 if let text = bridgeMessage.text {
-                    updateAccessibilityValue(text: text, embedCount: bridgeMessage.embedCount)
+                    updateAccessibilityValue(text: text, embedCount: bridgeMessage.embedCount, embedLabels: bridgeMessage.embedLabels)
                 }
             default:
                 break
             }
         }
 
-        func updateAccessibilityValue(text: String, embedCount: Int? = nil) {
+        func updateAccessibilityValue(text: String, embedCount: Int? = nil, embedLabels: [String]? = nil) {
             if let embedCount {
                 lastEmbedCount = embedCount
                 parent.embedCount = embedCount
             }
-            let value = accessibilityValue(text: text, embedCount: lastEmbedCount)
+            if let embedLabels {
+                lastEmbedLabels = embedLabels
+                parent.embedLabels = embedLabels
+            }
+            let value = accessibilityValue(text: text, embedCount: lastEmbedCount, embedLabels: lastEmbedLabels)
             #if os(iOS)
             webView?.accessibilityValue = value
             #elseif os(macOS)
@@ -366,9 +381,11 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
             #endif
         }
 
-        private func accessibilityValue(text: String, embedCount: Int?) -> String {
+        private func accessibilityValue(text: String, embedCount: Int?, embedLabels: [String]) -> String {
             guard let embedCount else { return text }
-            return "\(text)\nembedCount=\(embedCount)"
+            let labels = embedLabels.filter { !$0.isEmpty }.joined(separator: ", ")
+            guard !labels.isEmpty else { return "\(text)\nembedCount=\(embedCount)" }
+            return "\(text)\nembedCount=\(embedCount); embedLabels=\(labels)"
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

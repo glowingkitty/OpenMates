@@ -309,12 +309,19 @@ import Placeholder from './vendor/tiptap-placeholder.mjs';
     });
   }
 
+  function embedLabels() {
+    return embedNodes().map(function (entry) {
+      return entry.attrs.filename || titleForType(entry.attrs.type);
+    });
+  }
+
   function postDiagnostics(type) {
     const embeds = embedNodes();
     post(type, {
       text: currentText,
       embedCount: embeds.length,
       blockingEmbedCount: blockingEmbeds().length,
+      embedLabels: embedLabels(),
       extensions: WEB_COMPOSER_EXTENSIONS,
       embedCommandNames: EMBED_COMMAND_NAMES,
     });
@@ -381,7 +388,7 @@ import Placeholder from './vendor/tiptap-placeholder.mjs';
     }
     currentText = text;
     const blockingCount = blockingEmbeds().length;
-    post('contentChanged', { text, embedCount: embedNodes().length, blockingEmbedCount: blockingCount });
+    post('contentChanged', { text, embedCount: embedNodes().length, blockingEmbedCount: blockingCount, embedLabels: embedLabels() });
     post('blockingEmbedsChanged', { blockingEmbedCount: blockingCount });
     reportHeight();
   }
@@ -427,7 +434,7 @@ import Placeholder from './vendor/tiptap-placeholder.mjs';
         break;
       case 'clear':
         renderText('');
-        post('contentChanged', { text: '' });
+        post('contentChanged', { text: '', embedLabels: [] });
         break;
       case 'setContent':
         renderText(command.text || '');
@@ -456,7 +463,7 @@ import Placeholder from './vendor/tiptap-placeholder.mjs';
         removeEmbed(command);
         break;
       case 'serializeMarkdown':
-        post('serializedMarkdown', { text: readText(), embedCount: embedNodes().length, blockingEmbedCount: blockingEmbeds().length });
+        post('serializedMarkdown', { text: readText(), embedCount: embedNodes().length, blockingEmbedCount: blockingEmbeds().length, embedLabels: embedLabels() });
         break;
       case 'getDiagnostics':
         postDiagnostics('diagnostics');
@@ -536,5 +543,5 @@ import Placeholder from './vendor/tiptap-placeholder.mjs';
   setDisabled(false);
   applyPlaceholder();
   reportHeight();
-  post('ready', { text: currentText, height: pendingHeight, embedCount: 0, blockingEmbedCount: 0, extensions: WEB_COMPOSER_EXTENSIONS, embedCommandNames: EMBED_COMMAND_NAMES });
+  post('ready', { text: currentText, height: pendingHeight, embedCount: 0, blockingEmbedCount: 0, embedLabels: [], extensions: WEB_COMPOSER_EXTENSIONS, embedCommandNames: EMBED_COMMAND_NAMES });
 })();
