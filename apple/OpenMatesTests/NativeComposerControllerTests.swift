@@ -89,6 +89,35 @@ final class NativeComposerControllerTests: XCTestCase {
         textView.attributedText = controller.attributedString
         XCTAssertNotNil(textView.textLayoutManager)
         XCTAssertEqual(textView.attributedText.string.utf16.count, 12)
+        let attachment = try XCTUnwrap(
+            textView.attributedText.attribute(
+                .attachment,
+                at: 6,
+                effectiveRange: nil
+            ) as? ComposerTextAttachment
+        )
+        var activationCount = 0
+        attachment.onActivate = { activationCount += 1 }
+        let layoutManager = try XCTUnwrap(textView.textLayoutManager)
+        let provider = try XCTUnwrap(attachment.viewProvider(
+            for: textView,
+            location: layoutManager.documentRange.location,
+            textContainer: textView.textContainer
+        ) as? ComposerAttachmentViewProvider)
+        provider.loadView()
+        let button = try XCTUnwrap(provider.view as? UIButton)
+        button.sendActions(for: .touchUpInside)
+        XCTAssertEqual(activationCount, 1)
+        XCTAssertEqual(
+            provider.attachmentBounds(
+                for: [:],
+                location: layoutManager.documentRange.location,
+                textContainer: textView.textContainer,
+                proposedLineFragment: CGRect(x: 0, y: 0, width: 320, height: 20),
+                position: .zero
+            ).size,
+            CGSize(width: 320, height: 60)
+        )
         #elseif canImport(AppKit)
         let textView = NSTextView(usingTextLayoutManager: true)
         textView.textStorage?.setAttributedString(controller.attributedString)

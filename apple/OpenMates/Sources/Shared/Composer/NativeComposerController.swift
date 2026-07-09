@@ -21,10 +21,13 @@ enum NativeComposerControllerError: Error, Equatable {
 
 final class ComposerTextAttachment: NSTextAttachment {
     let nodeID: String
+    var onActivate: (() -> Void)?
 
-    init(nodeID: String) {
+    init(nodeID: String, onActivate: (() -> Void)? = nil) {
         self.nodeID = nodeID
+        self.onActivate = onActivate
         super.init(data: nil, ofType: nil)
+        allowsTextAttachmentView = true
     }
 
     required init?(coder: NSCoder) {
@@ -32,6 +35,7 @@ final class ComposerTextAttachment: NSTextAttachment {
             return nil
         }
         self.nodeID = nodeID
+        self.onActivate = nil
         super.init(coder: coder)
     }
 
@@ -39,7 +43,138 @@ final class ComposerTextAttachment: NSTextAttachment {
         super.encode(with: coder)
         coder.encode(nodeID, forKey: "nodeID")
     }
+
+    override var usesTextAttachmentView: Bool { true }
+
+    #if canImport(UIKit)
+    override func viewProvider(
+        for parentView: UIView?,
+        location: any NSTextLocation,
+        textContainer: NSTextContainer?
+    ) -> NSTextAttachmentViewProvider? {
+        ComposerAttachmentViewProvider(
+            textAttachment: self,
+            parentView: parentView,
+            textLayoutManager: textContainer?.textLayoutManager,
+            location: location
+        )
+    }
+    #elseif canImport(AppKit)
+    override func viewProvider(
+        for parentView: NSView?,
+        location: any NSTextLocation,
+        textContainer: NSTextContainer?
+    ) -> NSTextAttachmentViewProvider? {
+        ComposerAttachmentViewProvider(
+            textAttachment: self,
+            parentView: parentView,
+            textLayoutManager: textContainer?.textLayoutManager,
+            location: location
+        )
+    }
+    #endif
 }
+
+#if canImport(UIKit)
+final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
+    private static let prototypeHeight: CGFloat = 60
+
+    override init(
+        textAttachment: NSTextAttachment,
+        parentView: UIView?,
+        textLayoutManager: NSTextLayoutManager?,
+        location: any NSTextLocation
+    ) {
+        super.init(
+            textAttachment: textAttachment,
+            parentView: parentView,
+            textLayoutManager: textLayoutManager,
+            location: location
+        )
+        tracksTextAttachmentViewBounds = true
+    }
+
+    override func loadView() {
+        MainActor.assumeIsolated {
+            let button = UIButton(type: .custom)
+            button.accessibilityIdentifier = "native-composer-embed-prototype"
+            button.addAction(UIAction { [weak self] _ in
+                (self?.textAttachment as? ComposerTextAttachment)?.onActivate?()
+            }, for: .touchUpInside)
+            view = button
+        }
+    }
+
+    override func attachmentBounds(
+        for attributes: [NSAttributedString.Key: Any],
+        location: any NSTextLocation,
+        textContainer: NSTextContainer?,
+        proposedLineFragment: CGRect,
+        position: CGPoint
+    ) -> CGRect {
+        CGRect(
+            x: proposedLineFragment.minX,
+            y: 0,
+            width: proposedLineFragment.width,
+            height: Self.prototypeHeight
+        )
+    }
+}
+#elseif canImport(AppKit)
+final class ComposerAttachmentViewProvider: NSTextAttachmentViewProvider {
+    private static let prototypeHeight: CGFloat = 60
+
+    override init(
+        textAttachment: NSTextAttachment,
+        parentView: NSView?,
+        textLayoutManager: NSTextLayoutManager?,
+        location: any NSTextLocation
+    ) {
+        super.init(
+            textAttachment: textAttachment,
+            parentView: parentView,
+            textLayoutManager: textLayoutManager,
+            location: location
+        )
+        tracksTextAttachmentViewBounds = true
+    }
+
+    override func loadView() {
+        MainActor.assumeIsolated {
+            let button = ComposerAttachmentButton()
+            button.onActivate = { [weak self] in
+                (self?.textAttachment as? ComposerTextAttachment)?.onActivate?()
+            }
+            button.identifier = NSUserInterfaceItemIdentifier("native-composer-embed-prototype")
+            view = button
+        }
+    }
+
+    override func attachmentBounds(
+        for attributes: [NSAttributedString.Key: Any],
+        location: any NSTextLocation,
+        textContainer: NSTextContainer?,
+        proposedLineFragment: CGRect,
+        position: CGPoint
+    ) -> CGRect {
+        CGRect(
+            x: proposedLineFragment.minX,
+            y: 0,
+            width: proposedLineFragment.width,
+            height: Self.prototypeHeight
+        )
+    }
+}
+
+private final class ComposerAttachmentButton: NSButton {
+    var onActivate: (() -> Void)?
+
+    override func mouseUp(with event: NSEvent) {
+        super.mouseUp(with: event)
+        onActivate?()
+    }
+}
+#endif
 
 final class NativeComposerController {
     private(set) var document: ComposerDocumentV1
