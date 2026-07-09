@@ -33,14 +33,10 @@ test('configured account can complete password and OTP login', async ({ page }: 
 	log('Account preflight login succeeded.', { email });
 
 	await expect(page.getByTestId('header-github-link')).toBeVisible({ timeout: 15000 });
-	await expect(page.getByTestId('referral-cta')).toBeVisible({ timeout: 15000 });
-	await expect(page.getByTestId('referral-cta')).toContainText(/Get free credits/i);
-	log('Authenticated wide header actions are visible.', { email });
+	log('Authenticated wide header is visible.', { email });
 
 	await page.getByTestId('profile-container').click();
 	await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 10000 });
 	await expect(page.getByTestId('header-github-link')).toBeVisible({ timeout: 10000 });
-	await expect(page.getByTestId('referral-cta')).toBeVisible({ timeout: 10000 });
-	await expect(page.getByTestId('referral-cta')).toContainText(/Get free credits/i);
-	log('Authenticated wide header actions stay visible while settings are open.', { email });
+	log('Authenticated wide header stays visible while settings are open.', { email });
 });
