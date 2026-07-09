@@ -9,6 +9,7 @@
  */
 
 import type { ExampleChatConversation, ExampleChatListItem } from "./exampleChats.js";
+import { openMatesAsciiLogo } from "./branding.js";
 
 export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chat" | "embed" | "status";
 
@@ -162,7 +163,7 @@ function renderBody(state: TuiState, width: number): string[] {
 function renderStart(width: number): string[] {
   return [
     "",
-    ...asciiLogo(width),
+    ...openMatesAsciiLogo(width),
     "",
     "AI team mates.",
     "For everyday tasks & learning.",
@@ -321,18 +322,6 @@ function interestScore(haystack: string, interest: string): number {
     if (haystack.includes(token)) score += 2;
   }
   return score;
-}
-
-function asciiLogo(width: number): string[] {
-  const large = [
-    " ██████  ██████  ███████ ███    ██ ███    ███  █████  ████████ ███████",
-    "██    ██ ██   ██ ██      ████   ██ ████  ████ ██   ██    ██    ██     ",
-    "██    ██ ██████  █████   ██ ██  ██ ██ ████ ██ ███████    ██    ███████",
-    "██    ██ ██      ██      ██  ██ ██ ██  ██  ██ ██   ██    ██         ██",
-    " ██████  ██      ███████ ██   ████ ██      ██ ██   ██    ██    ███████",
-  ];
-  if (width >= 78) return large;
-  return ["OPENMATES"];
 }
 
 function labelForRole(role: string): string {

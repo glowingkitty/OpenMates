@@ -1355,24 +1355,64 @@ describe("defaultCloneBranchForVersion", () => {
 describe("CLI self-update commands", () => {
   it("lists update and upgrade aliases in global help", () => {
     const output = runCli(["help"]);
+    assert.match(output, /openmates version\s+Show CLI version and update availability/);
     assert.match(output, /openmates update\s+Update the installed OpenMates CLI package/);
     assert.match(output, /openmates upgrade\s+Alias for openmates update/);
   });
 
-  it("prints the npm update command in dry-run mode", () => {
-    const output = runCli(["update", "--dry-run"], { npm_config_user_agent: "" });
-    assert.match(output, /Current OpenMates CLI version: \S+/);
+  it("prints branded npm update status in dry-run mode", () => {
+    const output = runCli(["update", "--dry-run"], {
+      npm_config_user_agent: "",
+      OPENMATES_CLI_LATEST_VERSION: "99.0.0",
+    });
+    assert.match(output, /OPENMATES/);
+    assert.doesNotMatch(output, /OPENMATS\b/);
+    assert.match(output, /Checking for updates/);
+    assert.match(output, /Current version: \S+/);
+    assert.match(output, /Latest version:\s+99\.0\.0/);
     assert.match(output, /Would run: npm install -g openmates@latest/);
   });
 
+  it("skips self-update when the installed version already matches the latest version", () => {
+    const output = runCli(["update", "--dry-run"], {
+      npm_config_user_agent: "",
+      OPENMATES_CLI_LATEST_VERSION: "0.14.0",
+    });
+    assert.match(output, /OpenMates CLI is already up to date\./);
+    assert.doesNotMatch(output, /Would run:/);
+  });
+
   it("supports upgrade as the same dry-run command with a selected package manager", () => {
-    const output = runCli(["upgrade", "--version", "0.14.0", "--package-manager", "pnpm", "--dry-run", "--json"]);
-    const parsed = JSON.parse(output) as { command: string; package_manager: string; package: string; run: string[]; dry_run: boolean };
+    const output = runCli(["upgrade", "--version", "0.14.0", "--package-manager", "pnpm", "--dry-run", "--json"], {
+      OPENMATES_CLI_LATEST_VERSION: "0.14.0",
+    });
+    const parsed = JSON.parse(output) as {
+      command: string;
+      package_manager: string;
+      package: string;
+      run: string[];
+      dry_run: boolean;
+      latest_version: string;
+      update_available: boolean;
+    };
     assert.equal(parsed.command, "upgrade");
     assert.equal(parsed.package_manager, "pnpm");
     assert.equal(parsed.package, "openmates@0.14.0");
     assert.deepEqual(parsed.run, ["pnpm", "add", "-g", "openmates@0.14.0"]);
     assert.equal(parsed.dry_run, true);
+    assert.equal(parsed.latest_version, "0.14.0");
+    assert.equal(parsed.update_available, false);
+  });
+
+  it("prints version and update guidance through command and top-level flag", () => {
+    const commandOutput = runCli(["version"], { OPENMATES_CLI_LATEST_VERSION: "99.0.0" });
+    assert.match(commandOutput, /OpenMates CLI 0\.14\.0/);
+    assert.match(commandOutput, /Update available: 99\.0\.0/);
+    assert.match(commandOutput, /Run: openmates upgrade/);
+
+    const flagOutput = runCli(["--version"], { OPENMATES_CLI_LATEST_VERSION: "0.14.0" });
+    assert.match(flagOutput, /OpenMates CLI 0\.14\.0/);
+    assert.match(flagOutput, /OpenMates CLI is up to date\./);
   });
 });
 
