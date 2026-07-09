@@ -266,8 +266,8 @@ private struct PlatformTiptapComposerWebView: PlatformViewRepresentable {
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
-        webView.isOpaque = false
         #if os(iOS)
+        webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
         webView.scrollView.isScrollEnabled = false
