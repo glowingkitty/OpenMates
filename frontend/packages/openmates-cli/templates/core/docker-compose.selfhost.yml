@@ -184,8 +184,9 @@ services:
     image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-dev}
     container_name: task-worker
     restart: unless-stopped
+    mem_limit: ${TASK_WORKER_MEMORY_LIMIT:-3g}
     env_file: ../../.env
-    command: python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email,user_init,persistence,health_check,server_stats,demo,reminder,push --concurrency=3
+    command: python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email,user_init,persistence,health_check,server_stats,demo,reminder,push --concurrency=${TASK_WORKER_CONCURRENCY:-3} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1
     networks: [openmates]
     depends_on: [api]
 
@@ -203,36 +204,40 @@ services:
   app-ai-worker:
     <<: *openmates-worker-base
     container_name: app-ai-worker
+    mem_limit: ${APP_AI_WORKER_MEMORY_LIMIT:-2g}
     environment:
       <<: *openmates-worker-env
       CELERY_QUEUES: app_ai
-      CELERY_AUTOSCALE_MAX: ${CELERY_AUTOSCALE_MAX:-10}
+      CELERY_AUTOSCALE_MAX: ${APP_AI_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-3}}
     command: >
       sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_ai --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   app-images-worker:
     <<: *openmates-worker-base
     container_name: app-images-worker
+    mem_limit: ${APP_IMAGES_WORKER_MEMORY_LIMIT:-1792m}
     environment:
       <<: *openmates-worker-env
       CELERY_QUEUES: app_images
-      CELERY_AUTOSCALE_MAX: ${CELERY_AUTOSCALE_MAX:-10}
+      CELERY_AUTOSCALE_MAX: ${APP_IMAGES_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-3}}
     command: >
       sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_images --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   app-music-worker:
     <<: *openmates-worker-base
     container_name: app-music-worker
+    mem_limit: ${APP_MUSIC_WORKER_MEMORY_LIMIT:-1536m}
     environment:
       <<: *openmates-worker-env
       CELERY_QUEUES: app_music
-      CELERY_AUTOSCALE_MAX: ${CELERY_AUTOSCALE_MAX:-5}
+      CELERY_AUTOSCALE_MAX: ${APP_MUSIC_WORKER_CONCURRENCY:-2}
     command: >
       sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_music --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=20 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   app-videos-worker:
     <<: *openmates-worker-base
     container_name: app-videos-worker
+    mem_limit: ${APP_VIDEOS_WORKER_MEMORY_LIMIT:-1280m}
     environment:
       <<: *openmates-worker-env
       CELERY_QUEUES: app_videos
@@ -244,6 +249,7 @@ services:
   app-pdf-worker:
     <<: *openmates-worker-base
     container_name: app-pdf-worker
+    mem_limit: ${APP_PDF_WORKER_MEMORY_LIMIT:-1536m}
     environment:
       <<: *openmates-worker-env
       CELERY_QUEUES: app_pdf
@@ -254,6 +260,7 @@ services:
     <<: *openmates-worker-base
     image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-docs-worker:${OPENMATES_IMAGE_TAG:-dev}
     container_name: app-docs-worker
+    mem_limit: ${APP_DOCS_WORKER_MEMORY_LIMIT:-1536m}
     environment:
       <<: *openmates-worker-env
       CELERY_QUEUES: app_docs
@@ -263,6 +270,7 @@ services:
   app-code-worker:
     <<: *openmates-worker-base
     container_name: app-code-worker
+    mem_limit: ${APP_CODE_WORKER_MEMORY_LIMIT:-1g}
     environment:
       <<: *openmates-worker-env
       CELERY_QUEUES: app_code
@@ -272,6 +280,7 @@ services:
   app-social-media-worker:
     <<: *openmates-worker-base
     container_name: app-social-media-worker
+    mem_limit: ${APP_SOCIAL_MEDIA_WORKER_MEMORY_LIMIT:-1536m}
     environment:
       <<: *openmates-worker-env
       CELERY_QUEUES: app_social_media

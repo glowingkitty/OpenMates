@@ -253,6 +253,25 @@ For source-mode installs, `openmates server update` keeps the Git workflow: it r
 
 See [CLI server management](../user-guide/cli/server-management.md) for the full command reference.
 
+## Resource Tuning
+
+OpenMates starts several Celery worker containers. On small hosts, worker concurrency drives most baseline memory usage because every prefork child keeps its own Python process memory. The self-host defaults are conservative for 16 GB hosts and can be raised on larger machines.
+
+Useful `.env` knobs:
+
+```bash
+TASK_WORKER_CONCURRENCY=3
+APP_AI_WORKER_CONCURRENCY=3
+APP_IMAGES_WORKER_CONCURRENCY=3
+APP_MUSIC_WORKER_CONCURRENCY=2
+TASK_WORKER_MEMORY_LIMIT=3g
+APP_AI_WORKER_MEMORY_LIMIT=2g
+APP_IMAGES_WORKER_MEMORY_LIMIT=1792m
+APP_MUSIC_WORKER_MEMORY_LIMIT=1536m
+```
+
+For production hosts, also configure a small swap file at the OS level. Swap should not be used during normal operation, but it gives the kernel room to degrade gracefully during short memory spikes instead of immediately OOM-killing a worker.
+
 ## Images and Runtime Containers
 
 The GHCR package list is shorter than the runtime container list. OpenMates publishes a small set of reusable images, then Docker Compose starts multiple containers from those images with different commands and Celery queues.
