@@ -371,6 +371,9 @@ struct ChatView: View {
             updatePIIMatches(for: newValue)
             updateMentionQuery(for: newValue)
         }
+        .onChange(of: viewModel.pendingComposerEmbeds.map(\.id)) { _, _ in
+            insertPendingComposerEmbedsIntoEditor()
+        }
         .onChange(of: piiPrivacySettingsStore.settings) { _, _ in
             updatePIIMatches(for: messageText)
         }
@@ -1425,19 +1428,25 @@ struct ChatView: View {
     }
 
     private var pendingComposerInlineFieldContent: AnyView? {
-        if viewModel.hasPendingComposerEmbeds {
-            return AnyView(PendingComposerEmbedsList(embeds: viewModel.pendingComposerEmbeds) { embed in
-                viewModel.removePendingComposerEmbed(id: embed.id)
-            })
-        }
-
-        #if DEBUG
-        if shouldShowUITestPendingComposerEmbedFallback {
-            return AnyView(PendingComposerEmbedsList(embeds: [.uiTestFixture]) { _ in })
-        }
-        #endif
-
+        // Normal embed parity path: pending uploads are inserted into the WebView
+        // editor document as canonical markdown refs, then rendered as Tiptap embed
+        // nodes instead of a separate native pending strip.
         return nil
+    }
+
+    private func insertPendingComposerEmbedsIntoEditor() {
+        let embeds = viewModel.pendingComposerEmbeds
+        guard !embeds.isEmpty else { return }
+        for embed in embeds {
+            appendComposerEmbedReference(embed)
+            viewModel.removePendingComposerEmbed(id: embed.id)
+        }
+    }
+
+    private func appendComposerEmbedReference(_ embed: ComposerPendingEmbed) {
+        guard !messageText.contains("\"embed_id\": \"\(embed.id)\"") else { return }
+        let trimmed = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        messageText = trimmed.isEmpty ? embed.editorMarkdownReference : "\(trimmed)\n\n\(embed.editorMarkdownReference)"
     }
 
     private func composerOverlayView() -> AnyView? {
@@ -1533,12 +1542,6 @@ struct ChatView: View {
         isInputFocused = true
         #endif
     }
-
-    #if DEBUG
-    private var shouldShowUITestPendingComposerEmbedFallback: Bool {
-        ProcessInfo.processInfo.arguments.contains("--ui-test-seed-pending-composer-embed")
-    }
-    #endif
 
     private var newChatInlineButton: some View {
         Button {

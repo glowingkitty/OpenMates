@@ -58,6 +58,7 @@ TOP_LEVEL_CLASSIFICATION = {
     "support": "project-support-info",
     "update": "cli-self-update",
     "upgrade": "cli-self-update",
+    "version": "cli-self-update",
     "server": "server-ops",
     "docs": "docs.*",
     "e2e": "e2e-provisioning",

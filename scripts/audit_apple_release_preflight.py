@@ -75,8 +75,12 @@ REQUIRED_ENTITLEMENT_TERMS = {
 }
 REQUIRED_TESTFLIGHT_TERMS = {
     "TestFlight upload requires --whats-new or --whats-new-file": "TestFlight uploads require --whats-new or --whats-new-file",
+    "TestFlight changelog has a five-line minimum": "MIN_TESTFLIGHT_WHATS_NEW_LINES = 5",
+    "TestFlight changelog short notes fail before upload": "must contain at least",
     "TestFlight changelog length is capped": "TestFlight What to Test text must be 4000 characters or less",
     "TestFlight notes are uploaded after binary upload": "upsert_testflight_whats_new()",
+    "TestFlight recent-build audit checks localizations": "betaBuildLocalizations",
+    "TestFlight recent-build audit fails on invalid changelogs": "changelog_status=failed",
 }
 
 

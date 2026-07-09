@@ -1,0 +1,514 @@
+id: release-intelligence-workflow
+title: Release Intelligence And Communication Workflow
+status: implementing
+
+goal: >
+  Build an LLM-assisted release-intelligence pipeline that turns OpenMates git,
+  PR, deployment, and campaign history into natural-language daily, weekly,
+  monthly, PR, release, newsletter, and social-media planning artifacts. Gemini
+  Flash writes the primary narrative summaries, while deterministic source
+  collection and release-status checks ground every claim and prevent unreleased
+  work from being communicated as shipped.
+
+scope:
+  in:
+    - Generate daily changelog YAML files with Gemini-written natural-language summaries grounded in recent commits and changed paths.
+    - Generate weekly and monthly Gemini-written rollups from prior summaries, preserving dates so product progress over time is visible.
+    - Support a target cadence of one user newsletter every two weeks when enough released user-facing changes exist.
+    - Use merged main PRs plus existing feature availability gates as the newsletter eligibility gate for released product communication.
+    - Update PR and GitHub release draft workflows to consume release-intelligence artifacts instead of raw commit dumps.
+    - Create or update newsletter campaign drafts in openmates-marketing and Directus after released main changes are detected.
+    - Notify the admin by Discord/email when newsletter drafts, approvals, or social/video recommendations need attention.
+    - Generate social media and short-video recommendations from released or soon-to-release feature candidates.
+  out:
+    - Automatically approving or scheduling newsletters before an admin preview has been explicitly reviewed and approved.
+    - Sending newsletters about dev-only, disabled, incomplete, or unmerged features.
+    - Publishing or scheduling Buffer posts automatically without explicit user/admin approval.
+    - Replacing the existing Directus newsletter campaign scheduler or Brevo sender.
+    - Building full Remotion videos as part of the daily changelog script.
+
+context_discovery:
+  github_issues:
+    - none found for "release notes changelog newsletter social PR descriptions" using gh fallback; GitHub MCP returned 401.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - vaults/memory/Areas/marketing/communication-strategy.md
+  code_patterns:
+    - .agents/skills/create-newsletter/SKILL.md
+    - .agents/skills/publish-newsletter/SKILL.md
+    - .agents/skills/create-pr/SKILL.md
+    - .agents/skills/create-release/SKILL.md
+    - backend/core/api/app/routes/admin_newsletter_campaigns.py
+    - backend/core/api/app/services/newsletter_campaign_service.py
+    - backend/core/api/app/tasks/email_tasks/newsletter_campaign_task.py
+    - backend/core/api/app/tasks/celery_config.py
+    - /home/superdev/projects/openmates-marketing/AGENTS.md
+    - /home/superdev/projects/openmates-marketing/.agents/skills/create-social-campaign/SKILL.md
+    - /home/superdev/projects/openmates-marketing/.agents/skills/buffer-posts/SKILL.md
+    - /home/superdev/projects/openmates-marketing/scripts/_remotion_marketing_review_helper.py
+  tests:
+    - scripts/spec_validate.py
+    - scripts/tests/test_spec_workflow_validation.py
+    - scripts/tests/test_prepare_python_publish_version.py
+
+clarification:
+  rounds:
+    - question: Should the target newsletter cadence be monthly or every two weeks?
+      answer: The target should be every two weeks.
+    - question: Should newsletters be auto-scheduled before admin approval?
+      answer: No. Drafting and preview reminders can be automatic, but scheduling/sending requires admin approval.
+  vision_summary: >
+    The workflow should continuously collect product-change evidence and make it
+    easy to communicate shipped changes on a two-week newsletter cadence, while
+    separately tracking unreleased progress for PR and internal release planning.
+    Deterministic scripts should classify and gate eligibility; LLMs can polish
+    prose after the source data is already structured and auditable.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Daily changelog captures natural-language change analysis
+    given:
+      - The OpenMates dev branch has commits from the last 24 hours.
+    when:
+      - The daily release-intelligence script runs.
+    then:
+      - It writes a dated YAML file under docs/releases/daily/.
+      - It includes a Gemini-written llm_summary with overview, released changes, bug fixes, unreleased progress, newsletter recommendations, and social/video ideas.
+      - Every LLM-generated bullet cites one or more known source commits or receives a validation warning.
+      - Changes not reachable from main, or tied to disabled/unreleased feature gates, are kept out of newsletter include recommendations.
+      - The LLM source includes disabled feature IDs from the existing feature availability service.
+  - id: S-2
+    title: Rollups preserve product progress over time
+    given:
+      - Multiple daily changelog YAML files exist.
+    when:
+      - The weekly or monthly release-intelligence script runs.
+    then:
+      - Gemini summarizes the dated daily summaries into a weekly natural-language analysis.
+      - It keeps shipped changes separate from unreleased progress.
+      - It uses neutral authorship language and does not imply an OpenMates team.
+      - It produces source material suitable for PR descriptions, release notes, and marketing planning.
+  - id: S-3
+    title: Main merge prepares newsletter draft without bypassing approval
+    given:
+      - One or more PRs have merged into main since the previous newsletter source range.
+      - At least one merged change is user-facing and newsletter-worthy.
+    when:
+      - The newsletter check workflow runs.
+    then:
+      - It creates or updates a campaign draft in openmates-marketing.
+      - It upserts a Directus draft campaign and sends an admin preview when configured.
+      - It does not approve, schedule, or send the campaign without explicit admin approval.
+      - It targets a two-week newsletter cadence unless a release is too small or urgent enough for manual override.
+  - id: S-4
+    title: PR and release drafts consume structured evidence
+    given:
+      - Release-intelligence daily and rollup files exist.
+    when:
+      - A maintainer creates a PR from dev to main or drafts a GitHub release.
+    then:
+      - The generated body uses structured release-intelligence artifacts.
+      - It clearly separates released user-facing changes from internal or unreleased progress.
+      - It avoids commit-dump prose.
+  - id: S-5
+    title: Social recommendations identify suitable product demos
+    given:
+      - A released or nearly released feature has clear user-facing value.
+    when:
+      - The weekly or newsletter workflow evaluates marketing candidates.
+    then:
+      - It recommends social post angles, channel fit, and whether a short video, longer demo, image, carousel, or founder post is appropriate.
+      - It marks whether a production example chat or Playwright recording is required.
+      - It does not create Buffer posts or publish social content automatically.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The daily script produces a valid YAML artifact with date, source range, generated timestamp, deterministic source data, and a Gemini-written llm_summary with commit-backed items.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-DAILY-UNIT, T-DAILY-SMOKE]
+  - id: AC-2
+    scenario: S-1
+    text: The daily script marks changes as newsletter_ready only when the source commit is reachable from main or when an explicit released override is provided, and any related feature availability gates are effectively enabled.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-DAILY-UNIT]
+  - id: AC-3
+    scenario: S-1
+    text: The daily artifact distinguishes user-facing candidates from docs, tests, infrastructure, internal work, and other changes using deterministic commit and path rules before Gemini writes the narrative summary.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-DAILY-UNIT]
+  - id: AC-4
+    scenario: S-2
+    text: Weekly and monthly rollups summarize prior summaries in natural language without losing the date of each source item.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-WEEKLY-UNIT, T-MONTHLY-UNIT, V-ROLLUP-FUTURE]
+  - id: AC-5
+    scenario: S-3
+    text: Newsletter draft automation uses merged main PRs and released user-facing changes as eligibility gates.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [V-NEWSLETTER-FUTURE]
+  - id: AC-6
+    scenario: S-3
+    text: Newsletter automation targets a two-week cadence and never approves, schedules, or sends before admin preview approval.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [V-NEWSLETTER-FUTURE]
+  - id: AC-7
+    scenario: S-4
+    text: PR and release draft skills consume release-intelligence artifacts and keep unreleased progress out of public release/newsletter sections.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [V-PR-RELEASE-FUTURE, T-DAILY-UNIT]
+  - id: AC-8
+    scenario: S-5
+    text: Social recommendations include channel, format, asset requirements, example-chat requirements, and a reason tied to released or near-release source evidence.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [V-SOCIAL-FUTURE]
+
+assumptions:
+  - id: A-1
+    text: Local git refs origin/main and origin/dev are available often enough for deterministic reachability checks; when unavailable, the script fails closed and treats newsletter readiness as false.
+    category: git
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: git status during session 0837
+        summary: Repository is on dev and up to date with remote; origin refs are used by existing create-pr skill guidance.
+  - id: A-2
+    text: Gemini or another LLM is required for the primary communication artifact; --no-llm remains available only for deterministic debugging and offline tests.
+    category: llm
+    required_before: implementation
+    status: corrected
+    evidence:
+      - source: user request and discussion
+        summary: User clarified that natural-language LLM summaries are the intended primary artifact, with deterministic data only as grounding.
+
+contracts:
+  artifact_schema:
+    - daily files live at docs/releases/daily/YYYY-MM-DD.yml unless --output is provided.
+    - daily files contain schema_version, cadence, date, generated_at, range, summary, sections, unreleased_progress, marketing_candidates, risks, sources, and llm_summary.
+    - every deterministic section item contains title, commits, changed_paths, release_status, newsletter_ready, user_facing, and rationale.
+    - llm_summary contains overview, released_changes, bug_fixes, unreleased_progress, internal_progress, newsletter_recommendation, social_video_recommendations, quality_notes, and validation_warnings.
+  release_gating:
+    - newsletter_ready is false unless all source commits are reachable from main or --assume-released is passed for a controlled dry run.
+    - newsletter_ready is false when related feature IDs are effectively disabled by the existing feature availability service.
+    - dev-only, disabled-feature, or unknown reachability changes may be PR/release planning material but not user newsletter material.
+  llm_usage:
+    - Gemini writes the primary natural-language llm_summary after deterministic items exist.
+    - LLM output should not introduce items without source commit references; unsupported claims are retained only with validation_warnings for review.
+  newsletter:
+    - Campaign drafts are created or updated only from released main changes.
+    - Admin preview and explicit approval remain mandatory before scheduling or sending.
+    - Two weeks is the default target cadence, with manual override for urgent or sparse releases.
+  social:
+    - Social candidates are recommendations only until a user/admin invokes create-social-campaign or buffer-posts.
+    - App-skill or chat-based demo recommendations must mark whether a production example chat is required.
+  privacy_security:
+    - Artifacts must not include secrets, raw user data, private emails, production identifiers, or unreleased private logs.
+    - Newsletter/social prose must avoid overbroad privacy claims and follow the marketing communication strategy.
+
+tests:
+  - id: T-DAILY-UNIT
+    type: pytest
+    file: scripts/tests/test_release_intelligence.py
+    command: python3 -m pytest scripts/tests/test_release_intelligence.py
+    covers: [AC-1, AC-2, AC-3]
+    assertions:
+      - deterministic commit fixtures are grouped into expected sections
+      - main-reachable changes are newsletter_ready
+      - dev-only changes are not newsletter_ready
+      - main-reachable changes tied to disabled feature gates, including Apple Watch, iOS, and macOS, are not newsletter_ready
+      - workflows, projects, tasks, and plans are treated as unreleased when disabled by feature availability
+      - LLM source payloads include the disabled feature list and prompt rules require neutral authorship wording
+      - newsletter include evidence is limited to deterministic newsletter-ready commits
+      - marketing candidates include released user-facing features and improvements
+      - YAML serialization includes required top-level fields
+      - LLM summary normalization keeps only known commit evidence and emits warnings for unsupported claims
+      - weekly LLM source includes dated daily summaries
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: user_requested_immediate_first_slice
+        timestamp: "2026-07-08T00:00:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local:pytest-release-intelligence
+        timestamp: "2026-07-09T12:22:33Z"
+  - id: T-DAILY-SMOKE
+    type: manual
+    covers: [AC-1]
+    assertions:
+      - daily command runs against the current repository without writing unless --write is passed
+      - output is valid YAML
+      - output includes recent commits and clearly marks newsletter readiness
+      - output includes a Gemini-written llm_summary with no validation warnings for the smoke run
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: deterministic_script_smoke
+        timestamp: "2026-07-08T00:00:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local:release-intelligence-daily-gemini
+        timestamp: "2026-07-09T10:20:00Z"
+        artifact: /tmp/opencode/release-intelligence-llm/daily/2026-07-09.yml
+  - id: T-WEEKLY-UNIT
+    type: pytest
+    file: scripts/tests/test_release_intelligence.py
+    command: python3 -m pytest scripts/tests/test_release_intelligence.py
+    covers: [AC-4]
+    assertions:
+      - weekly rollup reads daily YAML files in a requested date range
+      - weekly rollup preserves each source item's date
+      - repeated daily changes are grouped into deterministic themes
+      - dev-only progress remains separate from newsletter candidates
+      - weekly YAML serialization includes required top-level fields
+      - weekly LLM source preserves dated daily llm_summary entries
+      - monthly rollup reads weekly artifacts and preserves source week dates
+      - weekly Discord payload includes newsletter include/exclude summaries
+      - cron wrapper exposes daily, weekly, and monthly modes
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: weekly_slice_added_after_daily_shape_review
+        timestamp: "2026-07-08T20:20:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local:pytest-release-intelligence-llm
+        timestamp: "2026-07-09T13:08:38Z"
+  - id: T-MONTHLY-UNIT
+    type: pytest
+    file: scripts/tests/test_release_intelligence.py
+    command: python3 -m pytest scripts/tests/test_release_intelligence.py
+    covers: [AC-4]
+    assertions:
+      - monthly rollup reads weekly YAML artifacts in a requested date range
+      - monthly rollup preserves each source week
+      - monthly LLM source includes dated weekly summaries
+      - monthly YAML serialization includes required top-level fields
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: monthly_slice_added_after_weekly_shape_review
+        timestamp: "2026-07-09T13:08:38Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local:pytest-release-intelligence-monthly-cron
+        timestamp: "2026-07-09T13:08:38Z"
+
+verifications:
+  - id: V-ROLLUP-FUTURE
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-4]
+    status: passed
+    evidence:
+      status: passed
+      summary: Weekly and monthly rollups are implemented; weekly can send Discord summaries via DISCORD_WEBHOOK_RELEASE_INTELLIGENCE with DEV_NIGHTLY fallback.
+      timestamp: "2026-07-09T13:08:38Z"
+      artifact: /tmp/opencode/release-intelligence-cli-smoke-weekly.yml
+  - id: V-NEWSLETTER-FUTURE
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-5, AC-6]
+    status: blocked
+    evidence:
+      status: blocked
+      summary: Newsletter Directus/openmates-marketing mutation is intentionally outside the first daily-script slice.
+      timestamp: "2026-07-09T13:08:38Z"
+  - id: V-PR-RELEASE-FUTURE
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-7]
+    status: passed
+    evidence:
+      status: passed
+      summary: create-pr skill now refreshes the current daily release-intelligence artifact and uses daily changelogs since the last dev-to-main PR before falling back to raw commits.
+      timestamp: "2026-07-09T13:08:38Z"
+  - id: V-SOCIAL-FUTURE
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-8]
+    status: blocked
+    evidence:
+      status: blocked
+      summary: Social recommendation generation will be added after the daily artifact shape is confirmed.
+      timestamp: "2026-07-09T13:08:38Z"
+
+implementation_plan:
+  existing_patterns:
+    - scripts/auto_translate.py for optional Gemini API loading and function-call style usage.
+    - scripts/_remotion_marketing_review_helper.py for scheduled marketing review prompt generation.
+    - backend/core/api/app/services/newsletter_campaign_service.py for existing campaign draft/approval/schedule constraints.
+    - openmates-marketing/.agents/skills/create-social-campaign/SKILL.md for social campaign handoff rules.
+  architecture: >
+    A local script family under scripts/release_intelligence.py creates durable
+    YAML artifacts. Daily artifacts are deterministic and commit-backed. Weekly,
+    monthly, PR, release, newsletter, and social workflows consume those files
+    instead of re-summarizing raw git history. Optional LLM prose generation is a
+    later pass over this structured evidence and is validated against source
+    commit references.
+  data_flow:
+    - Daily cron gathers commits, changed paths, branch reachability, feature availability status, and deterministic classification.
+    - Daily YAML is written to docs/releases/daily/ and optionally posted as an admin digest.
+    - Weekly and monthly scripts summarize daily YAML files with source dates preserved.
+    - PR and release skills consume rollups and current main/dev ranges.
+    - Newsletter check reads merged-main evidence, creates/updates a draft campaign, sends preview, and waits for approval.
+    - Social workflow reads marketing candidates and hands off to create-social-campaign/remotion/buffer tools.
+  affected_files:
+    - path: scripts/release_intelligence.py
+      reason: New deterministic daily/rollup/newsletter source artifact CLI.
+    - path: scripts/tests/test_release_intelligence.py
+      reason: Unit coverage for daily classification and artifact schema.
+    - path: docs/specs/release-intelligence-workflow/spec.yml
+      reason: Executable contract for the full workflow.
+    - path: .agents/skills/create-pr/SKILL.md
+      reason: Future update to consume release-intelligence artifacts.
+    - path: .agents/skills/create-release/SKILL.md
+      reason: Future update to consume release-intelligence artifacts.
+    - path: .agents/skills/create-newsletter/SKILL.md
+      reason: Future update to draft from release-intelligence source ranges.
+    - path: /home/superdev/projects/openmates-marketing/.agents/skills/create-social-campaign/SKILL.md
+      reason: Future update to consume social recommendation candidates.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/release-intelligence-workflow/spec.yml
+    - python3 -m pytest scripts/tests/test_release_intelligence.py
+    - python3 scripts/release_intelligence.py daily --since "24 hours ago" --stdout
+  verification_order:
+    - Deterministic script unit tests first.
+    - Daily smoke output for user review second.
+    - Rollup/newsletter/social follow-up tests after user confirms artifact shape.
+  risks:
+    - Commit subjects alone can misclassify changes; path rules and later PR/issue metadata should improve quality.
+    - Reachability checks fail closed if origin/main is unavailable, which may under-report newsletter readiness but avoids over-communicating unreleased work.
+    - A two-week newsletter cadence can still be too frequent when shipped user-facing changes are sparse; workflow should recommend skipping rather than forcing low-quality newsletters.
+
+tasks:
+  - id: TASK-1
+    title: Implement deterministic daily changelog artifact
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-1]
+      acceptance_criteria: [AC-1, AC-2, AC-3]
+    expected_files:
+      - scripts/release_intelligence.py
+      - scripts/tests/test_release_intelligence.py
+      - docs/specs/release-intelligence-workflow/spec.yml
+    verification: [T-DAILY-UNIT, T-DAILY-SMOKE]
+    verification_ids: [T-DAILY-UNIT, T-DAILY-SMOKE]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-2
+    title: Add weekly and monthly rollups from daily files
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-2]
+      acceptance_criteria: [AC-4]
+    expected_files:
+      - scripts/release_intelligence.py
+      - scripts/tests/test_release_intelligence.py
+    verification: [V-ROLLUP-FUTURE]
+    verification_ids: [V-ROLLUP-FUTURE]
+    blockers:
+      - none
+    follow_up_tasks:
+      - none
+    independently_deployable: true
+  - id: TASK-3
+    title: Connect released main changes to newsletter draft workflow
+    status: blocked
+    phase: working_tasks
+    covers:
+      scenarios: [S-3]
+      acceptance_criteria: [AC-5, AC-6]
+    expected_files:
+      - scripts/release_intelligence.py
+      - .agents/skills/create-newsletter/SKILL.md
+      - .agents/skills/publish-newsletter/SKILL.md
+    verification: [V-NEWSLETTER-FUTURE]
+    verification_ids: [V-NEWSLETTER-FUTURE]
+    blockers:
+      - User approval of newsletter cadence and draft/preview/approval handoff details.
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Update PR and release drafting skills to consume artifacts
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-4]
+      acceptance_criteria: [AC-7]
+    expected_files:
+      - .agents/skills/create-pr/SKILL.md
+      - .agents/skills/create-release/SKILL.md
+    verification: [V-PR-RELEASE-FUTURE]
+    verification_ids: [V-PR-RELEASE-FUTURE]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-5
+    title: Add social and video recommendation artifacts
+    status: blocked
+    phase: working_tasks
+    covers:
+      scenarios: [S-5]
+      acceptance_criteria: [AC-8]
+    expected_files:
+      - scripts/release_intelligence.py
+      - /home/superdev/projects/openmates-marketing/.agents/skills/create-social-campaign/SKILL.md
+    verification: [V-SOCIAL-FUTURE]
+    verification_ids: [V-SOCIAL-FUTURE]
+    blockers:
+      - User confirmation of social recommendation structure.
+    follow_up_tasks: []
+    independently_deployable: true

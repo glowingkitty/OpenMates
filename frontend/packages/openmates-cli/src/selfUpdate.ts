@@ -15,8 +15,16 @@ export type SelfUpdatePlan = {
   command: string;
   args: string[];
   packageSpec: string;
+  target: string;
   currentVersion: string;
   dryRun: boolean;
+};
+
+export type SelfUpdateStatus = {
+  currentVersion: string;
+  latestVersion: string | null;
+  updateAvailable: boolean | null;
+  checkError: string | null;
 };
 
 type SupportedPackageManager = "npm" | "pnpm" | "yarn" | "bun";
@@ -44,25 +52,65 @@ export function buildSelfUpdatePlan(flags: Record<string, string | boolean>): Se
     command,
     args,
     packageSpec,
+    target,
     currentVersion: getCliPackageVersion(),
     dryRun: flags["dry-run"] === true,
   };
 }
 
-export function runSelfUpdate(plan: SelfUpdatePlan): void {
+export function checkSelfUpdateStatus(plan: SelfUpdatePlan): SelfUpdateStatus {
+  const latest = resolveTargetVersion(plan.target);
+  if (!latest.version) {
+    return {
+      currentVersion: plan.currentVersion,
+      latestVersion: null,
+      updateAvailable: null,
+      checkError: latest.error,
+    };
+  }
+  return {
+    currentVersion: plan.currentVersion,
+    latestVersion: latest.version,
+    updateAvailable: plan.currentVersion !== latest.version,
+    checkError: null,
+  };
+}
+
+export function runSelfUpdate(plan: SelfUpdatePlan, options: { verbose?: boolean } = {}): void {
   if (plan.dryRun) return;
   const result = spawnSync(plan.command, plan.args, {
     encoding: "utf-8",
     stdio: ["ignore", "pipe", "pipe"],
   });
-  if (result.stdout) process.stderr.write(result.stdout);
-  if (result.stderr) process.stderr.write(result.stderr);
+  if (options.verbose && result.stdout) process.stderr.write(result.stdout);
+  if (options.verbose && result.stderr) process.stderr.write(result.stderr);
   if (result.error) {
     throw new Error(`Unable to run ${plan.command}: ${result.error.message}`);
   }
   if (result.status !== 0) {
-    throw new Error(`${plan.command} ${plan.args.join(" ")} failed with exit code ${result.status ?? "unknown"}`);
+    const output = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
+    const suffix = output ? `\n${output}` : "";
+    throw new Error(`${plan.command} ${plan.args.join(" ")} failed with exit code ${result.status ?? "unknown"}${suffix}`);
   }
+}
+
+function resolveTargetVersion(target: string): { version: string | null; error: string | null } {
+  const forced = process.env.OPENMATES_CLI_LATEST_VERSION;
+  if (forced && forced.trim()) return { version: forced.trim(), error: null };
+  if (/^\d+\.\d+\.\d+(?:[-+][a-zA-Z0-9._-]+)?$/.test(target)) {
+    return { version: target, error: null };
+  }
+  const result = spawnSync(commandName("npm"), ["view", `${PACKAGE_NAME}@${target}`, "version"], {
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (result.error) return { version: null, error: result.error.message };
+  if (result.status !== 0) {
+    const message = (result.stderr || result.stdout || `npm view exited with ${result.status ?? "unknown"}`).trim();
+    return { version: null, error: message };
+  }
+  const version = result.stdout.trim().split("\n").at(-1)?.trim() ?? "";
+  return version ? { version, error: null } : { version: null, error: "npm did not return a version" };
 }
 
 function parsePackageManager(value: string | boolean | undefined): SupportedPackageManager {

@@ -23,6 +23,13 @@ MODULE_PATH = ROOT / "scripts" / "apple_remote.py"
 APPLE_PROJECT_YAML = ROOT / "apple" / "project.yml"
 WATCH_INFO_PLIST = ROOT / "apple" / "OpenMatesWatch" / "Info.plist"
 XCODE_PROJECT_FILE = ROOT / "apple" / "OpenMates.xcodeproj" / "project.pbxproj"
+VALID_WHATS_NEW = "\n".join([
+    "Improves login reliability for beta users.",
+    "Adds safer diagnostics for Apple builds.",
+    "Fixes sync state reporting during startup.",
+    "Updates TestFlight deployment guardrails.",
+    "Documents verification evidence for releases.",
+])
 
 
 def load_apple_remote():
@@ -71,7 +78,7 @@ def test_deploy_latest_testflight_syncs_then_uploads_ios_and_macos() -> None:
     command = apple_remote.deploy_latest_testflight_command(
         "dev",
         True,
-        whats_new="Release notes",
+        whats_new=VALID_WHATS_NEW,
         api_key_path="/private/key.p8",
         api_key_id="KEY123",
         api_issuer_id="ISSUER123",
@@ -90,10 +97,10 @@ def test_upload_testflight_ios_can_attach_whats_new_text() -> None:
 
     command = apple_remote.upload_testflight_ios_command(
         True,
-        whats_new="Fixed login and sync.",
+        whats_new=VALID_WHATS_NEW,
         whats_new_locale="en-US",
     )
-    encoded = base64.b64encode(b"Fixed login and sync.").decode("ascii")
+    encoded = base64.b64encode(VALID_WHATS_NEW.encode("utf-8")).decode("ascii")
     script = apple_remote.TESTFLIGHT_IOS_SCRIPT
 
     assert encoded in command
@@ -107,8 +114,8 @@ def test_upload_testflight_ios_can_attach_whats_new_text() -> None:
 def test_deploy_latest_testflight_passes_whats_new_to_upload_commands() -> None:
     apple_remote = load_apple_remote()
 
-    command = apple_remote.deploy_latest_testflight_command("dev", True, whats_new="Release notes")
-    encoded = base64.b64encode(b"Release notes").decode("ascii")
+    command = apple_remote.deploy_latest_testflight_command("dev", True, whats_new=VALID_WHATS_NEW)
+    encoded = base64.b64encode(VALID_WHATS_NEW.encode("utf-8")).decode("ascii")
 
     assert command.count(encoded) == 2
     assert "whats_new_status=skipped_watchos" in apple_remote.TESTFLIGHT_IOS_SCRIPT
@@ -206,6 +213,19 @@ def test_testflight_notes_options_requires_changelog() -> None:
         )
 
 
+def test_testflight_notes_options_requires_five_non_empty_lines() -> None:
+    apple_remote = load_apple_remote()
+
+    with pytest.raises(apple_remote.AppleRemoteError, match="at least 5 non-empty lines"):
+        apple_remote.testflight_notes_options(
+            Namespace(
+                whats_new="One\n\nTwo\nThree\nFour",
+                whats_new_file=None,
+                whats_new_locale="en-US",
+            )
+        )
+
+
 def test_upload_testflight_command_requires_changelog() -> None:
     apple_remote = load_apple_remote()
 
@@ -213,9 +233,16 @@ def test_upload_testflight_command_requires_changelog() -> None:
         apple_remote.upload_testflight_ios_command(True)
 
 
+def test_upload_testflight_command_rejects_short_changelog() -> None:
+    apple_remote = load_apple_remote()
+
+    with pytest.raises(apple_remote.AppleRemoteError, match="at least 5 non-empty lines"):
+        apple_remote.upload_testflight_ios_command(True, whats_new="Line one\nLine two\nLine three\nLine four")
+
+
 def test_upload_testflight_watch_uses_watch_scheme_and_profile_contract() -> None:
     apple_remote = load_apple_remote()
-    command = apple_remote.upload_testflight_watch_command(True, whats_new="Release notes")
+    command = apple_remote.upload_testflight_watch_command(True, whats_new=VALID_WHATS_NEW)
     script = apple_remote.TESTFLIGHT_IOS_SCRIPT
 
     assert "watchos" in command
@@ -228,7 +255,7 @@ def test_upload_testflight_watch_uses_watch_scheme_and_profile_contract() -> Non
     assert "PROVISIONING_PROFILE_SPECIFIER={watch_profile}" in script
     assert "CODE_SIGN_STYLE=Manual" in script
     assert '"destination": "export" if target_platform == "watchos" else "upload"' in script
-    assert '"method": "release-testing" if target_platform == "watchos" else "app-store-connect"' in script
+    assert '"method": "app-store-connect"' in script
     assert '"--upload-package"' in script
     assert '"--p8-file-path"' in script
 
@@ -281,6 +308,26 @@ def test_testflight_crashes_command_uses_beta_feedback_api() -> None:
     assert "betaFeedbackCrashSubmissions" in script
     assert "crashLog?fields[betaCrashLogs]=logText" in script
     assert "<tester-email>" in script
+
+
+def test_app_store_builds_command_can_require_valid_testflight_changelogs() -> None:
+    apple_remote = load_apple_remote()
+
+    command = apple_remote.app_store_builds_command(
+        "org.openmates.app",
+        limit=5,
+        require_changelogs=True,
+        whats_new_locale="en-US",
+        api_key_path="/private/key.p8",
+        api_key_id="KEY123",
+        api_issuer_id="ISSUER123",
+    )
+    script = apple_remote.APP_STORE_BUILDS_SCRIPT
+
+    assert command.endswith(" org.openmates.app 5 1 en-US")
+    assert "builds/{build_id}/betaBuildLocalizations?limit=200" in script
+    assert "MIN_TESTFLIGHT_WHATS_NEW_LINES = 5" in script
+    assert "changelog_status=failed" in script
 
 
 def test_testflight_crashes_command_limits_output() -> None:

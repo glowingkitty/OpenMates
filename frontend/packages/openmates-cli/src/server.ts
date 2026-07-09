@@ -10,7 +10,7 @@
 
 import { execFileSync, execSync, spawn as nodeSpawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { chmodSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { createInterface as createPromptInterface } from "node:readline/promises";
 import { homedir } from "node:os";
@@ -68,6 +68,7 @@ const DEFAULT_IMAGE_REGISTRY = "ghcr.io/glowingkitty";
 const UPDATE_HEALTH_TIMEOUT_MS = 120_000;
 const UPDATE_HEALTH_INTERVAL_MS = 5_000;
 const HEALTH_REQUEST_TIMEOUT_MS = 5_000;
+const CHECKSUM_BUFFER_BYTES = 1024 * 1024;
 const IMAGE_CHANNEL_TAGS = {
   stable: MAIN_BRANCH,
   main: MAIN_BRANCH,
@@ -157,6 +158,21 @@ OPENMATES_IMAGE_REGISTRY=${DEFAULT_IMAGE_REGISTRY}
 OPENMATES_IMAGE_TAG=
 GIT_WORK_DIR=
 DOCKER_GID=999
+CELERY_AUTOSCALE_MAX=3
+CELERY_AUTOSCALE_MIN=1
+TASK_WORKER_CONCURRENCY=3
+APP_AI_WORKER_CONCURRENCY=3
+APP_IMAGES_WORKER_CONCURRENCY=3
+APP_MUSIC_WORKER_CONCURRENCY=2
+TASK_WORKER_MEMORY_LIMIT=3g
+APP_AI_WORKER_MEMORY_LIMIT=2g
+APP_IMAGES_WORKER_MEMORY_LIMIT=1792m
+APP_MUSIC_WORKER_MEMORY_LIMIT=1536m
+APP_VIDEOS_WORKER_MEMORY_LIMIT=1280m
+APP_PDF_WORKER_MEMORY_LIMIT=1536m
+APP_DOCS_WORKER_MEMORY_LIMIT=1536m
+APP_CODE_WORKER_MEMORY_LIMIT=1g
+APP_SOCIAL_MEDIA_WORKER_MEMORY_LIMIT=1536m
 `;
 const VAULT_CONFIG_TEMPLATE = `# Minimal Vault configuration
 listener "tcp" {
@@ -947,6 +963,22 @@ function formatSecretPreflight(preflight: RuntimeSecretPreflight): string {
   return parts.join("; ");
 }
 
+function hashFile(path: string): string {
+  const hash = createHash("sha256");
+  const fd = openSync(path, "r");
+  const buffer = Buffer.allocUnsafe(CHECKSUM_BUFFER_BYTES);
+  try {
+    while (true) {
+      const bytesRead = readSync(fd, buffer, 0, buffer.length, null);
+      if (bytesRead === 0) break;
+      hash.update(buffer.subarray(0, bytesRead));
+    }
+  } finally {
+    closeSync(fd);
+  }
+  return hash.digest("hex");
+}
+
 function writeChecksums(rootDir: string): void {
   const lines: string[] = [];
   const walk = (dir: string) => {
@@ -958,8 +990,7 @@ function writeChecksums(rootDir: string): void {
       }
       if (entry.name === "checksums.sha256") continue;
       const relative = path.slice(rootDir.length + 1);
-      const hash = createHash("sha256").update(readFileSync(path)).digest("hex");
-      lines.push(`${hash}  ${relative}`);
+      lines.push(`${hashFile(path)}  ${relative}`);
     }
   };
   walk(rootDir);
@@ -981,7 +1012,7 @@ function verifyChecksums(rootDir: string): void {
     }
     const filePath = join(rootDir, relative);
     if (!existsSync(filePath)) throw new Error(`Backup archive is missing checksummed file: ${relative}`);
-    const actual = createHash("sha256").update(readFileSync(filePath)).digest("hex");
+    const actual = hashFile(filePath);
     if (actual !== match[1]) throw new Error(`Backup checksum mismatch for ${relative}.`);
   }
 }

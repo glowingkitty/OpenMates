@@ -593,6 +593,16 @@ describe("role-based server planning", () => {
     assert.doesNotMatch(source, /const dump = execSync\(\s*`docker exec cms-database pg_dump/);
   });
 
+  it("hashes backup files in chunks instead of reading whole files into memory", () => {
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
+    const backupChecksumSource = source.slice(source.indexOf("function hashFile"), source.indexOf("function createServerBackup"));
+
+    assert.match(backupChecksumSource, /function hashFile\(path: string\): string/);
+    assert.match(backupChecksumSource, /readSync\(fd, buffer/);
+    assert.doesNotMatch(backupChecksumSource, /createHash\("sha256"\)\.update\(readFileSync\(path\)\)/);
+    assert.doesNotMatch(backupChecksumSource, /createHash\("sha256"\)\.update\(readFileSync\(filePath\)\)/);
+  });
+
   it("plans backup and restore content safely", () => {
     const backup = planBackup({ role: "core", includeObservability: true });
     assert.ok(backup.contents.includes("postgres-dump"));

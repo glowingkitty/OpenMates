@@ -87,7 +87,8 @@ import {
   startRemoteAccessSource,
   type RemoteAccessSourceRecord,
 } from "./remoteAccess.js";
-import { buildSelfUpdatePlan, runSelfUpdate } from "./selfUpdate.js";
+import { buildSelfUpdatePlan, checkSelfUpdateStatus, runSelfUpdate } from "./selfUpdate.js";
+import { renderOpenMatesAsciiLogo } from "./branding.js";
 
 type SignupRequiredResult = {
   status: "signup_required";
@@ -124,6 +125,10 @@ async function main(): Promise<void> {
   }
 
   if (!command) {
+    if (parsed.flags.version !== undefined) {
+      handleCliVersion(parsed.flags);
+      return;
+    }
     if (parsed.flags.help === true) {
       printHelp();
       return;
@@ -141,6 +146,15 @@ async function main(): Promise<void> {
 
   if (command === "help") {
     printHelp();
+    return;
+  }
+
+  if (command === "version") {
+    if (parsed.flags.help === true) {
+      printVersionHelp();
+      return;
+    }
+    handleCliVersion(parsed.flags);
     return;
   }
 
@@ -201,6 +215,10 @@ async function main(): Promise<void> {
     }
     if (command === "update" || command === "upgrade") {
       printSelfUpdateHelp();
+      return;
+    }
+    if (command === "version") {
+      printVersionHelp();
       return;
     }
     if (command === "feedback") {
@@ -359,12 +377,17 @@ function handleSupport(flags: Record<string, string | boolean>): void {
 
 function handleSelfUpdate(command: string, flags: Record<string, string | boolean>): void {
   const plan = buildSelfUpdatePlan(flags);
+  const status = checkSelfUpdateStatus(plan);
+  const shouldInstall = status.updateAvailable !== false;
   if (flags.json === true) {
-    if (!plan.dryRun) runSelfUpdate(plan);
+    if (!plan.dryRun && shouldInstall) runSelfUpdate(plan, { verbose: flags.verbose === true });
     printJson({
       command,
-      status: plan.dryRun ? "planned" : "success",
+      status: status.updateAvailable === false ? "up_to_date" : plan.dryRun ? "planned" : "success",
       current_version: plan.currentVersion,
+      latest_version: status.latestVersion,
+      update_available: status.updateAvailable,
+      check_error: status.checkError,
       package_manager: plan.packageManager,
       package: plan.packageSpec,
       run: [plan.command, ...plan.args],
@@ -372,14 +395,62 @@ function handleSelfUpdate(command: string, flags: Record<string, string | boolea
     });
     return;
   }
+  console.log(renderOpenMatesAsciiLogo());
+  console.log("");
+  console.log("Checking for updates...");
+  console.log("");
+  console.log(`Current version: ${plan.currentVersion}`);
+  console.log(`Latest version:  ${status.latestVersion ?? "unknown"}`);
+  if (status.checkError) {
+    console.log(`Update check failed: ${status.checkError}`);
+  }
+  console.log("");
   if (plan.dryRun) {
-    console.log(`Current OpenMates CLI version: ${plan.currentVersion}`);
+    if (status.updateAvailable === false) {
+      console.log("OpenMates CLI is already up to date.");
+      return;
+    }
     console.log(`Would run: ${[plan.command, ...plan.args].join(" ")}`);
     return;
   }
-  console.log(`Updating OpenMates CLI from ${plan.currentVersion} with ${plan.packageManager}...`);
-  runSelfUpdate(plan);
-  console.log("OpenMates CLI update completed.");
+  if (status.updateAvailable === false) {
+    console.log("OpenMates CLI is already up to date.");
+    return;
+  }
+  console.log(`Updating OpenMates CLI with ${plan.packageManager}...`);
+  runSelfUpdate(plan, { verbose: flags.verbose === true });
+  console.log(`Installed OpenMates CLI ${status.latestVersion ?? plan.target}.`);
+  console.log("");
+  console.log("OpenMates is up to date.");
+}
+
+function handleCliVersion(flags: Record<string, string | boolean>): void {
+  const planFlags: Record<string, string | boolean> = { ...flags, "dry-run": true };
+  if (planFlags.version === true) delete planFlags.version;
+  const plan = buildSelfUpdatePlan(planFlags);
+  const status = checkSelfUpdateStatus(plan);
+  if (flags.json === true) {
+    printJson({
+      command: "version",
+      current_version: status.currentVersion,
+      latest_version: status.latestVersion,
+      update_available: status.updateAvailable,
+      check_error: status.checkError,
+      upgrade_command: status.updateAvailable ? "openmates upgrade" : null,
+    });
+    return;
+  }
+  console.log(`OpenMates CLI ${status.currentVersion}`);
+  if (status.checkError) {
+    console.log(`Update check failed: ${status.checkError}`);
+    return;
+  }
+  if (status.updateAvailable) {
+    console.log(`Update available: ${status.latestVersion}`);
+    console.log("Run: openmates upgrade");
+    return;
+  }
+  console.log("OpenMates CLI is up to date.");
 }
 
 async function handleRemoteAccess(
@@ -6501,6 +6572,7 @@ Commands:
   openmates benchmark [--help]               Run real model benchmarks with usage tagged as benchmark spend
   openmates remote-access [--help]           Attach and search local Project sources
   openmates support                          Show voluntary financial support options
+  openmates version                          Show CLI version and update availability
   openmates update                           Update the installed OpenMates CLI package
   openmates upgrade                          Alias for openmates update
   openmates server [--help]                   Server management (install, start, stop, ...)
@@ -6511,13 +6583,26 @@ Flags:
   --json          Output raw JSON instead of formatted output
   --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
   --api-key <key> Optional API key override (or set OPENMATES_API_KEY)
+  --version       Show CLI version and update availability
   --help          Show contextual help for any command`);
+}
+
+function printVersionHelp(): void {
+  console.log(`OpenMates CLI version command:
+  openmates version [--json]
+  openmates --version [--json]
+
+Prints the installed CLI version, checks the latest npm version, and shows the
+upgrade command when an update is available.
+
+Options:
+  --json  Output the version/update status as JSON`);
 }
 
 function printSelfUpdateHelp(): void {
   console.log(`OpenMates CLI update commands:
-  openmates update [--version <version|tag>] [--package-manager <name>] [--dry-run] [--json]
-  openmates upgrade [--version <version|tag>] [--package-manager <name>] [--dry-run] [--json]
+  openmates update [--version <version|tag>] [--package-manager <name>] [--dry-run] [--verbose] [--json]
+  openmates upgrade [--version <version|tag>] [--package-manager <name>] [--dry-run] [--verbose] [--json]
 
 Updates the globally installed openmates package. The default target is latest.
 
@@ -6525,6 +6610,7 @@ Options:
   --version <version|tag>       Install a specific npm version or dist-tag (default: latest)
   --package-manager <name>      npm, pnpm, yarn, or bun (default: detect, then npm)
   --dry-run                     Print the package-manager command without running it
+  --verbose                     Stream package-manager output during installation
   --json                        Output the update plan/result as JSON`);
 }
 

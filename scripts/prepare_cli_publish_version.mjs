@@ -66,15 +66,28 @@ function releaseLineEntries(publishedVersions) {
   if (!base) {
     fail(`cli.stableBase must be a stable npm semver string, got ${config.cli.stableBase}`);
   }
+  const floorArg = args.get("stable-floor");
+  const floorValue = floorArg === "none" ? undefined : floorArg || config.cli.stableFloor;
 
   const label = config.cli.prereleaseLabel || "alpha";
   const prereleasePattern = new RegExp(`^(\\d+)\\.(\\d+)\\.(\\d+)-${escapeRegExp(label)}\\.(\\d+)$`);
-  const entries = [];
+  const stablePatches = [];
+  if (floorValue) {
+    const floor = parseStableVersion(floorValue);
+    if (!floor) {
+      fail(`cli.stableFloor must be a stable npm semver string, got ${floorValue}`);
+    }
+    if (floor.major !== base.major || floor.minor !== base.minor || floor.patch < base.patch) {
+      fail(`cli.stableFloor must be in the ${base.major}.${base.minor}.x line and >= ${config.cli.stableBase}, got ${floorValue}`);
+    }
+    stablePatches.push(floor.patch);
+  }
+  const prereleasesByPatch = new Map();
 
   for (const publishedVersion of publishedVersions) {
     const stable = parseStableVersion(publishedVersion);
     if (stable && stable.major === base.major && stable.minor === base.minor && stable.patch >= base.patch) {
-      entries.push({ patch: stable.patch, stable: true });
+      stablePatches.push(stable.patch);
       continue;
     }
 
@@ -83,30 +96,39 @@ function releaseLineEntries(publishedVersions) {
     const major = Number(prerelease[1]);
     const minor = Number(prerelease[2]);
     const patch = Number(prerelease[3]);
+    const index = Number(prerelease[4]);
     if (major === base.major && minor === base.minor && patch >= base.patch) {
-      entries.push({ patch, stable: false });
+      const indexes = prereleasesByPatch.get(patch) || [];
+      indexes.push(index);
+      prereleasesByPatch.set(patch, indexes);
     }
   }
 
-  return { base, entries };
+  return { base, stablePatches, prereleasesByPatch };
+}
+
+function nextStableTarget(publishedVersions) {
+  const { base, stablePatches, prereleasesByPatch } = releaseLineEntries(publishedVersions);
+  const latestStablePatch = stablePatches.length ? Math.max(...stablePatches) : base.patch - 1;
+  const prereleasePatches = [...prereleasesByPatch.keys()];
+  const latestPrereleasePatch = prereleasePatches.length ? Math.max(...prereleasePatches) : base.patch - 1;
+  const patch = latestPrereleasePatch > latestStablePatch
+    ? latestPrereleasePatch
+    : Math.max(latestStablePatch + 1, base.patch);
+
+  return { base, patch, prereleaseIndexes: prereleasesByPatch.get(patch) || [] };
 }
 
 function nextStableVersion(publishedVersions) {
-  const { base, entries } = releaseLineEntries(publishedVersions);
-  if (!entries.length) return config.cli.stableBase;
-
-  const latestPatch = Math.max(...entries.map((entry) => entry.patch));
-  const latestPatchIsStable = entries.some((entry) => entry.patch === latestPatch && entry.stable);
-  const patch = latestPatchIsStable ? latestPatch + 1 : latestPatch;
+  const { base, patch } = nextStableTarget(publishedVersions);
   return `${base.major}.${base.minor}.${patch}`;
 }
 
 function nextPrereleaseVersion(publishedVersions) {
-  const { base, entries } = releaseLineEntries(publishedVersions);
-  const latestPatch = entries.length ? Math.max(...entries.map((entry) => entry.patch)) : base.patch - 1;
-  const targetStable = `${base.major}.${base.minor}.${latestPatch + 1}`;
+  const { base, patch, prereleaseIndexes } = nextStableTarget(publishedVersions);
   const label = config.cli.prereleaseLabel || "alpha";
-  return `${targetStable}-${label}.0`;
+  const index = prereleaseIndexes.length ? Math.max(...prereleaseIndexes) + 1 : 0;
+  return `${base.major}.${base.minor}.${patch}-${label}.${index}`;
 }
 
 function setPackageVersion(version) {
@@ -128,6 +150,7 @@ function writeOutput(version) {
 }
 
 assertSemver(config.cli.stableBase, "cli.stableBase");
+if (config.cli.stableFloor) assertSemver(config.cli.stableFloor, "cli.stableFloor");
 if (!/^[0-9A-Za-z-]+$/.test(config.cli.prereleaseLabel || "alpha")) {
   fail(`cli.prereleaseLabel must be a valid semver prerelease identifier, got ${config.cli.prereleaseLabel}`);
 }

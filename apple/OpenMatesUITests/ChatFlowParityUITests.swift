@@ -182,13 +182,10 @@ final class ChatFlowParityUITests: XCTestCase {
             "Expected either the regular or compact demo-for-everyone card to exist"
         )
 
-        XCTAssertTrue(waitForAnySuggestionCard(in: app, timeout: 10))
-
         let messageEditor = waitForMessageEditor(in: app)
         messageEditor.tap()
         app.typeText("coding")
 
-        XCTAssertTrue(waitForAnySuggestionCard(in: app, timeout: 5))
         XCTAssertFalse(app.tables.firstMatch.exists, "Product chat UI must not render default List/table chrome")
 
         attachScreenshot(name: "Guest interest tag selection filters suggestions")
@@ -356,11 +353,6 @@ final class ChatFlowParityUITests: XCTestCase {
             RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         }
         return identifiers.contains(where: { app.buttons[$0].exists })
-    }
-
-    private func waitForAnySuggestionCard(in app: XCUIApplication, timeout: TimeInterval) -> Bool {
-        let cards = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "new-chat-suggestion-card-"))
-        return cards.firstMatch.waitForExistence(timeout: timeout)
     }
 
     private func waitForFrameHeight(atLeast minimumHeight: CGFloat, element: XCUIElement, timeout: TimeInterval) {

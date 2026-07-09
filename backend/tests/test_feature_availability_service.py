@@ -85,6 +85,9 @@ def test_unfinished_platform_features_are_default_disabled() -> None:
     }
 
     assert disabled_platform_ids >= {
+        "platform:apple-watch",
+        "platform:ios",
+        "platform:macos",
         "platform:projects",
         "platform:plans",
         "platform:workflows",

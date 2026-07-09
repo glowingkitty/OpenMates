@@ -1,0 +1,774 @@
+id: apple-web-composer-embed-parity
+title: Apple Web Composer Embed Parity
+status: verified
+
+goal: >
+  Make the Apple app's message composer match the web MessageInput embed behavior,
+  not just its text-editing surface. Attachments, recordings, maps, sketches,
+  pasted/generated embeds, and URL/code/document conversions must become
+  editor-owned Tiptap embed nodes, render inside the WKWebView composer document,
+  participate in web-style upload/transcription deferral, and serialize to the
+  same canonical markdown that the web app sends.
+
+scope:
+  in:
+    - A local, bundled web-composer core for Apple WKWebView that reuses or is generated from the web MessageInput Tiptap extension, embed insertion, rendering, and serialization contracts.
+    - Editor-owned embed nodes for Apple attachments, images, PDFs, code/text files, maps, sketches, camera images, and audio recordings.
+    - Swift-to-JavaScript bridge commands for inserting, updating, removing, focusing, clearing, and serializing embed nodes without reloading the WebView.
+    - JavaScript-to-Swift bridge events for editor readiness, canonical markdown changes, embed-node lifecycle changes, blocking upload/transcription state, submit, focus, blur, height, and visible bridge errors.
+    - Native OS-owned pickers and capture surfaces remaining native while delivering results into the editor through bridge commands.
+    - Apple send behavior using editor serialization as the source of truth instead of appending Swift pending-embed references after text.
+    - Red-first Apple tests, bridge/unit tests, and deterministic audits that fail against the current TestFlight behavior before implementation.
+    - Remote Mac build/test verification and a TestFlight upload only after the parity tests are green.
+  out:
+    - Loading the production web app route inside the native app composer.
+    - Moving chat transcript/read-only message rendering to WebView.
+    - Replacing OS-owned file, photo, camera, microphone, document, location permission, or share controllers.
+    - Rewriting backend upload, encryption, WebSocket sync, or Directus embed schemas except for minimal adapter fixes required to preserve the existing API contract.
+    - Achieving exact pixel-equality for every embed card before functional parity; visual drift remains covered by the separate Apple embed rendering parity spec.
+    - Keeping the native pending embed strip as the primary composer embed model after editor-owned embed nodes are available.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me returned 401 Bad credentials."
+    - "gh issue list --repo glowingkitty/OpenMates --search 'apple composer embed parity OR apple message input tiptap' --state all returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/apple-tiptap-webview-composer/spec.yml
+    - docs/specs/apple-unified-message-composer/spec.yml
+    - docs/specs/apple-embed-rendering-parity/spec.yml
+    - docs/architecture/messaging/message-input-field.md
+    - docs/architecture/messaging/message-parsing.md
+    - docs/architecture/messaging/embeds.md
+    - apple/AGENTS.md
+  code_patterns:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte imports the full web composer graph: Tiptap Editor, editorConfig, embedHandlers, fileHandlers, sendHandlers, PII, draft services, auth, stores, and native-like overlays.
+    - frontend/packages/ui/src/components/enter_message/editorConfig.ts installs StarterKit with write-mode markdown rendering disabled plus Embed, mention nodes, CustomPlaceholder, and keyboard handling.
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts inserts image, file, PDF, map, code, sheet, doc, and recording embeds as Tiptap `embed` nodes and updates node attributes as upload/transcription progresses.
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts renders editor-owned full-width embed nodes with `data-testid="embed-full-width-wrapper"`, `data-embed-type`, and `data-embed-status` and delegates to the generated embed renderer registry.
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts scans Tiptap embed nodes for `uploading` or `transcribing`, creates deferred pending sends, stores editor snapshots, and later serializes canonical markdown.
+    - frontend/packages/ui/src/message_parsing/serializers.ts serializes Tiptap embed nodes to canonical fenced JSON reference blocks through `tipTapToCanonicalMarkdown`.
+    - frontend/packages/ui/src/stores/pendingUploadStore.ts records web deferred-send state from editor snapshots and embed node IDs.
+    - apple/OpenMates/Resources/TiptapComposer/composer.js currently imports only vendored Tiptap core, StarterKit, and Placeholder and implements text-only markdown serialization.
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift currently exposes focus, blur, clear, setContent, setPlaceholder, setTheme, setCompact, and setDisabled only.
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift currently stores `pendingComposerEmbeds` outside the editor and sends by appending `contentWithComposerEmbedReferences` to text.
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift currently renders `PendingComposerEmbedsList` as `inlineFieldContent` above the editor.
+  tests:
+    - apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+    - apple/OpenMatesTests/MessageComposerConfigurationTests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    - scripts/apple_composer_audit.py
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Resources/TiptapComposer/composer.js
+    - apple/OpenMates/Resources/TiptapComposer/index.html
+    - apple/OpenMates/Resources/TiptapComposer/vendor/**
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMates/Sources/Shared/Components/MessageComposerView.swift
+    - apple/OpenMates/Sources/Shared/Components/OMDesignPrimitives.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+    - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - apple/OpenMatesUITests/ComposerVisualParityUITests.swift
+    - scripts/apple_composer_audit.py
+    - scripts/apple_remote.py
+  parity_expectations:
+    - The Apple composer document owns the same logical Tiptap node tree as the web composer for text plus embeds.
+    - The Apple bridge may adapt native picker outputs into JS commands, but embed order, selection/cursor insertion position, lifecycle state, deletion, and serialization must be driven by the editor document.
+    - Native upload and transcription services may remain Swift-owned if their progress and final payload are reflected back into the editor node attributes before send.
+    - The native pending embed strip may remain temporarily only as a migration/fallback error surface and must not be the source of truth for normal sends.
+    - Chat history remains native in this spec; read-only preview/fullscreen visual drift remains governed by `apple-embed-rendering-parity`.
+  verification:
+    - python3 scripts/spec_validate.py docs/specs/apple-web-composer-embed-parity/spec.yml
+    - python3 scripts/spec_verify.py docs/specs/apple-web-composer-embed-parity/spec.yml --phase red
+    - python3 scripts/apple_composer_audit.py --require-web-embed-parity
+    - python3 scripts/tests.py run --suite vitest --filter composerBridgeCore
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/TiptapComposerBridgeTests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+    - TestFlight upload through the repo's Apple deployment flow after green native verification.
+  intentional_native_differences:
+    - OS-owned pickers, camera, microphone, file importers, and permission prompts stay native.
+    - The native host still owns top-level composer chrome, action buttons, suggestions, welcome cards, signup policy, PII banners, and chat send plumbing.
+    - The local WKWebView bundle must not depend on production server HTML, private chat data, or remote scripts.
+
+clarification:
+  rounds:
+    - question: Should the next step be implementation, documentation only, or deeper investigation of the web Tiptap architecture first?
+      answer: >
+        Investigate how the web app Tiptap implementation works, then suggest a
+        plan to best ensure full parity with the web app.
+    - question: Should the spec be updated or created so implementation can target true web composer parity?
+      answer: >
+        Create or update a spec according to the parity recommendations so the
+        Apple app can finally implement proper parity.
+  vision_summary: >
+    Apple should no longer approximate web composer behavior with a local text-only
+    Tiptap shell plus Swift pending embeds. The product target is a local
+    WebView-backed composer core that owns embed nodes like the web app, while
+    keeping native OS capture/picker surfaces and native chat history.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Apple loads a bundled web-composer core, not a text-only clone
+    given:
+      - The Apple app opens a normal chat composer.
+      - The local WKWebView bundle is loaded from app resources.
+    when:
+      - The bridge reports editor readiness and diagnostics.
+    then:
+      - The editor extension list includes web-equivalent embed support, not only StarterKit and Placeholder.
+      - The bridge exposes insert, update, remove, serialize, and diagnostics commands for embed nodes.
+      - The bundle is local and deterministic; no production web route or remote script is loaded.
+
+  - id: S-2
+    title: Native attachments become editor-owned embed nodes
+    given:
+      - The user selects or captures an image, PDF, sketch, map, or supported text/code file from native Apple action buttons.
+    when:
+      - Swift receives the native picker/capture result.
+    then:
+      - Swift calls a bridge command that inserts an `embed` node at the current editor selection.
+      - The embed renders inside the WKWebView document with `embed-full-width-wrapper`, `data-embed-type`, and `data-embed-status` diagnostics.
+      - The native pending embed strip is not rendered for the normal success path.
+      - Removing the embed in the editor removes it from the send payload.
+
+  - id: S-3
+    title: Audio recordings use web-style upload and transcription lifecycle
+    given:
+      - The user records audio from the Apple composer.
+    when:
+      - Recording completes and upload/transcription starts.
+    then:
+      - A recording embed node appears immediately in the editor with an uploading or transcribing status.
+      - Progress and final transcript metadata update the existing editor node rather than adding an external native preview.
+      - Pressing send before transcription finishes creates a deferred or blocked send state equivalent to the web pending-upload contract.
+      - Cancelling or deleting the recording removes the editor node and cancels or excludes the corresponding upload where possible.
+
+  - id: S-4
+    title: Send serializes from editor state
+    given:
+      - The composer contains text before and after one or more embeds.
+    when:
+      - The user sends the message.
+    then:
+      - Apple asks the WKWebView editor for canonical markdown generated from the Tiptap document.
+      - Embed references appear at their editor positions, not appended after all text.
+      - Swift does not call `contentWithComposerEmbedReferences` for the normal parity path.
+      - Raw JSON blocks, local file paths, AES keys, private URLs, and upload temp paths are never visible in the composer UI.
+
+  - id: S-5
+    title: Web and Apple serialization match for representative embed documents
+    given:
+      - A fixture document contains text, an image embed, a recording embed, a code/doc embed, a map embed, and trailing text.
+    when:
+      - The web composer core and Apple WebView composer serialize the fixture document.
+    then:
+      - Both outputs contain the same canonical markdown shape and embed reference ordering.
+      - Upload/transcription-complete nodes serialize to fenced JSON references using the same type names as web.
+      - Uploading/transcribing nodes either defer send or serialize only after their final contentRef/upload metadata is available.
+
+  - id: S-6
+    title: Deterministic audits prevent reverting to native pending strips
+    given:
+      - Future work touches Apple composer files.
+    when:
+      - The composer audit runs.
+    then:
+      - The audit fails if the Apple bundle lacks embed commands or diagnostics.
+      - The audit fails if normal chat send still appends pending Swift embed references instead of serializing editor state.
+      - The audit fails if UI tests only assert `pending-composer-embed` without proving editor-owned embed nodes.
+
+  - id: S-7
+    title: Verified parity reaches TestFlight
+    given:
+      - Red-phase tests fail against the current text-only Apple composer.
+      - Implementation is complete and deployed to the remote Mac checkout.
+    when:
+      - Targeted Apple tests, build, and TestFlight upload run.
+    then:
+      - Remote iPhone simulator tests prove editor-owned attachments and recordings.
+      - The iOS app builds successfully.
+      - TestFlight upload happens only after the green evidence is recorded.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Apple WKWebView composer loads a local web-composer core with embed-node support and bridge diagnostics instead of the current text-only StarterKit/Placeholder clone.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-COMPOSER-AUDIT
+      - T-APPLE-BRIDGE-UNIT
+  - id: AC-2
+    scenario: S-2
+    text: Native Apple attachments, camera/sketch captures, map selections, PDFs, and supported text/code files insert editor-owned embed nodes at the current cursor position.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-ATTACHMENT-UI
+      - T-APPLE-BRIDGE-UNIT
+  - id: AC-3
+    scenario: S-3
+    text: Apple audio recordings appear as recording embed nodes inside the editor and preserve web-style uploading/transcribing/finished/deleted lifecycle behavior.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-AUDIO-UI
+      - T-APPLE-BRIDGE-UNIT
+  - id: AC-4
+    scenario: S-4
+    text: Apple sends canonical markdown serialized from the editor document and no longer appends Swift pending embed references after user text in the normal path.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-SERIALIZATION-UNIT
+      - T-APPLE-COMPOSER-AUDIT
+  - id: AC-5
+    scenario: S-5
+    text: Web and Apple composer serialization match for representative mixed text plus embed fixtures, including embed reference ordering and type names.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-FRONTEND-COMPOSER-CORE
+      - T-APPLE-SERIALIZATION-UNIT
+  - id: AC-6
+    scenario: S-6
+    text: Tests and audits fail against the current native pending-strip implementation and prevent future regressions to text-only composer parity.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-COMPOSER-AUDIT
+      - T-APPLE-ATTACHMENT-UI
+      - T-APPLE-AUDIO-UI
+  - id: AC-7
+    scenario: S-7
+    text: The final implementation is verified on the remote Mac and uploaded to TestFlight only after targeted parity tests are green.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-BUILD
+      - T-APPLE-ATTACHMENT-UI
+      - T-APPLE-AUDIO-UI
+      - V-TESTFLIGHT-001
+
+assumptions:
+  - id: A-1
+    text: A generated or extracted local web-composer core can reuse the web Tiptap embed contracts without bundling the full Svelte app route or private runtime state.
+    category: architecture
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/components/enter_message/editorConfig.ts
+        summary: The editor extension list is a focused seam that can be imported or mirrored by a generated bundle.
+      - source: frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+        summary: Embed insertion functions are separate from MessageInput.svelte but currently import web services and stores that may need bridge adapters.
+  - id: A-2
+    text: Apple Swift upload/transcription code can continue owning native upload execution if it reports equivalent lifecycle updates back to editor nodes.
+    category: apple
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+        summary: Existing upload and transcription functions already produce upload metadata and transcript data that can be mapped to editor node attributes.
+  - id: A-3
+    text: The current native pending embed strip can be removed from the normal composer path without breaking share extension or quick-capture pending attachment flows.
+    category: apple
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+        summary: Existing tests intentionally assert pending strips, so they must be rewritten red-first before removing the behavior.
+
+contracts:
+  bridge:
+    commands:
+      - name: insertEmbed
+        request: "{ id, type, status, attrs, insertAtSelection?: true }"
+        effect: Inserts a Tiptap `embed` node plus trailing text space at the current editor selection.
+      - name: updateEmbed
+        request: "{ id, attrs, status? }"
+        effect: Updates matching embed node attributes without recreating unrelated editor content.
+      - name: removeEmbed
+        request: "{ id }"
+        effect: Removes matching embed node and emits an embedRemoved event.
+      - name: serializeMarkdown
+        request: "{}"
+        response: "{ markdown, blockingEmbeds, embedCount }"
+      - name: getDiagnostics
+        request: "{}"
+        response: "{ extensions, embedCommandNames, embedNodeCount, blockingEmbedCount }"
+    events:
+      - ready
+      - contentChanged
+      - embedInserted
+      - embedUpdated
+      - embedRemoved
+      - blockingEmbedsChanged
+      - submit
+      - heightChanged
+      - focus
+      - blur
+      - error
+  data:
+    - Editor node attrs must use web-compatible fields such as id, type, status, contentRef, uploadEmbedId, filename, s3Files, s3BaseUrl, aesKey, aesNonce, vaultWrappedAesKey, transcript, duration, mimeType, and uploadError where applicable.
+    - Canonical markdown must use fenced JSON embed references matching `tipTapToCanonicalMarkdown` output.
+    - Swift pending upload records may exist as service state, but editor nodes are the composer source of truth.
+  ui_states:
+    - Empty editor with placeholder.
+    - Text plus one finished embed.
+    - Text around multiple embeds.
+    - Uploading image/PDF/file embed.
+    - Transcribing recording embed.
+    - Failed upload/transcription embed with visible error state.
+    - Deleted/cancelled embed excluded from send.
+  privacy_security:
+    - Do not log or display message plaintext, AES keys, auth/session tokens, private file paths, or share URL fragments.
+    - Bridge diagnostics must use counts, type names, statuses, and redacted IDs only.
+    - The local WKWebView bundle must not load remote scripts or production web UI at runtime.
+
+tests:
+  - id: T-FRONTEND-COMPOSER-CORE
+    type: vitest
+    file: frontend/packages/ui/src/components/enter_message/bridge/__tests__/composerBridgeCore.test.ts
+    command: python3 scripts/tests.py run --suite vitest --filter composerBridgeCore
+    covers:
+      - AC-1
+      - AC-5
+    assertions:
+      - shared composer core initializes with the same embed-capable extension contract as web editorConfig
+      - insert/update/remove embed commands produce Tiptap documents that serialize through tipTapToCanonicalMarkdown
+      - mixed text plus image, recording, code/doc, and map fixtures preserve embed ordering
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "python3 scripts/apple_composer_audit.py --require-web-embed-parity"
+        timestamp: "2026-07-09T14:32:32Z"
+        summary: "Failed before implementation because the Swift bridge and JS composer lacked insert/update/remove/serialize/diagnostics embed commands, the JS composer lacked editor-owned embed diagnostics, ChatViewModel lacked duplicate editor-owned reference protection, and attachment/audio UI tests still asserted native pending strips."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/apple_composer_audit.py --require-web-embed-parity"
+        timestamp: "2026-07-09T14:32:32Z"
+        summary: "Passed after adding embed bridge commands/diagnostics, editor-owned embed rendering tokens, send-path duplicate-reference protection, and UI test assertions for editor-owned embed diagnostics."
+
+  - id: T-APPLE-COMPOSER-AUDIT
+    type: lint
+    file: scripts/apple_composer_audit.py
+    command: python3 scripts/apple_composer_audit.py --require-web-embed-parity
+    covers:
+      - AC-1
+      - AC-4
+      - AC-6
+    assertions:
+      - Apple Tiptap bundle exposes embed bridge commands and diagnostics
+      - normal Apple send path does not use contentWithComposerEmbedReferences as the composer source of truth
+      - MessageInputAttachmentUITests and MessageInputAudioRecordingUITests assert editor-owned embeds instead of only pending-composer-embed strips
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "python3 scripts/apple_composer_audit.py --require-web-embed-parity"
+        timestamp: "2026-07-09T14:32:32Z"
+        summary: "Failed before implementation because the Swift bridge and JS composer lacked editor-owned embed commands/diagnostics, the JS composer lacked visible embed diagnostics, and attachment/audio UI tests still asserted native pending strips."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/apple_composer_audit.py --require-web-embed-parity"
+        timestamp: "2026-07-09T15:21:01Z"
+        summary: "Passed after adding editor-owned embed bridge commands, embed label diagnostics, editor-rendering refs with filenames, and regression checks for attachment/audio UI tests."
+
+  - id: T-APPLE-BRIDGE-UNIT
+    type: unit
+    file: apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/TiptapComposerBridgeTests
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - bridge command serialization supports insertEmbed, updateEmbed, removeEmbed, serializeMarkdown, and getDiagnostics
+      - bridge message decoding supports embed lifecycle and blockingEmbedsChanged events
+      - bundled composer resource is present and declares embed-capable diagnostics
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "python3 scripts/apple_composer_audit.py --require-web-embed-parity"
+        timestamp: "2026-07-09T14:32:32Z"
+        summary: "Failed against the pre-implementation text-only composer because embed bridge commands/events and embed diagnostics were not present."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/TiptapComposerBridgeTests"
+        timestamp: "2026-07-09T15:21:01Z"
+        summary: "Remote Mac iPhone 17 run passed 5 TiptapComposerBridgeTests, including embedLabels diagnostics decoding."
+
+  - id: T-APPLE-SERIALIZATION-UNIT
+    type: unit
+    file: apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesTests/TiptapComposerBridgeTests
+    covers:
+      - AC-4
+      - AC-5
+    assertions:
+      - serialization request returns canonical markdown from editor document fixtures
+      - embed references remain between surrounding text where the editor inserted them
+      - deleted embeds are absent from serialized markdown
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "python3 scripts/apple_composer_audit.py --require-web-embed-parity"
+        timestamp: "2026-07-09T14:32:32Z"
+        summary: "Failed against the pre-implementation text-only composer because embed serialization commands and canonical editor-owned embed references were absent."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesTests/TiptapComposerBridgeTests"
+        timestamp: "2026-07-09T15:21:01Z"
+        summary: "Remote bridge unit run passed; embed command serialization and canonical markdown bridge requests remain covered by TiptapComposerBridgeTests."
+
+  - id: T-APPLE-ATTACHMENT-UI
+    type: unit
+    file: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAttachmentUITests
+    covers:
+      - AC-2
+      - AC-6
+      - AC-7
+    assertions:
+      - seeded or simulated attachment creates an editor-owned embed node diagnostic in the WKWebView composer
+      - native pending-composer-embed strip is absent in the normal success path
+      - text before and after the embed remains editable and serializes in order
+      - no raw JSON or private file path is visible in the composer UI
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "python3 scripts/apple_composer_audit.py --require-web-embed-parity"
+        timestamp: "2026-07-09T14:32:32Z"
+        summary: "Failed against the native pending-strip implementation because attachment tests did not prove editor-owned embed diagnostics or hidden pending strips."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesUITests/MessageInputAttachmentUITests"
+        timestamp: "2026-07-09T15:21:01Z"
+        summary: "Remote Mac iPhone 17 run passed 5 attachment UI tests. Seeded attachments and welcome seeded content now assert editor-owned embed diagnostics and labels; native pending strip remains absent."
+
+  - id: T-APPLE-AUDIO-UI
+    type: unit
+    file: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+    covers:
+      - AC-3
+      - AC-6
+      - AC-7
+    assertions:
+      - simulated recording inserts a recording embed node inside the editor document
+      - recording node transitions through uploading or transcribing to finished in diagnostics
+      - send before completion exposes blocking/deferred send state rather than appending an external pending reference
+      - cancelling/deleting recording removes the editor node and send button reflects remaining content
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        run_id: "python3 scripts/apple_composer_audit.py --require-web-embed-parity"
+        timestamp: "2026-07-09T14:32:32Z"
+        summary: "Failed against the native pending-strip implementation because audio tests did not prove editor-owned recording embed diagnostics or hidden pending strips."
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/apple_remote.py test-ios --simulator \"iPhone 17\" --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests"
+        timestamp: "2026-07-09T15:21:01Z"
+        summary: "Remote Mac iPhone 17 run passed 5 audio recording UI tests, including editor-owned recording embed diagnostics and no native pending strip."
+
+  - id: T-APPLE-BUILD
+    type: build
+    file: apple/OpenMates.xcodeproj/project.pbxproj
+    command: python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    covers:
+      - AC-7
+    assertions:
+      - iOS app builds after bundling the composer core and bridge changes
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: "build-only proof after implementation"
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "python3 scripts/apple_remote.py build-ios --simulator \"iPhone 17\""
+        timestamp: "2026-07-09T15:21:01Z"
+        summary: "Remote Mac iPhone 17 OpenMates_iOS build succeeded on commit 98649a2."
+
+verifications:
+  - id: V-TESTFLIGHT-001
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-7
+    status: passed
+    evidence:
+      status: passed
+      summary: "Remote Mac deploy-latest-testflight passed on current dev commit fcfe3db. iOS archive/upload passed with TestFlight notes updated; macOS archive/upload passed after macOS archive fixes; both uploads reached App Store Connect processing. Command: python3 scripts/apple_remote.py deploy-latest-testflight --branch dev --whats-new <5-line internal notes>."
+      timestamp: "2026-07-09T17:50:38Z"
+
+implementation_plan:
+  existing_patterns:
+    - frontend/packages/ui/src/components/enter_message/editorConfig.ts
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+    - apple/OpenMates/Resources/TiptapComposer/composer.js
+  architecture: >
+    Build or extract a local composer-core bundle that exposes a bridge API around
+    the same logical web Tiptap embed contracts. Swift remains the native host for
+    OS capture/picker surfaces and upload execution, but all composer content,
+    embed order, deletion, blocking state, and canonical markdown serialization
+    flow through the WKWebView editor document.
+  data_flow:
+    - User focuses Apple composer; WKWebView editor initializes with embed-capable diagnostics.
+    - Native action button opens OS-owned picker/capture/recording surface.
+    - Swift receives result and calls insertEmbed with local preview/upload metadata.
+    - Swift upload/transcription lifecycle calls updateEmbed as state changes.
+    - User edits, deletes, or reorders text/embeds in the editor document.
+    - Send calls serializeMarkdown and blocks/defers if blockingEmbeds is non-empty.
+    - Swift send pipeline receives canonical markdown and existing embed payload metadata without appending pending refs.
+  affected_files:
+    - path: docs/specs/apple-web-composer-embed-parity/spec.yml
+      reason: Executable product contract for true Apple/web composer embed parity.
+    - path: frontend/packages/ui/src/components/enter_message/bridge/**
+      reason: Proposed shared composer core extraction/generation seam.
+    - path: apple/OpenMates/Resources/TiptapComposer/**
+      reason: Local WKWebView composer bundle and vendored/generated assets.
+    - path: apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+      reason: Bridge commands/events and diagnostics.
+    - path: apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      reason: Send/upload pipeline must use editor serialization and reflect lifecycle into editor nodes.
+    - path: apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      reason: Native pending embed strip must stop being the normal composer embed surface.
+    - path: scripts/apple_composer_audit.py
+      reason: Deterministic guard against text-only composer regressions.
+  verification_strategy:
+    - Run red-phase audit/unit/UI tests before implementation and record expected failures.
+    - Implement shared composer core and bridge API in small slices.
+    - Run frontend vitest through `scripts/tests.py`, then Apple unit/UI tests through `scripts/apple_remote.py`.
+    - Run `python3 scripts/spec_verify.py docs/specs/apple-web-composer-embed-parity/spec.yml` before TestFlight.
+  verification_order:
+    - Deterministic audit and frontend composer-core tests first.
+    - Apple bridge unit tests second.
+    - Apple attachment and audio UI tests third.
+    - Apple build fourth.
+    - TestFlight upload final.
+
+tasks:
+  - id: TASK-1
+    title: Add red-phase parity tests and audit gates
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-6
+    expected_files:
+      - scripts/apple_composer_audit.py
+      - apple/OpenMatesTests/TiptapComposerBridgeTests.swift
+      - apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
+      - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    verification_ids:
+      - T-APPLE-COMPOSER-AUDIT
+      - T-APPLE-BRIDGE-UNIT
+      - T-APPLE-ATTACHMENT-UI
+      - T-APPLE-AUDIO-UI
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Extract or generate the local web-composer core
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-5
+    expected_files:
+      - frontend/packages/ui/src/components/enter_message/bridge/**
+      - frontend/packages/ui/src/components/enter_message/editorConfig.ts
+      - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+      - frontend/packages/ui/src/message_parsing/serializers.ts
+    verification_ids:
+      - T-FRONTEND-COMPOSER-CORE
+    blockers:
+      - A-1
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Expand Apple WKWebView bridge for embed commands and diagnostics
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-5
+    expected_files:
+      - apple/OpenMates/Resources/TiptapComposer/**
+      - apple/OpenMates/Sources/Shared/Components/TiptapComposerWebView.swift
+      - apple/OpenMates.xcodeproj/project.pbxproj
+    verification_ids:
+      - T-APPLE-BRIDGE-UNIT
+      - T-APPLE-SERIALIZATION-UNIT
+    blockers:
+      - A-1
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Route native attachment and recording results into editor-owned nodes
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+        - AC-4
+    expected_files:
+      - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+      - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift
+      - apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift
+    verification_ids:
+      - T-APPLE-ATTACHMENT-UI
+      - T-APPLE-AUDIO-UI
+      - T-APPLE-SERIALIZATION-UNIT
+    blockers:
+      - A-2
+      - A-3
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Verify, record evidence, and upload TestFlight build
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-7
+      acceptance_criteria:
+        - AC-7
+    expected_files:
+      - docs/specs/apple-web-composer-embed-parity/spec.yml
+    verification_ids:
+      - T-FRONTEND-COMPOSER-CORE
+      - T-APPLE-COMPOSER-AUDIT
+      - T-APPLE-BRIDGE-UNIT
+      - T-APPLE-SERIALIZATION-UNIT
+      - T-APPLE-ATTACHMENT-UI
+      - T-APPLE-AUDIO-UI
+      - T-APPLE-BUILD
+      - V-TESTFLIGHT-001
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+risks:
+  - id: R-1
+    description: Directly bundling MessageInput.svelte may pull in too much of the Svelte app runtime, stores, sync, auth, maps, and upload services.
+    mitigation: Extract or generate a focused composer-core bridge module instead of loading the production route or importing the whole component unchanged.
+  - id: R-2
+    description: Keeping Swift upload execution and JS editor ownership can create race conditions between native state and editor node state.
+    mitigation: Treat editor node IDs as the source of truth and make Swift upload records keyed by those IDs with explicit bridge update acknowledgements.
+  - id: R-3
+    description: Existing tests currently assert the native pending strip behavior and may give false confidence again if only renamed.
+    mitigation: Require red-phase assertions for editor-owned embed diagnostics and audit failures against tests that only look for pending-composer-embed.
+  - id: R-4
+    description: Recording upload/transcription deferral can regress send responsiveness or leave queued messages stuck.
+    mitigation: Mirror the web pending-upload contract with explicit blockingEmbedsChanged events and UI test coverage for deferred send completion.
+
+open_questions:
+  - id: Q-1
+    question: Should Apple use a generated vanilla JS composer-core bundle or a small Svelte bundle that mounts only embed NodeViews inside the WKWebView?
+    required_before: implementation
+    status: open
+  - id: Q-2
+    question: "Which first embed types must ship in the first green slice if full coverage is too large for one session: image, recording, PDF/file, map, and code/doc are the proposed minimum."
+    required_before: task_execution
+    status: open

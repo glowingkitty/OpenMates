@@ -1,6 +1,6 @@
 id: cli-terminal-chat-tui
 title: CLI Terminal Chat TUI
-status: approved
+status: implementing
 
 goal: >
   Make `openmates` with no arguments feel like a modern terminal chat client:
@@ -22,15 +22,22 @@ scope:
     - Authenticated CLI example continuation clones the full example transcript and embeds into the new encrypted chat before sending the user's continuation message.
     - Logged-out CLI and web anonymous example continuation create an anonymous local chat entry and send the full example history in the anonymous `message_history` payload.
     - Chat messages, markdown-ish text, code blocks, follow-up suggestions, sub-chat progress, and interactive waiting states render inside the TUI without direct stdout streaming.
+    - Typing `/` in the TUI input shows command autocomplete suggestions; users can move through suggestions with Up/Down, complete the highlighted suggestion with Tab, or ignore suggestions and manually type/enter any command.
+    - The TUI keeps the active authenticated chat ID after the first send so follow-up messages in the same TUI session continue the persisted account chat instead of creating unrelated chats.
+    - The TUI provides a `/chats` command that lists recent account chats inside the terminal UI, reusing the existing encrypted chat sync/list contract.
     - Embed previews render as compact cards. Text-heavy embeds such as code, docs, PDFs, transcripts, and generated applications show only a capped excerpt plus a command to open the full embed.
+    - Inline app-skill/embed JSON blocks in TUI chat messages are replaced with terminal-native embed preview cards instead of rendering raw fenced JSON.
     - Full embed detail opens inside a dedicated scrollable TUI detail view and remains available through the existing `openmates embeds show <id>` command outside the TUI.
+    - "`openmates update` and `openmates upgrade` show the OpenMates text logo, check the latest npm package version before installing, clearly report current/latest versions, skip installation when already current, and keep package-manager output hidden unless `--verbose` is used."
+    - "`openmates version` and `openmates --version` print the installed CLI version, check whether an update is available, and show the upgrade command when appropriate."
     - The TUI uses terminal alternate-screen cleanup so exiting restores the user's shell contents.
     - The first implementation uses no new runtime dependencies unless a later implementation task records a concrete terminal-width correctness need.
   out:
     - Mouse support in v1.
     - Full markdown rendering parity with the web TipTap/Markdown renderer.
     - Running live app/application previews inside the terminal.
-    - Replacing existing CLI subcommands or changing their flags.
+    - Replacing existing CLI subcommands or changing their flags, except adding the new `version` command, top-level `--version` flag, and `--verbose` self-update flag.
+    - Shell-level completion scripts for Bash/Zsh/Fish; this spec only covers autocomplete inside the OpenMates TUI input.
     - Browser-based payment, passkey, password, or raw security settings flows.
     - Apple native TUI implementation.
     - Server-side storage of logged-out anonymous example continuation history beyond existing anonymous request processing.
@@ -45,6 +52,8 @@ context_discovery:
     - docs/user-guide/cli/README.md
     - docs/user-guide/cli/chats.md
     - docs/user-guide/cli/embeds-and-sharing.md
+    - docs/architecture/platforms/cli.md
+    - docs/architecture/platforms/cli-feature-parity.md
     - docs/specs/guest-interest-smart-selection/spec.yml
     - docs/specs/anonymous-streaming-ui/spec.yml
     - docs/specs/scalable-chat-embed-loading/spec.yml
@@ -57,6 +66,7 @@ context_discovery:
     - frontend/packages/openmates-cli/src/embedRenderers.ts
     - frontend/packages/openmates-cli/src/fileEmbed.ts
     - frontend/packages/openmates-cli/src/urlEmbed.ts
+    - frontend/packages/openmates-cli/src/selfUpdate.ts
     - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
     - frontend/packages/ui/src/services/anonymousChatStorage.ts
     - frontend/packages/ui/src/components/ActiveChat.svelte
@@ -73,6 +83,7 @@ context_discovery:
     - frontend/packages/openmates-cli/tests/anonymous-free-usage.test.ts
     - frontend/packages/ui/src/services/__tests__/anonymousChatStorage.test.ts
     - frontend/apps/web_app/tests/anonymous-free-chat.spec.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
 
 apple_impact:
   affected_files:
@@ -97,6 +108,10 @@ clarification:
       answer: Interactive `openmates` should launch the TUI. Non-interactive `openmates` should output the most common programmatic commands for asking a question, files, login, examples, and command discovery, plus point to help.
     - question: How should `/login`, `/signup`, `/embed <id>`, and TUI interest persistence work in v1?
       answer: "`/login` should run inside the TUI as a pair-auth modal/status screen. `/signup` should cleanly leave the TUI before running or handing off to the existing guided signup flow. `/embed <id>` should resolve visible/current-chat embeds first, then current example/session embeds, then local/client lookup; `/embed` with no ID lists current chat embeds. TUI interests remain terminal-session only for v1."
+    - question: For `/` autocomplete in the TUI, which interaction should be the v1 target?
+      answer: "Show suggestions as the user types `/`; Up/Down can select a suggestion, Tab completes the highlighted suggestion, and users can still manually type and press Enter to run the exact command they entered."
+    - question: Should `openmates version` and `openmates --version` only print the local CLI version, or also check for available updates?
+      answer: "Print the CLI version number, check for available updates, and show when an update is available with the command to upgrade."
   vision_summary: >
     OpenMates CLI should become a chat-first terminal experience for humans while
     preserving script-friendly command behavior. Example chats are not a separate
@@ -289,6 +304,70 @@ scenarios:
       - The docs explain that `openmates --help` shows the command reference.
       - The docs include programmatic examples for asking questions, JSON output, file references, examples, login/signup, apps, mentions, and embeds.
 
+  - id: S-15
+    title: TUI command autocomplete appears after `/`
+    given:
+      - A user is focused in the TUI input field.
+    when:
+      - The user types `/` or a partial command such as `/ch`.
+    then:
+      - The TUI shows likely command suggestions near the input without leaving the current screen.
+      - Suggestions include `/help`, `/examples`, `/chats`, `/login`, `/signup`, `/embed`, `/clear`, and `/exit` when they match the typed prefix.
+      - Up/Down changes the highlighted suggestion while suggestions are visible.
+      - Tab completes the highlighted suggestion into the input.
+      - Enter runs exactly the command currently in the input, so manually typed commands still work even if the highlighted suggestion differs.
+
+  - id: S-16
+    title: TUI follow-ups continue the same persisted account chat
+    given:
+      - A signed-in user sends the first normal message from the TUI.
+      - The existing authenticated client returns a `chatId` for the persisted encrypted account chat.
+    when:
+      - The user sends a follow-up message without leaving the TUI.
+    then:
+      - The follow-up passes the active `chatId` to the existing authenticated send path.
+      - The account chat appears in `openmates chats list` and the web app like other CLI-created chats.
+      - The TUI does not create a new chat for each follow-up in the same active conversation.
+      - Starting from a public example still creates a new continuation chat first, then subsequent follow-ups continue that new chat.
+
+  - id: S-17
+    title: "`/chats` lists recent account chats inside the TUI"
+    given:
+      - A signed-in user has recent account chats available through CLI sync.
+    when:
+      - The user enters `/chats` in the TUI.
+    then:
+      - The TUI shows a recent chats screen with short ID, title or fallback label, mate/category when known, and updated timestamp when available.
+      - The screen uses the existing `OpenMatesClient.listChats()` encrypted sync/decryption path.
+      - Logged-out users see a clear login prompt instead of a fake account history.
+      - The command does not delete, mutate, or re-encrypt chats.
+
+  - id: S-18
+    title: Self-update output is branded, quiet, and explicit
+    given:
+      - A user runs `openmates update` or `openmates upgrade`.
+    when:
+      - The CLI starts the self-update flow.
+    then:
+      - The command prints the corrected OpenMates text logo, not the misspelled `OPENMATS` variant.
+      - The command prints a checking status, current version, and latest target version.
+      - If the current version is already the latest target version, the command prints `OpenMates CLI is already up to date.` and skips package installation.
+      - If an update is needed, the command runs the package-manager install and then prints the installed target version.
+      - Raw package-manager output is hidden by default, available with `--verbose`, and surfaced on failures.
+
+  - id: S-19
+    title: Version command reports installed version and update availability
+    given:
+      - A user runs `openmates version` or `openmates --version`.
+    when:
+      - The CLI can reach npm package metadata for the target dist-tag.
+    then:
+      - The command prints the installed OpenMates CLI version.
+      - The command checks the latest available npm version.
+      - If a newer version exists, the command prints the latest version and `Run: openmates upgrade`.
+      - If no newer version exists, the command clearly says the CLI is up to date.
+      - If the update check fails, the command still prints the installed version and an explicit non-fatal update-check warning.
+
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
@@ -332,6 +411,21 @@ acceptance_criteria:
   - id: AC-14
     scenario: S-14
     text: CLI README and user guide document the new interactive default and script-friendly programmatic commands.
+  - id: AC-15
+    scenario: S-15
+    text: TUI `/` autocomplete shows matching commands, supports Up/Down selection and Tab completion, and still lets users manually type and execute commands.
+  - id: AC-16
+    scenario: S-16
+    text: TUI authenticated follow-ups reuse the active persisted chat ID returned by the first send or example continuation.
+  - id: AC-17
+    scenario: S-17
+    text: TUI `/chats` shows recent signed-in account chats through the existing encrypted chat list path and gives logged-out users a clear login prompt.
+  - id: AC-18
+    scenario: S-18
+    text: Self-update output uses the corrected OpenMates logo, checks current/latest versions, skips no-op installs, hides package-manager noise by default, and supports verbose output.
+  - id: AC-19
+    scenario: S-19
+    text: "`openmates version` and `openmates --version` print the installed version, check latest npm availability, and show `openmates upgrade` when an update exists."
 
 contracts:
   cli_entrypoint:
@@ -350,6 +444,8 @@ contracts:
       behavior: Show TUI shortcuts plus pointers to `openmates --help` and subcommand help.
     - command: /examples
       behavior: Open interest selection or ranked example list.
+    - command: /chats
+      behavior: Show recent signed-in account chats from the existing encrypted sync cache/list path, or a login prompt when signed out.
     - command: /login
       behavior: Start pair-auth login using existing CLI login flow without exposing passwords.
     - command: /signup
@@ -360,6 +456,26 @@ contracts:
       behavior: Clear the current TUI visual transcript only when this is a local view reset; do not delete saved chats.
     - command: /exit
       behavior: Exit TUI and restore terminal.
+  tui_input:
+    - trigger: /
+      behavior: Show command suggestions matching the typed prefix.
+    - key: Up/Down
+      behavior: Move through suggestions when visible; otherwise keep existing selection/scroll behavior.
+    - key: Tab
+      behavior: Complete the highlighted command suggestion into the input when suggestions are visible.
+    - key: Enter
+      behavior: Execute the exact input contents.
+  self_update:
+    - command: openmates update
+      behavior: Branded self-update flow with current/latest version check and quiet package-manager output by default.
+    - command: openmates upgrade
+      behavior: Alias for `openmates update` with identical output and JSON contract.
+    - command: openmates version
+      behavior: Print installed CLI version and update availability.
+    - flag: --version
+      behavior: Top-level alias for `openmates version`.
+    - flag: --verbose
+      behavior: Stream package-manager output during installation.
   data:
     - name: TUI interest selection
       persistence: Terminal-session local state only for v1.
@@ -370,6 +486,9 @@ contracts:
     - name: Anonymous example history
       field: message_history
       behavior: Includes full public example transcript for first logged-out continuation sends.
+    - name: Active TUI chat
+      field: activeChatId
+      behavior: Stores only the current in-memory chat ID during a TUI session so follow-up sends use the same persisted account chat.
   rendering:
     - surface: Main chat view
       behavior: Line-based renderer with bounded embed cards and scrollable message region.
@@ -398,6 +517,9 @@ tests:
       - AC-7
       - AC-12
       - AC-13
+      - AC-15
+      - AC-16
+      - AC-17
     assertions:
       - interactive no-arg launch chooses TUI mode
       - non-interactive no-arg launch chooses quickstart output and exit 0
@@ -407,6 +529,10 @@ tests:
       - example chat screen includes transcript lines and input footer
       - scroll state preserves bottom pinning and user-scrolled-up behavior
       - terminal cleanup restores raw mode, cursor, alternate screen, and listeners on all exit paths
+      - slash input renders matching command suggestions
+      - Tab completes the highlighted command while Enter keeps executing the manually typed input
+      - activeChatId from a send result is reused on the next authenticated TUI send
+      - "`/chats` renders recent account chat rows and logged-out login guidance"
     red_phase:
       required: true
       expected: fail
@@ -462,6 +588,7 @@ tests:
       - docs/text/PDF/transcript preview shows capped excerpt and full-open command
       - compact preview renderer can return pure lines for TUI usage without writing directly to stdout
       - existing `renderEmbedPreview` stdout wrapper remains compatible with current CLI commands
+      - TUI message rendering replaces inline app-skill JSON blocks with compact preview lines
     red_phase:
       required: true
       expected: fail
@@ -556,10 +683,40 @@ tests:
         run_id: ""
         timestamp: ""
 
+  - id: T-CLI-SELF-UPDATE
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+    covers:
+      - AC-18
+      - AC-19
+    assertions:
+      - dry-run branded output includes the corrected OpenMates logo text, current version, target/latest version, and package-manager command
+      - JSON output for `upgrade` remains parseable and includes current/latest/status fields
+      - no-op latest/current match reports already up to date and does not run install
+      - verbose mode is the only successful path that streams package-manager output
+      - "`openmates version` and `openmates --version` print the installed version and update availability guidance"
+      - failed update checks still print the installed version with an explicit warning
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
 implementation_plan:
   existing_patterns:
     - frontend/packages/openmates-cli/src/cli.ts already routes commands and prints top-level help for no args.
     - frontend/packages/openmates-cli/src/client.ts already supports authenticated WebSocket sends and anonymous sends.
+    - frontend/packages/openmates-cli/src/selfUpdate.ts already builds the package-manager install plan for `update` and `upgrade`.
     - frontend/packages/openmates-cli/src/exampleChats.ts already exposes bundled public example chats to the CLI.
     - frontend/packages/openmates-cli/src/embedRenderers.ts already knows how to render many embed previews, but currently writes to stdout.
     - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts is the web source for public example continuation cloning.
@@ -579,6 +736,10 @@ implementation_plan:
     - Opening an example renders public transcript and compact embed previews.
     - Sending from an example creates a new continuation chat, copies or serializes full example history, and sends the user's new message through authenticated or anonymous client paths.
     - Stream events update TUI message state; render throttling redraws the alternate screen.
+    - The first authenticated TUI send stores the returned `chatId` in memory; follow-up sends pass that `chatId` back to `OpenMatesClient.sendMessage()`.
+    - Slash-prefixed input derives suggestions from the TUI command registry and Tab copies the highlighted command into the input.
+    - "`/chats` calls `OpenMatesClient.listChats()` for signed-in users and renders decrypted chat metadata as terminal rows."
+    - "`version`, `--version`, `update`, and `upgrade` resolve npm target metadata, compare it with the package version, and only run the package-manager command when needed."
     - Exiting always runs terminal cleanup in a `finally` path.
   affected_files:
     - path: frontend/packages/openmates-cli/src/cli.ts
@@ -589,6 +750,8 @@ implementation_plan:
       reason: raw mode, alternate screen, cleanup, resize handling
     - path: frontend/packages/openmates-cli/src/tuiRenderer.ts
       reason: pure frame rendering and scroll slicing
+    - path: frontend/packages/openmates-cli/src/selfUpdate.ts
+      reason: latest-version resolution, no-op detection, quiet/verbose package-manager output, and version availability checks
     - path: frontend/packages/openmates-cli/src/tuiExamples.ts
       reason: local interest selection and deterministic example ranking
     - path: frontend/packages/openmates-cli/src/tuiExampleContinuation.ts
@@ -597,6 +760,12 @@ implementation_plan:
       reason: pure compact preview lines plus existing stdout wrappers
     - path: frontend/packages/openmates-cli/src/client.ts
       reason: expose any missing non-stdout hooks needed by TUI sends
+    - path: frontend/packages/openmates-cli/tests/tui.test.ts
+      reason: unit coverage for logo text, slash suggestions, chat list rendering, and active chat continuation state
+    - path: frontend/packages/openmates-cli/tests/cli.test.ts
+      reason: unit coverage for branded update/upgrade/version output and JSON compatibility
+    - path: frontend/packages/openmates-cli/tests/client.test.ts
+      reason: unit coverage for any client-level sync/send contract needed by active chat continuation
     - path: frontend/packages/ui/src/services/anonymousChatStorage.ts
       reason: web anonymous example continuation must send full public example history
     - path: frontend/packages/openmates-cli/README.md
@@ -608,11 +777,13 @@ implementation_plan:
   verification_strategy:
     - python3 scripts/spec_validate.py docs/specs/cli-terminal-chat-tui/spec.yml
     - CLI unit tests for TUI state/render/cleanup and continuation helpers.
+    - CLI unit tests for self-update dry-run/no-op/verbose/version contracts.
     - CLI embed renderer unit tests for compact line previews.
     - Web unit test for anonymous example message_history parity through `scripts/tests.py run --suite vitest`.
     - Playwright red/green for logged-out web anonymous example continuation after deploy.
   verification_order:
     - CLI unit contracts first for TUI and continuation helpers.
+    - CLI self-update contract tests before any package-manager behavior change.
     - Web anonymous unit contract for full example history payload.
     - Web Playwright red/green for user-visible anonymous continuation after deploy.
     - Apple impact check only if shared native-facing anonymous contracts change.
@@ -703,6 +874,42 @@ tasks:
       - T-CLI-EMBED-PREVIEWS
     independently_deployable: false
 
+  - id: TASK-4A
+    title: Add TUI command autocomplete, active chat continuation, and recent chats screen
+    covers:
+      scenarios:
+        - S-15
+        - S-16
+        - S-17
+      acceptance_criteria:
+        - AC-15
+        - AC-16
+        - AC-17
+    expected_files:
+      - frontend/packages/openmates-cli/src/tui.ts
+      - frontend/packages/openmates-cli/src/tuiRenderer.ts
+      - frontend/packages/openmates-cli/tests/tui.test.ts
+    verification:
+      - T-CLI-TUI-UNIT
+    independently_deployable: true
+
+  - id: TASK-4B
+    title: Improve self-update and version terminal output
+    covers:
+      scenarios:
+        - S-18
+        - S-19
+      acceptance_criteria:
+        - AC-18
+        - AC-19
+    expected_files:
+      - frontend/packages/openmates-cli/src/selfUpdate.ts
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/tests/cli.test.ts
+    verification:
+      - T-CLI-SELF-UPDATE
+    independently_deployable: true
+
   - id: TASK-5
     title: Update CLI docs and npm onboarding
     covers:
@@ -725,6 +932,7 @@ risks:
   - Text width for emoji/CJK can be imperfect without a dependency; v1 should use simple width handling and add a dependency only if tests expose unacceptable layout breakage.
   - Anonymous example continuation will send public example text as context; keep this limited to public example content and avoid sending private local-only metadata.
   - Copying large example histories and embeds must stay bounded and deterministic; avoid broad IndexedDB scans or loading unrelated examples.
+  - Npm registry checks add a network dependency to version/update commands; failures must be explicit and should not hide the installed version.
 
 open_questions:
   - Should TUI interest selections persist across CLI invocations after v1, or remain terminal-session only long term?
