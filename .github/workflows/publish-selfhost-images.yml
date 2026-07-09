@@ -16,6 +16,19 @@ on:
         required: false
         default: false
         type: boolean
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/apps/web_app/**'
+      - 'frontend/packages/ui/**'
+      - 'shared/**'
+      - 'backend/core/docker-compose.selfhost.yml'
+      - 'backend/upload/docker-compose.selfhost.yml'
+      - 'backend/preview/docker-compose.selfhost.yml'
+      - '.github/workflows/publish-selfhost-images.yml'
+      - 'shared/config/product_version.json'
+      - 'scripts/prepare_cli_publish_version.mjs'
   push:
     branches: [main]
     paths:
@@ -42,6 +55,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAMESPACE: glowingkitty
+  PUBLISH_IMAGES: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
 jobs:
   prepare:
@@ -84,21 +98,22 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
+        if: env.PUBLISH_IMAGES == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push API image
+      - name: Build API image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: backend/core/api/Dockerfile.selfhost
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ env.PUBLISH_IMAGES == 'true' }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:buildcache,mode=max
+          cache-to: ${{ env.PUBLISH_IMAGES == 'true' && format('type=registry,ref={0}/{1}/openmates-api:buildcache,mode=max', env.REGISTRY, env.IMAGE_NAMESPACE) || '' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:${{ needs.prepare.outputs.image_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-api:${{ github.ref_name }}
@@ -126,21 +141,22 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
+        if: env.PUBLISH_IMAGES == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push docs worker image
+      - name: Build docs worker image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: backend/core/api/Dockerfile.docs.selfhost
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ env.PUBLISH_IMAGES == 'true' }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:buildcache,mode=max
+          cache-to: ${{ env.PUBLISH_IMAGES == 'true' && format('type=registry,ref={0}/{1}/openmates-docs-worker:buildcache,mode=max', env.REGISTRY, env.IMAGE_NAMESPACE) || '' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:${{ needs.prepare.outputs.image_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/openmates-docs-worker:${{ github.ref_name }}
@@ -185,21 +201,22 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
+        if: env.PUBLISH_IMAGES == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push ${{ matrix.image }} image
+      - name: Build ${{ matrix.image }} image
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ env.PUBLISH_IMAGES == 'true' }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:buildcache,mode=max
+          cache-to: ${{ env.PUBLISH_IMAGES == 'true' && format('type=registry,ref={0}/{1}/{2}:buildcache,mode=max', env.REGISTRY, env.IMAGE_NAMESPACE, matrix.image) || '' }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ needs.prepare.outputs.image_tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ matrix.image }}:${{ github.ref_name }}
@@ -218,7 +235,7 @@ jobs:
             org.opencontainers.image.version=${{ needs.prepare.outputs.image_tag }}
 
   notify:
-    if: always()
+    if: ${{ always() && (inputs.notification_test == true || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
     needs: [prepare, build-api, build-docs-worker, build-image]
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -245,7 +262,7 @@ jobs:
           export PUBLISH_STATUS="$status"
 
           {
-            echo "### Self-host image publish ${status}"
+            echo "### Self-host Docker image release ${status}"
             echo
             echo "Image tag: \`${IMAGE_TAG}\`"
             echo "Run: ${RUN_URL}"
@@ -266,9 +283,9 @@ jobs:
 
           status = os.environ["PUBLISH_STATUS"]
           color = {"success": 0x2ecc71, "failure": 0xe74c3c, "test": 0xf1c40f}.get(status, 0x95a5a6)
-          title = f"Self-host Docker image publish {status}"
+          title = f"Self-host Docker image release {status}"
           if status == "test":
-              title = "Self-host Docker image publish notification test"
+              title = "Self-host Docker image release notification test"
 
           payload = {
               "username": "OpenMates CI",
@@ -320,7 +337,7 @@ jobs:
 
           body_file="$(mktemp)"
           {
-            echo "Self-host Docker image publish **${status}**."
+            echo "Self-host Docker image release **${status}**."
             echo
             echo "Image tag: \`${IMAGE_TAG}\`"
             echo "Workflow run: ${RUN_URL}"

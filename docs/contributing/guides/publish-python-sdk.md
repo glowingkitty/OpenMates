@@ -39,12 +39,14 @@ key:
 ```
 
 The checked-in `packages/openmates-python/pyproject.toml` version should match
-`python.stableBase`. The publish workflow rewrites that version in CI only:
+`python.stableBase`. The publish workflow rewrites that version in CI only when
+publishing from `main`:
 
-- `dev` publishes the next unused patch slot as an alpha prerelease. For example, before `0.14.0` is stable it publishes `0.14.0a0`; the next dev publish in the same line publishes `0.14.1a0`.
+- Pull requests validate tests and package builds only. They never publish to PyPI.
 - `main` publishes the stable version for the latest prerelease patch slot if one exists; otherwise it publishes the next unused stable patch. For example, after `0.14.1a0`, main publishes `0.14.1`.
 
-Use alpha releases for dev testing:
+Use prerelease installs only when a prerelease has been published manually or by
+a historical workflow run:
 
 ```bash
 pip install --pre openmates
@@ -75,15 +77,16 @@ python3 scripts/prepare_python_publish_version.py --channel=main --dry-run
 
 ## Automated Publish Flow
 
-The `.github/workflows/publish-python-sdk.yml` workflow runs on every `main`
-push so stable artifacts stay aligned with main, and on `dev` only when Python
-SDK package files, version config, tests, or the publish workflow change. It also supports manual `workflow_dispatch` runs.
+The `.github/workflows/publish-python-sdk.yml` workflow validates pull requests
+that touch Python SDK package files, version config, tests, or the publish
+workflow. It publishes stable artifacts only after changes are merged and pushed
+to `main`. Manual `workflow_dispatch` runs validate the package without
+publishing.
 
 1. Merge SDK changes into `dev`.
-2. Wait for `Publish Python SDK` to pass and publish the alpha prerelease.
-3. Install the alpha locally with `pip install --pre --upgrade openmates` and run a small API-key smoke test.
-4. Merge `dev` to `main` when ready for a stable release.
-5. Wait for the same workflow to publish the stable package.
+2. Open or update the `dev` to `main` pull request and wait for `Publish Python SDK` validation to pass.
+3. Merge `dev` to `main` when ready for a stable release.
+4. Wait for the same workflow to publish the stable package and send the release notification.
 
 If publishing fails with a trusted-publisher error, verify the PyPI pending
 publisher fields exactly match the GitHub owner, repository, and workflow file.

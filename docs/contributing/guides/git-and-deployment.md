@@ -325,7 +325,7 @@ Inspect the commits going into the PR and decide:
 - Any `feat:` commits → consider a new minor product line (e.g. `v0.14` → `v0.15`)
 - Major milestone reached → consult the user before bumping major or changing phase
 
-**Note:** Also update `shared/config/product_version.json` when bumping the minor product line. Keep `userFacing` aligned with the short product line, e.g. `v0.14`, while `cli.stableBase` / `python.stableBase` define the artifact line start, e.g. `0.14.0`. Stable artifacts publish as `0.14.N`. Dev prereleases use the next unused patch slot as `0.14.N-alpha.0` for npm and `0.14.Na0` for PyPI; main then promotes the latest prerelease slot to stable when applicable. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
+**Note:** Also update `shared/config/product_version.json` when bumping the minor product line. Keep `userFacing` aligned with the short product line, e.g. `v0.14`, while `cli.stableBase` / `python.stableBase` define the artifact line start, e.g. `0.14.0`. Pull requests validate npm, PyPI, and self-host Docker artifacts without publishing them. Stable artifacts publish as `0.14.N` only after merge to `main`; historical or manually published prereleases may still occupy the next patch slot as `0.14.N-alpha.0` for npm and `0.14.Na0` for PyPI, and `main` promotes that slot to stable when applicable. Keep `frontend/packages/ui/src/i18n/sources/signup/main.yml` → `version_title` aligned with `userFacing`, then regenerate locale JSON files (see `docs/contributing/guides/i18n.md`).
 
 ### Release Workflow
 

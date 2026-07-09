@@ -1,15 +1,27 @@
 # Publish openmates CLI to npm.
 # - main branch → publishes the next stable patch in the configured release line
 #   to npm `latest`
-# - dev branch → npm `alpha` tag when CLI/versioning files change
+# - pull requests → validate build/tests only, never publish
 #
 # Uses npm Trusted Publishing (OIDC) — no NPM_TOKEN secret needed.
 # Configure at: npmjs.com → openmates → Settings → Trusted Publishing → Link GitHub repo.
 name: Publish CLI
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/packages/openmates-cli/**'
+      - 'scripts/prepare_cli_publish_version.mjs'
+      - 'shared/config/product_version.json'
+      - '.github/workflows/publish-cli.yml'
   push:
-    branches: [main, dev]
+    branches: [main]
+    paths:
+      - 'frontend/packages/openmates-cli/**'
+      - 'scripts/prepare_cli_publish_version.mjs'
+      - 'shared/config/product_version.json'
+      - '.github/workflows/publish-cli.yml'
   workflow_dispatch: {}
 
 concurrency:
@@ -17,43 +29,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      should_publish: ${{ steps.filter.outputs.should_publish }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Decide whether to publish
-        id: filter
-        shell: bash
-        run: |
-          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] || [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            echo "should_publish=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          before="${{ github.event.before }}"
-          after="${{ github.sha }}"
-          if [ -z "$before" ] || [[ "$before" =~ ^0+$ ]]; then
-            echo "should_publish=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          changed_files="$(git diff --name-only "$before" "$after")"
-          if printf '%s\n' "$changed_files" | grep -E '^(frontend/packages/openmates-cli/|scripts/prepare_cli_publish_version\.mjs$|shared/config/product_version\.json$|\.github/workflows/publish-cli\.yml$)' >/dev/null; then
-            echo "should_publish=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
-          fi
-
   build-test:
-    needs: changes
-    if: needs.changes.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -86,9 +62,12 @@ jobs:
           retention-days: 1
 
   publish:
-    needs: [changes, build-test]
-    if: needs.changes.outputs.should_publish == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    needs: build-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.stable-published.outputs.published != 'true' }}
+      version: ${{ steps.stable-version.outputs.version }}
     permissions:
       contents: read
       id-token: write  # Required for npm Trusted Publishing (OIDC)
@@ -105,19 +84,12 @@ jobs:
           name: openmates-cli-dist
           path: frontend/packages/openmates-cli/dist
 
-      - name: Bump prerelease version (dev only)
-        id: dev-version
-        if: github.ref == 'refs/heads/dev'
-        run: node scripts/prepare_cli_publish_version.mjs --channel=dev
-
-      - name: Bump to stable version (main only)
+      - name: Bump to stable version
         id: stable-version
-        if: github.ref == 'refs/heads/main'
         run: node scripts/prepare_cli_publish_version.mjs --channel=main
 
       - name: Check whether stable version is already published
         id: stable-published
-        if: github.ref == 'refs/heads/main'
         shell: bash
         run: |
           version="${{ steps.stable-version.outputs.version }}"
@@ -129,11 +101,60 @@ jobs:
           fi
 
       - name: Publish to npm (stable)
-        if: github.ref == 'refs/heads/main' && steps.stable-published.outputs.published != 'true'
+        if: steps.stable-published.outputs.published != 'true'
         working-directory: frontend/packages/openmates-cli
         run: npm publish --provenance --access public
 
-      - name: Publish to npm (alpha)
-        if: github.ref == 'refs/heads/dev'
-        working-directory: frontend/packages/openmates-cli
-        run: npm publish --provenance --access public --tag alpha
+  notify:
+    needs: publish
+    if: needs.publish.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Notify Discord about npm release
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          VERSION: ${{ needs.publish.outputs.version }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "Discord webhook secret DISCORD_WEBHOOK_URL is not configured; skipping Discord notification."
+            exit 0
+          fi
+
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          version = os.environ["VERSION"]
+          payload = {
+              "username": "OpenMates CI",
+              "embeds": [
+                  {
+                      "title": f"npm CLI release v{version}",
+                      "url": os.environ["RUN_URL"],
+                      "color": 0x2ecc71,
+                      "fields": [
+                          {"name": "Package", "value": "`openmates`", "inline": True},
+                          {"name": "Version", "value": f"`{version}`", "inline": True},
+                          {"name": "Tag", "value": "`latest`", "inline": True},
+                      ],
+                      "footer": {"text": "OpenMates GitHub Actions"},
+                  }
+              ],
+          }
+          request = urllib.request.Request(
+              os.environ["DISCORD_WEBHOOK_URL"],
+              data=json.dumps(payload).encode("utf-8"),
+              headers={"Content-Type": "application/json", "User-Agent": "OpenMates-GitHub-Actions"},
+              method="POST",
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=10) as response:
+                  if response.status >= 300:
+                      print(f"::warning::Discord notification returned HTTP {response.status}")
+          except (urllib.error.URLError, TimeoutError) as exc:
+              print(f"::warning::Discord notification failed: {exc}")
+          PY
