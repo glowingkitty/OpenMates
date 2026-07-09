@@ -1352,6 +1352,42 @@ describe("defaultCloneBranchForVersion", () => {
   });
 });
 
+describe("CLI server command startup feedback", () => {
+  it("prints immediate branded status for backup before Docker work", () => {
+    const tempPath = join(tmpdir(), `openmates-cli-backup-feedback-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(tempPath, { recursive: true });
+    try {
+      const result = runCliWithoutSessionResult(["server", "backup", "--path", tempPath, "--role", "core"]);
+      assert.match(result.stdout, /OPENMATES/);
+      assert.match(result.stdout, /Running OpenMates server backup/);
+      assert.match(result.stdout, new RegExp(`Path: ${tempPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+      assert.match(result.stdout, /Role: core/);
+    } finally {
+      rmSync(tempPath, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps backup list and JSON output machine-friendly", () => {
+    const tempPath = join(tmpdir(), `openmates-cli-backup-list-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    mkdirSync(join(tempPath, "backend", "core"), { recursive: true });
+    writeFileSync(join(tempPath, "backend", "core", "docker-compose.yml"), "services: {}\n");
+    try {
+      const listOutput = runCliWithoutSession(["server", "backup", "list", "--path", tempPath, "--role", "core"]);
+      assert.doesNotMatch(listOutput, /OPENMATES/);
+      assert.match(listOutput, /Backups for core:/);
+
+      const listJson = runCliWithoutSession(["server", "backup", "list", "--path", tempPath, "--role", "core", "--json"]);
+      assert.deepEqual(JSON.parse(listJson), { role: "core", backupDir: join(tempPath, "backups", "core"), files: [] });
+
+      const jsonResult = runCliWithoutSessionResult(["server", "backup", "--path", join(tempPath, "missing"), "--role", "core", "--json"]);
+      assert.doesNotMatch(jsonResult.stdout, /OPENMATES/);
+      assert.doesNotMatch(jsonResult.stderr, /OPENMATES/);
+    } finally {
+      rmSync(tempPath, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("CLI self-update commands", () => {
   it("lists update and upgrade aliases in global help", () => {
     const output = runCli(["help"]);

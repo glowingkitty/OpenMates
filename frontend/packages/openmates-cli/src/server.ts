@@ -23,6 +23,7 @@ import {
   resolveServerPath,
   saveServerConfig,
 } from "./serverConfig.js";
+import { renderOpenMatesAsciiLogo } from "./branding.js";
 import { renderSupportStartReminder } from "./support.js";
 import {
   type CaddyAction,
@@ -866,6 +867,49 @@ type RuntimeSecretPreflight = SecretPreflightSummary & {
   vaultChecked: boolean;
   vaultUnavailableReason: string | null;
 };
+
+const LONG_RUNNING_SERVER_COMMANDS = new Set([
+  "install",
+  "start",
+  "stop",
+  "restart",
+  "update",
+  "preflight",
+  "caddy",
+  "backup",
+  "restore",
+  "reset",
+  "make-admin",
+  "ai",
+  "uninstall",
+]);
+
+function shouldPrintServerCommandStart(
+  subcommand: string,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): boolean {
+  if (flags.json === true || !LONG_RUNNING_SERVER_COMMANDS.has(subcommand)) return false;
+  if (subcommand === "backup" && rest[0] === "list") return false;
+  if (subcommand === "update" && rest[0] === "status") return false;
+  if (subcommand === "ai" && rest[0] === "models" && (rest[1] === "list" || rest[1] === "remove")) return false;
+  if (subcommand === "caddy" && (rest[0] === "status" || rest[0] === "diff")) return false;
+  return true;
+}
+
+function printServerCommandStart(
+  subcommand: string,
+  rest: string[],
+  flags: Record<string, string | boolean>,
+): void {
+  const command = ["server", subcommand, ...rest].join(" ");
+  console.log(renderOpenMatesAsciiLogo());
+  console.log("");
+  console.log(`Running OpenMates ${command}...`);
+  if (typeof flags.path === "string") console.log(`Path: ${resolve(flags.path)}`);
+  if (typeof flags.role === "string") console.log(`Role: ${flags.role}`);
+  console.log("");
+}
 
 function vaultCheckContainerForRole(role: ServerRole): string | null {
   if (role === "core") return "api";
@@ -2609,6 +2653,10 @@ export async function handleServer(
   if (!subcommand || subcommand === "help" || flags.help === true) {
     printServerHelp();
     return;
+  }
+
+  if (shouldPrintServerCommandStart(subcommand, rest, flags)) {
+    printServerCommandStart(subcommand, rest, flags);
   }
 
   switch (subcommand) {
