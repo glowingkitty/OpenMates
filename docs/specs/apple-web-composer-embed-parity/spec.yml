@@ -1,6 +1,6 @@
 id: apple-web-composer-embed-parity
 title: Apple Web Composer Embed Parity
-status: approved
+status: verified
 
 goal: >
   Make the Apple app's message composer match the web MessageInput embed behavior,
@@ -270,7 +270,7 @@ acceptance_criteria:
     scenario: S-7
     text: The final implementation is verified on the remote Mac and uploaded to TestFlight only after targeted parity tests are green.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: apple
     verification_ids:
@@ -284,7 +284,7 @@ assumptions:
     text: A generated or extracted local web-composer core can reuse the web Tiptap embed contracts without bundling the full Svelte app route or private runtime state.
     category: architecture
     required_before: implementation
-    status: unchecked
+    status: confirmed
     evidence:
       - source: frontend/packages/ui/src/components/enter_message/editorConfig.ts
         summary: The editor extension list is a focused seam that can be imported or mirrored by a generated bundle.
@@ -294,7 +294,7 @@ assumptions:
     text: Apple Swift upload/transcription code can continue owning native upload execution if it reports equivalent lifecycle updates back to editor nodes.
     category: apple
     required_before: task_execution
-    status: unchecked
+    status: confirmed
     evidence:
       - source: apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
         summary: Existing upload and transcription functions already produce upload metadata and transcript data that can be mapped to editor node attributes.
@@ -302,7 +302,7 @@ assumptions:
     text: The current native pending embed strip can be removed from the normal composer path without breaking share extension or quick-capture pending attachment flows.
     category: apple
     required_before: task_execution
-    status: unchecked
+    status: confirmed
     evidence:
       - source: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift
         summary: Existing tests intentionally assert pending strips, so they must be rewritten red-first before removing the behavior.
@@ -399,9 +399,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "python3 scripts/apple_composer_audit.py --require-web-embed-parity"
+        timestamp: "2026-07-09T14:32:32Z"
+        summary: "Failed before implementation because the Swift bridge and JS composer lacked editor-owned embed commands/diagnostics, the JS composer lacked visible embed diagnostics, and attachment/audio UI tests still asserted native pending strips."
     green_phase:
       required: true
       expected: pass
@@ -427,9 +428,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "python3 scripts/apple_composer_audit.py --require-web-embed-parity"
+        timestamp: "2026-07-09T14:32:32Z"
+        summary: "Failed against the pre-implementation text-only composer because embed bridge commands/events and embed diagnostics were not present."
     green_phase:
       required: true
       expected: pass
@@ -454,9 +456,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "python3 scripts/apple_composer_audit.py --require-web-embed-parity"
+        timestamp: "2026-07-09T14:32:32Z"
+        summary: "Failed against the pre-implementation text-only composer because embed serialization commands and canonical editor-owned embed references were absent."
     green_phase:
       required: true
       expected: pass
@@ -483,9 +486,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "python3 scripts/apple_composer_audit.py --require-web-embed-parity"
+        timestamp: "2026-07-09T14:32:32Z"
+        summary: "Failed against the native pending-strip implementation because attachment tests did not prove editor-owned embed diagnostics or hidden pending strips."
     green_phase:
       required: true
       expected: pass
@@ -512,9 +516,10 @@ tests:
       required: true
       expected: fail
       evidence:
-        status: ""
-        run_id: ""
-        timestamp: ""
+        status: failed_as_expected
+        run_id: "python3 scripts/apple_composer_audit.py --require-web-embed-parity"
+        timestamp: "2026-07-09T14:32:32Z"
+        summary: "Failed against the native pending-strip implementation because audio tests did not prove editor-owned recording embed diagnostics or hidden pending strips."
     green_phase:
       required: true
       expected: pass
@@ -555,11 +560,11 @@ verifications:
     required_for_done: true
     covers:
       - AC-7
-    status: pending
+    status: passed
     evidence:
-      status: ""
-      summary: ""
-      timestamp: ""
+      status: passed
+      summary: "Remote Mac deploy-latest-testflight passed on current dev commit fcfe3db. iOS archive/upload passed with TestFlight notes updated; macOS archive/upload passed after macOS archive fixes; both uploads reached App Store Connect processing. Command: python3 scripts/apple_remote.py deploy-latest-testflight --branch dev --whats-new <5-line internal notes>."
+      timestamp: "2026-07-09T17:50:38Z"
 
 implementation_plan:
   existing_patterns:
