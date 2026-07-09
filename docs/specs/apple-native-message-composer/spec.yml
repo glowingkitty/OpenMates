@@ -477,10 +477,12 @@ assumptions:
     text: Apple TextKit 2 attachment providers can host reusable interactive native preview views without corrupting selection or viewport layout on supported iOS and macOS versions.
     category: apple
     required_before: implementation
-    status: checking
+    status: confirmed
     evidence:
       - source: Apple TextKit 2 documentation
         summary: Apple documents custom text elements and attachment-view reuse, but OpenMates-specific interactive preview behavior needs a focused prototype and red tests.
+      - source: apple/OpenMatesTests/NativeComposerControllerTests.swift
+        summary: Remote iOS tests prove TextKit 2 attachment atoms, interactive provider controls, full-line bounds, stable identity, UTF-16 validation, marked text, and boundary insertion; the same controller/provider source typechecks against the macOS 14 SDK.
   - id: A-3
     text: The current web write-mode registry contains native routing gaps and generic fallbacks; every gap can receive a specific native preview without changing backend data contracts, but missing implementations block cutover.
     category: architecture
@@ -700,7 +702,11 @@ tests:
     green_phase:
       required: true
       expected: pass
-      evidence: { status: "", run_id: "", timestamp: "" }
+      evidence:
+        status: passed
+        run_id: "apple-remote-65aeb81"
+        timestamp: "2026-07-09T23:46:42Z"
+        summary: NativeComposerControllerTests passed 7/7 on iPhone simulator; focused ComposerDocument plus NativeComposerController AppKit typecheck passed against the macOS SDK.
 
   - id: T-APPLE-INLINE-EMBED-UI
     type: unit
@@ -1351,7 +1357,7 @@ tasks:
 
   - id: TASK-2
     title: Prove TextKit attachment and selection feasibility
-    status: in_progress
+    status: done
     phase: checking_assumptions
     covers:
       scenarios: [S-1, S-3, S-7]
@@ -1360,7 +1366,7 @@ tasks:
       - apple/OpenMatesTests/NativeComposerControllerTests.swift
       - apple/OpenMates/Sources/Shared/Composer/NativeComposerPrototype/**
       - apple/OpenMates/Sources/DevPreview/DevEmbedPreviewGalleryView.swift
-    verification_ids: [T-APPLE-NATIVE-EDITOR, T-APPLE-INLINE-EMBED-UI]
+    verification_ids: [T-APPLE-NATIVE-EDITOR]
     blockers: [A-2]
     dependencies: [TASK-1]
     follow_up_tasks: [TASK-6]
@@ -1368,7 +1374,7 @@ tasks:
 
   - id: TASK-3
     title: Generate native composer renderer coverage audit
-    status: pending
+    status: in_progress
     phase: checking_assumptions
     covers:
       scenarios: [S-3, S-14]

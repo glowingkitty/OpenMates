@@ -1,0 +1,525 @@
+# Apple composer renderer coverage inventory.
+# Generated keys and source classifications come from the web registry and Apple Swift routes.
+# Fixture, lifecycle, native preview mapping, and visual case are maintained proof fields.
+# Run: python3 scripts/apple_composer_renderer_audit.py --write-manifest
+# Generic search and fallback routes never count as composer parity.
+# Null proof values intentionally keep known native composer gaps visible.
+# Do not mark planned coverage as implemented evidence.
+schema_version: 1
+source: frontend/packages/ui/src/data/embedRegistry.generated.ts#EMBED_RENDERER_MAP
+types:
+  recording:
+    web_renderer: RecordingRenderer
+    classification: specific_native
+    apple_model_case: recording
+    apple_read_renderer: RecordingRenderer
+    fixture: null
+    lifecycle:
+      finished: pending attachment preview
+    native_preview_mapping: apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift#PendingComposerEmbedPreview
+    visual_case: apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift#testSignedOutWelcomeHoldReleaseInsertsRecordingPreview
+  app-skill-use:
+    web_renderer: AppSkillUseRenderer
+    classification: generic_search
+    apple_model_case: null
+    apple_read_renderer: AppSkillUseRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  code-repo:
+    web_renderer: GroupRenderer
+    classification: generic_fallback
+    apple_model_case: codeRepo
+    apple_read_renderer: GenericEmbedRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  code-repo-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  code-code:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: codeCode
+    apple_read_renderer: CodeEmbedRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  code-code-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  docs-doc:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: docsDoc
+    apple_read_renderer: DocsRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  docs-doc-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  electronics-pcb-schematic:
+    web_renderer: GroupRenderer
+    classification: missing
+    apple_model_case: null
+    apple_read_renderer: null
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  electronics-pcb-schematic-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  electronics-component:
+    web_renderer: GroupRenderer
+    classification: generic_fallback
+    apple_model_case: electronicsComponent
+    apple_read_renderer: GenericEmbedRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  electronics-component-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  events-event:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: eventsEvent
+    apple_read_renderer: EventEmbedRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  events-event-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  fitness-location:
+    web_renderer: GroupRenderer
+    classification: missing
+    apple_model_case: null
+    apple_read_renderer: null
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  fitness-location-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  fitness-class:
+    web_renderer: GroupRenderer
+    classification: missing
+    apple_model_case: null
+    apple_read_renderer: null
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  fitness-class-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  health-appointment:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: healthAppointment
+    apple_read_renderer: AppointmentRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  health-appointment-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  home-listing:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: homeListing
+    apple_read_renderer: HomeListingRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  home-listing-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  image:
+    web_renderer: ImageRenderer
+    classification: specific_native
+    apple_model_case: image
+    apple_read_renderer: ImageEmbedRenderer
+    fixture: shared/composer/fixtures/composer-document-v1.json#text-embed-text
+    lifecycle:
+      finished: pending attachment preview
+    native_preview_mapping: apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift#PendingComposerEmbedPreview
+    visual_case: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift#testSeededPendingAttachmentMatchesMessageInputContractStructure
+  images-image-result:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: imagesImageResult
+    apple_read_renderer: ImageResultEmbedRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  images-image-result-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  mail-email:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: mailEmail
+    apple_read_renderer: MailRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  mail-email-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  maps-place:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: mapsPlace
+    apple_read_renderer: MapsPlaceRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  maps-place-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  maps:
+    web_renderer: MapLocationRenderer
+    classification: specific_native
+    apple_model_case: maps
+    apple_read_renderer: MapsLocationRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  math-plot:
+    web_renderer: MathPlotRenderer
+    classification: specific_native
+    apple_model_case: mathPlot
+    apple_read_renderer: MathPlotRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  mindmaps-mindmap:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: mindmapsMindmap
+    apple_read_renderer: MindMapEmbedRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  mindmaps-mindmap-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  web-website:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: webWebsite
+    apple_read_renderer: WebsiteEmbedRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  web-website-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  nutrition-recipe:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: nutritionRecipe
+    apple_read_renderer: RecipeRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  nutrition-recipe-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  pdf:
+    web_renderer: PdfRenderer
+    classification: specific_native
+    apple_model_case: pdf
+    apple_read_renderer: PDFRenderer
+    fixture: null
+    lifecycle:
+      finished: pending attachment preview
+    native_preview_mapping: apple/OpenMates/Sources/Features/Chat/Views/InlinePreviewView.swift#PendingComposerEmbedPreview
+    visual_case: apple/OpenMatesUITests/MessageInputAttachmentUITests.swift#testWelcomeComposerSeededPendingAttachmentsEnableSendWithoutRawJson
+  shopping-product:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: shoppingProduct
+    apple_read_renderer: ShoppingProductRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  shopping-product-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  social-media-post:
+    web_renderer: GroupRenderer
+    classification: generic_fallback
+    apple_model_case: socialMediaPost
+    apple_read_renderer: GenericEmbedRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  social-media-post-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  travel-connection:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: travelConnection
+    apple_read_renderer: TravelConnectionEmbedRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  travel-connection-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  travel-stay:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: travelStay
+    apple_read_renderer: TravelStayEmbedRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  travel-stay-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  videos-video:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: videosVideo
+    apple_read_renderer: VideoRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  videos-video-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  weather-day:
+    web_renderer: GroupRenderer
+    classification: generic_fallback
+    apple_model_case: weatherDay
+    apple_read_renderer: GenericEmbedRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  weather-day-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  sheets-sheet:
+    web_renderer: GroupRenderer
+    classification: specific_native
+    apple_model_case: sheetsSheet
+    apple_read_renderer: SheetRenderer
+    fixture: null
+    lifecycle: {}
+    native_preview_mapping: null
+    visual_case: null
+  sheets-sheet-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
+  focus-mode-activation:
+    web_renderer: FocusModeActivationRenderer
+    classification: not_applicable_to_composer
+    apple_model_case: focusModeActivation
+    apple_read_renderer: FocusModeRenderer
+    fixture: not_applicable
+    lifecycle:
+      not_applicable: system-generated read-only embed
+    native_preview_mapping: not_applicable
+    visual_case: not_applicable
+    not_applicable_reason: Focus-mode activation is system-generated and cannot be inserted by the composer.
+  app-skill-use-group:
+    web_renderer: GroupRenderer
+    classification: structural_group_only
+    apple_model_case: null
+    apple_read_renderer: GroupedEmbedView
+    fixture: shared/composer/fixtures/composer-document-v1.json#grouped-embed
+    lifecycle:
+      finished: structural group delegates to child previews
+    native_preview_mapping: apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift#GroupedEmbedView
+    visual_case: null
