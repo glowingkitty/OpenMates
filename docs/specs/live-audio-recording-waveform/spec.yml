@@ -1,0 +1,412 @@
+id: live-audio-recording-waveform
+title: Web Live Audio Recording Waveform
+status: implementing
+
+goal: >
+  Give users immediate visual feedback that their microphone is receiving sound
+  by rendering a live rolling bar waveform while audio recording is active in
+  the web composer. Apple parity is deliberately deferred until the active native
+  TipTap/message-input spec is complete.
+
+scope:
+  in:
+    - The active audio recording overlay in the web composer.
+    - Live browser microphone-level metering and a rolling recent-history bar display.
+    - Responsive layout, accessibility semantics, and deterministic web tests.
+    - Cleanup of all metering resources when recording stops, is cancelled, errors, or the overlay is destroyed.
+  out:
+    - All Apple implementation and tests in this slice, including iPhone, iPad, macOS, and Apple Watch.
+    - Persisting or replaying the waveform after recording finishes.
+    - Changing recording formats, upload, transcription, encryption, send behavior, or backend APIs.
+    - Replacing the existing recording overlay colors, timer, cancel hint, release behavior, or microphone control.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me returned 401 Bad credentials."
+    - "gh issue list --repo glowingkitty/OpenMates --state all --search 'audio recording waveform visualization' returned no matching issues."
+    - "gh issue list --repo glowingkitty/OpenMates --state all --search 'waveform' returned no matching issues."
+    - "gh issue list --repo glowingkitty/OpenMates --state all --search 'audio recording' returned no matching issues."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/specs/apple-ui-contracts/spec.yml
+    - docs/specs/apple-welcome-composer-action-parity/spec.yml
+    - .claude/rules/apple-ui.md
+    - apple/AGENTS.md
+  code_patterns:
+    - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte owns the web MediaStream, MediaRecorder lifecycle, active gradient overlay, timer, cancel hint, and mic control.
+    - apple/OpenMates/Sources/Features/Chat/Views/VoiceRecordingView.swift owns VoiceRecorder and the shared ComposerRecordingOverlay but currently publishes only recording state, duration, and errors.
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift and apple/OpenMates/Sources/App/MainAppView.swift both host the shared Apple recording overlay.
+    - Web AudioContext analysis can meter the existing MediaStream without changing the MediaRecorder output.
+    - AVAudioRecorder supports live average-power metering when isMeteringEnabled is enabled and updateMeters is called during recording.
+  tests:
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - frontend/apps/web_app/tests/apple-ui-contracts.spec.ts
+    - apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift
+    - apple/OpenMatesTests/MessageComposerConfigurationTests.swift
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - A later Apple slice should use this verified web rendering as its source of truth for rolling direction, placement, bar geometry, and existing recording colors.
+    - Apple work must start only after the active apple-tiptap-webview-composer/message-input work is complete to avoid conflicts in the shared composer surface.
+  verification:
+    - Apple verification is not required for this web-only slice.
+  intentional_native_differences:
+    - Apple temporarily remains without a live waveform until the active native composer dependency is complete and a follow-up parity slice is approved.
+
+clarification:
+  rounds:
+    - question: Where should the live bars sit in the existing recording overlay?
+      answer: Keep Release to finish and place the waveform below it.
+    - question: Should the bars show rolling recent history or animate as a fixed equalizer?
+      answer: Show rolling recent history, matching the reference image.
+    - question: Should Apple Watch be included in this first slice?
+      answer: Limit Apple scope to the shared iPhone, iPad, and macOS overlay.
+    - question: Should implementation start across web and Apple at the same time?
+      answer: >
+        No. Implement and test web first. Leave all Apple work until the active
+        Apple message-input/TipTap spec is completed.
+  vision_summary: >
+    Preserve the existing recording UI and behavior while adding a white rolling
+    bar waveform below the release instruction in the web app. The visualization
+    must react to live browser microphone levels, remain responsive, and disappear
+    cleanly with the recording overlay; Apple parity is a separately sequenced follow-up.
+  approved_by_user: true
+
+scenarios:
+  - id: S-1
+    title: Web user sees live rolling microphone feedback
+    given:
+      - The web composer has microphone permission.
+      - The user presses and holds record-audio-button beyond the existing hold threshold.
+    when:
+      - The microphone receives changing sound levels while recording remains active.
+    then:
+      - record-overlay keeps release-text above the visualization.
+      - recording-waveform renders narrow centered vertical bars in the overlay's existing white-on-gradient color scheme.
+      - New normalized level samples enter at the right and older samples move left.
+      - Bar heights visibly differ as the microphone level changes.
+      - timer-pill, cancel-hint, and mic-button remain visible and usable.
+
+  - id: S-2
+    title: Silence remains legible without implying missing input
+    given:
+      - Web recording is active.
+    when:
+      - The microphone level is silent or near the platform noise floor.
+    then:
+      - The waveform remains present as short centered bars rather than disappearing.
+      - The bars do not use random decorative motion that could be mistaken for detected speech.
+      - Existing recording state and timer continue normally.
+
+  - id: S-3
+    title: Metering resources stop with every recording exit path
+    given:
+      - Live waveform metering has started.
+    when:
+      - The user releases to finish, cancels with Escape or drag-left, a recording error occurs, or the overlay is destroyed.
+    then:
+      - Web animation frames and AudioContext/source/analyser resources are disconnected and closed.
+      - Waveform samples reset.
+      - No waveform updates continue after recording becomes inactive.
+      - Existing completion and cancellation outcomes remain unchanged.
+
+  - id: S-4
+    title: Waveform adapts to available composer width
+    given:
+      - The active recording overlay is shown on phone-sized and desktop-sized layouts.
+    when:
+      - The available overlay width changes.
+    then:
+      - Bars remain centered between the release instruction and controls without horizontal overflow.
+      - The visualization uses the available width while preserving narrow bars and consistent spacing.
+      - The waveform is decorative to assistive technology; existing localized text continues to communicate recording state and actions.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Web recording renders a live right-to-left rolling bar history from the active microphone stream without changing MediaRecorder output or existing controls.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-AUDIO-WAVEFORM
+  - id: AC-2
+    scenario: S-2
+    text: Silent browser input renders stable minimum-height centered bars and does not generate random fake speech activity.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-AUDIO-WAVEFORM
+  - id: AC-3
+    scenario: S-3
+    text: Stop, cancel, error, and destruction paths terminate browser waveform updates and release Web Audio resources without regressing recording outcomes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-AUDIO-WAVEFORM
+  - id: AC-4
+    scenario: S-4
+    text: The waveform fits phone and desktop composer widths, remains between the release instruction and controls, and is hidden from assistive technology as decorative feedback.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-AUDIO-WAVEFORM
+
+assumptions:
+  - id: A-1
+    text: The existing MediaStream can be connected to Web Audio analysis and MediaRecorder concurrently without changing the encoded recording.
+    category: architecture
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+        summary: The acquired stream is retained for the complete recording lifecycle and can feed a non-output analyser branch.
+  - id: A-2
+    text: Apple waveform parity is deferred until the active native TipTap/message-input work is complete.
+    category: sequencing
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: user confirmation 2026-07-09
+        summary: User requested web implementation and testing first, with Apple work left for later.
+      - source: docs/specs/apple-tiptap-webview-composer/spec.yml
+        summary: Active native composer work owns the Apple message-input surface that a later waveform parity slice will touch.
+
+contracts:
+  api:
+    - No backend, upload, transcription, encryption, or send API changes.
+  data:
+    - Waveform history contains only transient normalized level values in memory.
+    - No waveform samples, raw PCM, microphone levels, or AudioContext buffers are persisted, uploaded, or logged.
+    - History is reset when recording starts and whenever recording ends.
+  ui_states:
+    - Active recording with near-silent baseline bars.
+    - Active recording with changing rolling level history.
+    - Responsive phone-width and desktop-width recording overlays.
+    - Stop, cancel, error, and destroyed states with no remaining waveform activity.
+  privacy_security:
+    - Metering operates locally on the already-authorized microphone stream.
+    - Diagnostics and tests must not record or retain user audio or raw microphone samples.
+    - Analyser setup failure must not prevent the user from completing a recording; it must be visible in existing privacy-safe diagnostics rather than silently swallowed.
+  accessibility:
+    - recording-waveform is decorative and hidden from the accessibility tree.
+    - release-text, timer-pill, cancel-hint, and mic-button retain their current labels, identifiers, and focus behavior.
+    - Live data feedback must not add an extra high-frequency screen-reader announcement.
+
+tests:
+  - id: T-WEB-AUDIO-WAVEFORM
+    type: playwright
+    file: frontend/apps/web_app/tests/audio-recording.spec.ts
+    command: python3 scripts/tests.py run -- --spec audio-recording.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+    assertions:
+      - press-and-hold shows recording-waveform below release-text while existing controls remain visible
+      - fake microphone input produces a populated rolling history whose measured bar heights change over time
+      - near-silent or seeded zero levels retain minimum-height bars without random activity
+      - phone-width and desktop-width overlays contain the waveform without overflow
+      - release and Escape cancellation remove the waveform and stop subsequent sample changes
+      - recording-waveform is hidden from the accessibility tree
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+
+verifications:
+  - id: V-RENDERED-PARITY
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-4
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+
+implementation_plan:
+  spec: docs/specs/live-audio-recording-waveform/spec.yml
+  existing_patterns:
+    - RecordAudio.svelte already owns the acquired MediaStream and converges stop, cancel, error, and destroy behavior through stopInternal and onDestroy.
+    - audio-recording.spec.ts already supplies fake microphone input and verifies active overlay, completion, and cancellation states through stable data-testid selectors.
+    - The existing overlay uses release-text, timer-pill, cancel-hint, and mic-button as the cross-client recording contract; the new visualization must not replace them.
+  architecture: >
+    Keep recording and visualization in RecordAudio.svelte. Connect the existing
+    MediaStream to an AudioContext MediaStreamAudioSourceNode and AnalyserNode,
+    without connecting to the audio destination. At a bounded visual sampling
+    interval, calculate the RMS amplitude from time-domain bytes, normalize it,
+    and append it to a fixed-capacity Svelte array. Render that history as thin
+    centered bars in a responsive decorative container. A single cleanup function
+    cancels animation work, disconnects nodes, closes the AudioContext, and resets
+    samples; every recording exit path calls it without stopping stream tracks
+    before the existing MediaRecorder lifecycle does.
+  data_flow:
+    - The user holds record-audio-button and RecordAudio.svelte acquires the existing MediaStream.
+    - MediaRecorder receives the stream unchanged while a separate non-output analyser reads time-domain frames.
+    - A frame with RMS 0.08 is normalized to a bounded 0..1 display level and appended at the right of the rolling history.
+    - The oldest sample is removed at fixed capacity and Svelte updates recording-waveform bar heights.
+    - Release, Escape, drag cancellation, recorder error, or component destruction invokes waveform cleanup before the overlay closes.
+  boundaries:
+    api: No API, upload, transcription, encryption, or MediaRecorder format changes.
+    data: Normalized levels remain transient in component memory and are never persisted or logged.
+    ui: The waveform is inserted below release-text and above record-controls using the overlay's existing white-on-gradient palette.
+    accessibility: The waveform wrapper and bars are decorative and excluded from the accessibility tree.
+  affected_files:
+    - path: frontend/apps/web_app/tests/audio-recording.spec.ts
+      reason: Add deterministic red/green assertions for rolling levels, silence baseline, responsive containment, accessibility, and cleanup.
+    - path: frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+      reason: Add Web Audio metering lifecycle, rolling sample state, and waveform rendering/styles.
+    - path: docs/specs/live-audio-recording-waveform/spec.yml
+      reason: Record red/green evidence and completion status.
+  rollout:
+    - No migration, backfill, feature flag, or backend deployment is required.
+    - Deploy the web component to dev before Playwright green verification.
+    - Keep Apple parity deferred until the native TipTap/message-input spec is complete.
+  observability:
+    - Reuse the RecordAudio logger for privacy-safe analyser setup and cleanup errors.
+    - Never log amplitude arrays, raw audio, MediaStream contents, or user-identifying data.
+    - An analyser setup failure leaves MediaRecorder operational and reports the visual failure explicitly.
+  assumptions_checked:
+    - A-1 is confirmed by the retained MediaStream lifecycle in RecordAudio.svelte.
+    - A-2 is confirmed by the user's sequencing decision and the active apple-tiptap-webview-composer spec.
+  acceptance_criteria_coverage:
+    - AC-1 -> T-WEB-AUDIO-WAVEFORM dynamic history assertions.
+    - AC-2 -> T-WEB-AUDIO-WAVEFORM deterministic zero-level assertions.
+    - AC-3 -> T-WEB-AUDIO-WAVEFORM release/cancel cleanup assertions.
+    - AC-4 -> T-WEB-AUDIO-WAVEFORM phone/desktop layout and accessibility assertions plus V-RENDERED-PARITY.
+  verification_strategy:
+    - python3 scripts/spec_validate.py docs/specs/live-audio-recording-waveform/spec.yml
+    - python3 scripts/tests.py run -- --spec audio-recording.spec.ts before implementation for red evidence.
+    - Run the smallest frontend lint/type check accepted by the repository for the two changed source files.
+    - Deploy to dev and wait for Vercel Ready.
+    - python3 scripts/tests.py run -- --spec audio-recording.spec.ts after deploy for green evidence.
+    - python3 scripts/spec_verify.py docs/specs/live-audio-recording-waveform/spec.yml
+  verification_order:
+    - Playwright red phase against current dev deployment.
+    - Focused frontend lint/type verification after implementation.
+    - Dev deployment and Vercel Ready check.
+    - Playwright green phase and rendered artifact review.
+  open_questions: []
+  risks:
+    - Exact browser frame timing is nondeterministic, so Playwright should inject deterministic analyser frames and assert bounded state changes rather than exact animation frames.
+    - Cleanup must close only visualization resources and leave MediaRecorder track ownership unchanged.
+
+tasks:
+  - id: TASK-1
+    title: Define deterministic web waveform regression coverage
+    status: in_progress
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+    expected_files:
+      - frontend/apps/web_app/tests/audio-recording.spec.ts
+      - docs/specs/live-audio-recording-waveform/spec.yml
+    verification:
+      - T-WEB-AUDIO-WAVEFORM
+    verification_ids:
+      - T-WEB-AUDIO-WAVEFORM
+    blockers: []
+    dependencies: []
+    follow_up_tasks:
+      - TASK-2
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add metering lifecycle and responsive rolling bars
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+    expected_files:
+      - frontend/packages/ui/src/components/enter_message/RecordAudio.svelte
+    verification:
+      - focused frontend lint/type check
+      - T-WEB-AUDIO-WAVEFORM
+    verification_ids:
+      - T-WEB-AUDIO-WAVEFORM
+    blockers: []
+    dependencies:
+      - TASK-1
+    follow_up_tasks:
+      - TASK-3
+    independently_deployable: true
+
+  - id: TASK-3
+    title: Deploy and record green waveform evidence
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+    expected_files:
+      - docs/specs/live-audio-recording-waveform/spec.yml
+    verification:
+      - T-WEB-AUDIO-WAVEFORM
+      - V-RENDERED-PARITY
+    verification_ids:
+      - T-WEB-AUDIO-WAVEFORM
+      - V-RENDERED-PARITY
+    blockers: []
+    dependencies:
+      - TASK-2
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - Browser analyser timing can make visual assertions flaky unless tests use deterministic seeded levels or compare bounded state rather than exact frames.
+  - Publishing waveform samples too frequently can cause unnecessary Svelte redraws; updates must be capped to a visually smooth but bounded rate.
+  - AudioContext cleanup must not stop externally owned MediaStream tracks before the existing MediaRecorder completion path finishes.
+  - A later Apple parity slice must re-check the completed native composer architecture instead of porting against files that are currently changing.
+
+open_questions: []

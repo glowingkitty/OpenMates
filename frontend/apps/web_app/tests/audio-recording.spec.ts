@@ -11,8 +11,9 @@
  * Test matrix:
  *   1. Single tap  → no recording overlay; inline "Press & hold" label highlights
  *   2. Press & hold (>500ms) → recording overlay appears with correct UI elements
- *   3. Press & hold then release → recording completes, audio embed inserted
- *   4. Press & hold then Escape → recording cancelled, no embed inserted
+ *   3. Active recording → live rolling waveform responds and cleans up
+ *   4. Press & hold then release → recording completes, audio embed inserted
+ *   5. Press & hold then Escape → recording cancelled, no embed inserted
  */
 
 import { test, expect } from './helpers/cookie-audit';
@@ -122,6 +123,70 @@ async function waitForMicButton(page: any) {
 	const micVisible = await micButton.isVisible({ timeout: 20000 }).catch(() => false);
 	test.skip(!micVisible, 'Audio recording controls are not available in the current composer UI.');
 	return micButton;
+}
+
+async function installDeterministicAudioAnalyser(page: any) {
+	await page.addInitScript(() => {
+		const testState = { frame: 0, closedContexts: 0 };
+		Object.defineProperty(window, '__waveformTestState', {
+			configurable: true,
+			value: testState
+		});
+
+		class DeterministicAnalyser {
+			fftSize = 256;
+			frequencyBinCount = 128;
+
+			getByteTimeDomainData(data: Uint8Array) {
+				const amplitude = testState.frame++ % 2 === 0 ? 0 : 48;
+				for (let index = 0; index < data.length; index += 1) {
+					data[index] = 128 + Math.round(Math.sin((index / data.length) * Math.PI * 2) * amplitude);
+				}
+			}
+
+			disconnect() {}
+		}
+
+		class DeterministicSource {
+			connect(node: DeterministicAnalyser) {
+				return node;
+			}
+
+			disconnect() {}
+		}
+
+		class DeterministicAudioContext {
+			state = 'running';
+
+			createAnalyser() {
+				return new DeterministicAnalyser();
+			}
+
+			createMediaStreamSource() {
+				return new DeterministicSource();
+			}
+
+			close() {
+				testState.closedContexts += 1;
+				this.state = 'closed';
+				return Promise.resolve();
+			}
+		}
+
+		Object.defineProperty(window, 'AudioContext', {
+			configurable: true,
+			value: DeterministicAudioContext
+		});
+	});
+}
+
+async function expectWaveformContained(overlay: any, waveform: any) {
+	const overlayBox = await overlay.boundingBox();
+	const waveformBox = await waveform.boundingBox();
+	if (!overlayBox || !waveformBox) throw new Error('Recording overlay or waveform bounding box not found');
+
+	expect(waveformBox.x).toBeGreaterThanOrEqual(overlayBox.x);
+	expect(waveformBox.x + waveformBox.width).toBeLessThanOrEqual(overlayBox.x + overlayBox.width);
 }
 
 async function holdAndReleaseMicButton(page: any, micButton: any, holdMs = 1500) {
@@ -260,7 +325,80 @@ test('press and hold mic button shows recording overlay', async ({ page }) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 3: Press & hold then release → recording completes, audio embed inserted
+// Test 3: Active recording shows a responsive rolling waveform
+// ─────────────────────────────────────────────────────────────────────────────
+test('active recording shows live rolling waveform and releases analyser resources', async ({ page }) => {
+	test.setTimeout(60000);
+
+	await installDeterministicAudioAnalyser(page);
+	await setupAndFocusMessageField(page);
+	const micButton = await waitForMicButton(page);
+	await micButton.dispatchEvent('mousedown', { button: 0 });
+
+	const overlay = page.getByTestId('record-overlay');
+	await expect(overlay).toBeVisible({ timeout: 5000 });
+
+	const releaseText = overlay.getByTestId('release-text');
+	const waveform = overlay.getByTestId('recording-waveform');
+	const controls = overlay.getByTestId('record-controls');
+	await expect(waveform).toBeVisible();
+	await expect(waveform).toHaveAttribute('aria-hidden', 'true');
+
+	const bars = waveform.getByTestId('recording-waveform-bar');
+	expect(await bars.count()).toBeGreaterThan(20);
+
+	const initialLevels = await bars.evaluateAll((elements: Element[]) =>
+		elements.map((element) => element.getAttribute('data-level'))
+	);
+	await expect
+		.poll(
+			async () =>
+				bars.evaluateAll((elements: Element[]) =>
+					elements.map((element) => element.getAttribute('data-level'))
+				),
+			{ timeout: 5000 }
+		)
+		.not.toEqual(initialLevels);
+
+	const levels = (await bars.evaluateAll((elements: Element[]) =>
+		elements.map((element) => Number(element.getAttribute('data-level')))
+	)) as number[];
+	expect(levels.some((level) => level === 0)).toBeTruthy();
+	expect(levels.some((level) => level > 0)).toBeTruthy();
+
+	const minimumBarHeight = Math.min(
+		...(await bars.evaluateAll((elements: Element[]) =>
+			elements.map((element) => Number.parseFloat(getComputedStyle(element).height))
+		))
+	);
+	expect(minimumBarHeight).toBeGreaterThanOrEqual(2);
+
+	const releaseBox = await releaseText.boundingBox();
+	const waveformBox = await waveform.boundingBox();
+	const controlsBox = await controls.boundingBox();
+	if (!releaseBox || !waveformBox || !controlsBox) throw new Error('Recording content bounding box not found');
+	expect(waveformBox.y).toBeGreaterThanOrEqual(releaseBox.y + releaseBox.height);
+	expect(waveformBox.y + waveformBox.height).toBeLessThanOrEqual(controlsBox.y);
+	await expectWaveformContained(overlay, waveform);
+
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect(waveform).toBeVisible();
+	await expectWaveformContained(overlay, waveform);
+
+	await page.dispatchEvent('body', 'mouseup');
+	await expect(overlay).not.toBeVisible({ timeout: 10000 });
+	await expect
+		.poll(() =>
+			page.evaluate(() =>
+				(window as unknown as { __waveformTestState: { closedContexts: number } })
+					.__waveformTestState.closedContexts
+			)
+		)
+		.toBe(1);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Test 4: Press & hold then release → recording completes, audio embed inserted
 // ─────────────────────────────────────────────────────────────────────────────
 test('press hold and release creates audio embed', async ({ page }) => {
 	test.setTimeout(60000);
@@ -290,7 +428,7 @@ test('press hold and release creates audio embed', async ({ page }) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 3b: Authenticated recording uploads and reaches transcription endpoint
+// Test 4b: Authenticated recording uploads and reaches transcription endpoint
 // ─────────────────────────────────────────────────────────────────────────────
 test('authenticated press hold release uploads and transcribes audio embed', async ({ page }) => {
 	test.setTimeout(180000);
@@ -335,7 +473,7 @@ test('authenticated press hold release uploads and transcribes audio embed', asy
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 4: Press & hold then Escape → recording cancelled, no embed
+// Test 5: Press & hold then Escape → recording cancelled, no embed
 // ─────────────────────────────────────────────────────────────────────────────
 test('press hold then escape cancels recording', async ({ page }) => {
 	test.setTimeout(60000);
